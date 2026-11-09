@@ -45,8 +45,12 @@ pub(super) fn prepare_model(settings: &PythonParserSettings, model: &mut Declara
     // The declarations and the binding index are built on a reader's first lookup, not for every file.
     model.declared.get_mut().clear();
     model.bindings.get_mut().clear();
-    model.declared_state.set(crate::domain::model::types::QualificationState::Fresh);
-    model.bindings_state.set(crate::domain::model::types::QualificationState::Fresh);
+    model
+        .declared_state
+        .set(crate::domain::model::types::QualificationState::Fresh);
+    model
+        .bindings_state
+        .set(crate::domain::model::types::QualificationState::Fresh);
 }
 
 /// Completes a file: its kind names, and, when asked, its field names, roles and notes.

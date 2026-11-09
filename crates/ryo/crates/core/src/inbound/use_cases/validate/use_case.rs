@@ -1,8 +1,8 @@
 //! The `validate` use case: it checks the text through the query language, then, when a language is linked, the kinds the query
 //! names against the kinds the linked languages have.
 
-use ryo_execution::inbound::use_cases::metadata::interface::{KindOrigin, MetadataUseCase};
 use crate::application::metadata::service::kernel_metadata;
+use ryo_execution::inbound::use_cases::metadata::interface::{KindOrigin, MetadataUseCase};
 use std::sync::Arc;
 
 use super::errors::ValidateError;

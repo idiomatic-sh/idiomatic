@@ -6,11 +6,13 @@
 //! holds, never by a span.
 use super::super::*;
 use super::fixtures::{FILE, ID, NAME, SPAN, files, functions_kept, rows};
-use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{narrowed, regrouped, selections_pushed};
+use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{
+    narrowed, regrouped, selections_pushed,
+};
+use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::{
     ComparisonOrigin, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };
-use ryo_values::domain::plan_parts::types::RepeatedRows;
 
 /// A step after the files.
 fn after_the_files(operation: Operation) -> PlanStep {
@@ -32,7 +34,12 @@ fn column(side: Side, at: ColumnIndex) -> JoinColumn {
     JoinColumn { side, column: at }
 }
 
-fn join(left: StepId, right: StepId, keys: (ColumnIndex, ColumnIndex), output: Vec<JoinColumn>) -> Operation {
+fn join(
+    left: StepId,
+    right: StepId,
+    keys: (ColumnIndex, ColumnIndex),
+    output: Vec<JoinColumn>,
+) -> Operation {
     Operation::Join {
         left: Input::Step(left),
         right: Input::Step(right),
@@ -83,7 +90,11 @@ fn chained(key: ColumnIndex) -> (Vec<PlanStep>, StepId) {
                 StepId(1),
                 StepId(2),
                 (at(0), at(2)),
-                vec![column(Side::Right, at(0)), column(Side::Right, at(1)), column(Side::Right, at(2))],
+                vec![
+                    column(Side::Right, at(0)),
+                    column(Side::Right, at(1)),
+                    column(Side::Right, at(2)),
+                ],
             )),
             functions_kept(&kept),
             after_the_files(join(
@@ -134,7 +145,10 @@ fn regrouping_a_join_on_spans_alone_leaves_it_after_the_files_and_keeps_the_pair
         "equal spans of two files meet after the files: {before:?}"
     );
     let (after, after_emitted) = regrouped(steps.clone(), emitted);
-    assert_eq!(after, steps, "a span states no file, so the join stays after the files");
+    assert_eq!(
+        after, steps,
+        "a span states no file, so the join stays after the files"
+    );
     assert_eq!(rows(after, after_emitted, &files), before);
 }
 
@@ -144,9 +158,15 @@ fn regrouping_a_join_on_the_file_makes_it_in_each_file_with_the_same_rows() {
     let (steps, emitted) = chained(ColumnIndex(1));
     let before = rows(steps.clone(), emitted, &files);
     assert!(!before.is_empty());
-    assert!(!pairs_two_files(&before), "a file key pairs functions of one file");
+    assert!(
+        !pairs_two_files(&before),
+        "a file key pairs functions of one file"
+    );
     let (after, after_emitted) = regrouped(steps.clone(), emitted);
-    assert_ne!(after, steps, "the file key moves the join of the per-file inputs into each file");
+    assert_ne!(
+        after, steps,
+        "the file key moves the join of the per-file inputs into each file"
+    );
     assert_eq!(rows(after, after_emitted, &files), before);
 }
 
@@ -181,7 +201,10 @@ fn narrowing_by_the_nodes_or_files_the_other_input_holds_keeps_the_rows() {
         let before = rows(steps.clone(), emitted, &files);
         assert!(!before.is_empty());
         let (after, after_emitted) = narrowed(steps.clone(), emitted);
-        assert_ne!(after, steps, "a node or a file key narrows the per-file input");
+        assert_ne!(
+            after, steps,
+            "a node or a file key narrows the per-file input"
+        );
         assert_eq!(rows(after, after_emitted, &files), before);
     }
 }
@@ -196,7 +219,10 @@ fn narrowing_leaves_a_join_on_spans_as_it_is() {
         "the spans of `main` functions of two files meet the function of a third file that has none: {before:?}"
     );
     let (after, after_emitted) = narrowed(steps.clone(), emitted);
-    assert_eq!(after, steps, "a span states no file, so nothing is cut in each file");
+    assert_eq!(
+        after, steps,
+        "a span states no file, so nothing is cut in each file"
+    );
     assert_eq!(rows(after, after_emitted, &files), before);
 }
 
@@ -239,6 +265,9 @@ fn pushing_a_filter_into_a_join_on_the_file_keeps_the_rows() {
     let before = rows(steps.clone(), emitted, &files);
     assert!(!before.is_empty());
     let (after, after_emitted) = selections_pushed(steps.clone(), emitted);
-    assert_ne!(after, steps, "the filter of the second function moves onto its input");
+    assert_ne!(
+        after, steps,
+        "the filter of the second function moves onto its input"
+    );
     assert_eq!(rows(after, after_emitted, &files), before);
 }

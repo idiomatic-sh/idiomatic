@@ -2,10 +2,10 @@
 
 use super::super::contract::check;
 use super::FactsFake;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::selects;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsPort as _;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::selects;
 
 /// What a row of the cases asks of the fake.
 #[derive(Clone, Copy)]

@@ -159,8 +159,7 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
             covered: &covered,
             skipped: &[],
             inapplicable: &inapplicable,
-            refused:
-                &vec![
+            refused: &vec![
                     ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
                     );
                     inapplicable.len()

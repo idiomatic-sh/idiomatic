@@ -152,19 +152,25 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
     let request = RunRequest {
         performance: Default::default(),
         selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        rule_observations:
+            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
-        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(ContextManifest {
-            boundary: "/snapshot".into(),
-            logical_root: "project".into(),
-            auxiliary_files: Default::default(),
-            source_files: Default::default(),
-            missing: vec!["project/missing.py".into()],
-        }),
+        file_metadata:
+            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+            ContextManifest {
+                boundary: "/snapshot".into(),
+                logical_root: "project".into(),
+                auxiliary_files: Default::default(),
+                source_files: Default::default(),
+                missing: vec!["project/missing.py".into()],
+            },
+        ),
         root: root.clone(),
         files: vec![file],
         state: root.join("cache"),
@@ -175,7 +181,8 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
         super::schemas::decode(
             request,
             &ProcessOutput {
-                signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+                signal:
+                    ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                 status: ProcessExitCode(1),
                 stdout: CapturedBytes(serde_json::to_vec(&vec![finding]).unwrap()),
                 stderr: CapturedBytes(Vec::new()),
@@ -239,10 +246,9 @@ fn rule_configuration_arguments_round_trip_as_toml_including_control_characters(
             .collect::<Vec<_>>()
     );
     let disabled: toml::Value = toml::from_str(args[3].to_str().unwrap()).unwrap();
-    let expected =
-        ryo_benchmark::domain::rule_context::service::literal_glob(&ryo::linter::RelativePath(
-            "/root/pkg/[é]\u{7f}.py".into(),
-        ));
+    let expected = ryo_benchmark::domain::rule_context::service::literal_glob(
+        &ryo::linter::RelativePath("/root/pkg/[é]\u{7f}.py".into()),
+    );
     assert_eq!(
         disabled["lint"]["per-file-ignores"][expected.0.as_str()][0].as_str(),
         Some("F401")

@@ -1,6 +1,8 @@
 //! The `table_model` service's cases for reading rows of stored, tree and computed tables, on values alone.
 
+use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::service::{count_of, kinds_of, read_row};
+use crate::domain::table_model::service_test::pairs;
 use crate::domain::table_model::types::Rows;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
@@ -18,8 +20,6 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::service::reset;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
-use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::service_test::pairs;
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, RowsError>;

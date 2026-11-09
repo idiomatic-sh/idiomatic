@@ -10,14 +10,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{rule='invalid-syntax',file='case.py',start=0,end=1}]",
         expect: Expect::Value(true),
     },
-
     Case {
         name: CaseName("full report retains inherited identity for policy admission"),
         word: Word::Succeeds,
         input: || "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{file='case.py',start=0,end=1}]",
         expect: Expect::Value(true),
     },
-
     Case {
         name: CaseName("comparison scope rejects unknown modes"),
         word: Word::Refuses,
@@ -47,11 +45,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(text: Input) -> Result<Value, Failure> {
     let cases = super::cases(text).map_err(|_refusal| "invalid report envelope")?;
     let case = cases.cases.first().expect("one decoded case");
-    let identity_preserved = match (case.expected.first().map(|expected| &expected.identity), text.contains("rule=")) {
-        (Some(ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(rule)), true) => {
-            rule.as_ref() == "invalid-syntax"
+    let identity_preserved = match (
+        case.expected.first().map(|expected| &expected.identity),
+        text.contains("rule="),
+    ) {
+        (
+            Some(ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(rule)),
+            true,
+        ) => rule.as_ref() == "invalid-syntax",
+        (Some(ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent), false) => {
+            true
         }
-        (Some(ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent), false) => true,
         (None, _) => true,
         _ => false,
     };

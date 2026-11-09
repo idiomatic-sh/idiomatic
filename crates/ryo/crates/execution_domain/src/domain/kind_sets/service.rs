@@ -7,24 +7,27 @@ use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::types::KindBits;
 
 use super::constants::{NO_NAME, SET_OF_TEST};
-use crate::domain::matching::types::PatternMatcher;
 use super::types::vocabulary::value::{PreparedKindTest, PreparedVocabulary};
 use super::types::{ComparisonOrdinal, KindScratch, ListAddress};
 use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use crate::domain::comparing::collections::comparisons::equality::item::EqualityItem;
 use crate::domain::comparing::collections::comparisons::glob::item::GlobItem;
 use crate::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::files::types::SourceView;
+use crate::domain::matching::types::PatternMatcher;
 use crate::domain::operating::types::KindNaming;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{SetMembership, Verdict};
 use crate::domain::table_scratch::service::kind_has;
-use crate::domain::table_scratch::types::{ KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest};
+use crate::domain::table_scratch::types::{
+    KindSet, KindSetPlace, KindTest, NamingPlace, NamingTest,
+};
 use crate::domain::table_texts::types::{Datum, TextView};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::descriptions::types::KindWord;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test};
+    ColumnIndex, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
+};
 
 /// Whether the comparison asks of the kind of an element something fixed, which the sets of kinds decide.
 pub fn names_a_kind(comparison: &PlanComparison) -> KindNaming {

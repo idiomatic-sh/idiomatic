@@ -1,13 +1,13 @@
 //! Injected immutable source rows and the exact file frontier captured by the public owner.
-use ryo_execution_runtime::outbound::facts::types::BucketSource;
-use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
+use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::types::BucketSource;
+use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
 use ryo_execution_runtime::outbound::facts::types::KeptBucket;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
-use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
     types::{CellKind, FileId, Offset, Relation, Span, Value},
@@ -103,7 +103,9 @@ impl FactsFinish for CapturedFacts {
             sources.push(BucketSource {
                 file: *file,
                 start: ryo_execution_runtime::outbound::facts::types::KeptWordsStart(words.len()),
-                length: ryo_execution_runtime::outbound::facts::types::KeptWordsLength(capture.words.0.len()),
+                length: ryo_execution_runtime::outbound::facts::types::KeptWordsLength(
+                    capture.words.0.len(),
+                ),
                 proof: capture.proof.clone(),
             });
             words.extend_from_slice(&capture.words.0);

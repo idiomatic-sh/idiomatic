@@ -3,14 +3,13 @@ use super::constants::{NO_TEXT, RULE_NAME};
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     file_program::types::RuleSchedule,
@@ -18,6 +17,7 @@ use ryo_execution_domain::domain::{
     prepared_request::types::{Compiled, ObservationIdentity},
     table_model::types::Rows,
 };
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::kinds,
@@ -36,7 +36,6 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::{collections::BTreeMap, sync::Arc};
-
 
 /// One syntax row's file and span.
 #[derive(Clone, Copy, Debug)]

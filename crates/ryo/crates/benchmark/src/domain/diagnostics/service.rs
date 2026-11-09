@@ -174,8 +174,10 @@ pub(crate) fn compare_rules(
                 extra: Vec::new(),
                 end_differences: Vec::new(),
             };
-            let keys: std::collections::BTreeSet<_> =
-                reference_sites.keys().chain(candidate_sites.keys()).collect();
+            let keys: std::collections::BTreeSet<_> = reference_sites
+                .keys()
+                .chain(candidate_sites.keys())
+                .collect();
             for key in keys {
                 let left = candidate_sites.get(key).map_or(&[][..], Vec::as_slice);
                 let right = reference_sites.get(key).map_or(&[][..], Vec::as_slice);
@@ -232,7 +234,9 @@ pub(crate) fn position(
     ryo_benchmark_contracts::domain::reports::types::FindingPosition,
     ryo_benchmark_contracts::domain::reports::errors::ReportsError,
 > {
-    use ryo_benchmark_contracts::domain::reports::types::{FindingPosition, SourceColumn, SourceLine};
+    use ryo_benchmark_contracts::domain::reports::types::{
+        FindingPosition, SourceColumn, SourceLine,
+    };
     let outside = || {
         ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
             super::constants::OFFSET_OUTSIDE_SOURCE.into(),

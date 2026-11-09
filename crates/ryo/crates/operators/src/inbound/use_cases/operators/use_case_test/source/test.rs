@@ -1,14 +1,14 @@
 //! Public source-match calls keep matcher construction at the edge and preserve exact delivery prefixes.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::*;
+use crate::domain::source_matches::types::*;
 use crate::inbound::use_cases::operators::fixtures;
 use crate::inbound::use_cases::operators::types::*;
-use crate::domain::source_matches::types::*;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_relations::domain::terms::types::Symbol;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use std::borrow::Cow;
 use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::row_texts::types::CellText;
+use std::borrow::Cow;
 
 #[derive(Clone, Copy)]
 enum Scenario {

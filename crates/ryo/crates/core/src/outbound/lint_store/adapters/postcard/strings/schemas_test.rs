@@ -12,14 +12,12 @@ type Value = bool;
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_text_is_named_by_its_place_and_written_once"),
-        word: Word::Succeeds,
-        input: || (),
-        expect: Expect::Value(true),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("a_text_is_named_by_its_place_and_written_once"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(true),
+}];
 
 /// Names one text twice and reads it back from its place.
 fn subject() -> Value {

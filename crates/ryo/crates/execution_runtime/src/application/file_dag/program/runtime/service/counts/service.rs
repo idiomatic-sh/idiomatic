@@ -8,7 +8,9 @@ impl ProgramExecution {
     pub(crate) fn state_counts(
         &self,
     ) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
-        use ryo_execution_domain::domain::readiness::types::{InvocationStateCount, InvocationStateCounts};
+        use ryo_execution_domain::domain::readiness::types::{
+            InvocationStateCount, InvocationStateCounts,
+        };
         let states = self.project_states.borrow();
         let mut found = InvocationStateCounts {
             populations: InvocationStateCount(states.len()),
@@ -29,8 +31,7 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
-    ) -> Result<ryo_execution_domain::domain::operator::types::LogicalCounts, OperatingError>
-    {
+    ) -> Result<ryo_execution_domain::domain::operator::types::LogicalCounts, OperatingError> {
         self.validate_state(state)?;
         let rule = self
             .program

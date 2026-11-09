@@ -32,32 +32,37 @@ pub(super) fn selected_consumer_keeps_unselected_producer_without_its_diagnostic
     let producer = RuleId::try_from("PRODUCER").unwrap();
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![consumer.clone()]),
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
-            BTreeMap::from([(
-                consumer.clone(),
-                vec![ObservationBinding {
-                    name: ObservationBindingName("published".into()),
-                    columns: vec![
-                        ObservationColumn {
-                            name: ObservationColumnName("path".into()),
-                            kind: ObservationKind::File,
-                        },
-                        ObservationColumn {
-                            name: ObservationColumnName("span".into()),
-                            kind: ObservationKind::Span,
-                        },
-                    ],
-                    producers: vec![ObservationProducer::Output {
-                        rule: producer,
-                        output: ObservationName("used".into()),
-                    }],
-                }],
-            )])
-            .into(),
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+            vec![consumer.clone()],
         ),
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        rule_observations:
+            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
+                BTreeMap::from([(
+                    consumer.clone(),
+                    vec![ObservationBinding {
+                        name: ObservationBindingName("published".into()),
+                        columns: vec![
+                            ObservationColumn {
+                                name: ObservationColumnName("path".into()),
+                                kind: ObservationKind::File,
+                            },
+                            ObservationColumn {
+                                name: ObservationColumnName("span".into()),
+                                kind: ObservationKind::Span,
+                            },
+                        ],
+                        producers: vec![ObservationProducer::Output {
+                            rule: producer,
+                            output: ObservationName("used".into()),
+                        }],
+                    }],
+                )])
+                .into(),
+            ),
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: Default::default(),
         context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
@@ -65,8 +70,14 @@ pub(super) fn selected_consumer_keeps_unselected_producer_without_its_diagnostic
         rules,
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python-target=3.10".into())),
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        parser_configuration:
+            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(
+                ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+                    "python-target=3.10".into(),
+                ),
+            ),
+        source_language:
+            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath("case.py".into())],
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.path().join("cache"),

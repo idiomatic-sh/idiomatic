@@ -1,6 +1,6 @@
 //! Shared real request and semantic-descriptor preparation data for owner controls.
 use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::DerivedContract, ViewRequest},
+    derived_views::types::{ViewRequest, contract::value::DerivedContract},
     operation_schema::types::InputShape,
     table_model::{service::kinds_of, types::Rows},
 };
@@ -18,7 +18,7 @@ pub(crate) fn prepared_sources(
 pub(crate) fn compiled(
     plans: &[Plan],
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-) -> ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram {
+) -> ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram{
     use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
     use ryo_values::domain::{
         query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
@@ -69,8 +69,13 @@ pub(crate) fn compiled(
         &request,
         ryo_execution_domain::domain::file_program::types::ObservationRequest::Independent,
     );
-    ryo_execution_domain::domain::executable_program::service::compile(plans, graph, &partitions, &request)
-        .unwrap()
+    ryo_execution_domain::domain::executable_program::service::compile(
+        plans,
+        graph,
+        &partitions,
+        &request,
+    )
+    .unwrap()
 }
 pub(crate) fn source_plan(relation: Relation) -> Plan {
     use ryo_values::domain::{

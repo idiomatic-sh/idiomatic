@@ -1,13 +1,14 @@
 //! Actual view acquisition consumes one immutable proof and refuses stale/mismatched publications.
 use super::*;
 use crate::application::file_dag::derived::owner::ViewContext;
+use ryo_derived::domain::contract::types::DerivedView;
 use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::PreparedViewUse, *},
-    operating::errors::OperatingError, operator::types::OperatorContext,
+    operating::errors::OperatingError,
     operation_schema::types::InputShape,
+    operator::types::OperatorContext,
     table_model::types::Rows,
 };
-use ryo_derived::domain::contract::types::DerivedView;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
@@ -34,7 +35,9 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
     workspace.capture_admitted(vec![publication.clone()]);
-    let admitted = workspace.admit(InputNumber(0), RepresentationInput::from(&rows)).unwrap();
+    let admitted = workspace
+        .admit(InputNumber(0), RepresentationInput::from(&rows))
+        .unwrap();
     assert_eq!(admitted.identity(&owner).unwrap().relation, None);
     assert_eq!(admitted.rows().kinds(), &[CellKind::Number]);
     assert!(matches!(
@@ -70,9 +73,7 @@ fn use_(
     PreparedViewUse {
         plan: {
             let plan = crate::application::file_dag::derived::prepare::view(
-                (std::sync::Arc::new(
-                    crate::application::file_dag::fixtures::derived(),
-                )
+                (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
                 &request,
                 &schemas,
@@ -99,7 +100,9 @@ fn context<'a>(
         semantic: None,
         prepared_kinds: None,
         prepared_matchers: None,
-        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
         bindings: &[] as &[ParameterBinding],
         symbols: symbols.into(),
         source: ryo_values::domain::files::types::SourceView(&[]),
@@ -152,9 +155,9 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
             panic!("equality")
         };
         assert_eq!(index.rows.len(), 3);
-        let DerivedView::Membership(ryo_derived::domain::membership::types::MembershipView::Values(
-            values,
-        )) = members.view().unwrap()
+        let DerivedView::Membership(
+            ryo_derived::domain::membership::types::MembershipView::Values(values),
+        ) = members.view().unwrap()
         else {
             panic!("membership")
         };
@@ -208,7 +211,10 @@ fn distinct_published_populations_never_share_slot_only_identities() {
             })
             .unwrap();
         workspace.capture_admitted(vec![published.clone(), right_publication.clone()]);
-        let inputs = [RepresentationInput::from(&left), RepresentationInput::from(&right)];
+        let inputs = [
+            RepresentationInput::from(&left),
+            RepresentationInput::from(&right),
+        ];
         let texts = ryo_execution_domain::domain::table_texts::types::Texts {
             symbols: context.symbols.as_ref(),
             source: context.source,
@@ -253,7 +259,10 @@ fn distinct_published_populations_never_share_slot_only_identities() {
     );
     workspace.publications[1] = Some(published.clone());
     let wrong = table(&[4, 0], 2);
-    let inputs = [RepresentationInput::from(&left), RepresentationInput::Computed(&wrong)];
+    let inputs = [
+        RepresentationInput::from(&left),
+        RepresentationInput::Computed(&wrong),
+    ];
     let texts = ryo_execution_domain::domain::table_texts::types::Texts {
         symbols: context.symbols.as_ref(),
         source: context.source,
@@ -356,9 +365,8 @@ use ryo_derived::domain::request::types::DerivedKind;
 fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
     Rc::new(crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     ))
 }
 

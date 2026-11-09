@@ -24,7 +24,7 @@ pub mod axis;
 pub mod closure;
 pub mod cycles;
 pub mod evaluation;
-pub mod ordered_dfs;
 pub mod fits_rendered;
+pub mod ordered_dfs;
 pub mod render_batch;
 pub mod table_rows;

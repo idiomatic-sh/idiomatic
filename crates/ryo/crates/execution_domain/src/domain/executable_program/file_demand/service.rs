@@ -1,20 +1,15 @@
 //! Compile immutable file-intent root obligations once for the whole request.
-use crate::domain::operator::types::ReaderMultiplicity;
 use super::super::types::executable_program::value::ExecutableProgram;
 use super::super::types::region::value::Region;
 use super::super::types::{
-    ComputationCount, ConsumerObligation, FileReaderGraph, InputSource, ObservationPlace,
-    RegionId, Remaining, RemainingMemo, RemainingTable, RuleProgram,
+    ComputationCount, ConsumerObligation, FileReaderGraph, InputSource, ObservationPlace, RegionId,
+    Remaining, RemainingMemo, RemainingTable, RuleProgram,
 };
 use super::types::*;
+use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::rule_intent::types::FrontierPurpose;
-use crate::domain::{
-    coverage::types::RuleIndex, operating::errors::OperatingError,
-};
-use ryo_values::domain::{
-    plan_parts::types::StepScope,
-    records::types::ObservationIndex,
-};
+use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
+use ryo_values::domain::{plan_parts::types::StepScope, records::types::ObservationIndex};
 
 fn region(
     program: &ExecutableProgram,
@@ -224,10 +219,7 @@ pub fn remaining(
     regions: &[Region],
     selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
 ) -> Result<Remaining, OperatingError> {
-    let mut memo = graph
-        .remaining
-        .lock()
-        .map_err(|_| OperatingError::NotRun)?;
+    let mut memo = graph.remaining.lock().map_err(|_| OperatingError::NotRun)?;
     if let Some(table) = &memo.table
         && table.selected == *selected
     {

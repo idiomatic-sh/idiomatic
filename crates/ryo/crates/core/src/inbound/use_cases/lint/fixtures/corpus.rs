@@ -5,6 +5,10 @@
     reason = "a contract run over the corpus fails by panicking: the panic is the failure of the check that calls it"
 )]
 
+use super::operators::Finding;
+use super::operators::escaped;
+use super::operators::expected;
+use super::operators::finding;
 use crate::domain::corpus_copies::service::copied;
 use crate::domain::corpus_copies::types::CopyCount;
 use crate::domain::corpus_copies::types::CopyNaming;
@@ -36,10 +40,6 @@ use ryo_values::domain::row_texts::types::Cell as Typed;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
-use super::operators::Finding;
-use super::operators::finding;
-use super::operators::escaped;
-use super::operators::expected;
 
 /// What the fixtures state: the input of each relation item, and the rule and the rows of each item.
 pub struct Corpus {
@@ -70,7 +70,6 @@ impl std::fmt::Debug for Corpus {
 /// The rows each rule is expected to give, sorted, one to a line, by the rule's id.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Stated(pub(super) BTreeMap<String, String>);
-
 
 /// Where `point` is in `text`, in bytes.
 pub(super) fn offset_of(text: &FileBytes, point: Point) -> usize {
@@ -144,8 +143,6 @@ pub(super) fn relation_findings(fixtures: &Fixtures, relation: &str) -> Vec<Find
         .filter_map(|row| Some(finding(row.first()?.clone(), row.clone())))
         .collect()
 }
-
-
 
 /// The text of a file of the fixtures, which every row reads whole.
 pub(super) fn read(path: &Path) -> String {
@@ -302,7 +299,12 @@ pub fn corpus(
 }
 
 /// The files of every input of the corpus, once for each of `copies` copies, named as `naming` says, with the bytes repeated `repeat` times.
-pub(super) fn files(corpus: &Corpus, naming: CopyNaming, copies: u32, repeat: usize) -> Vec<CorpusFile> {
+pub(super) fn files(
+    corpus: &Corpus,
+    naming: CopyNaming,
+    copies: u32,
+    repeat: usize,
+) -> Vec<CorpusFile> {
     let (copies, repeat) = (CopyCount(copies), Repeat(repeat));
     let shape = ListShape {
         naming,

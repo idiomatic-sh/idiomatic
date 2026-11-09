@@ -5,7 +5,6 @@ use std::sync::Arc;
 use super::errors::TypecheckError;
 use super::interface::TypecheckUseCase;
 use super::service::{invalid, unresolved};
-use ryo_values::domain::plans::types::QueryRequest;
 use crate::domain::assembling::service::lower_with_observations;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::syntax::constants::operator_name;
@@ -18,6 +17,7 @@ use ryo_relations::domain::relations::service::name;
 use ryo_values::domain::descriptions::types::{
     OperatorName, RelationName, StepCount, ValidateReport,
 };
+use ryo_values::domain::plans::types::QueryRequest;
 
 /// `typecheck`, over the syntax and the catalog it calls.
 pub struct TypecheckUseCaseImpl {

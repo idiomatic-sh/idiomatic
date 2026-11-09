@@ -1,7 +1,7 @@
 //! Root keys carry orientation and positive reach cannot invent a missing root.
-use ryo_derived::domain::vertices::types::VertexId;
 use super::constants;
 use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
+use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::stored_graph::types::GraphWalk;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, FactColumn, Integer, Relation, Value};

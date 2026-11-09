@@ -156,7 +156,11 @@ pub(super) fn unknown_futures(
             ParserRefusal {
                 at: alias.name.range(),
                 said: Said(said),
-                metadata: DiagnosticMetadata { phase: DiagnosticPhase::Validation, impact: TreeImpact::Preserved, code: FUTURE_FEATURE_NOT_DEFINED },
+                metadata: DiagnosticMetadata {
+                    phase: DiagnosticPhase::Validation,
+                    impact: TreeImpact::Preserved,
+                    code: FUTURE_FEATURE_NOT_DEFINED,
+                },
             }
         })
 }

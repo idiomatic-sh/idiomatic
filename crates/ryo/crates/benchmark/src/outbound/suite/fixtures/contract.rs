@@ -1,14 +1,14 @@
 //! Physical artifact observations shared by suite adapters; audit policy stays in application.
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use super::samples::{escaping_case, given_file, request};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::{
     interface::SuitePort,
     types::{
-        ArtifactPath, ArtifactSet, ArtifactText, MaterializedContext,
-        ArtifactMetadata, CaseArtifacts, EvidenceArtifact, EvidenceRequirement,
+        ArtifactMetadata, ArtifactPath, ArtifactSet, ArtifactText, CaseArtifacts, EvidenceArtifact,
+        EvidenceRequirement, MaterializedContext,
     },
 };
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::{
     reports::errors::ReportsError as Error, workloads::types::Tool,
 };
@@ -227,8 +227,10 @@ pub fn check(adapter: &impl SuitePort) {
             ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
-        file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
+        rule_context:
+            ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation:
+            ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode: Default::default(),
         tool: "fixture".into(),
         version: "1".into(),
@@ -237,9 +239,12 @@ pub fn check(adapter: &impl SuitePort) {
         pending: Default::default(),
         query_modules: Default::default(),
         rule_applicability: Default::default(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        parser_configuration:
+            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language:
+            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     };
     let subject = |operation| {
@@ -254,8 +259,14 @@ pub fn check(adapter: &impl SuitePort) {
         };
         let refused = |_error: &dyn std::fmt::Debug| Failure::Refused;
         match operation {
-            Operation::Profile => adapter.profile(ArtifactPath(&missing)).map(|_| 0).map_err(classify),
-            Operation::Projects => adapter.projects(ArtifactPath(&missing)).map(|_| 0).map_err(classify),
+            Operation::Profile => adapter
+                .profile(ArtifactPath(&missing))
+                .map(|_| 0)
+                .map_err(classify),
+            Operation::Projects => adapter
+                .projects(ArtifactPath(&missing))
+                .map(|_| 0)
+                .map_err(classify),
             Operation::Verify => adapter
                 .verify_tool(ArtifactPath(&missing), &tool)
                 .map(|()| 0)
@@ -264,7 +275,10 @@ pub fn check(adapter: &impl SuitePort) {
                 .fingerprint(ArtifactSet(&[missing]))
                 .map(|_| 0)
                 .map_err(classify),
-            Operation::Digest => adapter.digest(ArtifactPath(&missing)).map(|_| 0).map_err(classify),
+            Operation::Digest => adapter
+                .digest(ArtifactPath(&missing))
+                .map(|_| 0)
+                .map_err(classify),
             Operation::Stage => adapter
                 .stage(
                     ArtifactPath(&missing),
@@ -344,7 +358,9 @@ pub fn check(adapter: &impl SuitePort) {
                 .map(|()| 0)
                 .map_err(classify),
             Operation::EnsureDirectory => adapter
-                .ensure_directory(ArtifactPath(&temporary.path().join("ensured").join("nested")))
+                .ensure_directory(ArtifactPath(
+                    &temporary.path().join("ensured").join("nested"),
+                ))
                 .map(|directory| usize::from(directory.is_dir()))
                 .map_err(classify),
             Operation::WriteAndSelect => {
@@ -361,10 +377,17 @@ pub fn check(adapter: &impl SuitePort) {
                 .map_err(classify),
             Operation::CreateAndRead => {
                 let file = temporary.path().join("source.py");
-                adapter.create_text(ArtifactPath(&file)).and_then(|mut stream| Ok(std::io::Write::write_all(&mut stream, b"abc")?))
-                    .and_then(|()| adapter.source_text(ArtifactPath(&file))).map(|source| source.0.len()).map_err(classify)
+                adapter
+                    .create_text(ArtifactPath(&file))
+                    .and_then(|mut stream| Ok(std::io::Write::write_all(&mut stream, b"abc")?))
+                    .and_then(|()| adapter.source_text(ArtifactPath(&file)))
+                    .map(|source| source.0.len())
+                    .map_err(classify)
             }
-            Operation::AcceptedMissing => adapter.accepted_differences(ArtifactPath(&missing)).map(|accepted| accepted.rules.len()).map_err(classify),
+            Operation::AcceptedMissing => adapter
+                .accepted_differences(ArtifactPath(&missing))
+                .map(|accepted| accepted.rules.len())
+                .map_err(classify),
             Operation::TotalSize => {
                 let file = temporary.path().join("size.bin");
                 std::fs::write(&file, b"abc").expect("size fixture");

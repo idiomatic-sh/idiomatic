@@ -1,5 +1,8 @@
 //! Population proofs, partition identity and readiness are minted by admission only.
-use ryo_execution_store::application::file_dag::{derived::population::types::PopulationId, relations::{RelationOwner, handle::service::PublishedInput}};
+use ryo_execution_store::application::file_dag::{
+    derived::population::types::PopulationId,
+    relations::{RelationOwner, handle::service::PublishedInput},
+};
 
 mod admitted;
 mod available;
@@ -22,7 +25,9 @@ use std::{rc::Rc, sync::Arc};
 #[derive(Clone)]
 pub(crate) struct FileGeneration {
     file: FileId,
-    generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+    generation: Arc<
+        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
+    >,
 }
 /// The project identity is the request and its files, coverage and skips. `inapplicable` and
 /// `refused` are one rule's own evidence beside that identity: equality never reads them, so every
@@ -94,7 +99,9 @@ pub(crate) enum ProducerRoot {
 struct PopulationProof {
     owner: Rc<RelationOwner>,
     population: PopulationId,
-    generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+    generation: Arc<
+        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
+    >,
 }
 #[derive(Clone)]
 pub(crate) struct AdmittedInput {
@@ -148,10 +155,7 @@ pub(crate) trait Inputs {
     ) -> ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope;
     /// A dependency is polled without entering another invocation. The owner
     /// resumes this same admission action after its producer reaches a terminal state.
-    fn dependency(
-        &self,
-        _input: InputSource,
-    ) -> Result<Option<RegionId>, OperatingError> {
+    fn dependency(&self, _input: InputSource) -> Result<Option<RegionId>, OperatingError> {
         Ok(None)
     }
     fn bind_rule(&mut self, _rule: RuleIndex) {}
@@ -214,10 +218,7 @@ pub(crate) struct AdmittedWalkSource<'a> {
     population: PopulationId,
 }
 impl<'a> AdmittedWalkSource<'a> {
-    pub(crate) fn require_input(
-        &self,
-        input: &AdmittedInput,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn require_input(&self, input: &AdmittedInput) -> Result<(), OperatingError> {
         std::ptr::eq(self.source, input)
             .then_some(())
             .ok_or(OperatingError::NotRead)
@@ -263,7 +264,9 @@ fn contributed_readiness(
         match &input.readiness {
             Readiness::Complete => {}
             Readiness::Partial { files, lacks } => {
-                affected.extend(ryo_execution_domain::domain::completion::service::lacks_of(files, lacks));
+                affected.extend(ryo_execution_domain::domain::completion::service::lacks_of(
+                    files, lacks,
+                ));
             }
             Readiness::Inapplicable { files } => {
                 for file in files {
@@ -285,9 +288,10 @@ fn contributed_readiness(
             }
         }));
         match ryo_execution_domain::domain::completion::service::partial_of_lacks(affected) {
-            ryo_execution_domain::domain::completion::types::CoverageState::Partial { files, lacks } => {
-                Ok(Readiness::Partial { files, lacks })
-            }
+            ryo_execution_domain::domain::completion::types::CoverageState::Partial {
+                files,
+                lacks,
+            } => Ok(Readiness::Partial { files, lacks }),
             _ => Err(OperatingError::NotRun),
         }
     } else if inapplicable.is_empty() {
@@ -322,8 +326,10 @@ pub(super) fn alias_member(
         .producers
         .get(member.0)
         .ok_or(OperatingError::NotRun)?;
-    let ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } =
-        producer
+    let ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output {
+        rule,
+        output,
+    } = producer
     else {
         return Err(OperatingError::ObservationIncomplete {
             reason: crate::application::file_dag::program::constants::NO_EXECUTABLE_QUERY.into(),
@@ -376,6 +382,8 @@ pub(super) fn alias_observation(
     }
     input.publication(owner)?;
     let mut alias = input.clone();
-    alias.root = ProducerRoot::Input(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0)));
+    alias.root = ProducerRoot::Input(InputSource::Observation(
+        ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot.0),
+    ));
     Ok(alias)
 }

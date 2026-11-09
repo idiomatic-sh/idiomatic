@@ -1,16 +1,16 @@
 //! The cases of resident populations a worker reads more than once.
 use super::super::errors::FileAnalysisError;
+use super::visit_test::visited_as;
+use super::visit_test::visited_as_with_facts;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use super::visit_test::visited_as;
-use super::visit_test::visited_as_with_facts;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 /// A legal unaudited worker whose immutable resident alternatives change between reads.
 pub(super) struct UnstableResidentFacts {
     /// Delegate mutation/retained-word operations without promising resident identity.
@@ -21,7 +21,8 @@ pub(super) struct UnstableResidentFacts {
     reads: std::sync::atomic::AtomicUsize,
 }
 
-pub(super) fn unstable_same_shape_resident_populations_remain_distinct() -> Result<usize, FileAnalysisError> {
+pub(super) fn unstable_same_shape_resident_populations_remain_distinct()
+-> Result<usize, FileAnalysisError> {
     use ryo_execution_runtime::outbound::facts::interface::FactsWorker as _;
     use ryo_relations::domain::relations::types::FactColumn;
     let facts = UnstableResidentFacts {
@@ -69,7 +70,8 @@ pub(super) fn unstable_same_shape_resident_populations_remain_distinct() -> Resu
     Ok(1)
 }
 
-pub(super) fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes() -> Result<usize, FileAnalysisError> {
+pub(super) fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes()
+-> Result<usize, FileAnalysisError> {
     use crate::domain::render::types::Answering;
     use crate::domain::visit::types::Keeping;
     use ryo_relations::domain::relations::types::FactColumn;
@@ -115,9 +117,7 @@ pub(super) fn file_visits_preserve_stable_unstable_and_unread_provider_outcomes(
     Ok(1)
 }
 
-impl ryo_execution_runtime::outbound::facts::interface::FactsWorker
-    for UnstableResidentFacts
-{
+impl ryo_execution_runtime::outbound::facts::interface::FactsWorker for UnstableResidentFacts {
     fn resident_stability(
         &self,
     ) -> ryo_execution_runtime::outbound::facts::types::ResidentStability {

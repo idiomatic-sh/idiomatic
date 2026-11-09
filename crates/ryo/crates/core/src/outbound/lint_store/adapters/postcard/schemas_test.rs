@@ -13,14 +13,12 @@ type Value = bool;
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("another_builds_table_of_contents_reads_as_nothing"),
-        word: Word::Succeeds,
-        input: || (),
-        expect: Expect::Value(true),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("another_builds_table_of_contents_reads_as_nothing"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(true),
+}];
 
 /// Writes the table of contents for one build and reads it back by that build and by another.
 fn subject() -> Value {

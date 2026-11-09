@@ -1,5 +1,7 @@
 //! Each pure family is exercised through the public inbound implementation.
-use crate::inbound::use_cases::metadata::interface::MetadataUseCase as _;
+use super::fixtures::example_unknown_relations;
+use super::fixtures::plan;
+use super::fixtures::vocabularies;
 use super::interface::Bearing;
 use super::interface::Blocking;
 use super::interface::CoverageScope;
@@ -14,10 +16,11 @@ use super::interface::RuleScope;
 use super::types::AffectedFiles;
 use super::types::CoverageFileCount;
 use super::use_case::MetadataUseCaseImpl;
-use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+use crate::inbound::use_cases::metadata::interface::MetadataUseCase as _;
 use ryo_execution_domain::domain::kind_check::types::KindRefusal;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::files::types::FilePath;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::Case;
@@ -37,9 +40,6 @@ use ryo_values::domain::runs::types::RuleNumber;
 use ryo_values::domain::stored_facts::types::PartialCause;
 use ryo_values::selects;
 use std::sync::Arc;
-use super::fixtures::plan;
-use super::fixtures::vocabularies;
-use super::fixtures::example_unknown_relations;
 
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
@@ -214,10 +214,19 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 
         Scenario::KnownKind => {
             let plan = plan(Relation::SyntaxTree, Some("fn"));
-            assert!(metadata.kind_refusal(&plan, &vocabularies(), &MatchingUseCaseImpl).is_none());
             assert!(
                 metadata
-                    .first_unknown(&[plan.clone()], &[Vec::new()], &vocabularies(), &MatchingUseCaseImpl)
+                    .kind_refusal(&plan, &vocabularies(), &MatchingUseCaseImpl)
+                    .is_none()
+            );
+            assert!(
+                metadata
+                    .first_unknown(
+                        &[plan.clone()],
+                        &[Vec::new()],
+                        &vocabularies(),
+                        &MatchingUseCaseImpl
+                    )
                     .is_none()
             );
             Ok(Expected::KnownKind(metadata.kinds_asked(&plan, &[]).len()))
@@ -225,7 +234,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::UnknownKind => {
             let plan = plan(Relation::SyntaxTree, Some("ghost"));
             let unknown = metadata
-                .first_unknown(&[plan.clone()], &[Vec::new()], &vocabularies(), &MatchingUseCaseImpl)
+                .first_unknown(
+                    &[plan.clone()],
+                    &[Vec::new()],
+                    &vocabularies(),
+                    &MatchingUseCaseImpl,
+                )
                 .expect("the first unknown kind");
             assert_eq!(unknown.rule.0, 0);
             assert_eq!(&*unknown.word.0, "ghost");

@@ -7,8 +7,8 @@ use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
-use ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
@@ -16,20 +16,29 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value};
 use std::{
     cell::{Cell, RefCell},
-    rc::Rc};
+    rc::Rc,
+};
 use {
     ryo_execution_domain::domain::coverage::types::RuleIndex,
     ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
-    ryo_values::domain::files::types::SourceView};
+    ryo_values::domain::files::types::SourceView,
+};
 
 #[derive(Clone, Copy)]
 pub(super) enum RuntimeProbeMode {
     Plain,
     /// As `Plain`, with every region joining a shared walk instead of declining it.
     Joined,
-    SemanticAndCleanupFailure { completed: RegionId },
-    NestedFailure { outer: RegionId, inner: RegionId },
-    Reenter { root: RegionId },
+    SemanticAndCleanupFailure {
+        completed: RegionId,
+    },
+    NestedFailure {
+        outer: RegionId,
+        inner: RegionId,
+    },
+    Reenter {
+        root: RegionId,
+    },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct EvaluationCount(pub usize);
@@ -62,7 +71,8 @@ impl KernelInvocation for RuntimeProbe {
         _: &crate::application::file_dag::program::runtime::service::ReadySelection<'_, '_>,
         _: &[AdmittedInput],
         _: &mut OperatorContext<'_>,
-    ) -> Result<crate::application::file_dag::program::runtime::types::Submission, OperatingError> {
+    ) -> Result<crate::application::file_dag::program::runtime::types::Submission, OperatingError>
+    {
         // These lifecycle controls exercise ordinary invocation, not selection sharing; `Joined` takes the
         // shared walk's scheduling route, a preparation poll and a dispatched evaluation.
         Ok(match self.mode {
@@ -93,9 +103,9 @@ impl KernelInvocation for RuntimeProbe {
         output: &mut dyn Emit,
     ) -> Result<(), InvocationFailure> {
         self.calls.set(EvaluationCount(self.calls.get().0 + 1));
-        scratch
-            .ordered_row
-            .push(Value::Number(Integer(100 + instruction.producer().0 as i64)));
+        scratch.ordered_row.push(Value::Number(Integer(
+            100 + instruction.producer().0 as i64,
+        )));
         let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
         match self.mode {
             RuntimeProbeMode::SemanticAndCleanupFailure { completed } => {
@@ -198,7 +208,9 @@ pub(super) fn context<'a>(
         phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_matchers: None,
-        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
         prepared_kinds: None,
         bindings: &[],
         symbols: symbols.into(),

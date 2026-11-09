@@ -1,6 +1,8 @@
 //! A documented difference from the reference tool, and the validation a native side attests.
 use crate::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding};
-use crate::domain::documents::types::text::value::{FileMetadataDigest, PathText, Pin, ReasonText, Sha256Text};
+use crate::domain::documents::types::text::value::{
+    FileMetadataDigest, PathText, Pin, ReasonText, Sha256Text,
+};
 use crate::domain::process::types::ProcessFailure;
 use crate::domain::workloads::types::DiscrepancyBasis;
 

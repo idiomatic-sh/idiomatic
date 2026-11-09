@@ -2,7 +2,7 @@
 use super::super::fixtures::operations::{corpus::compile_program, heads::FUNCTION};
 use ryo_execution_domain::domain::executable_program::{
     fusion::types::{Barrier, Fusibility, Ineligible},
-    types::{executable_program::value::ExecutableProgram, LogicalInstruction},
+    types::{LogicalInstruction, executable_program::value::ExecutableProgram},
 };
 use ryo_relations::domain::relations::{service::kinds, types::Integer};
 use ryo_values::domain::{
@@ -10,7 +10,7 @@ use ryo_values::domain::{
         ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
     },
     plan_parts::types::{
-        ColumnIndex, PlanComparison, Input, JoinColumn, Operand, QueryLiteral, RepeatedRows, Side,
+        ColumnIndex, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, RepeatedRows, Side,
         StepId, StepScope, Test,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
@@ -215,7 +215,11 @@ fn equivalent_extends_of_two_rules_share_one_region() {
     );
     assert_eq!(emit_region(&program, 0), emit_region(&program, 1));
     let shared = &program.regions()[emit_region(&program, 0)];
-    assert_eq!(shared.consumers().0, 2, "both rules read the one publication");
+    assert_eq!(
+        shared.consumers().0,
+        2,
+        "both rules read the one publication"
+    );
     assert_eq!(program.regions().len(), 2, "one producer, one extend");
     let producer = program.logical_regions()[logical(&program, 0, 0).0];
     assert_eq!(program.regions()[producer.0].consumers().0, 1);

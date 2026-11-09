@@ -113,9 +113,13 @@ where
 
 /// The language's requirement when a wanted reader looks at what completion adds; else none: no model is prepared for it.
 fn demanded<L: ParseUseCase + ?Sized>(language: &L, wanted: &[Relation]) -> CompletionRequirement {
-    let mut slots = wanted.iter().filter_map(|relation| slot_of(language, *relation));
+    let mut slots = wanted
+        .iter()
+        .filter_map(|relation| slot_of(language, *relation));
     let reads_added = slots.any(|slot| expands(&slot) == Expansions::Included);
-    reads_added.then(|| language.completion_requirement()).unwrap_or_default()
+    reads_added
+        .then(|| language.completion_requirement())
+        .unwrap_or_default()
 }
 
 fn build_recognized<L: ParseUseCase + ?Sized>(
@@ -170,7 +174,13 @@ pub(crate) fn read_in<L>(
 where
     L: ParseUseCase + ?Sized,
 {
-    build_in(language, request, table, symbols, demanded(language, wanted))?;
+    build_in(
+        language,
+        request,
+        table,
+        symbols,
+        demanded(language, wanted),
+    )?;
     walk_in(
         language,
         table,
@@ -195,7 +205,13 @@ pub(crate) fn read_explicit_in<L: ParseUseCase + ?Sized>(
     if language.recognizes_explicit(&request) == Recognition::Declines {
         return Err(ParseError::Unsupported);
     }
-    build_recognized(language, request, table, symbols, demanded(language, wanted))?;
+    build_recognized(
+        language,
+        request,
+        table,
+        symbols,
+        demanded(language, wanted),
+    )?;
     walk_in(
         language,
         table,

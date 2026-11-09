@@ -35,8 +35,12 @@ pub(crate) fn stage(
         )?;
         for case in cases.cases {
             let selected = match &case.selected_rules {
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(rules) => rules.as_slice(),
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => authored,
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+                    rules,
+                ) => rules.as_slice(),
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => {
+                    authored
+                }
             };
             let profile_declarations = observations::project_profile(
                 &tool.rule_observations,

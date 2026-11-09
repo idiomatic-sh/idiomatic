@@ -298,7 +298,9 @@ impl std::fmt::Display for ProviderFault {
     }
 }
 
-impl From<ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError> for LintError {
+impl From<ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError>
+    for LintError
+{
     fn from(
         error: ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError,
     ) -> Self {

@@ -234,11 +234,8 @@ pub(super) fn i001_hidden_match_and_ruf100_output_follow_first_import_and_unknow
                         "one broken file cannot poison the valid named partition"
                     );
                     assert!(
-                        warm_mixed
-                            .skipped
-                            .iter()
-                            .any(|skip| &skip.rule == rule
-                                && skip.path == RelativePath(BROKEN_PY.into())),
+                        warm_mixed.skipped.iter().any(|skip| &skip.rule == rule
+                            && skip.path == RelativePath(BROKEN_PY.into())),
                         "the rejected file is skipped by the consumer, as by its producer"
                     );
                     assert!(

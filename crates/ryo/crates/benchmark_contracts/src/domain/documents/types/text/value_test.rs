@@ -1,6 +1,6 @@
 //! A document's yes or no and digest declarations keep the answer they were given.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::value::{FileMetadataDigest, ProjectInputsDigest, Sha256Text, YesNo};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -44,7 +44,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::TrueIsYes => YesNo::from(true) == YesNo::Yes,
         Scenario::FalseIsNo => YesNo::from(false) == YesNo::No,
         Scenario::SomeDigestDeclares => {
-            FileMetadataDigest::from(digest()) == FileMetadataDigest::Declared(Sha256Text("a".repeat(64)))
+            FileMetadataDigest::from(digest())
+                == FileMetadataDigest::Declared(Sha256Text("a".repeat(64)))
                 && ProjectInputsDigest::from(digest())
                     == ProjectInputsDigest::Declared(Sha256Text("a".repeat(64)))
         }

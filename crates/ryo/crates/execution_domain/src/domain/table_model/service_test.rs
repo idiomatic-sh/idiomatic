@@ -4,8 +4,8 @@ use ryo_relations::domain::relations::types::{CellKind, FactColumn, Integer, Val
 use ryo_values::selects;
 
 use crate::domain::table_model::collections::representations::types::{CellRead, RowRead};
-use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use crate::domain::table_model::service::{borrowed, kind, registered};
+use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_relations::domain::relations::service::to_bits;
 use std::sync::Arc;
 
@@ -26,7 +26,8 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::errors::RowsError;
 use {
     super::service::matching, ryo_values::domain::rows::service::cell,
-    ryo_values::domain::rows::service::push_row};
+    ryo_values::domain::rows::service::push_row,
+};
 
 /// A scenario: what a row asks of the part.
 type Input = fn() -> Result<Value, RowsError>;
@@ -162,7 +163,8 @@ pub(crate) fn compact(table: &Table) -> ryo_values::domain::table_words::types::
     use ryo_values::domain::stored_facts::types::KeptWords;
     use ryo_values::domain::table_words::{
         service,
-        types::{DecodeMode, WordSlice}};
+        types::{DecodeMode, WordSlice},
+    };
     let mut words = Words::default();
     service::encode_table(table, &[], &mut words);
     let ryo_values::domain::table_words::types::Admitted {

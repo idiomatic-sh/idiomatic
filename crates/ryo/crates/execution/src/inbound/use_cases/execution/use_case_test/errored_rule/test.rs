@@ -278,7 +278,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("a_rule_whose_step_reads_a_step_that_has_not_run_answers_its_error_while_its_sibling_delivers_rows"),
+        name: CaseName(
+            "a_rule_whose_step_reads_a_step_that_has_not_run_answers_its_error_while_its_sibling_delivers_rows",
+        ),
         word: Word::Succeeds,
         input: || Authored::DanglingStep,
         expect: Expect::Value(()),

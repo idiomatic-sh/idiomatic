@@ -1,8 +1,8 @@
 //! Plain compact graph, population, traversal and bounded memo data.
 use ryo_derived::domain::vertices::types::VertexId;
 
-use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_derived::domain::sharing::types::SharedMarks;
+use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowCount;
 

@@ -1,5 +1,6 @@
 //! Capacity snapshots neither decode, copy nor mutate the owned handover buffers: what the records and the store retain.
 
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::storing::service::stored_of;
 use crate::domain::storing::types::ToKeep;
 use ryo_language::domain::files::types::FilePath;
@@ -9,13 +10,12 @@ use ryo_values::domain::records::types::{
     FileOutcome, Handed, HandedNotes, HandedWords, Handing, Ran, Record,
 };
 use ryo_values::domain::row_texts::types::FindingRows;
+use ryo_values::domain::rows::types::{RowCount, Table};
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, KeptWords, LanguageNumber, NoteBytes, PackedWords,
 };
 use ryo_values::domain::stores::types::retention::value::RetainedBytes;
 use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored};
-use ryo_values::domain::rows::types::{RowCount, Table};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use std::convert::Infallible;
 
 /// A scenario: what a row asks of the part.
@@ -262,7 +262,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("staged_records_and_final_store_retain_only_descriptors_for_large_logical_payloads"),
+        name: CaseName(
+            "staged_records_and_final_store_retain_only_descriptors_for_large_logical_payloads",
+        ),
         word: Word::Succeeds,
         input: || staged_records_and_final_store_retain_only_descriptors_for_large_logical_payloads,
         expect: Expect::Value(1),

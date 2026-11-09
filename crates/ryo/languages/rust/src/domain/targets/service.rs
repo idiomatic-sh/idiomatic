@@ -4,7 +4,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::{
-    BENCHES, BIN, BUILD, CRATE_SEPARATOR, EXAMPLES, EXTENSION, HIDDEN, LIBRARY, MAIN, PACKAGE_SEPARATOR, SOURCE, TESTS,
+    BENCHES, BIN, BUILD, CRATE_SEPARATOR, EXAMPLES, EXTENSION, HIDDEN, LIBRARY, MAIN,
+    PACKAGE_SEPARATOR, SOURCE, TESTS,
 };
 use crate::domain::paths::service::{join, told, written};
 use crate::domain::paths::types::Entry;
@@ -27,7 +28,11 @@ use crate::domain::targets::types::TargetSection;
 type Entries<'a> = &'a mut Asked<RepoPath, Vec<Entry>>;
 
 /// Whether the pass was told that `source` holds the file `file`.
-fn in_source(entries: &mut Asked<RepoPath, Vec<Entry>>, source: &RepoPath, file: &EntryName) -> Presence {
+fn in_source(
+    entries: &mut Asked<RepoPath, Vec<Entry>>,
+    source: &RepoPath,
+    file: &EntryName,
+) -> Presence {
     if told(entries, source, Vec::new)
         .iter()
         .any(|each| each.name == *file && each.kind == EntryKind::File)
@@ -62,7 +67,10 @@ pub(crate) fn library_of(
 #[must_use]
 pub(crate) fn library_name(manifest: &Manifest, package: &PackageSection) -> TargetName {
     match &manifest.lib {
-        Section::Present(LibrarySection { name: Section::Present(name), .. }) => name.clone(),
+        Section::Present(LibrarySection {
+            name: Section::Present(name),
+            ..
+        }) => name.clone(),
         _ => crate_name(&package.name),
     }
 }

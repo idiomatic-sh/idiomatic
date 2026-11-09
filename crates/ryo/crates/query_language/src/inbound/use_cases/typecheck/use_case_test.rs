@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use super::errors::TypecheckError;
 use super::interface::TypecheckUseCase as _;
-use ryo_values::domain::plans::types::QueryRequest;
 use super::use_case::TypecheckUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
@@ -19,6 +18,7 @@ use crate::selects;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::plans::types::QueryRequest;
 use ryo_values::domain::program::types::{LetStep, WrittenEmit, WrittenProgram};
 use ryo_values::domain::query_syntax::types::{
     Alias, Columns, Condition, Expression, Filter, Joining, QuerySource, Select, SourceReference,

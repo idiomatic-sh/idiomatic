@@ -42,7 +42,11 @@ pub(crate) fn owner_of<'a>(
 
 /// The ids of the rules that govern the file the mask was made for.
 #[must_use]
-pub(crate) fn governing(metadata: &impl MetadataUseCase, mask: &Mask, ids: &[RuleId]) -> Vec<RuleId> {
+pub(crate) fn governing(
+    metadata: &impl MetadataUseCase,
+    mask: &Mask,
+    ids: &[RuleId],
+) -> Vec<RuleId> {
     ids.iter()
         .enumerate()
         .filter(|(rule, _)| {

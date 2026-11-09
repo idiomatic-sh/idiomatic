@@ -1,9 +1,7 @@
 //! Exhaustive semantic dispatcher. No caching, publication or admission decisions.
 use crate::domain::contract::types::derived_payload::value::{DerivedPayload, PayloadData};
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
-use crate::domain::contract::types::{
-    BuildInputs, BuildOutcome, BuildWorkspace, DerivedView,
-};
+use crate::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
 use crate::domain::dfs::types::DfsColumns;
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::membership::types::{DerivedMembership, MembershipView};
@@ -73,15 +71,17 @@ pub fn build(
                 },
                 _ => None,
             };
-            PayloadData::ClosureAdjacency(Arc::new(crate::domain::closure_adjacency::service::build(
-                rows,
-                positions,
-                key,
-                *source,
-                *destination,
-                previous,
-                &mut room.row,
-            )?))
+            PayloadData::ClosureAdjacency(Arc::new(
+                crate::domain::closure_adjacency::service::build(
+                    rows,
+                    positions,
+                    key,
+                    *source,
+                    *destination,
+                    previous,
+                    &mut room.row,
+                )?,
+            ))
         }
         (
             DerivedRequest::CycleAdjacency {
@@ -172,7 +172,9 @@ pub fn view<'a>(
         (DerivedKind::Membership, PayloadData::Membership(data)) => {
             Ok(DerivedView::Membership(match data {
                 DerivedMembership::Values(values) => MembershipView::Values(values),
-                DerivedMembership::Dense(values) => MembershipView::Dense(DenseMarks(values.0.as_slice())),
+                DerivedMembership::Dense(values) => {
+                    MembershipView::Dense(DenseMarks(values.0.as_slice()))
+                }
             }))
         }
         (DerivedKind::PartitionOrder, PayloadData::PartitionOrder(data)) => {

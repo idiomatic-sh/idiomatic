@@ -6,8 +6,13 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 
 /// The public operation under test, given the ports, the rules and the scratch directory.
-pub type Operate =
-    fn(&dyn SuitePort, &dyn LinterPort, &dyn ExecutionPort, &Path, &Path) -> Result<usize, ReportsError>;
+pub type Operate = fn(
+    &dyn SuitePort,
+    &dyn LinterPort,
+    &dyn ExecutionPort,
+    &Path,
+    &Path,
+) -> Result<usize, ReportsError>;
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
     Complete,
@@ -123,7 +128,9 @@ pub(crate) mod authored {
     pub(crate) fn project_rules(suite: &mut SuiteFake, reference: &mut LinterFake) {
         let frontend = authored::finding("invalid-syntax", 9, 19);
         reference.diagnostics.push(frontend.clone());
-        reference.diagnostics.push(authored::finding("F401", 20, 24));
+        reference
+            .diagnostics
+            .push(authored::finding("F401", 20, 24));
         suite
             .prepared
             .first_mut()
@@ -202,9 +209,11 @@ pub(crate) mod discrepancy {
             pending: std::collections::BTreeMap::default(),
             query_modules: std::collections::BTreeMap::default(),
             rule_applicability: std::collections::BTreeMap::default(),
-            parser_configuration: ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
-                "python-target=3.10".into(),
-            )),
+            parser_configuration: ParserSelection::Named(
+                ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+                    "python-target=3.10".into(),
+                ),
+            ),
             source_language: ProviderSelection::Unspecified,
             project_search_roots: SearchRoots::Undeclared,
         };
@@ -269,7 +278,8 @@ pub(crate) mod discrepancy {
         let identity = item.identity;
         let discrepancy = {
             use crate::outbound::suite::types::{
-                ClaimedDiscrepancy, ClaimedEvidence, ClaimedIdentity, ClaimedMetadata, ClaimedProcess,
+                ClaimedDiscrepancy, ClaimedEvidence, ClaimedIdentity, ClaimedMetadata,
+                ClaimedProcess,
             };
             use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
             use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
@@ -299,14 +309,19 @@ pub(crate) mod discrepancy {
                 reason: item.reason,
             }
         };
-        suite.reference_claims.push(
-            crate::outbound::suite::types::CaseClaim {
-                rule: ryo_benchmark_contracts::domain::documents::types::text::value::RuleName(authored_case.rule.to_string()),
-                name: ryo_benchmark_contracts::domain::documents::types::text::value::CaseName(authored_case.name.to_string()),
-                basis: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
-                discrepancy,
-            },
-        );
+        suite
+            .reference_claims
+            .push(crate::outbound::suite::types::CaseClaim {
+            rule: ryo_benchmark_contracts::domain::documents::types::text::value::RuleName(
+                authored_case.rule.to_string(),
+            ),
+            name: ryo_benchmark_contracts::domain::documents::types::text::value::CaseName(
+                authored_case.name.to_string(),
+            ),
+            basis:
+                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
+            discrepancy,
+        });
         suite
     }
 }

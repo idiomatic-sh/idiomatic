@@ -62,13 +62,17 @@ impl ProgramExecution {
             .as_ref()
             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
         if let Some(shape) =
-            ryo_execution_domain::domain::executable_program::service::ordered_existence(&region.route())
-                .filter(|_| progress.ordered_done == StageProgress::Pending)
+            ryo_execution_domain::domain::executable_program::service::ordered_existence(
+                &region.route(),
+            )
+            .filter(|_| progress.ordered_done == StageProgress::Pending)
         {
             progress
                 .supply(
                     inputs,
-                    ryo_execution_domain::domain::executable_program::types::InputSource::Region(shape.source),
+                    ryo_execution_domain::domain::executable_program::types::InputSource::Region(
+                        shape.source,
+                    ),
                     &self.partition,
                     context,
                 )
@@ -79,7 +83,9 @@ impl ProgramExecution {
             let source = progress
                 .admit(
                     inputs,
-                    ryo_execution_domain::domain::executable_program::types::InputSource::Region(shape.source),
+                    ryo_execution_domain::domain::executable_program::types::InputSource::Region(
+                        shape.source,
+                    ),
                     &self.partition,
                     context,
                 )

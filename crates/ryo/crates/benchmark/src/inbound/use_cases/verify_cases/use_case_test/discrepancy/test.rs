@@ -8,7 +8,8 @@ use crate::inbound::use_cases::verify_cases::fixtures::{
 use crate::outbound::{
     execution::fixtures::fake::ExecutionFake,
     linter::fixtures::{covered::CoveredCandidate, fake::LinterFake},
-    receipts::fixtures::fake::ReceiptsFake, suite::fixtures::fake::SuiteFake,
+    receipts::fixtures::fake::ReceiptsFake,
+    suite::fixtures::fake::SuiteFake,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
@@ -81,10 +82,18 @@ fn native_intended() -> Result<Value, Error> {
     });
     let execution = succeeding();
     let result = native_pair(&suite, &intended, &execution);
-    assert_eq!(history_len(&execution), Some(2), "both actual sides executed");
+    assert_eq!(
+        history_len(&execution),
+        Some(2),
+        "both actual sides executed"
+    );
     let mut canonical = suite.prepared.clone();
-    crate::application::discrepancy_attachment::service::attach(&suite, Path::new("/profile/rules"), &mut canonical)
-        .expect("application owns wire conversion");
+    crate::application::discrepancy_attachment::service::attach(
+        &suite,
+        Path::new("/profile/rules"),
+        &mut canonical,
+    )
+    .expect("application owns wire conversion");
     assert!(
         crate::domain::discrepancy::service::matches_intended(
             &canonical[0],

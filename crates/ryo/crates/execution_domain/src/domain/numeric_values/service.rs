@@ -2,8 +2,8 @@
 
 use super::constants::{INFINITY, NEGATIVE_INFINITY, NOT_A_NUMBER};
 use super::types::{
-    FloatValue, Decimal, DecimalDigits, FloatForm, Magnitude, Negative, Numeric, Shift, SmallInteger,
-    NumberText, Succession,
+    Decimal, DecimalDigits, FloatForm, FloatValue, Magnitude, Negative, NumberText, Numeric, Shift,
+    SmallInteger, Succession,
 };
 use num_bigint::{BigInt, BigUint};
 use ryo_values::domain::plan_parts::types::WholeNumber;
@@ -156,11 +156,15 @@ fn magnitude_float(
     };
     if let Some(integer) = small {
         return Some(if exponent >= 0 {
-            scaled(Magnitude(u128::from(significand)), Shift(exponent.unsigned_abs()))
-                .map_or(Ordering::Less, |right| integer.0.cmp(&right.0))
+            scaled(
+                Magnitude(u128::from(significand)),
+                Shift(exponent.unsigned_abs()),
+            )
+            .map_or(Ordering::Less, |right| integer.0.cmp(&right.0))
         } else {
-            scaled(integer, Shift(exponent.unsigned_abs()))
-                .map_or(Ordering::Greater, |left| left.0.cmp(&u128::from(significand)))
+            scaled(integer, Shift(exponent.unsigned_abs())).map_or(Ordering::Greater, |left| {
+                left.0.cmp(&u128::from(significand))
+            })
         });
     }
     // A decimal magnitude wider than u128 exceeds every float with a nonpositive scale.

@@ -8,12 +8,12 @@ use ryo_benchmark_contracts::domain::documents::types::text::value::ContestantSi
 use ryo_benchmark_contracts::domain::receipts::types::{
     AuditFailure, CaseKey, MetadataVerifiedCase, ReceiptAudit,
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
+use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use ryo_benchmark_contracts::domain::workloads::types::{
     benchmark_case_name::value::BenchmarkCaseName, case_count::value::CaseCount,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Validate every registered case, retaining valid pairs for resume while reporting every failure.
@@ -64,7 +64,12 @@ pub fn validate(
     let mut grouped = BTreeMap::<(String, String), Vec<ObservationDocument>>::new();
     for row in records {
         let key = (row.rule.0.clone(), row.name.0.clone());
-        if !cases.contains_key(&key) || !matches!(row.side, ContestantSide::Reference | ContestantSide::Candidate) {
+        if !cases.contains_key(&key)
+            || !matches!(
+                row.side,
+                ContestantSide::Reference | ContestantSide::Candidate
+            )
+        {
             return Err(Error::Invalid(
                 constants::UNREGISTERED_RECEIPT_IDENTITY.into(),
             ));

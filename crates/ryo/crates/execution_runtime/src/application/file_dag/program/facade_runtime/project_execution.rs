@@ -1,6 +1,5 @@
 //! Project execution over deferred frontier sources and one publication scope.
 use super::super::project_population::types::ProjectFrontierPopulation;
-use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::RequiredPartitions;
@@ -9,18 +8,19 @@ use crate::application::file_dag::program::facade_runtime::types::ProjectFrontie
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::native_walk::Deliveries;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
-use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use std::rc::Rc;
 use std::sync::Arc;
 mod deliver;
@@ -119,13 +119,7 @@ pub(crate) fn open_project<'a>(
     })
 }
 impl ProjectRun<'_> {
-    fn identity(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<
-        PopulationId,
-        OperatingError,
-    > {
+    fn identity(&self, rule: RuleIndex) -> Result<PopulationId, OperatingError> {
         crate::application::file_dag::frontiers::types::validate_consumer_sources(
             self.program,
             self.frontier_producer,
@@ -189,7 +183,10 @@ impl ProjectRun<'_> {
         &self,
         rule: RuleIndex,
         demand: RuleDemand,
-    ) -> Result<Vec<ryo_execution_domain::domain::executable_program::types::RegionId>, OperatingError> {
+    ) -> Result<
+        Vec<ryo_execution_domain::domain::executable_program::types::RegionId>,
+        OperatingError,
+    > {
         use ryo_execution_domain::domain::executable_program::types::InputSource;
         let metadata = self.program.rule_metadata(rule)?;
         let mut roots = Vec::new();
@@ -209,7 +206,11 @@ impl ProjectRun<'_> {
                 }
                 match &root.source {
                     Ok(InputSource::Region(id)) => roots.push(*id),
-                    Ok(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot))) => {
+                    Ok(InputSource::Observation(
+                        ryo_execution_domain::domain::executable_program::types::ObservationPlace(
+                            slot,
+                        ),
+                    )) => {
                         if let Some(Ok(id)) =
                             self.program.program().observation_regions().get(*slot)
                         {

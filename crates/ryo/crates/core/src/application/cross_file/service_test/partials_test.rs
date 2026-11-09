@@ -1,5 +1,4 @@
 //! Which findings can say where they are, and which partial reads bear on a rule.
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::world;
@@ -8,12 +7,13 @@ use crate::domain::crossing::service::placeable;
 use crate::domain::crossing::types::Placeability;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::FilePartial;
-use ryo_execution::inbound::use_cases::metadata::interface::PartialPlace;
 use ryo_execution::inbound::use_cases::metadata::interface::Lacking;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::Partial;
+use ryo_execution::inbound::use_cases::metadata::interface::PartialPlace;
 use ryo_execution::inbound::use_cases::metadata::interface::RelationRead;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;

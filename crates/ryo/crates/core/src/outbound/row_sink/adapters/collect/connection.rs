@@ -11,6 +11,11 @@ impl CollectorConnection {
     /// Takes every row the adapter kept, leaving none.
     #[must_use]
     pub fn take(&self) -> Collected {
-        std::mem::take(&mut *self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
+        std::mem::take(
+            &mut *self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
     }
 }

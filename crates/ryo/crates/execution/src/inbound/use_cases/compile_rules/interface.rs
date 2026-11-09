@@ -3,8 +3,8 @@ use super::types::CompileRequest;
 
 // The compiled rules, the shared plan cache and the refusal the contract is made of.
 pub use crate::application::rule_compilation::errors::RuleCompilationError;
-pub use crate::application::rule_compilation::service::CompiledRules;
 pub use crate::application::rule_compilation::service::CompiledPlans;
+pub use crate::application::rule_compilation::service::CompiledRules;
 
 /// What `compile_rules` offers its callers.
 pub trait CompileRulesUseCase {
@@ -14,5 +14,8 @@ pub trait CompileRulesUseCase {
     /// # Errors
     ///
     /// Refuses invalid rule ids, compiler diagnostics, missing bindings, bad observation bindings and unknown kind words.
-    fn compile_rules(&self, request: CompileRequest<'_>) -> Result<CompiledRules, RuleCompilationError>;
+    fn compile_rules(
+        &self,
+        request: CompileRequest<'_>,
+    ) -> Result<CompiledRules, RuleCompilationError>;
 }

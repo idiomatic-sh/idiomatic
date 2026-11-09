@@ -5,7 +5,7 @@ use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::corpus::types::{CorpusInventory, PathStat};
 use ryo_language::domain::project_context::types::{
-    EntryObservation, ObservedEntryState, GivenProjectInventory, ProjectInventoryCompleteness,
+    EntryObservation, GivenProjectInventory, ObservedEntryState, ProjectInventoryCompleteness,
 };
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusFile, CorpusInput, FileBytes, FileSize, Nanoseconds,
@@ -33,7 +33,9 @@ impl CorpusMemoryAdapter {
         for entry in project_inventory.entries {
             if matches!(
                 entry.state,
-                ObservedEntryState::File | ObservedEntryState::Directory | ObservedEntryState::Other
+                ObservedEntryState::File
+                    | ObservedEntryState::Directory
+                    | ObservedEntryState::Other
             ) {
                 parents_of(&entry.path, &mut parent_directories);
             }
@@ -136,29 +138,30 @@ impl CorpusPort for CorpusMemoryAdapter {
         let supplied = self.project_entries.get(path).copied();
         let source_file = self.source_paths.contains(path);
         let parent_directory = self.parent_directories.contains(path);
-        let state = if supplied == Some(ObservedEntryState::Unknown) || (source_file && parent_directory) {
-            ObservedEntryState::Unknown
-        } else if source_file {
-            if supplied.is_none_or(|state| state == ObservedEntryState::File) {
-                ObservedEntryState::File
+        let state =
+            if supplied == Some(ObservedEntryState::Unknown) || (source_file && parent_directory) {
+                ObservedEntryState::Unknown
+            } else if source_file {
+                if supplied.is_none_or(|state| state == ObservedEntryState::File) {
+                    ObservedEntryState::File
+                } else {
+                    ObservedEntryState::Unknown
+                }
+            } else if parent_directory {
+                if supplied.is_none_or(|state| state == ObservedEntryState::Directory) {
+                    ObservedEntryState::Directory
+                } else {
+                    ObservedEntryState::Unknown
+                }
+            } else if let Some(state) = supplied {
+                state
+            } else if self.project_completeness
+                == ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+            {
+                ObservedEntryState::Missing
             } else {
                 ObservedEntryState::Unknown
-            }
-        } else if parent_directory {
-            if supplied.is_none_or(|state| state == ObservedEntryState::Directory) {
-                ObservedEntryState::Directory
-            } else {
-                ObservedEntryState::Unknown
-            }
-        } else if let Some(state) = supplied {
-            state
-        } else if self.project_completeness
-            == ProjectInventoryCompleteness::CompleteWithinDeclaredScope
-        {
-            ObservedEntryState::Missing
-        } else {
-            ObservedEntryState::Unknown
-        };
+            };
         EntryObservation {
             path: path.clone(),
             state,

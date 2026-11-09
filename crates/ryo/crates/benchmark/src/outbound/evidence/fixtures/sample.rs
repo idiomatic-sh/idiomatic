@@ -1,5 +1,7 @@
 //! The owned sample data the evidence contract rows are written in.
-use ryo_benchmark_contracts::domain::measurements::types::{Measurement, PublicationSample, SampleName};
+use ryo_benchmark_contracts::domain::measurements::types::{
+    Measurement, PublicationSample, SampleName,
+};
 
 /// Owned test data, not a certification or measurement proof.
 #[derive(Clone)]

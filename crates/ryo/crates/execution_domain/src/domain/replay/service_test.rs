@@ -1,16 +1,16 @@
 //! The replay of a selection class result: the accepted prefix first, then the terminal error.
 
+use crate::domain::operator::types::{Emit, OperatorContext};
 use crate::domain::{
     operating::errors::OperatingError,
-    step_classes::types::ClassPlace,
     replay::{service::selected, types::SelectionColumns},
     shared_walk::{
         service_test::{evaluate_rows, relation_plan, with_context},
         types::{WalkWork, prepared_walk::value::PreparedWalk},
     },
+    step_classes::types::ClassPlace,
     table_model::types::Rows,
 };
-use crate::domain::operator::types::{Emit, OperatorContext};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::{
     relations::types::{FileId, NodeId, Offset, Relation, Span, Value as CellValue},

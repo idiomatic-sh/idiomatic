@@ -1,33 +1,33 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::boundary_fixture::{authored_request, corpus, engine, source};
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
-use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_values::domain::runs::types::ApplicabilityRefusal;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
-use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{fixtures::node_id, types::*};
+use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_values::domain::{
     observations::types::*,
     plan_parts::types::{Input, ObservationBindingId, StepId, StepScope},
@@ -51,11 +51,12 @@ fn named() -> PrepareRequest {
         columns: columns.clone(),
         scope: StepScope::PerFile,
     }];
-    crate::boundary_fixture::plans(&mut authored)[1].observation_inputs = vec![BoundObservationInput {
-        name: ObservationBindingName("nodes".into()),
-        columns: columns.clone(),
-        scope: StepScope::PerFile,
-    }];
+    crate::boundary_fixture::plans(&mut authored)[1].observation_inputs =
+        vec![BoundObservationInput {
+            name: ObservationBindingName("nodes".into()),
+            columns: columns.clone(),
+            scope: StepScope::PerFile,
+        }];
     crate::boundary_fixture::plans(&mut authored)[1].steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Union {
@@ -67,13 +68,15 @@ fn named() -> PrepareRequest {
     // canonical export contract uses Step roots. Keep the per-file union as a
     // real export; a separately demanded cross-file step reads the bound input
     // directly, making that Observation source an actual file frontier.
-    crate::boundary_fixture::plans(&mut authored)[1].steps.push(PlanStep {
-        scope: StepScope::CrossFile,
-        operation: Operation::Union {
-            left: Input::BoundObservation(ObservationBindingId(0)),
-            right: Input::BoundObservation(ObservationBindingId(0)),
-        },
-    });
+    crate::boundary_fixture::plans(&mut authored)[1]
+        .steps
+        .push(PlanStep {
+            scope: StepScope::CrossFile,
+            operation: Operation::Union {
+                left: Input::BoundObservation(ObservationBindingId(0)),
+                right: Input::BoundObservation(ObservationBindingId(0)),
+            },
+        });
     crate::boundary_fixture::plans(&mut authored)[1].observations = vec![
         PlanObservation {
             name: ObservationName("forwarded".into()),
@@ -146,11 +149,15 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
             ]
         );
         assert_eq!(
-            program.frontier_purpose(RuleIndex(1), InputNumber(0)).unwrap(),
+            program
+                .frontier_purpose(RuleIndex(1), InputNumber(0))
+                .unwrap(),
             FrontierPurpose::Observation
         );
         assert_eq!(
-            program.frontier_purpose(RuleIndex(1), InputNumber(1)).unwrap(),
+            program
+                .frontier_purpose(RuleIndex(1), InputNumber(1))
+                .unwrap(),
             FrontierPurpose::Observation
         );
         let corpus = corpus();
@@ -224,7 +231,9 @@ fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery(
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                        &mut arena,
+                    ),
                     places: &mut places,
                     words: &mut words,
                 },
@@ -273,13 +282,17 @@ fn a_refused_named_member_cannot_be_replaced_with_a_typed_empty_or_provider_retr
         ]
     );
     assert_eq!(
-            program.frontier_purpose(RuleIndex(1), InputNumber(0)).unwrap(),
-            FrontierPurpose::Observation
-        );
+        program
+            .frontier_purpose(RuleIndex(1), InputNumber(0))
+            .unwrap(),
+        FrontierPurpose::Observation
+    );
     assert_eq!(
-            program.frontier_purpose(RuleIndex(1), InputNumber(1)).unwrap(),
-            FrontierPurpose::Observation
-        );
+        program
+            .frontier_purpose(RuleIndex(1), InputNumber(1))
+            .unwrap(),
+        FrontierPurpose::Observation
+    );
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
     let read = |_| panic!("refused member cannot acquire a relation");

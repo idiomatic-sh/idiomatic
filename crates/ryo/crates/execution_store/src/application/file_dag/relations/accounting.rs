@@ -82,12 +82,12 @@ impl RelationOwner {
 fn table_bytes(table: &ryo_values::domain::rows::types::Table) -> ByteCount {
     ByteCount(
         table
-        .cells
-        .capacity()
-        .saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>())
-        .saturating_add(table.kinds.capacity().saturating_mul(size_of::<CellKind>()))
-        .saturating_add(
-            size_of::<ryo_values::domain::rows::types::Table>() + 2 * size_of::<usize>(),
-        ),
+            .cells
+            .capacity()
+            .saturating_mul(size_of::<ryo_relations::domain::relations::types::Value>())
+            .saturating_add(table.kinds.capacity().saturating_mul(size_of::<CellKind>()))
+            .saturating_add(
+                size_of::<ryo_values::domain::rows::types::Table>() + 2 * size_of::<usize>(),
+            ),
     )
 }

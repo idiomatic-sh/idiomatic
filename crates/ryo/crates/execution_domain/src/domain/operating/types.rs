@@ -37,7 +37,6 @@ pub(crate) enum Family {
     Regex,
 }
 
-
 /// What a comparison decided about a name of the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Memo {
@@ -48,7 +47,6 @@ pub enum Memo {
     /// The comparison holds for the name.
     Holds,
 }
-
 
 /// How many names a file has: the length of a comparison's run of the memo.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

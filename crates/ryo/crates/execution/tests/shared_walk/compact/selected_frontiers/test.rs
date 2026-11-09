@@ -1,20 +1,20 @@
 //! A selected join shares work, keeps counts and exports owned frontiers.
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures::{complete, input};
 use crate::boundary_fixture::{authored_request, corpus, demand, engine};
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::fixtures::intern_derived;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
@@ -220,7 +220,9 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                                &mut arena,
+                            ),
                             places: &mut places,
                             words: &mut words,
                         },

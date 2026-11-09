@@ -5,8 +5,8 @@ use ryo_benchmark::inbound::use_cases::admit_measurement::{
     use_case::AdmitMeasurementUseCaseImpl,
 };
 use ryo_benchmark::inbound::use_cases::audit::fixtures::audited;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 
 #[then("admit_measurement admits a diagnostic subset")]

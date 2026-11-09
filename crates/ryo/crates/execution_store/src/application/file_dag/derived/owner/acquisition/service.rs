@@ -1,10 +1,8 @@
 //! Entry points that acquire one population-scoped derived view.
 use super::super::*;
 use super::admission::service::{AcquiredView, AcquisitionLifetime, AdmittedViewInputs};
-use super::population::types::{
-    Acquisition, Construction, OptionalRetention, StoredObservation,
-};
 use super::population::types::StoredColumns;
+use super::population::types::{Acquisition, Construction, OptionalRetention, StoredObservation};
 use crate::application::file_dag::route_counts::{self, types::BuildRoute};
 
 impl DerivedOwner {
@@ -119,10 +117,12 @@ impl DerivedOwner {
                     (Some(_), None) if plan.kind == DerivedKind::Equality => false,
                     _ => true,
                 };
-                let storage =
-                    route_counts::observe(&self.routes, route.label(), route_counts::derived(plan.kind), || {
-                        self.build_admitted(plan, admitted, inputs, scratch, None)
-                    })?;
+                let storage = route_counts::observe(
+                    &self.routes,
+                    route.label(),
+                    route_counts::derived(plan.kind),
+                    || self.build_admitted(plan, admitted, inputs, scratch, None),
+                )?;
                 // Optional retention is decided below by this owner, never by the kernel.
                 Ok(storage.map(|storage| Acquisition {
                     storage: Arc::new(storage),

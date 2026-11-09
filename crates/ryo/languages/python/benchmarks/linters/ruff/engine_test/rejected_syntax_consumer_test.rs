@@ -173,9 +173,30 @@ fn a_rejected_file_leaves_pt020_pt025_pt026_and_ruf100_answering_the_valid_file(
             ),
         ]),
         rules: BTreeMap::from([
-            (pt020.clone(), rule("test/PT020", include_str!("../rules/PT020/query.ryoql"), Vec::new())),
-            (pt025.clone(), rule("test/PT025", include_str!("../rules/PT025/query.ryoql"), Vec::new())),
-            (pt026.clone(), rule("test/PT026", include_str!("../rules/PT026/query.ryoql"), Vec::new())),
+            (
+                pt020.clone(),
+                rule(
+                    "test/PT020",
+                    include_str!("../rules/PT020/query.ryoql"),
+                    Vec::new(),
+                ),
+            ),
+            (
+                pt025.clone(),
+                rule(
+                    "test/PT025",
+                    include_str!("../rules/PT025/query.ryoql"),
+                    Vec::new(),
+                ),
+            ),
+            (
+                pt026.clone(),
+                rule(
+                    "test/PT026",
+                    include_str!("../rules/PT026/query.ryoql"),
+                    Vec::new(),
+                ),
+            ),
             (
                 ruf100.clone(),
                 rule(
@@ -213,7 +234,11 @@ fn a_rejected_file_leaves_pt020_pt025_pt026_and_ruf100_answering_the_valid_file(
     // RUF100 at 12:12 of case.py; PT020 at 2:1 is suppressed by its used noqa; broken.py has only invalid-syntax.
     assert_eq!(
         found,
-        vec![(pt025.clone(), at(5, 1)), (pt026.clone(), at(9, 1)), (ruf100.clone(), at(12, 12))],
+        vec![
+            (pt025.clone(), at(5, 1)),
+            (pt026.clone(), at(9, 1)),
+            (ruf100.clone(), at(12, 12))
+        ],
         "the valid file is answered as Ruff answers it; what was not decided: {:?}",
         report.unknowns
     );

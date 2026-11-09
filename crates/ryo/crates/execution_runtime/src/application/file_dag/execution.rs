@@ -2,8 +2,8 @@
 use self::constants::BRIDGE_NAME;
 use super::executor::{KernelCall, PrimitiveExecutor};
 use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
-use ryo_execution_domain::domain::operating::types::PrimitiveSemantics;
 use crate::outbound::operators::interface::OperatorsPort;
+use ryo_execution_domain::domain::operating::types::PrimitiveSemantics;
 mod constants;
 pub(crate) mod lease;
 pub(crate) mod output;
@@ -37,11 +37,14 @@ impl PrimitiveExecutor for CommonOperatorEngine {
 pub(crate) struct PrimitiveSemanticsBridge<'a> {
     /// The file's profile, the observer a primitive reports its progress to.
     #[cfg(feature = "diagnostic-row-progress")]
-    pub(super) progress: &'a ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
+    pub(super) progress:
+        &'a ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
     pub(super) port: &'a dyn PrimitiveExecutor,
     pub(super) permit: crate::application::file_dag::program::runtime::service::SemanticPermit<'a>,
-    pub(super) binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding<'a>,
-    pub(super) failure: &'a std::sync::OnceLock<ryo_execution_domain::domain::operating::errors::OperatingError>,
+    pub(super) binding:
+        ryo_execution_domain::domain::executable_program::physical::PhysicalBinding<'a>,
+    pub(super) failure:
+        &'a std::sync::OnceLock<ryo_execution_domain::domain::operating::errors::OperatingError>,
 }
 impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     #[cfg(feature = "diagnostic-row-progress")]
@@ -79,8 +82,6 @@ impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
 
 impl std::fmt::Debug for PrimitiveSemanticsBridge<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct(BRIDGE_NAME)
-            .finish_non_exhaustive()
+        formatter.debug_struct(BRIDGE_NAME).finish_non_exhaustive()
     }
 }

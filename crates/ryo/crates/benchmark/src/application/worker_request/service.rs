@@ -18,17 +18,24 @@ pub fn prepare(request: WorkerRequest) -> Result<PreparedWorkerRequest, Error> {
 }
 fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
     crate::domain::suite::service::validate_selected_rules(&request.selected_rules)?;
-    let ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected_rules) = request.selected_rules.clone() else {
+    let ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected_rules) =
+        request.selected_rules.clone()
+    else {
         return Err(Error::Invalid(
             constants::WORKER_REQUIRES_A_RESOLVED_DIAGNOSTIC_SELECT.into(),
         ));
     };
-    if let ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(context) = &request.rule_context {
+    if let ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(
+        context,
+    ) = &request.rule_context
+    {
         crate::domain::rule_context::service::check(context, &request.files)?;
         crate::domain::rule_context::service::check_selection(context, &request.selected_rules)?;
     }
 
-    if let ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots) = &request.project_search_roots {
+    if let ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots) =
+        &request.project_search_roots
+    {
         for root in roots {
             if !root.0.is_empty() {
                 ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(root.0.as_ref()))?;
@@ -40,7 +47,8 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
     }
     if request.given_project_inventory.completeness
         == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
-        && request.project_search_roots == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
+        && request.project_search_roots
+            == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
     {
         return Err(Error::Invalid(
             constants::COMPLETE_GIVEN_PROJECT_INVENTORY_REQUIRES_DE.into(),
@@ -56,8 +64,14 @@ fn classify(request: &WorkerRequest) -> Result<PreparedMissingInputs, Error> {
         ));
     }
     let selected_missing = match (request.project_context_mode, &request.context_manifest) {
-        (ProjectContextMode::Isolated, ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed) => BTreeSet::new(),
-        (ProjectContextMode::ListedDisk, ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest)) => {
+        (
+            ProjectContextMode::Isolated,
+            ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+        ) => BTreeSet::new(),
+        (
+            ProjectContextMode::ListedDisk,
+            ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest),
+        ) => {
             let requested: BTreeSet<_> = request
                 .files
                 .iter()

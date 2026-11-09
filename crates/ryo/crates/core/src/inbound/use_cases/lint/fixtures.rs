@@ -4,15 +4,15 @@
 pub mod contract;
 pub mod corpus;
 pub mod engine;
-pub mod measures;
-pub mod operators;
-pub mod runs;
 #[cfg(test)]
 pub(crate) mod given;
 #[cfg(test)]
 pub(crate) mod lifecycle;
 #[cfg(test)]
 pub(crate) mod lookups;
+pub mod measures;
+pub mod operators;
+pub mod runs;
 #[cfg(test)]
 pub(crate) mod scenario;
 #[cfg(test)]

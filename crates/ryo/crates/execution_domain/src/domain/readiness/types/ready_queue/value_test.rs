@@ -155,7 +155,11 @@ fn an_evaluation_in_preparation_is_counted_once_by_the_queue() {
     run_script(
         &mut inline,
         &[
-            (Action::Prepare(RegionId(0)), true, Outcome::Waiting(RegionId(1))),
+            (
+                Action::Prepare(RegionId(0)),
+                true,
+                Outcome::Waiting(RegionId(1)),
+            ),
             (Action::Prepare(RegionId(1)), true, Outcome::Terminal),
             (Action::Prepare(RegionId(0)), false, Outcome::Ready),
             (Action::Evaluate(RegionId(0)), false, Outcome::Terminal),
@@ -166,7 +170,11 @@ fn an_evaluation_in_preparation_is_counted_once_by_the_queue() {
         &mut dispatched,
         &[
             (Action::Prepare(RegionId(0)), false, Outcome::Ready),
-            (Action::Evaluate(RegionId(0)), false, Outcome::Waiting(RegionId(1))),
+            (
+                Action::Evaluate(RegionId(0)),
+                false,
+                Outcome::Waiting(RegionId(1)),
+            ),
             (Action::Prepare(RegionId(1)), false, Outcome::Ready),
             (Action::Evaluate(RegionId(1)), false, Outcome::Terminal),
             (Action::Prepare(RegionId(0)), false, Outcome::Ready),
@@ -184,15 +192,24 @@ fn an_evaluation_in_preparation_is_counted_once_by_the_queue() {
 fn an_evaluation_in_preparation_is_recorded_only_for_a_preparation_poll() {
     let mut queue = ReadyQueue::new(RegionCount(1), &[RegionId(0)]).unwrap();
     // Not polling: nothing to record.
-    assert_eq!(queue.evaluated_in_preparation(RegionId(0)), Err(OperatingError::NotRun));
+    assert_eq!(
+        queue.evaluated_in_preparation(RegionId(0)),
+        Err(OperatingError::NotRun)
+    );
     assert_eq!(queue.next(), Ok(Some(Action::Prepare(RegionId(0)))));
     queue.evaluated_in_preparation(RegionId(0)).unwrap();
     // The poll is an evaluation now: a second record would count it twice.
-    assert_eq!(queue.evaluated_in_preparation(RegionId(0)), Err(OperatingError::NotRun));
+    assert_eq!(
+        queue.evaluated_in_preparation(RegionId(0)),
+        Err(OperatingError::NotRun)
+    );
     queue.observe(RegionId(0), Outcome::Ready).unwrap();
     assert_eq!(queue.next(), Ok(Some(Action::Evaluate(RegionId(0)))));
     // A dispatched evaluation is already counted.
-    assert_eq!(queue.evaluated_in_preparation(RegionId(0)), Err(OperatingError::NotRun));
+    assert_eq!(
+        queue.evaluated_in_preparation(RegionId(0)),
+        Err(OperatingError::NotRun)
+    );
     queue.observe(RegionId(0), Outcome::Terminal).unwrap();
     assert_eq!(queue.counts().evaluations.0, 2);
 }

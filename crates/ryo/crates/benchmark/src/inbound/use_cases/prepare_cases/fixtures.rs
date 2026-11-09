@@ -8,12 +8,12 @@ use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::suite::interface::SuitePort;
 use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport};
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use sha2::{Digest as _, Sha256};
-use std::path::PathBuf;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
+use std::path::PathBuf;
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
     Complete,
@@ -99,16 +99,23 @@ impl LinterPort for Contestant {
         Ok(RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+            project_context:
+                ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             skipped: Vec::new(),
-            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(request.files.len()),
-                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(request.files.len()),
-                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                },
-            ),
+            coverage:
+                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                    ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(
+                            request.files.len(),
+                        ),
+                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
+                            request.files.len(),
+                        ),
+                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                        unknown_or_unread:
+                            ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                    },
+                ),
             files: request.files.clone(),
             diagnostics,
         })
@@ -119,7 +126,9 @@ impl LinterPort for Contestant {
         _case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
         _profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
     ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
-        Ok(crate::outbound::linter::types::CanonicalText(format!("{normalized:?}")))
+        Ok(crate::outbound::linter::types::CanonicalText(format!(
+            "{normalized:?}"
+        )))
     }
     fn rule_context_text(
         &self,
@@ -271,7 +280,11 @@ pub fn executable_permissions(_path: &std::path::Path) {}
 
 /// The frozen workload snapshot keeps the exact patch bytes even when its source or itself is edited.
 pub fn workload_snapshot_preserves_exact_patch() {
-    use crate::outbound::suite::{factory::local, interface::SuitePort as _, types::{ArtifactPath, ArtifactSet}};
+    use crate::outbound::suite::{
+        factory::local,
+        interface::SuitePort as _,
+        types::{ArtifactPath, ArtifactSet},
+    };
     let seal = |path: &std::path::Path| {
         local()
             .fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())))
@@ -304,12 +317,8 @@ patch = "patches/project.patch"
         std::fs::read_to_string(frozen.join("patches/project.patch")).unwrap(),
         "original patch"
     );
-    assert_eq!(
-        sealed,
-        seal(&frozen)
-    );
+    assert_eq!(sealed, seal(&frozen));
     std::fs::write(frozen.join("patches/project.patch"), "tampered snapshot")
         .expect("snapshot edit");
     assert_ne!(sealed, seal(&frozen));
 }
-

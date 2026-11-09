@@ -1,12 +1,12 @@
 //! Pinned reference profile of the tool under measurement.
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types;
-use serde::Deserialize;
-use std::collections::BTreeMap;
 use crate::outbound::suite::adapters::local::declarations::schemas::{
     ObservationBindingSchema, RuleContextDeclarationSchema, observation_declarations,
     project_search_roots,
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types;
+use serde::Deserialize;
+use std::collections::BTreeMap;
 
 #[cfg(test)]
 #[path = "schemas_test.rs"]
@@ -80,8 +80,11 @@ impl TryFrom<ToolSchema> for types::Tool {
         }
         let mut query_modules = BTreeMap::new();
         for (id, path) in wire.query_modules {
-            let _module = ryo::query::QueryModuleSource::try_new(&id, crate::outbound::suite::adapters::local::constants::MODULE_SOURCE)
-                .map_err(|error| Error::Invalid(error.to_string()))?;
+            let _module = ryo::query::QueryModuleSource::try_new(
+                &id,
+                crate::outbound::suite::adapters::local::constants::MODULE_SOURCE,
+            )
+            .map_err(|error| Error::Invalid(error.to_string()))?;
             let path = std::path::PathBuf::from(path);
             ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&path))?;
             if query_modules.insert(id, path).is_some() {

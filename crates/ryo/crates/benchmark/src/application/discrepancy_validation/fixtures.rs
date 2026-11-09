@@ -164,8 +164,12 @@ pub(super) fn archived(record: Record) -> Validation {
             root,
             process: ProcessFailure {
                 exit: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(2),
-                stdout: vec![OutputPart::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("payload".into()))],
-                stderr: vec![OutputPart::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("issue".into()))],
+                stdout: vec![OutputPart::Literal(
+                    ryo_benchmark_contracts::domain::process::types::OutputText("payload".into()),
+                )],
+                stderr: vec![OutputPart::Literal(
+                    ryo_benchmark_contracts::domain::process::types::OutputText("issue".into()),
+                )],
                 observations,
             },
         }),

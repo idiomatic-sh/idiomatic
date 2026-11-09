@@ -22,9 +22,7 @@ impl KernelPermit<'_> {
             _ => Err(OperatingError::NotRead),
         }
     }
-    pub(crate) fn require_project_walk(
-        &self,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn require_project_walk(&self) -> Result<(), OperatingError> {
         self.validate_live()?;
         match self.partition {
             Partition::Project(_) => Ok(()),
@@ -40,7 +38,8 @@ impl KernelPermit<'_> {
         let source = self.bound_input(InputId(0))?;
         use ryo_values::domain::{
             plan_parts::types::{Input, RepeatedRows},
-            plans::types::Operation};
+            plans::types::Operation,
+        };
         let authored = match &self.descriptor().operation() {
             Operation::Select {
                 from: Input::Relation(authored),

@@ -270,10 +270,15 @@ fn exercise(case: Case) {
         );
         return;
     }
-    let RootOutcome::Partial { table, affected } =
-        crate::boundary_fixture::project_root(&phase, occurrences, &partials, &partials, &mut symbols)
-            .expect("explicit rejection or refusal accounts for absent transport")
-            .emit
+    let RootOutcome::Partial { table, affected } = crate::boundary_fixture::project_root(
+        &phase,
+        occurrences,
+        &partials,
+        &partials,
+        &mut symbols,
+    )
+    .expect("explicit rejection or refusal accounts for absent transport")
+    .emit
     else {
         panic!("a skipped or refused partition must not become complete empty input: {case:?}")
     };

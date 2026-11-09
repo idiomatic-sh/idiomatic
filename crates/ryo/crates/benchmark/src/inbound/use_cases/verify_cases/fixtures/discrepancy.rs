@@ -1,4 +1,6 @@
 //! A documented reference difference keeps the intended contract and the pinned reference apart.
+use super::shard::Shape;
+use super::shard::prepared;
 use crate::outbound::linter::fixtures::fake::LinterFake;
 use crate::outbound::linter::interface::LinterPort as _;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
@@ -21,8 +23,6 @@ use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyReason;
 use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::LanguageVersion;
 use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::ParserTarget;
 use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::Rationale;
-use super::shard::Shape;
-use super::shard::prepared;
 
 /// A suite whose one case documents how the pinned reference differs from the intended behavior.
 pub(crate) fn discrepancy_suite() -> SuiteFake {
@@ -40,7 +40,9 @@ pub(crate) fn discrepancy_suite() -> SuiteFake {
     profile.defaults = vec![case.rule.clone()];
     profile.parser_configuration =
         ParserSelection::Named(ParserConfigurationName("python-target=3.10".into()));
-    let invocation = LinterFake::default().prepare(&case.request).expect("fixture invocation");
+    let invocation = LinterFake::default()
+        .prepare(&case.request)
+        .expect("fixture invocation");
     let settings = crate::domain::canonical_text::service::text_digest(
         &crate::application::discrepancy_validation::service::settings_text(
             &LinterFake::default(),
@@ -67,8 +69,12 @@ pub(crate) fn discrepancy_suite() -> SuiteFake {
                 profile_sha256: sha(&profile_hash),
                 settings_sha256: sha(&settings),
                 source_sha256: Sha256Text("c".repeat(64)),
-                reference_output_sha256: sha(&crate::domain::discrepancy::service::output_digest(&reference)),
-                intended_output_sha256: sha(&crate::domain::discrepancy::service::output_digest(&case.expected)),
+                reference_output_sha256: sha(&crate::domain::discrepancy::service::output_digest(
+                    &reference,
+                )),
+                intended_output_sha256: sha(&crate::domain::discrepancy::service::output_digest(
+                    &case.expected,
+                )),
             },
             evidence: vec![ClaimedEvidence::IndependentLanguageRun {
                 path: "evidence.json".into(),

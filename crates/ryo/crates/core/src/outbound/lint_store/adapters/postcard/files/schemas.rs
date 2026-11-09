@@ -1,11 +1,11 @@
 //! The files document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
-use std::borrow::Cow;
+use super::super::strings::schemas::{StringsSchema, TextSchema, named, text};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{FileSize, Nanoseconds};
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredFile;
-use super::super::strings::schemas::{StringsSchema, TextSchema, named, text};
+use std::borrow::Cow;
 
 /// Wire representation of permission knowledge; no integer sentinel means false.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -35,7 +35,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct FileSchema {
 }
 
 /// The row of a file, its path named in the table of strings.
-pub(in crate::outbound::lint_store::adapters::postcard) fn file_schema<'a>(strings: &mut StringsSchema<'a>, file: &'a StoredFile) -> FileSchema {
+pub(in crate::outbound::lint_store::adapters::postcard) fn file_schema<'a>(
+    strings: &mut StringsSchema<'a>,
+    file: &'a StoredFile,
+) -> FileSchema {
     FileSchema {
         executable: match file.executable {
             ryo_values::domain::files::types::ExecutablePermission::Unknown => {
@@ -61,7 +64,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn file_schema<'a>(strin
 }
 
 /// The file a row is of, its path read from the table of strings.
-pub(in crate::outbound::lint_store::adapters::postcard) fn file_from(strings: &[Cow<'_, str>], file: &FileSchema) -> Result<StoredFile, postcard::Error> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn file_from(
+    strings: &[Cow<'_, str>],
+    file: &FileSchema,
+) -> Result<StoredFile, postcard::Error> {
     Ok(StoredFile {
         executable: match file.executable {
             ExecutableSchema::Unknown => {

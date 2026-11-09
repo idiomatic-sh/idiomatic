@@ -8,22 +8,21 @@ use crate::domain::discrepancy::{
 use crate::domain::invocation_identity::service::normalize;
 use crate::domain::process_failure::service::{check_archives, expected, group_digest};
 use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ExitStatus, YesNo};
 use crate::outbound::{
     inventory::interface::InventoryPort,
     linter::interface::LinterPort,
     suite::{
         interface::SuitePort,
         types::{
-            ArtifactPath,
-            ArtifactMetadata, CaseArtifacts, EvidenceArtifact, EvidenceRequirement,
+            ArtifactMetadata, ArtifactPath, CaseArtifacts, EvidenceArtifact, EvidenceRequirement,
         },
     },
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::artifacts::types::FileMetadataEntry;
+use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ExitStatus, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
 use ryo_benchmark_contracts::domain::workloads::types::{
@@ -57,7 +56,9 @@ pub(crate) fn settings_text(
     profile: &Tool,
 ) -> Result<Document, Failure> {
     let normalized = normalize(invocation, case)?;
-    Ok(Document(linter.settings_text(&normalized, case, profile)?.0))
+    Ok(Document(
+        linter.settings_text(&normalized, case, profile)?.0,
+    ))
 }
 
 fn requirement(row: &DiscrepancyEvidence) -> EvidenceRequirement {
@@ -96,7 +97,9 @@ pub(crate) fn validate(
     rules: &Path,
     case: &PreparedCase,
 ) -> Result<Option<ReferenceProof>, Failure> {
-    let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(item) = &case.reference_discrepancy else {
+    let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(item) =
+        &case.reference_discrepancy
+    else {
         return Ok(None);
     };
     require_distinct(case, item)?;
@@ -110,7 +113,9 @@ pub(crate) fn validate(
         identity,
         &profile,
         &actual_executable,
-        &suite.digest(ArtifactPath(&profile_root.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST)))?,
+        &suite.digest(ArtifactPath(&profile_root.join(
+            ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+        )))?,
     )?;
     let settings = text_digest(&settings_text(reference, &invocation, case, &profile)?);
     let files = crate::domain::suite::service::materialized_sources(&case.request);
@@ -125,11 +130,15 @@ pub(crate) fn validate(
         .collect::<Vec<_>>();
     check_evidence(item, &profile)?;
     let metadata_files = match &case.request.file_metadata {
-        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) => values
+        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
+            values,
+        ) => values
             .keys()
             .map(|file| PathBuf::from(file.0.as_ref()))
             .collect::<Vec<_>>(),
-        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => Vec::new(),
+        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => {
+            Vec::new()
+        }
     };
     suite
         .verify_discrepancy_artifacts(CaseArtifacts {
@@ -145,14 +154,17 @@ pub(crate) fn validate(
             evidence: &evidence,
         })
         .map_err(refused)?;
-    let metadata =
-        ArtifactDigest::file_metadata(match &case.request.file_metadata {
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) => Some(values.iter().map(|(path, executable)| FileMetadataEntry {
-                path,
-                executable: *executable,
-            })),
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => None,
-        })?;
+    let metadata = ArtifactDigest::file_metadata(match &case.request.file_metadata {
+        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
+            values,
+        ) => Some(values.iter().map(|(path, executable)| FileMetadataEntry {
+            path,
+            executable: *executable,
+        })),
+        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => {
+            None
+        }
+    })?;
     let declared_metadata = match &identity.file_metadata_sha256 {
         ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(value) => Some(value.clone()),
         ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => None,
@@ -212,7 +224,10 @@ pub(crate) fn validate_archives(
     process: &ProcessFailure,
     actual: &ArtifactDigest,
 ) -> Result<(), Failure> {
-    let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(discrepancy) = &case.reference_discrepancy else {
+    let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
+        discrepancy,
+    ) = &case.reference_discrepancy
+    else {
         return Err(Failure::ArchivedBytesDiffer);
     };
     let identity = &discrepancy.identity;
@@ -254,7 +269,9 @@ pub(crate) fn validate_archives(
         let record = bytes
             .get(&observation.invocation.path)
             .ok_or(Failure::ArchivedBytesDiffer)?;
-        let InvocationDocument::Complete(metadata) = inventory.decode_invocation(record).map_err(refused)? else {
+        let InvocationDocument::Complete(metadata) =
+            inventory.decode_invocation(record).map_err(refused)?
+        else {
             return Err(Failure::ArchivedBytesDiffer);
         };
         let root = metadata.actual_request_root.0.as_str();
@@ -287,9 +304,11 @@ pub(crate) fn validate_archives(
             || metadata.executable_sha256.0 != observation.executable_sha256.0
             || metadata.profile_sha256.0 != identity.profile_sha256.0
             || metadata.source_sha256
-                != Pin::Sha256(ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text(
-                    source.to_owned(),
-                ))
+                != Pin::Sha256(
+                    ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text(
+                        source.to_owned(),
+                    ),
+                )
             || metadata.file_metadata_sha256 != file_metadata
             || metadata.settings_sha256.0 != identity.settings_sha256.0
             || metadata.tool.0 != profile.tool.0

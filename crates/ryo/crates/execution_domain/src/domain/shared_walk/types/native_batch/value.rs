@@ -2,8 +2,8 @@
 
 use crate::domain::{
     operating::errors::OperatingError,
-    step_classes::types::ClassPlace,
     shared_walk::types::{ClassCount, ClassLease, RowsVisited, prepared_walk::value::PreparedWalk},
+    step_classes::types::ClassPlace,
 };
 
 /// Sparse results for only classes reached in this admitted population.

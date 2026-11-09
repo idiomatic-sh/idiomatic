@@ -1,26 +1,26 @@
 //! One project submission through the public phase, with the roots its guard was asked about.
-use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
-use ryo_execution_runtime::outbound::facts::errors::FactsError;
-use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
-use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
-use ryo_execution_runtime::outbound::facts::types::KeptBucket;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::corpus;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
-use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution_runtime::outbound::facts::errors::FactsError;
+use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
+use ryo_execution_runtime::outbound::facts::types::KeptBucket;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
     files::types::CorpusInput,
@@ -119,7 +119,8 @@ fn program(
                 kept: vec![],
             },
         }];
-        crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::BoundObservation(ObservationBindingId(0))];
+        crate::boundary_fixture::plans(&mut authored)[0].frontier =
+            vec![Input::BoundObservation(ObservationBindingId(0))];
         authored.observations =
             ObservationIdentity::Named(ObservationReadinessLayout(Digest([7; 16])));
     }

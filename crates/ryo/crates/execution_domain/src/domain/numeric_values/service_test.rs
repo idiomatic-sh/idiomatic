@@ -2,7 +2,7 @@
 
 use super::{
     service::{compare, integer_successor, read},
-    types::{FloatValue, Numeric, NumberText, Succession},
+    types::{FloatValue, NumberText, Numeric, Succession},
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::WholeNumber;

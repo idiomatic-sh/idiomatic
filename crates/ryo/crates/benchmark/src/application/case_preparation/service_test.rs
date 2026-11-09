@@ -2,11 +2,7 @@
 use super::constants;
 use super::service;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::suite::{
-    factory::local,
-    interface::SuitePort as _,
-    types::ArtifactPath,
-};
+use crate::outbound::suite::{factory::local, interface::SuitePort as _, types::ArtifactPath};
 use std::borrow::Cow;
 
 /// Which authored sources the preparation is given.
@@ -38,14 +34,18 @@ type Failure = Cow<'static, str>;
 const CASES: &[Case<Input, Value, Failure>] = &[
     #[cfg(unix)]
     Case {
-        name: CaseName("the isolated route stages and reverifies the declared mode before each attempt"),
+        name: CaseName(
+            "the isolated route stages and reverifies the declared mode before each attempt",
+        ),
         word: Word::Succeeds,
         input: || Scenario::DeclaredMode("isolated"),
         expect: Expect::Value(2),
     },
     #[cfg(unix)]
     Case {
-        name: CaseName("the listed disk route stages and reverifies the declared mode before each attempt"),
+        name: CaseName(
+            "the listed disk route stages and reverifies the declared mode before each attempt",
+        ),
         word: Word::Succeeds,
         input: || Scenario::DeclaredMode("listed-disk"),
         expect: Expect::Value(2),
@@ -69,7 +69,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("a required profile cannot admit omitted observations even for negative cases"),
+        name: CaseName(
+            "a required profile cannot admit omitted observations even for negative cases",
+        ),
         word: Word::Refuses,
         input: || Scenario::OmittedObservations,
         expect: Expect::Error(Cow::Borrowed(constants::REQUIRED_METADATA)),
@@ -137,14 +139,18 @@ fn clear_execute(path: &std::path::Path) -> std::fs::Permissions {
     before
 }
 
-fn declared_mode(mode: &str) -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn declared_mode(
+    mode: &str,
+) -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
     let root = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), mode, true);
     let cases = service::cases(
         &local(),
         &crate::outbound::context::factory::local(),
-        &rules, scratch.path())?;
+        &rules,
+        scratch.path(),
+    )?;
     let count = cases.len();
     for case in cases {
         local().validate_file_metadata(&case.request).unwrap();
@@ -156,7 +162,10 @@ fn declared_mode(mode: &str) -> Result<Value, ryo_benchmark_contracts::domain::r
             .map(drop)
             .expect_err("a cleared mode is refused");
         assert_eq!(std::fs::read(&path).unwrap(), b"data");
-        assert_eq!(std::fs::metadata(&path).unwrap().modified().unwrap(), modified);
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().modified().unwrap(),
+            modified
+        );
         std::fs::set_permissions(&path, before).unwrap();
         local().validate_file_metadata(&case.request).unwrap();
         std::fs::remove_file(&path).unwrap();
@@ -185,7 +194,8 @@ fn sealed_missing(rules: &std::path::Path, metadata: &str) {
     .unwrap();
 }
 
-fn sealed_missing_request() -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn sealed_missing_request()
+-> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
     let root = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), "listed-disk", true);
@@ -193,7 +203,9 @@ fn sealed_missing_request() -> Result<Value, ryo_benchmark_contracts::domain::re
     let cases = service::cases(
         &local(),
         &crate::outbound::context::factory::local(),
-        &rules, scratch.path())?;
+        &rules,
+        scratch.path(),
+    )?;
     let count = cases.len();
     for case in cases {
         assert!(matches!(
@@ -208,7 +220,8 @@ fn sealed_missing_request() -> Result<Value, ryo_benchmark_contracts::domain::re
     Ok(count)
 }
 
-fn fabricated_metadata() -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn fabricated_metadata()
+-> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
     let root = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), "listed-disk", true);
@@ -216,20 +229,29 @@ fn fabricated_metadata() -> Result<Value, ryo_benchmark_contracts::domain::repor
     service::cases(
         &local(),
         &crate::outbound::context::factory::local(),
-        &rules, scratch.path()).map(|cases| cases.len())
+        &rules,
+        scratch.path(),
+    )
+    .map(|cases| cases.len())
 }
 
-fn omitted_observations() -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn omitted_observations()
+-> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
     let root = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), "isolated", false);
     service::cases(
         &local(),
         &crate::outbound::context::factory::local(),
-        &rules, scratch.path()).map(|cases| cases.len())
+        &rules,
+        scratch.path(),
+    )
+    .map(|cases| cases.len())
 }
 
-fn empty_cases(empty_rule: bool) -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn empty_cases(
+    empty_rule: bool,
+) -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
     let rules = tempfile::tempdir().expect("rules");
     let scratch = tempfile::tempdir().expect("scratch");
     if empty_rule {
@@ -245,11 +267,22 @@ fn empty_cases(empty_rule: bool) -> Result<Value, ryo_benchmark_contracts::domai
     service::cases(
         &local(),
         &crate::outbound::context::factory::local(),
-        rules.path(), scratch.path()).map(|cases| cases.len())
+        rules.path(),
+        scratch.path(),
+    )
+    .map(|cases| cases.len())
 }
 
 /// A rule `fixture` whose `cases.toml` holds `toml`, decoded and admitted.
-fn decoded(toml: &str) -> Result<(tempfile::TempDir, Vec<ryo_benchmark_contracts::domain::workloads::types::Case>), ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn decoded(
+    toml: &str,
+) -> Result<
+    (
+        tempfile::TempDir,
+        Vec<ryo_benchmark_contracts::domain::workloads::types::Case>,
+    ),
+    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+> {
     let root = tempfile::tempdir().unwrap();
     let rule = "fixture".try_into().unwrap();
     std::fs::create_dir_all(root.path().join("rules/fixture")).unwrap();
@@ -259,8 +292,11 @@ fn decoded(toml: &str) -> Result<(tempfile::TempDir, Vec<ryo_benchmark_contracts
     Ok((root, cases.cases))
 }
 
-fn decoded_parser_case() -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-    let (_root, cases) = decoded("[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{rule='invalid-syntax',file='case.py',start=0,end=1}]")?;
+fn decoded_parser_case()
+-> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    let (_root, cases) = decoded(
+        "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{rule='invalid-syntax',file='case.py',start=0,end=1}]",
+    )?;
     assert_eq!(
         cases[0].comparison,
         ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
@@ -268,7 +304,8 @@ fn decoded_parser_case() -> Result<Value, ryo_benchmark_contracts::domain::repor
     Ok(cases.len())
 }
 
-fn inherited_identity() -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn inherited_identity()
+-> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(root.path().join("rules/fixture")).unwrap();
     std::fs::write(root.path().join("rules/fixture/cases.toml"), "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{file='case.py',start=0,end=1}]").unwrap();
@@ -276,8 +313,10 @@ fn inherited_identity() -> Result<Value, ryo_benchmark_contracts::domain::report
     let answer = service::cases(
         &local(),
         &crate::outbound::context::factory::local(),
-        &root.path().join("rules"), scratch.path())
-        .map(|cases| cases.len());
+        &root.path().join("rules"),
+        scratch.path(),
+    )
+    .map(|cases| cases.len());
     assert_eq!(
         std::fs::read_dir(scratch.path()).unwrap().count(),
         0,
@@ -286,13 +325,22 @@ fn inherited_identity() -> Result<Value, ryo_benchmark_contracts::domain::report
     answer
 }
 
-fn given_sibling() -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-    let (_root, cases) = decoded("[[cases]]\nname='sibling'\ncomparison='full'\nrequested-files=['main.py']\nproject-search-roots=['']\nfiles={'main.py'='import localmod', 'localmod.py'='value=1'}\ngiven-project-inventory={completeness='partial', entries=[{path='localmod.py', state='file'}]}\nexpected=[]\n")?;
-    let ryo_benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(inventory) = &cases[0].given_project_inventory else {
+fn given_sibling() -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
+{
+    let (_root, cases) = decoded(
+        "[[cases]]\nname='sibling'\ncomparison='full'\nrequested-files=['main.py']\nproject-search-roots=['']\nfiles={'main.py'='import localmod', 'localmod.py'='value=1'}\ngiven-project-inventory={completeness='partial', entries=[{path='localmod.py', state='file'}]}\nexpected=[]\n",
+    )?;
+    let ryo_benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(
+        inventory,
+    ) = &cases[0].given_project_inventory
+    else {
         panic!("the case declares its project inventory");
     };
     assert_eq!(inventory.entries.len(), 1);
-    assert_eq!(inventory.entries[0].state, ryo::linter::ProjectEntryState::File);
+    assert_eq!(
+        inventory.entries[0].state,
+        ryo::linter::ProjectEntryState::File
+    );
     Ok(cases.len())
 }
 

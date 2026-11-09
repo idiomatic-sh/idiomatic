@@ -4,7 +4,7 @@ use super::errors::DescribeOperatorError;
 use super::interface::DescribeOperatorUseCase as _;
 use super::types::DescribeOperatorRequest;
 use super::use_case::DescribeOperatorUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use ryo_values::domain::descriptions::types::OperatorName;
 
 /// The name asked for.

@@ -1,21 +1,21 @@
 //! Shared tree positions keep native join projection refusal and replay, and pure projections share one scan.
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{FileId, Position, Relation, Value};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -23,10 +23,10 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
+    use ryo_operators::domain::contract::types::PortableOperatorFault;
+    use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
     use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
     use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-    use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-    use ryo_operators::domain::contract::types::PortableOperatorFault;
     use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     use std::sync::{
@@ -55,7 +55,10 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                     return Err(PortableOperatorFault::ShapeMismatch);
                 }
             }
-            OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+            OperatorsUseCaseImpl::new(std::sync::Arc::new(
+                ryo_operators::outbound::matching::factory::use_case(),
+            ))
+            .operators(call)
         }
     }
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {
@@ -66,9 +69,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             });
             let engine = PrepareUseCaseImpl::new(
                 semantics.clone(),
-                Arc::new(
-                    ryo_execution_store::outbound::derived::factory::semantics(),
-                ),
+                Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
                 Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
             );
             let mut authored = authored_request(1);
@@ -206,11 +207,14 @@ fn direct_pure_projections_share_source_scan_including_zero_columns_and_repeats(
     use ryo_values::domain::plan_parts::types::RepeatedRows;
     let (engine, semantics) = engine();
     let mut authored = authored_request(3);
-    for (plan, columns) in crate::boundary_fixture::plans(&mut authored).iter_mut().zip([
-        vec![ColumnIndex(2), ColumnIndex(2)],
-        vec![],
-        vec![ColumnIndex(1)],
-    ]) {
+    for (plan, columns) in crate::boundary_fixture::plans(&mut authored)
+        .iter_mut()
+        .zip([
+            vec![ColumnIndex(2), ColumnIndex(2)],
+            vec![],
+            vec![ColumnIndex(1)],
+        ])
+    {
         plan.steps[0].operation = Operation::Project {
             from: Input::Relation(Relation::SyntaxTree),
             columns,

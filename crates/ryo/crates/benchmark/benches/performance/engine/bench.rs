@@ -4,9 +4,7 @@
     reason = "missing benchmark prerequisites must fail visibly"
 )]
 use ryo_benchmark::outbound::engine::{
-    factory::{
-        local, local_with_diagnostic_events, local_with_frontend_diagnostic,
-    },
+    factory::{local, local_with_diagnostic_events, local_with_frontend_diagnostic},
     interface::EnginePort,
     types::FrontendDiagnosticProjection,
 };

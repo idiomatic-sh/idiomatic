@@ -1,10 +1,10 @@
 //! Executable acceptance steps for the borrowed operator family entry.
 use crate::Behavior;
 use cucumber::{given, then, when};
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase as _;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -23,7 +23,10 @@ fn runs(world: &mut Behavior) {
         &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)]
     };
     let mut output = Vec::new();
-    world.answer = match OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(OperatorCall::Project {
+    world.answer = match OperatorsUseCaseImpl::new(std::sync::Arc::new(
+        ryo_operators::outbound::matching::factory::use_case(),
+    ))
+    .operators(OperatorCall::Project {
         row: &row,
         columns,
         target: &mut output,
@@ -36,7 +39,9 @@ fn runs(world: &mut Behavior) {
             })
             .collect::<Vec<_>>()
             .join(" "),
-        Err(PortableOperatorFault::NoSuchColumn { index: missing }) => format!("missing {}", missing.0),
+        Err(PortableOperatorFault::NoSuchColumn { index: missing }) => {
+            format!("missing {}", missing.0)
+        }
         _ => panic!("project must answer a written row or a missing column"),
     };
 }

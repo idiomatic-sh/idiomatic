@@ -1,15 +1,15 @@
 //! Pure named-root dependency resolution; the existing application graph owns execution and resources.
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::constants::{EXPECT_BINDING_INDEX, EXPECT_OUTPUT_INDEX};
-use crate::domain::rule_intent::errors::RuleIntentError;
-use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::file_program::types::{
     PreparedObservationInputs, ResolvedObservationBinding, ResolvedObservationProducer,
     RuleSchedule,
 };
+use crate::domain::rule_intent::errors::RuleIntentError;
+use crate::domain::rule_intent::types::FrontierPurpose;
 use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};

@@ -1,7 +1,6 @@
 //! Required invocation leases travel with the immutable graph/domain handles.
 #[cfg(test)]
 use super::types::DataIdentity;
-use ryo_derived::domain::positions::types::DenseMarks;
 use super::types::GraphSharing;
 #[cfg(test)]
 use crate::application::file_dag::derived::constants;
@@ -10,8 +9,9 @@ use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::owner::graphs::types::retained::types::ReachedVertices;
-use ryo_execution_domain::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
+use ryo_derived::domain::positions::types::DenseMarks;
+use ryo_execution_domain::domain::stored_graph::types::{GraphDomain, Orientation};
 use std::{ops::Deref, sync::Arc};
 
 /// An actual completed adjacency and its required lease, issued together.
@@ -35,7 +35,9 @@ impl GraphHandle {
             .payload()
             .share_adjacency()
             .map(|shared| shared.0)
-            .ok_or(ryo_execution_domain::domain::operating::errors::OperatingError::WrongOperation)?;
+            .ok_or(
+                ryo_execution_domain::domain::operating::errors::OperatingError::WrongOperation,
+            )?;
         Ok(Self {
             graph,
             orientation,

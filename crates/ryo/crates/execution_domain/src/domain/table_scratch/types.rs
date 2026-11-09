@@ -155,7 +155,6 @@ pub struct SelectScratch {
 
     /// The comparisons of a filter that name a kind: the set of kinds that satisfy each.
     pub kind_tests: ComparisonNumbers,
-
 }
 
 /// Compiled patterns, indexed by their exact source text.

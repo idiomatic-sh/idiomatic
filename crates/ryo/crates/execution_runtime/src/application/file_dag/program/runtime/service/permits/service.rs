@@ -14,8 +14,13 @@ impl<'scope> KernelPermit<'scope> {
     pub(crate) fn code(
         execution: &ProgramExecution,
         region: RegionId,
-    ) -> Result<&ryo_execution_domain::domain::executable_program::types::region::value::Region, OperatingError> {
-        if execution.owner.matches_generation(&execution.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different {
+    ) -> Result<
+        &ryo_execution_domain::domain::executable_program::types::region::value::Region,
+        OperatingError,
+    > {
+        if execution.owner.matches_generation(&execution.generation)
+            == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+        {
             return Err(OperatingError::NotRead);
         }
         let code = execution
@@ -68,8 +73,10 @@ impl<'scope> KernelPermit<'scope> {
         let execution = authority.execution();
         let region = authority.region();
         let code = Self::code(execution, region)?;
-        let shape = ryo_execution_domain::domain::executable_program::service::ordered_existence(&code.route())
-            .ok_or_else(|| OperatingError::WrongOperation)?;
+        let shape = ryo_execution_domain::domain::executable_program::service::ordered_existence(
+            &code.route(),
+        )
+        .ok_or_else(|| OperatingError::WrongOperation)?;
         input.validate_for(
             &execution.owner,
             &execution.generation,
@@ -89,10 +96,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     /// A continuation borrows the already admitted invocation; no refcount,
     /// population walk, room or ledger operation occurs here.
-    pub(crate) fn instruction(
-        &self,
-        at: InstructionIndex,
-    ) -> Result<Self, OperatingError> {
+    pub(crate) fn instruction(&self, at: InstructionIndex) -> Result<Self, OperatingError> {
         self.program.regions()[self.region.0]
             .instructions()
             .get(at.0)
@@ -128,7 +132,8 @@ impl<'scope> KernelPermit<'scope> {
     }
     pub(crate) fn descriptor(
         &self,
-    ) -> &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction {
+    ) -> &ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction
+    {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0]
     }
     pub(crate) fn semantics(&self) -> SemanticPermit<'_> {
@@ -140,20 +145,17 @@ impl<'scope> KernelPermit<'scope> {
             strategy: self.strategy,
         }
     }
-    pub(crate) fn bound_input(
-        &self,
-        at: InputId,
-    ) -> Result<&AdmittedInput, OperatingError> {
+    pub(crate) fn bound_input(&self, at: InputId) -> Result<&AdmittedInput, OperatingError> {
         match self.bindings {
             BoundInputs::Ordinary(inputs) => inputs.get(at.0),
             BoundInputs::Ordered(input) => (at.0 == 0).then_some(input),
         }
         .ok_or_else(|| OperatingError::MissingInput { position: at.0 + 1 })
     }
-    pub(crate) fn validate_live(
-        &self,
-    ) -> Result<(), OperatingError> {
-        if self.generation.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
+    pub(crate) fn validate_live(&self) -> Result<(), OperatingError> {
+        if self.generation.is_live()
+            == ryo_execution_store::application::file_dag::relations::types::Liveness::Live
+        {
             Ok(())
         } else {
             Err(OperatingError::NotRead)

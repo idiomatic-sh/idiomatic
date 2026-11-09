@@ -2,7 +2,7 @@
 //! nothing the core holds grows with the number of rows.
 
 use super::errors::RowSinkError;
-use super::types::{LentCell, AnswerCounts};
+use super::types::{AnswerCounts, LentCell};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::types::Unread;
 

@@ -20,7 +20,6 @@ pub const NOWHERE: QuerySpan = QuerySpan {
     end: ByteOffset(0),
 };
 
-
 /// What a row gives the use case: the ports it calls, and the text.
 pub struct Given {
     pub syntax: SyntaxFake,
@@ -168,20 +167,32 @@ pub mod rewrites {
     /// The plan with the per-file inputs of its joins after the files joined in each file, as compiling regroups them.
     #[must_use]
     pub fn regrouped(steps: Vec<PlanStep>, emitted: StepId) -> (Vec<PlanStep>, StepId) {
-        rewritten(steps, emitted, crate::domain::regrouping::service::regroup_joins)
+        rewritten(
+            steps,
+            emitted,
+            crate::domain::regrouping::service::regroup_joins,
+        )
     }
 
     /// The plan with the per-file inputs of its joins after the files narrowed to the rows the other input can meet, as
     /// compiling narrows them.
     #[must_use]
     pub fn narrowed(steps: Vec<PlanStep>, emitted: StepId) -> (Vec<PlanStep>, StepId) {
-        rewritten(steps, emitted, crate::domain::narrowing::service::narrow_lookups)
+        rewritten(
+            steps,
+            emitted,
+            crate::domain::narrowing::service::narrow_lookups,
+        )
     }
 
     /// The plan with the filters of its unions and joins made on their inputs, as compiling pushes them.
     #[must_use]
     pub fn selections_pushed(steps: Vec<PlanStep>, emitted: StepId) -> (Vec<PlanStep>, StepId) {
-        rewritten(steps, emitted, crate::domain::selection_pushing::service::push_selections)
+        rewritten(
+            steps,
+            emitted,
+            crate::domain::selection_pushing::service::push_selections,
+        )
     }
 
     /// What the per-file steps of a plan hand over, as compiling finds it.

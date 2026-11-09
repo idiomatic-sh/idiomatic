@@ -8,7 +8,9 @@ use super::constants::{
     INTERFACE_METHOD, LABEL, METHOD, RANGE_VARIABLE, SHORT_VARIABLE, STRUCT, TYPE_PARAMETER,
     TYPE_SWITCH_VARIABLE, VARIABLE,
 };
-use super::types::{Annotation, Assignment, Declaration, Defined, Meaning, NameSpelling, DeclarationShape};
+use super::types::{
+    Annotation, Assignment, Declaration, DeclarationShape, Defined, Meaning, NameSpelling,
+};
 use crate::domain::assignments::service::{left, operator, right};
 use crate::domain::fields::service::{names as field_names, type_of};
 use crate::domain::names::service::{
@@ -34,7 +36,11 @@ const fn defined(kind: DeclarationKind, word: SignatureRefinement) -> Defined {
 }
 
 /// A word of the language as a name of the file.
-pub(crate) fn word(tree: &Tree<'_>, symbols: &mut languages::Symbols, text: SignatureRefinement) -> Symbol {
+pub(crate) fn word(
+    tree: &Tree<'_>,
+    symbols: &mut languages::Symbols,
+    text: SignatureRefinement,
+) -> Symbol {
     languages::intern_derived(symbols, tree.source, languages::NameText(text.0))
 }
 
@@ -327,11 +333,15 @@ pub(crate) fn declarations<'a>(
         DeclarationShape::Type => type_declaration(tree, at),
         DeclarationShape::Import => import_declaration(tree, at),
         DeclarationShape::Label => label_declaration(tree, at),
-        DeclarationShape::Values | DeclarationShape::Field | DeclarationShape::Variables | DeclarationShape::Nothing => None,
+        DeclarationShape::Values
+        | DeclarationShape::Field
+        | DeclarationShape::Variables
+        | DeclarationShape::Nothing => None,
     };
     let values = (shaped == DeclarationShape::Values).then(|| value_declarations(tree, at));
     let fields = (shaped == DeclarationShape::Field).then(|| field_declarations(tree, at));
-    let variables = (shaped == DeclarationShape::Variables).then(|| variable_declarations(tree, at));
+    let variables =
+        (shaped == DeclarationShape::Variables).then(|| variable_declarations(tree, at));
     one.into_iter()
         .chain(values.into_iter().flatten())
         .chain(fields.into_iter().flatten())

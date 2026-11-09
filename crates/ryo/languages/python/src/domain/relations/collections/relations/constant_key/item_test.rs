@@ -1,8 +1,8 @@
 //! Rows expose normalized classes while retaining each original occurrence.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use super::item::ConstantKeyItem;
 use super::super::fixtures::contract::check;
+use super::item::ConstantKeyItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::reading;
 
 fn repeated_numeric_literals_share_a_key_and_keep_both_rows() {

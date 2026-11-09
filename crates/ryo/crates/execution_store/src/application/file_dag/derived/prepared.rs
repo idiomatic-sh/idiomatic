@@ -2,7 +2,7 @@
 use crate::application::file_dag::derived::constants as activation;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{executable_program::value::ExecutableProgram, InputSource},
+    executable_program::types::{InputSource, executable_program::value::ExecutableProgram},
     operating::errors::OperatingError,
 };
 use ryo_relations::domain::relations::types::Relation;
@@ -16,9 +16,7 @@ pub struct RequestDerived {
 }
 impl RequestDerived {
     /// Reads the derived needs of every rule from the compiled program.
-    pub fn compile(
-        program: &ExecutableProgram,
-    ) -> Result<Self, OperatingError> {
+    pub fn compile(program: &ExecutableProgram) -> Result<Self, OperatingError> {
         let mut relations = Vec::with_capacity(program.rules().len());
         let mut graph_rules = rustc_hash::FxHashSet::default();
         for (rule, mapping) in program.rules().iter().enumerate() {
@@ -73,20 +71,14 @@ impl RequestDerived {
             graph_rules,
         })
     }
-    pub(crate) fn relations_for(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<&[Relation], OperatingError> {
+    pub(crate) fn relations_for(&self, rule: RuleIndex) -> Result<&[Relation], OperatingError> {
         tracing::trace!(target: activation::TARGET, event = activation::RELATION_RULE, rule = rule.0);
         self.relations
             .get(rule.0)
             .map(AsRef::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(crate) fn graph_for(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<GraphAdmission, OperatingError> {
+    pub(crate) fn graph_for(&self, rule: RuleIndex) -> Result<GraphAdmission, OperatingError> {
         tracing::trace!(target: activation::TARGET, event = activation::GRAPH_RULE, rule = rule.0);
         let eligible = self.graph_rules.contains(&rule);
         if eligible {

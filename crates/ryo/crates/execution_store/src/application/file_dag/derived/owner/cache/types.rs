@@ -14,8 +14,7 @@ pub(crate) enum GraphAdmission {
 }
 
 /// One owner bounds the shared position allocations it retains optionally.
-pub(crate) const MAX_RETAINED_POSITION_CAPACITY: usize =
-    512 * 1024;
+pub(crate) const MAX_RETAINED_POSITION_CAPACITY: usize = 512 * 1024;
 
 /// A file-local owner: dropping it releases all admitted allocations without eviction.
 #[derive(Debug)]

@@ -19,7 +19,9 @@ impl<U> OperatorsUseCaseAdapter<U> {
     }
 }
 
-impl<U: OperatorsUseCase + Send + Sync + std::fmt::Debug> OperatorsPort for OperatorsUseCaseAdapter<U> {
+impl<U: OperatorsUseCase + Send + Sync + std::fmt::Debug> OperatorsPort
+    for OperatorsUseCaseAdapter<U>
+{
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         self.operators.operators(call)
     }

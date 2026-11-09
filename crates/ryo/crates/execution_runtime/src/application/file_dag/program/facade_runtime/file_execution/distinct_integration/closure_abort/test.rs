@@ -97,7 +97,8 @@ fn exercise(refusal: Refusal, fused: bool) {
         ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::RecordedDerived::default(
         ),
     );
-    let derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> = recorded.clone();
+    let derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> =
+        recorded.clone();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             schedule: RuleSchedule::Independent,

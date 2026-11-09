@@ -32,10 +32,7 @@ impl Project for ProjectContract {
     }
 
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
-        languages::primary_role_from_manifests(
-            path,
-            self.manifests().iter().copied(),
-        )
+        languages::primary_role_from_manifests(path, self.manifests().iter().copied())
     }
 
     fn project_entries(

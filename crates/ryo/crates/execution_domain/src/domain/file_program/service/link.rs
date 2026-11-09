@@ -1,12 +1,11 @@
 //! Request-local demand closure over immutable cached plans; no source names are resolved here.
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::rule_intent::errors::RuleIntentError;
 use crate::domain::file_program::types::{
     BindingCount, EscapingOutputs, ExportedOutputs, PendingStep, ResolvedObservationBinding,
     ResolvedObservationProducer, UsedInputs, WantedSteps,
 };
+use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::plan_parts::types::StepScope;
-use std::collections::BTreeSet;
 use ryo_values::domain::{
     plan_parts::types::{Input, ObservationBindingId, StepId},
     plans::{
@@ -15,6 +14,7 @@ use ryo_values::domain::{
     },
     records::types::ObservationIndex,
 };
+use std::collections::BTreeSet;
 
 /// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.
 #[derive(Debug)]
@@ -144,11 +144,14 @@ fn demand_bound_input(
         .ok_or(RuleIntentError::InvalidReference)
         .map(|used| *used = true)?;
     for producer in &inputs[position].producers {
-        let ResolvedObservationProducer::Output { rule: owner, output } = producer else {
+        let ResolvedObservationProducer::Output {
+            rule: owner,
+            output,
+        } = producer
+        else {
             continue;
         };
-        let output =
-            usize::try_from(output.0).map_err(|_| RuleIntentError::InvalidReference)?;
+        let output = usize::try_from(output.0).map_err(|_| RuleIntentError::InvalidReference)?;
         let observed = plans
             .get(owner.0)
             .and_then(|plan| plan.observations.get(output))
@@ -319,10 +322,7 @@ fn frontier(plan: &Plan) -> Result<Vec<Input>, RuleIntentError> {
                 Input::Relation(_) | Input::BoundObservation(_) => true,
                 Input::Step(id) => {
                     plan.steps
-                        .get(
-                            usize::try_from(id.0)
-                                .map_err(|_| RuleIntentError::InvalidReference)?,
-                        )
+                        .get(usize::try_from(id.0).map_err(|_| RuleIntentError::InvalidReference)?)
                         .ok_or(RuleIntentError::InvalidReference)?
                         .scope
                         == StepScope::PerFile
@@ -339,8 +339,7 @@ fn frontier(plan: &Plan) -> Result<Vec<Input>, RuleIntentError> {
 /// Actual bound sources beneath each retained cross frontier, including per-file transforms.
 pub fn frontier_dependencies(
     plan: &Plan,
-) -> Result<Vec<Vec<ObservationBindingId>>, RuleIntentError>
-{
+) -> Result<Vec<Vec<ObservationBindingId>>, RuleIntentError> {
     if plan.observation_inputs.is_empty() {
         return Ok(vec![Vec::new(); plan.frontier.len()]);
     }
@@ -348,11 +347,7 @@ pub fn frontier_dependencies(
     plan.frontier
         .iter()
         .map(|input| {
-            bound_input_dependencies(
-                *input,
-                &steps,
-                BindingCount(plan.observation_inputs.len()),
-            )
+            bound_input_dependencies(*input, &steps, BindingCount(plan.observation_inputs.len()))
                 .map(|set| set.into_iter().collect())
         })
         .collect()
@@ -384,8 +379,7 @@ fn bound_input_dependencies(
     input: ryo_values::domain::plan_parts::types::Input,
     steps: &[BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>],
     count: BindingCount,
-) -> Result<BTreeSet<ObservationBindingId>, RuleIntentError>
-{
+) -> Result<BTreeSet<ObservationBindingId>, RuleIntentError> {
     use ryo_values::domain::plan_parts::types::Input;
     match input {
         Input::Relation(_) => Ok(BTreeSet::new()),

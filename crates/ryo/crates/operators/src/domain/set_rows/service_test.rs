@@ -1,12 +1,14 @@
 //! Set semantics preserve membership order, duplicates and lazy antijoin keys.
 use super::service::{positions, values};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::contract::types::FirstOccurrence;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::Advance;
-use crate::domain::contract::types::FirstOccurrence;
-use crate::domain::set_rows::types::{RightMembership, RightPopulation, SetKind, SetPositionsDriver, SetRowDriver};
 use crate::domain::set_rows::errors::SetRowsError;
+use crate::domain::set_rows::types::{
+    RightMembership, RightPopulation, SetKind, SetPositionsDriver, SetRowDriver,
+};
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[derive(Clone, Copy)]
@@ -74,7 +76,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("nonempty_right_antijoin_checks_first_missing_key"),
         word: Word::Refuses,
         input: || Scenario::AntijoinInvalidKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(2) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(2),
+        }),
     },
     Case {
         name: CaseName("deferred_union_keeps_only_first_position_row"),

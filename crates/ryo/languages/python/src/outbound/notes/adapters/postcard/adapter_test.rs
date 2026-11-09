@@ -3,13 +3,13 @@
 
 use super::adapter::NotesPostcardAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::fact_notes::service::noted;
 use crate::domain::fact_notes::types::{DottedPath, Form, ImportNote, Level, Note, Spelling};
 use crate::fixtures::reading::parsed;
 use crate::outbound::notes::errors::NotesError;
 use crate::outbound::notes::fixtures::contract::check;
 use crate::outbound::notes::interface::NotesPort as _;
+use crate::selects;
 use ryo::languages::{self, ByteSlice, Bytes, Offset, Tree};
 
 /// A scenario: what is done with the notes, shown.

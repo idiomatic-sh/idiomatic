@@ -9,7 +9,9 @@ use crate::outbound::execution::fixtures::fake::ExecutionFake;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::fixtures::fake::LinterFake;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::measurements::types::{ExecutionProfile, Invocation, ProcessOutput};
+use ryo_benchmark_contracts::domain::measurements::types::{
+    ExecutionProfile, Invocation, ProcessOutput,
+};
 use ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior;
 use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
     DiscrepancyEvidence, DiscrepancyEvidenceKind, LanguageVersion, ParserTarget, Rationale,
@@ -36,7 +38,9 @@ type Failure = ();
 
 /// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("the production verifier rejects unavailable observers and accepts only the declared reference failure"),
+    name: CaseName(
+        "the production verifier rejects unavailable observers and accepts only the declared reference failure",
+    ),
     word: Word::Succeeds,
     input: || (),
     expect: Expect::Value(Outcome::Holds),
@@ -66,11 +70,7 @@ impl ExecutionPort for PairExecution {
         &self,
         invocation: Invocation,
     ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-        let status = if invocation
-            .arguments
-            .iter()
-            .any(|arg| arg == CANDIDATE)
-        {
+        let status = if invocation.arguments.iter().any(|arg| arg == CANDIDATE) {
             0
         } else {
             2
@@ -87,7 +87,8 @@ fn production_verifier_gates_observers_and_accepts_only_the_declared_reference_f
     let fixture = Fixture::new(ORCHESTRATION);
     let mut suite = fixture.suite.clone();
     let mut prepared = fixture.prepared.clone();
-    let PreparedReferenceBehavior::Differs(discrepancy) = &mut prepared.reference_discrepancy else {
+    let PreparedReferenceBehavior::Differs(discrepancy) = &mut prepared.reference_discrepancy
+    else {
         unreachable!("the fixture documents a reference failure")
     };
     discrepancy.evidence.push(DiscrepancyEvidence::Language {

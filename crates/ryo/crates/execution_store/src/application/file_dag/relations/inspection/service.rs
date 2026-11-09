@@ -36,7 +36,11 @@ impl RelationOwner {
             Err(OperatingError::NotRead)
         }
     }
-    pub(crate) fn matches_current(&self, result: &RelationResult, input: RepresentationInput<'_>) -> Sameness {
+    pub(crate) fn matches_current(
+        &self,
+        result: &RelationResult,
+        input: RepresentationInput<'_>,
+    ) -> Sameness {
         #[cfg(test)]
         self.identity_checks
             .set(CheckCount(self.identity_checks.get().0 + 1));
@@ -80,7 +84,9 @@ impl RelationOwner {
         match &result.body {
             RelationBody::Source(source) => {
                 let rows = read(source.relation)?;
-                if identity::matches(source, RepresentationInput::from(&rows)) == Sameness::Different {
+                if identity::matches(source, RepresentationInput::from(&rows))
+                    == Sameness::Different
+                {
                     return Err(OperatingError::NotRead);
                 }
                 Ok(rows)
@@ -130,10 +136,14 @@ impl RelationOwner {
                     entry
                         .views
                         .retain(|_, view| !std::ptr::eq(view.as_ref(), result));
-                    self.views
-                        .set(crate::application::file_dag::relations::types::PinnedViewCount(
-                            self.views.get().0.saturating_sub(before - entry.views.len()),
-                        ));
+                    self.views.set(
+                        crate::application::file_dag::relations::types::PinnedViewCount(
+                            self.views
+                                .get()
+                                .0
+                                .saturating_sub(before - entry.views.len()),
+                        ),
+                    );
                 }
             }
         }

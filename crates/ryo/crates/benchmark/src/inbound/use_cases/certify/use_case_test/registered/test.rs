@@ -1,8 +1,8 @@
 //! Registered certification retains independent artifact namespaces and refuses changed authority.
 use super::fixtures::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use std::borrow::Cow;
 use ryo_benchmark_contracts::domain::requests::types::CertificationCases;
+use std::borrow::Cow;
 
 const ARTIFACT: &str = "registered case artifact changed";
 const QUERY: &str = "measured query differs";
@@ -19,7 +19,10 @@ enum Scenario {
     /// The measured contestants are swapped for each other.
     Swapped,
     /// One registered artifact, query, module or authority drifted.
-    Drift { change: &'static str, reason: &'static str },
+    Drift {
+        change: &'static str,
+        reason: &'static str,
+    },
     /// A registered rule is missing from the document.
     MissingRule,
     /// The registered module inventory omits or adds a module.

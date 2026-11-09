@@ -1,4 +1,6 @@
 //! Analysis uses its injected language and propagates required failures.
+use super::errors::FileAnalysisError;
+use super::service::FileAnalysis;
 use crate::cases::Case;
 use crate::cases::CaseName;
 use crate::cases::Expect;
@@ -12,6 +14,7 @@ use crate::outbound::language::types::ProjectToRead;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
@@ -19,9 +22,6 @@ use ryo_language::inbound::use_cases::project::types::ManifestText;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use super::errors::FileAnalysisError;
-use super::service::FileAnalysis;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 #[cfg(test)]
 mod capture_test;
 #[cfg(test)]
@@ -39,18 +39,13 @@ mod resident_test;
 #[cfg(test)]
 mod visit_test;
 
-
-
-
-
-
-
 type Input = &'static str;
 type Value = usize;
 type Failure = FileAnalysisError;
 
 fn subject(path: Input) -> Result<Value, Failure> {
-    if path == "a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read" {
+    if path == "a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read"
+    {
         return replay_test::a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read();
     }
     if path == "syntax_applicability_skips_only_gated_rules_and_names_the_reason" {
@@ -84,7 +79,8 @@ fn subject(path: Input) -> Result<Value, Failure> {
         return failure_test::read_failure_demand_is_limited_to_governing_rules();
     }
     if path == "discovery_failure_runs_without_parser_bytes_or_permission_invention" {
-        return manifest_test::discovery_failure_runs_without_parser_bytes_or_permission_invention();
+        return manifest_test::discovery_failure_runs_without_parser_bytes_or_permission_invention(
+        );
     }
     if path == "primary_manifest_read_failure_retains_real_metadata_without_empty_project_source" {
         return manifest_test::primary_manifest_read_failure_retains_real_metadata_without_empty_project_source();
@@ -114,9 +110,9 @@ fn subject(path: Input) -> Result<Value, Failure> {
             Arc::new(DigestFake),
             Arc::new(MemoryFake::default()),
         );
-        service.validate_source_language(Some(&ryo_values::domain::descriptions::types::LanguageName(
-            "not-linked".into(),
-        )))?;
+        service.validate_source_language(Some(
+            &ryo_values::domain::descriptions::types::LanguageName("not-linked".into()),
+        ))?;
         return Ok(0);
     }
     let language = Arc::new(LanguageFake::default());
@@ -230,7 +226,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read"),
+        name: CaseName(
+            "a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read",
+        ),
         word: Word::Succeeds,
         input: || "a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read",
         expect: Expect::Value(1),
@@ -272,19 +270,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads"),
+        name: CaseName(
+            "successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads",
+        ),
         word: Word::Succeeds,
         input: || "successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads",
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops"),
+        name: CaseName(
+            "staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops",
+        ),
         word: Word::Succeeds,
         input: || "staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops",
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes"),
+        name: CaseName(
+            "read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes",
+        ),
         word: Word::Succeeds,
         input: || "read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes",
         expect: Expect::Value(1),
@@ -302,13 +306,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("primary_manifest_read_failure_retains_real_metadata_without_empty_project_source"),
+        name: CaseName(
+            "primary_manifest_read_failure_retains_real_metadata_without_empty_project_source",
+        ),
         word: Word::Succeeds,
         input: || "primary_manifest_read_failure_retains_real_metadata_without_empty_project_source",
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("project_entry_acquisition_deduplicates_provider_candidates_before_observing"),
+        name: CaseName(
+            "project_entry_acquisition_deduplicates_provider_candidates_before_observing",
+        ),
         word: Word::Succeeds,
         input: || "project_entry_acquisition_deduplicates_provider_candidates_before_observing",
         expect: Expect::Value(1),

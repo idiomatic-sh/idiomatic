@@ -1,7 +1,7 @@
 //! Exact display and independently pinned canonical observation identities.
 use super::value::ArtifactDigest;
-use crate::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
 use std::{borrow::Cow, collections::BTreeMap};
 #[derive(Clone, Copy)]
 enum Scenario {

@@ -1,6 +1,8 @@
 //! The `plan_parts` service: free functions named by verb over the numbers a plan is made of, with no IO and no ports.
 
-use super::types::{Applied, BindingPlace, ColumnIndex, ObservationBindingId, Operand, ParameterId, StepId};
+use super::types::{
+    Applied, BindingPlace, ColumnIndex, ObservationBindingId, Operand, ParameterId, StepId,
+};
 
 /// The one of `items` that the step `id` names, when there is one.
 #[must_use]

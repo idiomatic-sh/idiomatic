@@ -50,7 +50,13 @@ pub(super) fn measure_certified(
     order: RunOrder,
 ) -> Result<Pair, Error> {
     let baseline = crate::application::certified_measurement::service::admit(
-        certificate, mode, suite, execution, reference, candidate, request,
+        certificate,
+        mode,
+        suite,
+        execution,
+        reference,
+        candidate,
+        request,
     )?;
     let pair = measure(
         &certificate.coverage,
@@ -63,6 +69,11 @@ pub(super) fn measure_certified(
         order,
     )?;
     crate::application::certified_measurement::service::conclude(
-        certificate, mode, suite, execution, &baseline, pair,
+        certificate,
+        mode,
+        suite,
+        execution,
+        &baseline,
+        pair,
     )
 }

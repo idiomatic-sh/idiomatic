@@ -5,8 +5,8 @@ use ryo::linter::{
     ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
     ObservationKind, ObservationName, ObservationProducer, RuleId,
 };
-use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
+use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use std::collections::BTreeMap;
 
 /// What each scenario resolves.

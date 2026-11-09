@@ -1,7 +1,9 @@
 //! The borrowed parts of one invocation's workspace a kernel works in, lent together so one evaluation can hold them at once.
 use ryo_execution_domain::domain::operating::types::{Memo, NameCount};
 use ryo_execution_domain::domain::operator::contract::types::{PrimitiveWorkspace, WorkCounters};
-use ryo_execution_domain::domain::table_scratch::types::{LazyScratch, OperatorScratch, SelectScratch};
+use ryo_execution_domain::domain::table_scratch::types::{
+    LazyScratch, OperatorScratch, SelectScratch,
+};
 use ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex;
 
 /// The working allocations of one invocation, each borrowed apart from the others: a view of the workspace, never

@@ -4,8 +4,8 @@ use super::{
     fixtures::{Scenario, subject as fixture_subject},
     service::publication,
 };
-use ryo_execution_domain::domain::finish::types::PublicationReason;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::finish::types::PublicationReason;
 
 type Input = Scenario;
 type Value = ();

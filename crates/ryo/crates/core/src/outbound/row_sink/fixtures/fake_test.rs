@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::{Ends, RowSinkFake};
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::row_sink::interface::RowSinkPort as _;
 use crate::outbound::row_sink::types::AnswerCounts;
@@ -30,7 +30,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_fake_told_to_fail_fails_the_answer"),
         word: Word::Fails,
         input: || Ends::Failed,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, RowSinkError::Failed { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, RowSinkError::Failed { .. })))
+        }),
     },
 ];
 

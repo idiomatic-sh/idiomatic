@@ -18,7 +18,9 @@ use ryo::languages::{
 use crate::domain::links::collections::links::analyzed_source::item::AnalyzedSourceItem;
 use crate::domain::links::collections::links::file_package::item::FilePackageItem;
 use crate::domain::links::collections::links::source_dependency::item::SourceDependencyItem;
-use crate::domain::links::service::{declared_in, draw, examine, externs_in, facts_in, gaps_in, merged};
+use crate::domain::links::service::{
+    declared_in, draw, examine, externs_in, facts_in, gaps_in, merged,
+};
 use crate::domain::links::types::{Linked, Run};
 use crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem;
 use crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem;
@@ -133,7 +135,12 @@ impl ProjectContract {
             .into_iter()
             .flatten()
             .flatten()
-            .chain(externs.by_package.values().flat_map(|each| each.keys().cloned()))
+            .chain(
+                externs
+                    .by_package
+                    .values()
+                    .flat_map(|each| each.keys().cloned()),
+            )
             .collect();
         let facts = self.spread(&request.notes, &|_, note| match self.notes.note_in(note) {
             Ok(each) => Some(facts_in(each, &names)),
@@ -295,10 +302,7 @@ impl Project for ProjectContract {
     }
 
     fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
-        languages::primary_role_from_manifests(
-            path,
-            self.manifests().iter().copied(),
-        )
+        languages::primary_role_from_manifests(path, self.manifests().iter().copied())
     }
 
     fn project_entries(

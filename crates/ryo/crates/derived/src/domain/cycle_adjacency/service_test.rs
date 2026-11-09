@@ -36,7 +36,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_destination_column_the_rows_lack_is_refused"),
         word: Word::Refuses,
         input: || Scenario::AbsentDestination,
-        expect: Expect::Error(DerivedFault::NoSuchColumn { column: ColumnIndex(3) }),
+        expect: Expect::Error(DerivedFault::NoSuchColumn {
+            column: ColumnIndex(3),
+        }),
     },
 ];
 

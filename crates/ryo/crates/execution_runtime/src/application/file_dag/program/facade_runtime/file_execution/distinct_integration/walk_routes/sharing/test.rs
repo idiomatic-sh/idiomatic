@@ -186,7 +186,10 @@ fn shares(scope: StepScope, head: Operation) {
     assert_ne!(pair, other, "another predicate is another class");
     let classes = program.prepared.walk().classes();
     for class in [pair, other] {
-        assert_eq!(classes[class.0].scope, scope, "a class stays in its partition");
+        assert_eq!(
+            classes[class.0].scope, scope,
+            "a class stays in its partition"
+        );
         assert_eq!(classes[class.0].source, Relation::LanguageTarget);
     }
     match scope {

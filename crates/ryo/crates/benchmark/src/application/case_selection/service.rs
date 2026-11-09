@@ -3,7 +3,9 @@ use super::constants;
 use super::types::ShardSelection;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, case_count::value::CaseCount};
+use ryo_benchmark_contracts::domain::workloads::types::{
+    PreparedCase, case_count::value::CaseCount,
+};
 
 /// Partition the sorted inventory into this shard, then keep exactly the named cases.
 ///
@@ -27,17 +29,28 @@ pub fn select(
     };
     let assigned_ids = assigned
         .iter()
-        .map(|case| ryo_benchmark_contracts::domain::requests::types::CaseId(format!("{}/{}", case.rule, case.name)))
+        .map(|case| {
+            ryo_benchmark_contracts::domain::requests::types::CaseId(format!(
+                "{}/{}",
+                case.rule, case.name
+            ))
+        })
         .collect::<std::collections::BTreeSet<_>>();
     let selected_cases = match selection.ids {
-        ryo_benchmark_contracts::domain::requests::types::IdSelection::Subset(selected) if selected.is_empty() || !selected.is_subset(&assigned_ids) => {
+        ryo_benchmark_contracts::domain::requests::types::IdSelection::Subset(selected)
+            if selected.is_empty() || !selected.is_subset(&assigned_ids) =>
+        {
             return Err(Error::Invalid(
                 constants::CASE_SELECTION_IS_EMPTY_OR_OUTSIDE.into(),
             ));
         }
         ryo_benchmark_contracts::domain::requests::types::IdSelection::Subset(selected) => assigned
             .into_iter()
-            .filter(|case| selected.contains(&ryo_benchmark_contracts::domain::requests::types::CaseId(format!("{}/{}", case.rule, case.name))))
+            .filter(|case| {
+                selected.contains(&ryo_benchmark_contracts::domain::requests::types::CaseId(
+                    format!("{}/{}", case.rule, case.name),
+                ))
+            })
             .collect::<Vec<_>>(),
         ryo_benchmark_contracts::domain::requests::types::IdSelection::WholeShard => assigned,
     };

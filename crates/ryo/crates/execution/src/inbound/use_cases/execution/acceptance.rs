@@ -3,8 +3,8 @@ use crate::Behavior;
 use cucumber::{given, then, when};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
@@ -19,9 +19,11 @@ fn request(world: &mut Behavior, input: String) {
 fn runs(world: &mut Behavior) {
     let prepare = PrepareUseCaseImpl::new(
         Arc::new(
-            ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
-                ryo_operators::outbound::matching::factory::use_case(),
-            ))),
+            ryo_execution_runtime::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+                    Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+                ),
+            ),
         ),
         Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),

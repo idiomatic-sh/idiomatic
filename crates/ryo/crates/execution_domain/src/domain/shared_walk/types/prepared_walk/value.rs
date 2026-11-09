@@ -3,11 +3,11 @@
 use crate::domain::{
     coverage::types::RuleIndex,
     operating::errors::OperatingError,
-    step_classes::types::ClassPlace,
     shared_walk::types::{
         PredicateNumber, PredicatePlace,
         walk_route::value::{WalkBarrier, WalkRoute, source_barrier},
     },
+    step_classes::types::ClassPlace,
     step_classes::{
         service::merge,
         types::{BindingsAgreement, Merge, StepClass},
@@ -359,4 +359,3 @@ struct PreparedPredicate {
     /// Owned, so retention can drop its defining class without invalidating the trie.
     comparison: ryo_values::domain::plan_parts::types::PlanComparison,
 }
-

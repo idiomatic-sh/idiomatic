@@ -61,9 +61,13 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
 fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![case.rule.clone()]),
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+            vec![case.rule.clone()],
+        ),
+        rule_observations:
+            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
         project_search_roots: case.request.project_search_roots.clone(),
         given_project_inventory: case.request.given_project_inventory.clone(),
         project_context_mode: ProjectContextMode::ListedDisk,
@@ -79,19 +83,29 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
             super::prepared_engine_test::module_names(modules)
         },
         rule_applicability: BTreeMap::new(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python-target=3.10".into())),
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        parser_configuration:
+            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(
+                ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+                    "python-target=3.10".into(),
+                ),
+            ),
+        source_language:
+            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: case.request.files.clone(),
         state: WorkerState::Retained(cache.to_owned()),
     }
 }
-fn sealed(seal: &ryo_benchmark_contracts::domain::requests::types::ContextSeal) -> &ContextManifest {
+fn sealed(
+    seal: &ryo_benchmark_contracts::domain::requests::types::ContextSeal,
+) -> &ContextManifest {
     match seal {
         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => manifest,
         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
     }
 }
-fn sealed_mut(seal: &mut ryo_benchmark_contracts::domain::requests::types::ContextSeal) -> &mut ContextManifest {
+fn sealed_mut(
+    seal: &mut ryo_benchmark_contracts::domain::requests::types::ContextSeal,
+) -> &mut ContextManifest {
     match seal {
         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => manifest,
         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
@@ -130,7 +144,9 @@ fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), 
         // Authored expectations declare diagnostics, not observed execution metadata.
         ryo_benchmark::domain::diagnostics::service::compare_diagnostics(&case.expected, &result)
             .map_err(|difference| Error::Invalid(format!("{}:{difference:?}", case.name.0)))?;
-        let ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) = result.project_context else {
+        let ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) =
+            result.project_context
+        else {
             panic!("ListedDisk has an active receipt");
         };
         assert_eq!(receipt.mode, ProjectContextMode::ListedDisk);
@@ -168,13 +184,17 @@ fn shared_cache_root_mode_and_source_edits_preserve_project_evidence() -> Result
     );
     let mut isolated = request(&profile, pkg, &cache);
     isolated.project_context_mode = ProjectContextMode::Isolated;
-    isolated.context_manifest = ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed;
+    isolated.context_manifest =
+        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed;
     let result = engine.run_prepared(isolated.clone())?;
     assert!(
         result.diagnostics.is_empty(),
         "Given mode cannot reuse Disk package rows"
     );
-    assert_eq!(result.project_context, ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested);
+    assert_eq!(
+        result.project_context,
+        ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested
+    );
     isolated
         .files
         .push(ryo::linter::RelativePath("__init__.py".into()));
@@ -207,22 +227,18 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
     let engine = factory::local(super::prepared_engine_test::python_310(), None);
     let cache = scratch.path().join("cache");
     let mut undeclared = request(&profile, case, &cache);
-    sealed_mut(&mut undeclared.context_manifest)
-        .missing
-        .clear();
-    assert!(
-        sealed(&undeclared.context_manifest)
-            .missing
-            .is_empty()
-    );
+    sealed_mut(&mut undeclared.context_manifest).missing.clear();
+    assert!(sealed(&undeclared.context_manifest).missing.is_empty());
     let discovered = engine.run_prepared(undeclared)?;
     assert_eq!(
         match discovered.project_context {
-            ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) => receipt,
-            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested => panic!("observed context"),
+            ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) =>
+                receipt,
+            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested =>
+                panic!("observed context"),
         }
-            .dependencies
-            .get(std::path::Path::new("../__init__.py")),
+        .dependencies
+        .get(std::path::Path::new("../__init__.py")),
         Some(&None),
         "the candidate must report the actual absent ancestor despite an empty base missing list"
     );

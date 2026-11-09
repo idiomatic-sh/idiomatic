@@ -10,10 +10,7 @@ use ryo_operators::domain::reduction::types::DigestValues;
 use ryo_operators::domain::reduction::types::GroupColumns;
 use ryo_operators::domain::reduction::types::HashScratch;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_values::domain::{
-    plan_parts::types::ColumnIndex,
-    rows::types::Table,
-};
+use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::Table};
 
 /// Counts the rows of each group of a table through the operators.
 pub fn count_groups(

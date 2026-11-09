@@ -28,7 +28,9 @@ impl RelationOwner {
             population: self.result_population(record),
             backing: self.backing_population(record),
         };
-        if self.matches_generation(&record.generation) == Sameness::Different || expected != Some(actual) {
+        if self.matches_generation(&record.generation) == Sameness::Different
+            || expected != Some(actual)
+        {
             return Ok(None);
         }
         // Original-plan lineage permits only copying operators. Every leaf must
@@ -44,7 +46,10 @@ impl RelationOwner {
                 source.kind != RepresentationKind::Stored
                     || source.kinds.get(origin.column.0 as usize) != Some(&CellKind::Number)
                     || source.storage.len() != source.kinds.len()
-                    || source.storage.iter().any(|span| span.length.0 != source.rows.0)
+                    || source
+                        .storage
+                        .iter()
+                        .any(|span| span.length.0 != source.rows.0)
             })
         {
             return Ok(None);

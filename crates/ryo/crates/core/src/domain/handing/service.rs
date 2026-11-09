@@ -1,25 +1,17 @@
 //! The `handing` service: free functions named by verb over what a file handed the steps that read across files and the rows the
 //! store keeps of it, with no IO and no ports.
 
+use crate::domain::keeping::service::rendered_of;
 use crate::domain::keeping::types::{ArenaStart, Remap};
 use crate::domain::workers::types::{FileOrder, FreshRecord, PlacedNotes, Tables};
 use ryo_execution::inbound::use_cases::metadata::interface::{
     Covered, Lacking, LackingKind, Partial, RuleIndex,
 };
 use ryo_language::domain::files::types::FilePath;
+use ryo_relations::domain::labels::types::NameRef;
+use ryo_relations::domain::relations::service::name;
 use ryo_relations::domain::relations::service::relation_named;
 use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
-use ryo_relations::domain::labels::types::NameRef;
-use ryo_values::domain::records::types::{GoverningRules, Handed, HandedNotes, RecordWords};
-use ryo_values::domain::stored_facts::types::{
-    ArenaBytes, Bucket, FileNotes, PartialCause, PartialScope, StoredPartial,
-};
-use ryo_values::domain::stored_findings::types::StoredFileNumber;
-use ryo_values::domain::stores::types::{
-    BucketsWanted, Stored, StoredCovered, StoredHanded, StoredNotes, StoredText, StoredWords,
-};
-use crate::domain::keeping::service::rendered_of;
-use ryo_relations::domain::relations::service::name;
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::files::types::CorpusEntry;
 use ryo_values::domain::files::types::FileNumber;
@@ -27,9 +19,17 @@ use ryo_values::domain::records::types::FileOutcome;
 use ryo_values::domain::records::types::Ran;
 use ryo_values::domain::records::types::Record;
 use ryo_values::domain::records::types::Unread;
+use ryo_values::domain::records::types::{GoverningRules, Handed, HandedNotes, RecordWords};
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stored_facts::types::PartialAt;
 use ryo_values::domain::stored_facts::types::PartialKind;
+use ryo_values::domain::stored_facts::types::{
+    ArenaBytes, Bucket, FileNotes, PartialCause, PartialScope, StoredPartial,
+};
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
+use ryo_values::domain::stores::types::{
+    BucketsWanted, Stored, StoredCovered, StoredHanded, StoredNotes, StoredText, StoredWords,
+};
 
 /// The rows of `rows` of the stored file `file`: the tables keep each file's rows together, in the order of the files.
 pub(crate) fn rows_of_file<T>(
@@ -177,7 +177,6 @@ pub(crate) fn partials_of(stored: &[StoredPartial]) -> Vec<Partial> {
         })
         .collect()
 }
-
 
 /// How the words a file handed the last run move to this run, read by the worker of `tables` as the file `number`: as if the run
 /// had read it, its text after what the worker's arena holds now. Taken before the file's text joins the arena.

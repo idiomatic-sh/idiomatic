@@ -1,5 +1,4 @@
 //! Lower the temporary canonical analysis graph; erase internal continuation cuts.
-use crate::domain::operator::types::ReaderMultiplicity;
 #[cfg(any(test, feature = "fixtures"))]
 use super::fusion::types::Ineligible;
 use super::fusion::types::{Fusibility, RegionSharing};
@@ -9,13 +8,12 @@ use super::types::executable_program::value::ExecutableProgram;
 use super::types::instruction::value::Instruction;
 use super::types::region::value::Region;
 use super::types::*;
+use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::{
     file_program::types::{NodeInput, RequestGraph},
     operating::errors::OperatingError,
 };
-use ryo_values::domain::{
-    plans::types::{Operation, Plan},
-};
+use ryo_values::domain::plans::types::{Operation, Plan};
 
 /// The analysis graph is consumed. Its native regions, layouts, cuts, liveness
 /// tables and original-plan execution copies do not survive into this program.
@@ -60,7 +58,8 @@ pub fn compile(
             Operation::Rows { parameter, .. } => partitions.parameter(rule, *parameter)?,
             _ => PartitionRequirement::InputLineage,
         };
-        let mut actions = DemandProgram::admissions(node.contract.semantics, node.contract.inputs.used);
+        let mut actions =
+            DemandProgram::admissions(node.contract.semantics, node.contract.inputs.used);
         if matches!(node.operation, Operation::Hosted { .. }) {
             actions.insert(0, DemandAction::Admit(InputId(0)));
         }

@@ -1,10 +1,10 @@
 //! Every evidence authority retains its exact artifact identity.
 use super::value::{
-    ContractSourcePath, DiscrepancyEvidence, DiscrepancyEvidenceKind, LanguageVersion, ParserTarget, Rationale,
-    SourceRevision, WitnessCase,
+    ContractSourcePath, DiscrepancyEvidence, DiscrepancyEvidenceKind, LanguageVersion,
+    ParserTarget, Rationale, SourceRevision, WitnessCase,
 };
-use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use std::borrow::Cow;
 
 const CASES: &[Case<DiscrepancyEvidence, Cow<'static, str>, ()>] = &[

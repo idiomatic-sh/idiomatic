@@ -32,15 +32,13 @@ pub(crate) fn cases(
         .map_or(ProjectContextMode::Isolated, |tool| {
             tool.project_context_mode
         });
-    let undeclared_context = ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared;
+    let undeclared_context =
+        ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared;
     let mut prepared = Vec::new();
     for rule in suite.rule_ids(ArtifactPath(rules))? {
-        if profile
-            .as_ref()
-            .is_some_and(|tool| {
-                policy::owns_cases(tool, &rule) == crate::domain::suite::types::CaseOwnership::Supports
-            })
-        {
+        if profile.as_ref().is_some_and(|tool| {
+            policy::owns_cases(tool, &rule) == crate::domain::suite::types::CaseOwnership::Supports
+        }) {
             continue;
         }
         let cases = suite.rule_cases(ArtifactPath(rules), &rule)?;
@@ -66,10 +64,12 @@ pub(crate) fn cases(
                 &mut case.project_search_roots,
                 ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             ) {
-                ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared => profile.as_ref().map_or(
-                    ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
-                    |tool| tool.project_search_roots.clone(),
-                ),
+                ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared => {
+                    profile.as_ref().map_or(
+                        ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+                        |tool| tool.project_search_roots.clone(),
+                    )
+                }
                 declared => declared,
             };
             let given_project_inventory = match std::mem::replace(
@@ -81,7 +81,8 @@ pub(crate) fn cases(
             };
             if given_project_inventory.completeness
                 == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
-                && project_search_roots == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
+                && project_search_roots
+                    == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
             {
                 return Err(Error::Invalid(
                     super::constants::COMPLETE_GIVEN_ROOTS.into(),
@@ -140,20 +141,29 @@ pub(crate) fn cases(
                 rule_observations: case.rule_observations,
                 project_search_roots,
                 given_project_inventory,
-                staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Listed(case.files.keys().cloned().collect()),
+                staged_sources:
+                    ryo_benchmark_contracts::domain::requests::types::StagedSources::Listed(
+                        case.files.keys().cloned().collect(),
+                    ),
                 file_metadata: case.file_metadata,
                 context_manifest: match sealed {
                     MaterializedContext::Isolated => {
                         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed
                     }
                     MaterializedContext::Sealed(manifest) => {
-                        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest)
+                        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+                            manifest,
+                        )
                     }
                 },
                 root: physical.root,
                 files: match case.requested_files {
-                    ryo_benchmark_contracts::domain::workloads::types::RequestedFiles::Explicit(files) => files,
-                    ryo_benchmark_contracts::domain::workloads::types::RequestedFiles::Legacy => case.files.keys().cloned().collect(),
+                    ryo_benchmark_contracts::domain::workloads::types::RequestedFiles::Explicit(
+                        files,
+                    ) => files,
+                    ryo_benchmark_contracts::domain::workloads::types::RequestedFiles::Legacy => {
+                        case.files.keys().cloned().collect()
+                    }
                 },
                 state: scratch
                     .join(super::constants::CACHE)

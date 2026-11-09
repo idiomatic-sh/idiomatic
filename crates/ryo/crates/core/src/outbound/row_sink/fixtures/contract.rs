@@ -2,7 +2,7 @@
 
 use super::super::errors::RowSinkError;
 use super::super::interface::RowSinkPort;
-use super::super::types::{LentCell, AnswerCounts};
+use super::super::types::{AnswerCounts, LentCell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::{Offset, Span};
 use ryo_values::domain::plan_parts::types::Heading;

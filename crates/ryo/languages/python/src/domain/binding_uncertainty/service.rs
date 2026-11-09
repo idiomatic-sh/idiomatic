@@ -80,7 +80,11 @@ fn repeats_reference(tree: &Tree<'_>, reference: Position, region: Position) -> 
                 }
                 at = above;
             }
-            if field_of(tree, at) != Field::Iter { Flag::Raised } else { Flag::Lowered }
+            if field_of(tree, at) != Field::Iter {
+                Flag::Raised
+            } else {
+                Flag::Lowered
+            }
         }
         Kind::Node(Node::ListComp | Node::SetComp | Node::DictComp | Node::GeneratorExp) => {
             within(tree, enclosing(tree, reference), region)
@@ -95,7 +99,11 @@ fn protected_body(tree: &Tree<'_>, mut at: Position, handler: Position) -> Flag 
     loop {
         let above = parent(tree, at);
         if above == statement {
-            return if field_of(tree, at) == Field::Body { Flag::Raised } else { Flag::Lowered };
+            return if field_of(tree, at) == Field::Body {
+                Flag::Raised
+            } else {
+                Flag::Lowered
+            };
         }
         if above == at || at == Position(0) {
             return Flag::Lowered;

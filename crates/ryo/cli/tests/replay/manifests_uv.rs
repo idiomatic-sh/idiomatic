@@ -103,9 +103,7 @@ fn ryo_says_what_uv_says_of_the_manifests_of_a_workspace() {
     let root = fixture("uv");
     let ours = ryo_lines(
         &root,
-        vec![ryo_core::outbound::language::factory::LanguageConnection::from(
-            ryo_python::linked(),
-        )],
+        vec![ryo_core::outbound::language::factory::LanguageConnection::from(ryo_python::linked())],
         DEPENDENCIES,
     );
     let theirs = uv_lines(&root);

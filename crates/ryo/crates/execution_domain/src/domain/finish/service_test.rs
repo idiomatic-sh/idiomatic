@@ -1,8 +1,11 @@
 //! The original producer-name normalization assertions, beside the actual execution-owned implementation.
 use super::service::{carry, escape, escape_frame};
 use super::types::{Arena, Leaves, Leaving, Retained};
-use ryo_language::domain::symbols::{service::{intern, intern_derived, place_of}, types::{ByteSlice, Symbols}};
 use ryo_language::domain::names::service::{derived_of, places_of};
+use ryo_language::domain::symbols::{
+    service::{intern, intern_derived, place_of},
+    types::{ByteSlice, Symbols},
+};
 use ryo_relations::domain::{
     relations::types::{CellKind, FileId, Offset, Origin, Value as Cell, WorkerNumber},
     terms::types::NameText,

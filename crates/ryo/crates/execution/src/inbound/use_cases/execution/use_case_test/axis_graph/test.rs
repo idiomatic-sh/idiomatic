@@ -1,24 +1,24 @@
 //! The canonical stored graph, selected stored edges and hosted ordinary traversal publish identical ordered bags.
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use super::super::super::fixtures::requests::{Authored, Preparation};
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use super::super::super::fixtures::requests::{Authored, Preparation};
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::inbound::use_cases::execution::interface::FileRuleIntent;
 use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
@@ -113,7 +113,10 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         .into_iter()
         .map(|d| plan(d, stored, projected))
         .collect();
-    let prepared = engine.prepare(Authored { plans: plans, bindings: vec![vec![]; 5], rules: AXES
+    let prepared = engine.prepare(Authored {
+        plans: plans,
+        bindings: vec![vec![]; 5],
+        rules: AXES
             .iter()
             .map(|axis| RuleSpec {
                 id: RuleId((*axis).into()),
@@ -131,11 +134,15 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
                 include: vec![],
                 exclude: vec![],
             })
-            .collect(), digests: vec![Digest([0; 16]); 5], hosted: vec![
+            .collect(),
+        digests: vec![Digest([0; 16]); 5],
+        hosted: vec![
             fixtures::requests::numbers("starts", 1, &[&[1], &[1], &[4], &[999]]),
             fixtures::requests::numbers("domain", 1, &[&[1], &[2], &[9], &[9], &[4], &[91]]),
             fixtures::requests::numbers("edges", 2, EDGES),
-        ], observations: ObservationIdentity::Independent })?;
+        ],
+        observations: ObservationIdentity::Independent,
+    })?;
     let columns = [
         FactColumn(vec![to_bits(Cell::File(FileId(0))).0; 7]),
         FactColumn(
@@ -214,7 +221,10 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
     let walks = file.walk_counts();
     if stored && !projected {
         // The derived Adjacency route through the owner: one canonical graph for the five consumers.
-        assert_eq!(counts.graph_builds, 1, "the stored edges build one canonical retained graph");
+        assert_eq!(
+            counts.graph_builds, 1,
+            "the stored edges build one canonical retained graph"
+        );
         assert_eq!(counts.graph_reuses, 4, "the other four consumers reuse it");
         assert!(
             counts.graph_early_stops > 0,

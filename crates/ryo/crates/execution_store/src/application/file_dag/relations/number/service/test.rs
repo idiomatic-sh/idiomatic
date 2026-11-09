@@ -42,9 +42,8 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     let owner = RelationOwner::for_request(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         crate::application::file_dag::relations::types::PinnedViewCount(64),
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.source_borrowed(relation, rows).unwrap();
     owner
@@ -116,15 +115,12 @@ fn producer_scope_rebinding_refuses_before_registering_an_alias() {
     );
     assert_eq!(publication.as_ref().producer_scope.get(), Some(&first));
     assert_eq!(owner.result_population(publication.as_ref()), identity);
-    assert!(
-        !owner
-            .producer_populations
-            .borrow()
-            .contains_key(&crate::application::file_dag::relations::publication::types::ProducerKey {
-                scope: foreign,
-                region: RegionId(8),
-            })
-    );
+    assert!(!owner.producer_populations.borrow().contains_key(
+        &crate::application::file_dag::relations::publication::types::ProducerKey {
+            scope: foreign,
+            region: RegionId(8),
+        }
+    ));
     let independent = owner.computed(Table::default()).unwrap();
     owner
         .bind_producer(foreign, RegionId(8), independent.as_ref())
@@ -138,7 +134,9 @@ fn qualified_producers_release_only_their_actual_population() {
         ViewContext,
         fixtures::resources::{ResourceFixture, weak_storage},
     };
-    use ryo_execution_domain::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
+    use ryo_execution_domain::domain::derived_views::types::{
+        DerivedInputs, DerivedScratch, ViewRequest,
+    };
     use ryo_relations::domain::relations::types::{Integer, Value};
     use ryo_values::domain::rows::types::{RowCount, Table};
     // This is a generic owned-row index contract, not a catalog-provider fixture.
@@ -184,10 +182,14 @@ fn qualified_producers_release_only_their_actual_population() {
                     &ViewRequest::Equality {
                         columns: vec![ColumnIndex(0)],
                     },
-                    &[ryo_execution_domain::domain::operation_schema::types::InputShape {
-                        kinds: ryo_execution_domain::domain::table_model::service::kinds_of(&rows),
-                        tree: None,
-                    }],
+                    &[
+                        ryo_execution_domain::domain::operation_schema::types::InputShape {
+                            kinds: ryo_execution_domain::domain::table_model::service::kinds_of(
+                                &rows,
+                            ),
+                            tree: None,
+                        },
+                    ],
                 )
                 .unwrap(),
         );

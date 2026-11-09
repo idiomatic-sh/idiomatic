@@ -1,10 +1,9 @@
 // ignore: idiomatic.arch/file-length - the one adapter_test.rs the adapter spec places for this adapter: the port contract rows and the cases of its writer and its connection run through it
 //! The postcard adapter of the store port: the core's contract rows run through it, then the cases specific to it.
 
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
-use std::io::Write as _;
 use super::adapter::LintStorePostcardAdapter;
+use super::constants::FILE;
+use super::constants::TRAILER;
 use super::schemas::contents;
 use super::schemas::contents_bytes;
 use super::types::SectionLength;
@@ -12,10 +11,27 @@ use super::types::TableOfContents;
 use crate::cases::Case;
 use crate::cases::CaseName;
 use crate::cases::Expect;
+use crate::cases::Matched;
 use crate::cases::Word;
 use crate::cases::run;
-use crate::cases::Matched;
 use crate::cases::selects;
+use crate::outbound::lint_store::adapters::postcard::adapter::fresh;
+use crate::outbound::lint_store::adapters::postcard::buckets::schemas::bucket_bytes;
+use crate::outbound::lint_store::adapters::postcard::buckets::schemas::rebuilt_bucket_bytes;
+use crate::outbound::lint_store::adapters::postcard::connection::BUFFER_BYTES;
+use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
+use crate::outbound::lint_store::adapters::postcard::connection::append;
+use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;
+use crate::outbound::lint_store::adapters::postcard::connection::read;
+use crate::outbound::lint_store::adapters::postcard::connection::validate;
+use crate::outbound::lint_store::adapters::postcard::types::FileOffset;
+use crate::outbound::lint_store::adapters::postcard::types::Payload;
+use crate::outbound::lint_store::adapters::postcard::types::SectionSpan;
+use crate::outbound::lint_store::adapters::postcard::writer::old_rows;
+use crate::outbound::lint_store::adapters::postcard::writer::old_rows_in;
+use crate::outbound::lint_store::adapters::postcard::writer::old_word_rows_in;
+use crate::outbound::lint_store::adapters::postcard::writer::read_old_in;
+use crate::outbound::lint_store::adapters::postcard::writer::write_bucket;
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::lint_store::fixtures::contract::check;
 use crate::outbound::lint_store::fixtures::handed::materialized_handed;
@@ -29,49 +45,33 @@ use crate::outbound::lint_store::interface::LintStorePort as _;
 use crate::outbound::lint_store::types::BuildIdentity;
 use crate::outbound::lint_store::types::CacheDirectory;
 use crate::outbound::lint_store::types::Store;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::BucketsWanted;
-use ryo_values::domain::stores::types::KeptRows;
-use ryo_values::domain::stores::types::Stored;
-use crate::outbound::lint_store::adapters::postcard::types::Payload;
-use crate::outbound::lint_store::adapters::postcard::adapter::fresh;
-use crate::outbound::lint_store::adapters::postcard::writer::old_rows;
-use crate::outbound::lint_store::adapters::postcard::writer::write_bucket;
-use crate::outbound::lint_store::adapters::postcard::buckets::schemas::bucket_bytes;
-use crate::outbound::lint_store::adapters::postcard::buckets::schemas::rebuilt_bucket_bytes;
-use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
-use crate::outbound::lint_store::adapters::postcard::types::FileOffset;
-use crate::outbound::lint_store::adapters::postcard::types::SectionSpan;
+use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_values::domain::records::types::PayloadLength;
+use ryo_values::domain::records::types::StagedWords;
 use ryo_values::domain::records::types::StagingSession;
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
+use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::stores::types::FileAgain;
+use ryo_values::domain::stores::types::KeptRows;
+use ryo_values::domain::stores::types::OldWords;
 use ryo_values::domain::stores::types::StagedRow;
+use ryo_values::domain::stores::types::StoreSnapshot;
+use ryo_values::domain::stores::types::Stored;
 use ryo_values::domain::stores::types::StoredWords;
-use crate::outbound::lint_store::adapters::postcard::writer::old_rows_in;
-use crate::outbound::lint_store::adapters::postcard::connection::BUFFER_BYTES;
+use std::cell::Cell;
+use std::io::BufReader;
+use std::io::BufWriter;
 use std::io::Cursor;
 use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
-use crate::outbound::lint_store::adapters::postcard::writer::old_word_rows_in;
-use crate::outbound::lint_store::adapters::postcard::writer::read_old_in;
-use ryo_values::domain::stores::types::OldWords;
-use ryo_values::domain::stores::types::StoreSnapshot;
-use crate::outbound::lint_store::adapters::postcard::connection::append;
-use crate::outbound::lint_store::adapters::postcard::connection::read;
-use crate::outbound::lint_store::adapters::postcard::connection::validate;
-use ryo_values::domain::records::types::StagedWords;
+use std::io::Write as _;
 use std::io::Write;
-use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;
-use std::cell::Cell;
-use std::io::BufReader;
-use std::io::BufWriter;
 use std::rc::Rc;
-use super::constants::FILE;
-use super::constants::TRAILER;
-use ryo_values::domain::files::types::ExecutablePermission;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 /// A question specific to this adapter.
 #[derive(Clone, Copy, Debug)]
 enum Question {
@@ -244,7 +244,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_keep_that_must_copy_words_from_a_store_nobody_read_is_refused"),
         word: Word::Refuses,
         input: || Question::AKeepOfWordsNobodyReadIsRefused,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintStoreError::NothingRead)))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintStoreError::NothingRead)))
+        }),
     },
     Case {
         name: CaseName("a_bucket_the_run_does_not_ask_for_is_never_decoded"),
@@ -271,7 +273,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder"),
+        name: CaseName(
+            "staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder",
+        ),
         word: Word::Succeeds,
         input: || Question::StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder,
         expect: Expect::Value(true),
@@ -334,7 +338,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure"),
+        name: CaseName(
+            "streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure",
+        ),
         word: Word::Succeeds,
         input: || Question::StreamedPayloadCopiesHaveBoundedWriteChunksAndPropagateWriteFailure,
         expect: Expect::Value(true),
@@ -365,7 +371,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks"),
+        name: CaseName(
+            "spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks",
+        ),
         word: Word::Succeeds,
         input: || Question::SpoolLifetimeAndForeignOverflowTruncationChecksAreNotEmptyFallbacks,
         expect: Expect::Value(true),
@@ -594,7 +602,8 @@ fn row(file: u32, length: usize) -> StoredWords {
     }
 }
 
-fn inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries() -> Result<Value, Failure> {
+fn inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries() -> Result<Value, Failure>
+{
     for length in [0, 1, 127, 128, 16383, 16384, 100_000] {
         let rows = [row(128, length), row(0, 0), row(128, 9)];
         let expected = bucket_bytes(&rows.iter().collect::<Vec<_>>()).expect("legacy bytes");
@@ -628,7 +637,8 @@ fn inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries() -> Res
     Ok(true)
 }
 
-fn old_spans_and_fresh_rows_preserve_selected_file_remapping_and_tie_order() -> Result<Value, Failure> {
+fn old_spans_and_fresh_rows_preserve_selected_file_remapping_and_tie_order()
+-> Result<Value, Failure> {
     let old = [row(0, 128), row(1, 16384), row(1, 7), row(2, 99)];
     let old_bytes = bucket_bytes(&old.iter().collect::<Vec<_>>()).expect("legacy");
     let mut file = tempfile::tempfile().expect("old snapshot");
@@ -677,12 +687,13 @@ fn corrupt_headers_order_and_truncated_payloads_are_refused() -> Result<Value, F
         let mut file = tempfile::tempfile().expect("file");
         file.write_all(&bytes).expect("write");
         let _refusal = old_rows(
-                &mut file,
-                SectionSpan {
-                    start: FileOffset(0),
-                    length: SectionLength(u64::try_from(bytes.len()).expect("size"))
-                }
-            ).expect_err("a refusal");
+            &mut file,
+            SectionSpan {
+                start: FileOffset(0),
+                length: SectionLength(u64::try_from(bytes.len()).expect("size")),
+            },
+        )
+        .expect_err("a refusal");
     }
     let mut spool = StagingConnection::new(StagingSession(2)).expect("spool");
     let words = spool.append(PackedWords(vec![1])).expect("stage");
@@ -694,43 +705,51 @@ fn corrupt_headers_order_and_truncated_payloads_are_refused() -> Result<Value, F
     };
     let _refusal = fresh(&[], &[row]).expect_err("a refusal");
     let _refusal = fresh(
-            &[],
-            &[
-                StagedRow {
-                    ordinal: ryo_values::domain::records::types::StagedOrdinal(0),
-                    ..row
-                },
-                StagedRow {
-                    ordinal: ryo_values::domain::records::types::StagedOrdinal(0),
-                    ..row
-                }
-            ]
-        ).expect_err("a refusal");
-    let frames = [crate::outbound::lint_store::adapters::postcard::types::Frame {
-        file: StoredFileNumber(0),
-        payload: Payload::Staged(words),
-    }];
+        &[],
+        &[
+            StagedRow {
+                ordinal: ryo_values::domain::records::types::StagedOrdinal(0),
+                ..row
+            },
+            StagedRow {
+                ordinal: ryo_values::domain::records::types::StagedOrdinal(0),
+                ..row
+            },
+        ],
+    )
+    .expect_err("a refusal");
+    let frames = [
+        crate::outbound::lint_store::adapters::postcard::types::Frame {
+            file: StoredFileNumber(0),
+            payload: Payload::Staged(words),
+        },
+    ];
     let mut at = FileOffset(u64::MAX);
-    let _refusal = write_bucket(&mut Vec::new(), &mut at, &frames, None, Some(&mut spool)).expect_err("a refusal");
+    let _refusal = write_bucket(&mut Vec::new(), &mut at, &frames, None, Some(&mut spool))
+        .expect_err("a refusal");
     let _refusal = write_bucket(
-            &mut std::io::sink(),
-            &mut FileOffset(0),
-            &frames,
-            None,
-            None
-        ).expect_err("a refusal");
+        &mut std::io::sink(),
+        &mut FileOffset(0),
+        &frames,
+        None,
+        None,
+    )
+    .expect_err("a refusal");
     Ok(true)
 }
 
-fn streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure() -> Result<Value, Failure> {
+fn streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure()
+-> Result<Value, Failure> {
     let mut spool = StagingConnection::new(StagingSession(4)).expect("spool");
     let span = spool
         .append(PackedWords(vec![5; 1024 * 1024]))
         .expect("large frontier");
-    let rows = [crate::outbound::lint_store::adapters::postcard::types::Frame {
-        file: StoredFileNumber(0),
-        payload: Payload::Staged(span),
-    }];
+    let rows = [
+        crate::outbound::lint_store::adapters::postcard::types::Frame {
+            file: StoredFileNumber(0),
+            payload: Payload::Staged(span),
+        },
+    ];
     let mut output = ObservedWriter {
         largest: 0,
         bytes: 0,
@@ -752,7 +771,8 @@ fn streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure
         fail_after: 16,
     };
     let mut position = FileOffset(9);
-    let _refusal = write_bucket(&mut failing, &mut position, &rows, None, Some(&mut spool)).expect_err("a refusal");
+    let _refusal = write_bucket(&mut failing, &mut position, &rows, None, Some(&mut spool))
+        .expect_err("a refusal");
     assert_eq!(
         position,
         FileOffset(9),
@@ -795,7 +815,8 @@ fn scanning_tiny_old_rows_reads_and_seeks_by_chunks() -> Result<Value, Failure> 
 }
 
 /// A virtual huge bucket exposes actual read volume without allocating its payload set.
-fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() -> Result<Value, Failure> {
+fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one()
+-> Result<Value, Failure> {
     let count = postcard::to_allocvec(&3_usize).unwrap();
     let mut at = count.len() as u64;
     let mut headers = vec![(0, count)];
@@ -873,13 +894,14 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() -> 
         "no bytes from the unrequested neighboring bucket"
     );
     let _refusal = read_old_in(
-            &mut file,
-            SectionLength(at - 1),
-            StoreSnapshot(91),
-            bucket,
-            &descriptor,
-            &mut loaded
-        ).expect_err("a refusal");
+        &mut file,
+        SectionLength(at - 1),
+        StoreSnapshot(91),
+        bucket,
+        &descriptor,
+        &mut loaded,
+    )
+    .expect_err("a refusal");
     for bad in [
         OldWords {
             snapshot: StoreSnapshot(92),
@@ -902,12 +924,21 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one() -> 
             ..descriptor
         },
     ] {
-        let _refusal = read_old_in(&mut file, SectionLength(at), StoreSnapshot(91), bucket, &bad, &mut loaded).expect_err("a refusal");
+        let _refusal = read_old_in(
+            &mut file,
+            SectionLength(at),
+            StoreSnapshot(91),
+            bucket,
+            &bad,
+            &mut loaded,
+        )
+        .expect_err("a refusal");
     }
     Ok(true)
 }
 
-fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() -> Result<Value, Failure> {
+fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch()
+-> Result<Value, Failure> {
     for file_number in [0, 127, 128, u32::MAX] {
         for length in [0, 1, 127, 128, 16_384] {
             let selected = row(file_number, length);
@@ -923,7 +954,8 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() -> 
                 reads: 0,
                 transferred: 0,
             };
-            let headers = old_word_rows_in(&mut file, bucket, SectionLength(held)).expect("framing");
+            let headers =
+                old_word_rows_in(&mut file, bucket, SectionLength(held)).expect("framing");
             let first = headers.first().expect("selected row");
             let descriptor = OldWords {
                 snapshot: StoreSnapshot(81),
@@ -960,13 +992,14 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() -> 
             };
             file.reads = 0;
             let _refusal = read_old_in(
-                    &mut file,
-                    SectionLength(held),
-                    StoreSnapshot(81),
-                    bucket,
-                    &malformed,
-                    &mut loaded
-                ).expect_err("a refusal");
+                &mut file,
+                SectionLength(held),
+                StoreSnapshot(81),
+                bucket,
+                &malformed,
+                &mut loaded,
+            )
+            .expect_err("a refusal");
             assert_eq!(file.reads, 0, "oversized headers are refused before IO");
             let header = usize::try_from(descriptor.header.0).expect("header offset");
             file.bytes.get_mut()[header] ^= 1;
@@ -986,8 +1019,11 @@ fn old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch() -> 
 }
 
 #[cfg(unix)]
-fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation() -> Result<Value, Failure> {
-    use crate::outbound::lint_store::adapters::postcard::writer::{old_word_rows_in, read_old_file_in};
+fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()
+-> Result<Value, Failure> {
+    use crate::outbound::lint_store::adapters::postcard::writer::{
+        old_word_rows_in, read_old_file_in,
+    };
     use ryo_values::domain::stores::types::{OldWords, StoreSnapshot};
     use std::io::{Seek as _, SeekFrom};
 
@@ -1028,20 +1064,17 @@ fn positional_old_payload_read_preserves_cursor_and_refuses_late_truncation() ->
     file.set_len(descriptor.offset.0 + descriptor.length.0 - 1)
         .expect("truncate selected payload");
     let _refusal = read_old_file_in(
-            &file,
-            SectionLength(held),
-            StoreSnapshot(81),
-            bucket,
-            &descriptor,
-            &mut loaded
-        ).expect_err("a refusal");
+        &file,
+        SectionLength(held),
+        StoreSnapshot(81),
+        bucket,
+        &descriptor,
+        &mut loaded,
+    )
+    .expect_err("a refusal");
     assert!(loaded.0.is_empty());
     Ok(true)
 }
-
-
-
-
 
 struct ObservedWriter {
     largest: usize,
@@ -1063,7 +1096,6 @@ impl std::io::Write for ObservedWriter {
     }
 }
 
-
 struct Counted {
     inner: Cursor<Vec<u8>>,
     reads: usize,
@@ -1083,7 +1115,6 @@ impl Seek for Counted {
         self.inner.seek(at)
     }
 }
-
 
 struct Sparse {
     headers: Vec<(u64, Vec<u8>)>,
@@ -1124,7 +1155,6 @@ impl Seek for Sparse {
     }
 }
 
-
 struct ExactReadCounted {
     bytes: std::io::Cursor<Vec<u8>>,
     reads: usize,
@@ -1145,7 +1175,6 @@ impl Seek for ExactReadCounted {
         self.bytes.seek(from)
     }
 }
-
 
 #[derive(Default)]
 struct FaultFile {
@@ -1182,7 +1211,8 @@ impl Seek for FaultFile {
     }
 }
 
-fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks() -> Result<Value, Failure> {
+fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks()
+-> Result<Value, Failure> {
     let mut spool = StagingConnection::new(StagingSession(1)).expect("temporary spool");
     let path = spool.file.path().to_owned();
     assert!(path.exists());
@@ -1200,31 +1230,34 @@ fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks
         "never read every staged bucket at once"
     );
     let _refusal = spool
-            .read(
-                &StagedWords {
-                    session: StagingSession(2),
-                    ..first
-                },
-                &mut loaded
-            ).expect_err("a refusal");
-    let _refusal = validate(
-            spool.session,
-            spool.length,
+        .read(
             &StagedWords {
-                offset: ryo_values::domain::records::types::PayloadOffset(u64::MAX),
-                length: ryo_values::domain::records::types::PayloadLength(1),
+                session: StagingSession(2),
                 ..first
-            }
-        ).expect_err("a refusal");
+            },
+            &mut loaded,
+        )
+        .expect_err("a refusal");
     let _refusal = validate(
-            spool.session,
-            spool.length,
-            &StagedWords {
-                offset: ryo_values::domain::records::types::PayloadOffset(0),
-                length: ryo_values::domain::records::types::PayloadLength(u64::MAX),
-                ..first
-            }
-        ).expect_err("a refusal");
+        spool.session,
+        spool.length,
+        &StagedWords {
+            offset: ryo_values::domain::records::types::PayloadOffset(u64::MAX),
+            length: ryo_values::domain::records::types::PayloadLength(1),
+            ..first
+        },
+    )
+    .expect_err("a refusal");
+    let _refusal = validate(
+        spool.session,
+        spool.length,
+        &StagedWords {
+            offset: ryo_values::domain::records::types::PayloadOffset(0),
+            length: ryo_values::domain::records::types::PayloadLength(u64::MAX),
+            ..first
+        },
+    )
+    .expect_err("a refusal");
     spool
         .file
         .as_file_mut()
@@ -1243,9 +1276,10 @@ fn spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks
 }
 
 fn failed_creation_write_flush_and_read_do_not_commit_a_descriptor() -> Result<Value, Failure> {
-    let _refusal = StagingConnection::create(StagingSession(1), || Err(std::io::Error::other(
-            "create failure"
-        ))).expect_err("a refusal");
+    let _refusal = StagingConnection::create(StagingSession(1), || {
+        Err(std::io::Error::other("create failure"))
+    })
+    .expect_err("a refusal");
     for (write_fails, flush_fails) in [(true, false), (false, true)] {
         let mut file = FaultFile {
             write_fails,
@@ -1254,11 +1288,12 @@ fn failed_creation_write_flush_and_read_do_not_commit_a_descriptor() -> Result<V
         };
         let mut held = PayloadLength(0);
         let _refusal = append(
-                &mut file,
-                StagingSession(1),
-                &mut held,
-                &PackedWords(vec![1, 2])
-            ).expect_err("a refusal");
+            &mut file,
+            StagingSession(1),
+            &mut held,
+            &PackedWords(vec![1, 2]),
+        )
+        .expect_err("a refusal");
         assert_eq!(held, PayloadLength(0));
     }
     let mut file = FaultFile::default();
@@ -1272,17 +1307,20 @@ fn failed_creation_write_flush_and_read_do_not_commit_a_descriptor() -> Result<V
     .expect("valid control");
     let mut out = PackedWords::default();
     file.read_fails = true;
-    let _refusal = read(&mut file, StagingSession(1), held, &span, &mut out).expect_err("a refusal");
+    let _refusal =
+        read(&mut file, StagingSession(1), held, &span, &mut out).expect_err("a refusal");
     file.read_fails = false;
     file.flush_fails = true;
-    let _refusal = read(&mut file, StagingSession(1), held, &span, &mut out).expect_err("a refusal");
+    let _refusal =
+        read(&mut file, StagingSession(1), held, &span, &mut out).expect_err("a refusal");
     let mut impossible = ryo_values::domain::records::types::PayloadLength(u64::MAX);
     let _refusal = append(
-            &mut file,
-            StagingSession(1),
-            &mut impossible,
-            &PackedWords(vec![0])
-        ).expect_err("a refusal");
+        &mut file,
+        StagingSession(1),
+        &mut impossible,
+        &PackedWords(vec![0]),
+    )
+    .expect_err("a refusal");
     assert_eq!(impossible.0, u64::MAX);
     Ok(true)
 }
@@ -1312,7 +1350,7 @@ fn contiguous_tiny_payloads_use_chunk_io_instead_of_row_io() -> Result<Value, Fa
             &mut write,
             PayloadLength(u64::try_from(width).expect("width")),
         )
-            .expect("one span");
+        .expect("one span");
     }
     write.flush().expect("publication barrier");
     assert_eq!(write.get_ref().inner.get_ref(), &payload);
@@ -1333,7 +1371,6 @@ fn contiguous_tiny_payloads_use_chunk_io_instead_of_row_io() -> Result<Value, Fa
     let _refusal = failing.flush().expect_err("a refusal");
     Ok(true)
 }
-
 
 #[derive(Default)]
 struct Counts {
@@ -1371,8 +1408,8 @@ impl Seek for SpoolCounted {
     }
 }
 
-
-fn known_true_false_and_unavailable_observations_roundtrip_through_the_store() -> Result<Value, Failure> {
+fn known_true_false_and_unavailable_observations_roundtrip_through_the_store()
+-> Result<Value, Failure> {
     let root = tempfile::tempdir().unwrap();
     let adapter = store_in(root.path(), "permissions");
     for observation in [
@@ -1395,7 +1432,8 @@ fn known_true_false_and_unavailable_observations_roundtrip_through_the_store() -
     Ok(true)
 }
 
-fn missing_or_changed_format_tag_is_a_cache_miss_without_mutating_old_bytes() -> Result<Value, Failure> {
+fn missing_or_changed_format_tag_is_a_cache_miss_without_mutating_old_bytes()
+-> Result<Value, Failure> {
     let root = tempfile::tempdir().unwrap();
     let adapter = store_in(root.path(), "permissions");
     adapter
@@ -1434,18 +1472,36 @@ fn subject(question: Input) -> Result<Value, Failure> {
     let directory = root.path().join("cache");
     let store = store_in(&directory, "build-1");
     Ok(match question {
-        Question::NormalizedStagingPreservesStoreBytesAndSnapshotLifetime => normalized_staging_preserves_store_bytes_and_snapshot_lifetime()?,
-        Question::WarmPartialFrontierKeepsExactProofThroughFactsHandover => warm_partial_frontier_keeps_exact_proof_through_facts_handover()?,
-        Question::StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder => staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()?,
-        Question::FailedWriteFlushOrRenameNeverPublishesOrRemovesPreviousCache => failed_write_flush_or_rename_never_publishes_or_removes_previous_cache()?,
-        Question::OldReadDescriptorsSurviveReplacementAndRejectOtherSnapshots => old_read_descriptors_survive_replacement_and_reject_other_snapshots()?,
-        Question::AnOpenSnapshotRefusesExternalPayloadTruncation => an_open_snapshot_refuses_external_payload_truncation()?,
+        Question::NormalizedStagingPreservesStoreBytesAndSnapshotLifetime => {
+            normalized_staging_preserves_store_bytes_and_snapshot_lifetime()?
+        }
+        Question::WarmPartialFrontierKeepsExactProofThroughFactsHandover => {
+            warm_partial_frontier_keeps_exact_proof_through_facts_handover()?
+        }
+        Question::StagedFreshAndSelectedOldRowsMatchInlineEditAddRemoveAndReorder => {
+            staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()?
+        }
+        Question::FailedWriteFlushOrRenameNeverPublishesOrRemovesPreviousCache => {
+            failed_write_flush_or_rename_never_publishes_or_removes_previous_cache()?
+        }
+        Question::OldReadDescriptorsSurviveReplacementAndRejectOtherSnapshots => {
+            old_read_descriptors_survive_replacement_and_reject_other_snapshots()?
+        }
+        Question::AnOpenSnapshotRefusesExternalPayloadTruncation => {
+            an_open_snapshot_refuses_external_payload_truncation()?
+        }
         #[cfg(unix)]
-        Question::BucketReaderObservesEachRowAtItsBufferAcquisition => bucket_reader_observes_each_row_at_its_buffer_acquisition()?,
+        Question::BucketReaderObservesEachRowAtItsBufferAcquisition => {
+            bucket_reader_observes_each_row_at_its_buffer_acquisition()?
+        }
         #[cfg(unix)]
-        Question::BucketReaderAcquiresOtherBucketAfterMutationOrTruncation => bucket_reader_acquires_other_bucket_after_mutation_or_truncation()?,
+        Question::BucketReaderAcquiresOtherBucketAfterMutationOrTruncation => {
+            bucket_reader_acquires_other_bucket_after_mutation_or_truncation()?
+        }
         #[cfg(unix)]
-        Question::BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers => bucket_readers_keep_snapshot_identity_across_concurrent_consumers()?,
+        Question::BucketReadersKeepSnapshotIdentityAcrossConcurrentConsumers => {
+            bucket_readers_keep_snapshot_identity_across_concurrent_consumers()?
+        }
         Question::PriorSchemaStoreIsEmpty => {
             store.stored()?.keep(stored(1), &KeptRows::default())?;
             let current = store.stored()?.tables() == tables(stored(1));
@@ -1556,20 +1612,46 @@ fn subject(question: Input) -> Result<Value, Failure> {
             std::fs::create_dir_all(directory.join("lint.store")).expect("a directory");
             store.stored().map(|_| false)?
         }
-        Question::InlineAndStagedMixedRowsMatchLegacyBytesAtVarintBoundaries => inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries()?,
-        Question::OldSpansAndFreshRowsPreserveSelectedFileRemappingAndTieOrder => old_spans_and_fresh_rows_preserve_selected_file_remapping_and_tie_order()?,
-        Question::CorruptHeadersOrderAndTruncatedPayloadsAreRefused => corrupt_headers_order_and_truncated_payloads_are_refused()?,
-        Question::StreamedPayloadCopiesHaveBoundedWriteChunksAndPropagateWriteFailure => streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure()?,
-        Question::ScanningTinyOldRowsReadsAndSeeksByChunks => scanning_tiny_old_rows_reads_and_seeks_by_chunks()?,
-        Question::OldDescriptorEnumerationSkipsHugePayloadsAndResolutionReadsOne => old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one()?,
-        Question::OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch => old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch()?,
+        Question::InlineAndStagedMixedRowsMatchLegacyBytesAtVarintBoundaries => {
+            inline_and_staged_mixed_rows_match_legacy_bytes_at_varint_boundaries()?
+        }
+        Question::OldSpansAndFreshRowsPreserveSelectedFileRemappingAndTieOrder => {
+            old_spans_and_fresh_rows_preserve_selected_file_remapping_and_tie_order()?
+        }
+        Question::CorruptHeadersOrderAndTruncatedPayloadsAreRefused => {
+            corrupt_headers_order_and_truncated_payloads_are_refused()?
+        }
+        Question::StreamedPayloadCopiesHaveBoundedWriteChunksAndPropagateWriteFailure => {
+            streamed_payload_copies_have_bounded_write_chunks_and_propagate_write_failure()?
+        }
+        Question::ScanningTinyOldRowsReadsAndSeeksByChunks => {
+            scanning_tiny_old_rows_reads_and_seeks_by_chunks()?
+        }
+        Question::OldDescriptorEnumerationSkipsHugePayloadsAndResolutionReadsOne => {
+            old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one()?
+        }
+        Question::OldPayloadsAndHeadersShareOneExactReadWithoutNeighborPrefetch => {
+            old_payloads_and_headers_share_one_exact_read_without_neighbor_prefetch()?
+        }
         #[cfg(unix)]
-        Question::PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation => positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()?,
-        Question::SpoolLifetimeAndForeignOverflowTruncationChecksAreNotEmptyFallbacks => spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks()?,
-        Question::FailedCreationWriteFlushAndReadDoNotCommitADescriptor => failed_creation_write_flush_and_read_do_not_commit_a_descriptor()?,
-        Question::ContiguousTinyPayloadsUseChunkIoInsteadOfRowIo => contiguous_tiny_payloads_use_chunk_io_instead_of_row_io()?,
-        Question::KnownTrueFalseAndUnavailableObservationsRoundtripThroughTheStore => known_true_false_and_unavailable_observations_roundtrip_through_the_store()?,
-        Question::MissingOrChangedFormatTagIsACacheMissWithoutMutatingOldBytes => missing_or_changed_format_tag_is_a_cache_miss_without_mutating_old_bytes()?,
+        Question::PositionalOldPayloadReadPreservesCursorAndRefusesLateTruncation => {
+            positional_old_payload_read_preserves_cursor_and_refuses_late_truncation()?
+        }
+        Question::SpoolLifetimeAndForeignOverflowTruncationChecksAreNotEmptyFallbacks => {
+            spool_lifetime_and_foreign_overflow_truncation_checks_are_not_empty_fallbacks()?
+        }
+        Question::FailedCreationWriteFlushAndReadDoNotCommitADescriptor => {
+            failed_creation_write_flush_and_read_do_not_commit_a_descriptor()?
+        }
+        Question::ContiguousTinyPayloadsUseChunkIoInsteadOfRowIo => {
+            contiguous_tiny_payloads_use_chunk_io_instead_of_row_io()?
+        }
+        Question::KnownTrueFalseAndUnavailableObservationsRoundtripThroughTheStore => {
+            known_true_false_and_unavailable_observations_roundtrip_through_the_store()?
+        }
+        Question::MissingOrChangedFormatTagIsACacheMissWithoutMutatingOldBytes => {
+            missing_or_changed_format_tag_is_a_cache_miss_without_mutating_old_bytes()?
+        }
     })
 }
 
@@ -1592,19 +1674,6 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 fn normalized_staging_preserves_store_bytes_and_snapshot_lifetime() -> Result<Value, Failure> {
     use ryo_values::domain::records::types::RecordWords;
@@ -1692,7 +1761,8 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() -> Result<Va
     let store = store_in(root.path(), "partial-frontier");
     let mut original = stored(3);
     let proof = &mut original.handed.frontier[0].proof;
-    proof.coverage = FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)]);
+    proof.coverage =
+        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)]);
     original.handed.proofs[0].proof = proof.clone();
     store
         .stored()
@@ -1743,7 +1813,8 @@ fn warm_partial_frontier_keeps_exact_proof_through_facts_handover() -> Result<Va
     Ok(true)
 }
 
-fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder() -> Result<Value, Failure> {
+fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()
+-> Result<Value, Failure> {
     use ryo_values::domain::records::types::RecordWords;
     use ryo_values::domain::stores::types::StagedRow;
     let root = tempfile::tempdir().expect("directories");
@@ -1800,7 +1871,8 @@ fn staged_fresh_and_selected_old_rows_match_inline_edit_add_remove_and_reorder()
     Ok(true)
 }
 
-fn failed_write_flush_or_rename_never_publishes_or_removes_previous_cache() -> Result<Value, Failure> {
+fn failed_write_flush_or_rename_never_publishes_or_removes_previous_cache() -> Result<Value, Failure>
+{
     use super::adapter::published;
     let root = tempfile::tempdir().expect("directory");
     let target = root.path().join("lint.store");

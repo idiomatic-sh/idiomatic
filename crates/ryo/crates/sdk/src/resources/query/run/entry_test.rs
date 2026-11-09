@@ -6,10 +6,10 @@ use super::types::{RowLimit, RunRequest};
 #[cfg(any(unix, windows))]
 use crate::cases::Selection;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::language::types::Languages;
 use crate::domain::query::types::RyoQlQuery;
+use crate::selects;
 
 /// What a row gives the function: a query over a directory holding one file, or a root that is not text.
 #[derive(Clone, Copy, Debug)]

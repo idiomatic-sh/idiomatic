@@ -223,7 +223,8 @@ const PER_RULE: &str = r#"[
 ]"#;
 
 /// The parity metrics of the fixture parity.
-const PARITY_METRICS: &str = r#"{"ruff":{"differing-rules":{"value":1.0},"unaccepted-differences":{"value":2.0}}}"#;
+const PARITY_METRICS: &str =
+    r#"{"ruff":{"differing-rules":{"value":1.0},"unaccepted-differences":{"value":2.0}}}"#;
 
 /// A parity with one rule differing by an extra finding and an end, and one identical rule.
 fn publication() -> ryo_benchmark_contracts::domain::reports::types::ParityReport<'static> {

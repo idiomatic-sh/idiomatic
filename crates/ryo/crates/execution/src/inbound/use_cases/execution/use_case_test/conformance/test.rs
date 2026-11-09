@@ -1,42 +1,42 @@
 //! Every operation executes through the real prepare/open_file/collect-or-deliver protocol.
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use crate::inbound::use_cases::execution::interface::ExecutionUseCase as _;
-use ryo_values::cases::Case;
-use ryo_values::cases::CaseName;
-use ryo_values::cases::Expect;
-use ryo_values::cases::Word;
-use ryo_values::cases::run;
+use super::super::super::fixtures as owner_fixtures;
 use super::super::super::fixtures::requests::Authored;
 use super::super::super::fixtures::requests::Preparation;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use super::super::super::fixtures as owner_fixtures;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase as _;
 use crate::inbound::use_cases::execution::interface::FileRuleIntent;
 use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
-use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
 use ryo_execution_domain::domain::operator::service::prepare_operator;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Value as Cell;
-use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::cases::Case;
+use ryo_values::cases::CaseName;
+use ryo_values::cases::Expect;
+use ryo_values::cases::Word;
+use ryo_values::cases::run;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
 
@@ -122,10 +122,12 @@ pub(crate) fn compare_delivery_with_port(
         operation,
         &inputs
             .iter()
-            .map(|table| ryo_execution_domain::domain::operation_schema::types::InputShape {
-                kinds: &table.kinds,
-                tree: None,
-            })
+            .map(
+                |table| ryo_execution_domain::domain::operation_schema::types::InputShape {
+                    kinds: &table.kinds,
+                    tree: None,
+                },
+            )
             .collect::<Vec<_>>(),
         bindings,
     );
@@ -182,11 +184,11 @@ pub(crate) fn compare_delivery_with_port(
         inputs::table_inputs(operation.clone(), &refs, bindings, symbols)
     };
     let emit = authored.plan.emit.step;
-    let engine = Preparation::new(
-        port,
-        Arc::new(owner_fixtures::derived()),
-    );
-    let preparation = engine.prepare(Authored { plans: vec![authored.plan], bindings: vec![bindings.to_vec()], rules: vec![RuleSpec {
+    let engine = Preparation::new(port, Arc::new(owner_fixtures::derived()));
+    let preparation = engine.prepare(Authored {
+        plans: vec![authored.plan],
+        bindings: vec![bindings.to_vec()],
+        rules: vec![RuleSpec {
             id: RuleId("operation-conformance".into()),
             query: QueryBundle {
                 root: QueryDocumentSource {
@@ -201,7 +203,11 @@ pub(crate) fn compare_delivery_with_port(
             spelled: RuleParameters("".into()),
             include: vec![],
             exclude: vec![],
-        }], digests: vec![Digest([0; 16])], hosted: authored.hosted, observations: ObservationIdentity::Independent });
+        }],
+        digests: vec![Digest([0; 16])],
+        hosted: authored.hosted,
+        observations: ObservationIdentity::Independent,
+    });
     let program = match preparation {
         Ok(program) => program,
         Err(error) => {
@@ -235,7 +241,8 @@ pub(crate) fn compare_delivery_with_port(
     };
     let request = owner_fixtures::requests::execution().execution(&program, &corpus);
     let elements = Elements::default();
-    let input = |diagnostic| FileInput {
+    let input = |diagnostic| {
+        FileInput {
         language: SourceLanguage::Recognized,
         resident_stability: ResidentStability::Stable,
         file: FileId(0),
@@ -250,6 +257,7 @@ pub(crate) fn compare_delivery_with_port(
             None => ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
         },
         kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+    }
     };
     let collected_intent = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
@@ -334,13 +342,12 @@ pub(crate) fn repeated(table: &Table, times: usize) -> Table {
 type Input = fn() -> Result<Value, Failure>;
 type Value = ();
 type Failure = OperatingError;
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName(stringify!(all_registrations_refuse_a_foreign_variant)),
-        word: Word::Succeeds,
-        input: || all_registrations_refuse_a_foreign_variant,
-        expect: Expect::Value(()),
-    },];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName(stringify!(all_registrations_refuse_a_foreign_variant)),
+    word: Word::Succeeds,
+    input: || all_registrations_refuse_a_foreign_variant,
+    expect: Expect::Value(()),
+}];
 fn subject(input: Input) -> Result<Value, Failure> {
     input()
 }

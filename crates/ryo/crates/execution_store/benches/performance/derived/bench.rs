@@ -8,7 +8,9 @@
     reason = "a bench that cannot set up its own input has nothing to measure: the panic is the failure"
 )]
 
-use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
+use ryo_derived::domain::contract::types::{
+    BuildInputs, BuildOutcome, BuildWorkspace, DerivedView,
+};
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_execution_store::outbound::derived::factory::{semantics, use_case};
 use ryo_execution_store::outbound::derived::interface::DerivedPort;
@@ -67,7 +69,10 @@ fn prepare_build_and_view(bencher: divan::Bencher<'_, '_>, variant: Variant) {
         else {
             panic!("the equality payload is built");
         };
-        match adapter.view(&prepared, &payload).expect("the payload is viewed") {
+        match adapter
+            .view(&prepared, &payload)
+            .expect("the payload is viewed")
+        {
             DerivedView::Equality(index) => index.rows.len(),
             _ => panic!("the equality payload is viewed as its index"),
         }

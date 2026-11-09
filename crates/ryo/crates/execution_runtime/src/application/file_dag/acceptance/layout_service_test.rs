@@ -22,7 +22,7 @@ use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
 #[cfg(test)]
 mod fixtures;
-use fixtures::{plan, step, select, native_plan, prepared};
+use fixtures::{native_plan, plan, prepared, select, step};
 
 #[test]
 fn each_native_step_answers_its_output_kinds() {
@@ -316,7 +316,11 @@ fn an_invalid_frontier_keeps_the_prior_source_and_its_own_typed_refusal() {
     let frontier = &request.program().rules()[0].frontier;
     assert!(matches!(
         frontier[0],
-        Ok(ryo_execution_domain::domain::executable_program::types::InputSource::Relation(Relation::Function))
+        Ok(
+            ryo_execution_domain::domain::executable_program::types::InputSource::Relation(
+                Relation::Function
+            )
+        )
     ));
     assert_eq!(frontier[1], Err(OperatingError::NotRun));
 }

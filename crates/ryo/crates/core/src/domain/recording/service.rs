@@ -2,18 +2,20 @@
 
 use super::constants::PHYSICAL_FACTS_INCOMPLETE;
 use super::types::{BucketWords, Flat, InterfaceBytes, WordCount};
+use crate::domain::handing::service::stored_of;
 use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::{Keeping, Noting};
-use crate::domain::handing::service::stored_of;
 use crate::domain::workers::types::{
     FileOrder, FreshRecord, Gating, PlacedNotes, Tables, VisitSetting,
 };
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::interface::{Bearing, Blocking};
-use ryo_execution::inbound::use_cases::metadata::interface::{CoverageScope, Partial, RuleIndex, Unknown};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    CoverageScope, Partial, RuleIndex, Unknown,
+};
 use ryo_language::domain::elements::service::{notes_of, take_notes};
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
@@ -25,7 +27,9 @@ use ryo_values::domain::records::types::{
 };
 use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleNumber;
-use ryo_values::domain::stored_facts::types::{ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes};
+use ryo_values::domain::stored_facts::types::{
+    ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes,
+};
 use ryo_values::domain::table_words::service::{pack, unpacked};
 use ryo_values::domain::table_words::types::WordSlice;
 
@@ -161,10 +165,8 @@ pub(crate) fn frontier_flat(
             // A range the prepared layout does not hold has no identity: it is written as an identity of no bytes, which no
             // valid range has, so it never passes for one.
             let bytes = identity.map_or_else(|_| Vec::new(), |identity| identity.0);
-            flat.0.extend([
-                u64::MAX,
-                u64::try_from(bytes.len()).unwrap_or(u64::MAX),
-            ]);
+            flat.0
+                .extend([u64::MAX, u64::try_from(bytes.len()).unwrap_or(u64::MAX)]);
             for chunk in bytes.chunks(8) {
                 let mut word = [0; 8];
                 word[..chunk.len()].copy_from_slice(chunk);
@@ -298,8 +300,7 @@ pub(crate) fn cover(
                 tables.unknowns.push(Unknown {
                     rule: metadata.rule_id(setting.ids, RuleIndex(rule)),
                     path: path.clone(),
-                    message: metadata
-                        .unknown_message(partial, CoverageScope::File(path)),
+                    message: metadata.unknown_message(partial, CoverageScope::File(path)),
                     cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                 });
             }

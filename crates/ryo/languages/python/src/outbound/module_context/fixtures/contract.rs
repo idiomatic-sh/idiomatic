@@ -1,8 +1,8 @@
 //! What every `module_context` adapter must pass.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::outbound::module_context::interface::ModuleContextPort;
+use crate::selects;
 use ryo::languages::{FilePath, ProjectError, ProjectRequest, Relation, Repository, RootPath};
 
 /// A root no disk lookup can use: a Given request must never touch it.
@@ -98,15 +98,17 @@ pub(crate) fn check(adapter: &impl ModuleContextPort) {
         };
         let contexts = adapter.resolve(&request(repository, files))?;
         let silent = contexts.consulted.is_empty();
-        Ok(match (contexts.rows.is_empty(), contexts.partial.0, silent) {
-            (true, false, true) => Settled::Standalone,
-            (true, true, true) => Settled::UnknownRoot,
-            (false, false, true) => {
-                assert_eq!(contexts.rows[1].path.0, PACKAGE_MODULE_NAME);
-                Settled::Named
-            }
-            _ => Settled::Unexpected,
-        })
+        Ok(
+            match (contexts.rows.is_empty(), contexts.partial.0, silent) {
+                (true, false, true) => Settled::Standalone,
+                (true, true, true) => Settled::UnknownRoot,
+                (false, false, true) => {
+                    assert_eq!(contexts.rows[1].path.0, PACKAGE_MODULE_NAME);
+                    Settled::Named
+                }
+                _ => Settled::Unexpected,
+            },
+        )
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);

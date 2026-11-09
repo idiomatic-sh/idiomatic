@@ -14,18 +14,19 @@ type Value = bool;
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_cell_reads_back_as_it_was_written"),
-        word: Word::Succeeds,
-        input: || (),
-        expect: Expect::Value(true),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("a_cell_reads_back_as_it_was_written"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(true),
+}];
 
 /// Writes a text cell and a file cell through the table of strings and reads each back.
 fn subject() -> Value {
-    let cells = [Cell::File("src/a.rs".into()), Cell::Number(ryo_relations::domain::relations::types::Integer(7))];
+    let cells = [
+        Cell::File("src/a.rs".into()),
+        Cell::Number(ryo_relations::domain::relations::types::Integer(7)),
+    ];
     let mut strings = StringsSchema::default();
     let schemas: Vec<_> = cells
         .iter()

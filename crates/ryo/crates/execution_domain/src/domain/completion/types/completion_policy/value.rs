@@ -49,11 +49,7 @@ impl CompletionPolicy {
         }
     }
     /// The policy of one rule over the project: rows from partial inputs are dropped after they are collected.
-    pub fn project_inputs(
-        rule: RuleIndex,
-        evaluation: &Partials,
-        publication: &Partials,
-    ) -> Self {
+    pub fn project_inputs(rule: RuleIndex, evaluation: &Partials, publication: &Partials) -> Self {
         Self {
             scope: ScopeIdentity::Project { rule },
             behavior: CompletionBehavior::DropAfterCollect(std::sync::Arc::new(evaluation.clone())),
@@ -154,12 +150,7 @@ impl CompletionPolicy {
         }
     }
     /// Drops the rows the policy withholds from an operation's answer.
-    pub fn filter_rows(
-        &self,
-        operation: &Operation,
-        needs: &[RelationRead],
-        rows: &mut Table,
-    ) {
+    pub fn filter_rows(&self, operation: &Operation, needs: &[RelationRead], rows: &mut Table) {
         if let CompletionBehavior::DropAfterCollect(partials) = &self.behavior {
             let kinds = rows.kinds.clone();
             drop_uncertain(operation, &kinds, rows, &partial_files_for(partials, needs));

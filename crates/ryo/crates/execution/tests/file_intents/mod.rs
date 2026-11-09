@@ -1,16 +1,16 @@
 //! File-start declarations are enforced through every public execution route.
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_values::domain::runs::types::ApplicabilityRefusal;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::*;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::preparation::types::Demand;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 
 fn input<'a, 'facts>(
     intents: &'a [FileRuleIntent],
@@ -89,7 +89,9 @@ fn absent_skipped_and_refused_rules_cannot_acquire_any_root() {
                 &mut symbols,
                 CaptureContext {
                     worker: WorkerNumber(0),
-                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                    arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                        &mut arena
+                    ),
                     places: &mut places,
                     words: &mut words
                 },

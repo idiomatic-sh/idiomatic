@@ -177,17 +177,22 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
     };
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![
-            RuleId::try_from(if matches!(scenario, Scenario::ConfigureRefusal) {
-                "R404"
-            } else {
-                "R1"
-            })
-            .unwrap(),
-        ]),
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+            vec![
+                RuleId::try_from(if matches!(scenario, Scenario::ConfigureRefusal) {
+                    "R404"
+                } else {
+                    "R1"
+                })
+                .unwrap(),
+            ],
+        ),
+        rule_observations:
+            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: mode,
         context_manifest: manifest.map_or(
@@ -198,8 +203,10 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
         rules,
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        parser_configuration:
+            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language:
+            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![RelativePath(file.into())],
         state: WorkerState::Fresh,
     }

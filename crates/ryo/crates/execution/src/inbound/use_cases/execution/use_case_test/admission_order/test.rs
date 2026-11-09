@@ -1,7 +1,7 @@
 //! Exact conflicting failures through the mandatory public execution owner.
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;
@@ -32,10 +32,10 @@ use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
-use ryo_values::domain::query_operators::types::OperationKind;
 use std::cell::Cell;
 
 type Input = fn();
@@ -277,7 +277,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || valid_populations_and_generation_binding,
         expect: Expect::Value(()),
-    },];
+    },
+];
 fn subject(case: Input) -> Result<Value, Failure> {
     case();
     Ok(())

@@ -2,7 +2,14 @@
 //! fixtures state, with the real store and real queries and the language the caller brings. Every relation item the language lists and
 //! every operator item the product lists is read from its fixtures, so a new item is covered without anyone editing a test.
 
-
+use super::super::errors::LintError;
+use super::super::interface::LintUseCase;
+use super::super::types::LintRequest;
+use super::super::types::ParameterCell;
+use super::super::types::ParameterTable;
+use super::super::types::ParameterValue;
+use super::super::types::Rule;
+use super::super::types::RuleParameter;
 use crate::cases::Case;
 use crate::cases::CaseName;
 use crate::cases::Expect;
@@ -18,14 +25,6 @@ use ryo_values::domain::plan_parts::types::ParameterName;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::Session;
-use super::super::errors::LintError;
-use super::super::interface::LintUseCase;
-use super::super::types::LintRequest;
-use super::super::types::ParameterCell;
-use super::super::types::ParameterTable;
-use super::super::types::ParameterValue;
-use super::super::types::Rule;
-use super::super::types::RuleParameter;
 
 /// What a row of the contract is given: the request to lint.
 type Input = LintRequest;

@@ -326,8 +326,7 @@ pub(super) fn exercise_with(
             covered: &[],
             skipped: &skipped,
             inapplicable: &consumer_inapplicable,
-            refused:
-                &vec![
+            refused: &vec![
                     ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
                     );
                     consumer_inapplicable.len()

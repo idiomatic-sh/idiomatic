@@ -63,7 +63,8 @@ pub(crate) fn ordered_positions(
     let mut clustered = true;
     for at in 0..count {
         let row = RowIndex(at);
-        if head.is_none_or(|previous| same_key(input, previous, row, keys) == KeyRelation::Different)
+        if head
+            .is_none_or(|previous| same_key(input, previous, row, keys) == KeyRelation::Different)
         {
             if !runs.insert(hash_at(input, row, keys)?) {
                 clustered = false;

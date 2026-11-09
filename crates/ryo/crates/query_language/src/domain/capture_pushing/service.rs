@@ -1,5 +1,6 @@
 //! The `capture_pushing` service: free functions named by verb over the filters made before the capture they follow.
 
+use super::types::MovedComparisons;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
 use crate::domain::walking::service::width_of;
@@ -11,7 +12,6 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use super::types::MovedComparisons;
 
 /// The plan with each filter on the columns a capture was given, made before the capture instead of after it: the capture matches the
 /// paths of the rows the filter lets through, not of every row. Not done when another step reads the capture.

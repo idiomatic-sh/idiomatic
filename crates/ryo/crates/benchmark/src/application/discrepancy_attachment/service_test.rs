@@ -12,12 +12,16 @@ use crate::domain::registered_inputs::types::RefusalText;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
 use crate::outbound::suite::types::{ClaimedEvidence, ClaimedProcess};
 use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName as DocumentCaseName, PathText};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CaseName as DocumentCaseName, PathText,
+};
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{Rationale, SourceRevision, WitnessCase};
+use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+    Rationale, SourceRevision, WitnessCase,
+};
 use std::path::Path;
 
 /// What an accepted attachment answers.

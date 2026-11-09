@@ -1,5 +1,6 @@
 //! The test data of `linter lint` that fixes observations.
 
+use super::shared_calls::shared;
 use crate::domain::observation::types::ObservationBindingName;
 use crate::domain::observation::types::ObservationColumn;
 use crate::domain::observation::types::ObservationColumnName;
@@ -8,7 +9,6 @@ use crate::domain::observation::types::ObservationName;
 use crate::resources::linter::lint::types::ObservationBinding;
 use crate::resources::linter::lint::types::ObservationProducer;
 use crate::resources::linter::lint::types::RuleId;
-use super::shared_calls::shared;
 
 /// The binding of an observation named `incoming` to the output `shared` of `producer`.
 pub(crate) fn incoming(columns: Vec<ObservationColumn>, producer: RuleId) -> ObservationBinding {

@@ -34,8 +34,12 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
 }
 impl VerifyReferenceCasesUseCase for VerifyReferenceCasesUseCaseImpl<'_> {
     fn verify_reference_cases(&self, rules: &Path, scratch: &Path) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, ReportsError>{
-        let cases =
-            crate::application::case_preparation::service::cases(self.suite, self.context, rules, scratch)?;
+        let cases = crate::application::case_preparation::service::cases(
+            self.suite,
+            self.context,
+            rules,
+            scratch,
+        )?;
         super::service::verify_prepared_reference_cases(
             self.suite,
             self.receipts,

@@ -37,8 +37,12 @@ impl LinterPort for LinterRuffAdapter {
             return Err(Error::Invalid(constants::UNSUPPORTED_PROJECT_ROOTS.into()));
         }
         let selected = match &request.selected_rules {
-            ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => self.settings.defaults.clone(),
-            ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(rules) => rules.iter().cloned().collect(),
+            ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => {
+                self.settings.defaults.clone()
+            }
+            ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(rules) => {
+                rules.iter().cloned().collect()
+            }
         };
         let mut arguments = vec![
             constants::CHECK.into(),
@@ -57,7 +61,10 @@ impl LinterPort for LinterRuffAdapter {
             constants::TARGET_VERSION.into(),
             self.settings.target_version.clone(),
         ];
-        if let ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(context) = &request.rule_context {
+        if let ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(
+            context,
+        ) = &request.rule_context
+        {
             let root = std::path::absolute(&request.root)?;
             arguments.extend(schemas::configuration_arguments(
                 &context.configuration,
@@ -76,8 +83,8 @@ impl LinterPort for LinterRuffAdapter {
                 ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
                 constants::ONE_WORKER.into(),
             )]
-                .into_iter()
-                .collect(),
+            .into_iter()
+            .collect(),
             directory: request.root.clone(),
         })
     }
@@ -101,8 +108,12 @@ impl LinterPort for LinterRuffAdapter {
             }
         }
         let selected = match &request.selected_rules {
-            ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => self.settings.defaults.clone(),
-            ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(rules) => rules.iter().cloned().collect(),
+            ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => {
+                self.settings.defaults.clone()
+            }
+            ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(rules) => {
+                rules.iter().cloned().collect()
+            }
         };
         schemas::decode(request, &output, &selected, &sources)
     }
@@ -128,4 +139,3 @@ impl LinterRuffAdapter {
         Self { settings }
     }
 }
-

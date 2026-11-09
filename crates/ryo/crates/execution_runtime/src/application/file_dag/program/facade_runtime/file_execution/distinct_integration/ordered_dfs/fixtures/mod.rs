@@ -145,7 +145,16 @@ pub(crate) fn execute_request(
     delivery: bool,
     observed: &mut ExecutionObservation,
 ) -> Result<Table, OperatingError> {
-    execute_bound_request(plan, vec![], hosts, providers, symbols, source, delivery, observed)
+    execute_bound_request(
+        plan,
+        vec![],
+        hosts,
+        providers,
+        symbols,
+        source,
+        delivery,
+        observed,
+    )
 }
 /// The same request with the plan's parameter bindings.
 #[expect(

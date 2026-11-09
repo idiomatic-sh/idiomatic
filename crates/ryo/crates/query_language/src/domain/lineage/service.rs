@@ -150,7 +150,9 @@ pub(crate) fn value_origins(
         return found.clone();
     }
     let found = step_origins(steps, memo, id, column);
-    let _first = memo.origins.insert(StepColumn { step: id, column }, found.clone());
+    let _first = memo
+        .origins
+        .insert(StepColumn { step: id, column }, found.clone());
     found
 }
 

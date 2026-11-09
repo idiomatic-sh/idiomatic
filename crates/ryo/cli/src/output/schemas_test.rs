@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use ryo_core::outbound::row_sink::errors::RowSinkError;
 use ryo_core::outbound::row_sink::interface::RowSinkPort as _;
-use ryo_core::outbound::row_sink::types::{LentCell, AnswerCounts};
+use ryo_core::outbound::row_sink::types::{AnswerCounts, LentCell};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};

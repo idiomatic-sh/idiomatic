@@ -1,9 +1,9 @@
 //! State owned by a bounded file analysis invocation.
 use super::errors::FileAnalysisError;
 use crate::domain::workers::types::Tables;
-use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 /// Whether the rule results of one file generation are all there.

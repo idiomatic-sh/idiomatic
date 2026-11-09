@@ -1,9 +1,9 @@
 //! The `parameter` relation: a parameter of a function, method or closure.
 
 use super::super::interface::RelationsItem;
+use crate::domain::parameter_kind::types::ParameterKind;
 use crate::domain::relations::types::{FileId, Integer, NodeId, Span};
 use crate::domain::terms::service::term_symbol;
-use crate::domain::parameter_kind::types::ParameterKind;
 use crate::domain::terms::types::Symbol;
 
 /// `parameter`, one item of the `relations` collection.

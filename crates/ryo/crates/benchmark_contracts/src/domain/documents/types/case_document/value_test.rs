@@ -1,6 +1,6 @@
 //! An undeclared project inventory is complete only within nothing, and lists no entries.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::value::{InventoryCompleteness, ProjectInventoryDocument};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 type Input = ();
 type Value = (InventoryCompleteness, usize);

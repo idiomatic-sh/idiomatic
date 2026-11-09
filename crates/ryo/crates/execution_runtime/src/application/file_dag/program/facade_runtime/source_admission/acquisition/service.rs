@@ -11,10 +11,10 @@ use crate::application::file_dag::program::constants::{
     PRODUCER_WITHOUT_QUERY, SOURCE_FACTS_INCOMPLETE,
 };
 use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::relations::handle::service::PublishedInput;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::handle::service::PublishedInput;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
@@ -80,7 +80,9 @@ impl SourceInputs<'_, '_> {
                 .execution
                 .published(self.state, id)?
                 .ok_or_else(|| OperatingError::NotRun),
-            InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => {
+            InputSource::Observation(
+                ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+            ) => {
                 if let Some(input) = self.observations.get(&ObservationKey(slot)) {
                     return Ok(AvailableInput::published(input.clone()));
                 }
@@ -106,12 +108,17 @@ impl SourceInputs<'_, '_> {
                     .insert(ObservationKey(slot), admitted.clone());
                 Ok(admitted)
             }
-            InputSource::EmptyObservation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => {
+            InputSource::EmptyObservation(
+                ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+            ) => {
                 let named = self
                     .program
                     .observation_metadata()
                     .ok_or_else(|| OperatingError::NotRun)?;
-                let declaration = named.slots.get(slot).ok_or_else(|| OperatingError::NotRun)?;
+                let declaration = named
+                    .slots
+                    .get(slot)
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }
@@ -142,8 +149,10 @@ impl SourceInputs<'_, '_> {
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
             InputSource::ObservationMember {
-                slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
-                member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
+                slot:
+                    ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                member:
+                    ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
             } => {
                 let outputs =
                     self.file_outputs
@@ -154,7 +163,10 @@ impl SourceInputs<'_, '_> {
                     .program
                     .observation_metadata()
                     .ok_or_else(|| OperatingError::NotRun)?;
-                let declaration = named.slots.get(slot).ok_or_else(|| OperatingError::NotRun)?;
+                let declaration = named
+                    .slots
+                    .get(slot)
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }

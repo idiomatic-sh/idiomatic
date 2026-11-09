@@ -1,8 +1,8 @@
 //! Count saturation, digest bit pattern and duplicate group keys are preserved.
 use super::service::aggregate;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Count, Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 type Input = (&'static [ColumnIndex], usize, Option<i64>);
 type Value = std::borrow::Cow<'static, [Cell]>;
@@ -44,7 +44,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("first_missing_key_is_reported"),
         word: Word::Refuses,
         input: || (&[ColumnIndex(4), ColumnIndex(3)], 0, None),
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(4) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(4),
+        }),
     },
 ];
 fn subject((keys, count, digest): Input) -> Result<Value, Failure> {

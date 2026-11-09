@@ -1,13 +1,10 @@
 //! Named distinct-set combinations are ordinary prepared program instructions.
-use crate::domain::operator::types::ReaderMultiplicity;
 use super::types::demand_program::value::DemandProgram;
 use super::types::instruction::value::Instruction;
 use super::types::region::value::Region;
 use super::types::*;
-use crate::domain::{
-    file_program::types::GraphObservations,
-    operating::errors::OperatingError,
-};
+use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::{file_program::types::GraphObservations, operating::errors::OperatingError};
 use std::sync::Arc;
 
 pub(super) fn compile_unions(

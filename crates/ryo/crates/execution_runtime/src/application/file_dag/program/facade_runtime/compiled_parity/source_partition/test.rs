@@ -1,5 +1,6 @@
 //! Producer declarations and actual source scope govern ordinary admission.
 use super::super::*;
+use super::fixtures::{CASES, SourceCase};
 use crate::application::file_dag::program::admission::{
     FileGeneration, Inputs, Partition, ProducerRoot, contributed_proof,
 };
@@ -18,7 +19,6 @@ use ryo_values::domain::{
     stored_facts::types::PartialCause,
 };
 use std::{cell::Cell as Counter, rc::Rc};
-use super::fixtures::{CASES, SourceCase};
 type Input = SourceCase;
 type Value = &'static str;
 type Failure = OperatingError;
@@ -94,9 +94,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
     )?;
     let engine: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send> =
         Arc::new(CommonOperatorEngine::new(
-            (std::sync::Arc::new(
-                crate::application::file_dag::fixtures::operators(),
-            )
+            (std::sync::Arc::new(crate::application::file_dag::fixtures::operators())
                 as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
         ));
     let corpus = ["a", "b"].map(|path| {
@@ -108,7 +106,16 @@ fn subject(case: Input) -> Result<Value, Failure> {
         })
     });
     let services = ProgramServices::new(Arc::clone(&engine), Arc::clone(&derived), &corpus);
-    let required = required_partitions(&prepared, RuleIndex(0), &corpus, &[], &[], &[], &[], &services)?;
+    let required = required_partitions(
+        &prepared,
+        RuleIndex(0),
+        &corpus,
+        &[],
+        &[],
+        &[],
+        &[],
+        &services,
+    )?;
     if matches!(
         case,
         SourceCase::FrontierRefusal | SourceCase::FrontierScope
@@ -140,7 +147,12 @@ fn subject(case: Input) -> Result<Value, Failure> {
         handover.validate_scope(prepared.program(), &required)?;
         return Ok("frontier-scope");
     }
-    let owner = open_program_owner(prepared.program(), Arc::clone(&derived), ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible, ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default());
+    let owner = open_program_owner(
+        prepared.program(),
+        Arc::clone(&derived),
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(),
+    );
     let project = Partition::Project(required);
     let scope = if project_case {
         project.clone()
@@ -304,11 +316,15 @@ fn subject(case: Input) -> Result<Value, Failure> {
     assert_eq!(reads.get(), 1);
     match admitted.coverage()? {
         ryo_execution_domain::domain::completion::types::CoverageState::Complete => Ok("complete"),
-        ryo_execution_domain::domain::completion::types::CoverageState::Partial { files, .. } => {
+        ryo_execution_domain::domain::completion::types::CoverageState::Partial {
+            files, ..
+        } => {
             assert_eq!(files, vec![Some(FileId(0))]);
             Ok("partial")
         }
-        ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable { .. } => Ok("inapplicable"),
+        ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable { .. } => {
+            Ok("inapplicable")
+        }
     }
 }
 #[test]
@@ -323,5 +339,5 @@ fn refuses() {
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 
 use crate::application::file_dag::program::facade_runtime::service::required_partitions;
-use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_execution_domain::domain::table_model::service::count_of;
+use ryo_execution_store::application::file_dag::service::open_program_owner;

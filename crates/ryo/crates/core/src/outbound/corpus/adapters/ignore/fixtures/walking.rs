@@ -16,9 +16,7 @@ pub(crate) fn walking(root: RootPath) -> CorpusIgnoreAdapter {
 }
 
 /// Tests that require physical metadata explicitly reject unavailable input fixtures.
-pub(crate) fn known_entry(
-    input: &CorpusInput,
-) -> &CorpusEntry {
+pub(crate) fn known_entry(input: &CorpusInput) -> &CorpusEntry {
     let CorpusInput::Available(entry) = input else {
         panic!("this fixture requires observed file metadata");
     };

@@ -1,10 +1,10 @@
 //! FIFO witnesses, repeated projections and first-failure delivery use independent expected pairs.
 use super::service::pairs;
-use crate::domain::contract::types::{PortableOperatorFault};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::errors::ContractError;
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_match::types::OrderedMatchDriver;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -39,7 +39,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing_projection_column_fails_before_delivery"),
         word: Word::Refuses,
         input: || Scenario::MissingColumn,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(2) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(2),
+        }),
     },
     Case {
         name: CaseName("sink_failure_stops_further_reads"),
@@ -63,10 +65,18 @@ impl OrderedMatchDriver for Driver {
     fn right_len(&self) -> ryo_values::domain::rows::types::RowCount {
         ryo_values::domain::rows::types::RowCount(RIGHT.len())
     }
-    fn compare_keys(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> std::cmp::Ordering {
+    fn compare_keys(
+        &self,
+        left: ryo_values::domain::rows::types::RowIndex,
+        right: ryo_values::domain::rows::types::RowIndex,
+    ) -> std::cmp::Ordering {
         LEFT[left.0].0.cmp(&RIGHT[right.0].0)
     }
-    fn right_order_before_or_equal(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> crate::domain::ordered_match::types::KeyOrder {
+    fn right_order_before_or_equal(
+        &self,
+        left: ryo_values::domain::rows::types::RowIndex,
+        right: ryo_values::domain::rows::types::RowIndex,
+    ) -> crate::domain::ordered_match::types::KeyOrder {
         if RIGHT[right.0].1 <= LEFT[left.0].1 {
             crate::domain::ordered_match::types::KeyOrder::BeforeOrEqual
         } else {

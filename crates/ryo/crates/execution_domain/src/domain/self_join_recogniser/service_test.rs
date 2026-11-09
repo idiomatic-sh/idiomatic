@@ -160,7 +160,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("an_eligible_shape_names_the_original_source_the_replacements_and_the_retained_operators"),
+        name: CaseName(
+            "an_eligible_shape_names_the_original_source_the_replacements_and_the_retained_operators",
+        ),
         word: Word::Succeeds,
         input: || Scenario::Eligible,
         expect: Expect::Value(()),

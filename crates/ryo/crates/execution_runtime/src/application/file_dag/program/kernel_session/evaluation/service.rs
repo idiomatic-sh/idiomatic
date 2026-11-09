@@ -1,13 +1,18 @@
 //! Registered-operator evaluation of a kernel session.
+use crate::application::file_dag::invocation::InvocationResources;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use crate::application::file_dag::invocation::InvocationResources;
-use ryo_execution_domain::domain::{executable_program::types::instruction::value::Instruction, operating::{errors::OperatingError, types::InputPlace}, operator::contract::{primitive::PreparedInputs, types::InputMode}, table_model::service::{count_of, read_row}};
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
-use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::{
+    executable_program::types::instruction::value::Instruction,
+    operating::{errors::OperatingError, types::InputPlace},
+    operator::contract::{primitive::PreparedInputs, types::InputMode},
+    table_model::service::{count_of, read_row},
+};
+use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;
 
@@ -60,15 +65,21 @@ impl super::super::KernelSession<'_, '_> {
             binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
                 bindings: context.bindings,
                 regex_identity: None,
-                source_len: ryo_operators::domain::contract::types::SourceByteLength(context.source.0.len()),
+                source_len: ryo_operators::domain::contract::types::SourceByteLength(
+                    context.source.0.len(),
+                ),
             },
         };
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
-                    workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
-                    let mut resources = crate::application::file_dag::invocation::service::continuation(contract)
-                        .map_err(InvocationFailure::Semantic)?;
+                    workspace.work().found(
+                        ryo_values::domain::plan_parts::types::InputNumber(0),
+                        ryo_execution_domain::domain::operator::contract::types::FoundRows(1),
+                    );
+                    let mut resources =
+                        crate::application::file_dag::invocation::service::continuation(contract)
+                            .map_err(InvocationFailure::Semantic)?;
                     crate::application::file_dag::execution::lease::evaluate(
                         self.kernels,
                         contract,
@@ -183,9 +194,9 @@ impl super::super::KernelSession<'_, '_> {
                                 permit,
                                 &instruction.operation(),
                                 PreparedInputs::Views(&views),
-                                resources
-                                    .as_mut()
-                                    .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?,
+                                resources.as_mut().ok_or_else(|| {
+                                    InvocationFailure::Semantic(OperatingError::NotRun)
+                                })?,
                                 workspace,
                                 context,
                                 output,
@@ -200,9 +211,11 @@ impl super::super::KernelSession<'_, '_> {
                                 ryo_values::domain::plans::types::Operation::Rows { .. } => {
                                     RepresentationInput::Computed(&empty)
                                 }
-                                _ => views.first().copied().ok_or_else(|| InvocationFailure::Semantic(
-                                    OperatingError::MissingInput { position: 1 },
-                                ))?,
+                                _ => views.first().copied().ok_or_else(|| {
+                                    InvocationFailure::Semantic(OperatingError::MissingInput {
+                                        position: 1,
+                                    })
+                                })?,
                             };
                             crate::application::file_dag::execution::lease::evaluate(
                                 self.kernels,
@@ -210,9 +223,9 @@ impl super::super::KernelSession<'_, '_> {
                                 permit,
                                 &instruction.operation(),
                                 PreparedInputs::RequestSource(&source),
-                                resources
-                                    .as_mut()
-                                    .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?,
+                                resources.as_mut().ok_or_else(|| {
+                                    InvocationFailure::Semantic(OperatingError::NotRun)
+                                })?,
                                 workspace,
                                 context,
                                 output,
@@ -226,9 +239,9 @@ impl super::super::KernelSession<'_, '_> {
                             let primary_shift = u32::try_from(primary.0).map_err(|_| {
                                 InvocationFailure::Semantic(OperatingError::WrongOperation)
                             })?;
-                            let primary_bit = 1_u8.checked_shl(primary_shift).ok_or_else(|| 
-                                InvocationFailure::Semantic(OperatingError::WrongOperation),
-                            )?;
+                            let primary_bit = 1_u8.checked_shl(primary_shift).ok_or_else(|| {
+                                InvocationFailure::Semantic(OperatingError::WrongOperation)
+                            })?;
                             if row_inputs == 0 || row_inputs & primary_bit == 0 {
                                 return Err(InvocationFailure::Semantic(
                                     OperatingError::WrongOperation,
@@ -249,16 +262,20 @@ impl super::super::KernelSession<'_, '_> {
                                     continue;
                                 }
                                 for at in 0..count_of(source).0 {
-                                    let row = read_row(source, RowIndex(at), &mut cells).ok_or_else(|| 
-                                        InvocationFailure::Semantic(OperatingError::ShapeMismatch),
-                                    )?;
+                                    let row = read_row(source, RowIndex(at), &mut cells)
+                                        .ok_or_else(|| {
+                                            InvocationFailure::Semantic(
+                                                OperatingError::ShapeMismatch,
+                                            )
+                                        })?;
                                     workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
-                                    let texts = ryo_execution_domain::domain::table_texts::types::Texts {
-                                        symbols: context.symbols.as_ref(),
-                                        source: context.source,
-                                        paths: context.paths,
-                                        arenas: context.arenas,
-                                    };
+                                    let texts =
+                                        ryo_execution_domain::domain::table_texts::types::Texts {
+                                            symbols: context.symbols.as_ref(),
+                                            source: context.source,
+                                            paths: context.paths,
+                                            arenas: context.arenas,
+                                        };
                                     if ryo_execution_domain::domain::executable_program::kernel::row_admissible(
                                         contract, row, &texts,
                                     )
@@ -290,9 +307,9 @@ impl super::super::KernelSession<'_, '_> {
                                             sides: &views,
                                             row,
                                         },
-                                        resources.as_mut().ok_or_else(|| InvocationFailure::Semantic(
-                                            OperatingError::NotRun,
-                                        ))?,
+                                        resources.as_mut().ok_or_else(|| {
+                                            InvocationFailure::Semantic(OperatingError::NotRun)
+                                        })?,
                                         workspace,
                                         context,
                                         output,

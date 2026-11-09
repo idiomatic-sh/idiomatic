@@ -6,12 +6,12 @@ use super::service::{
     source_selection_identity,
 };
 use super::types::{DigestColumn, DigestRelation, IdentityHasher};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::keeping::types::DigestInput;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::labels::types::NameRef;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::files::types::FilePath;
+use ryo_relations::domain::labels::types::NameRef;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::rule_requests::types::RuleParameters;

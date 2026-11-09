@@ -11,17 +11,17 @@ use self::tool_name::value::ToolName;
 use self::tool_version::value::ToolVersion;
 use crate::domain::artifacts::types::digest::value::ArtifactDigest;
 use crate::domain::context::types::CaseContext;
-use crate::domain::context::types::ObservationSelectionPolicy;
 use crate::domain::context::types::ContextManifest;
+use crate::domain::context::types::ObservationSelectionPolicy;
 use crate::domain::context::types::RuleConfiguration;
 use crate::domain::context::types::RuleContextDeclaration;
 use crate::domain::context::types::project_context_mode::value::ProjectContextMode;
 use crate::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use crate::domain::reports::types::SourceByteOffset;
 use crate::domain::requests::types::{
-    ApplicabilityPolicy, FileMetadataDeclaration, InputDeclaration, ParserSelection,
-    PerformanceOptions, QueryModuleName, RuleLabel, CohortSelection, RunRequest, SearchRoots,
-    ProviderSelection,
+    ApplicabilityPolicy, CohortSelection, FileMetadataDeclaration, InputDeclaration,
+    ParserSelection, PerformanceOptions, ProviderSelection, QueryModuleName, RuleLabel, RunRequest,
+    SearchRoots,
 };
 use ryo::linter::RelativePath;
 use ryo::linter::RuleId;

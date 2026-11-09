@@ -5,8 +5,14 @@ use super::adapters::ryo::adapter::LinterRyoAdapter;
 pub fn ryo(
     executable: std::path::PathBuf,
     rules: std::path::PathBuf,
-    query_modules: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::QueryModuleName, std::path::PathBuf>,
-    rule_applicability: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::RuleLabel, ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy>,
+    query_modules: std::collections::BTreeMap<
+        ryo_benchmark_contracts::domain::requests::types::QueryModuleName,
+        std::path::PathBuf,
+    >,
+    rule_applicability: std::collections::BTreeMap<
+        ryo_benchmark_contracts::domain::requests::types::RuleLabel,
+        ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy,
+    >,
     parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
     defaults: Vec<ryo::linter::RuleId>,
     rule_observations: ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
@@ -30,8 +36,14 @@ pub fn ryo(
 pub fn ryo_context(
     executable: std::path::PathBuf,
     rules: std::path::PathBuf,
-    query_modules: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::QueryModuleName, std::path::PathBuf>,
-    rule_applicability: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::RuleLabel, ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy>,
+    query_modules: std::collections::BTreeMap<
+        ryo_benchmark_contracts::domain::requests::types::QueryModuleName,
+        std::path::PathBuf,
+    >,
+    rule_applicability: std::collections::BTreeMap<
+        ryo_benchmark_contracts::domain::requests::types::RuleLabel,
+        ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy,
+    >,
     parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
     source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection,
     project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,

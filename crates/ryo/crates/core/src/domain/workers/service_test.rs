@@ -200,7 +200,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             };
             let mut tables = tables(&[]);
             tables.hits = Hits::default();
-            yes(govern(&MetadataUseCaseImpl, &setting, &mut tables, &FilePath(path.into())))
+            yes(govern(
+                &MetadataUseCaseImpl,
+                &setting,
+                &mut tables,
+                &FilePath(path.into()),
+            ))
         }
         Scenario::Checking(place) => u64::from(checking(FileOrder(place)) == Checking::Now),
         Scenario::AddFed => {

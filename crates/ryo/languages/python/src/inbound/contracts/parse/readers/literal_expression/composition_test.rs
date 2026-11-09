@@ -71,7 +71,10 @@ fn actual_adapter_preserves_string_annotation_modes() {
         ("t'T'", LiteralParseOutcome::Unavailable),
     ] {
         assert_eq!(
-            RuffStringAnnotation::parse(CarrierInput(carrier), LiteralDialect::PythonStringAnnotation),
+            RuffStringAnnotation::parse(
+                CarrierInput(carrier),
+                LiteralDialect::PythonStringAnnotation
+            ),
             expected,
             "{carrier:?}",
         );

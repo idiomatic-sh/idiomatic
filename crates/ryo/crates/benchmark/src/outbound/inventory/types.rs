@@ -2,7 +2,9 @@
 use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ReasonText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, ReasonText, RuleName, Sha256Text,
+};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{

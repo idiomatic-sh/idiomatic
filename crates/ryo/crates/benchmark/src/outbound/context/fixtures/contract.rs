@@ -1,7 +1,7 @@
 //! What every `context` adapter must pass.
+use super::data::{context, missing, present, sources};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::context::interface::ContextPort;
-use super::data::{context, missing, present, sources};
 use crate::outbound::context::types::CorpusFiles;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
@@ -113,9 +113,8 @@ pub fn check(adapter: &impl ContextPort) {
 fn observe(adapter: &impl ContextPort, operation: Operation) -> Result<(), Error> {
     let scratch = tempfile::tempdir()?;
     let boundary = scratch.path().join("boundary");
-    let materialized = |auxiliary: &str| {
-        adapter.materialize(&boundary, &context(auxiliary), &sources())
-    };
+    let materialized =
+        |auxiliary: &str| adapter.materialize(&boundary, &context(auxiliary), &sources());
     match operation {
         Operation::MaterializedValidates => {
             let manifest = materialized("pkg/__init__.py")?;
@@ -142,9 +141,13 @@ fn observe(adapter: &impl ContextPort, operation: Operation) -> Result<(), Error
             let present_only = adapter.receipt(&manifest, &root, vec![present("__init__.py")])?;
             let text = adapter.receipt_text(&both)?;
             if text != adapter.receipt_text(&both)? {
-                Err(Error::Invalid("the receipt text of one receipt changes".into()))
+                Err(Error::Invalid(
+                    "the receipt text of one receipt changes".into(),
+                ))
             } else if text == adapter.receipt_text(&present_only)? {
-                Err(Error::Invalid("the receipt text ignores an observation".into()))
+                Err(Error::Invalid(
+                    "the receipt text ignores an observation".into(),
+                ))
             } else {
                 Ok(())
             }

@@ -1,12 +1,17 @@
 //! What a row of the `lint` cases gives the use case: the ports, the rules and the files, and the world built over them.
+use super::super::errors::LintError;
+use super::super::types::LintRequest;
+use super::super::types::Rule;
+use super::super::types::SourceProvider;
+use super::super::use_case::LintUseCaseImpl;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
-use crate::outbound::row_sink::fixtures::fake::Ends;
 use crate::outbound::row_sink;
+use crate::outbound::row_sink::fixtures::fake::Ends;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
-use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::files::types::Glob;
@@ -36,11 +41,6 @@ use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Session;
 use std::sync::Arc;
-use super::super::errors::LintError;
-use super::super::types::LintRequest;
-use super::super::types::Rule;
-use super::super::types::SourceProvider;
-use super::super::use_case::LintUseCaseImpl;
 
 /// What a row gives the use case: the ports it calls, the rules and the files linted.
 pub(crate) struct Given {
@@ -191,11 +191,13 @@ pub(crate) struct World {
 pub(crate) fn request(given: &Given) -> LintRequest {
     let globs = |texts: &[&str]| texts.iter().map(|glob| Glob((*glob).into())).collect();
     LintRequest {
-        source_language: given.source_language.map_or(SourceProvider::Recognized, |name| {
-            SourceProvider::Named(ryo_values::domain::descriptions::types::LanguageName(
-                name.into(),
-            ))
-        }),
+        source_language: given
+            .source_language
+            .map_or(SourceProvider::Recognized, |name| {
+                SourceProvider::Named(ryo_values::domain::descriptions::types::LanguageName(
+                    name.into(),
+                ))
+            }),
         answer: given.answer,
         hosted: given.hosted.clone(),
         session: Session {

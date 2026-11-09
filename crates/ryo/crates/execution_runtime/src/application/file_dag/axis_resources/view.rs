@@ -1,15 +1,13 @@
 //! Owned derived handles stay in application state; the primitive sees borrowed views only.
-use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
-use ryo_execution_domain::domain::{
-    operating::errors::OperatingError,
-    operator::contract::views::PreparedAxis,
-    table_reach::borrowed::IndexedRows,
-    table_cells::types::TreeRows,
-};
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_derived::domain::positions::types::DenseMarks;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::{
+    operating::errors::OperatingError, operator::contract::views::PreparedAxis,
+    table_cells::types::TreeRows, table_reach::borrowed::IndexedRows,
+};
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 pub(crate) enum AxisResource<'f> {

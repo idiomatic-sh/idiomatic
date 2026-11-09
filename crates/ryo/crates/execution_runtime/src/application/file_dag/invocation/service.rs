@@ -5,15 +5,16 @@ use super::prepared_use::service::prepared;
 use super::{InvocationInputs, InvocationResources, input, partitioned};
 use crate::application::file_dag::axis_resources::prepare_axis;
 use crate::application::file_dag::resources::appended_values;
-use ryo_execution_domain::domain::{operating::errors::OperatingError, operator::types::OperatorContext};
 use ryo_execution_domain::domain::operator::contract::{
-    views::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},
     types::OperatorContract,
-
+    views::NativeJoin,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::types::Texts;
+use ryo_execution_domain::domain::{
+    operating::errors::OperatingError, operator::types::OperatorContext,
+};
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -48,7 +49,6 @@ pub(crate) fn continuation<'f>(
         },
     })
 }
-
 
 pub(crate) fn prepare<'f>(
     contract: &OperatorContract,
@@ -135,10 +135,7 @@ pub(crate) fn prepare<'f>(
                 EmptyInput::Keep
             };
             resources.inputs.index = Some(IndexResource::acquired(
-                contract,
-                &admitted,
-                context,
-                empty,
+                contract, &admitted, context, empty,
             )?);
         }
         ResourceProgram::Join(JoinResources {
@@ -168,9 +165,8 @@ pub(crate) fn prepare<'f>(
                     None
                 };
                 if let Some((tree, acquired)) = native {
-                    let ryo_derived::domain::contract::types::DerivedView::NativeLookup(
-                        finding,
-                    ) = acquired.view()?
+                    let ryo_derived::domain::contract::types::DerivedView::NativeLookup(finding) =
+                        acquired.view()?
                     else {
                         return Err(OperatingError::WrongOperation);
                     };
@@ -233,7 +229,6 @@ pub(crate) fn prepare<'f>(
             resources.inputs.cycles = Some(admitted.acquire_rows(use_, context)?);
         }
         ResourceProgram::Ordered { .. } => {
-
             use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedKeys)?;
             let texts = Texts {
@@ -249,7 +244,6 @@ pub(crate) fn prepare<'f>(
             )?);
         }
         ResourceProgram::Dfs(_) => {
-
             use ryo_derived::domain::request::types::DerivedKind;
             let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
             resources.inputs.dfs = Some(admitted.acquire_derived(

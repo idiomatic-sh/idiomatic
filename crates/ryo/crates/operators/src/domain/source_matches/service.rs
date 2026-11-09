@@ -231,21 +231,17 @@ pub(crate) fn evaluate(
         driver.text_rows(),
         joined,
         &|each| match capture {
-            CaptureRequest::Group(name) => {
-                matching.captures(
-                    regex,
-                    ryo_matching::inbound::use_cases::matching::types::SearchText(text),
-                    ryo_matching::inbound::use_cases::matching::types::GroupName(name.0),
-                    &mut |found, group| each(found.0, Some(group.0)),
-                )
-            }
-            CaptureRequest::Whole => {
-                Ok(matching.matches(
-                    regex,
-                    ryo_matching::inbound::use_cases::matching::types::SearchText(text),
-                    &mut |found| each(found.0, None),
-                ))
-            }
+            CaptureRequest::Group(name) => matching.captures(
+                regex,
+                ryo_matching::inbound::use_cases::matching::types::SearchText(text),
+                ryo_matching::inbound::use_cases::matching::types::GroupName(name.0),
+                &mut |found, group| each(found.0, Some(group.0)),
+            ),
+            CaptureRequest::Whole => Ok(matching.matches(
+                regex,
+                ryo_matching::inbound::use_cases::matching::types::SearchText(text),
+                &mut |found| each(found.0, None),
+            )),
         },
     )
 }

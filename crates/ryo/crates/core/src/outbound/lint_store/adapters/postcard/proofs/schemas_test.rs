@@ -16,14 +16,12 @@ type Value = bool;
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_frontier_proof_reads_back_as_it_was_written"),
-        word: Word::Succeeds,
-        input: || (),
-        expect: Expect::Value(true),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("a_frontier_proof_reads_back_as_it_was_written"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(true),
+}];
 
 /// Writes a complete proof and a partial one and reads each back.
 fn subject() -> Value {

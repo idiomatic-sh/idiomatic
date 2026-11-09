@@ -4,7 +4,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::types::{Drawn, Examination, ExternCrate, Externs, SourceDependencyLink, Linked, Packaged, Placed, Run, TargetRole, UnplacedLink};
+use super::types::{
+    Drawn, Examination, ExternCrate, Externs, Linked, Packaged, Placed, Run, SourceDependencyLink,
+    TargetRole, UnplacedLink,
+};
 use crate::domain::fact_notes::service::facts_of;
 use crate::domain::fact_notes::types::{Naming, Note};
 use crate::domain::module_tree::constants::{CRATE, SOURCE};
@@ -16,13 +19,13 @@ use crate::domain::package_index::constants::MANIFEST;
 use crate::domain::package_index::service::{index, kept_files, package_of};
 use crate::domain::package_index::types::{Index, ListIndex, Package};
 use crate::domain::packages::types::Packages;
-use crate::domain::targets::service::crate_name;
 use crate::domain::paths::constants::SEPARATOR;
-use crate::domain::targets::constants::{BENCHES, BUILD, EXAMPLES, TESTS};
-use crate::domain::targets::types::PackageName;
 use crate::domain::paths::service::{directory_of, lexical_join};
 use crate::domain::paths::types::Relative;
 use crate::domain::paths::types::RepoPath;
+use crate::domain::targets::constants::{BENCHES, BUILD, EXAMPLES, TESTS};
+use crate::domain::targets::service::crate_name;
+use crate::domain::targets::types::PackageName;
 use ryo::languages::{self, FilePath};
 
 /// The place of a file among the repository's, as the number the rows hold it by.
@@ -132,7 +135,11 @@ pub(crate) fn merged(run: Run<'_>, gaps: Vec<Unfollowed>, examined: Vec<Examinat
 pub(crate) fn externs_in(packages: &Packages) -> Externs {
     let mut externs = Externs::default();
     for dependency in &packages.dependencies {
-        let Some(target) = dependency.target.as_ref().filter(|target| **target != dependency.source) else {
+        let Some(target) = dependency
+            .target
+            .as_ref()
+            .filter(|target| **target != dependency.source)
+        else {
             continue;
         };
         let Some(library) = packages.libraries.get(target) else {
@@ -161,17 +168,25 @@ pub(crate) fn externs_in(packages: &Packages) -> Externs {
 /// The role of the crate root `tree` is drawn from: its root file, relative to its package's directory, under `tests`, `benches` or
 /// `examples`, or the package's `build.rs`.
 fn role_of(tree: &ModuleTree) -> TargetRole {
-    let Some(root) = tree.modules.get(&ModulePath::default()).and_then(|roots| roots.first()) else {
+    let Some(root) = tree
+        .modules
+        .get(&ModulePath::default())
+        .and_then(|roots| roots.first())
+    else {
         return TargetRole::Ordinary;
     };
     let relative = if tree.package.is_empty() {
         Some(&*root.0)
     } else {
-        root.strip_prefix(&*tree.package.0).and_then(|rest| rest.strip_prefix(SEPARATOR))
+        root.strip_prefix(&*tree.package.0)
+            .and_then(|rest| rest.strip_prefix(SEPARATOR))
     };
     match relative {
         Some(relative) if relative == BUILD => TargetRole::Build,
-        Some(relative) if [TESTS, BENCHES, EXAMPLES].contains(&relative.split(SEPARATOR).next().unwrap_or_default()) => {
+        Some(relative)
+            if [TESTS, BENCHES, EXAMPLES]
+                .contains(&relative.split(SEPARATOR).next().unwrap_or_default()) =>
+        {
             TargetRole::Test
         }
         _ => TargetRole::Ordinary,
@@ -193,8 +208,10 @@ fn resolve_extern<'a>(
     let library = externs?.get(first)?.iter().find(|each| {
         matches!(
             (role, each.kind),
-            (TargetRole::Ordinary | TargetRole::Test, languages::DependencyKind::Normal)
-                | (TargetRole::Test, languages::DependencyKind::Dev)
+            (
+                TargetRole::Ordinary | TargetRole::Test,
+                languages::DependencyKind::Normal
+            ) | (TargetRole::Test, languages::DependencyKind::Dev)
                 | (TargetRole::Build, languages::DependencyKind::Build)
         )
     })?;
@@ -217,7 +234,9 @@ fn through_uses<'w>(known: &'w Facts, written: &'w Written) -> std::borrow::Cow<
         return std::borrow::Cow::Borrowed(&written.segments);
     };
     let binding = known.written.iter().find(|each| {
-        each.start != written.start && each.enclosing == written.enclosing && each.bound.as_ref() == Some(first)
+        each.start != written.start
+            && each.enclosing == written.enclosing
+            && each.bound.as_ref() == Some(first)
     });
     match binding {
         Some(binding) => std::borrow::Cow::Owned(
@@ -304,7 +323,8 @@ pub(crate) fn examine(
             let mut current = module.0.clone();
             current.extend(written.enclosing.iter().cloned());
             // A module under `#[cfg(test)]`, or inside one, is built for the unit tests, with the dev-dependencies.
-            let gated = (0..=current.len()).any(|length| each.tests.contains(&ModulePath(current[..length].to_vec())));
+            let gated = (0..=current.len())
+                .any(|length| each.tests.contains(&ModulePath(current[..length].to_vec())));
             let role = if target_role == TargetRole::Ordinary && gated {
                 TargetRole::Test
             } else {

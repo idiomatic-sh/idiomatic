@@ -15,7 +15,10 @@ pub(in crate::inbound::use_cases::certify::use_case_test) enum Route {
     Rules,
 }
 
-pub(in crate::inbound::use_cases::certify::use_case_test) fn substitution(change: &str, reason: &'static str) -> Result<usize, Cow<'static, str>> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn substitution(
+    change: &str,
+    reason: &'static str,
+) -> Result<usize, Cow<'static, str>> {
     let mut f = Fixture::new();
     match change {
         "executable" => f.document["rules"][0]["command"]["executable"] = json!("foreign-worker"),
@@ -58,7 +61,9 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn substitution(change
         .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
-pub(in crate::inbound::use_cases::certify::use_case_test) fn foreign_profile(reason: &'static str) -> Result<usize, Cow<'static, str>> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn foreign_profile(
+    reason: &'static str,
+) -> Result<usize, Cow<'static, str>> {
     let f = Fixture::new();
     let foreign = f._root.path().join("measured-foreign");
     for relative in [
@@ -86,7 +91,11 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn foreign_profile(rea
         .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
-pub(in crate::inbound::use_cases::certify::use_case_test) fn identical(changed: &str, route: Route, reason: &'static str) -> Result<usize, Cow<'static, str>> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn identical(
+    changed: &str,
+    route: Route,
+    reason: &'static str,
+) -> Result<usize, Cow<'static, str>> {
     use crate::outbound::suite::interface::SuitePort as _;
     let f = Fixture::new();
     let foreign = f._root.path().join("measured-foreign");

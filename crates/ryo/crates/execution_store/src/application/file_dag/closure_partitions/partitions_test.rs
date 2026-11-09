@@ -1,13 +1,13 @@
 //! The proofs of the partitioned closure cursor, and the working capacity they and the engine's observations read.
 use super::PartitionedClosure;
 use super::constants::LIVE_PARTITION_VIEW;
+use ryo_derived::domain::key::types::{ChainLink, HashedRow, KeyCellsHash};
 #[cfg(test)]
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_derived::domain::key::types::{ChainLink, HashedRow, KeyCellsHash};
-use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::push_row;
+use ryo_values::domain::rows::types::RowIndex;
 
 #[cfg(test)]
 /// All live Value payload cells owned by this cursor, not only adjacency rows.
@@ -103,7 +103,9 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
     let mut seen = 0;
     let mut maximum_live = 0;
     let mut maximum_reserved = 0;
-    while cursor.advance().unwrap() == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
+    while cursor.advance().unwrap()
+        == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced
+    {
         let part = cursor.current().unwrap();
         assert_eq!(part.table.count.0, 3);
         assert_eq!(part.table.cells.len(), 6);
@@ -124,7 +126,10 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
     );
     // Ordering metadata scales with row IDs, not the number of partition graphs.
     assert!(ordering_bytes(&cursor) < input.count.0 * 64);
-    assert_eq!(cursor.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
+    assert_eq!(
+        cursor.advance().unwrap(),
+        crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted
+    );
 }
 
 #[test]
@@ -153,7 +158,9 @@ fn separate_keys_never_share_edges() {
     )
     .unwrap();
     let mut observed = Vec::new();
-    while cursor.advance().unwrap() == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
+    while cursor.advance().unwrap()
+        == crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced
+    {
         observed.push((
             cursor.current().unwrap().key.to_vec(),
             cursor.current().unwrap().table.cells.clone(),
@@ -200,7 +207,10 @@ fn advancing_releases_only_the_previous_partition_lease() {
         std::rc::Rc::clone(&scope),
     )
     .unwrap();
-    assert_eq!(cursor.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced);
+    assert_eq!(
+        cursor.advance().unwrap(),
+        crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced
+    );
     let owner = std::rc::Rc::clone(&scope);
     let first_backing =
         crate::application::file_dag::derived::owner::fixtures::resources::weak_storage(
@@ -208,7 +218,10 @@ fn advancing_releases_only_the_previous_partition_lease() {
         );
     let first_charge = owner.derived().publication_ownership_bytes().0;
     assert!(first_charge > input_charge);
-    assert_eq!(cursor.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced);
+    assert_eq!(
+        cursor.advance().unwrap(),
+        crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced
+    );
     assert!(
         first_backing.upgrade().is_none(),
         "advance releases the previous physical backing"
@@ -244,7 +257,10 @@ fn advancing_releases_only_the_previous_partition_lease() {
         second_backing.upgrade().is_none(),
         "final consumer releases the physical backing"
     );
-    assert_eq!(owner.derived().publication_ownership_bytes().0, input_charge);
+    assert_eq!(
+        owner.derived().publication_ownership_bytes().0,
+        input_charge
+    );
     drop(rows);
     drop(publication);
     assert_eq!(owner.derived().publication_ownership_bytes().0, 0);
@@ -277,7 +293,10 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
         empty.current(),
         Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRun)
     ));
-    assert_eq!(empty.advance().unwrap(), crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
+    assert_eq!(
+        empty.advance().unwrap(),
+        crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted
+    );
     assert!(matches!(
         empty.current(),
         Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRun)

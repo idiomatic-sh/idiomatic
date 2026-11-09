@@ -1,9 +1,9 @@
 //! Literal metadata and dynamic patterns are exercised through real prepared file owners; the runtime proves which of them
 //! enter the invocation's local caches.
 use super::super::super::fixtures;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::{
     elements::types::Elements,
     symbols::{
@@ -19,8 +19,8 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            Applied, ColumnIndex, PlanComparison, Function, Input as Source, LiteralText, Operand,
-            ParameterId, QueryLiteral, StepId, StepScope, Test,
+            Applied, ColumnIndex, Function, Input as Source, LiteralText, Operand, ParameterId,
+            PlanComparison, QueryLiteral, StepId, StepScope, Test,
         },
         plans::types::{Operation, PlanStep},
         query_bindings::types::ParameterBinding,
@@ -84,7 +84,8 @@ fn prepare(
         scope: StepScope::PerFile,
         operation: shadow,
     });
-    let (engine, program) = fixtures::requests::prepared(authored.plan, bindings.to_vec(), authored.hosted)?;
+    let (engine, program) =
+        fixtures::requests::prepared(authored.plan, bindings.to_vec(), authored.hosted)?;
     Ok((engine, program, symbols, input))
 }
 fn evaluate(
@@ -152,10 +153,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 assert_eq!(builds(&program), 0);
                 let (engine, program, mut symbols, _) =
                     prepare(operation.clone(), Some("actual"), &[], operation)?;
-                let expected = ryo_execution_domain::domain::matching::types::prepared::value::compile_regex(
-                    ryo_execution_domain::domain::table_texts::types::TextView("["),
-                    ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(),
-                )
+                let expected =
+                    ryo_execution_domain::domain::matching::types::prepared::value::compile_regex(
+                        ryo_execution_domain::domain::table_texts::types::TextView("["),
+                        ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(),
+                    )
                     .unwrap_err();
                 for _file in 0..2 {
                     assert_eq!(
@@ -195,7 +197,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     prepare(parameter.clone(), Some("alpha"), &bindings, &shadow)?;
                 program
                     .matchers()
-                    .regex(ryo_execution_domain::domain::table_texts::types::TextView("a.*"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher())
+                    .regex(
+                        ryo_execution_domain::domain::table_texts::types::TextView("a.*"),
+                        ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(),
+                    )
                     .unwrap()
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
@@ -226,7 +231,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     prepare(operation, Some(text), &[], &shadow)?;
                 program
                     .matchers()
-                    .regex(ryo_execution_domain::domain::table_texts::types::TextView("a.*"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher())
+                    .regex(
+                        ryo_execution_domain::domain::table_texts::types::TextView("a.*"),
+                        ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(),
+                    )
                     .unwrap()
                     .as_ref()
                     .expect("the prepared literal matcher compiled");
@@ -248,7 +256,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 )];
                 let (engine, program, mut symbols, _) =
                     prepare(lists.clone(), Some("alpha"), &bindings, &shadow)?;
-                assert!(program.matchers().glob(Test::GlobAny, ryo_execution_domain::domain::table_texts::types::TextView("a*"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()).is_some());
+                assert!(
+                    program
+                        .matchers()
+                        .glob(
+                            Test::GlobAny,
+                            ryo_execution_domain::domain::table_texts::types::TextView("a*"),
+                            ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(
+                            )
+                        )
+                        .is_some()
+                );
                 let actual = evaluate(&engine, &program, &mut symbols)?;
                 assert_eq!(actual.count.0, expected);
                 assert_eq!(builds(&program), 1);

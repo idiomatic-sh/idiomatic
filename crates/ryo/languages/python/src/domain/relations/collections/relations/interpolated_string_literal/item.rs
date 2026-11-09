@@ -1,5 +1,6 @@
 //! Read decoded literal elements from f-strings.
 
+use super::constants::MISSING;
 use crate::domain::{
     extras::types::Extra,
     fields::service::field_of,
@@ -14,8 +15,6 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, NameText, Position, Tree};
-use super::constants::MISSING;
-
 
 /// The optional decoded f-string literal reader.
 pub(crate) struct InterpolatedStringLiteralItem;

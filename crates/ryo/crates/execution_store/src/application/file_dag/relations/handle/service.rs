@@ -16,10 +16,7 @@ pub struct PublishedInput {
     leases: Arc<RequiredLeases>,
 }
 impl PublishedInput {
-    pub(crate) fn new(
-        record: Arc<RelationResult>,
-        initial: Arc<ResourceLease>,
-    ) -> Self {
+    pub(crate) fn new(record: Arc<RelationResult>, initial: Arc<ResourceLease>) -> Self {
         let normalized_in_initial = if record.normalized.get().is_some() {
             NormalizationCharge::Charged
         } else {
@@ -52,15 +49,15 @@ impl PublishedInput {
             NormalizationCharge::Uncharged
         }
     }
-    pub(crate) fn hold_normalization(
-        &self,
-        lease: Arc<ResourceLease>,
-    ) {
+    pub(crate) fn hold_normalization(&self, lease: Arc<ResourceLease>) {
         *self.leases.normalized.borrow_mut() = Some(lease);
     }
     /// Whether `other` leases the same record.
     #[cfg(any(test, feature = "fixtures"))]
-    pub fn same_record(&self, other: &Self) -> crate::application::file_dag::relations::types::Sameness {
+    pub fn same_record(
+        &self,
+        other: &Self,
+    ) -> crate::application::file_dag::relations::types::Sameness {
         if Arc::ptr_eq(&self.record, &other.record) {
             crate::application::file_dag::relations::types::Sameness::Same
         } else {

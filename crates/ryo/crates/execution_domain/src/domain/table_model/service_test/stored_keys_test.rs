@@ -98,7 +98,8 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() -> Resul
     Ok(1)
 }
 
-fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() -> Result<Value, Failure> {
+fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() -> Result<Value, Failure>
+{
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
     // One FxHash step sees only the running hash plus the word, so the key (1, -mix(0, 1)) hashes as (0, 0).
     let colliding_word = ryo_derived::domain::key::service::mix(
@@ -118,8 +119,7 @@ fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() -> R
     let on = [ColumnIndex(0), ColumnIndex(1)];
     let index = prepared_index(&Rows::Stored(view), &on).expect("key");
     assert_eq!(
-        index.hashes[0],
-        index.hashes[1],
+        index.hashes[0], index.hashes[1],
         "fixture must exercise an actual full-hash collision"
     );
     assert_eq!(

@@ -8,11 +8,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ryo_core::outbound::lint_store::errors::LintStoreError;
 use ryo_core::outbound::lint_store::interface::{LintStorePort, ReadStore};
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
-use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
-use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
+use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::types::ColumnsView;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::stored_facts::types::Bucket;
@@ -172,7 +172,10 @@ impl ReadStore for CountingRead {
     fn begin_old_rows(
         &self,
         _wanted: &BucketsWanted,
-    ) -> Result<Option<Box<dyn ryo_core::outbound::lint_store::interface::OldRowBatch>>, LintStoreError> {
+    ) -> Result<
+        Option<Box<dyn ryo_core::outbound::lint_store::interface::OldRowBatch>>,
+        LintStoreError,
+    > {
         Ok(None)
     }
     fn keep(&self, stored: Stored, kept: &KeptRows) -> Result<(), LintStoreError> {

@@ -1,5 +1,7 @@
 //! What a file the run uses again hands the cross-file steps, read back from the record or the store, and the staging of fresh outcomes.
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::types::{FileVisit, RequestVisitSetting, Worker};
 use crate::application::file_analysis::constants::STORED_FRONTIER_PROOF_DOES_NOT_MATCH;
 use crate::domain::handing::service::hand_rest_again;
 use crate::domain::handing::service::remap_to;
@@ -11,6 +13,7 @@ use crate::domain::workers::types::FileOrder;
 use crate::domain::workers::types::Held;
 use crate::domain::workers::types::Ready;
 use crate::domain::workers::types::ReadyBucket;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::types::FileId;
@@ -28,9 +31,6 @@ use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::table_words::service::pack_onto;
 use ryo_values::domain::table_words::types::WordSlice;
-use super::super::errors::FileAnalysisError;
-use super::super::service::FileAnalysis;
-use super::super::types::{FileVisit, RequestVisitSetting, Worker};
 
 impl FileAnalysis {
     /// Only successfully validated and digested fresh outcomes cross this IO boundary.
@@ -115,7 +115,11 @@ impl FileAnalysis {
                                 Held::Staged(span)
                             }
                         };
-                        ReadyBucket { bucket: each.bucket, proof: &each.proof, held }
+                        ReadyBucket {
+                            bucket: each.bucket,
+                            proof: &each.proof,
+                            held,
+                        }
                     })
                     .collect(),
             },
@@ -154,7 +158,11 @@ impl FileAnalysis {
                                     Held::Old(span)
                                 }
                             };
-                            ReadyBucket { bucket: each.bucket, proof: &each.proof, held }
+                            ReadyBucket {
+                                bucket: each.bucket,
+                                proof: &each.proof,
+                                held,
+                            }
                         })
                         .collect(),
                 }
@@ -171,7 +179,12 @@ impl FileAnalysis {
             ready.observations,
         );
         let mut loaded = PackedWords::default();
-        for ReadyBucket { bucket, proof, held } in ready.buckets {
+        for ReadyBucket {
+            bucket,
+            proof,
+            held,
+        } in ready.buckets
+        {
             // Filtering must precede any staged or old read, including an invalid unrequested descriptor.
             if let BucketsWanted::These(buckets) = setting.wanted_buckets
                 && buckets.binary_search(&bucket).is_err()

@@ -1,6 +1,9 @@
 //! Iterative positive reach, ordered early stop and validated-forest path compression.
 
-use crate::domain::stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Neighbors, Orientation, VisitEpoch};
+use crate::domain::stored_graph::types::{
+    BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest,
+    Neighbors, Orientation, VisitEpoch,
+};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::vertices::types::VertexId;
 
@@ -49,7 +52,9 @@ impl<'a> GraphTraversal<'a> {
         self.follow(root, orientation);
         while let Some(vertex) = self.walk.queue.pop_front() {
             self.walk.reached.push(vertex);
-            if nearest.is_some_and(|domain| domain.members.0.as_slice().get(vertex.0 as usize) == Some(&true)) {
+            if nearest.is_some_and(|domain| {
+                domain.members.0.as_slice().get(vertex.0 as usize) == Some(&true)
+            }) {
                 return BreadthEnd::Stopped;
             }
             // Initial seeding already expanded the root. A real cycle may still emit it.
@@ -124,7 +129,9 @@ impl<'a> GraphTraversal<'a> {
     /// Epochs avoid clearing every vertex on each narrow source request.
     fn begin(&mut self) {
         if self.walk.marks.len() < self.graph.vertices().len() {
-            self.walk.marks.resize(self.graph.vertices().len(), VisitEpoch(0));
+            self.walk
+                .marks
+                .resize(self.graph.vertices().len(), VisitEpoch(0));
         }
         self.walk.epoch = VisitEpoch(self.walk.epoch.0.wrapping_add(1));
         if self.walk.epoch == VisitEpoch(0) {

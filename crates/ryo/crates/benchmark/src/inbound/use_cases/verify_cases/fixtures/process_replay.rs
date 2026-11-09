@@ -1,4 +1,8 @@
 //! Reading the receipts a process capture wrote, and replaying them through the offline validator.
+use super::process_capture::Fixture;
+use super::process_capture::pin;
+use super::process_identity::Verdict;
+use super::process_identity::verdict;
 use crate::application::case_observation::service::write as record;
 use crate::outbound::inventory::fixtures::registrations::document_of;
 use crate::outbound::inventory::fixtures::registrations::process_failure;
@@ -22,10 +26,6 @@ use serde_json::json;
 use sha2::Digest as _;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use super::process_capture::Fixture;
-use super::process_capture::pin;
-use super::process_identity::Verdict;
-use super::process_identity::verdict;
 
 /// The rows of one receipt file, with the raw bytes and invocation records they point at.
 pub(crate) struct Loaded {
@@ -99,7 +99,9 @@ impl Fixture {
     }
     /// The refusal of the offline validator over `loaded`.
     pub fn refusal(&self, loaded: &Loaded) -> String {
-        self.validate(&self.document, loaded).unwrap_err().to_string()
+        self.validate(&self.document, loaded)
+            .unwrap_err()
+            .to_string()
     }
     fn validate(
         &self,
@@ -117,7 +119,14 @@ impl Fixture {
         )
     }
     /// What the validator answers after row `row` reports one finding of `rule` over `start..end` of `file`.
-    pub fn replay_finding(&self, row: usize, rule: &str, file: &str, start: u64, end: u64) -> Verdict {
+    pub fn replay_finding(
+        &self,
+        row: usize,
+        rule: &str,
+        file: &str,
+        start: u64,
+        end: u64,
+    ) -> Verdict {
         let finding = json!([{"rule": rule, "file": file, "start": start, "end": end}]);
         self.replay_tampered(row, "/diagnostics", &finding.to_string())
     }
@@ -149,7 +158,8 @@ impl Fixture {
     pub fn forged_stdout(&self) -> Loaded {
         let mut loaded = self.load();
         let path = {
-            let ReferenceProcess::Observed(observed) = &loaded.records[0].process_observation else {
+            let ReferenceProcess::Observed(observed) = &loaded.records[0].process_observation
+            else {
                 panic!("the reference process is observed");
             };
             let ProcessArtifactsRecord::Attached(artifacts) = &observed.artifacts else {
@@ -157,13 +167,16 @@ impl Fixture {
             };
             PathBuf::from(&artifacts.stdout.path.0)
         };
-        loaded.artifacts.insert(path, CapturedBytes(b"forged".to_vec()));
+        loaded
+            .artifacts
+            .insert(path, CapturedBytes(b"forged".to_vec()));
         loaded
     }
     /// The rows whose first invocation record spells `flag` as its only argument, under a digest that follows the edit.
     pub fn rearmed_invocation(&self, flag: &str) -> Loaded {
         let mut loaded = self.load();
-        let ReferenceProcess::Observed(observed) = &mut loaded.records[0].process_observation else {
+        let ReferenceProcess::Observed(observed) = &mut loaded.records[0].process_observation
+        else {
             panic!("the reference process is observed");
         };
         let ProcessArtifactsRecord::Attached(artifacts) = &mut observed.artifacts else {

@@ -1,10 +1,10 @@
 //! The unknowns document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
-use std::borrow::Cow;
+use super::super::strings::schemas::{StringsSchema, TextSchema, named, text};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::runs::types::{ApplicabilityRefusal, RuleId, UnknownCause};
 use ryo_values::domain::stored_findings::types::{StoredUnknown, UnknownText};
-use super::super::strings::schemas::{StringsSchema, TextSchema, named, text};
+use std::borrow::Cow;
 
 /// Stable tags of why a rule could not decide, in the checked store.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

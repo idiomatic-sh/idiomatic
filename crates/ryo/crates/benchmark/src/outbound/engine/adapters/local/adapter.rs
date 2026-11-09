@@ -6,12 +6,11 @@ use crate::outbound::engine::types::{
     EngineConfiguration, EngineRun, loaded_engine_session::value::LoadedEngineSession,
 };
 use ryo::linter::{
-    self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot,
-    WorkerPool,
+    self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot, WorkerPool,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount};
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount};
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 use tracing_subscriber::prelude::*;
@@ -85,8 +84,12 @@ impl EnginePort for EngineLocalAdapter {
             &request.rule_applicability,
             self.frontend_diagnostic.clone(),
             match &request.rule_observations {
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declared) => Some(declared),
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => None,
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
+                    declared,
+                ) => Some(declared),
+                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
+                    None
+                }
             },
         )?;
         Ok(LoadedEngineSession::new(
@@ -217,24 +220,33 @@ impl EngineExecution for LocalEngineSession<'_> {
         let skips_count = skipped.len();
         let diagnostics = diagnostic_findings(report.findings)?;
         let dependencies = report.dependencies;
-        Ok(EngineRun { dependencies, report: RunReport {
-            execution_metadata:
-                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-            diagnostics,
-            skipped,
-            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: PairCount(selected_pairs),
-                    evaluated: PairCount(selected_pairs.checked_sub(skips_count).ok_or_else(|| {
-                        Error::Invalid(constants::SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED.into())
-                    })?),
-                    skipped: PairCount(skips_count),
-                    unknown_or_unread: PairCount(0),
-                },
-            ),
-            files: accepted.into_iter().collect(),
-        } })
+        Ok(EngineRun {
+            dependencies,
+            report: RunReport {
+                execution_metadata:
+                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+                project_context:
+                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                diagnostics,
+                skipped,
+                coverage:
+                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                            selected: PairCount(selected_pairs),
+                            evaluated: PairCount(
+                                selected_pairs.checked_sub(skips_count).ok_or_else(|| {
+                                    Error::Invalid(
+                                        constants::SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED.into(),
+                                    )
+                                })?,
+                            ),
+                            skipped: PairCount(skips_count),
+                            unknown_or_unread: PairCount(0),
+                        },
+                    ),
+                files: accepted.into_iter().collect(),
+            },
+        })
     }
 }
 
@@ -280,7 +292,9 @@ fn configuration_files(
     languages: &Languages,
 ) -> Result<Vec<linter::RelativePath>, Error> {
     let selected_language = match &request.source_language {
-        ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => Some(name.0.as_str()),
+        ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => {
+            Some(name.0.as_str())
+        }
         ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => None,
     };
     let matching: Vec<_> = match selected_language {

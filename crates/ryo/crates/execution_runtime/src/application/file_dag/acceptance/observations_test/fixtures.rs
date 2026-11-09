@@ -1,23 +1,29 @@
 //! Frontier coordinates must use the same request-qualified slots as instruction inputs.
-use ryo_execution_domain::domain::executable_program::types::{PartitionRequirement, ProducerPartitions};
+use ryo_execution_domain::domain::executable_program::types::{
+    PartitionRequirement, ProducerPartitions,
+};
 use ryo_execution_domain::domain::file_program::types::RequestGraph;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     file_program::types::{
-        ObservationRequest, RequestOperators, ResolvedObservationBinding, ResolvedObservationProducer,
+        ObservationRequest, RequestOperators, ResolvedObservationBinding,
+        ResolvedObservationProducer,
     },
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::{Operation, Plan};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::{
-    observations::types::{BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName, ObservationName, PlanObservation},
-    plan_parts::types::{ColumnIndex, HostedNumber, ParameterId, ObservationBindingId},
+    observations::types::{
+        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+        ObservationName, PlanObservation,
+    },
+    plan_parts::types::{ColumnIndex, HostedNumber, ObservationBindingId, ParameterId},
     plans::types::Emit,
+    records::types::{ObservationIndex, ObservationReadinessLayout},
     stored_facts::types::Digest,
-    records::types::{ObservationReadinessLayout, ObservationIndex},
 };
 
 pub(crate) struct DeclaredFileProducers;
@@ -165,9 +171,7 @@ pub(crate) fn fixture(frontier: FrontierSlots, names: Names) -> Fixture {
         &plans,
         &[vec![], vec![], vec![], vec![]],
         &[],
-        std::sync::Arc::new(
-            ryo_execution_store::outbound::derived::factory::semantics(),
-        ),
+        std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
     )
     .unwrap();
     let graph = ryo_execution_domain::domain::file_program::service::compile_prepared_observations(

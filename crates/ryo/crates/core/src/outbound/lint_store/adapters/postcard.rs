@@ -12,8 +12,8 @@ mod rest;
 mod schemas;
 mod strings;
 mod tables;
-mod unknowns;
 pub(crate) mod types;
+mod unknowns;
 pub(crate) mod writer;
 
 #[cfg(test)]

@@ -1,12 +1,12 @@
 //! The memory adapter of the facts port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::FactsMemoryAdapter;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::facts::fixtures::contract::check;
 use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::interface::FactsPort as _;
+use crate::outbound::facts::fixtures::contract::check;
 use crate::outbound::facts::fixtures::words::test_words;
+use crate::outbound::facts::interface::FactsPort as _;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::stored_facts::types::{Bucket, PackedWords};
 
 /// What a row of the cases asks of the adapter.

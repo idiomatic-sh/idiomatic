@@ -1,10 +1,9 @@
 //! Public streaming and metadata calls borrow engine-owned reduction state and keep fault order.
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::capture::types::*;
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::FirstOccurrence;
-use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
-use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;
-use crate::inbound::use_cases::operators::types::*;
 use crate::domain::equality_join::types::*;
 use crate::domain::ordered_existence::types::*;
 use crate::domain::ordered_match::types::*;
@@ -12,8 +11,9 @@ use crate::domain::reduction::types::*;
 use crate::domain::set_rows::types::*;
 use crate::domain::source_matches::types::*;
 use crate::domain::words::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::WholeNumber;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
@@ -60,19 +60,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("streamed_count_metadata_checks_keys_first"),
         word: Word::Refuses,
         input: || Scenario::CheckStreamCountOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(99) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(99),
+        }),
     },
     Case {
         name: CaseName("collected_count_metadata_checks_operand_first"),
         word: Word::Refuses,
         input: || Scenario::CheckCollectedCountOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(98),
+        }),
     },
     Case {
         name: CaseName("streamed_digest_metadata_checks_operand_first"),
         word: Word::Refuses,
         input: || Scenario::CheckStreamDigestOrder,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(98),
+        }),
     },
     Case {
         name: CaseName("stream_count_and_finish_keep_original_representatives"),
@@ -90,7 +96,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("stream_bad_early_row_prevents_later_upstream_demand"),
         word: Word::Refuses,
         input: || Scenario::StreamEarlyFault,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(1) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(1),
+        }),
     },
     Case {
         name: CaseName("stream_group_storage_refusal_prevents_value_access"),
@@ -344,10 +352,22 @@ fn subject(input: Input) -> Result<Value, Failure> {
         | Scenario::StreamStorageFailure => stream(input),
         Scenario::FinishDigest => {
             let mut hashes = vec![
-                AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) },
-                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
-                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
-                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
+                AggregationHash {
+                    group: GroupCoordinate(1),
+                    hash: ValueHash(9),
+                },
+                AggregationHash {
+                    group: GroupCoordinate(0),
+                    hash: ValueHash(5),
+                },
+                AggregationHash {
+                    group: GroupCoordinate(0),
+                    hash: ValueHash(3),
+                },
+                AggregationHash {
+                    group: GroupCoordinate(0),
+                    hash: ValueHash(5),
+                },
             ];
             let mut output = Groups::default();
             written(OperatorCall::FinishAggregation {
@@ -359,15 +379,33 @@ fn subject(input: Input) -> Result<Value, Failure> {
             assert_eq!(
                 hashes,
                 vec![
-                    AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
-                    AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
-                    AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) }
+                    AggregationHash {
+                        group: GroupCoordinate(0),
+                        hash: ValueHash(3)
+                    },
+                    AggregationHash {
+                        group: GroupCoordinate(0),
+                        hash: ValueHash(5)
+                    },
+                    AggregationHash {
+                        group: GroupCoordinate(1),
+                        hash: ValueHash(9)
+                    }
                 ]
             );
             let mut reordered = vec![
-                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(5) },
-                AggregationHash { group: GroupCoordinate(1), hash: ValueHash(9) },
-                AggregationHash { group: GroupCoordinate(0), hash: ValueHash(3) },
+                AggregationHash {
+                    group: GroupCoordinate(0),
+                    hash: ValueHash(5),
+                },
+                AggregationHash {
+                    group: GroupCoordinate(1),
+                    hash: ValueHash(9),
+                },
+                AggregationHash {
+                    group: GroupCoordinate(0),
+                    hash: ValueHash(3),
+                },
             ];
             let mut repeated = Groups::default();
             written(OperatorCall::FinishAggregation {

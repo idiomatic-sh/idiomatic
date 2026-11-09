@@ -226,7 +226,13 @@ pub fn refusal(
     vocabularies: &KindVocabularies,
     matcher: PatternMatcher<'_>,
 ) -> Option<KindRefusal> {
-    first_unknown(std::slice::from_ref(plan), &[Vec::new()], vocabularies, matcher).map(|unknown| {
+    first_unknown(
+        std::slice::from_ref(plan),
+        &[Vec::new()],
+        vocabularies,
+        matcher,
+    )
+    .map(|unknown| {
         let mut refusal = unknown_message(&unknown.word, vocabularies);
         refusal.origin = unknown.origin;
         refusal

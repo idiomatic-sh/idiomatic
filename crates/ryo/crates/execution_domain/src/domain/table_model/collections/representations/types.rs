@@ -11,4 +11,3 @@ pub(crate) enum RowRead<'a> {
     Decoded(&'a [Value]),
     MissingPhysical,
 }
-

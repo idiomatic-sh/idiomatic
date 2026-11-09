@@ -15,9 +15,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a complete invocation record is decoded"),
         word: Word::Succeeds,
-        input: || {
-            r#"{"actual_request_root":"/root","files":["case.py"],"arguments":["--check"],"environment":{},"directory":"/root","exit":2,"signal":null,"observer_no_deadline":true,"metadata_error":"identity unavailable"}"#
-        },
+        input: || r#"{"actual_request_root":"/root","files":["case.py"],"arguments":["--check"],"environment":{},"directory":"/root","exit":2,"signal":null,"observer_no_deadline":true,"metadata_error":"identity unavailable"}"#,
         expect: Expect::Value(true),
     },
     Case {

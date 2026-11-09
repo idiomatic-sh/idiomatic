@@ -11,10 +11,12 @@ fn payload_view_retains_exact_nonempty_slice_and_observation_identity() {
         resources: ResourceObservation::WallOnly,
         report: RunReport {
             execution_metadata: ExecutionMetadata::Unknown,
-            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+            project_context:
+                ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics: vec![],
             skipped: vec![],
-            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
+            coverage:
+                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
             files: vec![],
         },
     };
@@ -25,12 +27,14 @@ fn payload_view_retains_exact_nonempty_slice_and_observation_identity() {
     let names = [SampleName("first".into()), SampleName("second".into())];
     let observations = [
         PublicationSample {
-            inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
+            inventory:
+                ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
             name: &names[0],
             measurement: &first,
         },
         PublicationSample {
-            inventory: ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
+            inventory:
+                ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete,
             name: &names[1],
             measurement: &second,
         },

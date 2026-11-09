@@ -1,5 +1,5 @@
 //! Proves one value's behaviour: an inventory starts failed and passes only by evidence.
-use super::value::{FailureReason, Inventory, PassedRule, InventoryVerdict};
+use super::value::{FailureReason, Inventory, InventoryVerdict, PassedRule};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::requests::types::RuleLabel;

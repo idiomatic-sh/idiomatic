@@ -47,7 +47,8 @@ pub struct FileProgramNode {
 pub struct RequestGraph {
     /// Every original step, including terminal and project steps. Invalid
     /// references are deferred faults, never a choice of another scheduler.
-    pub program_nodes: Vec<Vec<Result<ProgramNodeId, crate::domain::operating::errors::OperatingError>>>,
+    pub program_nodes:
+        Vec<Vec<Result<ProgramNodeId, crate::domain::operating::errors::OperatingError>>>,
     /// Reviewed alternatives indexed by their replaced Select producer.
     pub ordered_existence: Vec<Option<ResolvedAlternative>>,
     /// Named roots extend this request graph; ordinary requests retain no observation allocation.

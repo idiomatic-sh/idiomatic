@@ -28,19 +28,17 @@ impl RouteProfile {
             Value::File(file) => Some(file),
             _ => None,
         });
-        let _attributed = with_state(self, |state| {
-            match file {
-                Some(file)
-                    if state.progress.row_file.as_ref().map(|known| known.file.0) != Some(file.0) =>
-                {
-                    state.progress.row_file = paths.get(file.0 as usize).map(|path| RouteRowFile {
-                        file: ryo_relations::domain::relations::types::FileId(file.0),
-                        path: RouteFileName(path.0.to_string()),
-                    });
-                }
-                None => state.progress.row_file = None,
-                _ => {}
+        let _attributed = with_state(self, |state| match file {
+            Some(file)
+                if state.progress.row_file.as_ref().map(|known| known.file.0) != Some(file.0) =>
+            {
+                state.progress.row_file = paths.get(file.0 as usize).map(|path| RouteRowFile {
+                    file: ryo_relations::domain::relations::types::FileId(file.0),
+                    path: RouteFileName(path.0.to_string()),
+                });
             }
+            None => state.progress.row_file = None,
+            _ => {}
         });
     }
 }

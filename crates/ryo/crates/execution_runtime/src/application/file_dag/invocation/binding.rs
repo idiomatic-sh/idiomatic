@@ -13,7 +13,10 @@ impl PrimitiveResources for InvocationInputs<'_> {
     }
     fn index(&self) -> Option<IndexedRows<'_>> {
         #[cfg(feature = "diagnostic-row-progress")]
-        let index = self.index.as_ref().and_then(|index| index.view(&self.progress));
+        let index = self
+            .index
+            .as_ref()
+            .and_then(|index| index.view(&self.progress));
         #[cfg(not(feature = "diagnostic-row-progress"))]
         let index = self.index.as_ref().and_then(|index| index.view());
         index
@@ -26,8 +29,10 @@ impl PrimitiveResources for InvocationInputs<'_> {
     }
     fn axis(
         &self,
-    ) -> Result<Option<ryo_execution_domain::domain::operator::contract::views::PreparedAxis<'_>>, OperatingError>
-    {
+    ) -> Result<
+        Option<ryo_execution_domain::domain::operator::contract::views::PreparedAxis<'_>>,
+        OperatingError,
+    > {
         #[cfg(feature = "diagnostic-row-progress")]
         let axis = self.axis.as_ref().map(|axis| axis.view(&self.progress));
         #[cfg(not(feature = "diagnostic-row-progress"))]
@@ -46,12 +51,19 @@ impl PrimitiveResources for InvocationInputs<'_> {
     }
     fn closure(
         &self,
-    ) -> Result<ryo_execution_domain::domain::operator::contract::views::ClosureViews<'_>, OperatingError> {
+    ) -> Result<
+        ryo_execution_domain::domain::operator::contract::views::ClosureViews<'_>,
+        OperatingError,
+    > {
         Ok(match &self.partitioned_closure {
             Some(parts) => {
-                ryo_execution_domain::domain::operator::contract::views::ClosureViews::One(parts.current()?)
+                ryo_execution_domain::domain::operator::contract::views::ClosureViews::One(
+                    parts.current()?,
+                )
             }
-            None => ryo_execution_domain::domain::operator::contract::views::ClosureViews::Many(&self.closure),
+            None => ryo_execution_domain::domain::operator::contract::views::ClosureViews::Many(
+                &self.closure,
+            ),
         })
     }
     fn ordered(&self) -> Result<Option<&OrderedMatching>, OperatingError> {

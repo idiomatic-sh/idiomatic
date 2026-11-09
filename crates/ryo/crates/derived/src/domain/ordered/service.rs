@@ -2,9 +2,9 @@
 use super::types::{OrderedMatching, OrderedText, OwnedOrderedKey, OwnedOrderedRow};
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::row_cells::types::{RowCells, ValueTexts};
-use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::RowIndex;
 fn cell(row: &[Value], column: ColumnIndex) -> Result<Value, DerivedFault> {
     row.get(column.0 as usize)
         .copied()

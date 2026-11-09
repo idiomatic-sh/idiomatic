@@ -1,12 +1,12 @@
 //! Actual public suite verification over independent source inputs and real child processes.
 use super::fixtures::{Refusal, Scenario, exercise};
 use super::{interface::VerifyCasesUseCase as _, use_case::VerifyCasesUseCaseImpl};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = Scenario;
 type Value = usize;
 type Failure = Refusal;
@@ -41,14 +41,16 @@ fn verify(
     let inventory = crate::outbound::inventory::factory::local();
     let context = crate::outbound::context::factory::local();
     let receipts = crate::outbound::receipts::fixtures::fake::ReceiptsFake::default();
-    VerifyCasesUseCaseImpl::new(suite, &receipts, &context, reference, candidate, execution, &inventory)
-        .verify_cases(
-            rules,
-            scratch,
-            ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
-            ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
-        )
-        .map(|count| count.0)
+    VerifyCasesUseCaseImpl::new(
+        suite, &receipts, &context, reference, candidate, execution, &inventory,
+    )
+    .verify_cases(
+        rules,
+        scratch,
+        ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
+        ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
+    )
+    .map(|count| count.0)
 }
 fn subject(input: Input) -> Result<Value, Failure> {
     exercise(input, verify)

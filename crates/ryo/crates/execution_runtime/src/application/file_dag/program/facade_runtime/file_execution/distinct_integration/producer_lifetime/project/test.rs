@@ -1,10 +1,9 @@
 //! Real publication scopes retain and release project batch leases.
 use super::super::super::*;
 use super::fixtures::{PhaseExit, PreparedCase, prepare_case};
-use ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingLiveness;
+use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
-use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
@@ -12,6 +11,7 @@ use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
+use ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingLiveness;
 use ryo_values::domain::rows::errors::RowsError;
 
 #[derive(Clone, Copy)]
@@ -42,7 +42,9 @@ fn exercise(exit: PhaseExit, delivery: Delivery) -> Result<(), OperatingError> {
         }
     }
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
-        &prepared, &services, std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+        &prepared,
+        &services,
+        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )?;
     let owner = Rc::clone(phase.owner());
     // A project phase has no file-cache backend. Required derived views still

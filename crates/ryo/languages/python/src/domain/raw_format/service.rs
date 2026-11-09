@@ -212,8 +212,10 @@ where
             &mut index.memo,
             crate::domain::grammar_cache::types::DialectName(P::RAW_GRAMMAR.0),
         );
-        let source_complete = if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Complete
-            && languages::has_incomplete_lexical_stream(tree.elements) == languages::SyntaxCompleteness::Complete
+        let source_complete = if languages::has_incomplete_syntax(tree.elements)
+            == languages::SyntaxCompleteness::Complete
+            && languages::has_incomplete_lexical_stream(tree.elements)
+                == languages::SyntaxCompleteness::Complete
         {
             RawCompleteness::Complete
         } else {

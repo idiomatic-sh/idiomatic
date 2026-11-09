@@ -2,12 +2,12 @@
 
 use super::super::interface::ComparisonsItem as _;
 use super::item::{OrderingItem, natural_compare};
-use std::cmp::Ordering::{Equal, Less};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_texts::types::{Datum, TextView};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{Test, WholeNumber};
+use std::cmp::Ordering::{Equal, Less};
 
 /// What a row asks: a comparison of two sides, or a check of the natural order of texts.
 enum Ask {
@@ -254,9 +254,9 @@ fn natural_laws() -> Value {
 
 fn subject(ask: Input) -> Result<Value, Failure> {
     match ask {
-        Ask::Holds(test, left, right) => OrderingItem
-            .holds(test, &left, &right)
-            .map(Answer::Verdict),
+        Ask::Holds(test, left, right) => {
+            OrderingItem.holds(test, &left, &right).map(Answer::Verdict)
+        }
         Ask::NaturalLess => Ok(natural_less()),
         Ask::NaturalEqual => Ok(natural_equal()),
         Ask::NaturalEdges => Ok(natural_edges()),

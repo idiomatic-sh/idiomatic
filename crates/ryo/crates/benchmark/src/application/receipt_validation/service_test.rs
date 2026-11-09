@@ -6,11 +6,13 @@ use crate::outbound::inventory::types::{
     ProviderName, RawArtifacts, RegisteredRule, Registration, RegistrationAuthority, RuleCommand,
     RuleDefinition, RuleInstance, RuleReason,
 };
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseDocument, FileMetadata};
+use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+    CaseDocument, FileMetadata,
+};
 use ryo_benchmark_contracts::domain::documents::types::text::value::{
     FileMetadataDigest, PathText, RuleName,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::borrow::Cow;
 

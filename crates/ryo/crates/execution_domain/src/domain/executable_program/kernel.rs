@@ -11,8 +11,8 @@ pub fn row_admissible(
     crate::domain::operating::errors::OperatingError,
 > {
     use {
-        crate::domain::operator::contract::types::SourceGate,
         crate::domain::executable_program::types::RowGate,
+        crate::domain::operator::contract::types::SourceGate,
         crate::domain::table_texts::service::datum, crate::domain::table_texts::types::Datum,
         ryo_values::domain::rows::service::cell,
     };

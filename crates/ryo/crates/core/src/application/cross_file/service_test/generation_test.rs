@@ -1,6 +1,4 @@
 //! Ordinary project rules share one preparation and refuse another generation.
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use super::batch_test::assert_count_findings;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
@@ -12,8 +10,10 @@ use crate::domain::answering::types::Todo;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
@@ -36,7 +36,15 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
                 rule: RuleIndex(rule),
                 id: rules.ids[rule].clone(),
             };
-            let result = evaluate_fixture(&rules, &declared, &frontier_rows(), &rules.covered, &mut symbols, &phase).unwrap();
+            let result = evaluate_fixture(
+                &rules,
+                &declared,
+                &frontier_rows(),
+                &rules.covered,
+                &mut symbols,
+                &phase,
+            )
+            .unwrap();
             let rendered = result.rendered.expect("actual core project rendering");
             assert_eq!(result.fed.len(), 2);
             let payload = assert_count_findings(
@@ -77,7 +85,14 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
             rule: RuleIndex(1),
             id: rules.ids[1].clone(),
         };
-        let result = evaluate_fixture(&rules, &second, &frontier_rows(), &changed, &mut symbols, &phase);
+        let result = evaluate_fixture(
+            &rules,
+            &second,
+            &frontier_rows(),
+            &changed,
+            &mut symbols,
+            &phase,
+        );
         assert!(
             matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
                 &rules.ids[1], &OperatingError::WrongOperation,
@@ -95,7 +110,15 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
         );
         rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
         let phase = rules.request.project_phase().unwrap();
-        let result = evaluate_fixture(&rules, &todo(0), &frontier_rows(), &rules.covered, &mut symbols, &phase).unwrap();
+        let result = evaluate_fixture(
+            &rules,
+            &todo(0),
+            &frontier_rows(),
+            &rules.covered,
+            &mut symbols,
+            &phase,
+        )
+        .unwrap();
         assert_eq!(result.rendered, first_rendered);
         assert_eq!(
             calls.reductions.load(Ordering::SeqCst),

@@ -75,10 +75,14 @@ pub(crate) fn measure_project(
     // sees exactly the same real request and declared roots.
     // The per-rule inputs of the phase are built before the measured cycle: they are the caller's, not activation's.
     let first = vec![Bucket(0); total];
-    let inapplicable =
-        vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); total];
-    let refused =
-        vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); total];
+    let inapplicable = vec![
+            ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default();
+            total
+        ];
+    let refused = vec![
+            ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default();
+            total
+        ];
     for _ in 0..2 {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
         let partials = Partials::default();

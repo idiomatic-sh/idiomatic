@@ -6,12 +6,12 @@ use super::errors::CompileError;
 use super::interface::CompileUseCase;
 use super::service::{invalid, syntax_refused, unresolved};
 use super::types::CompileReport;
-use ryo_values::domain::plans::types::QueryRequest;
 use crate::domain::assembling::service::lower_with_observations;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::interface::SyntaxPort;
+use ryo_values::domain::plans::types::QueryRequest;
 
 /// `compile`, over the syntax and the catalog it calls.
 pub struct CompileUseCaseImpl {
@@ -51,7 +51,9 @@ impl CompileUseCase for CompileUseCaseImpl {
             )
         } else {
             (
-                self.syntax.read_root(&request.text).map_err(syntax_refused)?,
+                self.syntax
+                    .read_root(&request.text)
+                    .map_err(syntax_refused)?,
                 request.modules.clone(),
             )
         };

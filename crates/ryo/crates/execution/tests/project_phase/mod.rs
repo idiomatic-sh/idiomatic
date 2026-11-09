@@ -1,37 +1,41 @@
 //! A compiled project emit defers at file scope while real file frontiers remain available.
-use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
-use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
-use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use crate::boundary_fixture::{authored_request, corpus, demand, engine, ordinary_occurrence, source};
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use crate::boundary_fixture::{
+    authored_request, corpus, demand, engine, ordinary_occurrence, source,
+};
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::Covered;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_domain::domain::row_emission::types::RowEmission;
+use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
 use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
+use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
+use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::{PhaseOccurrence, PhaseOccurrences};
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
+use ryo_execution_runtime::application::file_dag::program::project_phase::types::{
+    PhaseOccurrence, PhaseOccurrences,
+};
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
-use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution_domain::domain::row_emission::types::RowEmission;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_relations::domain::relations::{
@@ -99,7 +103,8 @@ fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> PreparedExe
             },
         },
     ];
-    crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(0)), Input::Relation(relation)];
+    crate::boundary_fixture::plans(&mut input)[0].frontier =
+        vec![Input::Step(StepId(0)), Input::Relation(relation)];
     crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(2);
     engine
         .prepare(input)

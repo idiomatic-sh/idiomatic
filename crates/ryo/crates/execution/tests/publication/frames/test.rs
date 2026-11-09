@@ -1,6 +1,6 @@
 //! Captured name frames keep their own place numbers across publications.
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use super::super::*;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 
 #[test]
 fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
@@ -26,14 +26,16 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
     ] {
         let engine = engine();
         let mut input = authored_request(1);
-        crate::boundary_fixture::plans(&mut input)[0].steps.push(PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Project {
-                from: Input::Relation(Relation::Function),
-                columns: vec![ColumnIndex(1)],
-                distinct: RepeatedRows::Kept,
-            },
-        });
+        crate::boundary_fixture::plans(&mut input)[0]
+            .steps
+            .push(PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Project {
+                    from: Input::Relation(Relation::Function),
+                    columns: vec![ColumnIndex(1)],
+                    distinct: RepeatedRows::Kept,
+                },
+            });
         crate::boundary_fixture::plans(&mut input)[0].frontier = vec![Input::Step(StepId(1))];
         let program = engine.prepare(input).expect("valid symbol frontier");
         let corpus = corpus();
@@ -140,7 +142,9 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
                     &mut symbols,
                     CaptureContext {
                         worker: WorkerNumber(0),
-                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                            &mut arena,
+                        ),
                         places: &mut places,
                         words: &mut words,
                     },

@@ -5,7 +5,9 @@ use crate::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
-use ryo_operators::domain::reduction::types::{DigestDatum, DigestValues, GroupDigest, GroupOutput};
+use ryo_operators::domain::reduction::types::{
+    DigestDatum, DigestValues, GroupDigest, GroupOutput,
+};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::row_texts::types::CellText;
 

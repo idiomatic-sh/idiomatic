@@ -1,9 +1,13 @@
 //! One native side's observation of one registered case.
-use crate::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding, SkippedPair};
-use crate::domain::documents::types::reference_discrepancy::value::{ArtifactPointer, DiscrepancyValidation, ExpectationKind};
+use crate::domain::documents::types::finding::value::{
+    ExpectedFindings, RecordedFinding, SkippedPair,
+};
+use crate::domain::documents::types::reference_discrepancy::value::{
+    ArtifactPointer, DiscrepancyValidation, ExpectationKind,
+};
 use crate::domain::documents::types::text::value::{
-    CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, Pin, ProjectInputsDigest,
-    ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo,
+    CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, Pin,
+    ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo,
 };
 use crate::domain::reports::types::{ComparisonContract, CoverageAccounting, ExecutionMetadata};
 
@@ -15,9 +19,6 @@ pub enum SourceIdentity {
     /// The source identity was unavailable.
     Unavailable,
 }
-
-
-
 
 /// The listed context a side ran in.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -115,7 +116,6 @@ pub struct ProcessArtifacts {
     /// The raw invocation record.
     pub invocation: ArtifactPointer,
 }
-
 
 /// The reference process a side observed instead of diagnostics.
 #[derive(Clone, Debug, PartialEq, Eq)]

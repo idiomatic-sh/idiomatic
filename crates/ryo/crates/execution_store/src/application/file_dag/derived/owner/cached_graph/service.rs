@@ -1,10 +1,9 @@
 //! Preparation and rows of the graph demand; the owner cache is required for both.
-use ryo_values::domain::plan_parts::types::InputNumber;
 use super::types::{AxisGraph, CachedGraph, KeyPosition, PartitionWidth, ReachGraph};
 use crate::application::file_dag::derived::owner::DerivedOwner;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use ryo_derived::domain::vertices::types::VertexId;
 use crate::application::file_dag::derived::owner::graphs::types::roots::value::DemandAnswers;
+use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::{
     graph_view::{AxisResult, CachedGraphRow, ReachResult},
@@ -13,6 +12,7 @@ use ryo_execution_domain::domain::operator::contract::{
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use ryo_values::domain::rows::service::cell;
 
@@ -49,10 +49,15 @@ impl CachedGraph {
                 }
                 let bindings = (0..=reach.keys.len())
                     .map(|logical| {
-                        join.right_on.iter().position(|column| {
-                            reach.columns.get(column.0 as usize)
-                                == Some(&ColumnIndex(u32::try_from(logical).unwrap_or(u32::MAX)))
-                        }).map(KeyPosition)
+                        join.right_on
+                            .iter()
+                            .position(|column| {
+                                reach.columns.get(column.0 as usize)
+                                    == Some(&ColumnIndex(
+                                        u32::try_from(logical).unwrap_or(u32::MAX),
+                                    ))
+                            })
+                            .map(KeyPosition)
                     })
                     .collect::<Option<Vec<_>>>();
                 let Some(bindings) = bindings else {

@@ -1,17 +1,17 @@
 //! Real portable use cases with counted calls and one explicit dependency failure.
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
-use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs;
-use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
+use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
+use ryo_execution_store::outbound::derived::interface::DerivedPort;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use std::sync::{
     Arc, Mutex,
@@ -106,7 +106,8 @@ impl DerivedPort for Derived {
         recycled: Option<DerivedPayload>,
     ) -> Result<BuildOutcome, DerivedFault> {
         self.calls.lock().unwrap().push(prepared.request().clone());
-        ryo_execution_store::application::file_dag::fixtures::derived().build(prepared, inputs, room, recycled)
+        ryo_execution_store::application::file_dag::fixtures::derived()
+            .build(prepared, inputs, room, recycled)
     }
     fn view<'a>(
         &self,
@@ -116,4 +117,3 @@ impl DerivedPort for Derived {
         ryo_execution_store::application::file_dag::fixtures::derived().view(prepared, payload)
     }
 }
-

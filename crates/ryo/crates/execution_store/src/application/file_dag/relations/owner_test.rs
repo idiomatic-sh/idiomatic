@@ -1,5 +1,6 @@
 //! Catalog-wide physical access and owner-only admission, independent of semantic completeness.
 use super::RelationOwner;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     coverage::types::{Lacking, Partial},
     operating::errors::OperatingError,
@@ -8,7 +9,6 @@ use ryo_execution_domain::domain::{
         types::{PublishedRelation, Rows},
     },
 };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::{
     service::{all, kinds, to_bits},
     types::{CellKind, ColumnsView, FileId, Integer, Relation, Value},
@@ -55,26 +55,22 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let compact_weak = Arc::downgrade(&compact);
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let first = owner.source_compact(Arc::clone(&compact)).unwrap();
     owner
-        .admit(
-            first.as_ref(),
-            RepresentationInput::Compact(&compact),
-        )
+        .admit(first.as_ref(), RepresentationInput::Compact(&compact))
         .unwrap();
     let first_unique = owner.derived.publication_ownership_bytes().2;
     let second = owner.source_compact(Arc::clone(&compact)).unwrap();
     owner
-        .admit(
-            second.as_ref(),
-            RepresentationInput::Compact(&compact),
-        )
+        .admit(second.as_ref(), RepresentationInput::Compact(&compact))
         .unwrap();
-    assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Different);
+    assert_eq!(
+        first.same_record(&second),
+        crate::application::file_dag::relations::types::Sameness::Different
+    );
     // A second publication of the same immutable Compact and word buffer
     // adds only its own record. Shared backing allocations are not charged
     // again to the owner ledger.
@@ -135,9 +131,8 @@ use fixtures::{columns, group, read, row};
 fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let mut groups = [0; 3];
     for relation in all() {
@@ -177,8 +172,14 @@ fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema()
         [57, 8, 4],
         "69 catalog relations, separately from five physical representations"
     );
-    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(69));
-    assert_eq!(owner.reuses.get(), crate::application::file_dag::relations::types::CheckCount(69));
+    assert_eq!(
+        owner.checks.get(),
+        crate::application::file_dag::relations::types::CheckCount(69)
+    );
+    assert_eq!(
+        owner.reuses.get(),
+        crate::application::file_dag::relations::types::CheckCount(69)
+    );
 }
 
 #[test]
@@ -188,9 +189,8 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     let mut physical = columns(schema);
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let original = {
         let rows = Rows::Stored(ColumnsView {
@@ -236,12 +236,18 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
         "old epoch is refused before provider access"
     );
     let fresh = owner.source(relation, &rows).unwrap();
-    assert_eq!(original.same_record(&fresh), crate::application::file_dag::relations::types::Sameness::Different);
+    assert_eq!(
+        original.same_record(&fresh),
+        crate::application::file_dag::relations::types::Sameness::Different
+    );
     assert_eq!(
         owner.inspect(fresh.as_ref(), RepresentationInput::from(&rows)),
         Ok(PhysicalShape::Complete)
     );
-    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(2));
+    assert_eq!(
+        owner.checks.get(),
+        crate::application::file_dag::relations::types::CheckCount(2)
+    );
     let resolved = owner
         .resolve(fresh.as_ref(), &|_| Ok(Rows::Stored(source)))
         .unwrap();
@@ -251,9 +257,8 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     assert_eq!(read(&resolved), expected);
     let other = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     assert!(matches!(
         other.inspect(fresh.as_ref(), RepresentationInput::from(&rows)),
@@ -277,20 +282,25 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
     }];
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let first = owner.source(relation, &rows).unwrap();
     let second = owner.source(relation, &rows).unwrap();
-    assert_eq!(first.same_record(&second), crate::application::file_dag::relations::types::Sameness::Same);
+    assert_eq!(
+        first.same_record(&second),
+        crate::application::file_dag::relations::types::Sameness::Same
+    );
     for publication in [&first, &second] {
         assert_eq!(
             owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)),
             Ok(PhysicalShape::Complete)
         );
     }
-    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
+    assert_eq!(
+        owner.checks.get(),
+        crate::application::file_dag::relations::types::CheckCount(1)
+    );
     let plan = crate::application::file_dag::derived::owner::fixtures::source_plan(relation);
     let prepared = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
         &[plan],
@@ -322,9 +332,8 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
     };
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner
         .source(Relation::Function, &Rows::Stored(source))
@@ -337,8 +346,10 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
     assert!(std::ptr::eq(*first_table, *second_table));
     assert_eq!(read(&first), [row(schema, 0)]);
     assert_eq!(read(&second), read(&first));
-    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
+    assert_eq!(
+        owner.checks.get(),
+        crate::application::file_dag::relations::types::CheckCount(1)
+    );
 }
-
 
 mod publication;

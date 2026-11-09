@@ -43,9 +43,7 @@ pub(super) struct StagingConnection {
 
 impl StagingConnection {
     /// Creation is deferred until the first fresh normalized bucket.
-    pub(super) fn new(
-        session: StagingSession,
-    ) -> std::io::Result<Self> {
+    pub(super) fn new(session: StagingSession) -> std::io::Result<Self> {
         Self::create(session, tempfile::NamedTempFile::new)
     }
 
@@ -65,10 +63,7 @@ impl StagingConnection {
     }
 
     /// Append without retaining the caller's PackedWords allocation.
-    pub(super) fn append(
-        &mut self,
-        words: PackedWords,
-    ) -> std::io::Result<StagedWords> {
+    pub(super) fn append(&mut self, words: PackedWords) -> std::io::Result<StagedWords> {
         let length =
             u64::try_from(words.0.len()).map_err(|_| invalid(STAGED_PAYLOAD_LENGTH_OVERFLOWS))?;
         let end = self
@@ -152,9 +147,7 @@ impl StagingConnection {
     }
 
     /// Flush is a required error barrier before replay/publication, never an fsync promise.
-    pub(super) fn flush(
-        &mut self,
-    ) -> std::io::Result<()> {
+    pub(super) fn flush(&mut self) -> std::io::Result<()> {
         if let Some(writer) = &mut self.writer {
             writer.flush()?;
         }

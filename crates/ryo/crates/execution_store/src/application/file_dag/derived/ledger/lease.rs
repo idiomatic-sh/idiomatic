@@ -5,8 +5,8 @@ use super::{
         Backing, BackingKey, ByteCount, HoldCount, LeaseClass, Measured, ResourceLease, SlotCount,
     },
 };
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 #[cfg(test)]
 impl ResourceLease {
@@ -81,7 +81,10 @@ impl Drop for ResourceLease {
 
 /// The distinct backings of a request, each with its size; a key that disagrees with itself refuses.
 pub(super) fn measured(backings: &[Backing]) -> Result<Vec<Measured>, OperatingError> {
-    let mut seen = FxHashMap::<BackingKey, Backing>::with_capacity_and_hasher(backings.len(), rustc_hash::FxBuildHasher);
+    let mut seen = FxHashMap::<BackingKey, Backing>::with_capacity_and_hasher(
+        backings.len(),
+        rustc_hash::FxBuildHasher,
+    );
     for backing in backings {
         if seen.insert(backing.key, *backing).is_some_and(|prior| {
             prior.bytes != backing.bytes || prior.retention_units != backing.retention_units

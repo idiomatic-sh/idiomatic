@@ -396,9 +396,7 @@ fn measure_corpus(
         Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
         Vec::new(),
         false,
-        vec![ryo_core::outbound::language::factory::LanguageConnection::from(
-            ryo_python::linked(),
-        )],
+        vec![ryo_core::outbound::language::factory::LanguageConnection::from(ryo_python::linked())],
     );
     let (rows, report) = ran?;
     if !report.unread.is_empty() {

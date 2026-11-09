@@ -97,7 +97,6 @@ pub(crate) struct ReclaimOutlook {
     pub pinned: PinState,
 }
 
-
 /// Required views live at once.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct ViewCount(pub usize);

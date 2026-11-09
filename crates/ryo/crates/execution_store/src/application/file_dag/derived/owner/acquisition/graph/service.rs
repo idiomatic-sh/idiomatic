@@ -29,13 +29,17 @@ use ryo_execution_domain::domain::{
 };
 use std::sync::Arc;
 pub(crate) fn acquire(
-    plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
+    plan: &Arc<
+        ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract,
+    >,
     input: &GraphInput<'_>,
     cache: &mut CacheBackend,
 ) -> Result<Option<GraphHandle>, OperatingError> {
     // Without a generation-stable admitted backing, use the existing ordinary
     // traversal rather than retain duplicate artifacts under fresh local IDs.
-    if input.canonical_backing() == crate::application::file_dag::relations::types::BackingForm::Foreign {
+    if input.canonical_backing()
+        == crate::application::file_dag::relations::types::BackingForm::Foreign
+    {
         return Ok(None);
     }
     let owner = input.owner();
@@ -43,8 +47,10 @@ pub(crate) fn acquire(
     let rows = input.rows();
     let admitted = owner.admit_graph(plan, input)?;
 
-    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Adjacency { endpoints, keys } =
-        &plan.request
+    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Adjacency {
+        endpoints,
+        keys,
+    } = &plan.request
     else {
         return Err(OperatingError::WrongOperation);
     };
@@ -125,7 +131,9 @@ pub(super) fn graph_requirement(
     }
 }
 pub(crate) fn domain(
-    plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
+    plan: &Arc<
+        ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract,
+    >,
     access: &GraphHandle,
     input: &GraphInput<'_>,
     cache: &mut CacheBackend,
@@ -146,7 +154,8 @@ pub(crate) fn domain(
     }
     let admitted = owner.admit_domain(plan, input, access.acquired())?;
 
-    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
+    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Membership { column } =
+        &plan.request
     else {
         return Err(OperatingError::WrongOperation);
     };
@@ -221,7 +230,9 @@ pub(crate) fn domain(
         })?
     };
     let ryo_derived::domain::contract::types::DerivedView::Membership(
-        ryo_derived::domain::membership::types::MembershipView::Dense(ryo_derived::domain::positions::types::DenseMarks(members)),
+        ryo_derived::domain::membership::types::MembershipView::Dense(
+            ryo_derived::domain::positions::types::DenseMarks(members),
+        ),
     ) = acquired.view()?
     else {
         return Err(OperatingError::WrongOperation);
@@ -235,7 +246,8 @@ pub(crate) fn domain(
         .share_marks()
         .ok_or(OperatingError::WrongOperation)?;
     let found = cache.graph_domains.iter().find(|entry| {
-        Arc::ptr_eq(&entry.graph, access.raw_graph()) && Arc::ptr_eq(&entry.domain.members.0, &members.0)
+        Arc::ptr_eq(&entry.graph, access.raw_graph())
+            && Arc::ptr_eq(&entry.domain.members.0, &members.0)
     });
     let domain = found.map_or_else(
         || {

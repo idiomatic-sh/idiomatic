@@ -1,12 +1,12 @@
 //! Adapt already-admitted finite physical data; all semantic builds cross the injected port.
+use crate::outbound::derived::interface::DerivedPort;
 use ryo_execution_domain::domain::derived_views::types::{
-    contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest,
+    DerivedInputs, DerivedScratch, ViewRequest, contract::value::DerivedContract,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::derived_fault;
 use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use crate::outbound::derived::interface::DerivedPort;
 use std::{cell::RefCell, sync::Arc};
 
 use super::semantic_rows::{AdmittedRows, CanonicalTexts};
@@ -102,17 +102,17 @@ pub(crate) fn build(
                 ryo_execution_domain::domain::derived_views::types::MembershipSpace::Values => {
                     ryo_derived::domain::membership::types::MarkSpace::Values
                 }
-                ryo_execution_domain::domain::derived_views::types::MembershipSpace::Dense(values) => {
-                    ryo_derived::domain::membership::types::MarkSpace::Dense(values)
-                }
-                ryo_execution_domain::domain::derived_views::types::MembershipSpace::Native(tree) => {
-                    ryo_derived::domain::membership::types::MarkSpace::Native {
-                        file: tree.file,
-                        elements: ryo_derived::domain::membership::types::MarkCount(
-                            tree.elements.kind.len(),
-                        ),
-                    }
-                }
+                ryo_execution_domain::domain::derived_views::types::MembershipSpace::Dense(
+                    values,
+                ) => ryo_derived::domain::membership::types::MarkSpace::Dense(values),
+                ryo_execution_domain::domain::derived_views::types::MembershipSpace::Native(
+                    tree,
+                ) => ryo_derived::domain::membership::types::MarkSpace::Native {
+                    file: tree.file,
+                    elements: ryo_derived::domain::membership::types::MarkCount(
+                        tree.elements.kind.len(),
+                    ),
+                },
             };
             port.build(
                 &plan.semantic,
@@ -183,7 +183,9 @@ pub(crate) fn build(
                 return Err(OperatingError::WrongOperation);
             };
             let expected = match source.orientation {
-                ryo_execution_domain::domain::stored_graph::types::Orientation::Forward => *endpoints,
+                ryo_execution_domain::domain::stored_graph::types::Orientation::Forward => {
+                    *endpoints
+                }
                 ryo_execution_domain::domain::stored_graph::types::Orientation::Reverse => {
                     [endpoints[1], endpoints[0]]
                 }
@@ -221,12 +223,9 @@ pub(crate) fn build(
         return Err(error);
     }
     match answer.map_err(derived_fault)? {
-        ryo_derived::domain::contract::types::BuildOutcome::Built(payload) => Ok(Some(DerivedStorage::new(
-            port,
-            built_plan,
-            payload,
-            graph_identity,
-        ))),
+        ryo_derived::domain::contract::types::BuildOutcome::Built(payload) => Ok(Some(
+            DerivedStorage::new(port, built_plan, payload, graph_identity),
+        )),
         ryo_derived::domain::contract::types::BuildOutcome::Declined => Ok(None),
     }
 }

@@ -1,29 +1,29 @@
 //! The public protocol is the only execution entry used by these controls.
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::outbound::query_language::errors::QueryLanguageError;
-use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
+use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
+use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::outbound::query_language::errors::QueryLanguageError;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
-use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
-use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
@@ -42,7 +42,6 @@ use boundary_fixture::{
     authored_request, corpus, demand, engine, prepared, prepared_rules, source,
 };
 
-
 #[derive(Debug, Default)]
 struct ReductionAudit {
     reductions: std::sync::atomic::AtomicUsize,
@@ -56,8 +55,8 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Re
         ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
-        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
         match &mut call {
             OperatorCall::ReduceCount { .. } => {
@@ -65,7 +64,9 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Re
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             }
             OperatorCall::Evaluate {
-                operation: ryo_values::domain::plans::types::Operation::GroupCount { .. } | ryo_values::domain::plans::types::Operation::GroupDigest { .. },
+                operation:
+                    ryo_values::domain::plans::types::Operation::GroupCount { .. }
+                    | ryo_values::domain::plans::types::Operation::GroupDigest { .. },
                 driver,
                 ..
             } => {
@@ -76,7 +77,12 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Re
             }
             _ => {}
         }
-        OperatorsUseCase::operators(&OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())), call)
+        OperatorsUseCase::operators(
+            &OperatorsUseCaseImpl::new(std::sync::Arc::new(
+                ryo_operators::outbound::matching::factory::use_case(),
+            )),
+            call,
+        )
     }
 }
 #[test]
@@ -88,14 +94,16 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let mut input = authored_request(1);
-    crate::boundary_fixture::plans(&mut input)[0].steps.push(PlanStep {
-        scope: StepScope::PerFile,
-        operation: Operation::GroupCount {
-            from: Input::Step(StepId(0)),
-            keys: vec![],
-            distinct: None,
-        },
-    });
+    crate::boundary_fixture::plans(&mut input)[0]
+        .steps
+        .push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::GroupCount {
+                from: Input::Step(StepId(0)),
+                keys: vec![],
+                distinct: None,
+            },
+        });
     crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
     let program = engine.prepare(input).expect("prepare real count");
     let corpus = corpus();

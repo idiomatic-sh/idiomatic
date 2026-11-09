@@ -8,11 +8,11 @@ use ryo_core::inbound::use_cases::lint::types::{
     Rule as CoreRule, RuleParameter,
 };
 use ryo_core::inbound::use_cases::open::errors::OpenError;
-use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_execution::outbound::matching::interface::MatchingPort as _;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::Repository;
 use ryo_language::inbound::use_cases::project::types::RootPath;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::files::types::Glob as CoreGlob;
 use ryo_values::domain::hosted::types::{

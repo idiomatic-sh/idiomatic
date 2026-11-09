@@ -1,16 +1,16 @@
 //! The test data of `linter lint` that fixes refused and empty producers.
 
+use super::capability_provider::provider_linter;
+use super::directory::case_directory;
+use super::observations::{column, incoming};
+use super::outcome::{Outcome, summary};
+use super::rules::{listed, ordinary, rule_id};
+use super::shared_calls::shared;
 use crate::domain::observation::types::ObservationKind;
 use crate::resources::linter::lint::entry::lint_with;
 use crate::resources::linter::lint::types::Cache;
 use ryo_relations::domain::capabilities::types::OptionalCapability;
 use std::collections::BTreeMap;
-use super::outcome::{Outcome, summary};
-use super::capability_provider::provider_linter;
-use super::rules::{listed, ordinary, rule_id};
-use super::directory::case_directory;
-use super::observations::{column, incoming};
-use super::shared_calls::shared;
 
 /// A producer whose population is refused and one whose rows are truly empty stay distinct on a cold and a retained replay.
 pub(crate) fn refused_and_empty_producers() -> Outcome {

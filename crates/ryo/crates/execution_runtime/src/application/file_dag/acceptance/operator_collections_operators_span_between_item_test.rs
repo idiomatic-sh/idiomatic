@@ -52,21 +52,41 @@ fn subject((left, right, source): Input) -> Result<Span, Failure> {
     let providers = [
         compiled::Provider {
             relation: Relation::SyntaxTree,
-            table: compiled::rows(&[compiled::FileSpan {
-                file: FileId(0),
-                span: left,
-            }; 2]),
+            table: compiled::rows(
+                &[compiled::FileSpan {
+                    file: FileId(0),
+                    span: left,
+                }; 2],
+            ),
         },
         compiled::Provider {
             relation: Relation::SemanticSyntax,
-            table: compiled::rows(&[compiled::FileSpan {
-                file: FileId(0),
-                span: right,
-            }; 2]),
+            table: compiled::rows(
+                &[compiled::FileSpan {
+                    file: FileId(0),
+                    span: right,
+                }; 2],
+            ),
         },
     ];
-    let compiled::CompiledRun { result: collected, .. } = compiled::run(steps.clone(), &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Collected);
-    let compiled::CompiledRun { result: streamed, .. } = compiled::run(steps, &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Streamed);
+    let compiled::CompiledRun {
+        result: collected, ..
+    } = compiled::run(
+        steps.clone(),
+        &providers,
+        SourceView(source),
+        &mut Symbols::default(),
+        compiled::Downstream::Collected,
+    );
+    let compiled::CompiledRun {
+        result: streamed, ..
+    } = compiled::run(
+        steps,
+        &providers,
+        SourceView(source),
+        &mut Symbols::default(),
+        compiled::Downstream::Streamed,
+    );
     assert_eq!(collected, streamed);
     let output = collected?;
     assert_eq!(output.count.0, 2);

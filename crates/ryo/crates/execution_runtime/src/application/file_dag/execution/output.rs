@@ -1,21 +1,21 @@
 //! One downstream context constructor and invocation-owned output scratch boundary.
+use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::{
-    operating::{
-        errors::OperatingError,
-        types::Memo,
-    },
+    operating::{errors::OperatingError, types::Memo},
     table_scratch::types::OperatorScratch,
 };
-use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_language::domain::symbols::{service::query_reborrow, types::QuerySymbols};
 use ryo_relations::domain::relations::types::Value;
 
 pub(super) struct Headers<'a> {
     phase: ryo_execution_domain::domain::operating::types::AfterTheFiles,
     semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
-    pub(super) prepared_matchers:
-        Option<&'a ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>,
-    pub(super) prepared_kinds: Option<&'a ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>,
+    pub(super) prepared_matchers: Option<
+        &'a ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers,
+    >,
+    pub(super) prepared_kinds: Option<
+        &'a ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary,
+    >,
     pub(super) bindings: &'a [ryo_values::domain::query_bindings::types::ParameterBinding],
     pub(super) source: ryo_values::domain::files::types::SourceView<'a>,
     pub(super) paths: &'a [ryo_language::domain::files::types::FilePath],
@@ -46,7 +46,9 @@ impl<'a> Headers<'a> {
             phase: self.phase,
             semantic: self.semantic,
             prepared_matchers: self.prepared_matchers,
-            matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+            matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+            ),
             prepared_kinds: self.prepared_kinds,
             bindings: self.bindings,
             symbols: query_reborrow(symbols),
@@ -95,5 +97,10 @@ pub(crate) fn replay(
         scratch: OperatorScratch::default(),
         memo: Vec::new(),
     };
-    ryo_execution_domain::domain::replay::service::scan(rows, &mut Vec::new(), context, &mut delivery)
+    ryo_execution_domain::domain::replay::service::scan(
+        rows,
+        &mut Vec::new(),
+        context,
+        &mut delivery,
+    )
 }

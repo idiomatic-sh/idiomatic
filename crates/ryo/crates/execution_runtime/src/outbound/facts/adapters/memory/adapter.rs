@@ -11,8 +11,8 @@ use ryo_relations::domain::relations::types::Relation;
 use super::constants::{RETAINED_COLUMN_WORDS, SCHEMAS};
 use super::types::FactsRefusalText;
 use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
 use crate::outbound::facts::interface::{FactsFinish, FactsPort, FactsWorker};
+use crate::outbound::facts::types::{BucketSource, ColumnsMut, KeptBucket, WordsToKeep};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::stored_facts::types::Bucket;
 
@@ -43,9 +43,7 @@ struct MemoryWorker {
 }
 
 impl FactsWorker for MemoryWorker {
-    fn resident_stability(
-        &self,
-    ) -> crate::outbound::facts::types::ResidentStability {
+    fn resident_stability(&self) -> crate::outbound::facts::types::ResidentStability {
         crate::outbound::facts::types::ResidentStability::Stable
     }
 

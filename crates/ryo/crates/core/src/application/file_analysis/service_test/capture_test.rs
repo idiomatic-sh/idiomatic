@@ -1,4 +1,11 @@
 //! The cases of captured frontier buckets and the staging of fresh outcomes.
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::types::RequestVisitSetting;
+use super::program_test::NOTHING_HANDED;
+use super::program_test::NOTHING_STORED;
+use super::program_test::NOTHING_WANTED;
+use super::program_test::prepared_test_program;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
@@ -8,7 +15,9 @@ use crate::outbound::lint_store::interface::ReadStore;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::FileNumber;
@@ -37,16 +46,8 @@ use ryo_values::domain::stores::types::Stored;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use super::program_test::NOTHING_HANDED;
-use super::program_test::NOTHING_STORED;
-use super::program_test::NOTHING_WANTED;
-use super::program_test::prepared_test_program;
-use super::super::errors::FileAnalysisError;
-use super::super::service::FileAnalysis;
-use super::super::types::RequestVisitSetting;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-use ryo_execution::outbound::matching::interface::MatchingPort;
-pub(super) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket() -> Result<usize, FileAnalysisError> {
+pub(super) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket()
+-> Result<usize, FileAnalysisError> {
     use super::super::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
@@ -228,7 +229,8 @@ pub(super) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule
 }
 
 /// Only post-normalization outcomes can reach the staging boundary; IO failures remain failures.
-pub(super) fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads() -> Result<usize, FileAnalysisError> {
+pub(super) fn successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads()
+-> Result<usize, FileAnalysisError> {
     let outcome = FileOutcome::Read(Ran {
         rows: FindingRows::default(),
         number: FileNumber(0),
@@ -314,7 +316,8 @@ impl ReadStore for StagingRead {
     fn begin_old_rows(
         &self,
         _wanted: &ryo_values::domain::stores::types::BucketsWanted,
-    ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError> {
+    ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError>
+    {
         Ok(None)
     }
 

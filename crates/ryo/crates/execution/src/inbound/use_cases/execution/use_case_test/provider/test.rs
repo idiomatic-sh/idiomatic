@@ -1,19 +1,19 @@
 //! Binary operators must demand the refusing RHS after a real nonempty successful LHS.
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::inbound::use_cases::execution::interface::FileRuleIntent;
 use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
     types::{FileId, Offset, Position, Relation, Span, Value as Cell},
@@ -186,8 +186,14 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
     match missing {
         Missing::First => assert_eq!(history, [Relation::Function]),
         Missing::Neither => {
-            assert!(history.contains(&Relation::Function), "the left provider is read");
-            assert!(history.contains(&Relation::Comment), "the right provider is read");
+            assert!(
+                history.contains(&Relation::Function),
+                "the left provider is read"
+            );
+            assert!(
+                history.contains(&Relation::Comment),
+                "the right provider is read"
+            );
         }
         Missing::Second => {
             let (last, prefix) = history.split_last().expect("RHS must actually be demanded");

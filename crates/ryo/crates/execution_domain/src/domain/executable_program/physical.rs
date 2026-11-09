@@ -1,9 +1,9 @@
 //! Pure physical-meaning authorization against the compiled semantic descriptor.
 use super::types::{OrderedExistence, RegexIdentity};
 use crate::domain::operating::errors::OperatingError;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::evaluation::types::Lent;
 use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 
@@ -40,17 +40,17 @@ fn bound_views(
     views: &ryo_operators::domain::evaluation::types::EvaluationViews<'_>,
 ) -> Result<(), OperatingError> {
     let bound = match operation {
-        Operation::Replace { .. } | Operation::SourceMatches { .. } => {
-            match views.regex {
-                Lent::Unbound => true,
-                Lent::Bound(regex) => {
-                    binding.regex_identity == Some(RegexIdentity(regex as *const _ as usize))
-                }
+        Operation::Replace { .. } | Operation::SourceMatches { .. } => match views.regex {
+            Lent::Unbound => true,
+            Lent::Bound(regex) => {
+                binding.regex_identity == Some(RegexIdentity(regex as *const _ as usize))
             }
-        }
+        },
         Operation::Rank { sets, .. } => match views.layers {
             Lent::Unbound => true,
-            Lent::Bound(layers) => matches!(binding.bindings.get(sets.0 as usize), Some(ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(expected)) if layers == expected.as_slice()),
+            Lent::Bound(layers) => {
+                matches!(binding.bindings.get(sets.0 as usize), Some(ryo_values::domain::query_bindings::types::ParameterBinding::TextSets(expected)) if layers == expected.as_slice())
+            }
         },
         Operation::SpanBetween { .. } => views.source.0.len() == binding.source_len.0,
         _ => true,
@@ -102,8 +102,12 @@ pub fn authorize(
             }
             PhysicalRoute::Registered => false,
         },
-        OperatorCall::ReduceCount { keys, distinct, .. } => matches!((operation, keys), (Operation::GroupCount { keys: expected, distinct: expected_distinct, .. }, ryo_operators::domain::reduction::types::GroupColumns::Columns(actual)) if *actual == expected.as_slice() && distinct == expected_distinct),
-        OperatorCall::ReduceDigest { keys, over, .. } => matches!(operation, Operation::GroupDigest { keys: expected, over: expected_over, .. } if *keys == expected.as_slice() && over == expected_over),
+        OperatorCall::ReduceCount { keys, distinct, .. } => {
+            matches!((operation, keys), (Operation::GroupCount { keys: expected, distinct: expected_distinct, .. }, ryo_operators::domain::reduction::types::GroupColumns::Columns(actual)) if *actual == expected.as_slice() && distinct == expected_distinct)
+        }
+        OperatorCall::ReduceDigest { keys, over, .. } => {
+            matches!(operation, Operation::GroupDigest { keys: expected, over: expected_over, .. } if *keys == expected.as_slice() && over == expected_over)
+        }
         _ => false,
     };
     if !exact {

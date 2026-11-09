@@ -23,10 +23,7 @@ impl FailureLatch {
         }
     }
     /// Skip every callback after the first failure and preserve that original engine error.
-    pub fn run<T>(
-        &mut self,
-        body: impl FnOnce() -> Result<T, OperatingError>,
-    ) -> Result<T, ()> {
+    pub fn run<T>(&mut self, body: impl FnOnce() -> Result<T, OperatingError>) -> Result<T, ()> {
         if self.0.is_some() {
             return Err(());
         }

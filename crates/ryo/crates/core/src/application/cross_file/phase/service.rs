@@ -12,8 +12,8 @@ use crate::domain::keeping::service::rendered_of;
 use crate::domain::project::types::Projected;
 use crate::domain::reporting::service::{later_from, unknowns_from};
 use crate::domain::workers::types::{CrossReading, ProjectHandle};
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::files::types::FilePath;
@@ -47,7 +47,9 @@ impl CrossFile {
             Reuse::Again => {
                 let later = later_from(run.stored, run.ids, &[]).unwrap_or_default();
                 crate::domain::ordering::service::append(&mut answered.later, &rendered_of(&later));
-                answered.unknowns.extend(unknowns_from(run.stored, run.read_again));
+                answered
+                    .unknowns
+                    .extend(unknowns_from(run.stored, run.read_again));
                 answered.unknowns.extend(run.alone.iter().cloned());
                 return Ok(PhaseOutcome {
                     project: as_kept(),
@@ -72,7 +74,11 @@ impl CrossFile {
         // The cross-file steps of `made_again` alone, and the project unless a rule made again reads it.
         let ids: Vec<RuleId> = made_again
             .iter()
-            .filter_map(|rule| run.ids.get(usize::try_from(rule.0).unwrap_or(usize::MAX)).cloned())
+            .filter_map(|rule| {
+                run.ids
+                    .get(usize::try_from(rule.0).unwrap_or(usize::MAX))
+                    .cloned()
+            })
             .collect();
         let mut now = made.unwrap_or_else(as_kept);
         let later = later_from(run.stored, run.ids, &ids).unwrap_or_default();
@@ -80,7 +86,9 @@ impl CrossFile {
         let mut todo = todo_list(&MetadataUseCaseImpl, run.metadata, run.ids);
         todo.retain(|each| {
             made_again
-                .binary_search_by_key(&each.rule.0, |rule| usize::try_from(rule.0).unwrap_or(usize::MAX))
+                .binary_search_by_key(&each.rule.0, |rule| {
+                    usize::try_from(rule.0).unwrap_or(usize::MAX)
+                })
                 .is_ok()
         });
         let settling = if todo.is_empty() {
@@ -143,7 +151,9 @@ impl CrossFile {
         let memory = ports.memory;
         if let Some(batches) = run.program.observation_batches() {
             for each in todo {
-                within(memory.resident_bytes()?, run.budget, || vec![each.id.clone()])?;
+                within(memory.resident_bytes()?, run.budget, || {
+                    vec![each.id.clone()]
+                })?;
             }
             self.observations(
                 ObservationRun {
@@ -161,7 +171,9 @@ impl CrossFile {
                 answered,
                 |rule| {
                     let id = run.ids.get(rule.0).ok_or(OperatingError::NotRun)?;
-                    Ok(within(memory.resident_bytes()?, run.budget, || vec![id.clone()])?)
+                    Ok(within(memory.resident_bytes()?, run.budget, || {
+                        vec![id.clone()]
+                    })?)
                 },
             )?;
             return Ok(Settling::Settled);

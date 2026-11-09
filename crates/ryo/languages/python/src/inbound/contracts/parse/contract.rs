@@ -73,7 +73,10 @@ impl Parse for ParseContract {
         slot: &mut languages::SemanticSlot,
     ) {
         let kind = source_kind(request.path);
-        if let Some(session) = self.syntax.begin_semantics(tree, kind, std::mem::take(slot)) {
+        if let Some(session) = self
+            .syntax
+            .begin_semantics(tree, kind, std::mem::take(slot))
+        {
             *slot = languages::SemanticSlot::Begun(session);
         }
     }

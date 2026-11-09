@@ -1,8 +1,8 @@
 //! Parser-owned literal values classify without inferring runtime truthiness.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::service::classify;
 use super::types::{LiteralClassification, Properties};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     nodes::types::Node,
     semantic_syntax::service::positions,
@@ -23,7 +23,9 @@ fn properties(source: &'static str) -> Vec<Properties> {
         .filter_map(|at| match classify(&tree, at) {
             LiteralClassification::Known(properties) => Some(properties),
             LiteralClassification::NotPrimitive => None,
-            LiteralClassification::MissingPayload => panic!("a primitive literal has complete payload"),
+            LiteralClassification::MissingPayload => {
+                panic!("a primitive literal has complete payload")
+            }
         })
         .collect()
 }
@@ -104,7 +106,9 @@ const CASES: &[Case<fn(), (), ()>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("f_string_fragments_are_excluded_but_interpolation_expressions_are_literals"),
+        name: CaseName(
+            "f_string_fragments_are_excluded_but_interpolation_expressions_are_literals",
+        ),
         word: Word::Succeeds,
         input: || f_string_fragments_are_excluded_but_interpolation_expressions_are_literals,
         expect: Expect::Value(()),

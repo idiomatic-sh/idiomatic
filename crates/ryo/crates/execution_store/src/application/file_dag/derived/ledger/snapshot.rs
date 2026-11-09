@@ -1,7 +1,7 @@
 //! The counters of the ledger as a value, and the peaks they have reached.
 use super::{
     capacity::table,
-    types::{BackingKey, ByteCount, Ledger, LedgerEntry, SlotCount, LedgerSnapshot},
+    types::{BackingKey, ByteCount, Ledger, LedgerEntry, LedgerSnapshot, SlotCount},
 };
 
 impl Ledger {

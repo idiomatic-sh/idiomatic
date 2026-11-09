@@ -2,13 +2,13 @@
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
+use crate::outbound::derived::interface::DerivedPort;
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
+use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::derived_fault;
 use ryo_execution_domain::domain::stored_graph::types::GraphIdentity;
-use crate::outbound::derived::interface::DerivedPort;
-use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
-use ryo_derived::domain::contract::types::DerivedView;
-use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use std::sync::Arc;
 
 /// The built payload of a view and the prepared request it was built from.
@@ -35,9 +35,7 @@ impl DerivedStorage {
         }
     }
     /// The view over the built payload.
-    pub fn view(
-        &self,
-    ) -> Result<DerivedView<'_>, OperatingError> {
+    pub fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         self.port
             .view(&self.plan, &self.payload)
             .map_err(derived_fault)
@@ -46,9 +44,7 @@ impl DerivedStorage {
     pub fn payload(&self) -> &DerivedPayload {
         &self.payload
     }
-    pub(crate) fn graph_identity(
-        &self,
-    ) -> Option<&Arc<GraphIdentity>> {
+    pub(crate) fn graph_identity(&self) -> Option<&Arc<GraphIdentity>> {
         self.graph_identity.as_ref()
     }
     /// Describe the exact physical allocations; admission and lease classes remain with the owner.

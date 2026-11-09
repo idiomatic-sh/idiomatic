@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::errors::ListRelationsError;
 use super::interface::ListRelationsUseCase as _;
 use super::use_case::ListRelationsUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::language::fixtures::fake::{FakeCatalog, LanguageFake};
 
 /// The fake the use case is given.
@@ -37,7 +37,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_language_port_fails"),
         word: Word::Fails,
         input: || failing_catalog,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, ListRelationsError::Language(..))))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, ListRelationsError::Language(..))))
+        }),
     },
 ];
 

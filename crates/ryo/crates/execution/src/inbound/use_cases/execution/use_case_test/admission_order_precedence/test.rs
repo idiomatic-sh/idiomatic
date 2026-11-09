@@ -1,11 +1,13 @@
 //! Preflight precedence of producer failures, stored prefixes and registered kinds through the mandatory public execution owner.
 use super::super::super::fixtures;
-use super::super::admission_order::test::{InputSupply, execute, layout_error, operation, population};
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use super::super::admission_order::test::{
+    InputSupply, execute, layout_error, operation, population,
+};
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_domain::domain::operator::contract::service::semantics;
 use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -36,10 +38,10 @@ use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
-use ryo_values::domain::query_operators::types::OperationKind;
 use std::cell::Cell;
 
 type Input = fn();
@@ -63,7 +65,11 @@ fn child_failure_and_resources_first() {
         keys: vec![ColumnIndex(99)],
         distinct: None,
     };
-    let (result, calls) = execute(inputs::plan(vec![count]), true, InputSupply::MissingAfterFirst);
+    let (result, calls) = execute(
+        inputs::plan(vec![count]),
+        true,
+        InputSupply::MissingAfterFirst,
+    );
     assert_eq!(
         result,
         Err(OperatingError::ShapeMismatch),
@@ -164,7 +170,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || exhaustive_contract_declarations,
         expect: Expect::Value(()),
-    },];
+    },
+];
 fn subject(case: Input) -> Result<Value, Failure> {
     case();
     Ok(())

@@ -114,7 +114,8 @@ pub(crate) fn failure_partials(
             !matches!(
                 relation,
                 Relation::FilesystemReadFailure | Relation::FilesystemExecutable
-            ) && (observed_file == ObservedFile::Unobserved || **relation != Relation::FilesystemFile)
+            ) && (observed_file == ObservedFile::Unobserved
+                || **relation != Relation::FilesystemFile)
         })
         .map(|relation| ReadInPart {
             relation: *relation,

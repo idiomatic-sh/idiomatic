@@ -1,9 +1,11 @@
 //! Query registry and exact skip-accounting contracts.
 use super::{load_rules, validate_skips};
-use ryo::linter::{self, RuleApplicability, RuleId};
-use crate::outbound::engine::adapters::local::constants;
-use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, QueryModuleName, RuleLabel};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::engine::adapters::local::constants;
+use ryo::linter::{self, RuleApplicability, RuleId};
+use ryo_benchmark_contracts::domain::requests::types::{
+    ApplicabilityPolicy, QueryModuleName, RuleLabel,
+};
 use std::{collections::BTreeMap, path::PathBuf};
 
 /// Create a symbolic link to a file where the platform supports it.
@@ -39,9 +41,8 @@ fn worker_reads_explicit_module_text_from_the_frozen_profile() {
         QueryModuleName("python/ruff/suppress".to_owned()),
         PathBuf::from("fragments/suppress.ryoql"),
     )]);
-    let queries =
-        load_rules(&rules, &registry, &BTreeMap::default(), None, None)
-            .expect("module bundle is loaded in the worker");
+    let queries = load_rules(&rules, &registry, &BTreeMap::default(), None, None)
+        .expect("module bundle is loaded in the worker");
     assert_eq!(queries.len(), 1);
     assert_eq!(
         &**queries.values().next().expect("rule").query.root_text(),
@@ -55,11 +56,12 @@ fn worker_reads_explicit_module_text_from_the_frozen_profile() {
 
 fn selected_rules_receive_the_pinned_syntax_applicability() {
     let (_root, rules) = profile();
-    let applicability =
-        BTreeMap::from([(RuleLabel("F401".to_owned()), ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned()))]);
-    let queries =
-        load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
-            .expect("complete applicability map loads");
+    let applicability = BTreeMap::from([(
+        RuleLabel("F401".to_owned()),
+        ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned()),
+    )]);
+    let queries = load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
+        .expect("complete applicability map loads");
     assert_eq!(
         queries.values().next().expect("rule").applicability,
         RuleApplicability::AcceptedSyntax
@@ -69,21 +71,28 @@ fn selected_rules_receive_the_pinned_syntax_applicability() {
 fn explicit_applicability_must_match_every_loaded_rule() {
     let (_root, rules) = profile();
     let applicability = BTreeMap::from([
-        (RuleLabel("F401".to_owned()), ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned())),
-        (RuleLabel("F402".to_owned()), ApplicabilityPolicy(constants::ALWAYS.to_owned())),
+        (
+            RuleLabel("F401".to_owned()),
+            ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned()),
+        ),
+        (
+            RuleLabel("F402".to_owned()),
+            ApplicabilityPolicy(constants::ALWAYS.to_owned()),
+        ),
     ]);
-    let error =
-        load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
-            .expect_err("extra applicability entry is refused");
+    let error = load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
+        .expect_err("extra applicability entry is refused");
     assert!(error.to_string().contains("does not exactly match"));
 }
 
 fn explicit_applicability_rejects_unknown_policy_values() {
     let (_root, rules) = profile();
-    let applicability = BTreeMap::from([(RuleLabel("F401".to_owned()), ApplicabilityPolicy("parse-only".to_owned()))]);
-    let error =
-        load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
-            .expect_err("unknown applicability is refused");
+    let applicability = BTreeMap::from([(
+        RuleLabel("F401".to_owned()),
+        ApplicabilityPolicy("parse-only".to_owned()),
+    )]);
+    let error = load_rules(&rules, &BTreeMap::default(), &applicability, None, None)
+        .expect_err("unknown applicability is refused");
     assert!(error.to_string().contains("unsupported applicability"));
 }
 
@@ -96,10 +105,12 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() {
         reason: linter::SkipReason::SyntaxRejected,
     };
     let files = std::collections::BTreeSet::from([path]);
-    let policy = BTreeMap::from([(RuleLabel("F401".to_owned()), ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned()))]);
-    let selected = std::collections::BTreeSet::from([
-        RuleId::try_from("F401").expect("fixture rule")
-    ]);
+    let policy = BTreeMap::from([(
+        RuleLabel("F401".to_owned()),
+        ApplicabilityPolicy(constants::ACCEPTED_SYNTAX.to_owned()),
+    )]);
+    let selected =
+        std::collections::BTreeSet::from([RuleId::try_from("F401").expect("fixture rule")]);
     validate_skips(
         std::slice::from_ref(&skipped),
         &selected,
@@ -134,12 +145,23 @@ fn typed_syntax_skips_require_matching_policy_input_and_projection() {
     )
     .expect_err("expected refusal");
     let other_file = std::collections::BTreeSet::from([linter::RelativePath("else.py".into())]);
-    let _verified_5 =
-        validate_skips(std::slice::from_ref(&skipped), &selected, &policy, &other_file, true)
-            .expect_err("expected refusal");
+    let _verified_5 = validate_skips(
+        std::slice::from_ref(&skipped),
+        &selected,
+        &policy,
+        &other_file,
+        true,
+    )
+    .expect_err("expected refusal");
     // A rule the run did not keep, as selected or as a producer of a selected rule, has no skip to explain.
-    let _verified_6 = validate_skips(&[skipped], &std::collections::BTreeSet::new(), &policy, &files, true)
-        .expect_err("expected refusal");
+    let _verified_6 = validate_skips(
+        &[skipped],
+        &std::collections::BTreeSet::new(),
+        &policy,
+        &files,
+        true,
+    )
+    .expect_err("expected refusal");
 }
 
 fn worker_refuses_module_paths_outside_the_profile() {
@@ -256,9 +278,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers"),
+        name: CaseName(
+            "named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers",
+        ),
         word: Word::Succeeds,
-        input: || named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers as Scenario,
+        input: || {
+            named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers
+                as Scenario
+        },
         expect: Expect::Value(()),
     },
 ];

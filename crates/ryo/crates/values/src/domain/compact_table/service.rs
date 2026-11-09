@@ -7,8 +7,8 @@ use crate::domain::rows::types::RowIndex;
 use crate::domain::table_words::service::{canonical_words, rebased};
 use crate::domain::table_words::types::{
     Admitted, CellCount, ColumnCount, CompactBacking, CompactCursor, CompactFrame, CompactStorage,
-    CompactTable, DecodeMode, FrameOffset, PackedOffset, PackedSlice, StorageAddress, StorageLength,
-    StoragePart, TableShape, WordSpelling,
+    CompactTable, DecodeMode, FrameOffset, PackedOffset, PackedSlice, StorageAddress,
+    StorageLength, StoragePart, TableShape, WordSpelling,
 };
 use ryo_language::domain::words::service::{decode_kind, decode_places, decode_value};
 use ryo_relations::domain::relations::types::{Bits, Name, NamePlace, PlaceNumber, Value};
@@ -200,14 +200,7 @@ fn compact_values(
         .checked_sub(1)?;
     let mut cursor = CompactCursor {
         bytes: PackedSlice(&input.words.0.0),
-        offset: PackedOffset(
-            input
-                .frames
-                .get(frame_at)?
-                .start
-                .0
-                .checked_add(within)?,
-        ),
+        offset: PackedOffset(input.frames.get(frame_at)?.start.0.checked_add(within)?),
     };
     for column in 0..count.0 {
         while cursor.offset == input.frames.get(frame_at)?.end {

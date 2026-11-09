@@ -4,8 +4,10 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use {
-    ryo_execution_domain::domain::table_texts::service::datum, ryo_execution_domain::domain::table_texts::types::Datum,
-    ryo_execution_domain::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
+    ryo_execution_domain::domain::table_texts::service::datum,
+    ryo_execution_domain::domain::table_texts::types::Datum,
+    ryo_execution_domain::domain::table_texts::types::Texts,
+    ryo_values::domain::files::types::SourceView,
 };
 /// The source text every conformance fixture reads its names from.
 pub const SOURCE: &[u8] = b"a a";
@@ -39,11 +41,7 @@ pub(super) fn cells(rows: Vec<Vec<Value>>) -> Vec<Vec<Expected>> {
         .collect()
 }
 /// Asserts an answer's rows against the expected rows, cell by cell.
-pub fn assert_expected(
-    expected: &[Vec<Expected>],
-    actual: &[Vec<Value>],
-    symbols: &Symbols,
-) {
+pub fn assert_expected(expected: &[Vec<Expected>], actual: &[Vec<Value>], symbols: &Symbols) {
     assert_eq!(expected.len(), actual.len());
     let mut digests = std::collections::BTreeMap::new();
     let texts = Texts {

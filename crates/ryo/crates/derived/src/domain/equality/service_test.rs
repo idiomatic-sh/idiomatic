@@ -42,7 +42,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_column_the_rows_lack_is_refused"),
         word: Word::Refuses,
         input: || Scenario::AbsentColumn,
-        expect: Expect::Error(DerivedFault::NoSuchColumn { column: ColumnIndex(4) }),
+        expect: Expect::Error(DerivedFault::NoSuchColumn {
+            column: ColumnIndex(4),
+        }),
     },
 ];
 
@@ -59,9 +61,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let first = [ColumnIndex(0)];
     Ok(match input {
         Scenario::ChainsEveryRow => build(&table(&[5, 6, 5]), &first, None)?.rows.len() as u64,
-        Scenario::EqualKeysShareAHash => {
-            build(&table(&[5, 6, 5]), &first, None)?.hashes.iter().collect::<std::collections::BTreeSet<_>>().len() as u64
-        }
+        Scenario::EqualKeysShareAHash => build(&table(&[5, 6, 5]), &first, None)?
+            .hashes
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len() as u64,
         Scenario::RecycledBuffersKeepTheirCapacity => {
             let grown = build(&table(&[1, 2, 3, 4]), &first, None)?;
             let before = capacities(&grown).rows;

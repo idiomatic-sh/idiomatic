@@ -1,9 +1,7 @@
 //! The fake of the `inventory` port: what the core's tests stand in for it with. It remembers
 //! which outputs were published and which observation directories were captured.
 use super::super::interface::InventoryPort;
-use super::super::types::{
-    ContextFiles, RawArtifacts, ReceiptFile, Registration, Row, Summary,
-};
+use super::super::types::{ContextFiles, RawArtifacts, ReceiptFile, Registration, Row, Summary};
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
@@ -39,7 +37,10 @@ impl InventoryFake {
 
 impl InventoryPort for InventoryFake {
     fn load(&self, path: &Path) -> Result<Registration, Error> {
-        Err(Error::Invalid(format!("no registration at {}", path.display())))
+        Err(Error::Invalid(format!(
+            "no registration at {}",
+            path.display()
+        )))
     }
     fn begin(&self, output: &Path) -> Result<(), Error> {
         if self.state().published.contains(output) {
@@ -53,7 +54,9 @@ impl InventoryPort for InventoryFake {
     }
     fn prepare(&self, observations: &Path) -> Result<(), Error> {
         if self.state().captured.contains(observations) {
-            return Err(Error::Invalid("rule output already contains receipts".into()));
+            return Err(Error::Invalid(
+                "rule output already contains receipts".into(),
+            ));
         }
         Ok(())
     }
@@ -83,7 +86,10 @@ impl InventoryPort for InventoryFake {
         })
     }
     fn context_files(&self, context: &Path) -> Result<ContextFiles, Error> {
-        Err(Error::Invalid(format!("no context at {}", context.display())))
+        Err(Error::Invalid(format!(
+            "no context at {}",
+            context.display()
+        )))
     }
     fn audit_report(&self, _audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
         Ok(CapturedBytes(b"{}\n".to_vec()))

@@ -8,9 +8,9 @@ use ryo_core::inbound::use_cases::open::interface::OpenUseCase;
 use ryo_core::outbound::lint_store::interface::LintStorePort;
 use ryo_core::outbound::lint_store::types::BuildIdentity;
 use ryo_core::outbound::{corpus, language, lint_store, memory, row_sink, scheduler};
+use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution::outbound::{matching, query_language};
 use ryo_execution_runtime::outbound::{digest, facts};
-use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::{CorpusFile, CorpusListing, FileBytes};
 
@@ -88,7 +88,8 @@ pub(crate) fn build_engine(
         language: Arc::new(language::factory::use_case(handles)),
         query_language: Arc::new(query_language::factory::use_case(compile, typecheck)),
         matching: Arc::new(matching::factory::globset()),
-        plans: ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans::default(),
+        plans: ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans::default(
+        ),
         scheduler: pool.of(),
         workers,
         build,

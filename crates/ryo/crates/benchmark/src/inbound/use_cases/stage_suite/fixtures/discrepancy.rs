@@ -108,11 +108,14 @@ fn verify_discrepancy_fixture(
         .iter()
         .map(|file| std::path::PathBuf::from(file.0.as_ref()))
         .collect::<Vec<_>>();
-    use crate::outbound::suite::types::{ArtifactMetadata, ClaimedEvidence, ClaimedMetadata, EvidenceRequirement};
-    use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-    let digest = |text: &ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text| {
-        ArtifactDigest(text.0.clone())
+    use crate::outbound::suite::types::{
+        ArtifactMetadata, ClaimedEvidence, ClaimedMetadata, EvidenceRequirement,
     };
+    use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+    let digest =
+        |text: &ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text| {
+            ArtifactDigest(text.0.clone())
+        };
     let evidence = wire
         .discrepancy
         .evidence
@@ -167,17 +170,15 @@ fn verify_discrepancy_fixture(
         ClaimedMetadata::Declared(text) => Some(digest(text)),
         ClaimedMetadata::Undeclared => None,
     };
-    adapter.verify_discrepancy_artifacts(
-        crate::outbound::suite::types::CaseArtifacts {
-            profile,
-            root,
-            files: &files,
-            source_sha256: &source,
-            file_metadata_files: &[],
-            file_metadata: metadata
-                .as_ref()
-                .map_or(ArtifactMetadata::Undeclared, ArtifactMetadata::Declared),
-            evidence: &evidence,
-        },
-    )
+    adapter.verify_discrepancy_artifacts(crate::outbound::suite::types::CaseArtifacts {
+        profile,
+        root,
+        files: &files,
+        source_sha256: &source,
+        file_metadata_files: &[],
+        file_metadata: metadata
+            .as_ref()
+            .map_or(ArtifactMetadata::Undeclared, ArtifactMetadata::Declared),
+        evidence: &evidence,
+    })
 }

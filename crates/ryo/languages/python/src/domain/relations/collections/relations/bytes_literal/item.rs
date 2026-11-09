@@ -1,4 +1,5 @@
 //! Optional decoded bytes; source spelling is never parsed by this reader.
+use super::constants::INCOMPLETE;
 use crate::domain::{
     literal_properties::{service::classify, types::LiteralClassification},
     model::types::Declarations,
@@ -8,7 +9,6 @@ use crate::domain::{
     syntax::{constants::SCALAR_VALUE, service::kind_bits, types::Kind},
 };
 use ryo::languages::{self, Flag, NameText};
-use super::constants::INCOMPLETE;
 /// Optional reader for original byte-string occurrences.
 pub(crate) struct BytesLiteralItem;
 /// Canonical lossless octet encoding, including empty bytes.
@@ -36,7 +36,9 @@ fn decoded<'a>(tree: &'a languages::Tree<'_>, at: languages::Position) -> Decode
     match classify(tree, at) {
         LiteralClassification::NotPrimitive => Decoded::Other,
         LiteralClassification::MissingPayload => Decoded::Missing,
-        LiteralClassification::Known(properties) if properties.kind.0 == crate::domain::syntax::constants::BYTES_SCALAR => {
+        LiteralClassification::Known(properties)
+            if properties.kind.0 == crate::domain::syntax::constants::BYTES_SCALAR =>
+        {
             match languages::property_at(tree.elements, at, SCALAR_VALUE) {
                 Some(value) if canonical(value) == Flag::Raised => Decoded::Bytes(value),
                 Some(_) | None => Decoded::Missing,

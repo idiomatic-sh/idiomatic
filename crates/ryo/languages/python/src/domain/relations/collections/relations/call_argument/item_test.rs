@@ -109,11 +109,11 @@ fn quoted_annotation_call_arguments_are_visible_without_string_expression_leakag
 }
 
 /// Each check below states its own source and asserts its own outcome.
-const CHECKS: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("quoted_annotation_call_arguments_are_visible_without_string_expression_leakage"),
-        word: Word::Succeeds,
-        input: || quoted_annotation_call_arguments_are_visible_without_string_expression_leakage,
-        expect: Expect::Value(()),
-    },
-];
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName(
+        "quoted_annotation_call_arguments_are_visible_without_string_expression_leakage",
+    ),
+    word: Word::Succeeds,
+    input: || quoted_annotation_call_arguments_are_visible_without_string_expression_leakage,
+    expect: Expect::Value(()),
+}];

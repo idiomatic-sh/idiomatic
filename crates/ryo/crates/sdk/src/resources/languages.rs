@@ -17,11 +17,11 @@ pub use macros::link::link;
 /// Open on purpose: a language implements it, and nothing else does.
 pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Parse;
 
-pub use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
 pub use ryo_language::domain::semantics::errors::SemanticsError;
 pub use ryo_language::domain::semantics::types::{
     RenderContext, RenderOutcome, RenderRequest, RenderedNode,
 };
+pub use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 
@@ -35,9 +35,9 @@ pub use ryo_language::inbound::use_cases::parse::types::{
 /// Open on purpose: a language implements it, and nothing else does.
 pub use ryo_language::inbound::use_cases::project::interface::ProjectUseCase as Project;
 
-pub use ryo_language::inbound::use_cases::project::types::ProjectRequest;
 pub use ryo_language::domain::project_context::service::{search_roots, state as entry_state};
 pub use ryo_language::domain::project_context::types::ObservedEntryState;
+pub use ryo_language::inbound::use_cases::project::types::ProjectRequest;
 
 pub use ryo_language::inbound::use_cases::project::types::ManifestFile;
 
@@ -81,16 +81,16 @@ pub use ryo_relations::domain::relations::types::Relation;
 
 pub use ryo_relations::domain::relations::types::Column;
 
-pub use ryo_language::domain::elements::types::{Elements, SyntaxAcceptance};
 pub use ryo_language::domain::diagnostics::service::{impact_name, phase_name};
 pub use ryo_language::domain::diagnostics::types::{
-    SyntaxCompleteness, DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, TreeImpact,
+    DiagnosticCode, DiagnosticMetadata, DiagnosticPhase, SyntaxCompleteness, TreeImpact,
 };
+pub use ryo_language::domain::elements::types::{Elements, SyntaxAcceptance};
 
-pub use ryo_language::domain::elements::service::syntax_acceptance;
-pub use ryo_language::domain::builders::service::set_syntax_acceptance;
 /// Keep the parsed tree of a read for the semantic session the language may begin for the file.
 pub use ryo_language::domain::builders::service::retain_for_semantics;
+pub use ryo_language::domain::builders::service::set_syntax_acceptance;
+pub use ryo_language::domain::elements::service::syntax_acceptance;
 /// Take what a read kept for a semantic session out of the table.
 pub use ryo_language::domain::elements::service::take_semantics;
 
@@ -100,8 +100,8 @@ pub use ryo_relations::domain::relations::constants::TOKEN;
 
 pub use ryo_relations::domain::relations::constants::{NO_FILE, NO_SYMBOL};
 
-pub use ryo_language::domain::builders::service::enter_node;
 pub use ryo_language::domain::builders::service::decoded_token;
+pub use ryo_language::domain::builders::service::enter_node;
 pub use ryo_language::domain::decoded::service::decoded_at;
 
 pub use ryo_language::domain::completion::service::name_kind;
@@ -160,8 +160,10 @@ pub use ryo_language::domain::names::service::push_name;
 
 pub use ryo_language::domain::names::service::end_name;
 
-pub use ryo_language::domain::elements::service::{has_incomplete_lexical_stream, has_incomplete_syntax};
 pub use ryo_language::domain::builders::service::{diagnose, diagnose_with_metadata};
+pub use ryo_language::domain::elements::service::{
+    has_incomplete_lexical_stream, has_incomplete_syntax,
+};
 
 pub use ryo_language::domain::expansions::service::adopt;
 
@@ -241,20 +243,20 @@ pub use ryo_language::inbound::use_cases::project::service::reads_manifests;
 pub use ryo_relations::domain::relations::types::Count;
 
 pub use ryo_language::domain::answers::types::Expansions;
-pub use ryo_language::domain::completion::service::{name_field, write_fields};
 pub use ryo_language::domain::builders::service::builder_position;
+pub use ryo_language::domain::completion::service::{name_field, write_fields};
 pub use ryo_language::domain::elements::service::embedded_source_at;
 pub use ryo_language::domain::elements::service::{field_at, field_name_at, origin_at};
 pub use ryo_language::domain::expansions::service::mark_expansion;
 pub use ryo_language::domain::expansions::service::{embedded_expressions, write_embedded};
-pub use ryo_language::domain::symbols::types::ByteSlice;
 pub use ryo_language::domain::notes::types::Noted;
+pub use ryo_language::domain::symbols::types::ByteSlice;
+pub use ryo_relations::domain::elements::types::{ElementOrigin, ExpansionId};
+pub use ryo_relations::domain::elements::types::{EmbeddedMapping, EmbeddedSource};
 pub use ryo_relations::domain::relations::constants::NO_FIELD;
+pub use ryo_relations::domain::relations::types::FieldId;
 pub use ryo_relations::domain::relations::types::ReportText;
 pub use ryo_relations::domain::relations::types::{Bytes, Extent, Flag, Integer, Optionality};
-pub use ryo_relations::domain::elements::types::{ElementOrigin, ExpansionId};
-pub use ryo_relations::domain::relations::types::FieldId;
-pub use ryo_relations::domain::elements::types::{EmbeddedMapping, EmbeddedSource};
 pub use ryo_relations::domain::terms::types::NameText;
 
 pub use ryo_relations::domain::relations::types::NameNote;
@@ -270,8 +272,8 @@ pub use ryo_language::domain::answers::types::ReadItem;
 
 pub use ryo_language::domain::elements::types::Tree;
 
-pub use ryo_relations::domain::relations::service::{diagnostic_id, provenance_of};
 pub use ryo_relations::domain::labels::types::{Folder, Holds};
+pub use ryo_relations::domain::relations::service::{diagnostic_id, provenance_of};
 pub use ryo_relations::domain::relations::types::Provenance;
 
 pub use ryo_relations::domain::declaration_kind::types::DeclarationKind;
@@ -312,9 +314,11 @@ pub use ryo_relations::domain::relations::types::Rows;
 
 pub use ryo_language::inbound::use_cases::project::types::Refused;
 
-pub use ryo_language::domain::elements::service::source_order;
-pub use ryo_language::domain::builders::service::{enter_implied_node, node_property, node_property_fmt};
+pub use ryo_language::domain::builders::service::{
+    enter_implied_node, node_property, node_property_fmt,
+};
 pub use ryo_language::domain::decoded::service::property_at;
+pub use ryo_language::domain::elements::service::source_order;
 pub use ryo_language::domain::elements::types::SourceOrder;
 pub use ryo_relations::domain::relations::constants::{IMPLIED, NO_SPAN};
 pub use ryo_relations::domain::relations::service::location;
@@ -326,10 +330,10 @@ pub use ryo_language::domain::answers::service::{native_semantic_child, native_s
 
 pub use ryo_relations::domain::capabilities::types::OptionalCapability;
 
-/// Lend the file model prepared by the common completion boundary; it cannot initialize or mark readiness.
-pub use ryo_language::application::completion::service::with_file_model;
 /// What a completion was given: a prepared model only when the request reads what completion adds.
 pub use ryo_language::application::completion::service::completion_requirement;
+/// Lend the file model prepared by the common completion boundary; it cannot initialize or mark readiness.
+pub use ryo_language::application::completion::service::with_file_model;
 /// Append embedded syntax without resetting the native population.
 pub use ryo_language::domain::expansions::service::append_embedded;
 

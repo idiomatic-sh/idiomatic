@@ -1,9 +1,9 @@
 //! The names, columns and schemas of observation inputs, from the compile inbound API.
 
 use super::super::{compile_twice, observed};
-use crate::inbound::use_cases::compile::fixtures::{Given, text_the_fake_reads};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::errors::CompileError;
+use crate::inbound::use_cases::compile::fixtures::{Given, text_the_fake_reads};
 use crate::selects;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::ColumnLabel;

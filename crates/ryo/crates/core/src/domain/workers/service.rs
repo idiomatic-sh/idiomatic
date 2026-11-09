@@ -147,7 +147,11 @@ pub(crate) fn order(met: &mut WorkersMet) -> Fresh {
 
 /// Whether the rule governs the file the worker is visiting.
 #[must_use]
-pub(crate) fn governs_rule(metadata: &impl MetadataUseCase, tables: &Tables, rule: RuleIndex) -> Governing {
+pub(crate) fn governs_rule(
+    metadata: &impl MetadataUseCase,
+    tables: &Tables,
+    rule: RuleIndex,
+) -> Governing {
     metadata.governs(
         &tables.mask,
         RuleNumber(u32::try_from(rule.0).unwrap_or(u32::MAX)),

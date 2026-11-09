@@ -1,7 +1,7 @@
 //! Unicode, acronym, digit and punctuation policies remain explicit.
 use super::service::split;
-use crate::domain::words::types::WordScratch;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::words::types::WordScratch;
 use ryo_values::domain::row_texts::types::CellText;
 type Input = &'static str;
 type Value = std::borrow::Cow<'static, str>;

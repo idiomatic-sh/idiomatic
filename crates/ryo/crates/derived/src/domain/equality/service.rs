@@ -33,7 +33,9 @@ pub(crate) fn build(
                 .get(row.0.checked_mul(width)?..row.0.checked_add(1)?.checked_mul(width)?)?;
             cells.get(column.0 as usize).copied()
         }),
-        None => fill(count, columns, &mut out, |row, column| rows.cell(row, column)),
+        None => fill(count, columns, &mut out, |row, column| {
+            rows.cell(row, column)
+        }),
     }
     let buckets = count.0.next_power_of_two().max(1);
     out.heads.clear();
@@ -85,7 +87,10 @@ fn fill(
     out.hashes.clear();
     out.hashes.extend(out.rows.iter().map(|row| {
         columns.iter().fold(KeyCellsHash(0), |hash, column| {
-            mix(hash, cell(*row, *column).map_or(HashWord(0), |value| word_of(&value)))
+            mix(
+                hash,
+                cell(*row, *column).map_or(HashWord(0), |value| word_of(&value)),
+            )
         })
     }));
 }

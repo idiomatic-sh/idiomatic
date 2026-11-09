@@ -1,5 +1,8 @@
 //! The test data of `linter lint` that fixes permission.
 
+use super::outcome::{Outcome, summary};
+use super::rules::{ordinary, rule_id};
+use super::shared_calls::shared;
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::capacity::types::WorkerPool;
 use crate::domain::file::types::RelativePath;
@@ -15,9 +18,6 @@ use crate::resources::linter::lint::types::Workers;
 use ryo_values::domain::files::types::ExecutablePermission;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
-use super::outcome::{Outcome, summary};
-use super::rules::{ordinary, rule_id};
-use super::shared_calls::shared;
 
 /// Bytes that are unchanged and a timestamp that is given never reuse a finding of an old mode.
 pub(crate) fn permission_bytes() -> Outcome {

@@ -4,7 +4,7 @@ use super::SyntaxFake;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
-use crate::outbound::syntax::fixtures::contract::{Decoding, Made, ElementSource, Want, made_by};
+use crate::outbound::syntax::fixtures::contract::{Decoding, ElementSource, Made, Want, made_by};
 use crate::outbound::syntax::fixtures::script::{node, space, text_of, token};
 
 #[test]

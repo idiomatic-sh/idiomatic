@@ -7,21 +7,27 @@ use ryo_relations::domain::relations::types::{
     CellKind, Name, Offset, PlaceNumber, Relation, TextHash, Value as Cell,
 };
 
-use crate::domain::comparing::{service::holds_bound, types::{DecisionWorkspace, RowShape}};
+use crate::domain::comparing::{
+    service::holds_bound,
+    types::{DecisionWorkspace, RowShape},
+};
 use crate::domain::matching::types::PatternMatcher;
-use crate::domain::operating::{errors::OperatingError, types::{Memo, NameCount}};
+use crate::domain::operating::{
+    errors::OperatingError,
+    types::{Memo, NameCount},
+};
+use crate::domain::table_model::types::Verdict;
+use crate::domain::table_scratch::types::OperatorScratch;
 use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::names::service::name_count;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
-use crate::domain::table_model::types::Verdict;
-use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Function, Input as PlanInput, LiteralText, Operand, ParameterId,
     PlanComparison, QueryLiteral, Test,
 };
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::service::push_row;
 
 /// A scenario: what a row observes of the comparisons, as a number.
@@ -105,7 +111,10 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
             answers.push(holds_all(
                 &comparisons,
                 row,
-                RowShape { kinds: &table.kinds, names },
+                RowShape {
+                    kinds: &table.kinds,
+                    names,
+                },
                 &symbols,
                 source,
                 &mut scratch,
@@ -160,7 +169,10 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
         answers.push(holds_all(
             &comparisons,
             row,
-            RowShape { kinds: &table.kinds, names },
+            RowShape {
+                kinds: &table.kinds,
+                names,
+            },
             &symbols,
             source,
             &mut scratch,
@@ -223,7 +235,10 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
             answers.push(holds_all(
                 comparisons,
                 row,
-                RowShape { kinds: &table.kinds, names },
+                RowShape {
+                    kinds: &table.kinds,
+                    names,
+                },
                 &symbols,
                 source,
                 &mut scratch,
@@ -264,7 +279,10 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
             holds_all(
                 &comparisons,
                 &[name, pattern],
-                RowShape { kinds: &[CellKind::Symbol, CellKind::Symbol], names: NameCount(3) },
+                RowShape {
+                    kinds: &[CellKind::Symbol, CellKind::Symbol],
+                    names: NameCount(3),
+                },
                 &symbols,
                 source,
                 &mut scratch,
@@ -289,7 +307,10 @@ fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
     holds_all(
         &[comparison],
         &[Cell::Number(Integer(1))],
-        RowShape { kinds: &[CellKind::Number], names: NameCount(0) },
+        RowShape {
+            kinds: &[CellKind::Number],
+            names: NameCount(0),
+        },
         &symbols,
         &[],
         &mut scratch,
@@ -330,7 +351,10 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError>
         if holds_all(
             &[comparison],
             &[unknown],
-            RowShape { kinds: &[CellKind::Symbol], names: NameCount(0) },
+            RowShape {
+                kinds: &[CellKind::Symbol],
+                names: NameCount(0),
+            },
             &symbols,
             &[],
             &mut scratch,

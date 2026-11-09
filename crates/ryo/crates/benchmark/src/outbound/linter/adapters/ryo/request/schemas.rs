@@ -1,8 +1,8 @@
 //! The worker request document the parent process writes for its child.
-use crate::outbound::linter::adapters::ryo::types::RequestJson;
 use crate::outbound::linter::adapters::ryo::identity::schemas::{
     observation_declarations_value, prepared_value,
 };
+use crate::outbound::linter::adapters::ryo::types::RequestJson;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
@@ -49,9 +49,7 @@ impl From<WorkerRequest> for RequestSchema {
             performance: request.performance.into(),
             rule_context: match &request.rule_context {
                 RuleContextPreparation::Unconfigured => None,
-                RuleContextPreparation::Prepared(context) => {
-                    Some(prepared_value(context))
-                }
+                RuleContextPreparation::Prepared(context) => Some(prepared_value(context)),
             },
             rule_observations: match &request.rule_observations {
                 InputDeclaration::Undeclared => None,
@@ -209,8 +207,10 @@ struct ProjectInventorySchema {
 }
 impl ProjectInventorySchema {
     fn is_default(&self) -> bool {
-        matches!(self.completeness, ProjectInventoryCompletenessSchema::Partial)
-            && self.entries.is_empty()
+        matches!(
+            self.completeness,
+            ProjectInventoryCompletenessSchema::Partial
+        ) && self.entries.is_empty()
     }
 }
 impl From<ryo::linter::GivenProjectInventory> for ProjectInventorySchema {

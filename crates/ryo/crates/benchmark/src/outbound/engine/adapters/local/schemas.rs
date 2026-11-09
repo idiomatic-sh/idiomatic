@@ -48,14 +48,11 @@ pub(super) fn load_rules(
             .map_err(|_name| Error::Invalid(constants::NON_UTF8_RULE.into()))?;
         let query = std::fs::read_to_string(entry.path().join(constants::QUERY_FILE))?;
         let applicability = match applicability_by_rule
-                .get(&RuleLabel(id.clone()))
-                .map(|policy| policy.0.as_str()) {
-            Some(constants::ALWAYS) => {
-                RuleApplicability::Always
-            }
-            Some(constants::ACCEPTED_SYNTAX) => {
-                RuleApplicability::AcceptedSyntax
-            }
+            .get(&RuleLabel(id.clone()))
+            .map(|policy| policy.0.as_str())
+        {
+            Some(constants::ALWAYS) => RuleApplicability::Always,
+            Some(constants::ACCEPTED_SYNTAX) => RuleApplicability::AcceptedSyntax,
             Some(value) => {
                 return Err(Error::Invalid(format!(
                     "unsupported applicability for {id}: {value}"
@@ -138,7 +135,6 @@ pub(super) fn load_rules(
     Ok(rules)
 }
 
-
 /// Refuse skips that do not follow the sealed syntax-applicability policy. `retained_rules` are the rules the run kept: the selected
 /// ones and the producers a selected rule reads, which follow their own pin at a rejected file as well.
 pub(super) fn validate_skips(
@@ -183,11 +179,8 @@ fn query_modules(
     let root = profile.canonicalize()?;
     let mut modules = Vec::with_capacity(registry.len());
     for (id, relative) in registry {
-        let _module = ryo::query::QueryModuleSource::try_new(
-            &id.0,
-            constants::MODULE_SOURCE,
-        )
-        .map_err(|error| Error::Invalid(error.to_string()))?;
+        let _module = ryo::query::QueryModuleSource::try_new(&id.0, constants::MODULE_SOURCE)
+            .map_err(|error| Error::Invalid(error.to_string()))?;
         RelativeArtifactPath::try_from(relative.as_path())?;
         let mut current = root.clone();
         for component in relative.components() {
@@ -217,7 +210,6 @@ fn query_modules(
         .map_err(|error| Error::Invalid(error.to_string()))
 }
 
-
 /// Read each explicitly requested source once, retaining its exact ordered inventory.
 pub(super) fn source_inputs(
     request: &WorkerRequest,
@@ -234,9 +226,7 @@ pub(super) fn source_inputs(
     for file in &request.files {
         RelativeArtifactPath::try_from(Path::new(file.0.as_ref()))?;
         if !accepted.insert(file.clone()) {
-            return Err(Error::Invalid(
-                constants::DUPLICATE_SOURCE.into(),
-            ));
+            return Err(Error::Invalid(constants::DUPLICATE_SOURCE.into()));
         }
         if selected_missing.contains(file) {
             // Context validation already observed this absence. Keep the requested path,
@@ -256,7 +246,6 @@ pub(super) fn source_inputs(
     Ok((sources, accepted))
 }
 
-
 /// Observe the actual staged file before transporting an Isolated input into memory.
 fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
     let metadata = std::fs::metadata(path)?;
@@ -275,7 +264,6 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
         Ok(ryo::linter::ExecutablePermission::Unsupported)
     }
 }
-
 
 #[cfg(test)]
 #[path = "schemas_test.rs"]

@@ -108,8 +108,12 @@ fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> ConstantKeyFragment 
     let mut above = parent(tree, child);
     while above != child {
         match kind(tree, above) {
-            Kind::Node(Node::FormattedValue | Node::Interpolation) => return ConstantKeyFragment::Standalone,
-            Kind::Node(Node::JoinedStr | Node::TemplateStr) => return ConstantKeyFragment::Interpolated,
+            Kind::Node(Node::FormattedValue | Node::Interpolation) => {
+                return ConstantKeyFragment::Standalone;
+            }
+            Kind::Node(Node::JoinedStr | Node::TemplateStr) => {
+                return ConstantKeyFragment::Interpolated;
+            }
             Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => {}
         }
         child = above;
@@ -337,7 +341,9 @@ pub(crate) fn prepare<'a>(
             return held.borrow();
         }
         index.classes.resize(count, None);
-        if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete {
+        if languages::has_incomplete_syntax(tree.elements)
+            == languages::SyntaxCompleteness::Incomplete
+        {
             index.state = KeyState::Partial;
         }
         for raw in (0..count).rev() {

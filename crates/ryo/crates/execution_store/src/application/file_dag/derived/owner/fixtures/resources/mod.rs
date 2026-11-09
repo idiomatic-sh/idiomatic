@@ -1,18 +1,17 @@
 //! Pure derived-owner fixtures; no operator evaluator or legacy transport.
-use crate::outbound::derived::interface::DerivedPort;
 #[cfg(test)]
 use crate::application::file_dag::derived::owner::*;
 #[cfg(test)]
 use crate::application::file_dag::relations::RelationOwner;
+use crate::outbound::derived::interface::DerivedPort;
 #[cfg(test)]
-use ryo_execution_domain::domain::{
-    coverage::types::Partial, operating::errors::OperatingError,
-    table_model::types::Rows,
-};
+use ryo_derived::domain::equality::types::KeyIndex;
 #[cfg(test)]
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 #[cfg(test)]
-use ryo_derived::domain::equality::types::KeyIndex;
+use ryo_execution_domain::domain::{
+    coverage::types::Partial, operating::errors::OperatingError, table_model::types::Rows,
+};
 #[cfg(test)]
 use ryo_relations::domain::relations::types::Relation;
 #[cfg(test)]
@@ -141,9 +140,7 @@ pub struct RecordedDerived {
 }
 impl RecordedDerived {
     /// The requests the port was asked to build, in order.
-    pub fn builds(
-        &self,
-    ) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {
+    pub fn builds(&self) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {
         self.builds.lock().expect("recorded semantic calls").clone()
     }
 }
@@ -160,7 +157,9 @@ impl DerivedPort for RecordedDerived {
         prepared: &ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,
         inputs: ryo_derived::domain::contract::types::BuildInputs<'_>,
         room: &mut ryo_derived::domain::contract::types::BuildWorkspace,
-        recycled: Option<ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload>,
+        recycled: Option<
+            ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload,
+        >,
     ) -> Result<
         ryo_derived::domain::contract::types::BuildOutcome,
         ryo_derived::domain::fault::types::DerivedFault,
@@ -182,4 +181,3 @@ impl DerivedPort for RecordedDerived {
         crate::application::file_dag::fixtures::derived().view(prepared, payload)
     }
 }
-

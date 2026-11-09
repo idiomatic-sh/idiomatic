@@ -3,9 +3,9 @@ use super::types::{
     Backing, BackingKey, ByteCount, Credit, Dormancy, HoldCount, LeaseClass, Ledger, ResourceLease,
     UnitCount,
 };
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::sync::Arc;
-use rustc_hash::FxHashMap;
 
 /// A handle being released, with how many of its clones are being released with it.
 struct Dropping<'a> {
@@ -16,10 +16,7 @@ struct Dropping<'a> {
 impl Ledger {
     /// A live required consumer is not dormant optional payload, even
     /// when a different representation owns the same physical allocation.
-    pub(crate) fn optional_payload_only(
-        &self,
-        backings: &[Backing],
-    ) -> Dormancy {
+    pub(crate) fn optional_payload_only(&self, backings: &[Backing]) -> Dormancy {
         if backings.iter().all(|backing| {
             self.entries
                 .get(&backing.key)

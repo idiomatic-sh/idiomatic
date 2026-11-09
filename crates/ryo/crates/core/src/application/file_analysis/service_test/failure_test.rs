@@ -1,5 +1,7 @@
 //! The cases of read-failure demand across runs and across rules.
 use super::super::errors::FileAnalysisError;
+use super::visit_test::visited_inputs;
+use super::visit_test::visited_inputs_with_rule_demands;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::corpus::errors::CorpusError;
@@ -13,6 +15,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::RelationRead;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::CorpusEntry;
@@ -30,10 +33,8 @@ use ryo_values::domain::stored_facts::types::ReadFailure;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use super::visit_test::visited_inputs;
-use super::visit_test::visited_inputs_with_rule_demands;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-pub(super) fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes() -> Result<usize, FileAnalysisError> {
+pub(super) fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes()
+-> Result<usize, FileAnalysisError> {
     for fail_at in [0, 1, 2] {
         let corpus = Arc::new(ChangingRead {
             reads: AtomicUsize::new(0),
@@ -186,7 +187,8 @@ pub(super) fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_w
     Ok(1)
 }
 
-pub(super) fn read_failure_demand_is_limited_to_governing_rules() -> Result<usize, FileAnalysisError> {
+pub(super) fn read_failure_demand_is_limited_to_governing_rules() -> Result<usize, FileAnalysisError>
+{
     use crate::domain::reading::service::read_failure_demanded;
     use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
     let wanted = [Relation::FilesystemReadFailure];
@@ -200,9 +202,36 @@ pub(super) fn read_failure_demand_is_limited_to_governing_rules() -> Result<usiz
             ..Needs::default()
         },
     ];
-    assert_eq!(read_failure_demanded(&MetadataUseCaseImpl, &wanted, &Mask(vec![1]), &needs, crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::NotDemanded);
-    assert_eq!(read_failure_demanded(&MetadataUseCaseImpl, &wanted, &Mask(vec![2]), &needs, crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::Demanded);
-    assert_eq!(read_failure_demanded(&MetadataUseCaseImpl, &wanted, &Mask(vec![1]), &[], crate::domain::reading::types::RunRuleCount(2)), crate::domain::reading::types::ReadFailureDemand::Demanded);
+    assert_eq!(
+        read_failure_demanded(
+            &MetadataUseCaseImpl,
+            &wanted,
+            &Mask(vec![1]),
+            &needs,
+            crate::domain::reading::types::RunRuleCount(2)
+        ),
+        crate::domain::reading::types::ReadFailureDemand::NotDemanded
+    );
+    assert_eq!(
+        read_failure_demanded(
+            &MetadataUseCaseImpl,
+            &wanted,
+            &Mask(vec![2]),
+            &needs,
+            crate::domain::reading::types::RunRuleCount(2)
+        ),
+        crate::domain::reading::types::ReadFailureDemand::Demanded
+    );
+    assert_eq!(
+        read_failure_demanded(
+            &MetadataUseCaseImpl,
+            &wanted,
+            &Mask(vec![1]),
+            &[],
+            crate::domain::reading::types::RunRuleCount(2)
+        ),
+        crate::domain::reading::types::ReadFailureDemand::Demanded
+    );
     Ok(1)
 }
 

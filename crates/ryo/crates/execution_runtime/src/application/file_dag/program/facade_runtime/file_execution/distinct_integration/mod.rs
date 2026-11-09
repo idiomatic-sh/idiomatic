@@ -1,18 +1,18 @@
 //! Compiled program lifecycle proof with a real owner.
 //! Distinct state survives repeated left rows and resets after a failed delivery.
 use super::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
-use crate::application::file_dag::execution::CommonOperatorEngine;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+#[cfg(test)]
+use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
 use ryo_execution_domain::domain::{
     file_program::types::RuleSchedule,
     operator::types::Emit as RowSink,
     prepared_request::types::{Compiled, ObservationIdentity},
     table_cells::types::{TreeForm, TreeRows},
 };
-#[cfg(test)]
-use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
@@ -342,7 +342,6 @@ fn exercise(
     }
 }
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
-
 
 #[cfg(test)]
 mod test;

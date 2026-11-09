@@ -33,7 +33,11 @@ pub(crate) fn placeable(emit: &Emit, table: &Table) -> Placeability {
 
 /// The files that govern a rule, in which a relation its cross-file steps trust the absence of rows of is read in part.
 #[must_use]
-pub(crate) fn partials_for(metadata: &impl MetadataUseCase, crossing: &CrossingInput<'_>, rule: RuleIndex) -> Partials {
+pub(crate) fn partials_for(
+    metadata: &impl MetadataUseCase,
+    crossing: &CrossingInput<'_>,
+    rule: RuleIndex,
+) -> Partials {
     let trusted = crossing
         .needs
         .get(rule.0)
@@ -153,7 +157,10 @@ pub(crate) fn refused_files(
         .take(crossing.files.len())
         .enumerate()
         .map_while(|(index, path)| match u32::try_from(index) {
-            Ok(number) => Some((path, ryo_relations::domain::relations::types::FileId(number))),
+            Ok(number) => Some((
+                path,
+                ryo_relations::domain::relations::types::FileId(number),
+            )),
             // No file past the last numbered one has a number, as in `inapplicable_files`.
             Err(_) => None,
         })
@@ -162,7 +169,10 @@ pub(crate) fn refused_files(
         let Some(paths) = crossing.refused.get(id) else {
             continue;
         };
-        files.0 = paths.iter().filter_map(|path| numbers.get(path).copied()).collect();
+        files.0 = paths
+            .iter()
+            .filter_map(|path| numbers.get(path).copied())
+            .collect();
         files.0.sort_unstable();
     }
     refused

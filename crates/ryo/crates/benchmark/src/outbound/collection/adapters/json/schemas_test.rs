@@ -29,9 +29,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("signal resources survive incomplete report"),
         word: Word::Succeeds,
-        input: || {
-            r#"{"result":"Observed","output":{"status":-15,"signal":15,"stdout":[123],"stderr":[],"wall":{"secs":2,"nanos":0},"cpu":{"secs":1,"nanos":0},"rss":12345}}"#
-        },
+        input: || r#"{"result":"Observed","output":{"status":-15,"signal":15,"stdout":[123],"stderr":[],"wall":{"secs":2,"nanos":0},"cpu":{"secs":1,"nanos":0},"rss":12345}}"#,
         expect: Expect::Value(Observed::Signaled {
             signal: TerminationSignal::Signalled(SignalNumber(15_i32)),
             status: -15_i32,
@@ -86,7 +84,11 @@ fn subject(wire: Input) -> Result<Value, Failure> {
         signal: observed.0,
         status: observed.1,
         wall: observed.2,
-        stdout: observed.3.as_slice().try_into().map_err(|_wrong_length| ())?,
+        stdout: observed
+            .3
+            .as_slice()
+            .try_into()
+            .map_err(|_wrong_length| ())?,
         peak_rss_bytes,
         roundtrip_signal,
     })

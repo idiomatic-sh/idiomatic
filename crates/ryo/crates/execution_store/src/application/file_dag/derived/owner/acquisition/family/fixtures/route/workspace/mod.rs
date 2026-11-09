@@ -1,14 +1,22 @@
 //! The workspace entry: families acquired through `InputAdmissions` of an invocation workspace.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::request::{observed, request};
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{SmallTree, numbers, small_tree};
-use ryo_execution_domain::domain::table_cells::fixtures::SMALL_SOURCE;
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::request::{
+    observed, request,
+};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
+    Exit, released,
+};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
+    SmallTree, numbers, small_tree,
+};
 use crate::application::file_dag::{
     derived::owner::{ViewContext, acquisition::admission::service::AcquiredView},
-    relations::RelationOwner,
     fixtures::program_derived_port,
+    relations::RelationOwner,
     workspace::{InputAdmissions, InvocationWorkspace, ViewInputs},
 };
+use ryo_derived::domain::request::types::DerivedKind;
+use ryo_execution_domain::domain::table_cells::fixtures::SMALL_SOURCE;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     derived_views::types::contract::value::PreparedViewUse,
     operating::errors::OperatingError,
@@ -17,15 +25,16 @@ use ryo_execution_domain::domain::{
     table_model::types::Rows,
     table_texts::types::Texts,
 };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_derived::domain::request::types::DerivedKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation, Value};
 use ryo_values::domain::files::types::SourceView;
 use std::{rc::Rc, sync::Arc};
 
 pub(super) fn workspace(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port()));
+    let owner = Rc::new(RelationOwner::new(
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        program_derived_port(),
+    ));
     let result = through_workspace(kind, exit, &owner);
     owner.release_population();
     released(kind, exit, owner.derived().publication_ownership_bytes());
@@ -83,7 +92,11 @@ fn through_workspace(
             tree: native.then_some(TreeForm::Elements),
         },
     ];
-    let plan = Arc::new(owner.derived().prepare_view(&request(kind), &shapes[..len])?);
+    let plan = Arc::new(
+        owner
+            .derived()
+            .prepare_view(&request(kind), &shapes[..len])?,
+    );
     let use_ = PreparedViewUse {
         plan,
         inputs: [
@@ -110,7 +123,11 @@ fn through_workspace(
         }
         Exit::Succeeds => {
             let view = demand(kind, &admissions, &use_, &mut symbols, false)?;
-            assert_eq!(observed(&view)?, kind, "{kind:?}: the leased view reports its family");
+            assert_eq!(
+                observed(&view)?,
+                kind,
+                "{kind:?}: the leased view reports its family"
+            );
             Ok(kind)
         }
         Exit::Errors => {
@@ -171,4 +188,3 @@ fn demand(
         _ => admissions.acquire_derived(use_, context, ViewInputs::Rows),
     }
 }
-

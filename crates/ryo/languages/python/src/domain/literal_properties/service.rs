@@ -1,5 +1,6 @@
 //! Classify literals from parser-owned scalar and decoded-token properties without evaluating them.
 
+use super::constants;
 use super::types::{Interpolated, LiteralClassification, Properties};
 use crate::domain::{
     nodes::types::Node,
@@ -14,7 +15,6 @@ use crate::domain::{
     tokens::types::Token,
 };
 use ryo::languages::{self, Flag, NameText, Position, Tree};
-use super::constants;
 
 /// Whether the parser's `Constant` node is a synthetic piece of an interpolated string.
 fn interpolation_fragment(tree: &Tree<'_>, at: Position) -> Interpolated {
@@ -43,7 +43,11 @@ fn decoded_string_empty(tree: &Tree<'_>, at: Position) -> Option<Flag> {
         found = true;
         nonempty |= !decoded.0.is_empty();
     }
-    found.then_some(if nonempty { Flag::Lowered } else { Flag::Raised })
+    found.then_some(if nonempty {
+        Flag::Lowered
+    } else {
+        Flag::Raised
+    })
 }
 
 /// Read one parser-owned scalar payload without interpreting source spelling.
@@ -56,12 +60,7 @@ fn payload<'a>(
 }
 
 /// Build a complete primitive classification from its parsed category and predicates.
-fn flag(
-    kind: NameText<'static>,
-    zero: Flag,
-    empty: Flag,
-    boolean: Flag,
-) -> LiteralClassification {
+fn flag(kind: NameText<'static>, zero: Flag, empty: Flag, boolean: Flag) -> LiteralClassification {
     LiteralClassification::Known(Properties {
         kind,
         zero,
@@ -80,55 +79,64 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
     // Keep typed bytes separate from decoded text, even though both are constant expressions.
     let scalar_kind = payload(tree, at, SCALAR_KIND);
     if scalar_kind.map(|each| each.0) == Some(BYTES_SCALAR) {
-        return payload(tree, at, SCALAR_VALUE).map_or(LiteralClassification::MissingPayload, |value| {
-            flag(
-                NameText(crate::domain::syntax::constants::BYTES_SCALAR),
-                Flag::Lowered,
-                if value.0.is_empty() { Flag::Raised } else { Flag::Lowered },
-                Flag::Lowered,
-            )
-        });
+        return payload(tree, at, SCALAR_VALUE).map_or(
+            LiteralClassification::MissingPayload,
+            |value| {
+                flag(
+                    NameText(crate::domain::syntax::constants::BYTES_SCALAR),
+                    Flag::Lowered,
+                    if value.0.is_empty() {
+                        Flag::Raised
+                    } else {
+                        Flag::Lowered
+                    },
+                    Flag::Lowered,
+                )
+            },
+        );
     }
 
     if literal(tree, at) == Literal::String {
-        return decoded_string_empty(tree, at).map_or(LiteralClassification::MissingPayload, |empty| {
-            flag(NameText(constants::STRING), Flag::Lowered, empty, Flag::Lowered)
-        });
+        return decoded_string_empty(tree, at).map_or(
+            LiteralClassification::MissingPayload,
+            |empty| {
+                flag(
+                    NameText(constants::STRING),
+                    Flag::Lowered,
+                    empty,
+                    Flag::Lowered,
+                )
+            },
+        );
     }
 
     let Some(scalar_kind) = scalar_kind else {
         return LiteralClassification::MissingPayload;
     };
     match scalar_kind.0 {
-        INTEGER_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .map_or(LiteralClassification::MissingPayload, |value| {
+        INTEGER_SCALAR => {
+            payload(tree, at, SCALAR_VALUE).map_or(LiteralClassification::MissingPayload, |value| {
                 flag(
                     NameText(crate::domain::syntax::constants::INTEGER_SCALAR),
-                    if value.0 == constants::ZERO_PAYLOAD { Flag::Raised } else { Flag::Lowered },
+                    if value.0 == constants::ZERO_PAYLOAD {
+                        Flag::Raised
+                    } else {
+                        Flag::Lowered
+                    },
                     Flag::Lowered,
                     Flag::Lowered,
                 )
-            }),
+            })
+        }
         FLOAT_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|bits| match bits.0.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None })
+            .and_then(|bits| match bits.0.parse::<u64>() {
+                Ok(parsed) => Some(parsed),
+                Err(_) => None,
+            })
             .map_or(LiteralClassification::MissingPayload, |bits| {
                 flag(
                     NameText(crate::domain::syntax::constants::FLOAT_SCALAR),
-                    if f64::from_bits(bits) == 0.0_f64 { Flag::Raised } else { Flag::Lowered },
-                    Flag::Lowered,
-                    Flag::Lowered,
-                )
-            }),
-        COMPLEX_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|real| match real.0.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None })
-            .zip(
-                payload(tree, at, SCALAR_IMAGINARY)
-                    .and_then(|imaginary| match imaginary.0.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None }),
-            )
-            .map_or(LiteralClassification::MissingPayload, |(real, imaginary)| {
-                flag(
-                    NameText(crate::domain::syntax::constants::COMPLEX_SCALAR),
-                    if f64::from_bits(real) == 0.0_f64 && f64::from_bits(imaginary) == 0.0_f64 {
+                    if f64::from_bits(bits) == 0.0_f64 {
                         Flag::Raised
                     } else {
                         Flag::Lowered
@@ -137,8 +145,37 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
                     Flag::Lowered,
                 )
             }),
+        COMPLEX_SCALAR => payload(tree, at, SCALAR_VALUE)
+            .and_then(|real| match real.0.parse::<u64>() {
+                Ok(parsed) => Some(parsed),
+                Err(_) => None,
+            })
+            .zip(payload(tree, at, SCALAR_IMAGINARY).and_then(|imaginary| {
+                match imaginary.0.parse::<u64>() {
+                    Ok(parsed) => Some(parsed),
+                    Err(_) => None,
+                }
+            }))
+            .map_or(
+                LiteralClassification::MissingPayload,
+                |(real, imaginary)| {
+                    flag(
+                        NameText(crate::domain::syntax::constants::COMPLEX_SCALAR),
+                        if f64::from_bits(real) == 0.0_f64 && f64::from_bits(imaginary) == 0.0_f64 {
+                            Flag::Raised
+                        } else {
+                            Flag::Lowered
+                        },
+                        Flag::Lowered,
+                        Flag::Lowered,
+                    )
+                },
+            ),
         BOOLEAN_SCALAR => payload(tree, at, SCALAR_VALUE)
-            .and_then(|value| match value.0.parse::<bool>() { Ok(parsed) => Some(parsed), Err(_) => None })
+            .and_then(|value| match value.0.parse::<bool>() {
+                Ok(parsed) => Some(parsed),
+                Err(_) => None,
+            })
             .map_or(LiteralClassification::MissingPayload, |boolean| {
                 flag(
                     NameText(crate::domain::syntax::constants::BOOLEAN_SCALAR),
@@ -147,7 +184,12 @@ pub(crate) fn classify(tree: &Tree<'_>, at: Position) -> LiteralClassification {
                     if boolean { Flag::Raised } else { Flag::Lowered },
                 )
             }),
-        NONE_SCALAR => flag(NameText(constants::NULL), Flag::Lowered, Flag::Lowered, Flag::Lowered),
+        NONE_SCALAR => flag(
+            NameText(constants::NULL),
+            Flag::Lowered,
+            Flag::Lowered,
+            Flag::Lowered,
+        ),
         ELLIPSIS_SCALAR => flag(
             NameText(crate::domain::syntax::constants::ELLIPSIS_SCALAR),
             Flag::Lowered,

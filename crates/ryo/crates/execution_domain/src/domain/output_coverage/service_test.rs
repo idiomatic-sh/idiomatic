@@ -1,8 +1,8 @@
 //! The `output_coverage` service's cases: how far a join, an ordered match and an ordered reduction carry what an operand lacks.
-use ryo_relations::domain::relations::types::FileId;
-use crate::domain::completion::types::CoverageState;
-use crate::domain::completion::service::partial_any;
 use super::types::OperandOrdinal;
+use crate::domain::completion::service::partial_any;
+use crate::domain::completion::types::CoverageState;
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 mod lineage_test;
@@ -204,19 +204,27 @@ fn a_rejected_file_withholds_only_its_own_partition_from_an_ordered_match_keyed_
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("ordered_reduction_requires_a_file_partition_before_preserving_file_scoped_uncertainty"),
+        name: CaseName(
+            "ordered_reduction_requires_a_file_partition_before_preserving_file_scoped_uncertainty",
+        ),
         word: Word::Succeeds,
-        input: || Scenario::OrderedReductionRequiresAFilePartitionBeforePreservingFileScopedUncertainty,
+        input: || {
+            Scenario::OrderedReductionRequiresAFilePartitionBeforePreservingFileScopedUncertainty
+        },
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("a_rejected_file_withholds_only_its_own_partition_from_a_join_anchored_by_file"),
+        name: CaseName(
+            "a_rejected_file_withholds_only_its_own_partition_from_a_join_anchored_by_file",
+        ),
         word: Word::Succeeds,
         input: || Scenario::ARejectedFileWithholdsOnlyItsOwnPartitionFromAJoinAnchoredByFile,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("a_rejected_file_withholds_only_its_own_partition_from_an_ordered_match_keyed_by_file"),
+        name: CaseName(
+            "a_rejected_file_withholds_only_its_own_partition_from_an_ordered_match_keyed_by_file",
+        ),
         word: Word::Succeeds,
         input: || Scenario::ARejectedFileWithholdsOnlyItsOwnPartitionFromAnOrderedMatchKeyedByFile,
         expect: Expect::Value(()),
@@ -225,9 +233,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(input: Input) {
     match input {
-        Scenario::OrderedReductionRequiresAFilePartitionBeforePreservingFileScopedUncertainty => ordered_reduction_requires_a_file_partition_before_preserving_file_scoped_uncertainty(),
-        Scenario::ARejectedFileWithholdsOnlyItsOwnPartitionFromAJoinAnchoredByFile => a_rejected_file_withholds_only_its_own_partition_from_a_join_anchored_by_file(),
-        Scenario::ARejectedFileWithholdsOnlyItsOwnPartitionFromAnOrderedMatchKeyedByFile => a_rejected_file_withholds_only_its_own_partition_from_an_ordered_match_keyed_by_file(),
+        Scenario::OrderedReductionRequiresAFilePartitionBeforePreservingFileScopedUncertainty => {
+            ordered_reduction_requires_a_file_partition_before_preserving_file_scoped_uncertainty()
+        }
+        Scenario::ARejectedFileWithholdsOnlyItsOwnPartitionFromAJoinAnchoredByFile => {
+            a_rejected_file_withholds_only_its_own_partition_from_a_join_anchored_by_file()
+        }
+        Scenario::ARejectedFileWithholdsOnlyItsOwnPartitionFromAnOrderedMatchKeyedByFile => {
+            a_rejected_file_withholds_only_its_own_partition_from_an_ordered_match_keyed_by_file()
+        }
     }
 }
 

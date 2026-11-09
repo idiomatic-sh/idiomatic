@@ -1,8 +1,10 @@
 //! Required derived storage follows real compiled producer consumers, including cancellation.
 use super::super::*;
 use super::fixtures::{FinalConsumer, ProjectionOrder, numbers, shared_plan};
-use ryo_execution_store::application::file_dag::derived::owner::witness::service::{BackingIdentity, BackingLiveness, BackingWitness};
 use crate::application::file_dag::program::runtime::types::IndexLiveness;
+use ryo_execution_store::application::file_dag::derived::owner::witness::service::{
+    BackingIdentity, BackingLiveness, BackingWitness,
+};
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},

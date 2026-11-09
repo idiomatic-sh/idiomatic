@@ -12,13 +12,12 @@ use std::path::Path;
 mod discrepancy;
 
 /// The public operation under test, given the suite, the profile directory and the destination.
-pub type Operate = fn(
-    &dyn crate::outbound::suite::interface::SuitePort,
-    &Path,
-    &Path,
-) -> Result<(), ReportsError>;
+pub type Operate =
+    fn(&dyn crate::outbound::suite::interface::SuitePort, &Path, &Path) -> Result<(), ReportsError>;
 /// The seal of one staged tree.
-fn seal(path: &std::path::Path) -> ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest {
+fn seal(
+    path: &std::path::Path,
+) -> ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest {
     local()
         .fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())))
         .expect("seal")
@@ -67,35 +66,23 @@ fn selected_snapshot(directory: &std::path::Path, destination: &std::path::Path)
         "concurrent module edit",
     )
     .expect("source module edit");
-    assert_eq!(
-        fingerprint,
-        seal(&snapshot)
-    );
+    assert_eq!(fingerprint, seal(&snapshot));
     std::fs::write(
         snapshot.join("fragments/suppress.ryoql"),
         "changed staged module",
     )
     .expect("staged module edit");
-    assert_ne!(
-        fingerprint,
-        seal(&snapshot)
-    );
+    assert_ne!(fingerprint, seal(&snapshot));
     let changed_module_fingerprint = seal(&snapshot);
     std::fs::write(directory.join("rules/F704/query.ryoql"), "concurrent work")
         .expect("unselected edit");
-    assert_eq!(
-        changed_module_fingerprint,
-        seal(&snapshot)
-    );
+    assert_eq!(changed_module_fingerprint, seal(&snapshot));
     std::fs::write(
         snapshot.join("rules/E722/query.ryoql"),
         "changed selected rule",
     )
     .expect("selected edit");
-    assert_ne!(
-        fingerprint,
-        seal(&snapshot)
-    );
+    assert_ne!(fingerprint, seal(&snapshot));
 }
 
 fn supporting_queries_are_staged_but_never_receive_default_or_case_owner_credit() {
@@ -228,9 +215,7 @@ pub fn stage_missing(operate: Operate) -> Result<(), Refusal> {
         std::io::ErrorKind::NotFound
     );
     result.map_err(|error| match error {
-        ReportsError::Io(error)
-            if error.kind() == std::io::ErrorKind::NotFound =>
-        {
+        ReportsError::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
             Refusal::MissingProfile
         }
         _ => Refusal::Unexpected,

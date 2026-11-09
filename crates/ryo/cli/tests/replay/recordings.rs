@@ -7,8 +7,8 @@
 //! scope (F5), and an unfed feature with no reason. Each fails.
 
 use super::answers::{
-    by_rule, expectation_at, extra_rows_in, golden_count, golden_rules, golden_strays, unchecked_rows, unfed_in,
-    unknowns_in,
+    by_rule, expectation_at, extra_rows_in, golden_count, golden_rules, golden_strays,
+    unchecked_rows, unfed_in, unknowns_in,
 };
 use super::base::{ABSENT, Pending, Recording, does_not_run_in, finding_texts, recording_at};
 use std::path::Path;
@@ -42,7 +42,10 @@ fn a_pending_txt_naming_a_relation_the_rust_language_provides_fails() {
     let at = recorded(&[
         ("query.ryoql", TREE),
         ("scope.toml", "include = [\"**\"]\n"),
-        ("pending.txt", "reads syntax-tree, which the Rust language of ryo does not provide\n"),
+        (
+            "pending.txt",
+            "reads syntax-tree, which the Rust language of ryo does not provide\n",
+        ),
     ]);
     assert!(refused(at.path()), "a stale pending.txt passes");
 }
@@ -55,42 +58,69 @@ fn a_pending_txt_not_in_its_one_form_fails() {
         ("scope.toml", "include = [\"**\"]\n"),
         ("pending.txt", "waits for something\n"),
     ]);
-    assert!(refused(at.path()), "a pending.txt naming no relation passes");
+    assert!(
+        refused(at.path()),
+        "a pending.txt naming no relation passes"
+    );
 }
 
 #[test]
 fn a_parameter_the_query_declares_without_a_value_fails() {
     let _beside = crate::beside();
-    let query = format!("param names: set<string>;\n{}", TREE.replace(
-        r#"from "syntax-tree" as l;"#,
-        r#"from "syntax-tree" as l where l."text" in $names;"#,
-    ));
-    let at = recorded(&[("query.ryoql", &query), ("scope.toml", "include = [\"**\"]\n")]);
-    assert!(refused(at.path()), "a declared parameter is bound to an empty list");
+    let query = format!(
+        "param names: set<string>;\n{}",
+        TREE.replace(
+            r#"from "syntax-tree" as l;"#,
+            r#"from "syntax-tree" as l where l."text" in $names;"#,
+        )
+    );
+    let at = recorded(&[
+        ("query.ryoql", &query),
+        ("scope.toml", "include = [\"**\"]\n"),
+    ]);
+    assert!(
+        refused(at.path()),
+        "a declared parameter is bound to an empty list"
+    );
 }
 
 #[test]
 fn a_malformed_scope_or_parameters_table_fails() {
     let _beside = crate::beside();
-    for (file, body) in [("scope.toml", "include = ["), ("parameters.toml", "names = ")] {
-        let mut files = vec![("query.ryoql", TREE), ("scope.toml", "include = [\"**\"]\n")];
+    for (file, body) in [
+        ("scope.toml", "include = ["),
+        ("parameters.toml", "names = "),
+    ] {
+        let mut files = vec![
+            ("query.ryoql", TREE),
+            ("scope.toml", "include = [\"**\"]\n"),
+        ];
         files.retain(|(name, _)| *name != file);
         files.push((file, body));
         let at = recorded(&files);
-        assert!(refused(at.path()), "a malformed {file} reads as an empty table");
+        assert!(
+            refused(at.path()),
+            "a malformed {file} reads as an empty table"
+        );
     }
 }
 
 #[test]
 fn a_recording_without_expected_or_checked_rows_fails() {
     let without_expected = recorded(&[("plan", "query-1")]);
-    assert!(unexpected(without_expected.path()), "a recording without expected.toml matches no rows");
+    assert!(
+        unexpected(without_expected.path()),
+        "a recording without expected.toml matches no rows"
+    );
     let without_checked = recorded(&[
         ("plan", "query-1"),
         ("expected.toml", "rows = []\n"),
         ("undecided.txt", "Today's ryo could not decide this rule.\n"),
     ]);
-    assert!(unexpected(without_checked.path()), "an undecided recording without checked.toml is checked to give none");
+    assert!(
+        unexpected(without_checked.path()),
+        "an undecided recording without checked.toml is checked to give none"
+    );
 }
 
 #[test]
@@ -101,18 +131,30 @@ fn an_undecided_txt_without_a_reason_fails() {
         ("undecided.txt", "  \n"),
         ("checked.toml", "rows = []\n"),
     ]);
-    assert!(unexpected(at.path()), "an undecided.txt naming no reason passes");
+    assert!(
+        unexpected(at.path()),
+        "an undecided.txt naming no reason passes"
+    );
 }
 
 #[test]
 fn a_finding_too_short_or_under_no_live_rule_fails() {
-    let row = |cells: &[&str]| cells.iter().map(|cell| (*cell).to_owned()).collect::<Vec<String>>();
-    assert!(by_rule(&[row(&["rule", "file.rs"])], &["rule"]).is_err(), "a short finding is dropped");
+    let row = |cells: &[&str]| {
+        cells
+            .iter()
+            .map(|cell| (*cell).to_owned())
+            .collect::<Vec<String>>()
+    };
+    assert!(
+        by_rule(&[row(&["rule", "file.rs"])], &["rule"]).is_err(),
+        "a short finding is dropped"
+    );
     assert!(
         by_rule(&[row(&["other", "file.rs", "1..2"])], &["rule"]).is_err(),
         "a finding under a rule that is not live is dropped"
     );
-    let kept = by_rule(&[row(&["rule", "file.rs", "1..2"])], &["rule"]).expect("a finding of a live rule");
+    let kept =
+        by_rule(&[row(&["rule", "file.rs", "1..2"])], &["rule"]).expect("a finding of a live rule");
     assert_eq!(kept.get("rule"), Some(&vec!["file.rs\t1..2".to_owned()]));
 }
 
@@ -154,7 +196,10 @@ fn a_recorded_difference_without_a_reason_fails() {
         std::panic::catch_unwind(|| extra_rows_in(&without, "r", path)).is_err(),
         "a difference with no reason is taken out"
     );
-    assert_eq!(extra_rows_in(&listed("ryo sees more"), "r", path), vec!["a.rs\t1..2".to_owned()]);
+    assert_eq!(
+        extra_rows_in(&listed("ryo sees more"), "r", path),
+        vec!["a.rs\t1..2".to_owned()]
+    );
 }
 
 /// A query that reads a relation ryo does not own, a host's.
@@ -170,30 +215,60 @@ fn table(text: &str) -> toml::Table {
 fn a_golden_without_a_rules_table_fails() {
     let without = table("digest = \"0\"\n");
     assert!(
-        std::panic::catch_unwind(|| golden_rules(&without, Path::new("findings.toml")).len()).is_err(),
+        std::panic::catch_unwind(|| golden_rules(&without, Path::new("findings.toml")).len())
+            .is_err(),
         "a golden without counts matches every rule"
     );
 }
 
 #[test]
 fn a_live_rule_without_a_whole_golden_count_fails() {
-    let rules = table("\"idiomatic.arch/two\" = \"two\"\n\"idiomatic.arch/less\" = -1\n\"idiomatic.arch/kept\" = 3\n");
-    assert!(golden_count(&rules, "absent", false).is_err(), "a live rule with no count is skipped");
-    assert!(golden_count(&rules, "two", false).is_err(), "a count that is not a number reads as 0");
-    assert!(golden_count(&rules, "less", false).is_err(), "a negative count is compared");
-    assert!(golden_count(&rules, "kept", true).is_err(), "an undecided rule without an `#unknown` count passes");
+    let rules = table(
+        "\"idiomatic.arch/two\" = \"two\"\n\"idiomatic.arch/less\" = -1\n\"idiomatic.arch/kept\" = 3\n",
+    );
+    assert!(
+        golden_count(&rules, "absent", false).is_err(),
+        "a live rule with no count is skipped"
+    );
+    assert!(
+        golden_count(&rules, "two", false).is_err(),
+        "a count that is not a number reads as 0"
+    );
+    assert!(
+        golden_count(&rules, "less", false).is_err(),
+        "a negative count is compared"
+    );
+    assert!(
+        golden_count(&rules, "kept", true).is_err(),
+        "an undecided rule without an `#unknown` count passes"
+    );
     assert_eq!(golden_count(&rules, "kept", false), Ok(Some(3)));
 }
 
 #[test]
 fn an_undecided_rule_giving_rows_nobody_checked_fails() {
-    let rows = |each: &[&str]| each.iter().map(|row| (*row).to_owned()).collect::<Vec<String>>();
+    let rows = |each: &[&str]| {
+        each.iter()
+            .map(|row| (*row).to_owned())
+            .collect::<Vec<String>>()
+    };
     assert!(
-        unchecked_rows("r", &rows(&["a.rs\t1..2"]), &[], &rows(&["a.rs\t1..2", "b.rs\t3..4"])).is_some(),
+        unchecked_rows(
+            "r",
+            &rows(&["a.rs\t1..2"]),
+            &[],
+            &rows(&["a.rs\t1..2", "b.rs\t3..4"])
+        )
+        .is_some(),
         "an extra row of an undecided rule passes"
     );
     assert_eq!(
-        unchecked_rows("r", &rows(&["a.rs\t1..2"]), &rows(&["b.rs\t3..4"]), &rows(&["a.rs\t1..2", "b.rs\t3..4"])),
+        unchecked_rows(
+            "r",
+            &rows(&["a.rs\t1..2"]),
+            &rows(&["b.rs\t3..4"]),
+            &rows(&["a.rs\t1..2", "b.rs\t3..4"])
+        ),
         None,
         "an extra row listed with a reason is kept"
     );
@@ -205,9 +280,15 @@ fn a_pending_recording_that_fails_on_another_ground_fails() {
     let at = recorded(&[
         ("query.ryoql", "let rows = selec;\n"),
         ("scope.toml", "include = [\"**\"]\n"),
-        ("pending.txt", "reads tastemaker.placed, which the Rust language of ryo does not provide\n"),
+        (
+            "pending.txt",
+            "reads tastemaker.placed, which the Rust language of ryo does not provide\n",
+        ),
     ]);
-    assert!(refused(at.path()), "a pending.txt stands while the query does not parse");
+    assert!(
+        refused(at.path()),
+        "a pending.txt stands while the query does not parse"
+    );
 }
 
 #[test]
@@ -221,7 +302,10 @@ fn a_pending_txt_naming_other_relations_than_the_refusal_fails() {
             "reads tastemaker.placed, tastemaker.other, which the Rust language of ryo does not provide\n",
         ),
     ]);
-    assert!(refused(at.path()), "a pending.txt names more than the query is refused for");
+    assert!(
+        refused(at.path()),
+        "a pending.txt names more than the query is refused for"
+    );
 }
 
 #[test]
@@ -230,9 +314,15 @@ fn a_pending_txt_naming_exactly_the_refused_relation_waits() {
     let at = recorded(&[
         ("query.ryoql", HOSTED),
         ("scope.toml", "include = [\"**\"]\n"),
-        ("pending.txt", "reads tastemaker.placed, which the Rust language of ryo does not provide\n"),
+        (
+            "pending.txt",
+            "reads tastemaker.placed, which the Rust language of ryo does not provide\n",
+        ),
     ]);
-    assert!(matches!(recording_at(at.path()).pending, Pending::Because(_)));
+    assert!(matches!(
+        recording_at(at.path()).pending,
+        Pending::Because(_)
+    ));
 }
 
 #[test]
@@ -243,35 +333,60 @@ fn a_golden_unknown_count_that_is_not_a_count_fails() {
         "\"other/r#unknown\" = 2\n",
     ] {
         let rules = table(text);
-        assert!(std::panic::catch_unwind(|| unknowns_in(&rules)).is_err(), "`{text}` is dropped");
+        assert!(
+            std::panic::catch_unwind(|| unknowns_in(&rules)).is_err(),
+            "`{text}` is dropped"
+        );
     }
-    assert_eq!(unknowns_in(&table("\"idiomatic.arch/r#unknown\" = 2\n")).get("r"), Some(&2));
+    assert_eq!(
+        unknowns_in(&table("\"idiomatic.arch/r#unknown\" = 2\n")).get("r"),
+        Some(&2)
+    );
 }
 
 #[test]
 fn a_recording_without_its_query_or_scope_fails() {
     let _beside = crate::beside();
     let without_query = recorded(&[("scope.toml", "include = [\"**\"]\n")]);
-    assert!(refused(without_query.path()), "a recording without query.ryoql reads an empty query");
+    assert!(
+        refused(without_query.path()),
+        "a recording without query.ryoql reads an empty query"
+    );
     let without_scope = recorded(&[("query.ryoql", TREE)]);
-    assert!(refused(without_scope.path()), "a recording without scope.toml reads every file");
+    assert!(
+        refused(without_scope.path()),
+        "a recording without scope.toml reads every file"
+    );
 }
 
 #[test]
 fn an_unfed_feature_without_a_reason_fails() {
     let path = Path::new("unfed.toml");
     let without = table("[feature]\n[feature.\"relation:Function\"]\nwhy = \"\"\n");
-    assert!(std::panic::catch_unwind(|| unfed_in(&without, path)).is_err(), "an unfed feature with no reason passes");
+    assert!(
+        std::panic::catch_unwind(|| unfed_in(&without, path)).is_err(),
+        "an unfed feature with no reason passes"
+    );
     let none = table("other = 1\n");
-    assert!(std::panic::catch_unwind(|| unfed_in(&none, path)).is_err(), "unfed.toml without a feature table passes");
+    assert!(
+        std::panic::catch_unwind(|| unfed_in(&none, path)).is_err(),
+        "unfed.toml without a feature table passes"
+    );
 }
 
 #[test]
 fn a_scope_without_include_or_with_other_keys_fails() {
     let _beside = crate::beside();
-    for scope in ["exclude = [\"**/build.rs\"]\n", "include = [\"**\"]\nincludes = [\"src/**\"]\n", "include = [1]\n"] {
+    for scope in [
+        "exclude = [\"**/build.rs\"]\n",
+        "include = [\"**\"]\nincludes = [\"src/**\"]\n",
+        "include = [1]\n",
+    ] {
         let at = recorded(&[("query.ryoql", TREE), ("scope.toml", scope)]);
-        assert!(refused(at.path()), "the scope `{scope}` widens to every file");
+        assert!(
+            refused(at.path()),
+            "the scope `{scope}` widens to every file"
+        );
     }
 }
 
@@ -283,24 +398,39 @@ fn a_parameter_the_query_does_not_declare_fails() {
         ("scope.toml", "include = [\"**\"]\n"),
         ("parameters.toml", "names = [\"a\"]\n"),
     ]);
-    assert!(refused(at.path()), "a parameter no query declares is passed unseen");
+    assert!(
+        refused(at.path()),
+        "a parameter no query declares is passed unseen"
+    );
 }
 
 #[test]
 fn rows_nothing_compares_fail() {
     let undecided_with_rows = recorded(&[
         ("plan", "query-1"),
-        ("expected.toml", "rows = [{ path = \"a.rs\", key = \"1..2\" }]\n"),
+        (
+            "expected.toml",
+            "rows = [{ path = \"a.rs\", key = \"1..2\" }]\n",
+        ),
         ("undecided.txt", "Today's ryo could not decide this rule.\n"),
         ("checked.toml", "rows = []\n"),
     ]);
-    assert!(unexpected(undecided_with_rows.path()), "an undecided recording's expected rows are ignored");
+    assert!(
+        unexpected(undecided_with_rows.path()),
+        "an undecided recording's expected rows are ignored"
+    );
     let checked_without_undecided = recorded(&[
         ("plan", "query-1"),
         ("expected.toml", "rows = []\n"),
-        ("checked.toml", "rows = [{ path = \"a.rs\", key = \"1..2\" }]\n"),
+        (
+            "checked.toml",
+            "rows = [{ path = \"a.rs\", key = \"1..2\" }]\n",
+        ),
     ]);
-    assert!(unexpected(checked_without_undecided.path()), "checked.toml of a decided recording is ignored");
+    assert!(
+        unexpected(checked_without_undecided.path()),
+        "checked.toml of a decided recording is ignored"
+    );
 }
 
 #[test]
@@ -309,6 +439,10 @@ fn a_golden_rule_that_is_not_recorded_fails() {
         "\"idiomatic.arch/kept\" = 1\n\"idiomatic.arch/kept#unknown\" = 2\n\"idiomatic.arch/renamed\" = 3\n\"idiomatic.arch/gone#unknown\" = 4\n\"other/kept\" = 5\n",
     );
     let strays = golden_strays(&rules, &["kept"]);
-    assert_eq!(strays.len(), 3, "a golden rule no recording holds passes: {strays:?}");
+    assert_eq!(
+        strays.len(),
+        3,
+        "a golden rule no recording holds passes: {strays:?}"
+    );
     assert!(golden_strays(&table("\"idiomatic.arch/kept\" = 1\n"), &["kept"]).is_empty());
 }

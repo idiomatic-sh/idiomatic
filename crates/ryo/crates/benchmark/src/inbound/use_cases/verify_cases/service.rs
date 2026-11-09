@@ -1,5 +1,4 @@
 //! The reference and candidate of every selected case answer the same expectations.
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
 use crate::application::case_execution::{
     service::{candidate as run_candidate, run as run_case},
     types::AttemptOutcome,
@@ -18,6 +17,7 @@ use crate::outbound::{
     linter::interface::LinterPort,
     suite::interface::SuitePort,
 };
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
 use ryo_benchmark_contracts::domain::workloads::types::{
@@ -146,13 +146,15 @@ pub(super) fn verify_prepared_shard(
                 }
                 Err(error) => {
                     let assessment = (contestant == Contestant::Reference)
-                        .then(|| crate::application::process_discrepancy::service::matches_capture(
-                            &case,
-                            &capture,
-                            proof.as_ref(),
-                            suite,
-                            rules,
-                        ))
+                        .then(|| {
+                            crate::application::process_discrepancy::service::matches_capture(
+                                &case,
+                                &capture,
+                                proof.as_ref(),
+                                suite,
+                                rules,
+                            )
+                        })
                         .flatten();
                     let accepted = matches!(assessment, Some(Ok(())));
                     let message = ReasonText(match assessment {
@@ -194,4 +196,3 @@ pub(super) fn verify_prepared_shard(
         )))
     }
 }
-

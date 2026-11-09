@@ -202,8 +202,10 @@ where
             &mut index.memo,
             crate::domain::grammar_cache::types::DialectName(P::DECODED_GRAMMAR.0),
         );
-        if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete
-            || languages::has_incomplete_lexical_stream(tree.elements) == languages::SyntaxCompleteness::Incomplete
+        if languages::has_incomplete_syntax(tree.elements)
+            == languages::SyntaxCompleteness::Incomplete
+            || languages::has_incomplete_lexical_stream(tree.elements)
+                == languages::SyntaxCompleteness::Incomplete
         {
             index.state = FormatParseState::Partial;
         } else {

@@ -7,12 +7,12 @@ use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::hosted::types::HostRelation;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::{
     service::remapped,
-    types::{ColumnIndex, PlanComparison, Input, RepeatedRows},
+    types::{ColumnIndex, Input, PlanComparison, RepeatedRows},
 };
 use ryo_values::domain::plans::types::{Operation, Plan};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 

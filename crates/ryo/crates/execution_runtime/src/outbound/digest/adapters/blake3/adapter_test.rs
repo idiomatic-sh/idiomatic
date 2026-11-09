@@ -1,10 +1,10 @@
 //! The blake3 adapter of the digest port: the core's contract rows run through it, then the cases specific to it.
 
 use super::adapter::DigestBlake3Adapter;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::digest::fixtures::contract::check;
-use crate::outbound::digest::types::DigestBytes;
 use crate::outbound::digest::interface::DigestPort as _;
+use crate::outbound::digest::types::DigestBytes;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 type Input = ();
 type Value = bool;

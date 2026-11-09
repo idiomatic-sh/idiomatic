@@ -64,7 +64,10 @@ pub(super) fn subscriber(
     options: ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
     let on = |switch: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch| {
-        matches!(switch, ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On)
+        matches!(
+            switch,
+            ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
+        )
     };
     let aggregate_level = if on(options.execution) && !on(options.lifecycle_memory) {
         tracing_subscriber::filter::LevelFilter::TRACE
@@ -210,4 +213,3 @@ impl Drop for LockedDiagnosticEventWriter<'_> {
         let _flush_result = self.file.flush();
     }
 }
-

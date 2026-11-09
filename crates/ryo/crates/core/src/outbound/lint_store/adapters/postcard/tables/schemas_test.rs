@@ -1,9 +1,11 @@
 //! What the schemas of the small tables of the store accept and refuse.
 
 use super::{tables_bytes, tables_of};
-use crate::outbound::lint_store::adapters::postcard::buckets::schemas::{bucket_bytes, bucket_from};
-use crate::outbound::lint_store::adapters::postcard::rest::schemas::{rest_bytes, rest_from};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::lint_store::adapters::postcard::buckets::schemas::{
+    bucket_bytes, bucket_from,
+};
+use crate::outbound::lint_store::adapters::postcard::rest::schemas::{rest_bytes, rest_from};
 use crate::outbound::lint_store::fixtures::tables::stored;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::row_texts::types::Cell;

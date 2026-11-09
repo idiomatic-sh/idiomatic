@@ -1,5 +1,8 @@
 //! The read of a file the run has not kept: the language parses it, what it wrote is admitted, and the engine's own rows are written.
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use super::super::errors::FileAnalysisError;
+use super::super::semantic::service::SemanticState;
+use super::super::service::FileAnalysis;
+use super::super::types::{FileCompleteness, FileVisit, Worker};
 use crate::application::file_analysis::constants::EXECUTION_DIAGNOSTIC;
 use crate::application::file_analysis::constants::INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE;
 use crate::application::file_analysis::constants::PROVIDER_PARSE;
@@ -25,6 +28,7 @@ use crate::domain::workers::types::Gating;
 use crate::outbound::language::types::FileReading;
 use crate::outbound::language::types::FileToRead;
 use crate::outbound::language::types::SourceSelection;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::SemanticNeed;
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
@@ -55,10 +59,6 @@ use ryo_values::domain::stored_facts::types::PartialScope;
 use ryo_values::domain::stored_facts::types::ReadFailure;
 use ryo_values::domain::stored_facts::types::ReadInPart;
 use std::time::Instant;
-use super::super::errors::FileAnalysisError;
-use super::super::semantic::service::SemanticState;
-use super::super::service::FileAnalysis;
-use super::super::types::{FileCompleteness, FileVisit, Worker};
 
 impl FileAnalysis {
     /// Admits what the language `provider` wrote for the file `number`, against the file's length, its table and its number.
@@ -113,12 +113,7 @@ impl FileAnalysis {
         worker.tables.language = None;
         worker.facts.release()?;
         let asked = engine_asked(setting.wanted);
-        let mut said = failure_partials(
-            setting.wanted,
-            number,
-            detail,
-            observed_file,
-        );
+        let mut said = failure_partials(setting.wanted, number, detail, observed_file);
         Self::write_engine_rows(
             worker,
             EngineAsked {
@@ -135,8 +130,11 @@ impl FileAnalysis {
             &mut said,
         )?;
         if asked.read_failure == EngineRows::Asked && kind == PrimaryFailureKind::Disk {
-            let detail =
-                intern_derived(&mut worker.tables.symbols, ByteSlice(&[]), NameText(detail.0));
+            let detail = intern_derived(
+                &mut worker.tables.symbols,
+                ByteSlice(&[]),
+                NameText(detail.0),
+            );
             worker.facts.columns_mut()?.write(FilesystemReadFailureRow {
                 path: number,
                 detail,
@@ -146,7 +144,13 @@ impl FileAnalysis {
                 },
             });
         }
-        start_partials(&MetadataUseCaseImpl, &mut worker.tables, &said, Recovery::Whole, setting.wanted);
+        start_partials(
+            &MetadataUseCaseImpl,
+            &mut worker.tables,
+            &said,
+            Recovery::Whole,
+            setting.wanted,
+        );
         worker.tables.unread.push(Unread {
             path: path.clone(),
             reason: Unreadable::Failed(ReadFailure(detail.0.into())),
@@ -154,8 +158,7 @@ impl FileAnalysis {
         let acceptance = syntax_acceptance(&worker.tables.elements);
         if asked.any == EngineRows::Asked {
             index_kinds(&mut worker.tables.elements);
-            let semantic =
-                SemanticState::new(number, &worker.tables.elements, None);
+            let semantic = SemanticState::new(number, &worker.tables.elements, None);
             Self::read_file(worker, visit, number, &semantic)?;
         } else if Self::may_gate_rules(setting, acceptance) == Gating::MayGate {
             drop(Self::gate_rules(
@@ -165,7 +168,14 @@ impl FileAnalysis {
                 acceptance,
             ));
         }
-        cover(&MetadataUseCaseImpl, &mut worker.tables, setting, number, path, acceptance);
+        cover(
+            &MetadataUseCaseImpl,
+            &mut worker.tables,
+            setting,
+            number,
+            path,
+            acceptance,
+        );
         // Failure facts are invocation-local: retry the real input next time even if metadata is unchanged.
         if matches!(setting.answering, Answering::Findings) {
             worker.tables.unrecorded.push(path.clone());
@@ -227,7 +237,8 @@ impl FileAnalysis {
         Self::write_engine_rows(worker, asked, number, file.executable, &mut said)?;
         // The relations this file is read in part: those a reader said so of, and all of code if what was read is a recovery.
         let everything = recovery_of(&reading, &worker.tables.elements);
-        start_partials(&MetadataUseCaseImpl, 
+        start_partials(
+            &MetadataUseCaseImpl,
             &mut worker.tables,
             &said,
             everything,
@@ -253,8 +264,7 @@ impl FileAnalysis {
         } else {
             None
         };
-        let semantic =
-            SemanticState::new(number, &worker.tables.elements, session);
+        let semantic = SemanticState::new(number, &worker.tables.elements, session);
         Ok(match reading {
             FileReading::Read(_) | FileReading::Manifest => {
                 index_kinds(&mut worker.tables.elements);
@@ -363,9 +373,14 @@ impl FileAnalysis {
 }
 
 /// Whether the language read a complete tree or a recovery from missing syntax.
-pub(in crate::application::file_analysis) fn recovery_of(reading: &FileReading, elements: &Elements) -> Recovery {
+pub(in crate::application::file_analysis) fn recovery_of(
+    reading: &FileReading,
+    elements: &Elements,
+) -> Recovery {
     match reading {
-        FileReading::Read(_) if has_incomplete_syntax(elements) == SyntaxCompleteness::Incomplete => {
+        FileReading::Read(_)
+            if has_incomplete_syntax(elements) == SyntaxCompleteness::Incomplete =>
+        {
             if has_incomplete_lexical_stream(elements) == SyntaxCompleteness::Incomplete {
                 Recovery::SyntaxErrors
             } else {

@@ -1,13 +1,14 @@
 //! Real publication admissions bind owner, generation, descriptor and semantic source.
 use super::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
-use crate::application::file_dag::{relations::RelationOwner, fixtures::program_derived_port};
+use crate::application::file_dag::{fixtures::program_derived_port, relations::RelationOwner};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace, ViewRequest},
     operating::errors::OperatingError,
-    operation_schema::types::InputShape};
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+    operation_schema::types::InputShape,
+};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
@@ -91,7 +92,10 @@ fn table() -> Table {
     }
 }
 fn subject(input: Input) -> Result<(), Failure> {
-    let owner = RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port());
+    let owner = RelationOwner::new(
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        program_derived_port(),
+    );
     let publication = owner.computed(table())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let proof = owner.admit(publication.as_ref(), RepresentationInput::from(&rows))?;
@@ -115,7 +119,10 @@ fn subject(input: Input) -> Result<(), Failure> {
     let original = [proof.rows()];
     match input {
         Input::ForeignOwner => {
-            let foreign = RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port());
+            let foreign = RelationOwner::new(
+                crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+                program_derived_port(),
+            );
             foreign
                 .derived()
                 .acquire_stored(

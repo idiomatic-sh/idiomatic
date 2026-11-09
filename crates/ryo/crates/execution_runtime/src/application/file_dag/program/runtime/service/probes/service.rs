@@ -1,9 +1,9 @@
 //! Test-only observation of producer lease release, route work and retry checkpoints.
 #[cfg(test)]
 use super::super::ProducerLeaseProbe;
-use super::super::{ProgramExecution, RuntimeState};
 #[cfg(test)]
 use super::super::State;
+use super::super::{ProgramExecution, RuntimeState};
 #[cfg(test)]
 use crate::application::file_dag::program::constants::LIFECYCLE_OBSERVER;
 #[cfg(test)]
@@ -85,10 +85,7 @@ impl ProgramExecution {
         });
     }
     #[cfg(test)]
-    pub(crate) fn take_producer_releases(
-        &self,
-        state: &RuntimeState,
-    ) -> Vec<ProducerLeaseEvent> {
+    pub(crate) fn take_producer_releases(&self, state: &RuntimeState) -> Vec<ProducerLeaseEvent> {
         self.validate_state(state).unwrap();
         let probe = self
             .producer_lease_probe
@@ -105,7 +102,10 @@ impl ProgramExecution {
         state: &RuntimeState,
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
-    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+    ) -> Result<
+        ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
+        OperatingError,
+    > {
         let origin = self
             .program
             .rules()
@@ -126,7 +126,10 @@ impl ProgramExecution {
         &self,
         state: &RuntimeState,
         region: RegionId,
-    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+    ) -> Result<
+        ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
+        OperatingError,
+    > {
         self.validate_state(state)?;
         let slots = state.slots.borrow();
         let Some(slot) = slots.get(&region) else {
@@ -136,10 +139,12 @@ impl ProgramExecution {
                 .ok_or_else(|| OperatingError::NotRun)?;
             return Ok(Default::default());
         };
-        Ok(ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
-            registered_calls: slot.registered_calls.0,
-            ..slot.observed
-        })
+        Ok(
+            ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
+                registered_calls: slot.registered_calls.0,
+                ..slot.observed
+            },
+        )
     }
     #[cfg(test)]
     pub(crate) fn retry_checkpoint(

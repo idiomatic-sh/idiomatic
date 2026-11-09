@@ -3,7 +3,8 @@ use super::service::measure;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::types::audit::value::Audit;
 use crate::outbound::{
-    evidence::fixtures::fake::EvidenceFake, execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
+    evidence::fixtures::fake::EvidenceFake, execution::fixtures::fake::ExecutionFake,
+    linter::fixtures::fake::LinterFake,
 };
 use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -60,12 +61,16 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
     let request = RunRequest {
         performance: Default::default(),
         selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        rule_observations:
+            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
-        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        file_metadata:
+            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
         context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: ".".into(),
         state: "cache".into(),
@@ -95,21 +100,22 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
     let context = crate::outbound::context::factory::local();
     let evidence = EvidenceFake;
     drop(
-        measure(&audit, &context, &evidence, &reference, &candidate, &execution, &request, order).map_err(|error| {
-            match error {
-                Error::Invalid(message)
-                    if message == "default coverage incomplete: 1 missing rules: missing" =>
-                {
-                    Failure::Incomplete
-                }
-                Error::Invalid(message)
-                    if message.starts_with("diagnostic benchmark contract failed:") =>
-                {
-                    Failure::Difference
-                }
-                Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
-                    Failure::Unexpected
-                }
+        measure(
+            &audit, &context, &evidence, &reference, &candidate, &execution, &request, order,
+        )
+        .map_err(|error| match error {
+            Error::Invalid(message)
+                if message == "default coverage incomplete: 1 missing rules: missing" =>
+            {
+                Failure::Incomplete
+            }
+            Error::Invalid(message)
+                if message.starts_with("diagnostic benchmark contract failed:") =>
+            {
+                Failure::Difference
+            }
+            Error::Invalid(_) | Error::Io(_) | Error::Json(_) | Error::Toml(_) => {
+                Failure::Unexpected
             }
         })?,
     );

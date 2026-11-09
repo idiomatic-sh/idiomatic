@@ -6,7 +6,7 @@ use crate::domain::table_scratch::types::ComparisonNumbers;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, QueryLiteral, Test,
+    ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
 };
 
 /// What a row of the cases does.
@@ -64,19 +64,21 @@ fn columns(which: &[usize]) -> Value {
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     });
     let mut needed = ColumnPlaces(vec![9]);
-    needed_of_rest(&comparisons, &ComparisonNumbers(which.to_vec()), &mut needed);
+    needed_of_rest(
+        &comparisons,
+        &ComparisonNumbers(which.to_vec()),
+        &mut needed,
+    );
     bits(&needed.0)
 }
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("only_the_columns_of_the_rest_are_needed"),
-        word: Word::Succeeds,
-        input: || Scenario::NeedsTheColumnsOfTheRest,
-        expect: Expect::Value(0b101),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("only_the_columns_of_the_rest_are_needed"),
+    word: Word::Succeeds,
+    input: || Scenario::NeedsTheColumnsOfTheRest,
+    expect: Expect::Value(0b101),
+}];
 
 fn subject(scenario: Input) -> Value {
     match scenario {

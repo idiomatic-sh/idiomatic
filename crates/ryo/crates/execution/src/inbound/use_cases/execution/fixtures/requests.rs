@@ -96,10 +96,7 @@ pub(crate) struct Preparation {
 impl Preparation {
     /// The preparation over the real operators and derived views.
     pub(crate) fn real() -> Self {
-        Self::new(
-            Arc::new(operators()),
-            Arc::new(derived()),
-        )
+        Self::new(Arc::new(operators()), Arc::new(derived()))
     }
     pub(crate) fn new(operators: Arc<dyn OperatorsPort>, derived: Arc<dyn DerivedPort>) -> Self {
         Self {
@@ -108,7 +105,10 @@ impl Preparation {
         }
     }
     /// The program of an authored request, assembled and prepared as the engine prepares it.
-    pub(crate) fn prepare(&self, request: Authored) -> Result<PreparedExecutionProgram, OperatingError> {
+    pub(crate) fn prepare(
+        &self,
+        request: Authored,
+    ) -> Result<PreparedExecutionProgram, OperatingError> {
         let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(
             request.plans,
             request.bindings,

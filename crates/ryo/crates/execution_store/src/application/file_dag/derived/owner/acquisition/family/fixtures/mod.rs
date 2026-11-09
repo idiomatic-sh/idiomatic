@@ -5,24 +5,24 @@ mod request;
 pub mod route;
 use self::demand::demand;
 use self::request::{observed, request};
-use crate::application::file_dag::{
-    relations::RelationOwner, fixtures::program_derived_port};
+use crate::application::file_dag::relations::publication::types::ProducerScope;
+use crate::application::file_dag::{fixtures::program_derived_port, relations::RelationOwner};
+use ryo_derived::domain::request::types::DerivedKind;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
-    table_cells::fixtures::{ SmallTree, small_tree},
+    table_cells::fixtures::{SmallTree, small_tree},
     table_cells::types::{TreeForm, TreeRows},
-    table_model::types::Rows};
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use crate::application::file_dag::relations::publication::types::ProducerScope;
-use ryo_execution_domain::domain::executable_program::types::RegionId;
-use ryo_derived::domain::request::types::DerivedKind;
-use ryo_relations::domain::{
-    relations::types::{CellKind, FileId, Integer, NodeId, Relation, Value}};
+    table_model::types::Rows,
+};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, NodeId, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
-    rows::types::{RowCount, Table}};
+    rows::types::{RowCount, Table},
+};
 use std::{rc::Rc, sync::Arc};
 
 /// How the last consumer of one family leaves: each scenario ends with the owner generation
@@ -72,10 +72,7 @@ enum Release {
     Forgetful,
 }
 /// Runs one acquisition family's scenario and answers the kind it acquired.
-pub fn exercise(
-    kind: DerivedKind,
-    scenario: Scenario,
-) -> Result<DerivedKind, OperatingError> {
+pub fn exercise(kind: DerivedKind, scenario: Scenario) -> Result<DerivedKind, OperatingError> {
     let (actual, leaked) = drive(kind, scenario, Release::Production);
     assert_eq!(
         leaked, None,
@@ -86,10 +83,7 @@ pub fn exercise(
 /// The negative control: the same exit with a release that never happens must be observed as a
 /// leak by the ledger before the fixture retires the generation. `None` means the exit was not
 /// reached (a scenario that retires the generation first) or nothing stayed charged.
-pub fn exercise_forgetful(
-    kind: DerivedKind,
-    scenario: Scenario,
-) -> Option<Leaked> {
+pub fn exercise_forgetful(kind: DerivedKind, scenario: Scenario) -> Option<Leaked> {
     drive(kind, scenario, Release::Forgetful).1
 }
 fn drive(
@@ -98,11 +92,15 @@ fn drive(
     release: Release,
 ) -> (Result<DerivedKind, OperatingError>, Option<Leaked>) {
     let port = if scenario == Scenario::BuildFails {
-        Arc::new(refusing::RefusingBuild) as Arc<dyn crate::outbound::derived::interface::DerivedPort>
+        Arc::new(refusing::RefusingBuild)
+            as Arc<dyn crate::outbound::derived::interface::DerivedPort>
     } else {
         program_derived_port()
     };
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, port));
+    let owner = Rc::new(RelationOwner::new(
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        port,
+    ));
     let mut leaked = None;
     let actual = acquire(kind, scenario, Rc::clone(&owner), release, &mut leaked);
     owner.release_population();
@@ -148,7 +146,10 @@ fn acquire(
                 destination,
                 Rc::clone(&owner),
             )?;
-            assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced);
+            assert_eq!(
+                cursor.advance()?,
+                crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced
+            );
             assert_eq!(cursor.current()?.key, &[Value::Number(Integer(0))]);
             match scenario {
                 Scenario::Cancelled => {}

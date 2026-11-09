@@ -34,7 +34,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
     let prepared = PreparedDerived {
-        request: DerivedRequest::Membership { column: ColumnIndex(0) },
+        request: DerivedRequest::Membership {
+            column: ColumnIndex(0),
+        },
         schemas: vec![vec![CellKind::Number]],
         metadata: match input {
             Scenario::ValidMetadata => Ok(()),

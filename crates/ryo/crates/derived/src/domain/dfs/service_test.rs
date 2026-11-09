@@ -38,7 +38,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_order_column_the_edges_lack_is_refused"),
         word: Word::Refuses,
         input: || Scenario::AbsentOrderColumn,
-        expect: Expect::Error(DerivedFault::NoSuchColumn { column: ColumnIndex(8) }),
+        expect: Expect::Error(DerivedFault::NoSuchColumn {
+            column: ColumnIndex(8),
+        }),
     },
 ];
 
@@ -57,7 +59,10 @@ impl CanonicalTexts for NoTexts {
 fn numbers(width: usize, cells: &[i64]) -> Table {
     Table {
         kinds: vec![CellKind::Number; width],
-        cells: cells.iter().map(|cell| Cell::Number(Integer(*cell))).collect(),
+        cells: cells
+            .iter()
+            .map(|cell| Cell::Number(Integer(*cell)))
+            .collect(),
         count: RowCount(cells.len() / width),
     }
 }
@@ -84,7 +89,13 @@ fn subject(input: Input) -> Result<Value, Failure> {
         edge: ColumnIndex(3),
         edge_keys: &[],
     };
-    let prepared = build(columns, &numbers(1, &[1]), &edges, &mut NoTexts, &mut Vec::new())?;
+    let prepared = build(
+        columns,
+        &numbers(1, &[1]),
+        &edges,
+        &mut NoTexts,
+        &mut Vec::new(),
+    )?;
     Ok(prepared.adjacency.len())
 }
 

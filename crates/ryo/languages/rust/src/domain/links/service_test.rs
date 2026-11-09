@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::service::{draw, examine, gaps_in, merged};
-use super::types::{ExternCrate, Externs, SourceDependencyLink, Linked, Run};
+use super::types::{ExternCrate, Externs, Linked, Run, SourceDependencyLink};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::module_tree::types::{
     Body, Cleanliness, Facts, ModDeclaration, Segment, Spelling, Written,
@@ -213,7 +213,13 @@ fn an_external_target_with_parent_segments() -> Repository {
 fn a_path_into_a_library_the_package_depends_on() -> Repository {
     let path = || writes(&["bee", "inner", "f"]);
     Repository {
-        files: vec!["a/Cargo.toml", "a/src/lib.rs", "b/Cargo.toml", "b/src/inner.rs", "b/src/lib.rs"],
+        files: vec![
+            "a/Cargo.toml",
+            "a/src/lib.rs",
+            "b/Cargo.toml",
+            "b/src/inner.rs",
+            "b/src/lib.rs",
+        ],
         roots: vec![("a", "a/src/lib.rs"), ("b", "b/src/lib.rs")],
         outputs: Vec::new(),
         facts: vec![
@@ -283,7 +289,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_path_into_a_library_the_package_depends_on_names_the_file_in_that_crate"),
         word: Word::Succeeds,
         input: || a_path_into_a_library_the_package_depends_on,
-        expect: Expect::Value("a/src/lib.rs -> b/src/inner.rs | a/src/lib.rs b/src/inner.rs b/src/lib.rs"),
+        expect: Expect::Value(
+            "a/src/lib.rs -> b/src/inner.rs | a/src/lib.rs b/src/inner.rs b/src/lib.rs",
+        ),
     },
     Case {
         name: CaseName("a_path_to_an_external_crate_names_nothing_of_the_repository"),
@@ -320,17 +328,25 @@ fn subject(made: Input) -> Value {
     }
     let mut externs = Externs::default();
     for (package, name, directory, root) in made.externs {
-        externs.by_package.entry(RepoPath(package.into())).or_default().entry(Segment(name.into())).or_default().push(ExternCrate {
-            directory: RepoPath(directory.into()),
-            root: RepoPath(root.into()),
-            kind: ryo::languages::DependencyKind::Normal,
-        });
+        externs
+            .by_package
+            .entry(RepoPath(package.into()))
+            .or_default()
+            .entry(Segment(name.into()))
+            .or_default()
+            .push(ExternCrate {
+                directory: RepoPath(directory.into()),
+                root: RepoPath(root.into()),
+                kind: ryo::languages::DependencyKind::Normal,
+            });
     }
     let linked = link(&files, &roots, &outputs, &known, &externs);
     let links: Vec<String> = linked
         .dependencies
         .iter()
-        .map(|SourceDependencyLink { source, target, .. }| format!("{} -> {}", files[source.0], files[target.0]))
+        .map(|SourceDependencyLink { source, target, .. }| {
+            format!("{} -> {}", files[source.0], files[target.0])
+        })
         .collect();
     let analyzed: Vec<&str> = linked
         .analyzed

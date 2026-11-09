@@ -2,12 +2,12 @@
 //! and the handles (traits this file declares) it hands back. It never takes an adapter's
 //! configuration (a directory, a budget, a client): the port's factory takes that.
 use super::types::ContextFiles;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use super::types::RawArtifacts;
 use super::types::ReceiptFile;
 use super::types::Registration;
 use super::types::Row;
 use super::types::Summary;
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;

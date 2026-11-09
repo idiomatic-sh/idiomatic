@@ -3,8 +3,8 @@
 use super::super::interface::RelationsItem as _;
 use super::item::{Mapping, MappingRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::{Bits, FileId, Integer, NodeId};
 use crate::domain::mapping_kind::types::MappingKind;
+use crate::domain::relations::types::{Bits, FileId, Integer, NodeId};
 
 /// A row to write: every column holds a number of its own, so that a column moved is a column found.
 type Input = ();

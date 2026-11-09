@@ -10,7 +10,9 @@ pub enum PublicationSlot {
 /// Each named member carries its own admission source, never just decoded words.
 #[derive(Clone)]
 pub(crate) enum BoundMember {
-    Current(crate::application::file_dag::program::observed_publication::types::ObservedPublication),
+    Current(
+        crate::application::file_dag::program::observed_publication::types::ObservedPublication,
+    ),
     Restored(crate::application::file_dag::program::restored::types::ValidatedFrontier),
 }
 
@@ -19,7 +21,8 @@ pub(crate) enum BoundMember {
 #[derive(Clone)]
 pub struct BoundInput {
     pub(crate) input: ryo_values::domain::plan_parts::types::ObservationBindingId,
-    pub(crate) members: Result<Vec<BoundMember>, ryo_execution_domain::domain::operating::errors::OperatingError>,
+    pub(crate) members:
+        Result<Vec<BoundMember>, ryo_execution_domain::domain::operating::errors::OperatingError>,
 }
 
 /// Admission preserves independent input successes and explicit refusal causes.
@@ -84,7 +87,10 @@ impl FrontierCache {
         providers: Providers,
         acquire: impl FnOnce() -> Result<PreparedFrontiers, E>,
     ) -> Result<PreparedFrontiers, E> {
-        let mut held = self.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut held = self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         held.retain(|entry| entry.rows.strong_count() > 0);
         if let Some((rows, entry)) = held.iter().find_map(|entry| {
             let key = &entry.key;
@@ -169,7 +175,8 @@ pub(crate) struct DecodedFrontier {
     pub shape: DecodeShape,
     pub mode: ryo_values::domain::table_words::types::DecodeMode,
     pub permit: ryo_language::domain::symbols::types::TransportPermit,
-    pub admitted: Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
+    pub admitted:
+        Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
 }
 
 /// The frontier decodes of one publication scope. Every rule of a cohort reads its own stored
@@ -211,17 +218,23 @@ impl FrontierDecodes {
         decode: impl FnOnce(
             PackedFrontier,
             &mut ryo_language::domain::symbols::types::Symbols,
-        ) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
-    ) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier> {
+        ) -> Result<
+            FrontierInput,
+            ryo_execution_domain::domain::frontiers::types::RefusedFrontier,
+        >,
+    ) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>
+    {
         use ryo_language::domain::symbols::{
             service::{same_transport_generation, transport_permit},
             types::Generation,
         };
         let permit = transport_permit(symbols);
         let shape = shape_of(packed.input);
-        let content = self.digest.digest(crate::outbound::digest::types::DigestBytes(
-            &packed.words.0.0,
-        ));
+        let content = self
+            .digest
+            .digest(crate::outbound::digest::types::DigestBytes(
+                &packed.words.0.0,
+            ));
         let mut decoded = self.decoded.borrow_mut();
         if let Some(found) = decoded.iter().find(|found| {
             found.shape == shape
@@ -256,7 +269,10 @@ fn shape_of(input: ryo_values::domain::plan_parts::types::Input) -> DecodeShape 
 
 /// An earlier decode as this root admits it: the shared rows under this root's input and coverage.
 fn relabel(
-    admitted: &Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier>,
+    admitted: &Result<
+        FrontierInput,
+        ryo_execution_domain::domain::frontiers::types::RefusedFrontier,
+    >,
     input: ryo_values::domain::plan_parts::types::Input,
     coverage: ryo_execution_domain::domain::completion::types::CoverageState,
 ) -> Result<FrontierInput, ryo_execution_domain::domain::frontiers::types::RefusedFrontier> {
@@ -281,10 +297,12 @@ fn relabel(
             coverage,
             ..packed
         })),
-        Err(refused) => Err(ryo_execution_domain::domain::frontiers::types::RefusedFrontier {
-            input,
-            error: refused.error,
-        }),
+        Err(refused) => Err(
+            ryo_execution_domain::domain::frontiers::types::RefusedFrontier {
+                input,
+                error: refused.error,
+            },
+        ),
     }
 }
 
@@ -302,7 +320,9 @@ impl PreparedFrontiers {
         &self.rows
     }
     /// The frontiers the preparation refused, each with its error.
-    pub(crate) fn refused(&self) -> &[ryo_execution_domain::domain::frontiers::types::RefusedFrontier] {
+    pub(crate) fn refused(
+        &self,
+    ) -> &[ryo_execution_domain::domain::frontiers::types::RefusedFrontier] {
         &self.refused
     }
     pub(crate) fn validate_scope(
@@ -310,8 +330,9 @@ impl PreparedFrontiers {
         program: &std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
     ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
-        if !std::sync::Arc::ptr_eq(&self.program, program) || self.required.same_request(required)
-            == crate::application::file_dag::program::admission::Agreement::Different
+        if !std::sync::Arc::ptr_eq(&self.program, program)
+            || self.required.same_request(required)
+                == crate::application::file_dag::program::admission::Agreement::Different
         {
             return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
         }

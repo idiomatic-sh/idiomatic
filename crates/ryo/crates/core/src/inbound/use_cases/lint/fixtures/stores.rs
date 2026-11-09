@@ -1,5 +1,13 @@
 //! The cases of every store answering alike, of syntax applicability replayed, and of project entries kept.
+use super::super::errors::LintError;
 use super::super::interface::LintUseCase as _;
+use super::given::Given;
+use super::given::SOURCES;
+use super::given::request;
+use super::lifecycle::counted_lint;
+use super::lifecycle::reading_the_project;
+use super::worlds::world;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::row_sink;
@@ -8,14 +16,6 @@ use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::runs::types::AnswerShape;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use super::given::Given;
-use super::given::SOURCES;
-use super::given::request;
-use super::lifecycle::counted_lint;
-use super::lifecycle::reading_the_project;
-use super::super::errors::LintError;
-use super::worlds::world;
-use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 /// What one whole lint answered: the rows written, what the rules could not decide, the files a rule skipped, and how many files the
 /// language parsed.
@@ -89,7 +89,8 @@ pub(crate) const THREE: [(&str, &str); 3] = [
     ("c.rs", "fn c() {}"),
 ];
 
-pub(crate) fn accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change() -> Result<(usize, usize), LintError> {
+pub(crate) fn accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change()
+-> Result<(usize, usize), LintError> {
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason};
 
     let files = vec![("a.rs", "fn a() {}"), ("b.rs", "fn b() {}")];
@@ -183,7 +184,8 @@ pub(crate) fn accepted_syntax_applicability_replays_skips_and_invalidates_on_pol
     Ok((1, 0))
 }
 
-pub(crate) fn project_entry_observations_invalidate_persisted_absence_and_presence() -> Result<(usize, usize), LintError> {
+pub(crate) fn project_entry_observations_invalidate_persisted_absence_and_presence()
+-> Result<(usize, usize), LintError> {
     let store = Arc::new(LintStoreFake::default());
     let entry = ("../pkg.py", "package = 1");
     let given = |outside: Vec<(&'static str, &'static str)>| Given {
@@ -215,7 +217,8 @@ pub(crate) fn project_entry_observations_invalidate_persisted_absence_and_presen
     Ok((1, 0))
 }
 
-pub(crate) fn project_reuse_frames_root_and_repository_and_keeps_dependency_evidence() -> Result<(usize, usize), LintError> {
+pub(crate) fn project_reuse_frames_root_and_repository_and_keeps_dependency_evidence()
+-> Result<(usize, usize), LintError> {
     use ryo_language::inbound::use_cases::project::types::Repository;
     let store = Arc::new(LintStoreFake::default());
     let invoke = |root: &'static str, repository, project| {

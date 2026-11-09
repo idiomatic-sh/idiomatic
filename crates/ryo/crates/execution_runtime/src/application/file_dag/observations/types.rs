@@ -32,7 +32,8 @@ pub(crate) struct FrontierPopulation<'a> {
 }
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
-    pub(crate) publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
+    pub(crate) publication:
+        ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
     pub(crate) token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
     pub(crate) arenas: Vec<WorkerNumber>,
 }
@@ -69,7 +70,8 @@ pub enum RuleSelection {
 /// One output of a rule with the admitted publication it delivers.
 pub struct AdmittedOutput {
     pub output: ObservationIndex,
-    pub publication: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
+    pub publication:
+        crate::application::file_dag::program::observed_publication::types::ObservedPublication,
 }
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {

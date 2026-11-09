@@ -36,13 +36,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Outcome::Holds),
     },
     Case {
-        name: CaseName("archived pairs are required for each actual binary and raw bytes are recomputed"),
+        name: CaseName(
+            "archived pairs are required for each actual binary and raw bytes are recomputed",
+        ),
         word: Word::Succeeds,
         input: || Scenario::ArchivedPairsAreRecomputed,
         expect: Expect::Value(Outcome::Holds),
     },
     Case {
-        name: CaseName("changing the raw invocation and its digest does not establish pinned settings"),
+        name: CaseName(
+            "changing the raw invocation and its digest does not establish pinned settings",
+        ),
         word: Word::Succeeds,
         input: || Scenario::RawInvocationDoesNotPinSettings,
         expect: Expect::Value(Outcome::Holds),

@@ -49,7 +49,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(input: Input) -> Result<Value, Failure> {
     let rows = Table {
         kinds: vec![CellKind::Number, CellKind::Number],
-        cells: [1, 2, 2, 3].map(|cell| Cell::Number(Integer(cell))).to_vec(),
+        cells: [1, 2, 2, 3]
+            .map(|cell| Cell::Number(Integer(cell)))
+            .to_vec(),
         count: RowCount(2),
     };
     let graph = build_borrowed(&rows, [ColumnIndex(0), ColumnIndex(1)], &[])

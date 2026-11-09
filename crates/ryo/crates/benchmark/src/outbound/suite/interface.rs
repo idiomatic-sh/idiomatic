@@ -1,7 +1,7 @@
 //! Load and validate the suite's external artifacts.
 use super::types::{
-    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, RuleQuery,
-    RetainedDirectory, SelectedName, SourceDigest,
+    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, RetainedDirectory,
+    RuleQuery, SelectedName, SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -77,10 +77,7 @@ pub trait SuitePort {
         &self,
         profile: ArtifactPath<'_>,
         owners: &[ryo::linter::RuleId],
-    ) -> Result<
-        Vec<super::types::CaseClaim>,
-        super::errors::SuiteError,
-    >;
+    ) -> Result<Vec<super::types::CaseClaim>, super::errors::SuiteError>;
     /// Validate explicit source/evidence bytes inside their physical boundaries.
     ///
     /// # Errors

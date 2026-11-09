@@ -7,7 +7,7 @@ use std::rc::Rc;
 fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases() {
     use crate::application::file_dag::program::admission::{ProducerRoot, ReadProof};
 
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+    use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     use ryo_values::domain::rows::types::{RowCount, Table};
     let CompiledCase { execution, roots } = compiled();
     let owner = Rc::clone(&execution.owner);
@@ -30,7 +30,10 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     };
     let a = owner.computed(rows.clone()).unwrap();
     let b = owner.computed(rows).unwrap();
-    assert_eq!(a.same_record(&b), ryo_execution_store::application::file_dag::relations::types::Sameness::Different);
+    assert_eq!(
+        a.same_record(&b),
+        ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+    );
     for aliases in [false, true] {
         if aliases {
             execution

@@ -1,8 +1,8 @@
 //! The generic target row follows parser configuration and is independent of source syntax.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::LanguageTargetItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ryo::languages::{self, ReadItem, contract::Want};
 
@@ -32,14 +32,12 @@ fn target_is_attached_to_source_even_when_source_is_empty() {
 }
 
 /// Each check below states its own source and asserts its own outcome.
-const CASES: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("target_is_attached_to_source_even_when_source_is_empty"),
-        word: Word::Succeeds,
-        input: || target_is_attached_to_source_even_when_source_is_empty,
-        expect: Expect::Value(()),
-    },
-];
+const CASES: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("target_is_attached_to_source_even_when_source_is_empty"),
+    word: Word::Succeeds,
+    input: || target_is_attached_to_source_even_when_source_is_empty,
+    expect: Expect::Value(()),
+}];
 
 #[test]
 fn succeeds() {

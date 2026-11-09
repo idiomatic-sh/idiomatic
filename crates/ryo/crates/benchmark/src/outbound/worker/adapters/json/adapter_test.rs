@@ -125,8 +125,18 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         std::collections::BTreeMap::default(),
         if matches!(operation, Operation::RoundTrip) {
             std::collections::BTreeMap::from([
-                (ryo_benchmark_contracts::domain::requests::types::RuleLabel("fixture".into()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("always".into())),
-                (ryo_benchmark_contracts::domain::requests::types::RuleLabel("other".into()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".into())),
+                (
+                    ryo_benchmark_contracts::domain::requests::types::RuleLabel("fixture".into()),
+                    ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy(
+                        "always".into(),
+                    ),
+                ),
+                (
+                    ryo_benchmark_contracts::domain::requests::types::RuleLabel("other".into()),
+                    ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy(
+                        "accepted-syntax".into(),
+                    ),
+                ),
             ])
         } else {
             std::collections::BTreeMap::default()
@@ -139,12 +149,16 @@ fn subject(operation: Input) -> Result<Value, Failure> {
     let request = RunRequest {
         performance: Default::default(),
         selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        rule_observations:
+            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
-        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        file_metadata:
+            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
         context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "workspace".into(),
         files: vec![ryo::linter::RelativePath("source.txt".into())],
@@ -175,8 +189,9 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             path: ryo::linter::RelativePath("source.txt".into()),
             reason: ryo::linter::SkipReason::SyntaxRejected,
         });
-        let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
-            &mut expected_report.coverage
+        let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+            coverage,
+        ) = &mut expected_report.coverage
         else {
             panic!("complete fixture coverage");
         };
@@ -200,7 +215,11 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 assert_eq!(
                     received
                         .rule_applicability
-                        .get(&ryo_benchmark_contracts::domain::requests::types::RuleLabel("other".into()))
+                        .get(
+                            &ryo_benchmark_contracts::domain::requests::types::RuleLabel(
+                                "other".into()
+                            )
+                        )
                         .map(|policy| policy.0.as_str()),
                     Some("accepted-syntax")
                 );

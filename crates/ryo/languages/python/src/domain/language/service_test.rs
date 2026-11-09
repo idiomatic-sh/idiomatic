@@ -84,11 +84,9 @@ fn explicit_primary_roles_distinguish_configuration_from_language_source() {
 }
 
 /// Each check below states its own source and asserts its own outcome.
-const CHECKS: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("explicit_primary_roles_distinguish_configuration_from_language_source"),
-        word: Word::Succeeds,
-        input: || explicit_primary_roles_distinguish_configuration_from_language_source,
-        expect: Expect::Value(()),
-    },
-];
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("explicit_primary_roles_distinguish_configuration_from_language_source"),
+    word: Word::Succeeds,
+    input: || explicit_primary_roles_distinguish_configuration_from_language_source,
+    expect: Expect::Value(()),
+}];

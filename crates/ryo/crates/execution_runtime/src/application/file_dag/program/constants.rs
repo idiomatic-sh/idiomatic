@@ -6,7 +6,8 @@ pub(super) const WALK_ROUTE: &str = "shared_walk_route";
 pub(super) const WALK_DISPATCH: &str = "shared_walk_dispatch";
 pub(super) const WALK_READY: &str = "shared_walk_ready";
 pub(super) const WALK_REFUSED: &str = "shared_walk_refused";
-pub(super) const EXECUTION_TARGET: &str = ryo_values::domain::table_words::constants::EXECUTION_TARGET;
+pub(super) const EXECUTION_TARGET: &str =
+    ryo_values::domain::table_words::constants::EXECUTION_TARGET;
 pub(super) const INPUT_ADMISSION_REFUSED: &str = "input_admission_refused";
 pub(super) const PHASE_DEPENDENCY: &str = "dependency";
 pub(super) const PHASE_AVAILABILITY: &str = "availability";

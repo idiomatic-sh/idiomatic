@@ -5,7 +5,9 @@ use super::constants::SCRATCH;
 use crate::domain::diagnostics::types::Diagnostics;
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::elements::types::Expanded;
-use ryo_relations::domain::relations::types::{Bytes, Count, Extent, FileId, Flags, KindBits, Offset, Position};
+use ryo_relations::domain::relations::types::{
+    Bytes, Count, Extent, FileId, Flags, KindBits, Offset, Position,
+};
 use ryo_relations::domain::relations::types::{FieldId, PropertyId};
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;

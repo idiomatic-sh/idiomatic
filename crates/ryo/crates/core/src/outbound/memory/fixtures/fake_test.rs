@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::MemoryFake;
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::memory::interface::MemoryPort as _;
 
@@ -41,7 +41,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_the_machine_cannot_say"),
         word: Word::Fails,
         input: || Scenario::Failing,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, MemoryError::Unreadable { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, MemoryError::Unreadable { .. })))
+        }),
     },
 ];
 

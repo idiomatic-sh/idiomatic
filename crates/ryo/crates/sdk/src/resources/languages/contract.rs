@@ -188,13 +188,15 @@ pub fn conformance_with(
         &directory.join(FIXTURES),
         expected,
         &|text| {
-            configure(FixtureText(text)).map_err(|refusal| refusal.0).map(|configured| {
-                configured.map(|context| EngineFixture {
-                    parse: context.language.parse_engine(),
-                    shape: context.shape,
-                    oracle: context.oracle,
+            configure(FixtureText(text))
+                .map_err(|refusal| refusal.0)
+                .map(|configured| {
+                    configured.map(|context| EngineFixture {
+                        parse: context.language.parse_engine(),
+                        shape: context.shape,
+                        oracle: context.oracle,
+                    })
                 })
-            })
         },
     );
 }

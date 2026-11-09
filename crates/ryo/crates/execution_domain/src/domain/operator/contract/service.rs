@@ -291,4 +291,3 @@ fn reuse_scope(effects: Effects, bindings: super::resources::BindingUse) -> Reus
         ReuseScope::Rule
     }
 }
-

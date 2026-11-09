@@ -1,9 +1,9 @@
 //! What a run reads again of what the files handed the last, and what it keeps for the next, over the store it read beside its files.
 use super::types::KeepRun;
+use crate::domain::memory_diagnostics::constants::LIFECYCLE_MEMORY_DIAGNOSTIC;
 use crate::domain::memory_diagnostics::constants::{
     AFTER_STORE_BUILD, AFTER_STORE_WRITE, BEFORE_STORE_BUILD, BEFORE_STORE_WRITE, STORE_HANDED,
 };
-use crate::domain::memory_diagnostics::constants::LIFECYCLE_MEMORY_DIAGNOSTIC;
 use crate::domain::memory_diagnostics::service::{
     memory_diagnostics, observed_records, observed_staged, observed_stored,
 };

@@ -1,6 +1,6 @@
 //! Request validation rejects unknown and missing fields without exposing wire types.
-use crate::outbound::worker::adapters::json::types::WorkerPayload;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::worker::adapters::json::types::WorkerPayload;
 use ryo_benchmark_contracts::domain::context::types::{ExternalPrefix, TableName};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::requests::types::{
@@ -92,7 +92,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Cow::Borrowed(r#"{"root":"root","rules":"rules","query_modules":{"python/ruff/suppress":"fragments/suppress.ryoql"},"files":["source.py"],"cache":null}"#),
+                Cow::Borrowed(
+                    r#"{"root":"root","rules":"rules","query_modules":{"python/ruff/suppress":"fragments/suppress.ryoql"},"files":["source.py"],"cache":null}"#,
+                ),
                 Some(explicit_query_module_registry),
             )
         },
@@ -112,12 +114,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("required request fields cannot be omitted"),
         word: Word::Refuses,
-        input: || {
-            (
-                Cow::Borrowed(r#"{"root":"root","rules":"rules"}"#),
-                None,
-            )
-        },
+        input: || (Cow::Borrowed(r#"{"root":"root","rules":"rules"}"#), None),
         expect: Expect::Error(Refusal::InvalidJson),
     },
     Case {
@@ -125,7 +122,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Cow::Borrowed(r#"{"root":"root","rules":"rules","files":["source.py"],"cache":null}"#),
+                Cow::Borrowed(
+                    r#"{"root":"root","rules":"rules","files":["source.py"],"cache":null}"#,
+                ),
                 Some(legacy_absence),
             )
         },
@@ -136,7 +135,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             (
-                Cow::Borrowed(r#"{"root":"root","rules":"rules","files":["source.py"],"cache":null,"selected_rules":["F401","RUF100"]}"#),
+                Cow::Borrowed(
+                    r#"{"root":"root","rules":"rules","files":["source.py"],"cache":null,"selected_rules":["F401","RUF100"]}"#,
+                ),
                 Some(explicit_cohort),
             )
         },

@@ -2,7 +2,6 @@
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::FileGeneration;
 use crate::application::file_dag::program::admission::Partition;
-use ryo_execution_store::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
 use crate::application::file_dag::program::constants::{
     FILE_OWNER_FINISH, PRODUCER_COVERAGE_INCOMPLETE,
 };
@@ -11,27 +10,28 @@ use crate::application::file_dag::program::facade_runtime::types::ProgramService
 use crate::application::file_dag::program::facade_runtime::types::{
     FileRoot, FrontierCommit, ObservationKey, PreparedNamed, WalkPreparation,
 };
-use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
-use ryo_execution_domain::domain::operator::types::LogicalCounts;
 #[cfg(test)]
 use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
-use ryo_execution_store::application::file_dag::service::open_program_owner;
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::types::LogicalCounts;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::derived::constants::TARGET_RESOURCE_ROUTES;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::files::types::SourceView;
 #[cfg(test)]
 use ryo_values::domain::rows::types::Table;
-use rustc_hash::FxHashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -39,6 +39,10 @@ use std::sync::Arc;
 use crate::application::file_dag::program::admission::Inputs;
 #[cfg(test)]
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
+#[cfg(test)]
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+#[cfg(test)]
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 #[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 #[cfg(test)]
@@ -49,10 +53,6 @@ use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 #[cfg(test)]
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-#[cfg(test)]
-use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
-#[cfg(test)]
-use ryo_execution_domain::domain::operator::types::OperatorContext;
 
 mod emission;
 mod frontier;
@@ -88,7 +88,9 @@ pub(crate) fn open_file<'a>(
     reuse_eligible: ReuseEligibility,
     symbols: &mut ryo_language::domain::symbols::types::Symbols,
     semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
-    kinds: Option<Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
+    kinds: Option<
+        Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>,
+    >,
 ) -> Result<FileRun<'a>, OperatingError> {
     if intents.len() != program.rule_count().0 {
         return Err(OperatingError::ShapeMismatch);
@@ -101,7 +103,9 @@ pub(crate) fn open_file<'a>(
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
     }
-    let routes = ryo_execution_store::application::file_dag::route_counts::types::FileScope::begin(file.0 as usize);
+    let routes = ryo_execution_store::application::file_dag::route_counts::types::FileScope::begin(
+        file.0 as usize,
+    );
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(path) = services.request.path(file) {
         routes.profile().file_name(path);
@@ -178,21 +182,28 @@ impl FileRun<'_> {
         &self,
         rule: RuleIndex,
         step: ryo_values::domain::plan_parts::types::StepId,
-    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+    ) -> Result<
+        ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
+        OperatingError,
+    > {
         self.execution
             .route_observation(self.execution.file_state(), rule, step)
     }
     #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn resource_fixture_counts(
         &self,
-    ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot {
+    ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot
+    {
         self.owner.derived().resource_fixture_counts()
     }
     #[cfg(test)]
     pub(crate) fn observation_routes(
         &self,
         slot: ryo_values::domain::records::types::ObservationIndex,
-    ) -> Result<ryo_execution_domain::domain::operating::fixtures::ExecutionObservation, OperatingError> {
+    ) -> Result<
+        ryo_execution_domain::domain::operating::fixtures::ExecutionObservation,
+        OperatingError,
+    > {
         let region = self
             .program
             .program()
@@ -204,10 +215,14 @@ impl FileRun<'_> {
         self.execution
             .region_observation(self.execution.file_state(), *region)
     }
-    pub(crate) fn readiness_counts(&self) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
+    pub(crate) fn readiness_counts(
+        &self,
+    ) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
         self.execution.readiness_counts()
     }
-    pub(crate) fn walk_counts(&self) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
+    pub(crate) fn walk_counts(
+        &self,
+    ) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
         self.walk.counts()
     }
     pub(crate) fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError> {
@@ -277,9 +292,8 @@ fn readiness_of(
 
 pub(super) fn classify(error: OperatingError) -> RootOutcome {
     match error {
-        OperatingError::ObservationIncomplete { .. } | OperatingError::SemanticIncomplete { .. } => {
-            RootOutcome::Unknown(error)
-        }
+        OperatingError::ObservationIncomplete { .. }
+        | OperatingError::SemanticIncomplete { .. } => RootOutcome::Unknown(error),
         other => RootOutcome::Failed(other),
     }
 }

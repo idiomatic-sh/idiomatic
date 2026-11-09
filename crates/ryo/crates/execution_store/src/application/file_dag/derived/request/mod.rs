@@ -39,10 +39,7 @@ impl RequestViews {
         }
     }
     /// Bind finite semantic requirements once per compiled operator. No rows or cache are read here.
-    pub fn bind(
-        &mut self,
-        contract: &mut OperatorContract,
-    ) -> Result<(), OperatingError> {
+    pub fn bind(&mut self, contract: &mut OperatorContract) -> Result<(), OperatingError> {
         self.logical.clear();
         self.logical
             .extend_from_slice(ryo_values::domain::plans::service::named(&contract.inputs));

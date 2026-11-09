@@ -4,7 +4,9 @@ use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, RuleLabel, RunRequest};
+use ryo_benchmark_contracts::domain::requests::types::{
+    ApplicabilityPolicy, RuleLabel, RunRequest,
+};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -171,10 +173,12 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
                         "Ruff JSON findings format has no rule/file execution accounting".into(),
                     ),
                 },
-            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+            project_context:
+                ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics,
             skipped: Vec::new(),
-            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
+            coverage:
+                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
             files: request.files.clone(),
         })
     }

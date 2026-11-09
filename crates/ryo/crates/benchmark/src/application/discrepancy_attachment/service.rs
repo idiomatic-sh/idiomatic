@@ -45,7 +45,10 @@ pub(crate) fn attach(
                 case.rule.as_ref() == claim.rule.0 && case.name.to_string() == claim.name.0
             })
             .ok_or(Failure::ExpectationOutsideInventory)?;
-        if !matches!(case.reference_discrepancy, PreparedReferenceBehavior::Agrees) {
+        if !matches!(
+            case.reference_discrepancy,
+            PreparedReferenceBehavior::Agrees
+        ) {
             return Err(Failure::DuplicateCanonicalExpectation);
         }
         case.reference_discrepancy =

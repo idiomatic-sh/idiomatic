@@ -6,13 +6,13 @@ use crate::application::file_dag::derived::owner::index::service as indexes;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
 use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
     ryo_execution_domain::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 
 fn source() -> Table {
     let mut table = Table {
@@ -28,9 +28,8 @@ fn source() -> Table {
 fn plan() -> Arc<DerivedContract> {
     Arc::new(
         crate::application::file_dag::derived::prepare::view(
-            (std::sync::Arc::new(
-                crate::application::file_dag::fixtures::derived(),
-            ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+            (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+                as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             &ViewRequest::PartitionOrder {
                 keys: vec![ColumnIndex(0)],
             },

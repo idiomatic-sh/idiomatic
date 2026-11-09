@@ -3,10 +3,12 @@ use super::super::{ProjectSources, observation_slot};
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::constants::BOUND_PRODUCER_UNAVAILABLE;
-use crate::application::file_dag::program::facade_runtime::types::{CachedInput, OrdinaryPlace, Provision};
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use crate::application::file_dag::program::facade_runtime::types::{
+    CachedInput, OrdinaryPlace, Provision,
+};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use std::rc::Rc;
 
 impl ProjectSources<'_> {
@@ -82,9 +84,10 @@ impl ProjectSources<'_> {
             }
         }
         if let InputSource::ObservationMember {
-                slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
-                member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
-            } = source {
+            slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+            member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
+        } = source
+        {
             for bound in &mut *self.bound {
                 let Some(binding) = bound.as_mut() else {
                     continue;
@@ -130,9 +133,9 @@ impl ProjectSources<'_> {
                 let result = result.map(AvailableInput::published);
                 if let Ok(input) = &result {
                     self.cache.push(CachedInput {
-                    source,
-                    input: input.clone(),
-                });
+                        source,
+                        input: input.clone(),
+                    });
                 }
                 return Some(result);
             }

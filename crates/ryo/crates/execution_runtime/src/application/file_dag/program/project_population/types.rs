@@ -1,10 +1,10 @@
 //! Structural source and invocation records have no facade or evaluation dependency.
-use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
 use ryo_execution_domain::domain::{
     completion::types::{CoverageState, completion_policy::value::CompletionPolicy},
     executable_program::types::InputSource,
     operating::errors::OperatingError,
 };
+use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
 use ryo_values::domain::{plan_parts::types::Input, rows::types::Table};
 use std::{cell::OnceCell, sync::Arc};
 #[derive(Clone, PartialEq, Eq)]
@@ -29,8 +29,7 @@ pub(crate) struct ProjectInvocationKey<R> {
 }
 #[derive(PartialEq, Eq)]
 pub(crate) struct ProjectRefusal {
-    pub(crate) source:
-        Option<Result<InputSource, OperatingError>>,
+    pub(crate) source: Option<Result<InputSource, OperatingError>>,
     pub(crate) input: Input,
     pub(crate) error: OperatingError,
 }

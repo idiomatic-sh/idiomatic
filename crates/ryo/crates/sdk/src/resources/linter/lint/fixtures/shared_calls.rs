@@ -1,5 +1,7 @@
 //! The test data of `linter lint` that fixes shared.
 
+use super::outcome::Outcome;
+use super::queries::HOSTED;
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::Cell;
 use crate::domain::cell::types::HostText;
@@ -21,8 +23,6 @@ use crate::resources::linter::lint::types::SourceText;
 use crate::resources::linter::lint::types::Workers;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
-use super::outcome::Outcome;
-use super::queries::HOSTED;
 
 /// The two calls the shared-linter row tells apart: one rule id, two queries, two declarations of the host, two sets of globs and
 /// two sets of files given as text.

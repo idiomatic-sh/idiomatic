@@ -1,5 +1,5 @@
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::outbound::facts::errors::FactsError;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 /// Why the frontiers of one rule could not be prepared.
 #[derive(Debug, thiserror::Error)]

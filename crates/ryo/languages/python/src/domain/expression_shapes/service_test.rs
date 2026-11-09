@@ -1,7 +1,4 @@
 //! Independent AST identity examples; no reference linter supplies these expected classes.
-use crate::domain::constant_keys::types::RetainedKeyIndex;
-use ryo::languages;
-use ryo::languages::Position;
 use super::service::clear;
 use super::service::intern;
 use super::service::prepare;
@@ -11,6 +8,7 @@ use crate::cases::CaseName;
 use crate::cases::Expect;
 use crate::cases::Word;
 use crate::cases::run;
+use crate::domain::constant_keys::types::RetainedKeyIndex;
 use crate::domain::model::types::Declarations;
 use crate::domain::model::types::ShapeHash;
 use crate::domain::model::types::ShapeState;
@@ -20,7 +18,9 @@ use crate::domain::syntax::service::category;
 use crate::domain::syntax::service::written;
 use crate::fixtures::reading::initialize_model;
 use crate::fixtures::reading::parsed;
+use ryo::languages;
 use ryo::languages::ByteSlice;
+use ryo::languages::Position;
 use ryo::languages::Tree;
 type Input = (&'static str, &'static str, &'static str);
 type Value = bool;

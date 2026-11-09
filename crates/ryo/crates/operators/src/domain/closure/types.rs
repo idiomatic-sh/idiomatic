@@ -28,10 +28,7 @@ pub trait ClosureDriver {
         key: &mut Vec<ryo_relations::domain::relations::types::Value>,
     ) -> Result<(), crate::domain::contract::types::PortableOperatorFault>;
     /// How many sources a partition has.
-    fn sources(
-        &self,
-        partition: PartitionPlace,
-    ) -> ryo_relations::domain::relations::types::Count;
+    fn sources(&self, partition: PartitionPlace) -> ryo_relations::domain::relations::types::Count;
     /// One source of a partition; none when the partition has no source at that place.
     ///
     /// # Errors

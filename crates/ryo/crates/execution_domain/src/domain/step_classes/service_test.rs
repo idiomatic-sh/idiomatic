@@ -180,7 +180,11 @@ fn only_referenced_slots_must_match_including_left_operands_and_duplicate_reads(
     let pair = [selected.clone(), selected];
     let equal = [
         vec![text("unused-a"), text("word")],
-        vec![ParameterBinding::Number(WholeNumber(999)), text("word"), text("unused-b")],
+        vec![
+            ParameterBinding::Number(WholeNumber(999)),
+            text("word"),
+            text("unused-b"),
+        ],
     ];
     assert_eq!(classes(&pair, &equal), 1);
     let changed = [
@@ -190,7 +194,10 @@ fn only_referenced_slots_must_match_including_left_operands_and_duplicate_reads(
     assert_eq!(classes(&pair, &changed), 2);
     let wrong_type = [
         vec![text("same-unused"), text("1")],
-        vec![text("same-unused"), ParameterBinding::Number(WholeNumber(1))],
+        vec![
+            text("same-unused"),
+            ParameterBinding::Number(WholeNumber(1)),
+        ],
     ];
     assert_eq!(classes(&pair, &wrong_type), 2);
 }
@@ -216,7 +223,10 @@ fn nested_function_parameters_are_referenced_but_unread_slots_are_not() {
             vec![text("unused-a"), text("word")],
             vec![text("unused-b"), second],
         ];
-        assert_eq!(classes(&[selected.clone(), selected.clone()], &bindings), expected);
+        assert_eq!(
+            classes(&[selected.clone(), selected.clone()], &bindings),
+            expected
+        );
     }
     let unread = [vec![text("unused-a")], vec![text("unused-b")]];
     assert_eq!(classes(&[selected.clone(), selected], &unread), 2);
@@ -312,7 +322,10 @@ fn a_class_never_spans_two_partitions() {
     let merged = merge(&[frontier], &[Vec::new()]);
     assert_eq!(
         merged.class_of[0],
-        vec![Some(crate::domain::step_classes::types::ClassPlace(0)), None]
+        vec![
+            Some(crate::domain::step_classes::types::ClassPlace(0)),
+            None
+        ]
     );
 }
 

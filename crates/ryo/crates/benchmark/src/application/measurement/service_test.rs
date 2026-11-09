@@ -56,7 +56,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(2),
     },
     Case {
-        name: CaseName("an untimed run drops only the thread pin; the linter's own variable survives"),
+        name: CaseName(
+            "an untimed run drops only the thread pin; the linter's own variable survives",
+        ),
         word: Word::Succeeds,
         input: || Scenario::Pinned(Pinning::Untimed),
         expect: Expect::Value(1),
@@ -68,7 +70,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("an untimed run launches the ryo adapter without the thread pin it prepared"),
+        name: CaseName(
+            "an untimed run launches the ryo adapter without the thread pin it prepared",
+        ),
         word: Word::Succeeds,
         input: || Scenario::AdapterPin(Pinning::Untimed),
         expect: Expect::Value(0),
@@ -122,10 +126,11 @@ fn plain() -> Result<Value, Error> {
 
 fn observation_bearing() -> Result<Value, Error> {
     let mut request = request();
-    request.file_metadata = FileMetadataDeclaration::Declared(std::collections::BTreeMap::from([(
-        request.files[0].clone(),
-        FileExecutable::Unset,
-    )]));
+    request.file_metadata =
+        FileMetadataDeclaration::Declared(std::collections::BTreeMap::from([(
+            request.files[0].clone(),
+            FileExecutable::Unset,
+        )]));
     let execution = succeeding();
     let result = measure(
         &crate::outbound::context::factory::local(),
@@ -163,9 +168,17 @@ fn pinned(pinning: Pinning) -> Result<Value, Error> {
         pinning,
     )?;
     let names = last_environment(&execution).unwrap_or_default();
-    let thread_pin = names.contains(ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN);
-    assert_eq!(thread_pin, pinning == Pinning::Timed, "the thread pin stands only in a timed run");
-    assert!(names.contains("LINTER_HOME"), "a variable that is not the thread pin survives: {names}");
+    let thread_pin =
+        names.contains(ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN);
+    assert_eq!(
+        thread_pin,
+        pinning == Pinning::Timed,
+        "the thread pin stands only in a timed run"
+    );
+    assert!(
+        names.contains("LINTER_HOME"),
+        "a variable that is not the thread pin survives: {names}"
+    );
     Ok(names.split(',').filter(|name| !name.is_empty()).count())
 }
 
@@ -194,7 +207,9 @@ fn adapter_pin(pinning: Pinning) -> Result<Value, Error> {
         pinning,
     );
     if history_len(&execution) != Some(1) {
-        return Err(Error::Invalid("the adapter was not launched exactly once".into()));
+        return Err(Error::Invalid(
+            "the adapter was not launched exactly once".into(),
+        ));
     }
     let names = last_environment(&execution)
         .ok_or_else(|| Error::Invalid("no launch was recorded".into()))?;

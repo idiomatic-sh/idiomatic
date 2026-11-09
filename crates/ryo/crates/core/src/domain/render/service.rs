@@ -3,8 +3,8 @@
 //! time, as the row is made; no cell becomes text for a reader in the core.
 
 use ryo_language::domain::elements::service::start_at;
-use ryo_language::domain::symbols::service::place_of;
 use ryo_language::domain::names::service::places_of;
+use ryo_language::domain::symbols::service::place_of;
 use ryo_relations::domain::relations::service::{node_file, node_position};
 use ryo_relations::domain::relations::types::{Integer, Name, NodeId, Value};
 

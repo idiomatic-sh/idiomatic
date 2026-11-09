@@ -6,10 +6,10 @@ use crate::domain::keeping::service::configuration_bytes;
 use crate::domain::keeping::types::{Configuration, DigestInput, DigestPart, HostedText};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// What is read of the rules and the relations the host declares (as their lines, spelled once per run however many rules
 /// are digested) to say whether what the store kept of the rules can be used, as the bytes to digest.

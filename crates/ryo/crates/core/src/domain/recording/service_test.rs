@@ -6,11 +6,11 @@ use ryo_relations::domain::relations::types::{
     CellKind, FileId, Integer, Relation, Value as Cell, Words, WorkerNumber,
 };
 use ryo_values::domain::descriptions::types::RelationName;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::records::types::Kept;
 use ryo_values::domain::stored_facts::types::{ArenaBase, Bucket, Digest, KeptWords};
 
@@ -177,7 +177,8 @@ fn cover_scenario(partials: Vec<Partial>, mask: Mask) -> Result<Value, Failure> 
     let mut worker = tables();
     worker.partials = partials;
     worker.mask = mask;
-    cover(&MetadataUseCaseImpl, 
+    cover(
+        &MetadataUseCaseImpl,
         &mut worker,
         &setting,
         FileId(3),

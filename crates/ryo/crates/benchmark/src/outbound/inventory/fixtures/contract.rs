@@ -1,7 +1,7 @@
 //! What every `inventory` adapter must pass.
+use super::data::{row, summary};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::interface::InventoryPort;
-use super::data::{row, summary};
 use crate::outbound::inventory::types::ReceiptFile;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;

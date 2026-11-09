@@ -1,7 +1,9 @@
 //! Retained findings depend on actual producer digests, through original rule indices.
 use super::constants::OBSERVATION_PRODUCERS_DOMAIN;
 use super::errors::RuleCompilationError;
-use ryo_execution_domain::domain::file_program::types::{ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule};
+use ryo_execution_domain::domain::file_program::types::{
+    ResolvedObservationBinding, ResolvedObservationProducer, RuleSchedule,
+};
 use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 use ryo_execution_runtime::outbound::digest::{interface::DigestPort, types::DigestBytes};
 use ryo_values::domain::stores::types::{Crossing, StoredRule};
@@ -79,13 +81,13 @@ pub(crate) fn with_producers(
         ];
         let mut across = own.crossing == Crossing::Across;
         for input in inputs {
-            across |= input.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile;
+            across |=
+                input.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile;
             for producer in &input.producers {
                 match producer {
                     ResolvedObservationProducer::Output { rule, .. } => {
-                        let upstream = rules
-                            .get(rule.0)
-                            .ok_or(RuleIntentError::InvalidReference)?;
+                        let upstream =
+                            rules.get(rule.0).ok_or(RuleIntentError::InvalidReference)?;
                         parts.push(upstream.digest);
                         across |= upstream.crossing == Crossing::Across;
                     }
@@ -105,8 +107,9 @@ pub(crate) fn with_producers(
     }
     Ok(super::types::PreparedRuleIdentities {
         rules,
-        observations: ryo_execution_domain::domain::prepared_request::types::ObservationIdentity::Named(
-            ryo_values::domain::records::types::ObservationReadinessLayout(layout),
-        ),
+        observations:
+            ryo_execution_domain::domain::prepared_request::types::ObservationIdentity::Named(
+                ryo_values::domain::records::types::ObservationReadinessLayout(layout),
+            ),
     })
 }

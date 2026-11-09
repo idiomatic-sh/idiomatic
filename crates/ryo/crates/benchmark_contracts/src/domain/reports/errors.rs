@@ -19,7 +19,9 @@ pub enum ReportsError {
 impl From<crate::domain::artifacts::errors::ArtifactsError> for ReportsError {
     fn from(error: crate::domain::artifacts::errors::ArtifactsError) -> Self {
         match error {
-            crate::domain::artifacts::errors::ArtifactsError::Invalid(reason) => Self::Invalid(reason),
+            crate::domain::artifacts::errors::ArtifactsError::Invalid(reason) => {
+                Self::Invalid(reason)
+            }
         }
     }
 }

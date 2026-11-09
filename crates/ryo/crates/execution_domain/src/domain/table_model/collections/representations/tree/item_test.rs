@@ -1,10 +1,10 @@
 //! The tree item reads the elements and the edges of a syntax tree from the tree itself and refuses every other representation.
-use crate::domain::table_model::types::PhysicalShape;
 use super::super::interface::RepresentationsItem;
-use crate::domain::table_model::types::RepresentationInput;
 use super::item::TreeItem;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use crate::domain::table_model::types::PhysicalShape;
+use crate::domain::table_model::types::RepresentationInput;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
@@ -22,7 +22,10 @@ fn reads_the_elements_and_the_edges_of_a_tree() -> Result<(), OperatingError> {
     let mut named = completion(&mut elements, &mut symbols, ByteSlice(bytes), FileId(7));
     name_kind(&mut named, KindBits(0), NameText("module"));
     name_kind(&mut named, KindBits(1), NameText("name"));
-    for (form, rows) in [(TreeForm::Elements, RowCount(2)), (TreeForm::Edges, RowCount(1))] {
+    for (form, rows) in [
+        (TreeForm::Elements, RowCount(2)),
+        (TreeForm::Edges, RowCount(1)),
+    ] {
         let raw = RepresentationInput::Tree(TreeRows {
             elements: &elements,
             file: FileId(7),

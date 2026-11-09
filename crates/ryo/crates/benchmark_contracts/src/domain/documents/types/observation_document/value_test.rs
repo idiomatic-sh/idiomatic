@@ -1,6 +1,6 @@
 //! Which side of a row an identity belongs to orders reference before candidate.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::value::{IntentMatch, RecordedReason};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::documents::types::text::value::{ContestantSide, ReasonText, YesNo};
 use std::cmp::Ordering;
 
@@ -35,7 +35,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(match scenario {
-        Scenario::SidesOrder => ContestantSide::Reference.cmp(&ContestantSide::Candidate) == Ordering::Less,
+        Scenario::SidesOrder => {
+            ContestantSide::Reference.cmp(&ContestantSide::Candidate) == Ordering::Less
+        }
         Scenario::ReasonKeepsWords => {
             RecordedReason::Stated(ReasonText("why".into())) != RecordedReason::Absent
         }

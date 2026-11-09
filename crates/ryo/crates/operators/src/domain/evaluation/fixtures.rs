@@ -1,9 +1,12 @@
 //! The test support of the `evaluation` concept: an engine driver held in memory, which lends scripted axis,
 //! closure, ordered depth-first and population resources and keeps every row it is given.
 use crate::domain::axis::types::{AxisAdmission, AxisCandidates, AxisDriver, AxisEvaluation};
-use crate::domain::closure::types::{ClosureDriver, ClosureEvaluation};
-use crate::domain::contract::types::{FirstOccurrence, GroupSummary, Occurrences, PortableOperatorFault, PredicateOutcome, RenderKind, RightColumns, RowDriver, RowRead, TextFound, TextScratch, VertexPlace};
 use crate::domain::closure::types::PartitionPlace;
+use crate::domain::closure::types::{ClosureDriver, ClosureEvaluation};
+use crate::domain::contract::types::{
+    FirstOccurrence, GroupSummary, Occurrences, PortableOperatorFault, PredicateOutcome,
+    RenderKind, RightColumns, RowDriver, RowRead, TextFound, TextScratch, VertexPlace,
+};
 use crate::domain::cycles::types::{CycleDriver, CyclesEvaluation};
 use crate::domain::equality_join::types::{JoinDriver, JoinEvaluation};
 use crate::domain::ordered_dfs::types::{DfsDriver, DfsEvaluation, OrderedEdge};
@@ -276,7 +279,9 @@ impl Occurrences for FakeDriver {
         &self,
         _regex: &ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
         _text: ryo_matching::inbound::use_cases::matching::types::SearchText<'_>,
-        _each: &mut dyn FnMut(ryo_matching::inbound::use_cases::matching::types::TextSpan) -> ControlFlow<()>,
+        _each: &mut dyn FnMut(
+            ryo_matching::inbound::use_cases::matching::types::TextSpan,
+        ) -> ControlFlow<()>,
     ) -> ControlFlow<()> {
         ControlFlow::Continue(())
     }

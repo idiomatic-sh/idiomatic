@@ -1,12 +1,12 @@
 //! One part of the executable-program service: equivalent drafted regions of different rules compute once.
-use crate::domain::operator::types::ReaderMultiplicity;
 use super::fusion::types::RegionSharing;
 use super::types::instruction::value::Instruction;
 use super::types::{
     ComparisonCount, DraftIndex, DraftRegion, Equivalence, LogicalInstruction, RegionBucket,
     RegionMerge,
 };
-use crate::domain::file_program::types::{ProgramNodeId, NodeInput};
+use crate::domain::file_program::types::{NodeInput, ProgramNodeId};
+use crate::domain::operator::types::ReaderMultiplicity;
 
 /// The canonical inputs of a region: producers named by the region that now serves them.
 /// Built once per region; every later comparison and lookup reads this form.
@@ -84,11 +84,9 @@ pub(super) fn merge_equivalent(
         let twin = buckets.get(&key).and_then(|candidates| {
             candidates.iter().copied().find(|earlier| {
                 merge.comparisons = ComparisonCount(merge.comparisons.0 + 1);
-                drafts[*earlier]
-                    .as_ref()
-                    .is_some_and(|kept| {
-                        equivalent(kept, &kept_inputs[*earlier], draft, &inputs) == Equivalence::Same
-                    })
+                drafts[*earlier].as_ref().is_some_and(|kept| {
+                    equivalent(kept, &kept_inputs[*earlier], draft, &inputs) == Equivalence::Same
+                })
             })
         });
         let Some(twin) = twin else {

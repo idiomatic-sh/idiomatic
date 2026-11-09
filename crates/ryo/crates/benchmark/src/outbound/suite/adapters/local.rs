@@ -1,14 +1,14 @@
 //! Local boundary implementation.
-pub(crate) mod adapter;
 mod accepted;
+pub(crate) mod adapter;
 mod constants;
-mod rule_cases;
 mod corpus;
 mod declarations;
 mod evidence;
 mod file_metadata;
 mod process;
 mod reference;
+mod rule_cases;
 mod selection;
 mod tool;
 mod writer;
@@ -18,7 +18,3 @@ mod adapter_test;
 
 #[cfg(any(test, feature = "fixtures"))]
 mod fixtures;
-
-
-
-

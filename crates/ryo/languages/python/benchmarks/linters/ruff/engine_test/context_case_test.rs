@@ -119,17 +119,22 @@ pub(super) fn check_case(
     )
     .run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(super::prepared_engine_test::fixture_cohort(&[
-            "INPUT",
-            "FLAG",
-            "EAGER",
-            "POSTPONED",
-            "DEFERRED",
-            "UNEVALUATED",
-        ])),
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+            super::prepared_engine_test::fixture_cohort(&[
+                "INPUT",
+                "FLAG",
+                "EAGER",
+                "POSTPONED",
+                "DEFERRED",
+                "UNEVALUATED",
+            ]),
+        ),
+        rule_observations:
+            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: ProjectContextMode::Isolated,
         context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
@@ -137,12 +142,16 @@ pub(super) fn check_case(
         rules: root.join("rules"),
         query_modules: super::prepared_engine_test::module_names(modules.clone()),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        parser_configuration:
+            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language:
+            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath(case.file.clone().into())],
         state: WorkerState::Fresh,
     })?;
-    let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) = report.coverage else {
+    let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
+        report.coverage
+    else {
         return Err(Error::Invalid("context helper coverage is required".into()));
     };
     assert_eq!(

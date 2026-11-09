@@ -2,8 +2,8 @@
 //! The `cross_file` service's cases, on values alone.
 
 use super::fixtures::{counting_plan, frontier_rows, todo, world};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
@@ -270,7 +270,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([0, 0, 0]),
     },
     Case {
-        name: CaseName("ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order"),
+        name: CaseName(
+            "ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order",
+        ),
         word: Word::Succeeds,
         input: || Scenario::OrdinaryOrder,
         expect: Expect::Value([0, 0, 0]),

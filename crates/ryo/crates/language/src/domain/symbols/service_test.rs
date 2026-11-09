@@ -8,11 +8,11 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::names::service::{derived_of, name_count, name_of};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::{QuerySymbols, SymbolStorage, Symbols, SymbolsEngine};
+use ryo_relations::domain::declaration_kind::types::DeclarationKind;
 use ryo_relations::domain::relations::types::{
     Bytes, CROSS_FILE, Count, FileId, Offset, Origin, Span, TextHash, WorkerNumber,
 };
 use ryo_relations::domain::terms::service::term_symbol;
-use ryo_relations::domain::declaration_kind::types::DeclarationKind;
 use ryo_relations::domain::terms::types::NameText;
 
 /// A scenario: what a row asks of the service.

@@ -42,7 +42,12 @@ pub(crate) fn bound(tree: &Tree<'_>, model: &Declarations) {
 }
 
 /// Pushes every definition from `from` to the end of the table, keeping the index sorted.
-fn collect(tree: &Tree<'_>, from: Position, model: &Declarations, bindings: &mut Vec<LexicalBinding>) {
+fn collect(
+    tree: &Tree<'_>,
+    from: Position,
+    model: &Declarations,
+    bindings: &mut Vec<LexicalBinding>,
+) {
     let previous = bindings.len();
     for at in (from.0..languages::end_of(tree.elements).0).map(Position) {
         if let Some(found) = definition(tree, model, at) {

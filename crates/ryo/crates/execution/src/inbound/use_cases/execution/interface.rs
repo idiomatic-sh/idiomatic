@@ -4,8 +4,8 @@ use ryo_values::domain::files::types::CorpusInput;
 // The application handles and protocol traits the contract is made of.
 pub use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::BoundInput;
-pub use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
+pub use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
 pub use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
 pub use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
@@ -54,13 +54,13 @@ pub use ryo_execution_domain::domain::coverage::types::Partial;
 pub use ryo_execution_domain::domain::coverage::types::Partials;
 pub use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 pub use ryo_execution_domain::domain::coverage::types::RuleIndex;
-pub use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 pub use ryo_execution_domain::domain::file_program::types::ObservedFrontierRoot;
-pub use ryo_execution_domain::domain::operator::types::Counting;
 pub use ryo_execution_domain::domain::finish::types::Arena;
 pub use ryo_execution_domain::domain::operating::errors::OperatingError;
 pub use ryo_execution_domain::domain::operating::types::SemanticLookup;
+pub use ryo_execution_domain::domain::operator::types::Counting;
 pub use ryo_execution_domain::domain::operator::types::RowsFed;
+pub use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 pub use ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason;
 pub use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 pub use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
@@ -71,5 +71,9 @@ pub use ryo_execution_domain::domain::trust::types::RelationRead;
 /// What `execution` offers its callers.
 pub trait ExecutionUseCase {
     /// Begins a request execution over a prepared program and the corpus it runs on.
-    fn execution(&self, program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution;
+    fn execution(
+        &self,
+        program: &PreparedExecutionProgram,
+        corpus: &[CorpusInput],
+    ) -> RequestExecution;
 }

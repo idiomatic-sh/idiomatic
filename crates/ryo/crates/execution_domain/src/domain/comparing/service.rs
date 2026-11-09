@@ -21,7 +21,8 @@ use crate::domain::operating::service::family_of;
 use crate::domain::operating::types::{ComparisonNumber, Family, Memo, NameCount};
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::{
-    ComparisonNumbers, ComparisonSlot, SelectScratch, GlobSubject, MemoPlace, MemoSlot, SubjectHash, SubjectTag, VerdictKey,
+    ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SelectScratch,
+    SubjectHash, SubjectTag, VerdictKey,
 };
 use crate::domain::table_texts::types::Texts;
 use ryo_matching::inbound::use_cases::matching::compiled::CompiledTextGlobs;

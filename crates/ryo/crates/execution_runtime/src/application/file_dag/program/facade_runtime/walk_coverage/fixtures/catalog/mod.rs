@@ -1,14 +1,15 @@
 //! The relation-catalog corpus: every catalog relation under every head shape.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::{
-    executable_program::value::ExecutableProgram, PartitionRequirement, ProducerPartitions,
+    PartitionRequirement, ProducerPartitions, executable_program::value::ExecutableProgram,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::service::ALL;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, PlanComparison, HostedNumber, Input, Operand, ParameterId, RepeatedRows, StepId, Test,
+    ColumnIndex, HostedNumber, Input, Operand, ParameterId, PlanComparison, RepeatedRows, StepId,
+    Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 
@@ -43,7 +44,8 @@ impl ProducerPartitions for FileSources {
 }
 pub(crate) struct CompiledCorpus {
     pub(crate) program: ExecutableProgram,
-    pub(crate) walk: ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
+    pub(crate) walk:
+        ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }
 pub(crate) fn compiled() -> CompiledCorpus {
     let mut plans = Vec::new();
@@ -163,7 +165,10 @@ pub(crate) fn compiled() -> CompiledCorpus {
 pub(crate) fn prepare(
     plans: &[ryo_values::domain::plans::types::Plan],
     operated: &[ryo_values::domain::plans::types::Plan],
-) -> (ExecutableProgram, ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk) {
+) -> (
+    ExecutableProgram,
+    ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
+) {
     let bindings = vec![vec![]; plans.len()];
     let operators = crate::application::file_dag::service::prepare_with_schemas(
         operated,
@@ -173,10 +178,15 @@ pub(crate) fn prepare(
         crate::application::file_dag::fixtures::real_derived_port(),
     )
     .unwrap();
-    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared(plans, &operators);
-    let program =
-        ryo_execution_domain::domain::executable_program::service::compile(plans, graph, &FileSources, &operators)
-            .unwrap();
+    let graph =
+        ryo_execution_domain::domain::file_program::service::compile_prepared(plans, &operators);
+    let program = ryo_execution_domain::domain::executable_program::service::compile(
+        plans,
+        graph,
+        &FileSources,
+        &operators,
+    )
+    .unwrap();
     let walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(plans, &bindings);
     (program, walk)
 }

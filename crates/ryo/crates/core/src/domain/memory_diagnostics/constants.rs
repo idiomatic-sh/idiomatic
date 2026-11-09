@@ -38,4 +38,5 @@ pub(crate) const BEFORE_STORE_BUILD: MemoryPhase = MemoryPhase("before_store_bui
 pub(crate) const BEFORE_CROSS_CLEANUP: MemoryPhase = MemoryPhase("before_cross_cleanup");
 
 /// The tracing target of the lifecycle memory diagnostics.
-pub(crate) const LIFECYCLE_MEMORY_DIAGNOSTIC: &str = ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
+pub(crate) const LIFECYCLE_MEMORY_DIAGNOSTIC: &str =
+    ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;

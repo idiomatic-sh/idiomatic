@@ -6,13 +6,13 @@ use ryo_benchmark_contracts::domain::context::types::{
     PreparedRuleContext, RuleConfiguration, RuleContextDeclaration,
 };
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, DiagnosticSwitch, InputDeclaration, ParserSelection, PerformanceOptions, ProviderSelection,
-    RuleContextPreparation, SearchRoots,
+    CohortSelection, DiagnosticSwitch, InputDeclaration, ParserSelection, PerformanceOptions,
+    ProviderSelection, RuleContextPreparation, SearchRoots,
 };
 use ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile;
+use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use serde::Serialize;
 
 /// Explicit performance controls on the worker wire.
@@ -88,8 +88,10 @@ struct ProjectInventorySchema {
 }
 impl ProjectInventorySchema {
     fn is_default(&self) -> bool {
-        matches!(self.completeness, ProjectInventoryCompletenessSchema::Partial)
-            && self.entries.is_empty()
+        matches!(
+            self.completeness,
+            ProjectInventoryCompletenessSchema::Partial
+        ) && self.entries.is_empty()
     }
 }
 impl From<ryo::linter::GivenProjectInventory> for ProjectInventorySchema {
@@ -268,8 +270,9 @@ impl TryFrom<(&Invocation, &PreparedCase, &Tool)> for CanonicalText {
             "parser_configuration": parser_configuration,
             "project_context_mode": format!("{:?}", profile.project_context_mode),
         });
-        settings["performance"] = serde_json::to_value(OptionsSchema::from(case.request.performance))
-            .map_err(|error| Error::Invalid(error.to_string()))?;
+        settings["performance"] =
+            serde_json::to_value(OptionsSchema::from(case.request.performance))
+                .map_err(|error| Error::Invalid(error.to_string()))?;
         if let RuleContextProfile::Declared(declaration) = &profile.rule_context {
             settings["rule_context_declaration"] = declaration_value(declaration);
         }

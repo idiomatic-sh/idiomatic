@@ -5,12 +5,14 @@ use crate::domain::{
     constant_keys::{
         constants::INCOMPLETE,
         service::{key_of, prepare},
-        types::{KeyState}},
+        types::KeyState,
+    },
     model::types::Declarations,
     nodes::types::Node,
     semantic_syntax::types::Visibility,
     syntax::service::kind_bits,
-    syntax::types::Kind};
+    syntax::types::Kind,
+};
 use ryo::languages;
 
 /// Reads one source's supported constant-expression keys.

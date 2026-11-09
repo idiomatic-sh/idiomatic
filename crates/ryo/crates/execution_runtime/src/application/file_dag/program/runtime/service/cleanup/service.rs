@@ -141,11 +141,7 @@ impl ProgramExecution {
         work.retired_scratch = retired_scratch;
         Ok(())
     }
-    pub(crate) fn wake_retirements(
-        &self,
-        state: &RuntimeState,
-        producer: RegionId,
-    ) {
+    pub(crate) fn wake_retirements(&self, state: &RuntimeState, producer: RegionId) {
         // Only a blocker transition wakes its exact consumers. Unchanged
         // running ancestors never cause a full queue or graph rescan.
         let waiters = state.retirement.borrow_mut().waiters.remove(&producer);
@@ -168,9 +164,7 @@ impl ProgramExecution {
             }
         }
     }
-    pub(crate) fn cleanup_status(
-        &self,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn cleanup_status(&self) -> Result<(), OperatingError> {
         if let Some(error) = self.cleanup_failure.borrow().as_ref() {
             return Err(error.clone());
         }

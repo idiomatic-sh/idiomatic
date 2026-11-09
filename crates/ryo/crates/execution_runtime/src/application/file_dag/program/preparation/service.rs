@@ -1,20 +1,20 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::Arc;
 
@@ -50,9 +50,7 @@ impl PreparedProgram {
     ) -> &ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk {
         &self.walk
     }
-    pub(crate) fn all_bindings(
-        &self,
-    ) -> &[Box<[ParameterBinding]>] {
+    pub(crate) fn all_bindings(&self) -> &[Box<[ParameterBinding]>] {
         &self.bindings
     }
     pub(crate) fn walk_class(
@@ -98,7 +96,8 @@ impl PreparedProgram {
     }
     pub(crate) fn matchers(
         &self,
-    ) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers> {
+    ) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>
+    {
         &self.matchers
     }
     pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<&[ParameterBinding], OperatingError> {
@@ -107,10 +106,7 @@ impl PreparedProgram {
             .map(Box::as_ref)
             .ok_or(OperatingError::NotRun)
     }
-    pub(crate) fn rule_metadata(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<&RuleMetadata, OperatingError> {
+    pub(crate) fn rule_metadata(&self, rule: RuleIndex) -> Result<&RuleMetadata, OperatingError> {
         tracing::trace!(
             target: ryo_execution_store::application::file_dag::derived::constants::TARGET,
             event = ryo_execution_store::application::file_dag::derived::constants::RULE_METADATA,
@@ -198,7 +194,8 @@ pub(crate) fn prepare(
     derived: impl Into<ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess>,
     identity: ObservationIdentity,
 ) -> Result<Arc<PreparedProgram>, OperatingError> {
-    let derived: ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess = derived.into();
+    let derived: ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess =
+        derived.into();
     if rule_digests.len() != rules.len() {
         return Err(OperatingError::WrongOperation);
     }
@@ -213,7 +210,8 @@ pub(crate) fn prepare(
     );
     let source_plans: Vec<_> = plans.iter().map(Ok).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
-    let operators = crate::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
+    let operators =
+        crate::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
         ObservationIdentity::Independent => {
             ryo_execution_domain::domain::file_program::types::ObservationRequest::Independent
@@ -267,15 +265,20 @@ pub(crate) fn prepare(
                 .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
                 .collect()
         });
-    let program = Arc::new(ryo_execution_domain::domain::executable_program::service::compile(
-        &plans,
-        graph,
-        &partitions,
-        &operators,
-    )?);
+    let program = Arc::new(
+        ryo_execution_domain::domain::executable_program::service::compile(
+            &plans,
+            graph,
+            &partitions,
+            &operators,
+        )?,
+    );
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
-    let derived = ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::compile(&program)?;
+    let derived =
+        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::compile(
+            &program,
+        )?;
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     let matchers = Arc::new(

@@ -1,8 +1,8 @@
 //! The `view` use case: stateless; concrete construction belongs at a composition edge.
 use super::interface::ViewUseCase;
+use crate::domain::contract::types::DerivedView;
 use crate::domain::contract::types::derived_payload::value::DerivedPayload;
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
-use crate::domain::contract::types::DerivedView;
 use crate::domain::fault::types::DerivedFault;
 
 /// `view`, over no port: it holds no state.

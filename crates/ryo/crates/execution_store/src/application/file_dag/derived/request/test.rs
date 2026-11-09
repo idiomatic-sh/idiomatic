@@ -14,16 +14,18 @@ fn kinds() -> Vec<Vec<CellKind>> {
 #[test]
 fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
     let mut views = RequestViews::new(
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let program = ResourceProgram::Index {
         input: ryo_values::domain::plan_parts::types::InputNumber(1),
         columns: IndexColumns::Whole,
     };
     let first = views.bind_resources(&program, &kinds()[..1]).unwrap();
-    let use_plan = &first[DerivedKind::Equality.ordinal()].as_ref().unwrap().primary;
+    let use_plan = &first[DerivedKind::Equality.ordinal()]
+        .as_ref()
+        .unwrap()
+        .primary;
     assert_eq!(use_plan.inputs, [InputNumber(1), InputNumber(0)]);
     assert_eq!(use_plan.len, InputsUsed(1));
     assert_eq!(
@@ -31,8 +33,11 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
         Err(OperatingError::MissingInput { position: 2 })
     );
     assert_eq!(
-        ryo_execution_domain::domain::derived_views::service::validate(DerivedKind::Equality, &use_plan.plan)
-            .err(),
+        ryo_execution_domain::domain::derived_views::service::validate(
+            DerivedKind::Equality,
+            &use_plan.plan
+        )
+        .err(),
         Some(OperatingError::MissingInput { position: 2 }),
     );
     let second = views.bind_resources(&program, &kinds()[..1]).unwrap();
@@ -50,21 +55,24 @@ fn missing_input_is_prepared_but_refused_only_when_the_view_is_demanded() {
 #[test]
 fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
     let mut views = RequestViews::new(
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let kinds = kinds();
     let join = ResourceProgram::Join(JoinResources {
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(1)],
         view: vec![ColumnIndex(0)],
-        has_filter: ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
+        has_filter:
+            ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
         reach: None,
     });
     let first = views.bind_resources(&join, &kinds[..2]).unwrap();
     let second = views.bind_resources(&join, &kinds[..2]).unwrap();
-    let equality = &first[DerivedKind::Equality.ordinal()].as_ref().unwrap().primary;
+    let equality = &first[DerivedKind::Equality.ordinal()]
+        .as_ref()
+        .unwrap()
+        .primary;
     let lookup = &first[DerivedKind::NativeLookup.ordinal()]
         .as_ref()
         .unwrap()
@@ -100,13 +108,17 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         parent: ColumnIndex(0),
         child: ColumnIndex(1),
         domain_id: ColumnIndex(0),
-        has_filter: ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
+        has_filter:
+            ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
         domain_view: vec![],
         output: vec![],
         direction: Direction::Parent,
     });
     let slots = views.bind_resources(&axis, &kinds).unwrap();
-    let edge = &slots[DerivedKind::Equality.ordinal()].as_ref().unwrap().primary;
+    let edge = &slots[DerivedKind::Equality.ordinal()]
+        .as_ref()
+        .unwrap()
+        .primary;
     let ViewRequest::Equality { columns } = &edge.plan.request else {
         panic!("edge lookup")
     };
@@ -129,9 +141,8 @@ fn family_slots_hold_compact_shared_binding_handles() {
         DerivedKind::ALL.len() * size_of::<usize>()
     );
     let mut views = RequestViews::new(
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let schema = kinds();
     let first = views
@@ -153,7 +164,10 @@ fn family_slots_hold_compact_shared_binding_handles() {
         )
         .unwrap();
     assert!(Arc::ptr_eq(
-        &first[DerivedKind::Equality.ordinal()].as_ref().unwrap().primary,
+        &first[DerivedKind::Equality.ordinal()]
+            .as_ref()
+            .unwrap()
+            .primary,
         &second[DerivedKind::Equality.ordinal()]
             .as_ref()
             .unwrap()

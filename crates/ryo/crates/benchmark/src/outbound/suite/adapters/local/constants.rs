@@ -5,8 +5,7 @@ pub(super) const MANIFEST: &str =
 /// Directory containing authored rule definitions.
 pub(super) const RULES: &str = "rules";
 /// Executable RyoQL source filename within one rule directory.
-pub(super) const QUERY: &str =
-    ryo_benchmark_contracts::domain::requests::constants::QUERY_FILE;
+pub(super) const QUERY: &str = ryo_benchmark_contracts::domain::requests::constants::QUERY_FILE;
 /// Independent fixture filename within one rule directory.
 pub(super) const CASES: &str = "cases.toml";
 /// Reference tool argument used to verify its reported version.
@@ -125,11 +124,9 @@ pub(super) const VERIFY_CASES: &str =
 /// Text of the stage root in this part.
 pub(super) const STAGE_ROOT: &str = "stage_root";
 /// Text of the candidate in this part.
-pub(super) const CANDIDATE: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE;
+pub(super) const CANDIDATE: &str = ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE;
 /// Text of the complete in this part.
-pub(super) const COMPLETE: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::COMPLETE;
+pub(super) const COMPLETE: &str = ryo_benchmark_contracts::domain::receipts::constants::COMPLETE;
 /// Text of the error 2 in this part.
 pub(super) const ERROR_2: &str = "error";
 /// Text of the case passed in this part.

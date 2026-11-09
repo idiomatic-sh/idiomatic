@@ -8,9 +8,7 @@ use crate::outbound::scheduler::types::WorkerCount;
 /// The rayon scheduler adapter over a pool of threads of its own: `workers` of them. A pool the system refuses is answered by the first
 /// run over it.
 #[must_use]
-pub fn rayon(
-    workers: WorkerCount,
-) -> impl crate::outbound::scheduler::interface::SchedulerPort {
+pub fn rayon(workers: WorkerCount) -> impl crate::outbound::scheduler::interface::SchedulerPort {
     super::adapters::rayon::adapter::SchedulerRayonAdapter::owning(workers)
 }
 

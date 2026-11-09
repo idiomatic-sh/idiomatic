@@ -1,16 +1,16 @@
 //! Dormant declarations cannot allocate cohort scratch or retained result slots.
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::{fixtures::*, no_catalog};
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
 use ryo_values::domain::{
     plan_parts::types::{Input, Operand, QueryLiteral, StepId, StepScope, Test},
@@ -23,7 +23,7 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
         let (engine, semantics) = engine();
         let mut authored = authored_request(declarations);
         let (plans, bindings) = crate::boundary_fixture::authored_parts(&mut authored);
-    for (index, plan) in plans.iter_mut().enumerate() {
+        for (index, plan) in plans.iter_mut().enumerate() {
             let (relation, comparisons) = if index == 0 {
                 (Relation::SyntaxTree, selection(Selector::Kind("word")))
             } else if index % 2 == 0 {

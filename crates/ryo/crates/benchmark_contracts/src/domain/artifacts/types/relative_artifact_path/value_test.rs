@@ -1,7 +1,7 @@
 //! The path retains its borrowed identity and rejects escaping component forms.
 use super::value::RelativeArtifactPath;
-use crate::domain::artifacts::errors::ArtifactsError;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::artifacts::errors::ArtifactsError;
 use std::path::Path;
 type Input = &'static str;
 type Value = ();

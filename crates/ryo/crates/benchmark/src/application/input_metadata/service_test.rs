@@ -70,9 +70,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn prepared(declared: bool) -> PreparedCase {
     let mut prepared = case();
     if declared {
-        prepared.request.file_metadata = FileMetadataDeclaration::Declared(
-            std::collections::BTreeMap::from([(prepared.request.files[0].clone(), FileExecutable::Unset)]),
-        );
+        prepared.request.file_metadata =
+            FileMetadataDeclaration::Declared(std::collections::BTreeMap::from([(
+                prepared.request.files[0].clone(),
+                FileExecutable::Unset,
+            )]));
     }
     prepared
 }

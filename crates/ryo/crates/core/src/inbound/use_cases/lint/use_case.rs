@@ -33,20 +33,22 @@ use crate::outbound::memory::interface::MemoryPort;
 use crate::outbound::row_sink::interface::RowSinkPort;
 use crate::outbound::scheduler::interface::SchedulerPort;
 use crate::outbound::scheduler::types::WorkerCount;
-use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
-use ryo_execution::inbound::use_cases::compile_rules::interface::{CompileRulesUseCase as _, CompiledPlans};
+use ryo_execution::inbound::use_cases::compile_rules::interface::{
+    CompileRulesUseCase as _, CompiledPlans,
+};
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::inbound::use_cases::execution::interface::Counting;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
+use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
+use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
+use ryo_execution::outbound::matching::interface::MatchingPort;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::{AnswerShape, RuleId};

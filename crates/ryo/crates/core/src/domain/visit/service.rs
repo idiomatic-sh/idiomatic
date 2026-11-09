@@ -10,8 +10,8 @@ use super::types::{
 };
 use ryo_values::domain::plan_parts::service::each_column;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
@@ -71,7 +71,8 @@ fn role_column() -> ColumnIndex {
             columns
                 .iter()
                 .position(|column| {
-                    ryo_relations::domain::relations::service::column_name(*column).0 == ROLE_COLUMN_NAME
+                    ryo_relations::domain::relations::service::column_name(*column).0
+                        == ROLE_COLUMN_NAME
                 })
                 .unwrap_or(usize::MAX),
         )

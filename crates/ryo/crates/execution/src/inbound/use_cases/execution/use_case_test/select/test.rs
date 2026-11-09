@@ -1,7 +1,7 @@
 //! Selection predicates and projections run through a genuine hosted input and file owner.
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -142,7 +142,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let out = fixtures::requests::published(
                 plan,
                 vec![],
-                vec![fixtures::requests::numbers("numbers", if kept { 2 } else { 1 }, rows)],
+                vec![fixtures::requests::numbers(
+                    "numbers",
+                    if kept { 2 } else { 1 },
+                    rows,
+                )],
                 &mut Symbols::default(),
             )?;
             Ok(if kept {

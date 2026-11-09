@@ -1,11 +1,11 @@
 //! Opening one publication scope and naming the physical files of one project request.
 use super::types::{ProgramServices, PublicationScope};
-use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_execution_domain::domain::coverage::types::{Covered, RuleIndex};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+use ryo_execution_store::application::file_dag::service::open_program_owner;
 use ryo_values::domain::runs::types::Skipped;
 use std::sync::Arc;
 
@@ -49,5 +49,12 @@ pub(crate) fn required_partitions(
     services: &ProgramServices,
 ) -> Result<RequiredPartitions, OperatingError> {
     program.rule_metadata(rule)?;
-    RequiredPartitions::from_request(&services.request, files, covered, skipped, inapplicable, refused)
+    RequiredPartitions::from_request(
+        &services.request,
+        files,
+        covered,
+        skipped,
+        inapplicable,
+        refused,
+    )
 }

@@ -3,8 +3,11 @@
 //! (`each_relation`, in the `catalog` concept), so a relation added to it is answered by every lookup or does not compile.
 
 use super::constants::{DIAGNOSTIC_BASE, KIND};
-use crate::domain::relations::types::{Bits, CellKind, Class, Column, Count, FileId, Flag, Integer, NodeId, Offset, Position, Provenance, Relation, RelationDeclaring, Span, Value};
 use crate::domain::labels::types::{Folder, Holds, NameRef};
+use crate::domain::relations::types::{
+    Bits, CellKind, Class, Column, Count, FileId, Flag, Integer, NodeId, Offset, Position,
+    Provenance, Relation, RelationDeclaring, Span, Value,
+};
 use crate::domain::terms::types::{ChildOrdinal, Symbol};
 
 use crate::domain::relations::collections::relations::bytes_literal::item::BytesLiteralColumn;
@@ -277,7 +280,9 @@ pub fn location(span: Span) -> crate::domain::relations::types::Locatedness {
 
 /// The explicit optional promise of a relation; all other relations remain mandatory.
 #[must_use]
-pub fn optional_capability(relation: Relation) -> Option<crate::domain::capabilities::types::OptionalCapability> {
+pub fn optional_capability(
+    relation: Relation,
+) -> Option<crate::domain::capabilities::types::OptionalCapability> {
     super::constants::OPTIONAL_CAPABILITIES
         .iter()
         .copied()
@@ -286,7 +291,9 @@ pub fn optional_capability(relation: Relation) -> Option<crate::domain::capabili
 
 /// The catalog relation promised by an optional capability.
 #[must_use]
-pub const fn capability_relation(capability: crate::domain::capabilities::types::OptionalCapability) -> Relation {
+pub const fn capability_relation(
+    capability: crate::domain::capabilities::types::OptionalCapability,
+) -> Relation {
     use crate::domain::capabilities::types::OptionalCapability;
     match capability {
         OptionalCapability::Identifier => Relation::Identifier,

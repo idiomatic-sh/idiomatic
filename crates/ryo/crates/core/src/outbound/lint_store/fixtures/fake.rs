@@ -1,10 +1,5 @@
 //! The fake of the `lint_store` port: what the core's tests stand in for it with, and the tables they keep in it.
 
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::PoisonError;
 use super::super::errors::LintStoreError;
 use super::super::interface::LintStorePort;
 use super::super::interface::ReadStore;
@@ -15,6 +10,11 @@ use ryo_values::domain::stores::types::KeptRows;
 use ryo_values::domain::stores::types::Stored;
 use ryo_values::domain::stores::types::StoredHanded;
 use ryo_values::domain::stores::types::StoredWords;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::PoisonError;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 /// What the core's tests stand in for `lint_store` with: the tables kept in memory, and how often each call was made.
 #[derive(Debug, Default)]
@@ -127,7 +127,8 @@ impl ReadStore for FakeRead {
     fn begin_old_rows(
         &self,
         _wanted: &ryo_values::domain::stores::types::BucketsWanted,
-    ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError> {
+    ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError>
+    {
         Ok(None)
     }
 
@@ -135,7 +136,9 @@ impl ReadStore for FakeRead {
         &self,
         words: ryo_values::domain::stored_facts::types::PackedWords,
     ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError> {
-        Ok(ryo_values::domain::records::types::RecordWords::Inline(words))
+        Ok(ryo_values::domain::records::types::RecordWords::Inline(
+            words,
+        ))
     }
 
     fn read_staged(

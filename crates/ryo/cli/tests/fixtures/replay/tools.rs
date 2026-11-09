@@ -214,12 +214,16 @@ pub(crate) fn package_json_languages() -> Vec<(
         #[cfg(feature = "javascript")]
         (
             "javascript",
-            ryo_core::outbound::language::factory::LanguageConnection::from(ryo_javascript::linked()),
+            ryo_core::outbound::language::factory::LanguageConnection::from(
+                ryo_javascript::linked(),
+            ),
         ),
         #[cfg(feature = "typescript")]
         (
             "typescript",
-            ryo_core::outbound::language::factory::LanguageConnection::from(ryo_typescript::linked()),
+            ryo_core::outbound::language::factory::LanguageConnection::from(
+                ryo_typescript::linked(),
+            ),
         ),
     ]
 }

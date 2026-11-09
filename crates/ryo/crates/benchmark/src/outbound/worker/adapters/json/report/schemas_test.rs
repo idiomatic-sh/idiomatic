@@ -1,11 +1,11 @@
 //! Exact wire spellings and refusal of undeclared producer metadata.
 use super::{ExecutionMetadataSchema, ReceiptSchema};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use std::collections::BTreeMap;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::types::{ExecutionMetadata, UnavailableReason};
+use std::collections::BTreeMap;
 fn execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_data() {
     for (data, wire) in [
         (ExecutionMetadata::Unknown, r#"{"availability":"unknown"}"#),
@@ -73,9 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("missing_reason_unknown_capability_and_extra_wire_fields_are_refused"),
         word: Word::Succeeds,
-        input: || {
-            missing_reason_unknown_capability_and_extra_wire_fields_are_refused as fn()
-        },
+        input: || missing_reason_unknown_capability_and_extra_wire_fields_are_refused as fn(),
         expect: Expect::Value(()),
     },
     Case {

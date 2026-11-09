@@ -1,7 +1,7 @@
 //! Function terminal summaries cover structured statement paths.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::FunctionTerminalItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::reading;
 
 use ryo::languages::contract::Want;

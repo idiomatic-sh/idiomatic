@@ -26,7 +26,10 @@ type Value = Outcome;
 type Failure = DiscrepancyValidationError;
 
 fn unregistered() -> Validation {
-    edited(evidenced, |case| case.reference_discrepancy = ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees)
+    edited(evidenced, |case| {
+        case.reference_discrepancy =
+            ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees
+    })
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -47,9 +50,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(evidenced, |case| {
-                super::fixtures::discrepancy(case)
-                    .evidence
-                    .clear()
+                super::fixtures::discrepancy(case).evidence.clear()
             })
         },
         expect: Expect::Error(DiscrepancyValidationError::Discrepancy(

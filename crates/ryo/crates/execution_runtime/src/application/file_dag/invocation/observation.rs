@@ -2,7 +2,10 @@
 use super::*;
 impl InvocationResources<'_> {
     #[cfg(test)]
-    pub(crate) fn observe(&self, workspace: &mut ryo_execution_store::application::file_dag::workspace::InvocationWorkspace) {
+    pub(crate) fn observe(
+        &self,
+        workspace: &mut ryo_execution_store::application::file_dag::workspace::InvocationWorkspace,
+    ) {
         #[cfg(feature = "diagnostic-row-progress")]
         let view = self
             .inputs
@@ -20,16 +23,32 @@ impl InvocationResources<'_> {
         );
         let walk_capacity = primitive.evaluation.rows.row.capacity()
             + primitive.evaluation.rows.other.capacity()
-            + primitive.closure_walk.as_ref().map_or(0, |walk| walk.key.capacity())
-            + primitive.closure_walk.as_ref().map_or(0, |walk| walk.frontier.capacity())
-            + primitive.closure_walk.as_ref().map_or(0, |walk| walk.next.capacity())
-            + primitive.closure_walk.as_ref().map_or(0, |walk| walk.reached.capacity())
-            + primitive.closure_walk.as_ref().map_or(0, |walk| walk.visited.capacity());
+            + primitive
+                .closure_walk
+                .as_ref()
+                .map_or(0, |walk| walk.key.capacity())
+            + primitive
+                .closure_walk
+                .as_ref()
+                .map_or(0, |walk| walk.frontier.capacity())
+            + primitive
+                .closure_walk
+                .as_ref()
+                .map_or(0, |walk| walk.next.capacity())
+            + primitive
+                .closure_walk
+                .as_ref()
+                .map_or(0, |walk| walk.reached.capacity())
+            + primitive
+                .closure_walk
+                .as_ref()
+                .map_or(0, |walk| walk.visited.capacity());
         let observed = workspace.observation_mut();
         observed.owners_initialized = usize::from(self.inputs.index.is_some())
             + usize::from(self.inputs.groups.is_some())
             + usize::from(
-                self.inputs.closure.0.iter().next().is_some() || self.inputs.partitioned_closure.is_some(),
+                self.inputs.closure.0.iter().next().is_some()
+                    || self.inputs.partitioned_closure.is_some(),
             )
             + usize::from(self.inputs.cycles.is_some())
             + usize::from(self.inputs.dfs.is_some())
@@ -49,8 +68,7 @@ impl InvocationResources<'_> {
             .iter()
             .map(|part| {
                 let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(view) =
-                    part.view()
-                        .expect(constants::VALIDATED_CLOSURE_PARTITION)
+                    part.view().expect(constants::VALIDATED_CLOSURE_PARTITION)
                 else {
                     panic!("closure partition family")
                 };
@@ -64,8 +82,7 @@ impl InvocationResources<'_> {
             .iter()
             .map(|part| {
                 let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(view) =
-                    part.view()
-                        .expect(constants::VALIDATED_CLOSURE_PARTITION)
+                    part.view().expect(constants::VALIDATED_CLOSURE_PARTITION)
                 else {
                     panic!("closure partition family")
                 };
@@ -82,7 +99,9 @@ impl InvocationResources<'_> {
                 .0;
             capacity = ryo_execution_store::application::file_dag::closure_partitions::partitions_test::working_capacity(parts);
         }
-        if self.inputs.closure.0.iter().next().is_some() || self.inputs.partitioned_closure.is_some() {
+        if self.inputs.closure.0.iter().next().is_some()
+            || self.inputs.partitioned_closure.is_some()
+        {
             capacity += walk_capacity;
             observed.closure_partition_rows = observed.closure_partition_rows.max(rows);
             observed.closure_partition_capacity = observed.closure_partition_capacity.max(capacity);

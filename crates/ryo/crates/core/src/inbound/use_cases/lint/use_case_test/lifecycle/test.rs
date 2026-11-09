@@ -134,7 +134,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Store { .. })))),
     },
     Case {
-        name: CaseName("accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change"),
+        name: CaseName(
+            "accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change",
+        ),
         word: Word::Succeeds,
         input: || Scenario::AcceptedSyntaxApplicabilityReplaysSkipsAndInvalidatesOnPolicyChange,
         expect: Expect::Value((1, 0)),
@@ -170,7 +172,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 0)),
     },
     Case {
-        name: CaseName("a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete"),
+        name: CaseName(
+            "a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete",
+        ),
         word: Word::Succeeds,
         input: || Scenario::ASyntaxRejectedFileIsSkippedWithItsReasonAndNeverUndecidedOrComplete,
         expect: Expect::Value((1, 0)),

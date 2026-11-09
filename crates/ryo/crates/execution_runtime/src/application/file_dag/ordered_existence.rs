@@ -2,12 +2,14 @@
 use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::{operating::errors::OperatingError, self_join_recogniser::types::Extremum};
+use ryo_execution_domain::domain::{
+    operating::errors::OperatingError, self_join_recogniser::types::Extremum,
+};
 use ryo_operators::domain::equality_join::errors::EqualityJoinError;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceDriver;
 use ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch;
 use ryo_operators::domain::ordered_existence::types::PartitionExtremum;
+use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Side},
@@ -30,10 +32,7 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
     fn key_cell(&mut self, row: RowIndex, column: ColumnIndex) -> Result<Value, EqualityJoinError> {
         let rows = self.rows;
         self.failure
-            .run(|| {
-                rows.cell(row, column)
-                    .ok_or(OperatingError::ShapeMismatch)
-            })
+            .run(|| rows.cell(row, column).ok_or(OperatingError::ShapeMismatch))
             .map_err(|_| EqualityJoinError::Interrupted)
     }
     fn number(&mut self, row: RowIndex, column: ColumnIndex) -> Result<Integer, EqualityJoinError> {
@@ -45,8 +44,15 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
             })
             .map_err(|_| EqualityJoinError::Interrupted)
     }
-    fn emit_dominated(&mut self, row: RowIndex, witness: RowIndex) -> Result<(), EqualityJoinError> {
-        self.work.found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
+    fn emit_dominated(
+        &mut self,
+        row: RowIndex,
+        witness: RowIndex,
+    ) -> Result<(), EqualityJoinError> {
+        self.work.found(
+            ryo_values::domain::plan_parts::types::InputNumber(0),
+            ryo_execution_domain::domain::operator::contract::types::FoundRows(1),
+        );
         let rows = self.rows;
         let logical = &mut self.row;
         let output = self.output;
@@ -114,9 +120,7 @@ pub(super) fn evaluate(
         return Err(error);
     }
     match result {
-        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
-            Ok(())
-        }
+        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => Ok(()),
         Ok(_) => Err(OperatingError::WrongOperation),
         Err(error) => Err(portable_fault(error)),
     }

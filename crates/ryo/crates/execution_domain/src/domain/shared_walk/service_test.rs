@@ -1,16 +1,16 @@
 //! The prepared native pass keeps independent class results and never publishes.
 use crate::domain::operator::types::OperatorContext;
-use crate::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
-use crate::domain::step_classes::types::ClassPlace;
 use crate::domain::shared_walk::service::evaluate;
 use crate::domain::shared_walk::types::WalkWork;
 use crate::domain::shared_walk::types::native_batch::value::NativeBatch;
 use crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk;
+use crate::domain::step_classes::types::ClassPlace;
+use crate::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Rows;
 use crate::domain::table_scratch::types::OperatorScratch;
-use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
@@ -183,7 +183,10 @@ fn with_invalid(name: &str, first: bool) -> Plan {
 }
 
 fn predicate_order_preserves_errors_and_short_circuits() {
-    let plans = [with_invalid("absent-kind", true), with_invalid("absent-kind", false)];
+    let plans = [
+        with_invalid("absent-kind", true),
+        with_invalid("absent-kind", false),
+    ];
     let bindings = vec![Vec::new(); plans.len()];
     let prepared = PreparedWalk::compile(&plans, &bindings);
     let batch = evaluate_plans(&prepared, &bindings, &[ClassPlace(0), ClassPlace(1)]);
@@ -201,10 +204,16 @@ fn memo_builds_an_erroring_predicate_once_and_reuses_hits() {
     let bindings = vec![Vec::new(); plans.len()];
     let prepared = PreparedWalk::compile(&plans, &bindings);
     let batch = evaluate_plans(&prepared, &bindings, &[ClassPlace(0), ClassPlace(1)]);
-    assert!([ClassPlace(0), ClassPlace(1)].into_iter().all(|class| matches!(
-        batch.class(class).map(|result| &result.completion),
-        Some(Err(crate::domain::operating::errors::OperatingError::InvalidRegex { .. }))
-    )));
+    assert!(
+        [ClassPlace(0), ClassPlace(1)]
+            .into_iter()
+            .all(|class| matches!(
+                batch.class(class).map(|result| &result.completion),
+                Some(Err(
+                    crate::domain::operating::errors::OperatingError::InvalidRegex { .. }
+                ))
+            ))
+    );
     assert_eq!(batch.counts().predicate_tests.0, 1);
     assert_eq!(batch.counts().predicate_reuses.0, 1);
 }

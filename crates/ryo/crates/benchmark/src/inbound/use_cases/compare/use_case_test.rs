@@ -29,7 +29,8 @@ fn matching() -> Input {
     let report = RunReport {
         execution_metadata:
             ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-        project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+        project_context:
+            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
         files: vec![ryo::linter::RelativePath("input.txt".into())],
         skipped: Vec::new(),
         coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(

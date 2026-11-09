@@ -2,10 +2,10 @@
 use super::types::{DfsColumns, EdgeRun, EdgeSlot, PreparedDfs};
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::row_cells::types::{CanonicalTexts, RowCells};
-use ryo_values::domain::row_texts::types::CellText;
-use ryo_values::domain::rows::types::RowIndex;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::row_texts::types::CellText;
+use ryo_values::domain::rows::types::RowIndex;
 use ryo_values::domain::rows::types::Table;
 fn check(input: &dyn RowCells, columns: &[ColumnIndex]) -> Result<(), DerivedFault> {
     for column in columns {

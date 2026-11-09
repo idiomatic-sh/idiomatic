@@ -3,14 +3,13 @@ use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     file_program::types::RuleSchedule,
@@ -18,11 +17,13 @@ use ryo_execution_domain::domain::{
     prepared_request::types::{Compiled, ObservationIdentity},
     table_model::types::Rows,
 };
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::{kinds, to_bits},
     types::{ColumnsView, FactColumn, FileId, Integer, Relation, Value},
 };
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
@@ -37,7 +38,6 @@ use ryo_values::domain::{
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use std::{collections::BTreeMap, sync::Arc};
 
 /// The one parameter every generation plan binds.
@@ -145,9 +145,7 @@ fn rule(id: &str) -> RuleSpec {
         exclude: vec![],
     }
 }
-fn prepare(
-    bindings: Vec<Vec<ParameterBinding>>,
-) -> Prepared {
+fn prepare(bindings: Vec<Vec<ParameterBinding>>) -> Prepared {
     let count = bindings.len();
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
@@ -157,7 +155,10 @@ fn prepare(
             plans: vec![binding_plan(); count],
             bindings,
         },
-        &RULE_IDS[..count].iter().map(|id| rule(id)).collect::<Vec<_>>(),
+        &RULE_IDS[..count]
+            .iter()
+            .map(|id| rule(id))
+            .collect::<Vec<_>>(),
         &vec![Digest([0; 16]); count],
         &[],
         Arc::clone(&derived),
@@ -225,7 +226,8 @@ fn run_rule(
         reads: Reads(reads.get()),
     }
 }
-fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> Result<Answer, Failure> {
+fn identical_binding_dependent_operations_do_not_share_rule_graph_results()
+-> Result<Answer, Failure> {
     let Prepared { prepared, services } = prepare(vec![
         vec![ParameterBinding::Number(WholeNumber(3))],
         vec![ParameterBinding::Number(WholeNumber(2))],
@@ -272,26 +274,26 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> R
     )
     .unwrap();
     let storage = language_columns(FileId(7), Integer(3));
-    let RuleRun { table: first, reads: first_reads } = run_rule(&mut file, RuleIndex(0), &storage, &mut symbols);
-    assert!(
-        first_reads.0 > 0,
-        "{FIRST_ROOT_READS}"
-    );
+    let RuleRun {
+        table: first,
+        reads: first_reads,
+    } = run_rule(&mut file, RuleIndex(0), &storage, &mut symbols);
+    assert!(first_reads.0 > 0, "{FIRST_ROOT_READS}");
     let prepared_work = file.readiness_counts();
-    let RuleRun { table: second, reads: second_reads } = run_rule(&mut file, RuleIndex(1), &storage, &mut symbols);
+    let RuleRun {
+        table: second,
+        reads: second_reads,
+    } = run_rule(&mut file, RuleIndex(1), &storage, &mut symbols);
     assert_eq!(first.cells, vec![Value::File(FileId(7))]);
     assert_eq!(second.count.0, 0);
-    assert_eq!(
-        second_reads,
-        Reads(0),
-        "{SECOND_ROOT_REPLAYS}"
-    );
+    assert_eq!(second_reads, Reads(0), "{SECOND_ROOT_REPLAYS}");
     assert_eq!(file.readiness_counts(), prepared_work);
     file.finish().unwrap();
     Ok(1)
 }
 fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<Answer, Failure> {
-    let Prepared { prepared, services } = prepare(vec![vec![ParameterBinding::Number(WholeNumber(3))]]);
+    let Prepared { prepared, services } =
+        prepare(vec![vec![ParameterBinding::Number(WholeNumber(3))]]);
     let mut first_symbols = Symbols::default();
     let mut first = open_file(
         &prepared,
@@ -313,7 +315,15 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<A
         None,
     )
     .unwrap();
-    let RuleRun { table: left, reads: first_reads } = run_rule(&mut first, RuleIndex(0), &language_columns(FileId(1), Integer(3)), &mut first_symbols);
+    let RuleRun {
+        table: left,
+        reads: first_reads,
+    } = run_rule(
+        &mut first,
+        RuleIndex(0),
+        &language_columns(FileId(1), Integer(3)),
+        &mut first_symbols,
+    );
     let mut second_symbols = Symbols::default();
     let mut second = open_file(
         &prepared,
@@ -335,12 +345,17 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<A
         None,
     )
     .unwrap();
-    let RuleRun { table: right, reads: second_reads } = run_rule(&mut second, RuleIndex(0), &language_columns(FileId(9), Integer(3)), &mut second_symbols);
-    assert!(first_reads.0 > 0);
-    assert!(
-        second_reads.0 > 0,
-        "{FRESH_GENERATION_READS}"
+    let RuleRun {
+        table: right,
+        reads: second_reads,
+    } = run_rule(
+        &mut second,
+        RuleIndex(0),
+        &language_columns(FileId(9), Integer(3)),
+        &mut second_symbols,
     );
+    assert!(first_reads.0 > 0);
+    assert!(second_reads.0 > 0, "{FRESH_GENERATION_READS}");
     assert_eq!(left.cells, vec![Value::File(FileId(1))]);
     assert_eq!(right.cells, vec![Value::File(FileId(9))]);
     first.finish().unwrap();

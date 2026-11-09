@@ -6,11 +6,7 @@ use ryo_execution_domain::domain::shared_walk::types::{
 use ryo_values::domain::rule_requests::types::RuleSpec;
 
 /// Emits the census of the compiled walk when its diagnostic target is on.
-pub(crate) fn trace(
-    rules: &[RuleSpec],
-    walk: &PreparedWalk,
-    program: &ExecutableProgram,
-) {
+pub(crate) fn trace(rules: &[RuleSpec], walk: &PreparedWalk, program: &ExecutableProgram) {
     if !tracing::enabled!(target: crate::application::file_dag::program::constants::WALK_TARGET, tracing::Level::TRACE)
     {
         return;

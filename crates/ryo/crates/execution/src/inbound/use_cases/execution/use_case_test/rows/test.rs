@@ -1,7 +1,7 @@
 //! Required row bindings are materialized only by the actual public request owner.
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
@@ -44,7 +44,8 @@ fn subject((keys, binding): Input) -> Result<Value, Failure> {
             kind: ryo_values::domain::query_bindings::types::ParameterType::Tables,
         });
     let mut symbols = Symbols::default();
-    let output = fixtures::requests::published(plan, binding.into_iter().collect(), vec![], &mut symbols)?;
+    let output =
+        fixtures::requests::published(plan, binding.into_iter().collect(), vec![], &mut symbols)?;
     let rows: Vec<_> = output
         .cells
         .chunks(keys.len().max(1))

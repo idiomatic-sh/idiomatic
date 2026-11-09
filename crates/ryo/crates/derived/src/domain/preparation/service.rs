@@ -26,9 +26,9 @@ fn check(
     columns: &[ColumnIndex],
 ) -> Result<(), DerivedFault> {
     let at = slot.0;
-    let schema = schemas
-        .get(at)
-        .ok_or(DerivedFault::MissingInput { position: InputSlot(at + 1) })?;
+    let schema = schemas.get(at).ok_or(DerivedFault::MissingInput {
+        position: InputSlot(at + 1),
+    })?;
     for column in columns {
         if usize::try_from(column.0).map_or(true, |index| index >= schema.len()) {
             return Err(DerivedFault::NoSuchColumn { column: *column });
@@ -77,7 +77,11 @@ pub fn prepare(mut request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> Prep
         } => {
             check(&schemas, InputSlot(0), &[*root])?;
             check(&schemas, InputSlot(0), root_keys)?;
-            check(&schemas, InputSlot(1), &[*source, *destination, *order, *edge])?;
+            check(
+                &schemas,
+                InputSlot(1),
+                &[*source, *destination, *order, *edge],
+            )?;
             check(&schemas, InputSlot(1), edge_keys)
         }
         DerivedRequest::NativeLookup {

@@ -22,7 +22,9 @@ pub(crate) fn expand(
     syntax: &dyn SyntaxPort,
 ) {
     // No wanted reader reads the expanded annotations: none are parsed, and no model is prepared for them.
-    if languages::completion_requirement(completion) != languages::CompletionRequirement::PreparedModel {
+    if languages::completion_requirement(completion)
+        != languages::CompletionRequirement::PreparedModel
+    {
         return;
     }
     let carriers =

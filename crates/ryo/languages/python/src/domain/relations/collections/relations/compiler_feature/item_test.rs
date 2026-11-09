@@ -1,7 +1,7 @@
 //! Compiler-mode rows follow the canonical frontend flag, never checker traversal snapshots.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::CompilerFeatureItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::settings::{PythonParserSettings, PythonTargetVersion};
 use ryo::languages::{self, contract::Want};
 

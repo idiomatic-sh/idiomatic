@@ -1,22 +1,22 @@
 //! Behavioral controls retained from the former application resource constructors.
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
-    ryo_execution_domain::domain::derived_views::types::*, ryo_execution_domain::domain::operating::errors::OperatingError,
+    ryo_execution_domain::domain::derived_views::types::*,
+    ryo_execution_domain::domain::operating::errors::OperatingError,
     ryo_execution_domain::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 fn prepare_cycles(
     input: RepresentationInput<'_>,
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError> {
+) -> Result<ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>{
     let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::new(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            ryo_execution_store::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     );
     let RepresentationInput::Computed(table) = input else {
         panic!("computed fixture")
@@ -50,8 +50,7 @@ fn prepare_closure(
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<crate::application::file_dag::invocation::AcquiredPartitions, OperatingError>
-{
+) -> Result<crate::application::file_dag::invocation::AcquiredPartitions, OperatingError> {
     let owner = std::rc::Rc::new(ryo_execution_store::application::file_dag::relations::RelationOwner::new(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
@@ -64,14 +63,15 @@ fn prepare_closure(
     let publication = owner.computed(table.clone())?;
     let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
     let input = RepresentationInput::from(&rows);
-    let mut cursor = ryo_execution_store::application::file_dag::closure_partitions::schemas::prepare(
-        &publication,
-        input,
-        keys,
-        source,
-        destination,
-        owner,
-    )?;
+    let mut cursor =
+        ryo_execution_store::application::file_dag::closure_partitions::schemas::prepare(
+            &publication,
+            input,
+            keys,
+            source,
+            destination,
+            owner,
+        )?;
     let mut parts = crate::application::file_dag::invocation::AcquiredPartitions::default();
     while cursor.advance()? == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
         parts.push(cursor.take_current()?);
@@ -121,7 +121,10 @@ mod tests {
         else {
             return Err(OperatingError::WrongOperation);
         };
-        assert_eq!(graph.values, vec![number(Integer(9)), number(Integer(1)), number(Integer(7))]);
+        assert_eq!(
+            graph.values,
+            vec![number(Integer(9)), number(Integer(1)), number(Integer(7))]
+        );
         assert_eq!(graph.starts.0, vec![0, 2, 3, 4]);
         assert_eq!(graph.leaving.0, vec![1, 1, 0, 2]);
         Ok(())
@@ -145,7 +148,10 @@ mod tests {
         )
         .unwrap();
         use ryo_execution_domain::domain::operator::contract::views::ClosureParts;
-        assert_eq!(ClosureParts::len(&partitions), ryo_execution_domain::domain::operator::contract::views::PartitionCount(2));
+        assert_eq!(
+            ClosureParts::len(&partitions),
+            ryo_execution_domain::domain::operator::contract::views::PartitionCount(2)
+        );
         let first = ClosureParts::get(
             &partitions,
             ryo_execution_domain::domain::operator::contract::views::PartitionIndex(0),
@@ -158,7 +164,12 @@ mod tests {
         assert_eq!(first.sources, vec![number(Integer(2)), number(Integer(4))]);
         assert_eq!(
             first.table.cells,
-            vec![number(Integer(4)), number(Integer(3)), number(Integer(2)), number(Integer(4))]
+            vec![
+                number(Integer(4)),
+                number(Integer(3)),
+                number(Integer(2)),
+                number(Integer(4))
+            ]
         );
         assert_eq!(second.key, vec![number(Integer(1))]);
         Ok(())

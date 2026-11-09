@@ -51,10 +51,19 @@ pub(crate) fn category(message: &str) -> Refusal {
     ];
     let by_content = [
         ("reference: operational failure", Refusal::ReferenceStartup),
-        ("defaults lack implementation or explicit deferral", Refusal::UnaccountedDefault),
-        ("fixture has no independent discrepancy artifacts", Refusal::UnprovenEvidence),
+        (
+            "defaults lack implementation or explicit deferral",
+            Refusal::UnaccountedDefault,
+        ),
+        (
+            "fixture has no independent discrepancy artifacts",
+            Refusal::UnprovenEvidence,
+        ),
         ("executable metadata drifted", Refusal::MetadataDrift),
-        ("require verification preparation", Refusal::VerificationRequired),
+        (
+            "require verification preparation",
+            Refusal::VerificationRequired,
+        ),
     ];
     if message == "operational failure" {
         return Refusal::CandidateStartup;
@@ -155,7 +164,10 @@ pub(crate) fn report_scope(
     reference: &mut LinterFake,
     candidate: &mut LinterFake,
 ) {
-    if matches!(shape, Shape::FullAgreement | Shape::MissingFrontend | Shape::RuleProjection) {
+    if matches!(
+        shape,
+        Shape::FullAgreement | Shape::MissingFrontend | Shape::RuleProjection
+    ) {
         let frontend = authored::finding("invalid-syntax", 9, 19);
         reference.diagnostics.push(frontend.clone());
         if !matches!(shape, Shape::MissingFrontend) {

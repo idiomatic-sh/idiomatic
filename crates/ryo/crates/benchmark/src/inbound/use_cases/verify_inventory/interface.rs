@@ -8,5 +8,9 @@ pub trait VerifyInventoryUseCase {
     ///
     /// # Errors
     /// Refuses malformed registrations or failed artifact persistence.
-    fn verify_inventory(&self, registration: &Path, output: &Path) -> Result<InventoryVerdict, ReportsError>;
+    fn verify_inventory(
+        &self,
+        registration: &Path,
+        output: &Path,
+    ) -> Result<InventoryVerdict, ReportsError>;
 }

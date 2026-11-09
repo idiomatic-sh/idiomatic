@@ -10,7 +10,8 @@ use ryo_benchmark_contracts::domain::requests::types::{
     ProviderSelection, RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
 use ryo_benchmark_contracts::domain::workloads::types::{
-    CaseComparison, FileObservation, PreparedCase, PreparedReferenceBehavior, RuleContextProfile, Tool,
+    CaseComparison, FileObservation, PreparedCase, PreparedReferenceBehavior, RuleContextProfile,
+    Tool,
 };
 
 /// The complete one-file report with `diagnostics`.

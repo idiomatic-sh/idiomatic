@@ -1,5 +1,4 @@
 //! One rule evaluated beside the project: its result, its skipped source and a foreign request.
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::batch_test::evaluate_outcome;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -9,6 +8,7 @@ use crate::domain::crossing::service::partials_for;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::metadata::interface::RelationRead;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
@@ -37,7 +37,9 @@ pub(super) fn current_project_roots_keep_the_original_two_group_four_cell_result
         &mut symbols,
     );
     let mut done = vec![outcome];
-    let done = done.remove(0).expect("actual source-bound frontier and rule");
+    let done = done
+        .remove(0)
+        .expect("actual source-bound frontier and rule");
     let RootOutcome::Complete(table) = done.emit else {
         panic!("complete group root")
     };

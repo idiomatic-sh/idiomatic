@@ -3,9 +3,9 @@ use ryo_benchmark::outbound::linter::{
     factory::{ryo, ryo_context},
     fixtures::contract::check,
 };
-use ryo_benchmark_contracts::domain::requests::types::{ParserSelection, ProviderSelection};
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use ryo_benchmark_contracts::domain::requests::types::{ParserSelection, ProviderSelection};
 
 #[divan::bench]
 /// Measure preparation and decoding with the isolated default construction.

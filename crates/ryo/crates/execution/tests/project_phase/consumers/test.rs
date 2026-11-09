@@ -96,8 +96,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         let partials = Partials::default();
         let slot = stage.reserve(RuleIndex(0)).unwrap();
         let first = [Bucket(0), Bucket(1), Bucket(2)];
-        let inapplicable =
-            vec![
+        let inapplicable = vec![
                 ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(
                 );
                 3

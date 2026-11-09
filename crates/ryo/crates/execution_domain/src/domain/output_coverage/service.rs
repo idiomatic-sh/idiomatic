@@ -5,10 +5,10 @@ use crate::domain::completion::service::{
     after_select, any_of, lacks_of, partial_any, partial_of_lacks, remapped,
 };
 use crate::domain::completion::types::{CoverageState, FileLacks, MissingRows};
-use ryo_values::domain::lineage::service::{anchor_at, anchor_of, anchor_through, pairing};
-use ryo_values::domain::lineage::types::{ColumnAnchor, KeyPairing};
 use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
+use ryo_values::domain::lineage::service::{anchor_at, anchor_of, anchor_through, pairing};
+use ryo_values::domain::lineage::types::{ColumnAnchor, KeyPairing};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn};
 
 /// Whether operand `ordinal` of the operation reads a relation ryo owns. Such an operand's file and node columns lie in the file

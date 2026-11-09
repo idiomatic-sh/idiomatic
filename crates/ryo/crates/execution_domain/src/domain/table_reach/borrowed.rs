@@ -29,12 +29,7 @@ pub fn follow(
 }
 
 /// Walks every vertex reachable from one start, breadth first.
-pub fn reach_breadth(
-    edges: &IndexedRows<'_>,
-    to: ColumnIndex,
-    start: Value,
-    walk: &mut Walk,
-) {
+pub fn reach_breadth(edges: &IndexedRows<'_>, to: ColumnIndex, start: Value, walk: &mut Walk) {
     match breadth::<_, true>(edges, to, start, walk, |_| {
         Ok::<_, std::convert::Infallible>(SetMembership::Out)
     }) {
@@ -111,7 +106,8 @@ impl IndexedRows<'_> {
     }
     pub(crate) fn probe(&self, key: &[Value]) -> KeyProbe {
         #[cfg(feature = "diagnostic-row-progress")]
-        self.progress.observe(ProgressCounter::IndexProbes, ProgressAmount(1));
+        self.progress
+            .observe(ProgressCounter::IndexProbes, ProgressAmount(1));
         let hash = ryo_derived::domain::key::service::hash_key(key.iter().map(Some));
         let bucket =
             usize::try_from(hash.0).unwrap_or(0) & self.index.heads.len().saturating_sub(1);
@@ -129,7 +125,8 @@ impl IndexedRows<'_> {
         use ryo_derived::domain::key::types::ChainLink;
         while probe.at.0 != 0 {
             #[cfg(feature = "diagnostic-row-progress")]
-            self.progress.observe(ProgressCounter::IndexRowsExamined, ProgressAmount(1));
+            self.progress
+                .observe(ProgressCounter::IndexRowsExamined, ProgressAmount(1));
             let position = usize::try_from(probe.at.0 - 1).unwrap_or(usize::MAX);
             probe.at = self
                 .index
@@ -146,7 +143,8 @@ impl IndexedRows<'_> {
                     .all(|(column, expected)| self.rows.cell(row, *column) == Some(*expected))
             {
                 #[cfg(feature = "diagnostic-row-progress")]
-                self.progress.observe(ProgressCounter::EqualityMatches, ProgressAmount(1));
+                self.progress
+                    .observe(ProgressCounter::EqualityMatches, ProgressAmount(1));
                 return Some(row);
             }
         }

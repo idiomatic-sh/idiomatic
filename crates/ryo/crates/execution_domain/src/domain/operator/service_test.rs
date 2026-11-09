@@ -2,14 +2,14 @@
 use super::service::prepare_operator;
 use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{ColumnIndex, Input as Source, Operand, RepeatedRows},
-        plans::types::{Operation},
+        plans::types::Operation,
     },
 };
-use ryo_values::domain::query_operators::types::OperationKind;
 #[derive(Clone, Copy)]
 enum Scenario {
     Valid,
@@ -49,7 +49,11 @@ fn census(scenario: Scenario) {
                 distinct: RepeatedRows::Dropped,
             };
             for kind in OperationKind::ALL {
-                let foreign = if *kind == OperationKind::Union { &project } else { &union };
+                let foreign = if *kind == OperationKind::Union {
+                    &project
+                } else {
+                    &union
+                };
                 assert_eq!(
                     prepare_operator(*kind, foreign, &[], &[]).map(|_| ()),
                     Err(OperatingError::WrongOperation),
@@ -78,7 +82,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Valid => prepare_operator(
             OperationKind::Project,
             &project,
-            &[InputShape { kinds: &kinds, tree: None }],
+            &[InputShape {
+                kinds: &kinds,
+                tree: None,
+            }],
             &[],
         ),
         Scenario::Foreign => prepare_operator(

@@ -30,15 +30,11 @@ impl<'call, 'resources, 'scope> ExecutableLease<'call, 'resources, 'scope> {
         }
     }
 
-    pub(crate) fn dispatch(
-        self,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn dispatch(self) -> Result<(), OperatingError> {
         self.permit.validate_registered(self.operation)?;
-        ryo_execution_domain::domain::operator::contract::registration::registered(self.permit.kind()).evaluate(
-            self.operation,
-            self.input,
-            self.context,
-            self.output,
+        ryo_execution_domain::domain::operator::contract::registration::registered(
+            self.permit.kind(),
         )
+        .evaluate(self.operation, self.input, self.context, self.output)
     }
 }

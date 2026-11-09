@@ -11,7 +11,9 @@ type Failure = OperatingError;
 
 /// The reuse eligibility of the owner a scope opens over a compiled one-rule program with `reuse`.
 fn opened(reuse: ReuseEligibility) -> Result<ReuseEligibility, Failure> {
-    let plans = [super::derived::owner::fixtures::source_plan(Relation::Function)];
+    let plans = [super::derived::owner::fixtures::source_plan(
+        Relation::Function,
+    )];
     let program = Arc::new(super::derived::owner::fixtures::compiled(
         &plans,
         super::fixtures::program_derived_port(),
@@ -27,13 +29,17 @@ fn opened(reuse: ReuseEligibility) -> Result<ReuseEligibility, Failure> {
 
 const CASES: &[Case<ReuseEligibility, ReuseEligibility, Failure>] = &[
     Case {
-        name: CaseName("an eligible scope opens an owner whose publications a later request may reuse"),
+        name: CaseName(
+            "an eligible scope opens an owner whose publications a later request may reuse",
+        ),
         word: Word::Succeeds,
         input: || ReuseEligibility::Eligible,
         expect: Expect::Value(ReuseEligibility::Eligible),
     },
     Case {
-        name: CaseName("an ineligible scope opens an owner whose publications no later request reuses"),
+        name: CaseName(
+            "an ineligible scope opens an owner whose publications no later request reuses",
+        ),
         word: Word::Succeeds,
         input: || ReuseEligibility::Ineligible,
         expect: Expect::Value(ReuseEligibility::Ineligible),

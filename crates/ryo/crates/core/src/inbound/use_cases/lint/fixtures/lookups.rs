@@ -1,5 +1,16 @@
 //! The cases of a project lookup between two runs, of compiled plans one session shares, and of files read again.
+use super::super::errors::LintError;
 use super::super::interface::LintUseCase as _;
+use super::given::Given;
+use super::given::SOURCES;
+use super::given::World;
+use super::given::request;
+use super::given::violations;
+use super::lifecycle::counted_lint;
+use super::lifecycle::reading_the_project;
+use super::worlds::again;
+use super::worlds::scheduled_world_with_query;
+use super::worlds::world;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
@@ -8,17 +19,6 @@ use crate::outbound::scheduler::types::WorkerCount;
 use ryo_language::domain::files::types::FilePath;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use super::given::Given;
-use super::given::SOURCES;
-use super::given::World;
-use super::given::request;
-use super::given::violations;
-use super::lifecycle::counted_lint;
-use super::lifecycle::reading_the_project;
-use super::super::errors::LintError;
-use super::worlds::again;
-use super::worlds::scheduled_world_with_query;
-use super::worlds::world;
 
 /// What changes between two lints of a rule that reads the project, whose lookup reads a configuration above the root.
 #[derive(Clone, Copy)]
@@ -163,8 +163,8 @@ pub(crate) fn changed_nested_module() -> Result<(usize, usize), LintError> {
 
 /// A module-only predicate edit changes actual findings through a retained real compiler plan.
 pub(crate) fn changed_fragment_plan() -> Result<(usize, usize), LintError> {
-    use ryo_execution::outbound::query_language::factory;
     use ryo_execution::inbound::use_cases::compile_rules::interface::CompiledPlans;
+    use ryo_execution::outbound::query_language::factory;
     use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
     let make_bundle = |prefix: &str| {

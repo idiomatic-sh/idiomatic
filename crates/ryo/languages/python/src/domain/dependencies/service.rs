@@ -14,9 +14,9 @@ use crate::domain::packages::service::{
     causes_of, directory_of, file_of, members_of, normalized, parsed,
 };
 use crate::domain::packages::types::{
-    Checkout, Declared, Dependency, PackageLocation, Marker, PackageMembership, Naming, Normalized, Package,
-    Packages, Parsed, Redirect, Reference, Replacement, Requirement, Revision, PackageTarget, Wired,
-    Wiring, Written,
+    Checkout, Declared, Dependency, Marker, Naming, Normalized, Package, PackageLocation,
+    PackageMembership, PackageTarget, Packages, Parsed, Redirect, Reference, Replacement,
+    Requirement, Revision, Wired, Wiring, Written,
 };
 
 /// The name a package is known by, normalized; none for a manifest that declares no package.

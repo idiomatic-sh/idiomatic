@@ -1,10 +1,10 @@
 //! Parser values normalize every Python radix without evaluating unary or arithmetic expressions.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     service::{classify, write_float},
     types::{FloatBits, FloatBuffer, NumericClassification, NumericValue},
 };
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::semantic_syntax::service::positions;
 use crate::fixtures::reading::parsed;
 use ryo::languages::{self, ByteSlice, Tree};
@@ -36,7 +36,9 @@ fn literals(source: &'static str) -> Vec<NumericLiteral> {
                 },
             }),
             NumericClassification::NotNumeric => None,
-            NumericClassification::MissingPayload => panic!("the parser supplied a numeric payload"),
+            NumericClassification::MissingPayload => {
+                panic!("the parser supplied a numeric payload")
+            }
         })
         .collect()
 }
@@ -128,7 +130,9 @@ fn literals_inside_interpolations_remain_real_numeric_occurrences() {
 /// Each check below states its own source and asserts its own outcome.
 const CASES: &[Case<fn(), (), ()>] = &[
     Case {
-        name: CaseName("integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives"),
+        name: CaseName(
+            "integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives",
+        ),
         word: Word::Succeeds,
         input: || integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives,
         expect: Expect::Value(()),

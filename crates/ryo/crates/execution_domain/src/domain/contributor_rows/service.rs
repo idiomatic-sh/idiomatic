@@ -1,6 +1,6 @@
 //! What the rows of an answer keep of the operands whose absence of rows an operator trusts.
-use crate::domain::operator::contract::types::AbsenceMask;
 use crate::domain::completion::types::CoverageState;
+use crate::domain::operator::contract::types::AbsenceMask;
 use crate::domain::output_coverage::types::InputCoverage;
 
 /// MissingRows named populations obey the same absence semantics as physical reads.

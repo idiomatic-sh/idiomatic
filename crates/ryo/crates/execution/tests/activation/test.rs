@@ -167,16 +167,18 @@ fn subject(input: Input) -> Result<(), OperatingError> {
             );
         }
         Input::FactsFinishBorrows => {
-            let (blocks, bytes) = facts_finish_blocks().map_err(|error| {
-                OperatingError::ObservationIncomplete {
+            let (blocks, bytes) =
+                facts_finish_blocks().map_err(|error| OperatingError::ObservationIncomplete {
                     reason: error.to_string(),
-                }
-            })?;
+                })?;
             // One block for the sources and one for the joined list: no block for the words, which are the worker's own.
             // Before one copy (checkpoint 322) the same read made four: the clone of the words and the sources, then the
             // concatenation of each.
             assert!(blocks <= 2, "the finish allocated {blocks} blocks");
-            assert!(usize::try_from(bytes).is_ok_and(|bytes| bytes < WORDS), "the finish copied the words: {bytes} bytes");
+            assert!(
+                usize::try_from(bytes).is_ok_and(|bytes| bytes < WORDS),
+                "the finish copied the words: {bytes} bytes"
+            );
         }
     }
     Ok(())

@@ -1,11 +1,13 @@
 //! Which rules a file's applicability lets run, and the relations those rules read.
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use super::super::service::FileAnalysis;
+use super::super::types::{RequestVisitSetting, RuleGate};
 use crate::application::file_analysis::constants::RULE_SKIPPED_APPLICABILITY_METADATA_UNAVAILABLE;
 use crate::application::file_analysis::constants::RULE_SKIPPED_SYNTAX_ACCEPTANCE_UNDETERMINED;
 use crate::domain::workers::service::governs_rule;
 use crate::domain::workers::types::Gating;
 use crate::domain::workers::types::Tables;
 use ryo_execution::inbound::use_cases::execution::interface::Demand;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase as _;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
@@ -17,8 +19,6 @@ use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleNumber;
 use ryo_values::domain::runs::types::UnknownCause;
 use std::borrow::Cow;
-use super::super::service::FileAnalysis;
-use super::super::types::{RequestVisitSetting, RuleGate};
 
 impl FileAnalysis {
     /// The parsed relations needed by rules that govern this path and whose applicability is met.
@@ -38,15 +38,13 @@ impl FileAnalysis {
         {
             return Cow::Borrowed(setting.wanted);
         }
-        let demanded = setting
-            .program
-            .demanded_rules(|rule| {
-                if governs_rule(&MetadataUseCaseImpl, tables, rule) == Governing::Governs {
-                    Demand::Demanded
-                } else {
-                    Demand::Undemanded
-                }
-            });
+        let demanded = setting.program.demanded_rules(|rule| {
+            if governs_rule(&MetadataUseCaseImpl, tables, rule) == Governing::Governs {
+                Demand::Demanded
+            } else {
+                Demand::Undemanded
+            }
+        });
         Cow::Owned(
             setting
                 .wanted
@@ -72,7 +70,10 @@ impl FileAnalysis {
     }
 
     /// Whether this setting contains a policy that can change a file's active rules.
-    pub(in crate::application::file_analysis) fn may_gate_rules(setting: &RequestVisitSetting<'_>, acceptance: SyntaxAcceptance) -> Gating {
+    pub(in crate::application::file_analysis) fn may_gate_rules(
+        setting: &RequestVisitSetting<'_>,
+        acceptance: SyntaxAcceptance,
+    ) -> Gating {
         if setting.applicability_can_gate == Gating::MayGate
             && !(acceptance == SyntaxAcceptance::Accepted
                 && setting.applicability.len() == setting.metadata.len())
@@ -92,15 +93,13 @@ impl FileAnalysis {
         file: FileId,
         acceptance: SyntaxAcceptance,
     ) -> Vec<RuleGate> {
-        let demanded = setting
-            .program
-            .demanded_rules(|rule| {
-                if governs_rule(&MetadataUseCaseImpl, tables, rule) == Governing::Governs {
-                    Demand::Demanded
-                } else {
-                    Demand::Undemanded
-                }
-            });
+        let demanded = setting.program.demanded_rules(|rule| {
+            if governs_rule(&MetadataUseCaseImpl, tables, rule) == Governing::Governs {
+                Demand::Demanded
+            } else {
+                Demand::Undemanded
+            }
+        });
         let mut skipped = vec![RuleGate::Open; setting.metadata.len()];
         for (place, blocked) in skipped.iter_mut().enumerate() {
             if demanded.get(place).copied() != Some(Demand::Demanded) {

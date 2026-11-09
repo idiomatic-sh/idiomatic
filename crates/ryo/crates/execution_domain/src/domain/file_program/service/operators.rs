@@ -59,20 +59,17 @@ pub fn prepare<'s>(
                         },
                         Input::BoundObservation(id) => InputShape {
                             kinds: observed_kinds
-                                .get(
-                                    usize::try_from(id.0)
-                                        .map_err(|_| OperatingError::NotRun)?,
-                                )
+                                .get(usize::try_from(id.0).map_err(|_| OperatingError::NotRun)?)
                                 .ok_or(OperatingError::NotRun)?,
                             tree: None,
                         },
                         Input::Step(id) => InputShape {
-                            kinds: contracts
-                                .get(id.0 as usize)
-                                .map_or(&[], |contract| match &contract.schema {
+                            kinds: contracts.get(id.0 as usize).map_or(&[], |contract| {
+                                match &contract.schema {
                                     Ok(kinds) => kinds.as_slice(),
                                     Err(_) => &[],
-                                }),
+                                }
+                            }),
                             tree: tree_outputs.get(id.0 as usize).copied().flatten(),
                         },
                     })
@@ -133,4 +130,3 @@ pub fn prepare<'s>(
     );
     Ok(request)
 }
-

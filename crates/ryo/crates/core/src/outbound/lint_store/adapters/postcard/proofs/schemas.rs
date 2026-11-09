@@ -51,7 +51,9 @@ fn affected_schema(
 ) -> FrontierAffectedSchema {
     use ryo_values::domain::records::types::{FrontierAffected, FrontierMissing};
     match cause {
-        FrontierAffected::CurrentFile(FrontierMissing::Any) => FrontierAffectedSchema::CurrentFileAny,
+        FrontierAffected::CurrentFile(FrontierMissing::Any) => {
+            FrontierAffectedSchema::CurrentFileAny
+        }
         FrontierAffected::CurrentFile(FrontierMissing::Kinds { column, kinds }) => {
             FrontierAffectedSchema::CurrentFileKinds {
                 column: column.0,
@@ -126,7 +128,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn proof_row(
             input: ryo_values::domain::records::types::FrontierOrdinal(row.input),
             rule_digest: Digest(
                 *digests
-                    .get(usize::try_from(row.digest).map_err(|_| postcard::Error::DeserializeBadEncoding)?)
+                    .get(
+                        usize::try_from(row.digest)
+                            .map_err(|_| postcard::Error::DeserializeBadEncoding)?,
+                    )
                     .ok_or(postcard::Error::DeserializeBadEncoding)?,
             ),
             coverage,

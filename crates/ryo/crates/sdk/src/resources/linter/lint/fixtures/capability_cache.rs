@@ -1,5 +1,9 @@
 //! The test data of `linter lint` that fixes capability cache.
 
+use super::capability_provider::CapabilityProvider;
+use super::outcome::Outcome;
+use super::queries::{LITERAL_PARSE_POSITIVE, OPTIONAL_POSITIVE, RAW_FORMAT_POSITIVE};
+use super::rules::ordinary;
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::file::types::RelativePath;
 use crate::domain::language::types::Languages;
@@ -12,15 +16,10 @@ use crate::resources::linter::lint::types::Workers;
 use ryo_relations::domain::capabilities::types::OptionalCapability;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
-use super::outcome::Outcome;
-use super::queries::{LITERAL_PARSE_POSITIVE, OPTIONAL_POSITIVE, RAW_FORMAT_POSITIVE};
-use super::capability_provider::CapabilityProvider;
-use super::rules::ordinary;
 
 pub(crate) fn capability_cache(query: &str) -> Outcome {
     use ryo_relations::domain::capabilities::types::OptionalCapability;
-    let advertised_capabilities: &'static [OptionalCapability] = if query == RAW_FORMAT_POSITIVE
-    {
+    let advertised_capabilities: &'static [OptionalCapability] = if query == RAW_FORMAT_POSITIVE {
         &[
             OptionalCapability::RawFormatSegment,
             OptionalCapability::RawFormatField,
@@ -64,8 +63,7 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
                 applicability: crate::resources::linter::RuleApplicability::Always,
                 parameters: BTreeMap::new(),
                 include: vec![
-                    crate::resources::linter::lint::types::Glob::try_from("*.txt")
-                        .expect("glob"),
+                    crate::resources::linter::lint::types::Glob::try_from("*.txt").expect("glob"),
                 ],
                 exclude: vec![],
             },
@@ -113,9 +111,8 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
     selected.source_language = crate::domain::language::types::SourceLanguage::Named(
         crate::domain::language::types::LanguageName("fixture".into()),
     );
-    let explicit =
-        crate::resources::linter::lint::entry::lint_with(&advertised, selected.clone())
-            .expect("explicit refusal report");
+    let explicit = crate::resources::linter::lint::entry::lint_with(&advertised, selected.clone())
+        .expect("explicit refusal report");
     assert!(
         explicit.findings.is_empty(),
         "cached path-recognized findings cannot bypass explicit opt-in"

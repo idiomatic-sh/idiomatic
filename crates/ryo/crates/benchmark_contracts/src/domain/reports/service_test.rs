@@ -121,7 +121,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         let error = ReportsError::Invalid("coverage is missing".into());
         let message = error.to_string();
         return match error {
-            ReportsError::Invalid(reason) if reason == message && reason == "coverage is missing" => Ok(()),
+            ReportsError::Invalid(reason)
+                if reason == message && reason == "coverage is missing" =>
+            {
+                Ok(())
+            }
             other => Err(other.to_string().into()),
         };
     }

@@ -46,9 +46,9 @@ pub fn admit(
         ));
     };
     if suite
-        .digest(ArtifactPath(
-            &measured_profile.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
-        ))?
+        .digest(ArtifactPath(&measured_profile.join(
+            ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+        )))?
         .0
         != profile_sha256.0
     {
@@ -56,7 +56,11 @@ pub fn admit(
             constants::REGISTERED_AUTHORITY_DIFFERS_FROM_MEASURED_C.into(),
         ));
     }
-    if rules != measured_profile.join(crate::domain::suite::constants::RULES).as_path() {
+    if rules
+        != measured_profile
+            .join(crate::domain::suite::constants::RULES)
+            .as_path()
+    {
         return Err(Error::Invalid(
             constants::SELECTED_RULE_ROOT_DIFFERS_FROM_MEASURED.into(),
         ));

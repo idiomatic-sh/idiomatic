@@ -52,7 +52,10 @@ impl ValueTexts for NoTexts {
 fn rows(kinds: [CellKind; 2], cells: &[i64]) -> Table {
     Table {
         kinds: kinds.to_vec(),
-        cells: cells.iter().map(|cell| Cell::Number(Integer(*cell))).collect(),
+        cells: cells
+            .iter()
+            .map(|cell| Cell::Number(Integer(*cell)))
+            .collect(),
         count: RowCount(cells.len() / 2),
     }
 }
@@ -63,10 +66,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let (left, order_kind) = match input {
         Scenario::SidesSortByOrder => (rows(numbers, &[1, 9, 1, 3]), numbers),
         Scenario::DuplicateOrderIsRefused => (rows(numbers, &[1, 3, 1, 3]), numbers),
-        Scenario::OrderColumnMustBeANumber => (
-            rows([CellKind::Number, CellKind::Flag], &[1, 3]),
-            numbers,
-        ),
+        Scenario::OrderColumnMustBeANumber => {
+            (rows([CellKind::Number, CellKind::Flag], &[1, 3]), numbers)
+        }
     };
     let right = rows(order_kind, &[1, 1]);
     let matching = build(
@@ -79,7 +81,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
         &NoTexts,
         &mut Vec::new(),
     )?;
-    Ok(Cow::Owned(matching.left.iter().map(|row| row.row.0).collect()))
+    Ok(Cow::Owned(
+        matching.left.iter().map(|row| row.row.0).collect(),
+    ))
 }
 
 #[test]

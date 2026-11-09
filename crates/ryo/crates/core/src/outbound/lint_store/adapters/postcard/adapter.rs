@@ -2,6 +2,36 @@
 //! The store port, implemented with one file in the cache directory: sections one after the other and a table of contents last, so
 //! a run reads only the sections it needs; written whole through a temporary file renamed into place, so a reader sees the old store
 //! or the new, never part of one. A bucket whose words are as they were is copied from the old file as it is.
+use super::connection::invalid;
+use super::constants::FILE;
+use super::constants::FRESH_ROW_COUNT_EXCEEDS_STAGING_WIDTH;
+use super::constants::FRESH_ROW_COUNT_OVERFLOWS;
+use super::constants::INVALID_FRESH_STAGED_ROW_ORDER;
+use super::constants::LENGTH;
+use super::constants::MISSING_INLINE_FRESH_ROW;
+use super::constants::MISSING_STAGED_ROW;
+use super::constants::NOT_A_FILE;
+use super::constants::OUTSIDE;
+use super::constants::TEMPORARY;
+use super::constants::TRAILER;
+use super::constants::UNDECODED;
+use super::rest::schemas::rest_bytes;
+use super::rest::schemas::rest_from;
+use super::schemas::contents;
+use super::schemas::contents_bytes;
+use super::tables::schemas::tables_bytes;
+use super::tables::schemas::tables_of;
+use super::types::BucketSpan;
+use super::types::FileOffset;
+use super::types::Frame;
+use super::types::OpenedStore;
+use super::types::Payload;
+use super::types::SectionBytes;
+use super::types::SectionLength;
+use super::types::SectionSpan;
+use super::types::Sequence;
+use super::types::TableOfContents;
+use super::types::WriterNumber;
 use crate::outbound::lint_store::adapters::postcard::constants::FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE;
 use crate::outbound::lint_store::adapters::postcard::constants::FRONTIER_PROOFS_HAVE_DUPLICATE_OR_UNORDERED;
 use crate::outbound::lint_store::adapters::postcard::constants::NO_STAGING_SESSION_WAS_READ;
@@ -13,40 +43,6 @@ use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BELONGS_
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BUCKET_IS_ABSENT;
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_BUCKET_OR_SPAN_IS;
 use crate::outbound::lint_store::adapters::postcard::constants::STORE_SNAPSHOT_IDENTITIES_EXHAUSTED;
-use std::collections::BTreeMap;
-use std::io::Read as _;
-use std::io::Seek as _;
-use std::io::SeekFrom;
-use std::io::Write as _;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::MutexGuard;
-use std::sync::PoisonError;
-use super::constants::FILE;
-use super::constants::TRAILER;
-use super::constants::LENGTH;
-use super::constants::NOT_A_FILE;
-use super::constants::OUTSIDE;
-use super::constants::TEMPORARY;
-use super::constants::UNDECODED;
-use super::schemas::contents;
-use super::schemas::contents_bytes;
-use super::rest::schemas::rest_bytes;
-use super::rest::schemas::rest_from;
-use super::tables::schemas::tables_bytes;
-use super::tables::schemas::tables_of;
-use super::types::BucketSpan;
-use super::types::FileOffset;
-use super::types::OpenedStore;
-use super::types::SectionBytes;
-use super::types::SectionLength;
-use super::types::SectionSpan;
-use super::types::Sequence;
-use super::types::TableOfContents;
-use super::types::WriterNumber;
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::lint_store::interface::OldRowBatch;
@@ -61,18 +57,22 @@ use ryo_values::domain::stores::types::OldWords;
 use ryo_values::domain::stores::types::ReadHanded;
 use ryo_values::domain::stores::types::ReadWordPayload;
 use ryo_values::domain::stores::types::ReadWords;
+use ryo_values::domain::stores::types::StagedRow;
 use ryo_values::domain::stores::types::StoreSnapshot;
 use ryo_values::domain::stores::types::Stored;
-use super::constants::FRESH_ROW_COUNT_OVERFLOWS;
-use super::constants::INVALID_FRESH_STAGED_ROW_ORDER;
-use super::constants::FRESH_ROW_COUNT_EXCEEDS_STAGING_WIDTH;
-use super::constants::MISSING_STAGED_ROW;
-use super::constants::MISSING_INLINE_FRESH_ROW;
-use super::connection::invalid;
-use super::types::Frame;
-use super::types::Payload;
-use ryo_values::domain::stores::types::StagedRow;
 use ryo_values::domain::stores::types::StoredWords;
+use std::collections::BTreeMap;
+use std::io::Read as _;
+use std::io::Seek as _;
+use std::io::SeekFrom;
+use std::io::Write as _;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
+use std::sync::PoisonError;
+use std::sync::atomic::Ordering;
 
 /// The postcard store adapter: the store of one cache directory, for one build.
 #[derive(Clone, Debug)]
@@ -220,18 +220,12 @@ impl OldRowBatch for PostcardOldRowBatch {
             })?;
         let bucket = &mut self.buckets[place];
         let span = bucket.span;
-        super::writer::read_old_in(
-            bucket,
-            self.held,
-            self.snapshot,
-            span,
-            words,
-            into,
+        super::writer::read_old_in(bucket, self.held, self.snapshot, span, words, into).map_err(
+            |error| LintStoreError::Unreadable {
+                directory: self.directory.0.to_string(),
+                reason: error.to_string(),
+            },
         )
-        .map_err(|error| LintStoreError::Unreadable {
-            directory: self.directory.0.to_string(),
-            reason: error.to_string(),
-        })
     }
 }
 
@@ -497,7 +491,6 @@ fn locked(opened: &Mutex<OpenedStore>) -> MutexGuard<'_, OpenedStore> {
     opened.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-
 impl LintStorePort for LintStorePostcardAdapter {
     fn keeps(&self) -> StoreKeeping {
         StoreKeeping::Keeps
@@ -679,8 +672,7 @@ impl ReadStore for PostcardRead {
         };
         let mut spool = self.spool.lock().unwrap_or_else(PoisonError::into_inner);
         if spool.is_none() {
-            *spool =
-                Some(super::connection::StagingConnection::new(self.session).map_err(failed)?);
+            *spool = Some(super::connection::StagingConnection::new(self.session).map_err(failed)?);
         }
         let Some(spool) = spool.as_mut() else {
             return Err(LintStoreError::NothingRead);
@@ -771,8 +763,8 @@ impl ReadStore for PostcardRead {
         {
             return Err(unwritable(&FRONTIER_PAYLOAD_LACKS_ITS_EXACT_SOURCE));
         }
-        let by_bucket = fresh(&stored.handed.frontier, &kept.staged)
-            .map_err(|error| unwritable(&error))?;
+        let by_bucket =
+            fresh(&stored.handed.frontier, &kept.staged).map_err(|error| unwritable(&error))?;
         let old_contents = old_tables.map(|each| each.buckets);
         std::fs::create_dir_all(Path::new(&*store.directory.0))
             .map_err(|error| unwritable(&error))?;
@@ -780,18 +772,13 @@ impl ReadStore for PostcardRead {
             "{TEMPORARY}.{}.{:x}.{}",
             std::process::id(),
             Arc::as_ptr(&self.adapter.sequence.0).addr(),
-            self.adapter
-                .unique()
-                .map_err(|error| unwritable(&error))?
-                .0
+            self.adapter.unique().map_err(|error| unwritable(&error))?.0
         ));
         let written = std::fs::File::create(&temporary)
             .map_err(|error| unwritable(&error))
             .and_then(|file| {
-                let mut out = std::io::BufWriter::with_capacity(
-                    super::connection::BUFFER_BYTES,
-                    file,
-                );
+                let mut out =
+                    std::io::BufWriter::with_capacity(super::connection::BUFFER_BYTES, file);
                 let mut at = FileOffset(0);
                 let tables = put(
                     &mut out,

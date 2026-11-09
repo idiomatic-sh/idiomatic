@@ -1,7 +1,7 @@
 //! The portable contract that borrows the view of a built derived payload.
+use crate::domain::contract::types::DerivedView;
 use crate::domain::contract::types::derived_payload::value::DerivedPayload;
 use crate::domain::contract::types::prepared_derived::value::PreparedDerived;
-use crate::domain::contract::types::DerivedView;
 use crate::domain::fault::types::DerivedFault;
 
 /// A view borrows an existing payload and cannot acquire inputs or build; a complete implementation compiles.

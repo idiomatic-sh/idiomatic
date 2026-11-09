@@ -6,7 +6,7 @@ use view::AxisResource;
 #[cfg(test)]
 mod test;
 
-use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operator::contract::resources::AxisResources,
@@ -14,7 +14,7 @@ use ryo_execution_domain::domain::{
     table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 
 #[derive(Clone, Copy)]
@@ -46,8 +46,10 @@ pub(crate) fn classify<'f>(
         direction,
         ..
     } = program;
-    if matches!(domain, RepresentationInput::Computed(_) | RepresentationInput::Compact(_))
-        && domain.count().0 == 0
+    if matches!(
+        domain,
+        RepresentationInput::Computed(_) | RepresentationInput::Compact(_)
+    ) && domain.count().0 == 0
         && output.is_empty()
     {
         return Ok(AxisMode::Empty);
@@ -67,7 +69,8 @@ pub(crate) fn classify<'f>(
             return Ok(AxisMode::Native { tree, among });
         }
     }
-    if *has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+    if *has_filter
+        == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
         || !domain_view.is_empty()
         || !output.is_empty()
         || matches!(

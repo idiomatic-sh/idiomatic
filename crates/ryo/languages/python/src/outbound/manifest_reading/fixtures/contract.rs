@@ -77,9 +77,7 @@ pub(crate) const CASES: &[Case<Ask, Answer, Failure>] = &[
         name: CaseName("a_manifest_it_cannot_read_is_unreadable"),
         word: Word::Refuses,
         input: || Ask::ReadsABrokenFile,
-        expect: Expect::Refusal(|error| {
-            selects!(error, ManifestReadingError::Unreadable { .. })
-        }),
+        expect: Expect::Refusal(|error| selects!(error, ManifestReadingError::Unreadable { .. })),
     },
 ];
 

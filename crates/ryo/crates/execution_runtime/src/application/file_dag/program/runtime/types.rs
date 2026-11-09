@@ -11,7 +11,8 @@ pub(crate) enum InvocationFailure {
 /// No held inputs/publication or dependency accounting at internal instructions.
 #[derive(Default)]
 pub(crate) struct KernelScratch {
-    pub workspace: Option<ryo_execution_store::application::file_dag::workspace::InvocationWorkspace>,
+    pub workspace:
+        Option<ryo_execution_store::application::file_dag::workspace::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
     pub ordered: ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch,
 }
@@ -35,9 +36,7 @@ pub(crate) enum DependencyCheckpoint {
 }
 /// Prepared consumer obligations a region still owes before it may retire.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ReaderCount(
-    pub(crate) usize,
-);
+pub(crate) struct ReaderCount(pub(crate) usize);
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct RetryCheckpoint {

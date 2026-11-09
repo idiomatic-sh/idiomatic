@@ -1,7 +1,9 @@
 //! Decode native execution evidence into the existing typed comparison contract.
 use super::errors::InventoryComparisonError as Failure;
 use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ObservationDocument, RecordedMetadata, ReferenceProcess, ReportedSkips};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ObservationDocument, RecordedMetadata, ReferenceProcess, ReportedSkips,
+};
 
 use crate::domain::diagnostics::service::compare_with_contract;
 use ryo_benchmark_contracts::domain::reports::types::Comparison;

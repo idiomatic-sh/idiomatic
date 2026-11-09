@@ -1,9 +1,9 @@
 //! One project phase execution serves every rule of the request.
 use super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
+use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
-use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
@@ -19,7 +19,9 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
         corpus,
     } = prepare_case(PhaseExit::Complete).expect("prepared case");
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
-        &prepared, &services, std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+        &prepared,
+        &services,
+        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )
     .expect("publication owner");
     let required = |inapplicable: &[FileId]| {

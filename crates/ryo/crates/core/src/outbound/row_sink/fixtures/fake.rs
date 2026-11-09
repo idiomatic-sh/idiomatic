@@ -6,7 +6,7 @@ use std::sync::{Mutex, PoisonError};
 
 use super::super::errors::RowSinkError;
 use super::super::interface::RowSinkPort;
-use super::super::types::{LentCell, AnswerCounts};
+use super::super::types::{AnswerCounts, LentCell};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::row_texts::types::Cell;

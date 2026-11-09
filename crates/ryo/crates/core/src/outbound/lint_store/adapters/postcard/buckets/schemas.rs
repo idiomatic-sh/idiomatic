@@ -1,13 +1,13 @@
 //! The buckets document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
-use std::borrow::Cow;
+use super::super::strings::schemas::as_bytes;
+use ryo_values::domain::stored_facts::types::Bucket;
 #[cfg(test)]
 use ryo_values::domain::stored_facts::types::PackedWords;
-use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
 #[cfg(test)]
 use ryo_values::domain::stores::types::StoredWords;
-use super::super::strings::schemas::as_bytes;
+use std::borrow::Cow;
 
 /// The words one file handed one bucket: one row for each file, in a section of the bucket's own.
 #[cfg(test)]
@@ -22,7 +22,9 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct WordsSchema<'a> {
 
 /// The words the files of `stored` handed `bucket`, as its section's bytes; `rows` are the rows of that bucket.
 #[cfg(test)]
-pub(in crate::outbound::lint_store::adapters::postcard) fn bucket_bytes(rows: &[&StoredWords]) -> Result<Vec<u8>, postcard::Error> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn bucket_bytes(
+    rows: &[&StoredWords],
+) -> Result<Vec<u8>, postcard::Error> {
     let words: Vec<WordsSchema<'_>> = rows
         .iter()
         .map(|each| WordsSchema {

@@ -20,7 +20,10 @@ fn pin_text(pin: &Pin) -> Value {
 /// The raw invocation record file a capture keeps beside its process bytes.
 pub fn invocation_bytes(invocation: &InvocationDocument) -> Vec<u8> {
     let argument_texts = |values: &[ArgumentText]| {
-        values.iter().map(|value| value.0.clone()).collect::<Vec<_>>()
+        values
+            .iter()
+            .map(|value| value.0.clone())
+            .collect::<Vec<_>>()
     };
     let environment_texts = |values: &BTreeMap<EnvironmentName, EnvironmentValue>| {
         values

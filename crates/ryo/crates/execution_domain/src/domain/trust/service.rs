@@ -5,12 +5,12 @@ use super::reads::{absorb, kind_column_place, needs_with_masks, uses_of};
 use ryo_relations::domain::relations::types::Relation;
 
 use super::types::{AbsenceInputs, Bearing, Blocking, Needs, Passage, RelationRead, StepReads};
-use crate::domain::operating::errors::OperatingError;
 use crate::domain::coverage::constants::REPOSITORY;
 use crate::domain::coverage::service::unknown_message;
 use crate::domain::coverage::types::{
     CoverageScope, Lacking, LackingKind, Partial, Partials, RuleIndex, Unknown,
 };
+use crate::domain::operating::errors::OperatingError;
 use crate::domain::rules::service::id_at;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::FileId;

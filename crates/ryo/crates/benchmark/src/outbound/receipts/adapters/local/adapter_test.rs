@@ -8,12 +8,16 @@ use crate::outbound::receipts::fixtures::samples::observation;
 use crate::outbound::receipts::interface::ReceiptsPort as _;
 use crate::outbound::receipts::types::{CapturedProcess, CaseReceipts, ReceiptPath};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{FailedInvocation, InvocationDocument};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::documents::types::text::value::ExitStatus;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ObservationDocument, ProcessRecord};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+    FailedInvocation, InvocationDocument,
+};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ObservationDocument, ProcessRecord,
+};
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ExpectationKind;
+use ryo_benchmark_contracts::domain::documents::types::text::value::ExitStatus;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, ReasonText, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -71,7 +75,10 @@ fn row() -> ObservationDocument {
     document
 }
 /// The raw artifacts attached to the process record of a row.
-fn attached(document: &ObservationDocument) -> &ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifacts {
+fn attached(
+    document: &ObservationDocument,
+) -> &ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifacts
+{
     match &document.process_observation {
         ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => match &process.artifacts {
             ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(artifacts) => artifacts,
@@ -98,36 +105,22 @@ fn raw_bytes_attempts_and_unreferenced_resume_history_are_retained() {
     let root = tempfile::tempdir().unwrap();
     let receipt = root.path().join("001.cases.jsonl");
     write(&receipt, &[255, 0, 1]);
-    let first = observations(&receipt)
-        .unwrap();
-    let pointer = attached(&first.records[0])
-        .stdout
-        .path
-        .0
-        .as_str();
+    let first = observations(&receipt).unwrap();
+    let pointer = attached(&first.records[0]).stdout.path.0.as_str();
     assert_eq!(
         first.artifacts.bytes.get(Path::new(pointer)),
         Some(&CapturedBytes(vec![255, 0, 1]))
     );
-    std::fs::create_dir(
-        root.path()
-            .join("001.cases.jsonl.process-orphan"),
-    )
-    .unwrap();
+    std::fs::create_dir(root.path().join("001.cases.jsonl.process-orphan")).unwrap();
     write(&receipt, b"second");
-    let next = observations(&receipt)
-        .unwrap();
+    let next = observations(&receipt).unwrap();
     assert_eq!(next.records.len(), 2);
     assert_eq!(next.artifacts.bytes.len(), 6);
     assert_eq!(
         next.artifacts.bytes.get(Path::new(pointer)),
         Some(&CapturedBytes(vec![255, 0, 1]))
     );
-    assert!(
-        root.path()
-            .join("001.cases.jsonl.process-orphan")
-            .is_dir()
-    );
+    assert!(root.path().join("001.cases.jsonl.process-orphan").is_dir());
 }
 fn a_sibling_receipt_cannot_reuse_another_shards_artifact_namespace() {
     let root = tempfile::tempdir().unwrap();
@@ -135,42 +128,21 @@ fn a_sibling_receipt_cannot_reuse_another_shards_artifact_namespace() {
     write(&receipt, b"first");
     let sibling = root.path().join("002.cases.jsonl");
     std::fs::copy(&receipt, &sibling).unwrap();
-    assert!(matches!(
-        observations(&sibling),
-        Err(_refused)
-    ));
-    assert!(matches!(
-        observations(&receipt),
-        Ok(_loaded)
-    ));
+    assert!(matches!(observations(&sibling), Err(_refused)));
+    assert!(matches!(observations(&receipt), Ok(_loaded)));
 }
 fn changed_raw_bytes_and_extra_files_in_referenced_attempts_are_refused() {
     let root = tempfile::tempdir().unwrap();
     let receipt = root.path().join("cases.jsonl");
     write(&receipt, b"first");
-    let loaded = observations(&receipt)
-        .unwrap();
-    let pointer = attached(&loaded.records[0])
-        .stdout
-        .path
-        .0
-        .as_str();
+    let loaded = observations(&receipt).unwrap();
+    let pointer = attached(&loaded.records[0]).stdout.path.0.as_str();
     let path = root.path().join(pointer);
     std::fs::write(&path, b"changed").unwrap();
-    assert!(matches!(
-        observations(&receipt),
-        Err(_refused)
-    ));
+    assert!(matches!(observations(&receipt), Err(_refused)));
     std::fs::write(&path, b"first").unwrap();
-    std::fs::write(
-        path.with_file_name("unexpected.bin"),
-        b"extra",
-    )
-    .unwrap();
-    assert!(matches!(
-        observations(&receipt),
-        Err(_refused)
-    ));
+    std::fs::write(path.with_file_name("unexpected.bin"), b"extra").unwrap();
+    assert!(matches!(observations(&receipt), Err(_refused)));
 }
 /// Replace the artifact at `path` with a link to `target`.
 #[cfg(unix)]
@@ -185,22 +157,14 @@ fn a_raw_artifact_symlink_cannot_escape_the_receipt_boundary() {
     let outside = tempfile::tempdir().unwrap();
     let receipt = root.path().join("cases.jsonl");
     write(&receipt, b"first");
-    let loaded = observations(&receipt)
-        .unwrap();
-    let pointer = attached(&loaded.records[0])
-        .stdout
-        .path
-        .0
-        .as_str();
+    let loaded = observations(&receipt).unwrap();
+    let pointer = attached(&loaded.records[0]).stdout.path.0.as_str();
     let path = root.path().join(pointer);
     let target = outside.path().join("bytes");
     std::fs::write(&target, b"first").unwrap();
     std::fs::remove_file(&path).unwrap();
     link(&target, &path);
-    assert!(matches!(
-        observations(&receipt),
-        Err(_refused)
-    ));
+    assert!(matches!(observations(&receipt), Err(_refused)));
 }
 
 fn an_unsafe_receipt_name_is_an_invalid_receipt() {

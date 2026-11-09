@@ -207,7 +207,9 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_language_not_linked_begins_no_semantic_session"),
         word: Word::Succeeds,
         input: || {
-            |language: &dyn LanguagePort| Ok(a_language_not_linked_begins_no_semantic_session(language))
+            |language: &dyn LanguagePort| {
+                Ok(a_language_not_linked_begins_no_semantic_session(language))
+            }
         },
         expect: Expect::Value(true),
     },
@@ -216,7 +218,9 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             |language: &dyn LanguagePort| {
-                Ok(the_entries_a_project_asks_for_are_named_once_in_order(language))
+                Ok(the_entries_a_project_asks_for_are_named_once_in_order(
+                    language,
+                ))
             }
         },
         expect: Expect::Value(true),

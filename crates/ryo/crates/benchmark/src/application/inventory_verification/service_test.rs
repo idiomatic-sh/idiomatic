@@ -1,8 +1,12 @@
 //! Two unrelated providers exercise the same inventory behavior and native receipt contract.
 use super::constants;
 use super::service::verify;
-use crate::domain::suite::types::inventory::value::InventoryVerdict;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::types::Contestant;
+use crate::domain::suite::types::inventory::value::InventoryVerdict;
+use crate::outbound::inventory::types::{
+    Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority,
+};
 use crate::outbound::{
     execution::interface::ExecutionPort,
     inventory::types::{
@@ -10,19 +14,19 @@ use crate::outbound::{
         RuleInstance, RuleReason,
     },
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, RuleName, Sha256Text};
-use ryo_benchmark_contracts::domain::receipts::constants::{CASE_RECEIPTS_ARGUMENT, VERIFY_CASES};
-use ryo_benchmark_contracts::domain::measurements::types::{Invocation, TerminationSignal};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use std::collections::BTreeMap;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::inventory::types::{Command, ExecutablePin, FilePin, RegisteredRule, RegistrationAuthority};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, RuleName, Sha256Text,
+};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use ryo_benchmark_contracts::domain::measurements::types::{Invocation, TerminationSignal};
+use ryo_benchmark_contracts::domain::receipts::constants::{CASE_RECEIPTS_ARGUMENT, VERIFY_CASES};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde_json::json;
+use std::collections::BTreeMap;
 use std::{borrow::Cow, path::PathBuf, sync::Mutex, time::Duration};
 
 struct ToyExecution {
@@ -111,7 +115,9 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
     let defaults = ["missing", middle, "good"]
         .map(|rule| format!("{name}-{rule}"))
         .to_vec();
-    let profile = context.path().join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+    let profile = context
+        .path()
+        .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
     std::fs::write(&profile, format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{reference_sha:?}]\ndefaults = {defaults:?}\n")).unwrap();
     let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())]
         .into_iter()
@@ -122,7 +128,8 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
             std::fs::write(&definition, format!("definition for {rule}")).unwrap();
             let evidence = directory.join("evidence/oracle.json");
             std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
-            let context_profile = directory.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+            let context_profile = directory
+                .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
             std::fs::write(
                 &context_profile,
                 format!(
@@ -140,7 +147,10 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
                 artifacts: BTreeMap::from([
                     (definition.clone(), Sha256Text(digest(&definition))),
                     (evidence.clone(), Sha256Text(digest(&evidence))),
-                    (context_profile.clone(), Sha256Text(digest(&context_profile))),
+                    (
+                        context_profile.clone(),
+                        Sha256Text(digest(&context_profile)),
+                    ),
                 ]),
                 rule_id: RuleName(rule.clone()),
                 reason: RuleReason::Unstated,
@@ -286,7 +296,8 @@ fn undeclared_modules() -> Result<InventoryVerdict, Error> {
         };
         let helper = context.join("helper.ryoql");
         std::fs::write(&helper, "declared helper").unwrap();
-        let profile = context.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+        let profile =
+            context.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
         let content = std::fs::read_to_string(&profile).unwrap()
             + "query-modules={'test/helper'='helper.ryoql'}\n";
         std::fs::write(&profile, content).unwrap();

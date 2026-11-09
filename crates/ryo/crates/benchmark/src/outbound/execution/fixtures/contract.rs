@@ -341,7 +341,11 @@ fn observe(
     assert_eq!(
         output.signal,
         if output.status.0 < 0_i32 {
-            TerminationSignal::Signalled(ryo_benchmark_contracts::domain::measurements::types::SignalNumber(-output.status.0))
+            TerminationSignal::Signalled(
+                ryo_benchmark_contracts::domain::measurements::types::SignalNumber(
+                    -output.status.0,
+                ),
+            )
         } else {
             TerminationSignal::Exited
         },

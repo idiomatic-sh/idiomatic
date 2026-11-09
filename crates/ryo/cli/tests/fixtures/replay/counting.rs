@@ -189,7 +189,10 @@ pub(crate) fn lint_observing<T>(
             ryo_values::domain::runs::service::workers_to_start(
                 ryo_values::domain::runs::types::WorkersAsked(workers),
                 ryo_values::domain::runs::types::MachineWorkers(
-                    u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get)).unwrap_or(1),
+                    u32::try_from(
+                        std::thread::available_parallelism().map_or(1, std::num::NonZero::get),
+                    )
+                    .unwrap_or(1),
                 ),
             )
             .0,

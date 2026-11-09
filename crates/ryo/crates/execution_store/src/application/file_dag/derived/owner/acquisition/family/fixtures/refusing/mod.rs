@@ -1,13 +1,13 @@
 //! A real portable use case whose build is the one injected dependency failure.
+use crate::outbound::derived::interface::DerivedPort;
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
-use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs;
-use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
+use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
-use crate::outbound::derived::interface::DerivedPort;
 use ryo_relations::domain::relations::types::CellKind;
 use std::sync::Arc;
 
@@ -34,4 +34,3 @@ impl DerivedPort for RefusingBuild {
         crate::application::file_dag::fixtures::derived().view(prepared, payload)
     }
 }
-

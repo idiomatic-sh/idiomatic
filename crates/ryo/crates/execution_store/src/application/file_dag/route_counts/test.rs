@@ -1,6 +1,5 @@
 use super::constants::{
-    KIND_EQUALITY, KIND_MEMBERSHIP, MAX_KEYS, OWNER_BUILD,
-    GRAPH_ADJACENCY_BUILD,
+    GRAPH_ADJACENCY_BUILD, KIND_EQUALITY, KIND_MEMBERSHIP, MAX_KEYS, OWNER_BUILD,
 };
 use super::schemas::document;
 use super::types::{
@@ -36,7 +35,9 @@ fn recording() -> RouteState {
 }
 /// Runs `run` with a recording profile handed to it, and answers what it recorded.
 fn capture(run: impl FnOnce(&RouteProfile)) -> RouteState {
-    let profile = RouteProfile(Some(std::sync::Arc::new(std::sync::Mutex::new(recording()))));
+    let profile = RouteProfile(Some(std::sync::Arc::new(
+        std::sync::Mutex::new(recording()),
+    )));
     run(&profile);
     let state = profile.0.as_ref().expect("a recording profile");
     let mut state = state.lock().expect("an unpoisoned profile");
@@ -49,8 +50,9 @@ fn physical_build_is_once_and_original_error_survives_nested_scopes() {
         let _node = profile.node(19);
         let _owner = owner(profile, 7);
         event(profile, OWNER_REQUEST, KIND_EQUALITY);
-        let outcome: Result<(), &str> =
-            observe(profile, SCOPED_BUILD, KIND_EQUALITY, || Err(ORIGINAL_FAILURE));
+        let outcome: Result<(), &str> = observe(profile, SCOPED_BUILD, KIND_EQUALITY, || {
+            Err(ORIGINAL_FAILURE)
+        });
         assert_eq!(outcome, Err(ORIGINAL_FAILURE));
         event(profile, OWNER_HIT, KIND_EQUALITY);
     });
@@ -163,9 +165,10 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
 fn owner_routes_count_each_physical_equality_build_once() {
     use crate::application::file_dag::derived::owner::ViewContext;
     use crate::application::file_dag::relations::RelationOwner;
+    use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     use ryo_execution_domain::domain::{
-        derived_views::types::*, operation_schema::types::InputShape};
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+        derived_views::types::*, operation_schema::types::InputShape,
+    };
     use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn};
     use ryo_values::domain::plan_parts::types::ColumnIndex;
     use std::sync::Arc;
@@ -202,7 +205,10 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
                 RepresentationInput::Stored(rows),
             )
             .unwrap();
-        let admitted = owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap();
+        let admitted = owner
+            .derived()
+            .admit_view(&plan, &owner, &[&proof])
+            .unwrap();
         let held = owner
             .derived()
             .acquire_stored(

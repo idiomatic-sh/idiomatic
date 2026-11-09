@@ -1,12 +1,12 @@
 //! A sink failure or a fused semantic refusal stays sticky while the kernel continues and reports success.
-use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::super::cases::test::table_of;
 use super::super::super::*;
 use super::super::fixtures::{REFUSAL, refusal};
+use crate::outbound::operators::interface::OperatorsPort as _;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 #[derive(Debug)]
 struct KeepsCalling {
     refuse_project: bool,
@@ -17,9 +17,9 @@ impl crate::outbound::operators::interface::OperatorsPort for KeepsCalling {
             OperatorCall::Evaluate {
                 operation: ryo_values::domain::plans::types::Operation::Project { .. },
                 ..
-            } if self.refuse_project => {
-                Err(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL) })
-            }
+            } if self.refuse_project => Err(PortableOperatorFault::NoSuchColumn {
+                index: ryo_values::domain::plan_parts::types::ColumnIndex(REFUSAL),
+            }),
             OperatorCall::Evaluate {
                 operation: ryo_values::domain::plans::types::Operation::Join { .. },
                 driver,
@@ -38,10 +38,7 @@ impl crate::outbound::operators::interface::OperatorsPort for KeepsCalling {
                 }
                 Ok(OperatorAnswer::Written)
             }
-            call => {
-                crate::application::file_dag::fixtures::operators()
-                    .operators(call)
-            }
+            call => crate::application::file_dag::fixtures::operators().operators(call),
         }
     }
 }

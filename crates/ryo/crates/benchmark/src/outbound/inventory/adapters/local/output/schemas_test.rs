@@ -34,7 +34,6 @@ fn fixture(path: &str) -> String {
     .expect("fixture document")
 }
 
-
 /// What a row feeds the document: receipt rows to read, or a summary or row to write.
 #[derive(Debug)]
 enum Subject {
@@ -75,9 +74,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a receipt row field the producers never write is refused by name"),
         word: Word::Refuses,
         input: || {
-            Subject::Observations(
-                fixture("receipts/python-v2-rows.jsonl").replacen("{", "{\"surprise\":1,", 1),
-            )
+            Subject::Observations(fixture("receipts/python-v2-rows.jsonl").replacen(
+                "{",
+                "{\"surprise\":1,",
+                1,
+            ))
         },
         expect: Expect::Error(Refusal::UnknownSurprise),
     },
@@ -105,7 +106,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
             .map_err(|error| named(&error.to_string()))
         }
         Subject::Summary => {
-            let bytes = SummaryJson::try_from(&summary()).map_err(|error| named(&error.to_string()))?;
+            let bytes =
+                SummaryJson::try_from(&summary()).map_err(|error| named(&error.to_string()))?;
             let value: serde_json::Value =
                 serde_json::from_slice(&bytes.0.0).expect("a summary is JSON");
             Ok(usize::from(
@@ -116,7 +118,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
         Subject::Row => {
             let bytes = RowJson::try_from(&row()).map_err(|error| named(&error.to_string()))?;
-            let value: serde_json::Value = serde_json::from_slice(&bytes.0.0).expect("a row is JSON");
+            let value: serde_json::Value =
+                serde_json::from_slice(&bytes.0.0).expect("a row is JSON");
             Ok(usize::from(
                 value["status"] == "FAIL"
                     && value["reason"] == "missing"

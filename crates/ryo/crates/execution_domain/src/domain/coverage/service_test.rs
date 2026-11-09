@@ -112,7 +112,12 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
                 view: Vec::new(),
                 reach: None,
             };
-            drop_inapplicable(&join, &[CellKind::File, CellKind::Number], &mut table, &[FileId(2)]);
+            drop_inapplicable(
+                &join,
+                &[CellKind::File, CellKind::Number],
+                &mut table,
+                &[FileId(2)],
+            );
             Ok(table.count.0)
         }
         Scenario::SkippedBesideAnAntijoin => {
@@ -147,8 +152,12 @@ fn subject(scenario: Scenario) -> Result<Value, Failure> {
             &[Relation::Defines, Relation::FilesystemFile],
         )
         .len()),
-        Scenario::LexicalRecovery => Ok(lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty()),
-        Scenario::EveryRelationRecovered => Ok(every_wanted_relation_is_partial_when_only_a_recovery()),
+        Scenario::LexicalRecovery => {
+            Ok(lexical_recovery_keeps_explicit_reader_refusals_and_code_uncertainty())
+        }
+        Scenario::EveryRelationRecovered => {
+            Ok(every_wanted_relation_is_partial_when_only_a_recovery())
+        }
         Scenario::RecoveredByteLiterals => Ok(recovered_byte_literals_refuse_absence()),
         Scenario::WholeSource => Ok(whole_source_keeps_the_same_result()),
         Scenario::Affected(files) => affected_ordinals(files, DeclaredFiles(3)).map(bit_set),

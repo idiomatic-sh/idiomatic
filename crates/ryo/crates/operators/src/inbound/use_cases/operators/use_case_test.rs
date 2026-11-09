@@ -1,19 +1,19 @@
 //! Public inbound acceptance: actual semantic dispatch of row calls and borrowed outputs.
 use super::{interface::OperatorsUseCase, use_case::OperatorsUseCaseImpl};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::capture::types::*;
+use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::contract::types::*;
-use crate::inbound::use_cases::operators::types::*;
 use crate::domain::equality_join::types::*;
 use crate::domain::ordered_existence::types::*;
 use crate::domain::ordered_match::types::*;
 use crate::domain::reduction::types::*;
+use crate::domain::select::types::RowSelection;
 use crate::domain::set_rows::types::*;
 use crate::domain::source_matches::types::*;
 use crate::domain::words::types::*;
-use crate::domain::contract::types::PredicateOutcome;
-use crate::domain::select::types::RowSelection;
+use crate::inbound::use_cases::operators::types::*;
 use ryo_relations::domain::relations::types::{Count, Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::borrow::Cow;
 
@@ -73,7 +73,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("project_reports_absent_column"),
         word: Word::Refuses,
         input: || Scenario::MissingProjectColumn,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(2) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(2),
+        }),
     },
     Case {
         name: CaseName("select_dispatch_preserves_repeated_kept_columns"),
@@ -100,7 +102,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("select_reports_first_missing_kept_column"),
         word: Word::Refuses,
         input: || Scenario::SelectMissing,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(9) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(9),
+        }),
     },
     Case {
         name: CaseName("aggregate_count_dispatch_preserves_key_order"),
@@ -126,12 +130,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("aggregate_reports_first_missing_key"),
         word: Word::Refuses,
         input: || Scenario::AggregateMissing,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(4) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(4),
+        }),
     },
 ];
 fn written(call: OperatorCall<'_>) -> Result<(), Failure> {
     assert_eq!(
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(crate::outbound::matching::factory::use_case())).operators(call)?,
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(
+            crate::outbound::matching::factory::use_case()
+        ))
+        .operators(call)?,
         OperatorAnswer::Written
     );
     Ok(())
@@ -171,7 +180,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 Scenario::SelectOriginal => &[],
                 _ => &[ColumnIndex(9), ColumnIndex(8)],
             };
-            let answer = OperatorsUseCaseImpl::new(std::sync::Arc::new(crate::outbound::matching::factory::use_case())).operators(OperatorCall::Select {
+            let answer = OperatorsUseCaseImpl::new(std::sync::Arc::new(
+                crate::outbound::matching::factory::use_case(),
+            ))
+            .operators(OperatorCall::Select {
                 row: &ROW,
                 kept,
                 holds: if matches!(input, Scenario::SelectRejected) {
@@ -196,9 +208,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
         Scenario::CountOutput | Scenario::DigestOutput | Scenario::AggregateMissing => {
             let (keys, count, digest): (&[ColumnIndex], _, _) = match input {
-                Scenario::CountOutput => {
-                    (&[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)], Count(4), None)
-                }
+                Scenario::CountOutput => (
+                    &[ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
+                    Count(4),
+                    None,
+                ),
                 Scenario::DigestOutput => (&[], Count(3), Some(Integer(-5))),
                 _ => (&[ColumnIndex(4), ColumnIndex(3)], Count(0), None),
             };

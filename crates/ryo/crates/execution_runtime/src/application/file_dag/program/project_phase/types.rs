@@ -1,23 +1,23 @@
 //! One project phase: its scope, its inputs and its tasks.
-use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::errors::PreparationError;
-use crate::application::file_dag::frontiers::types::ReadinessProof;
+use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
+use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
+use crate::outbound::facts::interface::FactsFinish;
+use crate::outbound::facts::interface::FactsWorker;
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
-use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::Partials;
+use ryo_execution_domain::domain::coverage::types::RefusedFiles;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use crate::outbound::facts::interface::FactsFinish;
-use crate::outbound::facts::interface::FactsWorker;
 /// One project-phase publication/interpreter and symbol generation, shared across rules.
 pub struct ProjectPhase<'a> {
     pub(crate) request: &'a RequestExecution,

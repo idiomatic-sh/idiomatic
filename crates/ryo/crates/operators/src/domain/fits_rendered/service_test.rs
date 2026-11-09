@@ -40,11 +40,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_zero_tab_width_is_not_an_operation"),
         word: Word::Refuses,
         input: || ("x", "", 5, 0),
-        expect: Expect::Error(crate::domain::contract::types::PortableOperatorFault::WrongOperation),
+        expect: Expect::Error(
+            crate::domain::contract::types::PortableOperatorFault::WrongOperation,
+        ),
     },
 ];
 fn subject((text, prefix, maximum, tab): Input) -> Result<Value, Failure> {
-    fits(CandidateText(text), LinePrefix(prefix), LineWidth(maximum), TabStop(tab))
+    fits(
+        CandidateText(text),
+        LinePrefix(prefix),
+        LineWidth(maximum),
+        TabStop(tab),
+    )
 }
 #[test]
 fn succeeds() {

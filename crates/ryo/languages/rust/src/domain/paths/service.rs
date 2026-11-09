@@ -2,7 +2,7 @@
 
 use super::constants::{CUTS, DIRECTORY_OWNER, HERE, MANIFEST, SEPARATOR, UP};
 
-use super::types::{Asked, PathLinking, Lying, Ownership, Relative, Settlement, Supply};
+use super::types::{Asked, Lying, Ownership, PathLinking, Relative, Settlement, Supply};
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::Height;
 use crate::domain::paths::types::RepoPath;

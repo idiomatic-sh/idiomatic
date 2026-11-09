@@ -4,8 +4,8 @@ use super::types::ByteLimit;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
-use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_execution_domain::domain::table_model::types::Rows;
 fn new(wanted: &[Relation], partials: &[Partial], limit: ByteLimit) -> GraphFixture {
     GraphFixture::new(wanted, partials, limit.0)
 }

@@ -10,70 +10,60 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']",
         expect: Expect::Value(true),
     },
-
     Case {
         name: CaseName("overlapping capability groups cannot overwrite a disposition"),
         word: Word::Refuses,
         input: || "tool='ruff'\nversion='1'\nsha256=['abc']\ndefaults=['F401']\n[deferred]\none=['F401']\ntwo=['F401']",
         expect: Expect::Error("duplicate capability member"),
     },
-
     Case {
         name: CaseName("a profile without executable pins is refused"),
         word: Word::Refuses,
         input: || "tool='ruff'\nversion='1'\nsha256=[]\ndefaults=['F401']",
         expect: Expect::Error("invalid pins"),
     },
-
     Case {
         name: CaseName("duplicate executable pins are refused"),
         word: Word::Refuses,
         input: || "tool='ruff'\nversion='1'\nsha256=['abc','abc']\ndefaults=['F401']",
         expect: Expect::Error("invalid pins"),
     },
-
     Case {
         name: CaseName("query modules retain logical IDs and safe relative paths"),
         word: Word::Succeeds,
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\n[query-modules]\n'python/ruff/suppress'='fragments/suppress.ryoql'",
         expect: Expect::Value(true),
     },
-
     Case {
         name: CaseName("rule applicability maps are typed and restricted to declared rules"),
         word: Word::Succeeds,
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\n[rule-applicability]\nF401='accepted-syntax'",
         expect: Expect::Value(true),
     },
-
     Case {
         name: CaseName("rule applicability rejects unknown policies and rules"),
         word: Word::Refuses,
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']\ndefaults=['F401']\n[rule-applicability]\nF402='maybe'",
         expect: Expect::Error("invalid applicability"),
     },
-
     Case {
         name: CaseName("explicit policies cover selected rules and supporting producers"),
         word: Word::Succeeds,
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nF401='accepted-syntax'\nE501='accepted-syntax'",
         expect: Expect::Value(true),
     },
-
     Case {
         name: CaseName("an explicit policy map cannot omit a supporting producer"),
         word: Word::Refuses,
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nF401='accepted-syntax'",
         expect: Expect::Error("invalid applicability"),
     },
-
     Case {
         name: CaseName("an explicit policy map cannot omit a selected rule"),
         word: Word::Refuses,
         input: || "tool='ruff'\nversion='1'\nsha256=['aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']\ndefaults=['F401']\nsupporting-rules=['E501']\n[rule-applicability]\nE501='accepted-syntax'",
         expect: Expect::Error("invalid applicability"),
     },
-
     Case {
         name: CaseName("query module paths cannot leave the profile root"),
         word: Word::Refuses,
@@ -146,7 +136,11 @@ fn subject(text: Input) -> Result<Value, Failure> {
         && tool.pending.is_empty()
         && if text.contains("[query-modules]") {
             tool.query_modules
-                .get(&ryo_benchmark_contracts::domain::requests::types::QueryModuleName("python/ruff/suppress".into()))
+                .get(
+                    &ryo_benchmark_contracts::domain::requests::types::QueryModuleName(
+                        "python/ruff/suppress".into(),
+                    ),
+                )
                 .is_some_and(|path| path == std::path::Path::new("fragments/suppress.ryoql"))
         } else {
             tool.query_modules.is_empty()
@@ -159,7 +153,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 == ["E501"]
                 && tool
                     .rule_applicability
-                    .get(&ryo_benchmark_contracts::domain::requests::types::RuleLabel("E501".into()))
+                    .get(
+                        &ryo_benchmark_contracts::domain::requests::types::RuleLabel("E501".into()),
+                    )
                     .map(|policy| policy.0.as_str())
                     == Some("accepted-syntax")
         } else {
@@ -173,9 +169,13 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 == ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated
         }
         && if text.contains("project-search-roots=[]") {
-            tool.project_search_roots == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(Vec::new())
+            tool.project_search_roots
+                == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(
+                    Vec::new(),
+                )
         } else {
-            tool.project_search_roots == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
+            tool.project_search_roots
+                == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
         }
         && if text.contains("[rule-applicability]") {
             tool.rule_applicability

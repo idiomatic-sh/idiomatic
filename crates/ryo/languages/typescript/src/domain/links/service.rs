@@ -12,7 +12,8 @@ use super::constants::{
     ROOT, SEPARATOR, UNRESOLVED_CAUSE, WILDCARD,
 };
 use super::types::{
-    Candidate, Cause, FileIndex, ImportOutcome, TypeScriptImportLink, Linked, Matched, Options, Unresolved,
+    Candidate, Cause, FileIndex, ImportOutcome, Linked, Matched, Options, TypeScriptImportLink,
+    Unresolved,
 };
 use crate::domain::fact_notes::types::{Note, Specifier};
 use crate::domain::packages::service::directory;
@@ -272,13 +273,15 @@ pub(crate) fn linked(files: &[FilePath], notes: &[Option<Note>], packages: Packa
         found.analyzed.push(source);
         for import in &note.imports {
             match outcome(files, &packages, RepositoryPath(&file.0), &import.specifier) {
-                ImportOutcome::File(target) if target != source => found.dependencies.push(TypeScriptImportLink {
-                    source,
-                    target,
-                    start: import.start,
-                    end: import.end,
-                    written: import.text.clone(),
-                }),
+                ImportOutcome::File(target) if target != source => {
+                    found.dependencies.push(TypeScriptImportLink {
+                        source,
+                        target,
+                        start: import.start,
+                        end: import.end,
+                        written: import.text.clone(),
+                    })
+                }
                 ImportOutcome::Unresolved => found.unresolved.push(Unresolved {
                     file: source,
                     specifier: import.specifier.clone(),

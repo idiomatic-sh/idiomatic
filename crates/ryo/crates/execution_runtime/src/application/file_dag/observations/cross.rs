@@ -4,7 +4,9 @@ use super::types::{
     AdmittedOutput, ArenaCount, ConsumerCount, CrossPublications, CrossRoot, FinishState,
     ReferenceCount,
 };
-use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember, InputReadiness, PublicationSlot};
+use crate::application::file_dag::frontiers::types::{
+    BoundInput, BoundMember, InputReadiness, PublicationSlot,
+};
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use crate::application::file_dag::program::preparation::types::OutputRoot;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
@@ -157,7 +159,12 @@ impl<'a> CrossPublications<'a> {
         let count = admitted.len();
         let mut admitted = admitted
             .into_iter()
-            .map(|AdmittedOutput { output, publication }| (output.0, publication))
+            .map(
+                |AdmittedOutput {
+                     output,
+                     publication,
+                 }| (output.0, publication),
+            )
             .collect::<std::collections::BTreeMap<_, _>>();
         if admitted.len() != count {
             return Err(incomplete());

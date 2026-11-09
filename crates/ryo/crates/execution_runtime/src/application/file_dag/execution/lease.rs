@@ -3,19 +3,19 @@ use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
 pub(crate) mod capability;
 use super::super::executor::{KernelCall, PrimitiveExecutor};
 use super::super::{invocation::InvocationResources, predicates::BoundPredicate};
-use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
+use capability::service::ExecutableLease;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
+use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::operator::contract::{
     context::with_primitive_context, primitive::PreparedInputs, types::*,
 };
-use ryo_execution_domain::domain::operating::service::portable_fault;
+use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::table_scratch::types::OperatorScratch;
 use ryo_execution_domain::domain::table_texts::{
     service::datum,
     types::{Datum, Texts},
 };
-use capability::service::ExecutableLease;
+use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_language::domain::symbols::service::query_reborrow;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::service::cell;
@@ -66,8 +66,7 @@ fn evaluate_once(
     #[cfg(feature = "diagnostic-row-progress")]
     let routes = workspace.progress_origin().profile().clone();
     #[cfg(feature = "diagnostic-row-progress")]
-    let _progress_invocation =
-        workspace.progress_origin().resume();
+    let _progress_invocation = workspace.progress_origin().resume();
     #[cfg(test)]
     resources.observe(workspace);
     let parts = workspace.parts();
@@ -101,7 +100,13 @@ fn evaluate_once(
         match contract.source_gate {
             SourceGate::None => {}
             SourceGate::CheckedSpan { span, base_line } => {
-                validated_source=ryo_execution_domain::domain::operator::contract::views::validate(row,span,base_line,context.source)?;
+                validated_source =
+                    ryo_execution_domain::domain::operator::contract::views::validate(
+                        row,
+                        span,
+                        base_line,
+                        context.source,
+                    )?;
                 if validated_source.is_none() {
                     return Ok(());
                 }
@@ -120,13 +125,12 @@ fn evaluate_once(
         }
     }
     let regex = if let Some(pattern) = &contract.literal_pattern {
-        if let Some(prepared) = context
-            .prepared_matchers
-            .and_then(|prepared| prepared.regex(
+        if let Some(prepared) = context.prepared_matchers.and_then(|prepared| {
+            prepared.regex(
                 ryo_execution_domain::domain::table_texts::types::TextView(&pattern.0),
                 context.matcher,
-            ))
-        {
+            )
+        }) {
             Some(prepared?)
         } else {
             if parts.literal_regex.is_none() {
@@ -148,12 +152,16 @@ fn evaluate_once(
         None
     };
     let (cached_reach, cached_axis) = match cached {
-        Some(ryo_execution_domain::domain::operator::contract::graph_view::CachedGraphRow::Reach(view)) => {
-            (Some(view), None)
-        }
-        Some(ryo_execution_domain::domain::operator::contract::graph_view::CachedGraphRow::Axis(view)) => {
-            (None, Some(view))
-        }
+        Some(
+            ryo_execution_domain::domain::operator::contract::graph_view::CachedGraphRow::Reach(
+                view,
+            ),
+        ) => (Some(view), None),
+        Some(
+            ryo_execution_domain::domain::operator::contract::graph_view::CachedGraphRow::Axis(
+                view,
+            ),
+        ) => (None, Some(view)),
         None => (None, None),
     };
     let mut predicate = BoundPredicate {
@@ -211,7 +219,9 @@ fn evaluate_once(
         binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
             bindings: context.bindings,
             regex_identity: regex.map(|compiled| {
-                ryo_execution_domain::domain::executable_program::types::RegexIdentity(compiled as *const _ as usize)
+                ryo_execution_domain::domain::executable_program::types::RegexIdentity(
+                    compiled as *const _ as usize,
+                )
             }),
             source_len: ryo_operators::domain::contract::types::SourceByteLength(
                 context.source.0.len(),

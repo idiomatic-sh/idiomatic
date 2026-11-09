@@ -9,10 +9,10 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::Representation;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
+use crate::application::file_dag::program::runtime::types::Submission;
 use crate::application::file_dag::program::runtime::types::{
     InstructionIndex, PollMode, StageProgress,
 };
-use crate::application::file_dag::program::runtime::types::Submission;
 use ryo_execution_domain::domain::executable_program::types::DemandAction;
 use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -48,9 +48,11 @@ impl ProgramExecution {
             {
                 match *action {
                     DemandAction::Admit(InputId(at)) => {
-                        let source = *region.inputs().get(at).ok_or_else(|| InvocationFailure::Semantic(
-                            OperatingError::MissingInput { position: at + 1 },
-                        ))?;
+                        let source = *region.inputs().get(at).ok_or_else(|| {
+                            InvocationFailure::Semantic(OperatingError::MissingInput {
+                                position: at + 1,
+                            })
+                        })?;
                         progress
                             .supply(inputs, source, &self.partition, context)
                             .map_err(InvocationFailure::Semantic)?;
@@ -81,20 +83,19 @@ impl ProgramExecution {
         }
         if progress.preflight_done == StageProgress::Pending {
             for gate in &first.contract().empty_results {
-                let input = admitted.get(gate.input.0).ok_or_else(|| InvocationFailure::Semantic(
-                    OperatingError::MissingInput {
+                let input = admitted.get(gate.input.0).ok_or_else(|| {
+                    InvocationFailure::Semantic(OperatingError::MissingInput {
                         position: gate.input.0 + 1,
-                    },
-                ))?;
+                    })
+                })?;
                 if progress
                     .is_empty(
                         inputs,
-                        *region
-                            .inputs()
-                            .get(gate.input.0)
-                            .ok_or_else(|| InvocationFailure::Semantic(OperatingError::MissingInput {
+                        *region.inputs().get(gate.input.0).ok_or_else(|| {
+                            InvocationFailure::Semantic(OperatingError::MissingInput {
                                 position: gate.input.0 + 1,
-                            }))?,
+                            })
+                        })?,
                         input,
                         gate.representation,
                     )

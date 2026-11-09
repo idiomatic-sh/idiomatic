@@ -2,12 +2,12 @@
 use crate::application::file_dag::derived::ledger::types::{Backing, ResourceLease};
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
+use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::DerivedContract, DerivedInputs, MembershipSpace},
+    derived_views::types::{DerivedInputs, MembershipSpace, contract::value::DerivedContract},
     operating::errors::OperatingError,
 };
-use ryo_derived::domain::request::types::DerivedKind;
-use ryo_derived::domain::contract::types::DerivedView;
 use std::sync::Arc;
 
 #[cfg(test)]
@@ -47,9 +47,7 @@ impl AcquiredView {
             construction,
         }
     }
-    pub(crate) fn into_storage(
-        self,
-    ) -> Option<DerivedStorage> {
+    pub(crate) fn into_storage(self) -> Option<DerivedStorage> {
         let Self { storage, lease, .. } = self;
         drop(lease);
         match Arc::try_unwrap(storage) {
@@ -58,9 +56,7 @@ impl AcquiredView {
         }
     }
     #[cfg(test)]
-    pub(crate) fn partition_order_capacity(
-        &self,
-    ) -> Result<PartitionCapacity, OperatingError> {
+    pub(crate) fn partition_order_capacity(&self) -> Result<PartitionCapacity, OperatingError> {
         if !matches!(self.view()?, DerivedView::PartitionOrder(_)) {
             return Err(OperatingError::WrongOperation);
         }
@@ -100,9 +96,7 @@ impl AcquiredView {
     }
 }
 impl AcquiredView {
-    pub(crate) fn origin(
-        &self,
-    ) -> &AcquisitionOrigin {
+    pub(crate) fn origin(&self) -> &AcquisitionOrigin {
         &self.origin
     }
 }
@@ -144,18 +138,14 @@ impl std::fmt::Debug for AcquisitionOrigin {
 }
 
 impl AdmittedViewInputs<'_> {
-    pub(crate) fn populations(
-        &self,
-    ) -> &[PopulationId] {
+    pub(crate) fn populations(&self) -> &[PopulationId] {
         &self.origin.populations
     }
 }
 
 impl AcquiredView {
     /// The lease that keeps the view alive.
-    pub(crate) fn lease(
-        &self,
-    ) -> &Arc<ResourceLease> {
+    pub(crate) fn lease(&self) -> &Arc<ResourceLease> {
         &self.lease
     }
 }

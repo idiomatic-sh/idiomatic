@@ -36,30 +36,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_request_on_an_absent_column_stores_the_fault"),
         word: Word::Refuses,
         input: || Scenario::EqualityOnAnAbsentColumn,
-        expect: Expect::Error(DerivedFault::NoSuchColumn { column: ColumnIndex(3) }),
+        expect: Expect::Error(DerivedFault::NoSuchColumn {
+            column: ColumnIndex(3),
+        }),
     },
     Case {
         name: CaseName("a_request_that_needs_two_inputs_refuses_with_one"),
         word: Word::Refuses,
         input: || Scenario::OrderedKeysWithoutASecondInput,
-        expect: Expect::Error(DerivedFault::MissingInput { position: InputSlot(2) }),
+        expect: Expect::Error(DerivedFault::MissingInput {
+            position: InputSlot(2),
+        }),
     },
 ];
 
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
     let schemas = vec![vec![CellKind::Number]];
-    let equality = |column| DerivedRequest::Equality { columns: vec![ColumnIndex(column)] };
+    let equality = |column| DerivedRequest::Equality {
+        columns: vec![ColumnIndex(column)],
+    };
     match input {
         Scenario::EqualityOnAPresentColumn => {
             let prepared = prepare(equality(0), schemas);
             prepared.validate()?;
             Ok(prepared.schemas().len())
         }
-        Scenario::KindOfARequest => Ok(kind(&equality(0)).ordinal() + usize::from(kind(&equality(0)) != DerivedKind::Equality)),
-        Scenario::EqualityOnAnAbsentColumn => {
-            prepare(equality(3), schemas).validate().map(|()| 0)
+        Scenario::KindOfARequest => {
+            Ok(kind(&equality(0)).ordinal()
+                + usize::from(kind(&equality(0)) != DerivedKind::Equality))
         }
+        Scenario::EqualityOnAnAbsentColumn => prepare(equality(3), schemas).validate().map(|()| 0),
         Scenario::OrderedKeysWithoutASecondInput => prepare(
             DerivedRequest::OrderedKeys {
                 left_on: vec![ColumnIndex(0)],

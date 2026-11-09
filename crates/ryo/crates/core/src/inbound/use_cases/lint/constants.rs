@@ -9,4 +9,3 @@ pub(super) const REQUEST: &str = "<request>";
 /// The text "named publication was not admitted by the request owner".
 pub(super) const NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY: &str =
     "named publication was not admitted by the request owner";
-

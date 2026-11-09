@@ -2,8 +2,10 @@
 use super::super::{
     AdmittedInput, AvailableBody, AvailableInput, Partition, ProducerRoot, ReadProof,
 };
-use ryo_execution_store::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::{
+    RelationOwner, handle::service::PublishedInput,
+};
 use std::rc::Rc;
 
 impl AvailableInput {

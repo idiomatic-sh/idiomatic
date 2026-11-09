@@ -85,8 +85,9 @@ pub fn run(
     machine: ryo_values::domain::runs::types::MachineWorkers,
 ) -> std::process::ExitCode {
     report_panics();
-    let outcome = std::panic::catch_unwind(|| run_from(std::env::args_os().collect(), here, machine))
-        .unwrap_or(crate::outcome::Outcome::Error);
+    let outcome =
+        std::panic::catch_unwind(|| run_from(std::env::args_os().collect(), here, machine))
+            .unwrap_or(crate::outcome::Outcome::Error);
     crate::output::progress::settle();
     std::process::ExitCode::from(outcome)
 }

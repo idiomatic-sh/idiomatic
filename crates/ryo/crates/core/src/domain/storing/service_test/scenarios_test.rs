@@ -29,8 +29,12 @@ fn subject(scenario: Input) -> Value {
         Scenario::MadeAgainFrontier => frontier_changed(),
         Scenario::MadeAgainHeld => held_changed(),
         Scenario::StoreRoundTrip => stored_round_trip(),
-        Scenario::ExecutableChangesInvalidateEarlyStoreAndEqualDigestRoutesInBothDirections => executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions(),
-        Scenario::UnavailablePrimaryCannotReuseACachedCrossFileInterface => unavailable_primary_cannot_reuse_a_cached_cross_file_interface(),
+        Scenario::ExecutableChangesInvalidateEarlyStoreAndEqualDigestRoutesInBothDirections => {
+            executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions()
+        }
+        Scenario::UnavailablePrimaryCannotReuseACachedCrossFileInterface => {
+            unavailable_primary_cannot_reuse_a_cached_cross_file_interface()
+        }
     }
 }
 
@@ -58,9 +62,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions"),
+        name: CaseName(
+            "executable_changes_invalidate_early_store_and_equal_digest_routes_in_both_directions",
+        ),
         word: Word::Succeeds,
-        input: || Scenario::ExecutableChangesInvalidateEarlyStoreAndEqualDigestRoutesInBothDirections,
+        input: || {
+            Scenario::ExecutableChangesInvalidateEarlyStoreAndEqualDigestRoutesInBothDirections
+        },
         expect: Expect::Value(1),
     },
     Case {

@@ -70,7 +70,11 @@ pub(crate) fn check(adapter: &impl SyntaxPort) {
     run(CASES, Word::Succeeds, |text| {
         Ok(well_formed(&table_of(adapter, text)))
     });
-    drop(adapter.begin_semantics(&Elements::default(), PythonSourceKind::Python, ryo::languages::SemanticSlot::default()));
+    drop(adapter.begin_semantics(
+        &Elements::default(),
+        PythonSourceKind::Python,
+        ryo::languages::SemanticSlot::default(),
+    ));
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     {
         let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(&[]));

@@ -9,9 +9,9 @@ use super::super::errors::DescribeError;
 use super::super::types::DescribeRequest;
 use super::DescribeRelationErrorSchema;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::language::types::Languages;
 use crate::domain::relation::types::RelationName;
+use crate::selects;
 
 /// What a row offers the schemas.
 enum Offered {

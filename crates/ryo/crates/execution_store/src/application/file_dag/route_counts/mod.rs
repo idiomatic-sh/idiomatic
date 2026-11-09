@@ -70,15 +70,17 @@ impl FileScope {
             RouteActivity::Inactive
         };
         let profile = if enabled == RouteActivity::Active {
-            RouteProfile(Some(std::sync::Arc::new(std::sync::Mutex::new(RouteState {
-                file,
-                origin: RouteOrigin::default(),
-                counts: HashMap::new(),
-                overflow: RouteTally::default(),
-                rules: HashMap::new(),
-                #[cfg(feature = "diagnostic-row-progress")]
-                progress: new_progress(),
-            }))))
+            RouteProfile(Some(std::sync::Arc::new(std::sync::Mutex::new(
+                RouteState {
+                    file,
+                    origin: RouteOrigin::default(),
+                    counts: HashMap::new(),
+                    overflow: RouteTally::default(),
+                    rules: HashMap::new(),
+                    #[cfg(feature = "diagnostic-row-progress")]
+                    progress: new_progress(),
+                },
+            ))))
         } else {
             RouteProfile::default()
         };

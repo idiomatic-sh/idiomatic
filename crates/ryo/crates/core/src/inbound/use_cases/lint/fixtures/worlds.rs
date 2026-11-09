@@ -1,31 +1,31 @@
 //! The lints of the cases: one over the fakes, scheduled serially or in parallel, and again over one store.
+use super::super::errors::LintError;
 use super::super::interface::LintUseCase as _;
-use crate::cases::run;
-use crate::outbound::corpus::fixtures::fake::CorpusFake;
-use crate::outbound::language::fixtures::fake::LanguageFake;
-use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
-use crate::outbound::row_sink::fixtures::fake::Ends;
-use crate::outbound::row_sink::fixtures::fake::RowSinkFake;
-use crate::outbound::row_sink::interface::RowSinkPort;
-use crate::outbound::row_sink;
-use crate::outbound::scheduler::interface::SchedulerPort;
-use crate::outbound::scheduler::types::WorkerCount;
-use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
-use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
-use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
-use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::CorpusFile;
-use ryo_values::domain::files::types::FileBytes;
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use super::super::use_case::LintUseCaseImpl;
 use super::given::Given;
 use super::given::Lint;
 use super::given::SOURCES;
 use super::given::World;
 use super::given::request;
-use super::super::errors::LintError;
-use super::super::use_case::LintUseCaseImpl;
+use crate::cases::run;
 use crate::inbound::use_cases::lint::fixtures::given::violations;
+use crate::outbound::corpus::fixtures::fake::CorpusFake;
+use crate::outbound::language::fixtures::fake::LanguageFake;
+use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
+use crate::outbound::row_sink;
+use crate::outbound::row_sink::fixtures::fake::Ends;
+use crate::outbound::row_sink::fixtures::fake::RowSinkFake;
+use crate::outbound::row_sink::interface::RowSinkPort;
+use crate::outbound::scheduler::interface::SchedulerPort;
+use crate::outbound::scheduler::types::WorkerCount;
+use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
+use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
+use ryo_language::domain::files::types::FilePath;
+use ryo_values::domain::files::types::CorpusFile;
+use ryo_values::domain::files::types::FileBytes;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 /// The use case over the fakes `given` stands for.
 pub(crate) fn world(mut given: Given) -> World {
@@ -37,7 +37,11 @@ pub(crate) fn world(mut given: Given) -> World {
 }
 
 /// The same fixture over an explicitly injected production scheduler.
-pub(crate) fn scheduled_world(given: Given, scheduler: Arc<dyn SchedulerPort>, workers: WorkerCount) -> World {
+pub(crate) fn scheduled_world(
+    given: Given,
+    scheduler: Arc<dyn SchedulerPort>,
+    workers: WorkerCount,
+) -> World {
     let query_language: Arc<
         dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort,
     > = Arc::<QueryLanguageFake>::clone(&given.query);
@@ -49,14 +53,16 @@ pub(crate) fn scheduled_world_with_query(
     given: Given,
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
-    query_language: Arc<
-        dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort,
-    >,
+    query_language: Arc<dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort>,
 ) -> World {
     let memory = Arc::new(given.memory);
-    let operators = Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-    ));
+    let operators = Arc::new(
+        ryo_execution_runtime::outbound::operators::factory::use_case(
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+                std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+            ),
+        ),
+    );
     scheduled_world_with_query_resources(
         given,
         scheduler,
@@ -71,9 +77,7 @@ pub(crate) fn scheduled_world_with_query_resources(
     given: Given,
     scheduler: Arc<dyn SchedulerPort>,
     workers: WorkerCount,
-    query_language: Arc<
-        dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort,
-    >,
+    query_language: Arc<dyn ryo_execution::outbound::query_language::interface::QueryLanguagePort>,
     analysis_memory: Arc<dyn crate::outbound::memory::interface::MemoryPort>,
     operators: Arc<dyn ryo_execution_runtime::outbound::operators::interface::OperatorsPort>,
 ) -> World {

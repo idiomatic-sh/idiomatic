@@ -9,12 +9,12 @@ use super::constants::{
 };
 use super::constants::{EXTRAS, EXTRAS_END, PARENTHESES};
 use super::types::{
-    Cause, FilePlacement, PackageLocation, ManifestPath, Marker, PackageMembership, Normalized, PackageName,
-    Packages, Parsed, Reference, Specifier, Wired, WorkspaceMembership, Written,
+    Cause, FilePlacement, ManifestPath, Marker, Normalized, PackageLocation, PackageMembership,
+    PackageName, Packages, Parsed, Reference, Specifier, Wired, WorkspaceMembership, Written,
 };
 use crate::domain::patterns::constants::{HERE, SEPARATOR};
 use crate::domain::patterns::service::matches_directory;
-use crate::domain::patterns::types::{Directory, Matching, PatternPart, Pattern};
+use crate::domain::patterns::types::{Directory, Matching, Pattern, PatternPart};
 
 /// A name as PEP 503 normalizes it.
 #[must_use]

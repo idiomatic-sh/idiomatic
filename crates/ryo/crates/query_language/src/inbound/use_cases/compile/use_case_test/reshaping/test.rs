@@ -1,7 +1,7 @@
 //! The `reshaping` service's cases, on query text read by the real syntax adapter: the calls that count, digest, capture and read rows.
 
-use crate::inbound::use_cases::compile::use_case_test::SELECT_GROUP_COUNT_STAR;
 use crate::inbound::use_cases::compile::use_case_test::DISTINCT_COUNT;
+use crate::inbound::use_cases::compile::use_case_test::SELECT_GROUP_COUNT_STAR;
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::cases::{Case, CaseName, Expect, Word, run};

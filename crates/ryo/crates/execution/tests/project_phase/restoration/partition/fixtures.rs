@@ -1,5 +1,6 @@
 //! The authored request of the partition controls: the named producer, the project producer and the consumer join, shaped by the mode.
 use super::super::super::*;
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::hosted::types::HostColumn;
 use ryo_values::domain::hosted::types::HostColumnName;
@@ -22,7 +23,6 @@ use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::row_texts::types::Cell as HostCell;
 use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::stored_facts::types::Digest;
-use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Mode {
@@ -54,15 +54,17 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
         comparisons: vec![],
         kept: vec![ColumnIndex(file_column as u32)],
     };
-    crate::boundary_fixture::plans(&mut authored)[0].steps.push(PlanStep {
-        scope: StepScope::PerFile,
-        operation: Operation::Extend {
-            from: Input::Step(StepId(0)),
-            values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
-                ryo_values::domain::plan_parts::types::QueryLiteral::Number(Integer(7)),
-            )],
-        },
-    });
+    crate::boundary_fixture::plans(&mut authored)[0]
+        .steps
+        .push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Extend {
+                from: Input::Step(StepId(0)),
+                values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
+                    ryo_values::domain::plan_parts::types::QueryLiteral::Number(Integer(7)),
+                )],
+            },
+        });
     crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(1))];
     crate::boundary_fixture::plans(&mut authored)[0].observations = vec![PlanObservation {
         name: ObservationName("files".into()),
@@ -88,58 +90,67 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
             comparisons: vec![],
             kept: vec![ColumnIndex(column as u32)],
         };
-        crate::boundary_fixture::plans(&mut authored)[1].steps.push(PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Extend {
-                from: Input::Step(StepId(0)),
-                values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
-                    ryo_values::domain::plan_parts::types::QueryLiteral::Number(Integer(7)),
-                )],
-            },
-        });
+        crate::boundary_fixture::plans(&mut authored)[1]
+            .steps
+            .push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Extend {
+                    from: Input::Step(StepId(0)),
+                    values: vec![ryo_values::domain::plan_parts::types::Operand::Literal(
+                        ryo_values::domain::plan_parts::types::QueryLiteral::Number(Integer(7)),
+                    )],
+                },
+            });
     }
     if let Mode::CurrentRekey { file_key } = mode {
         let key = ColumnIndex(if file_key { 0 } else { 1 });
-        crate::boundary_fixture::plans(&mut authored)[1].steps.push(PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Hosted {
-                relation: HostedNumber(2),
-            },
-        });
-        crate::boundary_fixture::plans(&mut authored)[1].steps.push(PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Join {
-                left: Input::Step(StepId(1)),
-                right: Input::Step(StepId(2)),
-                left_on: vec![key],
-                right_on: vec![key],
-                output: vec![
-                    JoinColumn {
-                        side: Side::Right,
-                        column: ColumnIndex(0),
-                    },
-                    JoinColumn {
-                        side: Side::Right,
-                        column: ColumnIndex(1),
-                    },
-                ],
-                filter: vec![],
-                view: vec![],
-                reach: None,
-            },
-        });
+        crate::boundary_fixture::plans(&mut authored)[1]
+            .steps
+            .push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Hosted {
+                    relation: HostedNumber(2),
+                },
+            });
+        crate::boundary_fixture::plans(&mut authored)[1]
+            .steps
+            .push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Join {
+                    left: Input::Step(StepId(1)),
+                    right: Input::Step(StepId(2)),
+                    left_on: vec![key],
+                    right_on: vec![key],
+                    output: vec![
+                        JoinColumn {
+                            side: Side::Right,
+                            column: ColumnIndex(0),
+                        },
+                        JoinColumn {
+                            side: Side::Right,
+                            column: ColumnIndex(1),
+                        },
+                    ],
+                    filter: vec![],
+                    view: vec![],
+                    reach: None,
+                },
+            });
     }
     crate::boundary_fixture::plans(&mut authored)[1].observations = vec![PlanObservation {
         name: ObservationName("files".into()),
-        source: Input::Step(StepId((crate::boundary_fixture::plans(&mut authored)[1].steps.len() - 1) as u32)),
+        source: Input::Step(StepId(
+            (crate::boundary_fixture::plans(&mut authored)[1].steps.len() - 1) as u32,
+        )),
         columns: columns.clone(),
         scope: StepScope::CrossFile,
     }];
-    crate::boundary_fixture::plans(&mut authored)[2].observation_inputs = vec![BoundObservationInput {
-        name: ObservationBindingName("files".into()),
-        columns: columns.clone(),
-        scope: StepScope::CrossFile,
-    }];
+    crate::boundary_fixture::plans(&mut authored)[2].observation_inputs =
+        vec![BoundObservationInput {
+            name: ObservationBindingName("files".into()),
+            columns: columns.clone(),
+            scope: StepScope::CrossFile,
+        }];
     authored.rules[2].observations = vec![ObservationBinding {
         name: ObservationBindingName("files".into()),
         columns,
@@ -192,37 +203,41 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
                 relation: HostedNumber(2),
             },
         };
-        crate::boundary_fixture::plans(&mut authored)[2].steps.push(PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Join {
-                left: Input::BoundObservation(ObservationBindingId(0)),
-                right: Input::Step(StepId(1)),
-                left_on: vec![key],
-                right_on: vec![key],
-                output: vec![
-                    JoinColumn {
-                        side: Side::Right,
-                        column: ColumnIndex(0),
-                    },
-                    JoinColumn {
-                        side: Side::Right,
-                        column: ColumnIndex(1),
-                    },
-                ],
-                filter: vec![],
-                view: vec![],
-                reach: None,
-            },
-        });
-        crate::boundary_fixture::plans(&mut authored)[2].steps.push(PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Antijoin {
-                left: Input::Step(StepId(0)),
-                right: Input::Step(StepId(2)),
-                left_on: vec![ColumnIndex(0), ColumnIndex(1)],
-                right_on: vec![ColumnIndex(0), ColumnIndex(1)],
-            },
-        });
+        crate::boundary_fixture::plans(&mut authored)[2]
+            .steps
+            .push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Join {
+                    left: Input::BoundObservation(ObservationBindingId(0)),
+                    right: Input::Step(StepId(1)),
+                    left_on: vec![key],
+                    right_on: vec![key],
+                    output: vec![
+                        JoinColumn {
+                            side: Side::Right,
+                            column: ColumnIndex(0),
+                        },
+                        JoinColumn {
+                            side: Side::Right,
+                            column: ColumnIndex(1),
+                        },
+                    ],
+                    filter: vec![],
+                    view: vec![],
+                    reach: None,
+                },
+            });
+        crate::boundary_fixture::plans(&mut authored)[2]
+            .steps
+            .push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Antijoin {
+                    left: Input::Step(StepId(0)),
+                    right: Input::Step(StepId(2)),
+                    left_on: vec![ColumnIndex(0), ColumnIndex(1)],
+                    right_on: vec![ColumnIndex(0), ColumnIndex(1)],
+                },
+            });
     }
     if matches!(mode, Mode::Current | Mode::CurrentRekey { .. }) {
         if let Operation::Antijoin {
@@ -235,16 +250,19 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
     }
     if project_away_file {
         let previous = crate::boundary_fixture::plans(&mut authored)[2].steps.len() - 1;
-        crate::boundary_fixture::plans(&mut authored)[2].steps.push(PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Project {
-                from: Input::Step(StepId(previous as u32)),
-                columns: vec![ColumnIndex(1)],
-                distinct: RepeatedRows::Kept,
-            },
-        });
+        crate::boundary_fixture::plans(&mut authored)[2]
+            .steps
+            .push(PlanStep {
+                scope: StepScope::CrossFile,
+                operation: Operation::Project {
+                    from: Input::Step(StepId(previous as u32)),
+                    columns: vec![ColumnIndex(1)],
+                    distinct: RepeatedRows::Kept,
+                },
+            });
     }
-    crate::boundary_fixture::plans(&mut authored)[2].emit.step = StepId((crate::boundary_fixture::plans(&mut authored)[2].steps.len() - 1) as u32);
+    crate::boundary_fixture::plans(&mut authored)[2].emit.step =
+        StepId((crate::boundary_fixture::plans(&mut authored)[2].steps.len() - 1) as u32);
     let host_column = |name: &str, kind| HostColumn {
         name: HostColumnName(name.into()),
         kind,

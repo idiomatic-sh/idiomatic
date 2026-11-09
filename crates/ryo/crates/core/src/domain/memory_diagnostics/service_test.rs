@@ -20,14 +20,12 @@ fn subject(asked: Input) -> Result<Value, Failure> {
     })
 }
 
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("without_a_subscriber_the_diagnostics_are_off"),
-        word: Word::Succeeds,
-        input: || Asked::Gate,
-        expect: Expect::Value(MemoryDiagnostics::Disabled),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("without_a_subscriber_the_diagnostics_are_off"),
+    word: Word::Succeeds,
+    input: || Asked::Gate,
+    expect: Expect::Value(MemoryDiagnostics::Disabled),
+}];
 
 #[test]
 fn succeeds() {

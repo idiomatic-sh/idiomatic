@@ -4,8 +4,8 @@ use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
-use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use std::rc::Rc;
 
 impl super::super::KernelSession<'_, '_> {
@@ -75,7 +75,9 @@ impl super::super::KernelSession<'_, '_> {
             binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
                 bindings: context.bindings,
                 regex_identity: None,
-                source_len: ryo_operators::domain::contract::types::SourceByteLength(context.source.0.len()),
+                source_len: ryo_operators::domain::contract::types::SourceByteLength(
+                    context.source.0.len(),
+                ),
             },
         };
         let result = crate::application::file_dag::ordered_existence::evaluate(

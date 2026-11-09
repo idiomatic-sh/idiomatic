@@ -3,14 +3,14 @@ use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::constants::FILE_STREAM_CONSUMER;
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
-use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 
@@ -55,15 +55,15 @@ impl FileRun<'_> {
         let phase = self.program.program().regions()[id.0].phase();
         if phase != ryo_values::domain::plan_parts::types::StepScope::PerFile {
             return Ok(
-                ryo_execution_domain::domain::row_emission::types::RowEmission::Deferred {
-                    phase,
-                },
+                ryo_execution_domain::domain::row_emission::types::RowEmission::Deferred { phase },
             );
         }
         self.prepare_walk(read, symbols)?;
-        let _rule_origin = self.routes.profile().rule(rule.0, self.program.rule_id(rule)?);
-        let _consumer_origin =
-            self.routes.profile().consumer(FILE_STREAM_CONSUMER);
+        let _rule_origin = self
+            .routes
+            .profile()
+            .rule(rule.0, self.program.rule_id(rule)?);
+        let _consumer_origin = self.routes.profile().consumer(FILE_STREAM_CONSUMER);
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let completion = match &self.partials {

@@ -1,11 +1,11 @@
 //! The operator fake preserves the port contract and a controlled refusal.
 use super::{super::contract, OperatorsFake};
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::operators::interface::OperatorsPort as _;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::atomic::Ordering;
 
@@ -24,7 +24,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("refusing_fake_keeps_scratch_and_records_once"),
         word: Word::Refuses,
         input: || true,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(8) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(8),
+        }),
     },
 ];
 

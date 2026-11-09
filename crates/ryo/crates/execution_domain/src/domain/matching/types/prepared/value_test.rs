@@ -27,7 +27,9 @@ use std::sync::atomic::Ordering;
 
 /// The matching semantics the cases run through.
 fn matcher() -> crate::domain::matching::types::PatternMatcher<'static> {
-    crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)
+    crate::domain::matching::types::PatternMatcher(
+        &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+    )
 }
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -76,10 +78,15 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     MatchingUseCaseImpl::new().matches_regex(regex, SearchText("é\u{2003}雪")),
                     MatchOutcome::Matches
                 );
-                assert!(std::ptr::eq(regex, slots.regex(TextView(r"\s+"), matcher()).unwrap()?));
+                assert!(std::ptr::eq(
+                    regex,
+                    slots.regex(TextView(r"\s+"), matcher()).unwrap()?
+                ));
                 assert_eq!(
                     MatchingUseCaseImpl::new().matches_text_globs(
-                        slots.glob(Test::GlobAny, TextView("*.rs"), matcher()).unwrap(),
+                        slots
+                            .glob(Test::GlobAny, TextView("*.rs"), matcher())
+                            .unwrap(),
                         SearchText("src/lib.rs")
                     ),
                     MatchOutcome::Matches
@@ -111,7 +118,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             );
             let expected = super::value::compile_regex(TextView("["), matcher()).unwrap_err();
             for _ in 0..2 {
-                assert!(matches!(slots.regex(TextView("["), matcher()).unwrap(),Err(ref error) if *error==expected));
+                assert!(
+                    matches!(slots.regex(TextView("["), matcher()).unwrap(),Err(ref error) if *error==expected)
+                );
             }
             assert_eq!(
                 slots.builds.load(Ordering::Relaxed),
@@ -128,7 +137,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ]);
             for _ in 0..2 {
                 let positive = slots.glob(Test::GlobAny, TextView("*"), matcher()).unwrap();
-                let negative = slots.glob(Test::NotGlobAny, TextView("*"), matcher()).unwrap();
+                let negative = slots
+                    .glob(Test::NotGlobAny, TextView("*"), matcher())
+                    .unwrap();
                 assert!(
                     !std::ptr::eq(positive, negative),
                     "polarity retains a separate finite slot"
@@ -139,7 +150,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 );
                 assert_eq!(
                     MatchingUseCaseImpl::new().matches_text_globs(
-                        slots.glob(Test::GlobAny, TextView("α?"), matcher()).unwrap(),
+                        slots
+                            .glob(Test::GlobAny, TextView("α?"), matcher())
+                            .unwrap(),
                         SearchText("αβ")
                     ),
                     MatchOutcome::Matches
@@ -159,7 +172,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::Undeclared => {
             let slots = prepared(&[select(Test::GlobAny, "b*")]);
-            assert!(slots.glob(Test::GlobAny, TextView("*"), matcher()).is_none());
+            assert!(
+                slots
+                    .glob(Test::GlobAny, TextView("*"), matcher())
+                    .is_none()
+            );
             assert!(slots.regex(TextView("b*"), matcher()).is_none());
             assert_eq!(
                 slots.builds.load(Ordering::Relaxed),
@@ -208,9 +225,10 @@ fn concurrent_literal_users_initialize_one_slot() {
         let handles: Vec<_> = (0..4)
             .map(|_| {
                 scope.spawn(move || {
-                    MatchingUseCaseImpl::new()
-                        .matches_regex(slots.regex(TextView("α+"), matcher()).unwrap().unwrap(), SearchText("αα"))
-                        == MatchOutcome::Matches
+                    MatchingUseCaseImpl::new().matches_regex(
+                        slots.regex(TextView("α+"), matcher()).unwrap().unwrap(),
+                        SearchText("αα"),
+                    ) == MatchOutcome::Matches
                 })
             })
             .collect();

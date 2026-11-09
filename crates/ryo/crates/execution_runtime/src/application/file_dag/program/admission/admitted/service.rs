@@ -3,8 +3,12 @@ use super::super::{
     AdmittedInput, AdmittedWalkSource, Agreement, ObservationReadiness, Partition, PartitionSupply,
     PopulationProof, ProducerRoot, ReadProof, Readiness,
 };
-use ryo_execution_store::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
-use ryo_execution_domain::domain::{executable_program::types::InputSource, operating::errors::OperatingError};
+use ryo_execution_domain::domain::{
+    executable_program::types::InputSource, operating::errors::OperatingError,
+};
+use ryo_execution_store::application::file_dag::relations::{
+    RelationOwner, handle::service::PublishedInput,
+};
 use std::{rc::Rc, sync::Arc};
 
 impl ReadProof {
@@ -52,10 +56,7 @@ impl AdmittedInput {
         self.publication(owner)?;
         Ok(self.proof.population)
     }
-    pub(crate) fn has_root(
-        &self,
-        root: ProducerRoot,
-    ) -> Agreement {
+    pub(crate) fn has_root(&self, root: ProducerRoot) -> Agreement {
         if self.root == root {
             Agreement::Same
         } else {
@@ -70,8 +71,10 @@ impl AdmittedInput {
         owner: &'a Rc<RelationOwner>,
         read: &dyn Fn(
             ryo_relations::domain::relations::types::Relation,
-        )
-            -> Result<ryo_execution_domain::domain::table_model::types::Rows<'facts>, OperatingError>,
+        ) -> Result<
+            ryo_execution_domain::domain::table_model::types::Rows<'facts>,
+            OperatingError,
+        >,
     ) -> Result<ryo_execution_domain::domain::table_model::types::Rows<'a>, OperatingError>
     where
         'facts: 'a,
@@ -80,9 +83,7 @@ impl AdmittedInput {
         let rows = owner.resolve(publication.as_ref(), read)?;
         owner.normalize(publication, rows)
     }
-    pub(crate) fn observation_ready(
-        &self,
-    ) -> Result<ObservationReadiness, OperatingError> {
+    pub(crate) fn observation_ready(&self) -> Result<ObservationReadiness, OperatingError> {
         match &self.readiness {
             Readiness::Complete => Ok(ObservationReadiness::Ready),
             Readiness::Partial { .. } | Readiness::Inapplicable { .. } => {
@@ -93,15 +94,18 @@ impl AdmittedInput {
 
     pub(crate) fn coverage(
         &self,
-    ) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError> {
+    ) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError>
+    {
         match &self.readiness {
-            Readiness::Complete => Ok(ryo_execution_domain::domain::completion::types::CoverageState::Complete),
-            Readiness::Partial { files, lacks } => {
-                Ok(ryo_execution_domain::domain::completion::types::CoverageState::Partial {
+            Readiness::Complete => {
+                Ok(ryo_execution_domain::domain::completion::types::CoverageState::Complete)
+            }
+            Readiness::Partial { files, lacks } => Ok(
+                ryo_execution_domain::domain::completion::types::CoverageState::Partial {
                     files: files.clone(),
                     lacks: lacks.clone(),
-                })
-            }
+                },
+            ),
             Readiness::Inapplicable { files } => Ok(
                 ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
                     files: files.clone(),
@@ -117,7 +121,9 @@ impl AdmittedInput {
         match coverage {
             CoverageState::Complete => {}
             CoverageState::Partial { files, lacks } => {
-                use ryo_execution_domain::domain::completion::service::{lacks_of, partial_of_lacks};
+                use ryo_execution_domain::domain::completion::service::{
+                    lacks_of, partial_of_lacks,
+                };
                 let mut all = lacks_of(&files, &lacks);
                 match &self.readiness {
                     Readiness::Complete => {}
@@ -186,10 +192,8 @@ impl AdmittedInput {
         rows: &'call ryo_execution_domain::domain::table_model::types::Rows<'call>,
         generation: &Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
     ) -> Result<Option<AdmittedWalkSource<'call>>, OperatingError> {
-        use ryo_execution_domain::domain::{
-            table_model::{service::kinds_of, types::Rows},
-        };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+        use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+        use ryo_execution_domain::domain::table_model::{service::kinds_of, types::Rows};
         if self.root != ProducerRoot::Input(InputSource::Relation(relation)) {
             return Err(OperatingError::WrongOperation);
         }
@@ -251,7 +255,8 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         owner: &Rc<RelationOwner>,
     ) -> Result<&PublishedInput, OperatingError> {
         if !Rc::ptr_eq(owner, &self.proof.owner)
-            || owner.matches_generation(&self.proof.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+            || owner.matches_generation(&self.proof.generation)
+                == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
         {
             return Err(OperatingError::NotRead);
         }

@@ -18,9 +18,9 @@ use ryo_relations::domain::relations::service::all;
 use ryo_relations::domain::relations::types::RowWriter;
 use ryo_relations::domain::relations::types::{Bytes, Relation};
 
+use super::connection::LanguageConnection;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::language::interface::LanguagePort;
-use super::connection::LanguageConnection;
 use crate::outbound::language::types::RoleWriting;
 use crate::outbound::language::types::{
     Absence, FileReading, FileToRead, LinkedName, ManifestReading, NoteWriting, ProjectAnswer,
@@ -283,9 +283,10 @@ impl LanguagePort for LanguageUseCaseAdapter {
     fn project_entries(&self, input: &ProjectToRead<'_>) -> Vec<FilePath> {
         let mut entries = Vec::new();
         for (number, language) in self.languages.iter().enumerate() {
-            language
-                .project
-                .project_entries(&project_request(input, LanguageNumber(number)), &mut entries);
+            language.project.project_entries(
+                &project_request(input, LanguageNumber(number)),
+                &mut entries,
+            );
         }
         entries.sort();
         entries.dedup();

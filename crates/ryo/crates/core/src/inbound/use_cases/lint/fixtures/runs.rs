@@ -5,21 +5,31 @@
     reason = "a contract run over the corpus fails by panicking: the panic is the failure of the check that calls it"
 )]
 
+use super::super::interface::LintUseCase as _;
+use super::super::types::LintRequest;
+use super::super::use_case::LintUseCaseImpl;
+use super::contract::asking;
+use super::contract::rule;
+use super::corpus::Corpus;
+use super::corpus::Stated;
+use super::corpus::compared;
+use super::corpus::files;
+use super::operators::escaped;
 use crate::domain::corpus_copies::types::CopyDigits;
 use crate::domain::corpus_copies::types::CopyNaming;
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::lint_store::interface::LintStorePort;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
+use crate::outbound::row_sink;
 use crate::outbound::row_sink::fixtures::fake::BytesRowSinkFake;
 use crate::outbound::row_sink::interface::RowSinkPort;
-use crate::outbound::row_sink;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::interface::SchedulerPort;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-use ryo_execution_runtime::outbound::facts;
 use ryo_execution::outbound::matching;
 use ryo_execution::outbound::query_language;
+use ryo_execution_runtime::outbound::facts;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use ryo_values::domain::files::types::CorpusFile;
@@ -27,20 +37,10 @@ use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::row_texts::types::Cell as Typed;
 use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::AnswerShape;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
-use super::super::types::LintRequest;
-use super::super::use_case::LintUseCaseImpl;
-use super::contract::asking;
-use super::contract::rule;
-use super::super::interface::LintUseCase as _;
-use std::collections::BTreeMap;
-use super::corpus::Corpus;
-use super::corpus::Stated;
-use super::corpus::compared;
-use super::corpus::files;
-use super::operators::escaped;
 
 /// The compiler of queries the use cases are given.
 pub(super) fn compile() -> CompileUseCaseImpl {

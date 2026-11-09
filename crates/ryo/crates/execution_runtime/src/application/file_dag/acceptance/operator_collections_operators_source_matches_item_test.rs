@@ -31,9 +31,9 @@ fn evaluate(
                 .iter()
                 .copied()
                 .map(|span| compiled::FileSpan {
-            file: FileId(0),
-            span,
-        })
+                    file: FileId(0),
+                    span,
+                })
                 .collect::<Vec<_>>(),
         ),
     }];
@@ -49,8 +49,24 @@ fn evaluate(
             capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
         }),
     ];
-    let compiled::CompiledRun { result: collected, .. } = compiled::run(steps.clone(), &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Collected);
-    let compiled::CompiledRun { result: streamed, .. } = compiled::run(steps, &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Streamed);
+    let compiled::CompiledRun {
+        result: collected, ..
+    } = compiled::run(
+        steps.clone(),
+        &providers,
+        SourceView(source),
+        &mut Symbols::default(),
+        compiled::Downstream::Collected,
+    );
+    let compiled::CompiledRun {
+        result: streamed, ..
+    } = compiled::run(
+        steps,
+        &providers,
+        SourceView(source),
+        &mut Symbols::default(),
+        compiled::Downstream::Streamed,
+    );
     assert_eq!(collected, streamed);
     let output = collected?;
     assert_eq!(output.kinds, vec![CellKind::Span, CellKind::Span]);
@@ -103,7 +119,6 @@ fn malformed_or_non_utf8_boundary_spans_refuse_before_their_row_emits() {
     );
 }
 
-
 fn evaluate_lines(
     source: &'static [u8],
     source_span: Span,
@@ -133,7 +148,13 @@ fn evaluate_lines(
             capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
         }),
     ];
-    let compiled::CompiledRun { result: result, .. } = compiled::run(steps, &providers, SourceView(source), &mut Symbols::default(), compiled::Downstream::Collected);
+    let compiled::CompiledRun { result: result, .. } = compiled::run(
+        steps,
+        &providers,
+        SourceView(source),
+        &mut Symbols::default(),
+        compiled::Downstream::Collected,
+    );
     Ok(result?
         .cells
         .chunks_exact(4)
@@ -190,9 +211,9 @@ fn captured(
                 .iter()
                 .copied()
                 .map(|span| compiled::FileSpan {
-            file: FileId(0),
-            span,
-        })
+                    file: FileId(0),
+                    span,
+                })
                 .collect::<Vec<_>>(),
         ),
     }];
@@ -210,7 +231,13 @@ fn captured(
     ];
     let mut symbols = Symbols::default();
     let comment = intern_derived(&mut symbols, ByteSlice(source), NameText(" noqa: W605"));
-    let compiled::CompiledRun { result: result, .. } = compiled::run(steps, &providers, SourceView(source), &mut symbols, compiled::Downstream::Collected);
+    let compiled::CompiledRun { result: result, .. } = compiled::run(
+        steps,
+        &providers,
+        SourceView(source),
+        &mut symbols,
+        compiled::Downstream::Collected,
+    );
     let output = result?;
     assert_eq!(
         text_of(&symbols, ByteSlice(source), comment).map(|text| text.0),

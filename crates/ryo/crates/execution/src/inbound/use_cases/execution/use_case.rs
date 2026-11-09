@@ -18,7 +18,11 @@ impl ExecutionUseCaseImpl {
 }
 
 impl ExecutionUseCase for ExecutionUseCaseImpl {
-    fn execution(&self, program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution {
+    fn execution(
+        &self,
+        program: &PreparedExecutionProgram,
+        corpus: &[CorpusInput],
+    ) -> RequestExecution {
         begin(program, corpus)
     }
 }

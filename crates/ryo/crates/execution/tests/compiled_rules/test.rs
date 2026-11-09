@@ -6,7 +6,10 @@ use ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseC
 
 /// Rule compilation over `provider`, the real handover into preparation.
 fn compiling_with(provider: Arc<dyn QueryLanguagePort>) -> CompileRulesUseCaseImpl {
-    CompileRulesUseCaseImpl::new(provider, Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake))
+    CompileRulesUseCaseImpl::new(
+        provider,
+        Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake),
+    )
 }
 
 /// A provider result, not a query parser or execution implementation: this
@@ -27,10 +30,7 @@ impl QueryLanguagePort for AuthoredQueryProvider {
         _: &QueryBundle,
         _: &[ryo_values::domain::hosted::types::HostedRelation],
         _: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<
-        ryo_values::domain::descriptions::types::ValidateReport,
-        QueryLanguageError,
-    > {
+    ) -> Result<ryo_values::domain::descriptions::types::ValidateReport, QueryLanguageError> {
         Ok(ryo_values::domain::descriptions::types::ValidateReport {
             relations: vec![],
             operators: vec![],
@@ -54,7 +54,13 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
         })
         .expect("compile independent rules");
     let program = engine
-        .prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: raw.rules, digests: raw.digests, hosted: raw.hosted, observations: ObservationIdentity::Independent })
+        .prepare(PrepareRequest {
+            plans: PlanSource::Compiled(compiled),
+            rules: raw.rules,
+            digests: raw.digests,
+            hosted: raw.hosted,
+            observations: ObservationIdentity::Independent,
+        })
         .expect("exact compiled declarations accepted");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
@@ -122,7 +128,13 @@ fn public_compiled_independent_rules_keep_exact_per_rule_source_declarations() {
     substituted.pop();
     assert!(
         matches!(
-            engine.prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: substituted, digests: vec![Digest([0; 16])], hosted: vec![], observations: ObservationIdentity::Independent }),
+            engine.prepare(PrepareRequest {
+                plans: PlanSource::Compiled(compiled),
+                rules: substituted,
+                digests: vec![Digest([0; 16])],
+                hosted: vec![],
+                observations: ObservationIdentity::Independent
+            }),
             Err(OperatingError::ShapeMismatch)
         ),
         "a consumer cannot relabel the two-rule provider result"
@@ -323,7 +335,13 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
         "independent preparation must not perform observation pruning/remapping"
     );
     let program = engine
-        .prepare(PrepareRequest { plans: PlanSource::Compiled(compiled), rules: raw.rules, digests: raw.digests, hosted: raw.hosted, observations: ObservationIdentity::Independent })
+        .prepare(PrepareRequest {
+            plans: PlanSource::Compiled(compiled),
+            rules: raw.rules,
+            digests: raw.digests,
+            hosted: raw.hosted,
+            observations: ObservationIdentity::Independent,
+        })
         .expect("prepare exact handover");
     assert_eq!(
         program.frontiers(RuleIndex(0)).expect("frontier metadata"),

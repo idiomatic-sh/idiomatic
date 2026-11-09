@@ -1,7 +1,9 @@
 //! The declarations a profile and a cases document share: rule observations, rule context and project scope.
 use ryo_benchmark_contracts::domain::context::types::ContextBytes;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{DiagnosticOptions, DiagnosticSwitch, PerformanceOptions};
+use ryo_benchmark_contracts::domain::requests::types::{
+    DiagnosticOptions, DiagnosticSwitch, PerformanceOptions,
+};
 
 /// Explicit authored input at a private process/TOML serialization boundary.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -192,7 +194,6 @@ pub(in crate::outbound::suite::adapters::local) fn project_search_roots(
         .transpose()
 }
 
-
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
@@ -346,7 +347,13 @@ struct DiagnosticsSchema {
 }
 impl From<OptionsSchema> for PerformanceOptions {
     fn from(schema: OptionsSchema) -> Self {
-        let switch = |on: bool| if on { DiagnosticSwitch::On } else { DiagnosticSwitch::Off };
+        let switch = |on: bool| {
+            if on {
+                DiagnosticSwitch::On
+            } else {
+                DiagnosticSwitch::Off
+            }
+        };
         let diagnostics = schema.diagnostics;
         Self {
             diagnostics: DiagnosticOptions {

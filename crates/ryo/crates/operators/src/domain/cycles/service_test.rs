@@ -48,7 +48,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject((values, starts, leaving): Input) -> Result<Value, Failure> {
     let graph = Graph {
-        values: values.iter().map(|each| Cell::Number(Integer(*each))).collect(),
+        values: values
+            .iter()
+            .map(|each| Cell::Number(Integer(*each)))
+            .collect(),
         starts,
         leaving,
     };

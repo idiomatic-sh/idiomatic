@@ -2,10 +2,16 @@
 //! explicit process failure.
 use crate::outbound::inventory::adapters::local::types::DiscrepancyText;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{RecordedFinding, FindingOffset};
 use ryo_benchmark_contracts::domain::documents::types::finding::value::ExpectedFindings;
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{DiscrepancyIdentity, DiscrepancyRecord, ObservedExecutable};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, ReasonText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+    FindingOffset, RecordedFinding,
+};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+    DiscrepancyIdentity, DiscrepancyRecord, ObservedExecutable,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    PathText, ReasonText, RuleName, Sha256Text,
+};
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::process::types::{
     OutputPart, OutputText, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
@@ -41,7 +47,6 @@ impl From<FindingSchema> for RecordedFinding {
         }
     }
 }
-
 
 /// Every wire finding as a document finding.
 fn findings(rows: Vec<FindingSchema>) -> Vec<RecordedFinding> {
@@ -157,7 +162,6 @@ impl From<ProcessFailureSchema> for ProcessFailure {
     }
 }
 
-
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 enum BasisSchema {
@@ -245,7 +249,6 @@ impl From<DiscrepancySchema> for DiscrepancyRecord {
         }
     }
 }
-
 
 impl TryFrom<DiscrepancyText<'_>> for DiscrepancyRecord {
     type Error = Error;

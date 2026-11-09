@@ -1,6 +1,6 @@
 //! The test support of the `execution` use case: the scenario its tests share.
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use std::sync::Arc;
 
 #[cfg(test)]
@@ -10,9 +10,9 @@ pub(crate) mod requests;
 #[must_use]
 pub fn operators() -> impl OperatorsPort {
     ryo_execution_runtime::outbound::operators::factory::use_case(
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
-            ryo_operators::outbound::matching::factory::use_case(),
-        )),
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+            Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+        ),
     )
 }
 /// The derived capability behind its port, as the edge composes it.

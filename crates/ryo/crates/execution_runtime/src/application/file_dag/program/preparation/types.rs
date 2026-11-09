@@ -1,24 +1,24 @@
 //! Immutable prepared request metadata; no runtime or lifecycle dependency.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::file_program::types::ObservationSlot;
 use ryo_execution_domain::domain::file_program::types::ObservedFrontierRoot;
 use ryo_execution_domain::domain::file_program::types::ResolvedObservationBinding;
 use ryo_execution_domain::domain::file_program::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::hosted::types::HostRelation;
+use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
-use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plans::types::Emit;
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stores::types::Reuse;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
 use std::sync::Arc;
 
 /// Whether a rule renders syntax and so needs the semantic session.
@@ -101,14 +101,18 @@ pub(crate) struct PreparedProgram {
     pub(super) rules: Box<[RuleMetadata]>,
     /// Computed once when the program is built; never a per-call scan of `rules`.
     pub(super) semantic_needed: SemanticNeed,
-    pub(super) file_demands:
-        Box<[ryo_execution_domain::domain::executable_program::file_demand::types::FileRuleDemand]>,
+    pub(super) file_demands: Box<
+        [ryo_execution_domain::domain::executable_program::file_demand::types::FileRuleDemand],
+    >,
     pub(super) file_frontier_outputs: Box<[Box<[Box<[ObservationIndex]>]>]>,
     pub(super) observations: Option<ObservationMetadata>,
     pub(super) schedule: RuleSchedule,
     pub(super) semantic_metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) hosted: Box<[HostRelation]>,
-    pub(super) matchers: Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>,
-    pub(super) derived: ryo_execution_store::application::file_dag::derived::prepared::RequestDerived,
-    pub(super) walk: ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
+    pub(super) matchers:
+        Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>,
+    pub(super) derived:
+        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived,
+    pub(super) walk:
+        ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }

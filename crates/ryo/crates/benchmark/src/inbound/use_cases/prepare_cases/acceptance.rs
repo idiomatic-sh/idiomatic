@@ -33,5 +33,8 @@ fn complete(world: &mut crate::Behavior) {
 #[then("prepare_cases missing preserves its promised result")]
 fn missing(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
-    assert_eq!(exercise(Scenario::Missing, prepare), Err(Refusal::MissingSource));
+    assert_eq!(
+        exercise(Scenario::Missing, prepare),
+        Err(Refusal::MissingSource)
+    );
 }

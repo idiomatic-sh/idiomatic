@@ -4,6 +4,6 @@ pub(crate) mod errors;
 #[cfg(test)]
 mod fixtures;
 pub(crate) mod service;
-pub(crate) mod types;
 #[cfg(test)]
 mod service_test;
+pub(crate) mod types;

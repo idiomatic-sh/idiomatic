@@ -1,11 +1,11 @@
 //! The `answering` service: free functions named by verb over the answers of the cross-file steps, with no IO and no ports.
 
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use super::types::{CrossSteps, Crossed, Todo};
 use crate::domain::ordering::service::append;
 use crate::domain::render::types::Rendered;
 use crate::domain::workers::service::add_fed;
 use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_values::domain::run_metadata::types::{CrossFileSteps, RuleRunMetadata};
 use ryo_values::domain::runs::types::RuleId;
@@ -67,6 +67,5 @@ pub(crate) fn settle(
     unknowns.append(&mut incomplete);
     observations
 }
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::plan_parts::types::StepScope;
-
+use ryo_values::domain::plans::types::Plan;

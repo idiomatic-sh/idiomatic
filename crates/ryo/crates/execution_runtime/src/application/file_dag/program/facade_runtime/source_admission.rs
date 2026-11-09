@@ -14,7 +14,7 @@ use crate::application::file_dag::program::facade_runtime::types::Provision;
 use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -22,9 +22,9 @@ use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::service::count_of;
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::rows::types::Table;
-use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 pub(super) struct ProjectSources<'a> {
@@ -73,7 +73,8 @@ impl SourceInputs<'_, '_> {
 impl Inputs for SourceInputs<'_, '_> {
     fn population_scope(
         &self,
-    ) -> ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope {
+    ) -> ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope
+    {
         self.state.population_scope()
     }
     fn bind_rule(&mut self, rule: RuleIndex) {
@@ -83,7 +84,10 @@ impl Inputs for SourceInputs<'_, '_> {
     fn dependency(
         &self,
         source: ryo_execution_domain::domain::executable_program::types::InputSource,
-    ) -> Result<Option<ryo_execution_domain::domain::executable_program::types::RegionId>, OperatingError> {
+    ) -> Result<
+        Option<ryo_execution_domain::domain::executable_program::types::RegionId>,
+        OperatingError,
+    > {
         use ryo_execution_domain::domain::executable_program::types::InputSource;
         if self
             .project
@@ -92,14 +96,19 @@ impl Inputs for SourceInputs<'_, '_> {
         {
             return Ok(None);
         }
-        if let InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) = source {
+        if let InputSource::Observation(
+            ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+        ) = source
+        {
             if self.observations.contains_key(&ObservationKey(slot)) {
                 return Ok(None);
             }
         }
         let region = match source {
             InputSource::Region(id) => Some(id),
-            InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => Some(
+            InputSource::Observation(
+                ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+            ) => Some(
                 *self
                     .program
                     .program()
@@ -110,14 +119,19 @@ impl Inputs for SourceInputs<'_, '_> {
                     .map_err(Clone::clone)?,
             ),
             InputSource::ObservationMember {
-                slot: ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
-                member: ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
+                slot:
+                    ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                member:
+                    ryo_execution_domain::domain::executable_program::types::ProducerMember(member),
             } => {
                 let named = self
                     .program
                     .observation_metadata()
                     .ok_or_else(|| OperatingError::NotRun)?;
-                let declaration = named.slots.get(slot).ok_or_else(|| OperatingError::NotRun)?;
+                let declaration = named
+                    .slots
+                    .get(slot)
+                    .ok_or_else(|| OperatingError::NotRun)?;
                 if declaration.rule != self.rule {
                     return Err(OperatingError::NotRead);
                 }
@@ -183,7 +197,14 @@ impl Inputs for SourceInputs<'_, '_> {
             _ => None,
         };
         match region {
-            Some(id) if self.execution.published_with(self.state, id, |_| ())?.is_none() => Ok(Some(id)),
+            Some(id)
+                if self
+                    .execution
+                    .published_with(self.state, id, |_| ())?
+                    .is_none() =>
+            {
+                Ok(Some(id))
+            }
             _ => Ok(None),
         }
     }
@@ -256,7 +277,9 @@ pub(super) fn observation_table<'facts>(
     input: &AdmittedInput,
     read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
 ) -> Result<Table, OperatingError> {
-    if input.observation_ready()? == crate::application::file_dag::program::admission::ObservationReadiness::Waiting {
+    if input.observation_ready()?
+        == crate::application::file_dag::program::admission::ObservationReadiness::Waiting
+    {
         return Err(OperatingError::ObservationIncomplete {
             reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
         });
@@ -268,7 +291,6 @@ pub(super) fn observation_slot(
     program: &PreparedProgram,
     rule: RuleIndex,
     input: ryo_values::domain::plan_parts::types::ObservationBindingId,
-
 ) -> Result<ObservationKey, OperatingError> {
     let slots = &program
         .observation_metadata()

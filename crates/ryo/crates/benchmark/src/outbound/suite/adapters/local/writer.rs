@@ -4,8 +4,8 @@ use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::{
     CaseClaim, ClaimedEvidence, ClaimedProcess, MaterializedCase, MaterializedContext,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
+use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, RuleName};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
@@ -139,11 +139,7 @@ pub(super) fn stage(
             )?,
         )?;
         if purpose == StagePurpose::Certification {
-            copy_evidence(
-                directory,
-                destination,
-                &target.join(constants::CASES),
-            )?;
+            copy_evidence(directory, destination, &target.join(constants::CASES))?;
         }
     }
     for rule in definitions.iter().filter(|id| !authored.contains(id)) {
@@ -244,7 +240,11 @@ pub(super) fn copy_evidence(
             .collect::<Vec<_>>();
         if let ClaimedProcess::Failure(failure) = &claim.process {
             for observation in &failure.observations {
-                for item in [&observation.invocation, &observation.stdout, &observation.stderr] {
+                for item in [
+                    &observation.invocation,
+                    &observation.stdout,
+                    &observation.stderr,
+                ] {
                     artifacts.push((item.path.clone(), item.sha256.0.clone()));
                 }
             }
@@ -261,8 +261,7 @@ pub(super) fn copy_evidence(
             };
             let source = requested.canonicalize().map_err(contextual)?;
             let bytes = std::fs::read(&source).map_err(contextual)?;
-            if !source.starts_with(&boundary)
-                || format!("{:x}", Sha256::digest(&bytes)) != expected
+            if !source.starts_with(&boundary) || format!("{:x}", Sha256::digest(&bytes)) != expected
             {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
@@ -278,8 +277,6 @@ pub(super) fn copy_evidence(
     }
     Ok(())
 }
-
-
 
 /// Write only selected source facts; semantic preparation and expected reports stay above this port.
 pub(super) fn materialize(
@@ -300,9 +297,15 @@ pub(super) fn materialize(
                 .ok_or_else(|| Error::Invalid(super::constants::MISSING_CASE_PARENT.into()))?,
         )?;
         std::fs::write(&path, source.0.as_bytes())?;
-        if let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) = &sources.file_metadata {
+        if let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
+            values,
+        ) = &sources.file_metadata
+        {
             if let Some(executable) = values.get(file) {
-                super::file_metadata::schemas::stage_executable(&path, *executable == FileExecutable::Set)?;
+                super::file_metadata::schemas::stage_executable(
+                    &path,
+                    *executable == FileExecutable::Set,
+                )?;
             }
         }
     }

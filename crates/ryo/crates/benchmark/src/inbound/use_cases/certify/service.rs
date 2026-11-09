@@ -120,8 +120,9 @@ pub(super) fn certify(
     let cases = match &prepared_cases {
         PreparedCases::Profile => {
             let rules = directory.join(super::constants::RULE_DIRECTORY);
-            let prepared =
-                crate::application::case_preparation::service::cases(suite, context, &rules, scratch)?;
+            let prepared = crate::application::case_preparation::service::cases(
+                suite, context, &rules, scratch,
+            )?;
             verify_prepared_shard(
                 suite,
                 receipts,
@@ -201,13 +202,15 @@ pub(super) fn prepare(
     for entry in &loaded.rules {
         crate::application::inventory_verification::service::verify_context(entry, suite, store)
             .map_err(|reason| Error::Invalid(reason.0))?;
-        paths.extend(crate::application::registered_certification::service::pin_rule(
-            entry,
-            suite,
-            measured_profile,
-            tool,
-            rules,
-        )?);
+        paths.extend(
+            crate::application::registered_certification::service::pin_rule(
+                entry,
+                suite,
+                measured_profile,
+                tool,
+                rules,
+            )?,
+        );
     }
     paths.sort();
     paths.dedup();
@@ -338,13 +341,15 @@ fn verify_prepared_shard(
                 }
                 Err(error) => {
                     let assessment = (contestant == Contestant::Reference)
-                        .then(|| crate::application::process_discrepancy::service::matches_capture(
-                            &case,
-                            &capture,
-                            proof.as_ref(),
-                            suite,
-                            rules,
-                        ))
+                        .then(|| {
+                            crate::application::process_discrepancy::service::matches_capture(
+                                &case,
+                                &capture,
+                                proof.as_ref(),
+                                suite,
+                                rules,
+                            )
+                        })
                         .flatten();
                     let accepted = matches!(assessment, Some(Ok(())));
                     let message = ReasonText(match assessment {
@@ -386,4 +391,3 @@ fn verify_prepared_shard(
         )))
     }
 }
-

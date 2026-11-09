@@ -1,8 +1,8 @@
 //! Accounting for physical payloads held by derived resource handles.
 //! Admission policy, cache selection and scheduling stay with the caller.
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::{cell::RefCell, rc::Rc};
-use rustc_hash::FxHashMap;
 
 mod arithmetic;
 pub(crate) mod capacity;
@@ -14,12 +14,12 @@ mod snapshot;
 mod test;
 pub mod types;
 
-#[cfg(any(test, feature = "fixtures"))]
-use types::{BackingCount, BackingTag};
 use types::{
     Backing, ByteCount, HoldCount, LeaseClass, Ledger, LedgerEntry, ResourceLease, SlotCount,
     UnitCount,
 };
+#[cfg(any(test, feature = "fixtures"))]
+use types::{BackingCount, BackingTag};
 
 impl Default for Ledger {
     fn default() -> Self {

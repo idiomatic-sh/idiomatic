@@ -16,10 +16,10 @@ use crate::domain::dependency_kind::types::DependencyKind;
 use crate::domain::dependency_origin::types::DependencyOrigin;
 use crate::domain::mapping_kind::types::MappingKind;
 use crate::domain::parameter_kind::types::ParameterKind;
-use crate::domain::value_kind::types::ValueKind;
 use crate::domain::terms::types::ChildOrdinal;
 use crate::domain::terms::types::NameText;
 use crate::domain::terms::types::Symbol;
+use crate::domain::value_kind::types::ValueKind;
 use strum::IntoEnumIterator;
 
 /// The first number of a block.

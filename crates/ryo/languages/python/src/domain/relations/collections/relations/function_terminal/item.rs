@@ -1,4 +1,5 @@
 //! Read one terminal outcome for every visible function definition.
+use super::constants::INCOMPLETE;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -10,7 +11,6 @@ use crate::domain::{
     },
 };
 use ryo::languages;
-use super::constants::INCOMPLETE;
 
 /// Reads one terminal outcome for each visible function.
 pub(crate) struct FunctionTerminalItem;

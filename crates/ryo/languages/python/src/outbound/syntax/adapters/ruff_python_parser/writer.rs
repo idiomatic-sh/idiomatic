@@ -282,7 +282,11 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, 'a> {
             self.refused.push(ParserRefusal {
                 at,
                 said: Said(ELSE_WITHOUT_EXCEPT.to_owned()),
-                metadata: DiagnosticMetadata { phase: DiagnosticPhase::Parse, impact: TreeImpact::Incomplete, code: ELSE_WITHOUT_EXCEPT_CODE },
+                metadata: DiagnosticMetadata {
+                    phase: DiagnosticPhase::Parse,
+                    impact: TreeImpact::Incomplete,
+                    code: ELSE_WITHOUT_EXCEPT_CODE,
+                },
             });
         }
         if let AnyNodeRef::StmtImportFrom(statement) = node {

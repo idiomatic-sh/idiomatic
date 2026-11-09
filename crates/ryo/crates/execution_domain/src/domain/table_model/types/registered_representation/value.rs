@@ -1,6 +1,6 @@
 //! A classified physical catalog handle; implementer storage never crosses this value.
-use crate::domain::table_model::types::{PhysicalShape, RelationContract, RepresentationKind};
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::table_cells::types::TreeForm;
 use crate::domain::table_model::collections::representations::{
     compact::item::CompactItem,
     computed::item::ComputedItem,
@@ -10,7 +10,7 @@ use crate::domain::table_model::collections::representations::{
     types::{CellRead, RowRead},
 };
 use crate::domain::table_model::types::RepresentationInput;
-use crate::domain::table_cells::types::TreeForm;
+use crate::domain::table_model::types::{PhysicalShape, RelationContract, RepresentationKind};
 use ryo_relations::domain::relations::types::{CellKind, Relation, Value};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
@@ -22,17 +22,13 @@ pub struct RegisteredRepresentation {
     kind: RepresentationKind,
 }
 impl RegisteredRepresentation {
-    pub(crate) fn new(
-        kind: RepresentationKind,
-    ) -> Self {
+    pub(crate) fn new(kind: RepresentationKind) -> Self {
         Self { kind }
     }
 }
 
 impl RegisteredRepresentation {
-    pub(crate) fn kind(
-        input: RepresentationInput<'_>,
-    ) -> RepresentationKind {
+    pub(crate) fn kind(input: RepresentationInput<'_>) -> RepresentationKind {
         match input {
             RepresentationInput::Stored(_) => RepresentationKind::Stored,
             RepresentationInput::Tree(_) => RepresentationKind::Tree,
@@ -110,60 +106,48 @@ impl RegisteredRepresentation {
 
 impl<'f> RepresentationInput<'f> {
     /// The rows as one bulk representation.
-    pub fn bulk(
-        self,
-    ) -> Result<RepresentationInput<'f>, OperatingError>
-    {
+    pub fn bulk(self) -> Result<RepresentationInput<'f>, OperatingError> {
         RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).bulk(self)
     }
     /// The contract the representation declares of its rows.
-    pub fn contract(
-        self,
-    ) -> Result<RelationContract<'f>, OperatingError>
-    {
+    pub fn contract(self) -> Result<RelationContract<'f>, OperatingError> {
         RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).prepare(self)
     }
     /// Checks that the rows' contract can be read in full.
     pub fn validate(self) -> Result<(), OperatingError> {
         let contract = self.contract()?;
-        if RegisteredRepresentation::new(contract.kind).inspect(&contract)? == PhysicalShape::Complete {
+        if RegisteredRepresentation::new(contract.kind).inspect(&contract)?
+            == PhysicalShape::Complete
+        {
             Ok(())
         } else {
             Err(OperatingError::ShapeMismatch)
         }
     }
     /// One cell of the rows, or nothing when it is not physically present.
-    pub fn cell(
-        self,
-        row: RowIndex,
-        column: ColumnIndex,
-    ) -> Option<Value> {
-        match RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).cell(self, row, column) {
+    pub fn cell(self, row: RowIndex, column: ColumnIndex) -> Option<Value> {
+        match RegisteredRepresentation::new(RegisteredRepresentation::kind(self))
+            .cell(self, row, column)
+        {
             Ok(CellRead::Value(value)) => Some(value),
             Ok(CellRead::MissingPhysical) | Err(_) => None,
         }
     }
     /// One row of the rows, read into the buffer, or nothing when it is not physically present.
-    pub fn read<'r>(
-        self,
-        row: RowIndex,
-        decode: &'r mut Vec<Value>,
-    ) -> Option<&'r [Value]>
+    pub fn read<'r>(self, row: RowIndex, decode: &'r mut Vec<Value>) -> Option<&'r [Value]>
     where
         'f: 'r,
     {
         if !matches!(self, Self::Computed(_)) {
             decode.resize(
                 self.kinds().len(),
-                Value::Flag(
-                    ryo_relations::domain::relations::types::Flag::Lowered,
-                ),
+                Value::Flag(ryo_relations::domain::relations::types::Flag::Lowered),
             );
         }
-        match RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).row(self, row, decode) {
-            Ok(RowRead::Borrowed(row) | RowRead::Decoded(row)) => {
-                Some(row)
-            }
+        match RegisteredRepresentation::new(RegisteredRepresentation::kind(self))
+            .row(self, row, decode)
+        {
+            Ok(RowRead::Borrowed(row) | RowRead::Decoded(row)) => Some(row),
             Ok(RowRead::MissingPhysical) | Err(_) => None,
         }
     }
@@ -173,9 +157,12 @@ impl<'f> RepresentationInput<'f> {
     pub fn count(self) -> RowCount {
         match self {
             Self::Stored(view) => RowCount(view.columns.first().map_or(0, |column| column.0.len())),
-            Self::Tree(tree) => RowCount(tree.elements.kind.len().saturating_sub(usize::from(
-                tree.form == TreeForm::Edges,
-            ))),
+            Self::Tree(tree) => RowCount(
+                tree.elements
+                    .kind
+                    .len()
+                    .saturating_sub(usize::from(tree.form == TreeForm::Edges)),
+            ),
             Self::Computed(table) => table.count,
             Self::Compact(table) => ryo_values::domain::compact_table::service::compact_rows(table),
         }
@@ -189,12 +176,8 @@ impl<'f> RepresentationInput<'f> {
                 ryo_values::domain::compact_table::service::compact_kinds(table)
             }
             Self::Tree(tree) => ryo_relations::domain::relations::service::kinds(match tree.form {
-                TreeForm::Elements => {
-                    Relation::SyntaxTree
-                }
-                TreeForm::Edges => {
-                    Relation::SyntaxChild
-                }
+                TreeForm::Elements => Relation::SyntaxTree,
+                TreeForm::Edges => Relation::SyntaxChild,
             }),
         }
     }

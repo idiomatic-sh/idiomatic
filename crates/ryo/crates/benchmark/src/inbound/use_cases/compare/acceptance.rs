@@ -27,7 +27,8 @@ fn reports() -> (RunReport, RunReport) {
     let reference = RunReport {
         execution_metadata:
             ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-        project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+        project_context:
+            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
         files: fixture.files,
         skipped: Vec::new(),
         coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(

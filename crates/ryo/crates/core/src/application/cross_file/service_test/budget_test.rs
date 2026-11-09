@@ -1,5 +1,4 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::batch_test::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
@@ -13,13 +12,14 @@ use crate::domain::crossing::service::partials_for;
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::memory::interface::MemoryPort;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Position;
@@ -150,7 +150,8 @@ pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_
         let phase = rules.request.project_phase().unwrap();
         let mut symbols = Symbols::default();
         let declared = order.map(RuleIndex);
-        let policies = declared.map(|rule| partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, rule));
+        let policies =
+            declared.map(|rule| partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, rule));
         let results = super::batch_test::evaluate_all(
             &rules,
             &phase,
@@ -211,10 +212,7 @@ pub(super) fn ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declarati
     use crate::domain::budget::errors::BudgetError;
     use ryo_values::domain::stored_facts::types::Bucket;
     let plan = counting_plan(1, vec![]);
-    let rules = world_with(
-        vec![plan.clone(), plan],
-        Arc::new(ProjectCalls::default()),
-    );
+    let rules = world_with(vec![plan.clone(), plan], Arc::new(ProjectCalls::default()));
     let (facts, project) = kept_facts(&rules, &[(RuleIndex(0), &frontier_rows())]);
     let project_symbols = Symbols::default();
     // Rule 0 twice, then rule 1, whose frontier has no first bucket.
@@ -253,11 +251,18 @@ pub(super) fn ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declarati
         .ordinary(run(), &memory)
         .expect("the phase runs")
         .expect("three occurrences make a phase");
-    assert_eq!(outcome.outcomes.len(), 3, "every occurrence answers, in declaration order");
+    assert_eq!(
+        outcome.outcomes.len(),
+        3,
+        "every occurrence answers, in declaration order"
+    );
     let mut outcomes = outcome.outcomes.into_iter();
     let first = outcomes.next().unwrap();
     assert_eq!(first.todo.rule, RuleIndex(0));
-    assert!(first.result.is_ok(), "the prepared occurrence is evaluated and completed");
+    assert!(
+        first.result.is_ok(),
+        "the prepared occurrence is evaluated and completed"
+    );
     let second = outcomes.next().unwrap();
     assert!(
         matches!(second.result, Err(CrossFileError::Budget(BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans })) if plans == &[rules.ids[0].clone()]),

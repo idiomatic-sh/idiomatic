@@ -1,18 +1,16 @@
 //! Axis rows and native tree traversal through real compiled file owners.
 use super::super::super::fixtures;
 use super::super::axis_tree::test::{Domain, over_the_tree};
-use ryo_values::selects;
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_relations::domain::relations::types::Value as Cell;
-use ryo_values::domain::plan_parts::types::LiteralText;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Position;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
@@ -22,15 +20,17 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Input as Source;
 use ryo_values::domain::plan_parts::types::JoinColumn;
+use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
+use ryo_values::selects;
 
 type Value = usize;
 type Failure = OperatingError;
@@ -288,7 +288,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, OperatingError::MissingInput { .. }))
         }),
-    },];
+    },
+];
 fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }

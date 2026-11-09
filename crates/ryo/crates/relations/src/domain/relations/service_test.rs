@@ -5,15 +5,17 @@ use crate::domain::terms::types::Symbol;
 use super::service::{
     all, column_named, columns, kind, name, provenance_of, relation_named, relation_of,
 };
-use crate::domain::relations::types::{CellKind, NodeId, Offset, Provenance, Relation, Span, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::labels::types::NameRef;
 use crate::domain::relations::collections::relations::defines::item::DefinesColumn;
 use crate::domain::relations::collections::relations::function::item::FunctionColumn;
 use crate::domain::relations::service::from_bits;
 use crate::domain::relations::service::is_key;
 use crate::domain::relations::service::to_bits;
 use crate::domain::relations::types::Column;
-use crate::domain::labels::types::NameRef;
+use crate::domain::relations::types::{
+    CellKind, NodeId, Offset, Provenance, Relation, Span, Value as Cell,
+};
 use crate::domain::relations::types::{ColumnKeyness, Flag, Integer};
 use crate::domain::terms::types::{Vocabulary, WordBlock};
 

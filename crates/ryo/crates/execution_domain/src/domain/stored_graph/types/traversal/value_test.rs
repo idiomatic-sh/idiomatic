@@ -3,14 +3,17 @@ use ryo_derived::domain::vertices::types::VertexId;
 
 use super::value::{ABSENT, GraphTraversal, UNKNOWN};
 
-use crate::domain::stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Orientation, VisitEpoch};
+use crate::domain::stored_graph::types::{
+    BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest,
+    Orientation, VisitEpoch,
+};
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
-use ryo_derived::domain::row_cells::types::BulkRows;
 use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs;
-use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_derived::domain::request::types::DerivedRequest;
+use ryo_derived::domain::row_cells::types::BulkRows;
+use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_derived::domain::sharing::types::SharedMarks;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -36,7 +39,11 @@ impl RowCells for SourceRows<'_> {
     fn count(&self) -> ryo_values::domain::rows::types::RowCount {
         self.0.count
     }
-    fn cell(&self, row: ryo_values::domain::rows::types::RowIndex, column: ColumnIndex) -> Option<Value> {
+    fn cell(
+        &self,
+        row: ryo_values::domain::rows::types::RowIndex,
+        column: ColumnIndex,
+    ) -> Option<Value> {
         if row.0 >= self.count().0 {
             return None;
         }
@@ -51,7 +58,9 @@ impl RowCells for SourceRows<'_> {
     }
 }
 
-fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph> {
+fn graph(
+    edges: &[[i64; 2]],
+) -> Arc<ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph> {
     let mut table = Table {
         kinds: vec![CellKind::Number; 2],
         ..Default::default()
@@ -84,10 +93,16 @@ fn graph(edges: &[[i64; 2]]) -> Arc<ryo_derived::domain::adjacency::types::compa
         .0
 }
 
-fn vertex(graph: &ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph, value: i64) -> VertexId {
+fn vertex(
+    graph: &ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph,
+    value: i64,
+) -> VertexId {
     VertexId(
         graph
-            .vertex(ryo_derived::domain::vertices::types::PartitionId(0), Value::Number(Integer(value)))
+            .vertex(
+                ryo_derived::domain::vertices::types::PartitionId(0),
+                Value::Number(Integer(value)),
+            )
             .expect("stored vertex")
             .0,
     )
@@ -96,7 +111,11 @@ fn vertex(graph: &ryo_derived::domain::adjacency::types::compact_graph::value::C
 #[test]
 fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
     let graph = graph(&[[1, 9], [1, 2], [1, 9], [9, 4], [2, 4], [4, 1]]);
-    assert!(graph.forest(ryo_derived::domain::vertices::types::EdgeDirection::Forward).is_none());
+    assert!(
+        graph
+            .forest(ryo_derived::domain::vertices::types::EdgeDirection::Forward)
+            .is_none()
+    );
     let mut marks = vec![false; graph.vertices().len()];
     marks[vertex(&graph, 9).0 as usize] = true;
     marks[vertex(&graph, 2).0 as usize] = true;
@@ -133,7 +152,11 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
 #[test]
 fn validated_forest_compresses_shared_chains_without_including_the_start() {
     let graph = graph(&[[1, 2], [2, 3], [3, 4], [8, 2], [1, 2]]);
-    assert!(graph.forest(ryo_derived::domain::vertices::types::EdgeDirection::Forward).is_some());
+    assert!(
+        graph
+            .forest(ryo_derived::domain::vertices::types::EdgeDirection::Forward)
+            .is_some()
+    );
     let mut marks = vec![false; graph.vertices().len()];
     marks[vertex(&graph, 4).0 as usize] = true;
     marks[vertex(&graph, 1).0 as usize] = true;

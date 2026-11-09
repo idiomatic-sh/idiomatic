@@ -5,9 +5,8 @@ use super::super::*;
 fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(
-            crate::application::file_dag::fixtures::derived(),
-        ) as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
+            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
     );
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
@@ -46,7 +45,10 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
         panic!("same demanded fallback")
     };
     assert_eq!(normalized_address, table as *const _);
-    assert_eq!(owner.checks.get(), crate::application::file_dag::relations::types::CheckCount(1));
+    assert_eq!(
+        owner.checks.get(),
+        crate::application::file_dag::relations::types::CheckCount(1)
+    );
     assert_eq!(
         owner.derived.publication_ownership_bytes(),
         charged,
@@ -74,7 +76,10 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         .unwrap();
     let record = Arc::downgrade(publication.record());
     let alias = publication.clone();
-    assert_eq!(alias.same_record(&publication), crate::application::file_dag::relations::types::Sameness::Same);
+    assert_eq!(
+        alias.same_record(&publication),
+        crate::application::file_dag::relations::types::Sameness::Same
+    );
     let charged = owner.derived.publication_ownership_bytes();
     assert!(
         charged.0 > 0,
@@ -98,8 +103,14 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         );
         assert_eq!(owner.derived.publication_ownership_bytes(), charged);
     }
-    assert_eq!(owner.matches_generation(&generation), crate::application::file_dag::relations::types::Sameness::Same);
-    assert_eq!(owner.current_generation().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
+    assert_eq!(
+        owner.matches_generation(&generation),
+        crate::application::file_dag::relations::types::Sameness::Same
+    );
+    assert_eq!(
+        owner.current_generation().is_live(),
+        crate::application::file_dag::relations::types::Liveness::Live
+    );
     drop(alias);
     assert!(
         record.upgrade().is_none(),
@@ -111,5 +122,8 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         crate::application::file_dag::relations::types::Sameness::Same,
         "release did not rely on retiring the generation"
     );
-    assert_eq!(owner.current_generation().is_live(), crate::application::file_dag::relations::types::Liveness::Live);
+    assert_eq!(
+        owner.current_generation().is_live(),
+        crate::application::file_dag::relations::types::Liveness::Live
+    );
 }

@@ -2,7 +2,8 @@
 /// Refuse rule directory names outside the query identifier encoding.
 pub(super) const NON_UTF8_RULE: &str = "non-UTF8 rule";
 /// Canonical colocated query filename.
-pub(super) const QUERY_FILE: &str = ryo_benchmark_contracts::domain::requests::constants::QUERY_FILE;
+pub(super) const QUERY_FILE: &str =
+    ryo_benchmark_contracts::domain::requests::constants::QUERY_FILE;
 /// Refuse repeated rule identities rather than overwriting queries.
 pub(super) const DUPLICATE_RULE: &str = "duplicate candidate rule identity";
 /// A candidate run must evaluate at least one authored query.

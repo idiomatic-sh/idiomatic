@@ -1,6 +1,6 @@
 //! File root activation preserves a reader multiset and independent intent masks.
-use crate::domain::operator::types::ReaderMultiplicity;
 use super::{service::compile, types::*};
+use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::{
     coverage::types::RuleIndex,
@@ -66,7 +66,10 @@ fn counted(
 }
 fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
     let program = build(
-        [vec![RegionId(1), RegionId(1)].into_boxed_slice(), Box::new([])],
+        [
+            vec![RegionId(1), RegionId(1)].into_boxed_slice(),
+            Box::new([]),
+        ],
         Box::new([]),
     );
     let mut selected = std::collections::HashMap::from([(RegionId(0), ReaderMultiplicity(2))]);
@@ -103,20 +106,24 @@ fn remaining_is_computed_once_per_selection() {
     let files = 8;
     let mut computations = super::super::types::ComputationCount::default();
     for _ in 0..files {
-        computations = super::service::remaining(
-            program.file_readers(),
-            program.regions(),
-            &selected,
-        )
-        .unwrap()
-        .computations;
+        computations =
+            super::service::remaining(program.file_readers(), program.regions(), &selected)
+                .unwrap()
+                .computations;
     }
-    assert_eq!(computations, super::super::types::ComputationCount(1), "{files} files with one selection compute once");
+    assert_eq!(
+        computations,
+        super::super::types::ComputationCount(1),
+        "{files} files with one selection compute once"
+    );
     let other = std::collections::HashMap::from([(RegionId(1), ReaderMultiplicity(1))]);
     let changed =
-        super::service::remaining(program.file_readers(), program.regions(), &other)
-            .unwrap();
-    assert_eq!(changed.computations, super::super::types::ComputationCount(2), "a different selection computes again");
+        super::service::remaining(program.file_readers(), program.regions(), &other).unwrap();
+    assert_eq!(
+        changed.computations,
+        super::super::types::ComputationCount(2),
+        "a different selection computes again"
+    );
 }
 enum Scenario {
     Mode(bool, bool, usize, usize, usize),

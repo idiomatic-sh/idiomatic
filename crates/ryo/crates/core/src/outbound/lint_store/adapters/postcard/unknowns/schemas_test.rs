@@ -15,14 +15,12 @@ type Value = bool;
 type Failure = ();
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("an_unknown_reads_back_as_it_was_written_undecided_or_refused"),
-        word: Word::Succeeds,
-        input: || (),
-        expect: Expect::Value(true),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("an_unknown_reads_back_as_it_was_written_undecided_or_refused"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(true),
+}];
 
 /// Writes the unknowns of a sample store, one undecided and one refused, through the table of strings and reads each back.
 fn subject() -> Value {

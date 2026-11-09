@@ -1,9 +1,11 @@
 //! What a project phase offers a caller.
-use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
 use crate::application::file_dag::frontiers::types::PublicationSlot;
+use crate::application::file_dag::program::project_phase::types::{
+    OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop,
+};
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
@@ -37,7 +39,12 @@ pub trait ProjectRootExecution {
         before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
         partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
-        complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, E>,
+        complete: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            PublicationSlot,
+            &mut Symbols,
+        ) -> Result<T, E>,
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E>;
     fn readiness_counts(&self) -> ReadinessCounts;
 }

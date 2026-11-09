@@ -14,24 +14,22 @@ use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PreparedNamed, WalkPreparation,
 };
 use crate::application::file_dag::program::native_walk::Deliveries;
-use ryo_values::domain::runs::types::ApplicabilityRefusal;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
-use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use std::rc::Rc;
 
 impl FileRun<'_> {
     /// Bind selected external readers before a source or native walk is admitted.
-    pub(crate) fn bind_intents(
-        &mut self,
-    ) -> Result<Vec<RuleIndex>, OperatingError> {
+    pub(crate) fn bind_intents(&mut self) -> Result<Vec<RuleIndex>, OperatingError> {
         use ryo_execution_domain::domain::executable_program::file_demand::types::{
             FileDemand, FileRootDemand as DemandRoot, FrontierSelection, RootSelection,
         };
@@ -109,8 +107,10 @@ impl FileRun<'_> {
             }
             for &output in &plan.observations {
                 let root = &self.program.rule_metadata(rule)?.observations[output.0 as usize];
-                let readiness = if ryo_execution_domain::domain::trust::service::blocked(&root.reads, publication)
-                    == ryo_execution_domain::domain::trust::types::Blocking::Free
+                let readiness = if ryo_execution_domain::domain::trust::service::blocked(
+                    &root.reads,
+                    publication,
+                ) == ryo_execution_domain::domain::trust::types::Blocking::Free
                 {
                     NamedReadiness::Ready
                 } else {
@@ -131,8 +131,10 @@ impl FileRun<'_> {
                     DemandRoot::Observation { region, output } => {
                         let root =
                             &self.program.rule_metadata(rule)?.observations[output.0 as usize];
-                        if ryo_execution_domain::domain::trust::service::blocked(&root.reads, publication)
-                            != ryo_execution_domain::domain::trust::types::Blocking::Free
+                        if ryo_execution_domain::domain::trust::service::blocked(
+                            &root.reads,
+                            publication,
+                        ) != ryo_execution_domain::domain::trust::types::Blocking::Free
                         {
                             continue;
                         }
@@ -178,10 +180,7 @@ impl FileRun<'_> {
         self.execution.activate_file_roots(&readers)?;
         Ok(demanded)
     }
-    pub(crate) fn declared(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<DeclaredIntent, OperatingError> {
+    pub(crate) fn declared(&self, rule: RuleIndex) -> Result<DeclaredIntent, OperatingError> {
         match self.intents.get(rule.0) {
             Some(FileRuleIntent::Run {
                 diagnostic,
@@ -195,9 +194,7 @@ impl FileRun<'_> {
             _ => Err(OperatingError::NotRun),
         }
     }
-    pub(crate) fn prepare_walk<
-        'facts,
-    >(
+    pub(crate) fn prepare_walk<'facts>(
         &mut self,
         read: &dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,

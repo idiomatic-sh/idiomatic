@@ -2,9 +2,8 @@
 use crate::domain::{
     operating::errors::OperatingError,
     table_model::{
-        collections::representations::types::RowRead, types::RepresentationKind,
-        service::registered,
-        types::RepresentationInput,
+        collections::representations::types::RowRead, service::registered,
+        types::RepresentationInput, types::RepresentationKind,
     },
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};

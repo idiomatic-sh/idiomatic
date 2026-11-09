@@ -1,6 +1,8 @@
 //! Normalize demanded phase roots at the existing table codec boundary before Symbols are dropped.
 use crate::domain::finish::service::missing_publication_table;
-use ryo_execution::inbound::use_cases::publication::interface::{PublicationInput, PublicationUseCase};
+use ryo_execution::inbound::use_cases::publication::interface::{
+    PublicationInput, PublicationUseCase,
+};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Origin, Words, WorkerNumber};
 use ryo_values::domain::records::types::{CrossPublicationTransfer, PackedObservedRoot};

@@ -8,7 +8,7 @@ use ruff_python_ast::visitor::{Visitor, walk_expr};
 use ruff_python_ast::{AnyNodeRef, Expr, ExprContext};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{
-    self, Flag, RenderContext, SemanticsError, RenderOutcome, RenderRequest, SemanticSession,
+    self, Flag, RenderContext, RenderOutcome, RenderRequest, SemanticSession, SemanticsError,
 };
 
 use super::schemas::concrete_node_kind;
@@ -130,9 +130,9 @@ fn render(
             }
             Some(RenderedSyntax(format!("[{}]", items.join(LIST_SEPARATOR))))
         }
-        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => Some(RenderedSyntax(
-            format!("*{}", render(&starred.value, context, source)?.0),
-        )),
+        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => Some(
+            RenderedSyntax(format!("*{}", render(&starred.value, context, source)?.0)),
+        ),
         Expr::StringLiteral(_)
         | Expr::BytesLiteral(_)
         | Expr::NumberLiteral(_)
@@ -199,7 +199,9 @@ impl<'a> Visitor<'a> for Requested<'_> {
                     RenderOutcome::NotApplicable
                 } else {
                     render(expr, context, self.source)
-                        .map(|text| RenderOutcome::Known(languages::RenderedNode(Arc::from(text.0))))
+                        .map(|text| {
+                            RenderOutcome::Known(languages::RenderedNode(Arc::from(text.0)))
+                        })
                         .unwrap_or(RenderOutcome::Unsupported(UNSUPPORTED))
                 };
                 self.answers[index] = Some(match self.answers[index].take() {

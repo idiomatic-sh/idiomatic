@@ -1,13 +1,13 @@
 //! Validate pins, cases and rule coverage before running contestants.
-use super::writer::{fingerprint_path, relative, rule_directory, validate_query_modules};
 use super::constants;
 use super::evidence::schemas::verify_requirement;
-use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
+use super::writer::{fingerprint_path, relative, rule_directory, validate_query_modules};
 use crate::outbound::suite::errors::SuiteError;
+use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
 use crate::outbound::suite::types::{
-    ArtifactMetadata, CaseArtifacts, ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText,
-    MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery, SelectedName,
-    SourceDigest,
+    ArtifactBytes, ArtifactMetadata, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText,
+    CaseArtifacts, MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery,
+    SelectedName, SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -119,7 +119,9 @@ impl SuitePort for SuiteLocalAdapter {
         parent: ArtifactPath<'_>,
         prefix: ArtifactText<'_>,
     ) -> Result<Box<dyn ScopedDirectory>, Error> {
-        Ok(Box::new(LocalScopedDirectory(scratch_builder(parent, prefix)?)))
+        Ok(Box::new(LocalScopedDirectory(scratch_builder(
+            parent, prefix,
+        )?)))
     }
     fn retained_directory(
         &self,
@@ -128,10 +130,17 @@ impl SuitePort for SuiteLocalAdapter {
     ) -> Result<RetainedDirectory, Error> {
         Ok(RetainedDirectory(scratch_builder(parent, prefix)?.keep()))
     }
-    fn copy_file(&self, ArtifactPath(from): ArtifactPath<'_>, ArtifactPath(to): ArtifactPath<'_>) -> Result<(), Error> {
+    fn copy_file(
+        &self,
+        ArtifactPath(from): ArtifactPath<'_>,
+        ArtifactPath(to): ArtifactPath<'_>,
+    ) -> Result<(), Error> {
         std::fs::copy(from, to).map(|_bytes| ()).map_err(Into::into)
     }
-    fn ensure_directory(&self, ArtifactPath(directory): ArtifactPath<'_>) -> Result<std::path::PathBuf, Error> {
+    fn ensure_directory(
+        &self,
+        ArtifactPath(directory): ArtifactPath<'_>,
+    ) -> Result<std::path::PathBuf, Error> {
         std::fs::create_dir_all(directory)?;
         directory.canonicalize().map_err(Into::into)
     }
@@ -152,7 +161,9 @@ impl SuitePort for SuiteLocalAdapter {
         &self,
         ArtifactPath(file): ArtifactPath<'_>,
     ) -> Result<ryo::linter::SourceText, Error> {
-        Ok(ryo::linter::SourceText(std::fs::read_to_string(file)?.into_boxed_str()))
+        Ok(ryo::linter::SourceText(
+            std::fs::read_to_string(file)?.into_boxed_str(),
+        ))
     }
     fn create_text(
         &self,
@@ -276,7 +287,6 @@ impl SuitePort for SuiteLocalAdapter {
     }
 }
 
-
 /// Verify exact sources and evidence inside their separately explicit boundaries.
 fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), SuiteError> {
     if source_digest(artifacts.root, artifacts.files)?.0 != artifacts.source_sha256.0 {
@@ -296,9 +306,11 @@ fn verify(artifacts: CaseArtifacts<'_>) -> Result<(), SuiteError> {
         ));
     }
     if let ArtifactMetadata::Declared(expected) = artifacts.file_metadata {
-        let actual =
-            super::file_metadata::schemas::actual_digest(artifacts.root, artifacts.file_metadata_files)
-                .map_err(|error| SuiteError::Invalid(error.to_string()))?;
+        let actual = super::file_metadata::schemas::actual_digest(
+            artifacts.root,
+            artifacts.file_metadata_files,
+        )
+        .map_err(|error| SuiteError::Invalid(error.to_string()))?;
         if actual != expected.0 {
             return Err(SuiteError::Invalid(
                 constants::STALE_REFERENCE_DISCREPANCY_FILE_METADATA_ID.into(),
@@ -346,7 +358,10 @@ fn read(
                 constants::RAW_ARTIFACT_BYTE_IDENTITY_DIFFERS.into(),
             ));
         }
-        if result.insert(artifact.path.clone(), ArtifactBytes(bytes)).is_some() {
+        if result
+            .insert(artifact.path.clone(), ArtifactBytes(bytes))
+            .is_some()
+        {
             return Err(SuiteError::Invalid(
                 constants::DUPLICATE_RAW_ARTIFACT_PATH.into(),
             ));
@@ -356,10 +371,7 @@ fn read(
 }
 
 /// Canonical source framing shared by fresh observations and discrepancy evidence.
-fn source_digest(
-    root: &Path,
-    files: &[std::path::PathBuf],
-) -> Result<SourceDigest, SuiteError> {
+fn source_digest(root: &Path, files: &[std::path::PathBuf]) -> Result<SourceDigest, SuiteError> {
     let root = root.canonicalize()?;
     let mut files = files.to_vec();
     files.sort_by(|left, right| left.to_string_lossy().cmp(&right.to_string_lossy()));

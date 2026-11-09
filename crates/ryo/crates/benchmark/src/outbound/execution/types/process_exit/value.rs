@@ -24,7 +24,9 @@ pub(crate) fn decode(status: std::process::ExitStatus) -> Result<ProcessExit, Ex
     if let Some(SignalNumber(signal)) = terminating_signal(status) {
         return Ok(ProcessExit {
             code: ProcessExitCode(-signal),
-            termination: TerminationSignal::Signalled(ryo_benchmark_contracts::domain::measurements::types::SignalNumber(signal)),
+            termination: TerminationSignal::Signalled(
+                ryo_benchmark_contracts::domain::measurements::types::SignalNumber(signal),
+            ),
         });
     }
     Err(ExecutionError::UnobservedExit)

@@ -1,23 +1,25 @@
 //! The read-only views of a prepared program.
-use std::sync::Arc;
-use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
-use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
-use crate::application::file_dag::program::prepared_execution::types::{PreparedExecutionProgram, ProgramParts};
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::preparation::types::{
     Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
 };
-use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::trust::types::RelationRead;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess;
-use crate::application::file_dag::execution::CommonOperatorEngine;
-use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
+use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+use crate::application::file_dag::program::prepared_execution::types::{
+    PreparedExecutionProgram, ProgramParts,
+};
 use crate::outbound::operators::interface::OperatorsPort;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::trust::types::RelationRead;
+use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess;
+use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     hosted::types::HostRelation, rule_requests::types::RuleSpec, stored_facts::types::Digest,
 };
+use std::sync::Arc;
 impl PreparedExecution for PreparedExecutionProgram {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
         self.parts.inner.observation_batches()
@@ -84,7 +86,10 @@ impl PreparedExecution for PreparedExecutionProgram {
 impl PreparedExecutionProgram {
     /// The matchers the program prepared, compiled on first use.
     #[must_use]
-    pub fn matchers(&self) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers> {
+    pub fn matchers(
+        &self,
+    ) -> &Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>
+    {
         self.parts.inner.matchers()
     }
 }

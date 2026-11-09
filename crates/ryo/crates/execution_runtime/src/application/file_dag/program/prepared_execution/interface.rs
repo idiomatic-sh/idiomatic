@@ -3,8 +3,8 @@ use crate::application::file_dag::program::preparation::types::{
     Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::Bucket;
 /// Read-only request metadata; no mutable program, permit or population escapes.

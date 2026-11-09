@@ -193,8 +193,7 @@ pub(super) fn evaluate_all<T>(
         .map(|each| Bucket(u32::try_from(each).expect("a fixture rule numbers its bucket")))
         .collect::<Vec<_>>();
     let inapplicable = vec![InapplicableFiles::default(); world.ids.len()];
-    let refused_files =
-        vec![
+    let refused_files = vec![
             ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default();
             world.ids.len()
         ];

@@ -121,7 +121,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         &profile.join(RULES),
     )
     .map_err(|error| {
-        assert!(error.to_string().contains("unexecutable registered context"));
+        assert!(
+            error
+                .to_string()
+                .contains("unexecutable registered context")
+        );
         Refusal::Unexecutable
     })?;
     assert_eq!(paths, [query()]);

@@ -1,15 +1,26 @@
 //! The native receipt row: read back by the inventory and written by the case observer.
 //! Unknown fields are refused; the documents are a contract.
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding, FindingOffset, SkippedPair};
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProcessArtifacts, ProcessRecord, ProjectContextRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo};
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{ArtifactPointer, DiscrepancyValidation, ExpectationKind};
+use crate::outbound::receipts::errors::ReceiptsError;
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+    ExpectedFindings, FindingOffset, RecordedFinding, SkippedPair,
+};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProcessArtifacts,
+    ProcessRecord, ProjectContextRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord,
+    SourceIdentity, ToolContractRecord,
+};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+    ArtifactPointer, DiscrepancyValidation, ExpectationKind,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest,
+    ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo,
+};
 use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, CoverageAccounting, ExecutionMetadata,
 };
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use crate::outbound::receipts::errors::ReceiptsError;
-use serde::{Serialize};
+use serde::Serialize;
 
 fn is(value: YesNo) -> bool {
     value == YesNo::Yes
@@ -17,13 +28,19 @@ fn is(value: YesNo) -> bool {
 fn text(value: &Sha256Text) -> String {
     value.0.clone()
 }
-fn pin_text(value: &ryo_benchmark_contracts::domain::documents::types::text::value::Pin) -> Option<String> {
+fn pin_text(
+    value: &ryo_benchmark_contracts::domain::documents::types::text::value::Pin,
+) -> Option<String> {
     match value {
-        ryo_benchmark_contracts::domain::documents::types::text::value::Pin::Sha256(digest) => Some(text(digest)),
+        ryo_benchmark_contracts::domain::documents::types::text::value::Pin::Sha256(digest) => {
+            Some(text(digest))
+        }
         ryo_benchmark_contracts::domain::documents::types::text::value::Pin::Absent => None,
     }
 }
-fn reason_text(value: &ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason) -> Option<String> {
+fn reason_text(
+    value: &ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason,
+) -> Option<String> {
     match value {
         ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Stated(reason) => Some(reason.0.clone()),
         ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Absent => None,
@@ -389,7 +406,9 @@ impl From<&ObservationDocument> for ObservationSchema {
 }
 
 /// Encode one observation row as the JSON line appended to a receipt file.
-pub(in super::super) fn row_bytes(document: &ObservationDocument) -> Result<Vec<u8>, ReceiptsError> {
+pub(in super::super) fn row_bytes(
+    document: &ObservationDocument,
+) -> Result<Vec<u8>, ReceiptsError> {
     serde_json::to_vec(&ObservationSchema::from(document))
         .map_err(|error| ReceiptsError::Invalid(error.to_string()))
 }

@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use super::service::located_of;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::conditions::types::PlatformCondition;
-use crate::domain::packages::types::{Dependency, WorkspacePackageMembership, Packages};
+use crate::domain::packages::types::{Dependency, Packages, WorkspacePackageMembership};
 use crate::domain::paths::types::RepoPath;
 use crate::domain::targets::types::BindingName;
 use crate::domain::targets::types::PackageName;

@@ -156,9 +156,13 @@ type Value = ();
 type Failure = std::convert::Infallible;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("prior_control_requires_exact_execution_identity_and_completed_positive_witness"),
+        name: CaseName(
+            "prior_control_requires_exact_execution_identity_and_completed_positive_witness",
+        ),
         word: Word::Succeeds,
-        input: || prior_control_requires_exact_execution_identity_and_completed_positive_witness as fn(),
+        input: || {
+            prior_control_requires_exact_execution_identity_and_completed_positive_witness as fn()
+        },
         expect: Expect::Value(()),
     },
     Case {

@@ -204,7 +204,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
-            "staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_order"
+            "staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_order",
         ),
         word: Word::Succeeds,
         input: || moves_staged_descriptors_and_keeps_fresh_order,
@@ -220,4 +220,3 @@ fn subject(scenario: Input) -> Value {
 fn succeeds() {
     run(CASES, Word::Succeeds, |scenario| Ok(subject(scenario)));
 }
-

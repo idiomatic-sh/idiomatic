@@ -1,14 +1,17 @@
 //! Native traversal projection is compared with the actual public owner output.
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
     table_cells::types::{TreeForm, TreeRows},
     table_model::{service::kinds_of, types::Rows},
 };
-use ryo_language::domain::{elements::types::Elements, symbols::types::{ByteSlice, Symbols}};
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::{
+    elements::types::Elements,
+    symbols::types::{ByteSlice, Symbols},
+};
 use ryo_relations::domain::relations::{
     service::node_id,
     types::{CellKind, FileId, KindBits, Offset, Position, Relation, Value as Cell},
@@ -17,8 +20,8 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            ColumnIndex, PlanComparison, Direction, Input as Source, JoinColumn, LiteralText, Operand,
-            QueryLiteral, Side, StepId, Test,
+            ColumnIndex, Direction, Input as Source, JoinColumn, LiteralText, Operand,
+            PlanComparison, QueryLiteral, Side, StepId, Test,
         },
         plans::types::Operation,
         rows::{service::push_row, types::Table},
@@ -163,8 +166,11 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
                 },
             })
             .collect();
-        let answer =
-            ryo_execution_domain::domain::operation_schema::service::schema_of(&operation, &schemas, &[])?;
+        let answer = ryo_execution_domain::domain::operation_schema::service::schema_of(
+            &operation,
+            &schemas,
+            &[],
+        )?;
         let mut operation = operation.clone();
         let first = Operation::Select {
             from: Source::Relation(Relation::SyntaxTree),
@@ -196,7 +202,14 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
             _ => panic!("the fixture lists every case it builds"),
         }
         let plan = inputs::plan(vec![first, operation]);
-        let output = fixtures::requests::published_file(plan, vec![], vec![], b"x", &elements, &mut symbols)?;
+        let output = fixtures::requests::published_file(
+            plan,
+            vec![],
+            vec![],
+            b"x",
+            &elements,
+            &mut symbols,
+        )?;
         assert_eq!(answer, output.kinds);
         if !empty {
             assert!(output.count.0 > 0);

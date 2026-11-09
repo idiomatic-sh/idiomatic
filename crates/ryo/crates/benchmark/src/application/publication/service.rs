@@ -9,7 +9,9 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Refuses an empty sample set, samples without complete-inventory eligibility, and a failed publication.
 pub fn publish(evidence: &dyn EvidencePort, samples: &[BenchmarkSample]) -> Result<(), Error> {
     if samples.is_empty() {
-        return Err(Error::Invalid(ryo_benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into()));
+        return Err(Error::Invalid(
+            ryo_benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into(),
+        ));
     }
     if samples
         .iter()

@@ -1,20 +1,20 @@
 //! Serialized request files avoid shell interpretation and OS argument-size limits.
+use super::types::{ReportBytes, RequestJson};
 use crate::outbound::linter::adapters::ryo::constants;
 use crate::outbound::linter::interface::LinterPort;
+use crate::outbound::linter::types::CanonicalText;
+use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
+use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::reports::types::ProjectContext;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use ryo_benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, InputDeclaration, ParserSelection,
     RuleLabel, WorkerRequest,
 };
-use super::types::{ReportBytes, RequestJson};
-use crate::outbound::linter::types::CanonicalText;
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::types::ProjectContext;
 use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::path::PathBuf;
 #[derive(Debug)]
@@ -99,9 +99,12 @@ impl LinterPort for LinterRyoAdapter {
         Ok(Invocation {
             executable: self.executable.clone(),
             arguments,
-            environment: [(ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(), constants::ONE_WORKER.into())]
-                .into_iter()
-                .collect(),
+            environment: [(
+                ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
+                constants::ONE_WORKER.into(),
+            )]
+            .into_iter()
+            .collect(),
             directory: request.root.clone(),
         })
     }
@@ -130,11 +133,19 @@ impl LinterPort for LinterRyoAdapter {
             &report.project_context,
         ) {
             (ProjectContextMode::Isolated, ContextSeal::Unsealed, ProjectContext::NotRequested)
-            | (ProjectContextMode::ListedDisk, ContextSeal::Sealed(_), ProjectContext::Observed(_)) => true,
+            | (
+                ProjectContextMode::ListedDisk,
+                ContextSeal::Sealed(_),
+                ProjectContext::Observed(_),
+            ) => true,
             (ProjectContextMode::Isolated, ContextSeal::Unsealed, ProjectContext::Observed(_))
             | (ProjectContextMode::Isolated, ContextSeal::Sealed(_), _)
             | (ProjectContextMode::ListedDisk, ContextSeal::Unsealed, _)
-            | (ProjectContextMode::ListedDisk, ContextSeal::Sealed(_), ProjectContext::NotRequested) => false,
+            | (
+                ProjectContextMode::ListedDisk,
+                ContextSeal::Sealed(_),
+                ProjectContext::NotRequested,
+            ) => false,
         };
         if !consistent {
             return Err(Error::Invalid(

@@ -1,25 +1,24 @@
 //! Verification-only raw capture; measured runs keep their existing allocation path.
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
-    ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, FailedInvocation,
-    InvocationDocument, NormalizedSettings,
-};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, Pin, ReasonText, Sha256Text, Signal, YesNo};
 use super::constants;
 use super::types::AttemptOutcome;
-use crate::domain::process_failure::types::{CaptureRecord, ProcessCapture};
 use crate::domain::diagnostics::service::validate_coverage;
+use crate::domain::process_failure::types::{CaptureRecord, ProcessCapture};
 use crate::domain::rule_context::service::admit_configuration;
 use crate::outbound::{
     context::interface::ContextPort,
     execution::interface::ExecutionPort,
     execution::types::ExitObservationMode,
     linter::interface::LinterPort,
-    suite::{
-        interface::SuitePort,
-        types::ArtifactPath,
-    },
+    suite::{interface::SuitePort, types::ArtifactPath},
 };
 use ryo_benchmark_contracts::domain::artifacts::types::FileMetadataEntry;
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+    ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, FailedInvocation,
+    InvocationDocument, NormalizedSettings,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, ExitStatus, PathText, Pin, ReasonText, Sha256Text, Signal, YesNo,
+};
 use ryo_benchmark_contracts::domain::measurements::types::{
     Invocation, Measurement, ProcessOutput, TerminationSignal,
 };
@@ -55,8 +54,10 @@ fn decoded(
     let wall = output.wall;
     let resources = output.resources;
     let report = linter.decode(request, output)?;
-    if let (ContextSeal::Sealed(manifest), ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt)) =
-        (&request.context_manifest, &report.project_context)
+    if let (
+        ContextSeal::Sealed(manifest),
+        ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt),
+    ) = (&request.context_manifest, &report.project_context)
     {
         context.verify_receipt(manifest, &request.root, receipt)?;
     }
@@ -86,9 +87,7 @@ pub fn candidate(
 fn signal(output: &ProcessOutput) -> Signal {
     match output.signal {
         TerminationSignal::Exited => Signal::Absent,
-        TerminationSignal::Signalled(number) => {
-            Signal::Number(ExitStatus(i64::from(number.0)))
-        }
+        TerminationSignal::Signalled(number) => Signal::Number(ExitStatus(i64::from(number.0))),
     }
 }
 
@@ -112,7 +111,12 @@ pub(crate) fn run(
         invocation
             .environment
             .iter()
-            .map(|(key, value)| (EnvironmentName(spelled(key)), EnvironmentValue(spelled(value))))
+            .map(|(key, value)| {
+                (
+                    EnvironmentName(spelled(key)),
+                    EnvironmentValue(spelled(value)),
+                )
+            })
             .collect::<BTreeMap<_, _>>()
     };
     let attempt = || {
@@ -175,9 +179,9 @@ pub(crate) fn run(
                 let settings = crate::domain::canonical_text::service::text_digest(
                     &crate::domain::canonical_text::types::Document(settings_text.clone()),
                 );
-                let profile_pin = suite.digest(ArtifactPath(
-                    &profile_root.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
-                ))?;
+                let profile_pin = suite.digest(ArtifactPath(&profile_root.join(
+                    ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+                )))?;
                 let metadata_pin =
                     crate::domain::input_metadata::service::digest(&case.request.file_metadata)?;
                 Ok::<_, Error>(InvocationDocument::Complete(CompleteInvocation {
@@ -251,8 +255,10 @@ fn validate_report(
     request: &RunRequest,
     report: &ryo_benchmark_contracts::domain::reports::types::RunReport,
 ) -> Result<(), Error> {
-    if let (ContextSeal::Sealed(manifest), ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt)) =
-        (&request.context_manifest, &report.project_context)
+    if let (
+        ContextSeal::Sealed(manifest),
+        ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt),
+    ) = (&request.context_manifest, &report.project_context)
     {
         context.verify_receipt(manifest, &request.root, receipt)?;
     }

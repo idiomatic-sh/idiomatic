@@ -180,8 +180,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     let mut symbols = Symbols::default();
     let slot = stage.reserve(RuleIndex(0)).unwrap();
     let partials = Partials::default();
-    let inapplicable =
-        vec![
+    let inapplicable = vec![
             ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default();
             2
         ];
@@ -199,8 +198,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             covered: &covered,
             skipped: &[],
             inapplicable: &inapplicable,
-            refused:
-                &vec![
+            refused: &vec![
                     ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
                     );
                     inapplicable.len()
@@ -325,8 +323,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             covered: &covered,
             skipped: &[],
             inapplicable: &inapplicable,
-            refused:
-                &vec![
+            refused: &vec![
                     ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(
                     );
                     inapplicable.len()

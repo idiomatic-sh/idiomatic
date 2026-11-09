@@ -29,7 +29,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_request_on_an_absent_column_is_refused_on_validation"),
         word: Word::Refuses,
         input: || Scenario::AbsentColumn,
-        expect: Expect::Error(DerivedFault::NoSuchColumn { column: ColumnIndex(3) }),
+        expect: Expect::Error(DerivedFault::NoSuchColumn {
+            column: ColumnIndex(3),
+        }),
     },
 ];
 
@@ -40,7 +42,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::AbsentColumn => ColumnIndex(3),
     };
     let prepared = PrepareDerivedUseCaseImpl::new().prepare_derived(
-        DerivedRequest::Equality { columns: vec![column] },
+        DerivedRequest::Equality {
+            columns: vec![column],
+        },
         vec![vec![CellKind::Number]],
     );
     prepared.validate()?;

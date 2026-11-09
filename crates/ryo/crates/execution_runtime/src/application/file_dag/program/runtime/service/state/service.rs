@@ -4,12 +4,12 @@ use super::super::{
 };
 use crate::application::file_dag::program::admission::Partition;
 #[cfg(test)]
-use crate::application::file_dag::program::runtime::types::ReaderInitializations;
-#[cfg(test)]
 use crate::application::file_dag::program::runtime::types::CallCount;
+#[cfg(test)]
+use crate::application::file_dag::program::runtime::types::ReaderInitializations;
 use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -21,7 +21,10 @@ impl Slot {
         program: &ExecutableProgram,
         id: RegionId,
     ) -> Result<&'a mut Slot, OperatingError> {
-        let region = program.regions().get(id.0).ok_or_else(|| OperatingError::NotRun)?;
+        let region = program
+            .regions()
+            .get(id.0)
+            .ok_or_else(|| OperatingError::NotRun)?;
         let vacant = match slots.entry(id) {
             std::collections::hash_map::Entry::Occupied(entry) => return Ok(entry.into_mut()),
             std::collections::hash_map::Entry::Vacant(entry) => entry,
@@ -108,7 +111,8 @@ impl RuntimeState {
     }
     pub(crate) fn population_scope(
         &self,
-    ) -> ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope {
+    ) -> ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope
+    {
         self.scope
     }
     pub(crate) fn bind(
@@ -150,10 +154,7 @@ impl ProgramExecution {
         }
     }
     /// Bind the immutable declared file intents before any region is touched.
-    pub(crate) fn activate_file_roots(
-        &self,
-        readers: &[RegionId],
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn activate_file_roots(&self, readers: &[RegionId]) -> Result<(), OperatingError> {
         if !matches!(self.partition, Partition::File(_))
             || !self.file_state.slots.borrow().is_empty()
             || !self.file_state.dormant.borrow().is_empty()
@@ -171,18 +172,16 @@ impl ProgramExecution {
                 .or_insert(ryo_execution_domain::domain::operator::types::ReaderMultiplicity(0))
                 .0 += 1;
         }
-        let remaining = ryo_execution_domain::domain::executable_program::file_demand::service::remaining(
-            self.program.file_readers(),
-            self.program.regions(),
-            &selected,
-        )?;
+        let remaining =
+            ryo_execution_domain::domain::executable_program::file_demand::service::remaining(
+                self.program.file_readers(),
+                self.program.regions(),
+                &selected,
+            )?;
         *self.file_state.roots.borrow_mut() = RootReaders::Selected(remaining.table);
         Ok(())
     }
-    pub(crate) fn validate_state(
-        &self,
-        state: &RuntimeState,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn validate_state(&self, state: &RuntimeState) -> Result<(), OperatingError> {
         if ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.generation, &state.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same && self.generation.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
             Ok(())
         } else {
@@ -219,8 +218,14 @@ impl ProgramExecution {
         &self,
         root: crate::application::file_dag::program::admission::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
-        use ryo_execution_domain::domain::executable_program::types::{InputSource, PartitionRequirement};
-        if self.owner.matches_generation(&self.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different || self.generation.is_live() != ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
+        use ryo_execution_domain::domain::executable_program::types::{
+            InputSource, PartitionRequirement,
+        };
+        if self.owner.matches_generation(&self.generation)
+            == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+            || self.generation.is_live()
+                != ryo_execution_store::application::file_dag::relations::types::Liveness::Live
+        {
             return Err(OperatingError::NotRead);
         }
         let source = match root {

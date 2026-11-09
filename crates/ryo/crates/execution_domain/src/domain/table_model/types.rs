@@ -78,7 +78,6 @@ pub enum Verdict {
     Fails,
 }
 
-
 /// Opaque immutable publication crossing the engine's domain port. A foreign
 /// implementation carries no authority: the application verifies its private
 /// record and current population epoch before admission or resolution.

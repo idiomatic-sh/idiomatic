@@ -40,10 +40,7 @@ pub(crate) fn replace<T>(entries: &mut Vec<T>, replacement: Option<Vec<T>>) {
 }
 
 /// Account all retained payload under the original total; no fixed allowance is stranded.
-pub(crate) fn room(
-    cache: &CacheBackend,
-    cost: ByteCount,
-) -> Option<ByteCount> {
+pub(crate) fn room(cache: &CacheBackend, cost: ByteCount) -> Option<ByteCount> {
     let total = cache.bytes.0.checked_add(cost.0)?;
     (total <= cache.limit.0).then_some(ByteCount(total))
 }

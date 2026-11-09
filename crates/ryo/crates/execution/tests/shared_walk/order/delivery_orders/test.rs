@@ -1,20 +1,20 @@
 //! Frontier and callback delivery share one atomic failure and one dependency contract in both orders.
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId};
@@ -56,7 +56,9 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                                &mut arena,
+                            ),
                             places: &mut places,
                             words: &mut words,
                         },
@@ -178,7 +180,8 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
     ];
     crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(2);
     for index in 1..count {
-        crate::boundary_fixture::plans(&mut authored)[index] = crate::boundary_fixture::plans(&mut authored)[0].clone();
+        crate::boundary_fixture::plans(&mut authored)[index] =
+            crate::boundary_fixture::plans(&mut authored)[0].clone();
     }
     authored
 }
@@ -214,7 +217,9 @@ fn callback_and_frontier_use_one_dependency_contract_in_both_orders() {
                         &mut symbols,
                         CaptureContext {
                             worker: WorkerNumber(0),
-                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                                &mut arena,
+                            ),
                             places: &mut places,
                             words: &mut words,
                         },

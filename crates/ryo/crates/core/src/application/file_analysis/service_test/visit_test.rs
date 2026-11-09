@@ -1,5 +1,11 @@
 //! Visits of files of a fake corpus, the way a lint makes them, for the cases of `file_analysis`.
 use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::types::RequestVisitSetting;
+use super::program_test::NOTHING_HANDED;
+use super::program_test::NOTHING_STORED;
+use super::program_test::NOTHING_WANTED;
+use super::program_test::prepared_test_program;
 use crate::domain::workers::service::tables_for;
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::language::fixtures::fake::LanguageFake;
@@ -7,8 +13,10 @@ use crate::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_execution::inbound::use_cases::metadata::interface::Mask;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::WorkerNumber;
@@ -19,14 +27,6 @@ use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::plans::types::Plan;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use super::program_test::NOTHING_HANDED;
-use super::program_test::NOTHING_STORED;
-use super::program_test::NOTHING_WANTED;
-use super::program_test::prepared_test_program;
-use super::super::service::FileAnalysis;
-use super::super::types::RequestVisitSetting;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-use ryo_execution::outbound::matching::interface::MatchingPort;
 /// Visits each file at `paths` of a fake corpus, the way a lint does, with the language `language`: the worker that visited them, and
 /// the language to ask what it was given.
 pub(super) fn visited(
@@ -150,8 +150,8 @@ pub(super) fn visited_inputs_with_rule_demands(
 ) -> Result<(super::super::types::Worker, Arc<LanguageFake>), FileAnalysisError> {
     use super::super::types::{FileVisit, Worker};
     use crate::domain::visit::types::{Noting, RoleRead};
-    use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
     use crate::outbound::scheduler::types::JobNumber;
+    use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
     use ryo_values::domain::runs::types::MemoryBytes;
     let language = Arc::new(language);
     let service = FileAnalysis::new(
@@ -278,13 +278,17 @@ pub(super) fn digested() -> Result<usize, FileAnalysisError> {
         crate::domain::visit::types::Keeping::Discards,
         crate::domain::visit::types::Keeping::Keeps,
     ] {
-        let digest = Arc::new(ryo_execution_runtime::outbound::digest::fixtures::fake::DigestCounting::default());
+        let digest = Arc::new(
+            ryo_execution_runtime::outbound::digest::fixtures::fake::DigestCounting::default(),
+        );
         let (worker, _) = visited_as(
             &["a.rs", "b.rs"],
             LanguageFake::default(),
             &crate::domain::render::types::Answering::Findings,
             keeping,
-            Arc::<ryo_execution_runtime::outbound::digest::fixtures::fake::DigestCounting>::clone(&digest),
+            Arc::<ryo_execution_runtime::outbound::digest::fixtures::fake::DigestCounting>::clone(
+                &digest,
+            ),
         )?;
         assert!(worker.failure.is_none(), "the files are read");
         assert_eq!(worker.tables.fresh.len(), 2, "and their findings recorded");

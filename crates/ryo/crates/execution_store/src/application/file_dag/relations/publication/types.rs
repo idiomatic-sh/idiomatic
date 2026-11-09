@@ -1,11 +1,11 @@
 //! Publication bodies and records contain data, never mutable owner workflows.
-use crate::application::file_dag::derived::population::types::PopulationId;
 use crate::application::file_dag::derived::ledger::types::BackingAddress;
+use crate::application::file_dag::derived::population::types::PopulationId;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::{
-    types::{PhysicalShape, RepresentationKind},
     types::PublishedRelation,
+    types::{PhysicalShape, RepresentationKind},
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::sync::{Arc, OnceLock};
@@ -16,8 +16,7 @@ pub(crate) struct SourceDescriptor {
     pub(crate) kinds: Vec<CellKind>,
     pub(crate) rows: RowCount,
     pub(crate) storage: Vec<StorageSpan>,
-    pub(crate) projection:
-        Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
+    pub(crate) projection: Vec<ryo_values::domain::plan_parts::types::ColumnIndex>,
     pub(crate) source_kinds: Vec<CellKind>,
 }
 #[derive(Debug)]
@@ -66,10 +65,10 @@ pub struct RelationResult {
     pub(crate) population: PopulationId,
     pub(crate) producer: OnceLock<PopulationId>,
     pub(crate) producer_scope: OnceLock<ProducerScope>,
-    pub(crate) generation: Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+    pub(crate) generation:
+        Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
     pub(crate) body: RelationBody,
-    pub(crate) inspected:
-        OnceLock<Result<PhysicalShape, OperatingError>>,
+    pub(crate) inspected: OnceLock<Result<PhysicalShape, OperatingError>>,
     pub(crate) normalized: OnceLock<Arc<Table>>,
 }
 impl PublishedRelation for RelationResult {

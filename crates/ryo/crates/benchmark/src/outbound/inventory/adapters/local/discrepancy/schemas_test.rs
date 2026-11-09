@@ -61,7 +61,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("a documented difference field the authoring never writes is refused by name"),
+        name: CaseName(
+            "a documented difference field the authoring never writes is refused by name",
+        ),
         word: Word::Refuses,
         input: || {
             registration_with(|registration| {

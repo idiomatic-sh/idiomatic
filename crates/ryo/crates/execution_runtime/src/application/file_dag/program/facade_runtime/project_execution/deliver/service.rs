@@ -5,17 +5,17 @@ use crate::application::file_dag::program::facade_runtime::project_execution::Pr
 use crate::application::file_dag::program::facade_runtime::source_admission::ProjectSources;
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
 use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
-use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use std::rc::Rc;
 
 impl ProjectRun<'_> {

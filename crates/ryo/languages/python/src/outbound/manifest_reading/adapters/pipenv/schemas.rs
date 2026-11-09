@@ -78,7 +78,9 @@ fn requirements(
             table
                 .file
                 .as_deref()
-                .map_or(DependencyOrigin::Registry, |file| url_origin(PatternPart(file)))
+                .map_or(DependencyOrigin::Registry, |file| {
+                    url_origin(PatternPart(file))
+                })
         };
         let written = match &table.markers {
             Some(markers) => format!("{name} ; {markers}"),
@@ -97,9 +99,9 @@ fn requirements(
                 ..Checkout::default()
             },
             interpreter: Interpreter::default(),
-            reference: table
-                .path
-                .map_or(Reference::Named, |path| locating(directory, PatternPart(&path))),
+            reference: table.path.map_or(Reference::Named, |path| {
+                locating(directory, PatternPart(&path))
+            }),
         }
     })
 }

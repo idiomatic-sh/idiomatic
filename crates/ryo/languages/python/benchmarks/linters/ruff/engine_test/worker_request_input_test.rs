@@ -45,7 +45,9 @@ fn worker_execution_requires_the_actual_target_and_canonical_phase()
 -> Result<(), Box<dyn std::error::Error>> {
     for missing_or_unsupported in [None, Some(PYTHON_TARGET_3_6), Some(PYTHON_TARGET_LATEST)] {
         assert!(matches!(
-            request_input::worker_expectation(missing_or_unsupported.map(targets::TargetConfiguration)),
+            request_input::worker_expectation(
+                missing_or_unsupported.map(targets::TargetConfiguration)
+            ),
             Err(Error::Invalid(_))
         ));
     }
@@ -69,9 +71,8 @@ fn every_explicit_supported_target_preserves_request_and_phase_identity()
         PYTHON_TARGET_3_14,
         PYTHON_TARGET_3_15,
     ] {
-        let expectation = request_input::worker_expectation(Some(targets::TargetConfiguration(
-            configuration,
-        )))?;
+        let expectation =
+            request_input::worker_expectation(Some(targets::TargetConfiguration(configuration)))?;
         assert_eq!(expectation.parser_configuration.0, configuration);
         assert!(!expectation.pinned_applicability.is_empty());
     }

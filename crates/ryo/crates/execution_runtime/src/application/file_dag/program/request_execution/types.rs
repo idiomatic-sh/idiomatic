@@ -10,4 +10,3 @@ pub struct RequestExecution {
     /// The prepared program's digest port, handed to each publication scope.
     pub(crate) digest: std::sync::Arc<dyn crate::outbound::digest::interface::DigestPort>,
 }
-

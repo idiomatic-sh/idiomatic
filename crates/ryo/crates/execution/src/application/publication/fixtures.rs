@@ -18,10 +18,7 @@ const NAME_BYTES: &[u8] = &[b'a', b'l', b'p', b'h', b'a'];
 /// The service entry the scenario runs through.
 pub(super) type Publish = fn(PublicationInput<'_>) -> Result<(), PublicationError>;
 
-pub(super) fn subject(
-    scenario: Scenario,
-    publication: Publish,
-) -> Result<(), PublicationError> {
+pub(super) fn subject(scenario: Scenario, publication: Publish) -> Result<(), PublicationError> {
     let mut symbols = Symbols::default();
     let cells = if matches!(scenario, Scenario::Symbol) {
         use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};

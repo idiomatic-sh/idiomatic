@@ -1,8 +1,8 @@
 //! The `contributor_rows` service's cases: what an answer built from the absence of rows keeps, from what its operands lack.
-use ryo_relations::domain::relations::types::FileId;
 use crate::domain::completion::types::CoverageState;
-use crate::domain::output_coverage::types::OperandOrdinal;
 use crate::domain::operator::contract::types::AbsenceMask;
+use crate::domain::output_coverage::types::OperandOrdinal;
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 /// What a row of the cases proves.
@@ -90,15 +90,17 @@ fn contributor_partiality_filters_absence_answers_before_keys_can_be_projected_a
             let contributions = input_kinds
                 .iter()
                 .enumerate()
-                .map(|(ordinal, kinds)| crate::domain::output_coverage::types::InputCoverage {
-                    ordinal: OperandOrdinal(ordinal),
-                    kinds,
-                    coverage: CoverageState::Partial {
-                        files: affected.clone(),
-                        lacks: vec![],
+                .map(
+                    |(ordinal, kinds)| crate::domain::output_coverage::types::InputCoverage {
+                        ordinal: OperandOrdinal(ordinal),
+                        kinds,
+                        coverage: CoverageState::Partial {
+                            files: affected.clone(),
+                            lacks: vec![],
+                        },
+                        lineage: Default::default(),
                     },
-                    lineage: Default::default(),
-                })
+                )
                 .collect::<Vec<_>>();
             filter_contributor_rows(&operation, absence, &contributions, &mut rows);
             assert_eq!(
@@ -316,7 +318,9 @@ fn an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("contributor_partiality_filters_absence_answers_before_keys_can_be_projected_away"),
+        name: CaseName(
+            "contributor_partiality_filters_absence_answers_before_keys_can_be_projected_away",
+        ),
         word: Word::Succeeds,
         input: || Scenario::ContributorPartialityFiltersAbsenceAnswersBeforeKeysCanBeProjectedAway,
         expect: Expect::Value(()),
@@ -328,9 +332,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its_own_rows_from_a_file_keyed_one"),
+        name: CaseName(
+            "an_inapplicable_file_withholds_nothing_from_a_symbol_keyed_group_and_only_its_own_rows_from_a_file_keyed_one",
+        ),
         word: Word::Succeeds,
-        input: || Scenario::AnInapplicableFileWithholdsNothingFromASymbolKeyedGroupAndOnlyItsOwnRowsFromAFileKeyedOne,
+        input: || {
+            Scenario::AnInapplicableFileWithholdsNothingFromASymbolKeyedGroupAndOnlyItsOwnRowsFromAFileKeyedOne
+        },
         expect: Expect::Value(()),
     },
 ];

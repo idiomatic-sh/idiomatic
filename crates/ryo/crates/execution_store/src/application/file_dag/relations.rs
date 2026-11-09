@@ -1,26 +1,28 @@
 //! One file generation owns representation descriptors and lazy admission proofs.
 use super::derived::population::types::PopulationId;
 
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_execution_domain::domain::table_model::{
     service::{kind, materialize, registered},
     types::{PublishedRelation, Rows},
 };
-use ryo_execution_domain::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
+use ryo_execution_domain::domain::{
+    executable_program::types::RegionId, operating::errors::OperatingError,
+};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::{
     cell::{Cell, RefCell},
     sync::{Arc, OnceLock},
 };
-use rustc_hash::FxHashMap;
 mod accounting;
-pub mod types;
+pub mod generation;
 pub(crate) mod inspection;
 pub(crate) mod producer;
-pub(crate) mod source;
-pub mod generation;
 pub mod publication;
+pub(crate) mod source;
+pub mod types;
 #[cfg(test)]
 use admission::service::BorrowedInput;
 use generation::service::GenerationLease;
@@ -30,8 +32,8 @@ use packed::service::PackedPublication;
 use publication::types::{
     ProducerKey, ProducerPopulation, RelationBody, RelationResult, SourceDescriptor,
 };
-use types::{CheckCount, PinnedViewCount, ReuseEligibility, Sameness};
 use ryo_values::domain::rows::types::Table;
+use types::{CheckCount, PinnedViewCount, ReuseEligibility, Sameness};
 pub mod admission;
 mod external;
 pub mod handle;
@@ -70,15 +72,11 @@ impl RelationOwner {
         &self.derived
     }
     /// The route profile the opening scope handed down, for this owner's work to record into.
-    pub fn routes(
-        &self,
-    ) -> &super::route_counts::types::RouteProfile {
+    pub fn routes(&self) -> &super::route_counts::types::RouteProfile {
         &self.routes
     }
     #[cfg(test)]
-    pub(crate) fn derived_mut(
-        &mut self,
-    ) -> &mut super::derived::owner::DerivedOwner {
+    pub(crate) fn derived_mut(&mut self) -> &mut super::derived::owner::DerivedOwner {
         &mut self.derived
     }
     /// The generation of the resident population, for a proof to keep and present back.
@@ -87,10 +85,7 @@ impl RelationOwner {
         Arc::clone(&self.generation.borrow())
     }
     /// Whether `generation` is the resident population's generation.
-    pub fn matches_generation(
-        &self,
-        generation: &Arc<GenerationLease>,
-    ) -> Sameness {
+    pub fn matches_generation(&self, generation: &Arc<GenerationLease>) -> Sameness {
         GenerationLease::same(generation, &self.generation.borrow())
     }
 
@@ -141,7 +136,11 @@ impl RelationOwner {
         Self {
             #[cfg(test)]
             identity_checks: Cell::new(CheckCount(0)),
-            derived: super::derived::owner::DerivedOwner::new(max_derived, semantic, routes.clone()),
+            derived: super::derived::owner::DerivedOwner::new(
+                max_derived,
+                semantic,
+                routes.clone(),
+            ),
             next_population: Cell::new(PopulationId(0)),
             producer_populations: RefCell::new(FxHashMap::default()),
             generation: RefCell::new(Arc::new(GenerationLease::new())),

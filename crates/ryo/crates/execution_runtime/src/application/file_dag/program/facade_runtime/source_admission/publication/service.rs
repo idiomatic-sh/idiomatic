@@ -38,14 +38,15 @@ impl SourceInputs<'_, '_> {
                 .regions()
                 .get(region.0)
                 .ok_or_else(|| OperatingError::NotRun)?;
-            let ordered = ryo_execution_domain::domain::executable_program::service::ordered_existence(
-                &code.route(),
-            )
-            .filter(|shape| {
-                inputs.len() == 1
-                    && inputs[0].has_root(ProducerRoot::Region(shape.source))
-                        == crate::application::file_dag::program::admission::Agreement::Same
-            });
+            let ordered =
+                ryo_execution_domain::domain::executable_program::service::ordered_existence(
+                    &code.route(),
+                )
+                .filter(|shape| {
+                    inputs.len() == 1
+                        && inputs[0].has_root(ProducerRoot::Region(shape.source))
+                            == crate::application::file_dag::program::admission::Agreement::Same
+                });
             let instruction = code
                 .instructions()
                 .first()
@@ -119,7 +120,9 @@ impl SourceInputs<'_, '_> {
                 }
                 // An intentionally undemanded row fault must stay deferred.
                 // No precise lineage can be certified from a refused schema.
-                Err(_) => ryo_execution_domain::domain::completion::service::partial_any(vec![None]),
+                Err(_) => {
+                    ryo_execution_domain::domain::completion::service::partial_any(vec![None])
+                }
             };
             read = crate::application::file_dag::program::admission::ReadProof::covered(
                 actual_partition.clone(),

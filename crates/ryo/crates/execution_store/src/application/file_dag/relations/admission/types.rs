@@ -8,7 +8,8 @@ use std::sync::Arc;
 pub(crate) struct AdmissionOrigin {
     pub population: PopulationId,
     pub relation: Option<Relation>,
-    pub generation: Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
+    pub generation:
+        Arc<crate::application::file_dag::relations::generation::service::GenerationLease>,
 }
 
 /// The population and source relation an input was admitted under, without its generation.

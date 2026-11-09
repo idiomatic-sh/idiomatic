@@ -2,8 +2,8 @@
 //! is and which build wrote them, so a run reads only the sections it needs.
 
 use super::types::{BucketSpan, FileOffset, SectionLength, SectionSpan, TableOfContents};
-use std::borrow::Cow;
 use ryo_values::domain::stored_facts::types::Bucket;
+use std::borrow::Cow;
 
 /// Where a section is in the file, in bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

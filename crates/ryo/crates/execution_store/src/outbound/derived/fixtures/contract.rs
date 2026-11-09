@@ -1,6 +1,8 @@
 //! Behavioral contract shared by the injected derived adapter and test fake.
 use crate::outbound::derived::interface::DerivedPort;
-use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
+use ryo_derived::domain::contract::types::{
+    BuildInputs, BuildOutcome, BuildWorkspace, DerivedView,
+};
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
@@ -105,8 +107,12 @@ pub fn check(adapter: &impl DerivedPort) {
                 }
             }
             Scenario::BuildsFromAnotherKind => {
-                let built =
-                    adapter.build(&prepared, BuildInputs::Native(ryo_derived::domain::native::types::NativeForm::Edges), &mut room, None)?;
+                let built = adapter.build(
+                    &prepared,
+                    BuildInputs::Native(ryo_derived::domain::native::types::NativeForm::Edges),
+                    &mut room,
+                    None,
+                )?;
                 Ok(usize::from(matches!(built, BuildOutcome::Built(_))))
             }
         }

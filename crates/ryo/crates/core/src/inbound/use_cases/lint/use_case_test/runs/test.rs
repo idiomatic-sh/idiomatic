@@ -6,6 +6,7 @@ use crate::inbound::use_cases::lint::errors::LintError;
 use crate::inbound::use_cases::lint::fixtures::given::Given;
 use crate::inbound::use_cases::lint::fixtures::given::SOURCES;
 use crate::inbound::use_cases::lint::fixtures::given::plan_with_name;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 use crate::inbound::use_cases::lint::fixtures::scenario::Scenario;
 use crate::inbound::use_cases::lint::fixtures::scenario::scenario;
 use crate::outbound::language::fixtures::fake::FakeCatalog;
@@ -21,7 +22,6 @@ use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::Budget;
 use std::sync::Arc;
-use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 type Input = Scenario;
 type Value = (usize, usize);
@@ -111,7 +111,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 }
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::UnknownKind { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::UnknownKind { .. })))
+        }),
     },
     Case {
         name: CaseName("a_run_that_holds_more_than_its_budget_is_refused_naming_the_rules"),
@@ -128,7 +130,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             })
         },
         expect: Expect::Refusal(|error| {
-            selects(Matched(matches!(error, LintError::MemoryBudgetExceeded { .. })))
+            selects(Matched(matches!(
+                error,
+                LintError::MemoryBudgetExceeded { .. }
+            )))
         }),
     },
     Case {
@@ -176,7 +181,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Corpus { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::Corpus { .. })))
+        }),
     },
     Case {
         name: CaseName("fails_when_an_operator_refuses"),
@@ -213,7 +220,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Language { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::Language { .. })))
+        }),
     },
 ];
 

@@ -6,7 +6,8 @@ pub fn operators() -> crate::outbound::operators::fixtures::fake::OperatorsFake 
 }
 
 /// The derived capability with its real portable semantics, behind its port.
-pub fn real_derived_port() -> std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> {
+pub fn real_derived_port()
+-> std::sync::Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> {
     std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::semantics())
 }
 

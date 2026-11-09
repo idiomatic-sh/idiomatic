@@ -2,13 +2,13 @@
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::linter::types::CanonicalText;
 use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
 use ryo_benchmark_contracts::domain::reports::types::RunReport;
 use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::path::PathBuf;
 #[derive(Debug, Default)]
 /// Deterministic linter substitute for orchestration and contract tests.
@@ -33,23 +33,33 @@ impl LinterPort for LinterFake {
         })
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
-        if output.signal != ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited || !(0_i32..=1_i32).contains(&output.status.0) {
+        if output.signal
+            != ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited
+            || !(0_i32..=1_i32).contains(&output.status.0)
+        {
             return Err(Error::Invalid("operational failure".into()));
         }
         Ok(RunReport {
             execution_metadata:
                 ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+            project_context:
+                ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             files: request.files.clone(),
             skipped: Vec::new(),
-            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(request.files.len()),
-                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(request.files.len()),
-                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                },
-            ),
+            coverage:
+                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                    ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(
+                            request.files.len(),
+                        ),
+                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
+                            request.files.len(),
+                        ),
+                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                        unknown_or_unread:
+                            ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                    },
+                ),
             diagnostics: self.diagnostics.clone(),
         })
     }

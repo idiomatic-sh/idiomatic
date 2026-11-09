@@ -1,12 +1,12 @@
 //! The collect adapter of the rows port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::RowSinkCollectAdapter;
+use super::connection::CollectorConnection;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::row_sink::fixtures::contract::check;
 use crate::outbound::row_sink::interface::RowSinkPort as _;
-use super::connection::CollectorConnection;
-use crate::outbound::row_sink::types::{LentCell, KeptRow, AnswerCounts};
+use crate::outbound::row_sink::types::{AnswerCounts, KeptRow, LentCell};
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::row_texts::types::{Cell, CellText};
 

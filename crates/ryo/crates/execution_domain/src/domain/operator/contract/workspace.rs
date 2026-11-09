@@ -6,9 +6,7 @@ use super::types::{
 use crate::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
-    plan_parts::types::RepeatedRows,
-    plans::types::Operation,
-    query_operators::types::OperationKind,
+    plan_parts::types::RepeatedRows, plans::types::Operation, query_operators::types::OperationKind,
 };
 pub(crate) fn prepare(
     operation: &Operation,
@@ -47,11 +45,7 @@ pub(crate) fn prepare(
 }
 /// Reset logical contents while retaining allocation. A schema fault stays deferred
 /// until the primitive actually requests first-occurrence semantics.
-pub fn begin(
-    program: &WorkspaceProgram,
-    lifetime: Lifetime,
-    workspace: &mut PrimitiveWorkspace,
-) {
+pub fn begin(program: &WorkspaceProgram, lifetime: Lifetime, workspace: &mut PrimitiveWorkspace) {
     let WorkspaceProgram::FirstOccurrences {
         lifetime: declared,
         kinds,

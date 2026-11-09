@@ -202,19 +202,22 @@ pub fn stored(tag: u8) -> Stored {
             path: FilePath("Cargo.toml".into()),
             reason: ToolMessage("broken".into()),
         }],
-        unknowns: vec![StoredUnknown {
-            rule: RuleId("across".into()),
-            path: path("a.rs"),
-            message: UnknownText(format!("partial {tag}").into()),
-            cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
-        }, StoredUnknown {
-            rule: RuleId("across".into()),
-            path: path("a.rs"),
-            message: UnknownText(format!("refused {tag}").into()),
-            cause: ryo_values::domain::runs::types::UnknownCause::Refused(
-                ryo_values::domain::runs::types::ApplicabilityRefusal::SyntaxUndetermined,
-            ),
-        }],
+        unknowns: vec![
+            StoredUnknown {
+                rule: RuleId("across".into()),
+                path: path("a.rs"),
+                message: UnknownText(format!("partial {tag}").into()),
+                cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
+            },
+            StoredUnknown {
+                rule: RuleId("across".into()),
+                path: path("a.rs"),
+                message: UnknownText(format!("refused {tag}").into()),
+                cause: ryo_values::domain::runs::types::UnknownCause::Refused(
+                    ryo_values::domain::runs::types::ApplicabilityRefusal::SyntaxUndetermined,
+                ),
+            },
+        ],
         skipped: Vec::new(),
         frontiers: vec![StoredFrontier {
             file: StoredFileNumber(0),

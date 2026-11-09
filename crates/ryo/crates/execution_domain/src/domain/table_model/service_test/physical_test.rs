@@ -1,17 +1,19 @@
 //! Physical rows of the zero-width and native representations, through the registry.
-use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::service::{borrowed, kind, registered};
 use crate::domain::table_model::collections::representations::types::*;
-use crate::domain::table_model::service_test::{number, values, check_rows};
+use crate::domain::table_model::service::{borrowed, kind, registered};
+use crate::domain::table_model::service_test::{check_rows, number, values};
 use crate::domain::table_model::types::Rows;
+use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::service::{node_id, to_bits};
-use ryo_relations::domain::relations::types::{ ColumnsView, FileId, KindBits, Offset, Position, Span, Value as Cell};
+use ryo_relations::domain::relations::types::{
+    ColumnsView, FileId, KindBits, Offset, Position, Span, Value as Cell,
+};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
@@ -23,7 +25,8 @@ type Value = usize;
 /// Why a scenario is refused.
 type Failure = OperatingError;
 
-fn zero_width_population_preserves_each_logical_row_without_inventing_stored_rows() -> Result<Value, Failure> {
+fn zero_width_population_preserves_each_logical_row_without_inventing_stored_rows()
+-> Result<Value, Failure> {
     let table = Table {
         kinds: vec![],
         cells: vec![],
@@ -38,7 +41,8 @@ fn zero_width_population_preserves_each_logical_row_without_inventing_stored_row
     Ok(1)
 }
 
-fn native_elements_and_edges_preserve_utf8_spans_and_do_not_publish_end_sentinels() -> Result<Value, Failure> {
+fn native_elements_and_edges_preserve_utf8_spans_and_do_not_publish_end_sentinels()
+-> Result<Value, Failure> {
     let bytes = "é".as_bytes();
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
@@ -77,7 +81,8 @@ fn native_elements_and_edges_preserve_utf8_spans_and_do_not_publish_end_sentinel
             assert_eq!(row[1], Cell::Node(node_id(FileId(7), Position(1))));
         }
         assert!(matches!(
-            item.row(raw, RowIndex(contract.rows.0), &mut decode).unwrap(),
+            item.row(raw, RowIndex(contract.rows.0), &mut decode)
+                .unwrap(),
             RowRead::MissingPhysical
         ));
     }
@@ -87,13 +92,17 @@ fn native_elements_and_edges_preserve_utf8_spans_and_do_not_publish_end_sentinel
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("zero_width_population_preserves_each_logical_row_without_inventing_stored_rows"),
+        name: CaseName(
+            "zero_width_population_preserves_each_logical_row_without_inventing_stored_rows",
+        ),
         word: Word::Succeeds,
         input: || zero_width_population_preserves_each_logical_row_without_inventing_stored_rows,
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("native_elements_and_edges_preserve_utf8_spans_and_do_not_publish_end_sentinels"),
+        name: CaseName(
+            "native_elements_and_edges_preserve_utf8_spans_and_do_not_publish_end_sentinels",
+        ),
         word: Word::Succeeds,
         input: || native_elements_and_edges_preserve_utf8_spans_and_do_not_publish_end_sentinels,
         expect: Expect::Value(1),

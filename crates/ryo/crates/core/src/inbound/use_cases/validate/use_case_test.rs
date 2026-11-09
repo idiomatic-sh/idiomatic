@@ -18,13 +18,13 @@ use super::errors::ValidateError;
 use super::interface::ValidateUseCase as _;
 use super::types::ValidateRequest;
 use super::use_case::ValidateUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::language::interface::LanguagePort;
-use ryo_execution::outbound::query_language::errors::QueryLanguageError;
-use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_execution::outbound::query_language::errors::QueryLanguageError;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 
 const VALID: &str =
     "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");";

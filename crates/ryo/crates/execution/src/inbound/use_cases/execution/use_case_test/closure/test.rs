@@ -1,12 +1,11 @@
 //! Closure outcomes through the mandatory public execution owner.
 use super::super::super::fixtures;
-use ryo_values::selects;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::Value as Cell;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
@@ -15,9 +14,10 @@ use ryo_values::cases::run;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as Source;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::selects;
 
 type Value = usize;
 type Failure = OperatingError;
@@ -107,9 +107,7 @@ fn assert_pairs(out: &Table, expected: &[[i64; 2]]) {
     assert_eq!(actual, expected);
 }
 fn interleaved_sources() -> Result<Value, OperatingError> {
-    let out = closure(
-        &numbers(&[&[1, 2], &[2, 3], &[1, 4]]),
-    )?;
+    let out = closure(&numbers(&[&[1, 2], &[2, 3], &[1, 4]]))?;
     assert_pairs(&out, &[[1, 2], [1, 3], [1, 4], [2, 3]]);
     Ok(out.count.0)
 }
@@ -140,16 +138,12 @@ fn repeated_edges() -> Result<Value, OperatingError> {
     Ok(4)
 }
 fn cycles_and_self_edges() -> Result<Value, OperatingError> {
-    let out = closure(
-        &numbers(&[&[1, 2], &[2, 1], &[1, 2], &[1, 1]]),
-    )?;
+    let out = closure(&numbers(&[&[1, 2], &[2, 1], &[1, 2], &[1, 1]]))?;
     assert_pairs(&out, &[[1, 1], [1, 2], [2, 1], [2, 2]]);
     Ok(out.count.0)
 }
 fn disconnected_sources() -> Result<Value, OperatingError> {
-    let out = closure(
-        &numbers(&[&[1, 2], &[3, 4], &[1, 5]]),
-    )?;
+    let out = closure(&numbers(&[&[1, 2], &[3, 4], &[1, 5]]))?;
     assert_pairs(&out, &[[1, 2], [1, 5], [3, 4]]);
     Ok(out.count.0)
 }
@@ -258,7 +252,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || closes_over_a_missing_column,
         expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
-    },];
+    },
+];
 fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }

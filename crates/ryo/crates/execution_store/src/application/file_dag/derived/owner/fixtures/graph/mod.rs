@@ -1,8 +1,7 @@
 //! Test setup uses the production owner, original-row admission and physical dispatch.
-#[cfg(test)]
-use ryo_derived::domain::vertices::types::VertexId;
-use ryo_values::domain::plan_parts::types::InputNumber;
-use crate::application::file_dag::derived::owner::graphs::types::handles::service::{DomainHandle, GraphHandle};
+use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
+    DomainHandle, GraphHandle,
+};
 #[cfg(test)]
 use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
@@ -13,13 +12,16 @@ use crate::application::file_dag::{
     relations::{RelationOwner, handle::service::PublishedInput},
     workspace::InvocationWorkspace,
 };
-use ryo_execution_domain::domain::{coverage::types::Partial, table_model::types::Rows};
+#[cfg(test)]
+use ryo_derived::domain::vertices::types::VertexId;
 #[cfg(test)]
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::{coverage::types::Partial, table_model::types::Rows};
 use ryo_relations::domain::relations::types::Relation;
 #[cfg(test)]
 use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input, StepId, StepScope},
     plans::types::{Emit, Operation, Plan, PlanStep},
@@ -34,11 +36,7 @@ pub(crate) struct GraphFixture {
     limit: usize,
 }
 impl GraphFixture {
-    pub(crate) fn new(
-        wanted: &[Relation],
-        partials: &[Partial],
-        limit: usize,
-    ) -> Self {
+    pub(crate) fn new(wanted: &[Relation], partials: &[Partial], limit: usize) -> Self {
         Self::with_identity(wanted, partials, limit, true, 1024)
     }
     pub(crate) fn with_identity(
@@ -56,9 +54,7 @@ impl GraphFixture {
                     crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
                 },
                 crate::application::file_dag::relations::types::PinnedViewCount(max_views),
-                (std::sync::Arc::new(
-                    crate::application::file_dag::fixtures::derived(),
-                )
+                (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
                     as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
             )),
             wanted: wanted.to_vec(),
@@ -146,10 +142,8 @@ impl GraphFixture {
                 let supplied = self
                     .owner
                     .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-                self.owner.admit(
-                    publication.as_ref(),
-                    RepresentationInput::from(&supplied),
-                )?;
+                self.owner
+                    .admit(publication.as_ref(), RepresentationInput::from(&supplied))?;
                 publication
             }
             _ => match input {
@@ -210,7 +204,9 @@ impl GraphFixture {
             return Ok(None);
         };
         let mut cache = self.owner.derived().graph_cache()?;
-        self.owner.derived().acquire_graph(plan, &source, &mut cache)
+        self.owner
+            .derived()
+            .acquire_graph(plan, &source, &mut cache)
     }
     /// Required bytes the owner keeps for the admitted source of `rows` until the generation
     /// retires: what a demand's exit returns to, since the exit does not retire the source.
@@ -285,8 +281,14 @@ impl GraphFixture {
     ) -> Result<Option<u32>, OperatingError> {
         let mut cache = self.owner.derived().graph_cache()?;
         let mut answers = std::mem::take(local);
-        let found = DemandAnswers::new(self.owner.derived(), &mut cache)
-            .nearest(access, domain, VertexId(root), orientation, &mut answers, walk);
+        let found = DemandAnswers::new(self.owner.derived(), &mut cache).nearest(
+            access,
+            domain,
+            VertexId(root),
+            orientation,
+            &mut answers,
+            walk,
+        );
         *local = answers;
         found.map(|found| found.map(|vertex| vertex.0))
     }

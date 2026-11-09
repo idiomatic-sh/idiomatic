@@ -1,10 +1,10 @@
 //! PredicateOutcome refusal does not inspect invalid kept columns.
 use super::service::select;
-use crate::domain::contract::types::PredicateOutcome;
 use super::types::RowSelection;
-use crate::domain::contract::types::PortableOperatorFault;
-use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::contract::types::PredicateOutcome;
+use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 type Input = (bool, &'static [ColumnIndex]);
 type Value = (bool, std::borrow::Cow<'static, [Cell]>);
@@ -39,7 +39,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("held_predicate_reports_first_absent_column"),
         word: Word::Refuses,
         input: || (true, &[ColumnIndex(9), ColumnIndex(8)]),
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(9) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(9),
+        }),
     },
 ];
 fn subject((holds, kept): Input) -> Result<Value, Failure> {

@@ -123,12 +123,16 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::UnicodeJsonPath => {
             let parts = [
-                Part::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("{\"file\":\"".into())),
+                Part::Literal(ryo_benchmark_contracts::domain::process::types::OutputText(
+                    "{\"file\":\"".into(),
+                )),
                 Part::InputPath {
                     file: "é\".py".into(),
                     encoding: Encoding::JsonStringContent,
                 },
-                Part::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("\",\"assertion\":\"x < y\"}".into())),
+                Part::Literal(ryo_benchmark_contracts::domain::process::types::OutputText(
+                    "\",\"assertion\":\"x < y\"}".into(),
+                )),
             ];
             expand(&parts, Path::new("/tmp/日本"), &[PathBuf::from("é\".py")])
                 .map(|bytes| String::from_utf8_lossy(&bytes.0).into_owned().into())

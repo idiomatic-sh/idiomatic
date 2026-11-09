@@ -3,7 +3,6 @@
 use super::entry::validate;
 use super::types::ValidateRequest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::host::types::{
     HostColumn, HostColumnName, HostDeclaration, HostKind, HostRelationName,
 };
@@ -14,6 +13,7 @@ use crate::domain::observation::types::{
 };
 use crate::domain::query::errors::ValidateError;
 use crate::domain::query::types::{QueryModuleCatalog, QueryModuleSource, RyoQlQuery};
+use crate::selects;
 
 /// Whether the caller declares the observation `published` the query reads.
 #[derive(Clone, Copy, Debug)]

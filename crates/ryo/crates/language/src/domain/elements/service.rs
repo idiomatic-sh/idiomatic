@@ -10,10 +10,12 @@ use crate::domain::diagnostics::service::{
     clear, count, incomplete_lexical_stream, incomplete_syntax, listed,
 };
 use crate::domain::diagnostics::types::{Diagnostic, SyntaxCompleteness};
-use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SYMBOL, TOKEN};
-use ryo_relations::domain::relations::types::{Bytes, Count, Extent, Flags, KindBits, Offset, Position};
 use ryo_relations::domain::elements::types::ElementOrigin;
+use ryo_relations::domain::relations::constants::{IMPLIED, NO_FIELD, NO_SYMBOL, TOKEN};
 use ryo_relations::domain::relations::types::FieldId;
+use ryo_relations::domain::relations::types::{
+    Bytes, Count, Extent, Flags, KindBits, Offset, Position,
+};
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;
 

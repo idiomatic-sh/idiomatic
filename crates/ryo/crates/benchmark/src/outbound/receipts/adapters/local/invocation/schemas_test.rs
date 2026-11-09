@@ -1,9 +1,11 @@
 //! What the invocation document writes, one row of `CASES` for each input.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{FailedInvocation, InvocationDocument};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+    FailedInvocation, InvocationDocument,
+};
 use ryo_benchmark_contracts::domain::documents::types::text::value::ExitStatus;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, ReasonText, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use std::collections::BTreeMap;
 
 type Input = Signal;
@@ -11,14 +13,12 @@ type Value = bool;
 type Failure = ();
 
 /// A capture that could not record its process identity is written with its exit and signal.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("an unsignalled failed capture writes a null signal"),
-        word: Word::Succeeds,
-        input: || Signal::Absent,
-        expect: Expect::Value(true),
-    },
-];
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("an unsignalled failed capture writes a null signal"),
+    word: Word::Succeeds,
+    input: || Signal::Absent,
+    expect: Expect::Value(true),
+}];
 
 /// Encodes one failed capture and answers whether it wrote a null signal.
 fn subject(signal: Input) -> Result<Value, Failure> {

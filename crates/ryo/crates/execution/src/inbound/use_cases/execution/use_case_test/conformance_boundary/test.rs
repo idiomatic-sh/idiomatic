@@ -111,10 +111,12 @@ fn binary_bad_shape_missing_input_and_sink_prefix_remain_observable() -> Result<
         let case = fixture(kind);
         let missing = ryo_execution_domain::domain::operation_schema::service::schema_of(
             &case.operation,
-            &[ryo_execution_domain::domain::operation_schema::types::InputShape {
-                kinds: &case.inputs[0].kinds,
-                tree: None,
-            }],
+            &[
+                ryo_execution_domain::domain::operation_schema::types::InputShape {
+                    kinds: &case.inputs[0].kinds,
+                    tree: None,
+                },
+            ],
             &[],
         );
         assert_eq!(missing, Err(OperatingError::MissingInput { position: 2 }));
@@ -234,31 +236,41 @@ type Value = ();
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(stringify!(select_join_and_union_keep_independent_ordered_bags)),
+        name: CaseName(stringify!(
+            select_join_and_union_keep_independent_ordered_bags
+        )),
         word: Word::Succeeds,
         input: || Scenario::SelectJoinAndUnionKeepIndependentOrderedBags,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(schema_failures_and_emitter_prefix_survive_the_common_path)),
+        name: CaseName(stringify!(
+            schema_failures_and_emitter_prefix_survive_the_common_path
+        )),
         word: Word::Succeeds,
         input: || Scenario::SchemaFailuresAndEmitterPrefixSurviveTheCommonPath,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(binary_bad_shape_missing_input_and_sink_prefix_remain_observable)),
+        name: CaseName(stringify!(
+            binary_bad_shape_missing_input_and_sink_prefix_remain_observable
+        )),
         word: Word::Succeeds,
         input: || Scenario::BinaryBadShapeMissingInputAndSinkPrefixRemainObservable,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(conformance_detects_a_deliberately_dropped_or_reordered_result)),
+        name: CaseName(stringify!(
+            conformance_detects_a_deliberately_dropped_or_reordered_result
+        )),
         word: Word::Succeeds,
         input: || Scenario::ConformanceDetectsADeliberatelyDroppedOrReorderedResult,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(positive_row_contracts_keep_partial_input_distinction)),
+        name: CaseName(stringify!(
+            positive_row_contracts_keep_partial_input_distinction
+        )),
         word: Word::Succeeds,
         input: || Scenario::PositiveRowContractsKeepPartialInputDistinction,
         expect: Expect::Value(()),
@@ -266,11 +278,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::SelectJoinAndUnionKeepIndependentOrderedBags => select_join_and_union_keep_independent_ordered_bags(),
-        Scenario::SchemaFailuresAndEmitterPrefixSurviveTheCommonPath => schema_failures_and_emitter_prefix_survive_the_common_path(),
-        Scenario::BinaryBadShapeMissingInputAndSinkPrefixRemainObservable => binary_bad_shape_missing_input_and_sink_prefix_remain_observable(),
-        Scenario::ConformanceDetectsADeliberatelyDroppedOrReorderedResult => conformance_detects_a_deliberately_dropped_or_reordered_result(),
-        Scenario::PositiveRowContractsKeepPartialInputDistinction => positive_row_contracts_keep_partial_input_distinction(),
+        Scenario::SelectJoinAndUnionKeepIndependentOrderedBags => {
+            select_join_and_union_keep_independent_ordered_bags()
+        }
+        Scenario::SchemaFailuresAndEmitterPrefixSurviveTheCommonPath => {
+            schema_failures_and_emitter_prefix_survive_the_common_path()
+        }
+        Scenario::BinaryBadShapeMissingInputAndSinkPrefixRemainObservable => {
+            binary_bad_shape_missing_input_and_sink_prefix_remain_observable()
+        }
+        Scenario::ConformanceDetectsADeliberatelyDroppedOrReorderedResult => {
+            conformance_detects_a_deliberately_dropped_or_reordered_result()
+        }
+        Scenario::PositiveRowContractsKeepPartialInputDistinction => {
+            positive_row_contracts_keep_partial_input_distinction()
+        }
     }
 }
 #[test]

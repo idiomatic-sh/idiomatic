@@ -1,17 +1,17 @@
 //! Axis walks over the syntax tree through the mandatory public execution owner.
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_language::domain::elements::types::Elements;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::node_id;
-use ryo_relations::domain::relations::types::Integer;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Offset;
 use ryo_relations::domain::relations::types::Position;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
@@ -144,12 +144,14 @@ pub(crate) fn over_the_tree(
     *edges = Source::Relation(Relation::SyntaxChild);
     *domain = domain_source;
     operations.push(operation);
-    let read = |relation| match relation {
+    let read = |relation| {
+        match relation {
         Relation::Function => Ok(ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows::Computed(&from)),
         Relation::Identifier => Ok(ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows::Computed(
             domain_rows.as_ref().expect("declared domain"),
         )),
         _ => Err(OperatingError::NotRead),
+    }
     };
     fixtures::requests::published_from(
         inputs::plan(operations),
@@ -239,7 +241,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || the_siblings_in_the_tree_are_the_children_beside_under_the_same_parent,
         expect: Expect::Value(1),
-    },];
+    },
+];
 fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }

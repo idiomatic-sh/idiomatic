@@ -1,5 +1,10 @@
 //! The test data of `linter lint` that fixes zero finding producer.
 
+use super::capability_provider::provider_linter;
+use super::directory::case_directory;
+use super::observations::column;
+use super::outcome::{Outcome, summary};
+use super::rules::{listed, ordinary, rule_id};
 use crate::domain::observation::types::ObservationBindingName;
 use crate::domain::observation::types::ObservationKind;
 use crate::domain::observation::types::ObservationName;
@@ -11,11 +16,6 @@ use crate::resources::linter::lint::types::ObservationBinding;
 use crate::resources::linter::lint::types::ObservationProducer;
 use crate::resources::query::RyoQlQuery;
 use std::collections::BTreeMap;
-use super::outcome::{Outcome, summary};
-use super::capability_provider::provider_linter;
-use super::rules::{listed, ordinary, rule_id};
-use super::directory::case_directory;
-use super::observations::column;
 
 /// A later rule that produces an observation publishes it nonempty although it has no finding, and the include and exclude of a
 /// producer govern its diagnostics, not the observation.
@@ -55,8 +55,8 @@ pub(crate) fn zero_finding_producer() -> Outcome {
     );
     let mut last = (0, 0, true, 0);
     for _ in 0..2 {
-        let answer = lint_with(&engine, request.clone())
-            .expect("named producer executes before consumer");
+        let answer =
+            lint_with(&engine, request.clone()).expect("named producer executes before consumer");
         last = summary(&answer);
         assert_eq!(
             answer.findings.len(),

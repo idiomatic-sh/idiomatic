@@ -1,11 +1,13 @@
 //! Module identity preserves raw package directories and strips only the source extension.
-use super::types::{Basenames, Markers, ModuleDecision, ModuleDottedPath, PackageModule, PackageRootName};
+use super::constants;
+use super::types::{
+    Basenames, Markers, ModuleDecision, ModuleDottedPath, PackageModule, PackageRootName,
+};
 use ryo::languages::NameText;
 use std::{
     collections::BTreeSet,
     path::{Component, Path, PathBuf},
 };
-use super::constants;
 
 /// Derive a dotted identity only within a fully observed package ancestry.
 fn module_path(file: &Path, package: Option<&Path>) -> ModuleDecision {

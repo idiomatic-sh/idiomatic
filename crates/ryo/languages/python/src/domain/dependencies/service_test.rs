@@ -4,8 +4,8 @@
 use super::service::dependencies_of;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::packages::types::{
-    Checkout, Declared, Interpreter, PackageLocation, ManifestPath, Marker, Naming, Package, PackageName,
-    Packages, Redirect, Reference, Requirement, Revision, Written,
+    Checkout, Declared, Interpreter, ManifestPath, Marker, Naming, Package, PackageLocation,
+    PackageName, Packages, Redirect, Reference, Requirement, Revision, Written,
 };
 use crate::domain::patterns::types::Pattern;
 use ryo::languages::{DependencyKind, DependencyOrigin, Optionality};

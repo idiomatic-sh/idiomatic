@@ -1,19 +1,19 @@
 //! Native heads keep their projected columns and source row order, and unused intents evaluate nothing.
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::super::super::fixtures::*;
 use super::super::super::no_catalog;
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_language::domain::elements::fixtures::text_at;
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{
@@ -44,11 +44,12 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
             ],
         ),
     ] {
-        crate::boundary_fixture::plans(&mut authored)[index].steps[0].operation = Operation::Select {
-            from: Input::Relation(Relation::SyntaxTree),
-            comparisons: selection(Selector::Kind(kind)),
-            kept,
-        };
+        crate::boundary_fixture::plans(&mut authored)[index].steps[0].operation =
+            Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::Kind(kind)),
+                kept,
+            };
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();

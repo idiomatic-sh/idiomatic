@@ -2,11 +2,11 @@
 //! it reads, never through a step's key alone, and through the operands' lineage.
 use crate::domain::completion::service::partial_any;
 use crate::domain::completion::types::CoverageState;
-use ryo_values::domain::lineage::types::Lineage;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::output_coverage::types::OperandOrdinal;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::types::Side;
 
 /// What a row of the cases proves.

@@ -2,7 +2,8 @@
 
 use super::constants;
 use crate::application::file_dag::derived::owner::{
-    fixtures::graph::GraphFixture, index::service::LIMIT};
+    fixtures::graph::GraphFixture, index::service::LIMIT,
+};
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

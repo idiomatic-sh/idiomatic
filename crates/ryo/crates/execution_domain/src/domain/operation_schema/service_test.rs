@@ -4,17 +4,13 @@ use crate::domain::{features::service::catalog, operating::errors::OperatingErro
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, HostedNumber, Input as Source, JoinColumn, Side},
-    plans::{
-        service::kind_of,
-        types::{Operation},
-    },
+    plans::{service::kind_of, types::Operation},
     run_metadata::types::Feature,
 };
-use ryo_values::domain::query_operators::types::OperationKind;
 const FROM: Source = Source::Relation(Relation::Function);
-
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -213,7 +209,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("a_demand_join_schema_uses_the_virtual_partition_source_destination_projection"),
+        name: CaseName(
+            "a_demand_join_schema_uses_the_virtual_partition_source_destination_projection",
+        ),
         word: Word::Succeeds,
         input: || Scenario::VirtualJoin,
         expect: Expect::Value(()),

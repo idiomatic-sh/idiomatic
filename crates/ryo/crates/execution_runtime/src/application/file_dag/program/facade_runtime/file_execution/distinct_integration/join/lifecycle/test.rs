@@ -218,7 +218,11 @@ fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
                 std::ptr::from_ref(&lookup) as *const (),
                 "the frame borrows the exact existing lookup, without replacing or extending its session"
             );
-            assert!(admitted.render_batch(&[], ryo_values::domain::files::types::SourceView(b""))?.is_empty());
+            assert!(
+                admitted
+                    .render_batch(&[], ryo_values::domain::files::types::SourceView(b""))?
+                    .is_empty()
+            );
             context.memo.clear();
             context.memo.push(Memo::Holds);
             let mut inputs = SourceInputs {

@@ -1,9 +1,9 @@
 //! One file generation's semantic demand and provider session.
 
+use super::super::types::FileCompleteness;
 use crate::application::file_analysis::constants::{
     FILE, NODES, SEMANTICSTATE, THE_SELECTED_LANGUAGE_DOES_NOT_OFFER,
 };
-use super::super::types::FileCompleteness;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
@@ -11,8 +11,8 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::SemanticLookup;
 use ryo_language::domain::elements::service::real_count;
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::semantics::types::SemanticSession;
 use ryo_language::domain::semantics::service::admit;
+use ryo_language::domain::semantics::types::SemanticSession;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::{Count, FileId};

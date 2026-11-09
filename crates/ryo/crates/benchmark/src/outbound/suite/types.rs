@@ -1,6 +1,8 @@
 //! Per-operation artifact identities, independent of adapter configuration.
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, PathText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CaseName, PathText, RuleName, Sha256Text,
+};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;

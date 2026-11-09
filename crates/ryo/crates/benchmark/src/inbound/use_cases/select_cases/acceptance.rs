@@ -21,7 +21,10 @@ fn select(flags: &[&str]) -> Result<ShardPartition, String> {
 #[then("select_cases reads the shard a flag names")]
 fn reads(world: &mut crate::Behavior) {
     let _: &mut crate::Behavior = world;
-    assert!(matches!(select(&["--shard=1/3"]), Ok(ShardPartition::Shard(_))));
+    assert!(matches!(
+        select(&["--shard=1/3"]),
+        Ok(ShardPartition::Shard(_))
+    ));
 }
 
 #[then("select_cases refuses a repeated shard flag")]

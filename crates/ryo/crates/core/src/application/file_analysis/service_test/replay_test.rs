@@ -1,9 +1,20 @@
 //! The cases of replayed buckets: selection before any read, and stale proofs refused.
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::types::RequestVisitSetting;
+use super::program_test::NOTHING_HANDED;
+use super::program_test::NOTHING_STORED;
+use super::program_test::one_capture_plan;
+use super::program_test::prepared_test_program;
+use super::program_test::replay_under;
+use super::program_test::replay_under_capture;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::files::types::FileNumber;
@@ -26,18 +37,8 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::BucketsWanted;
 use ryo_values::domain::stores::types::KeptRows;
-use super::program_test::NOTHING_HANDED;
-use super::program_test::NOTHING_STORED;
-use super::program_test::one_capture_plan;
-use super::program_test::prepared_test_program;
-use super::program_test::replay_under;
-use super::program_test::replay_under_capture;
-use super::super::errors::FileAnalysisError;
-use super::super::service::FileAnalysis;
-use super::super::types::RequestVisitSetting;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-use ryo_execution::outbound::matching::interface::MatchingPort;
-pub(super) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read() -> Result<usize, FileAnalysisError> {
+pub(super) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read()
+-> Result<usize, FileAnalysisError> {
     use ryo_values::domain::records::types::FrontierCoverage;
     use ryo_values::domain::stored_facts::types::{Bucket, Digest};
     let good = crate::outbound::lint_store::fixtures::proof();
@@ -79,7 +80,8 @@ pub(super) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected
     Ok(1)
 }
 
-pub(super) fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops() -> Result<usize, FileAnalysisError> {
+pub(super) fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops()
+-> Result<usize, FileAnalysisError> {
     use super::super::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};

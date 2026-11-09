@@ -91,9 +91,7 @@ fn html_dom_and_absent_locations_are_stable_across_runs() -> Result<(), Box<dyn 
             Arc::new(LintStoreFake::default()),
             Vec::new(),
             false,
-            vec![ryo_core::outbound::language::factory::LanguageConnection::from(
-                html,
-            )],
+            vec![ryo_core::outbound::language::factory::LanguageConnection::from(html)],
         );
         let (mut rows, report) = result?;
         assert!(report.unread.is_empty(), "HTML is actually read");

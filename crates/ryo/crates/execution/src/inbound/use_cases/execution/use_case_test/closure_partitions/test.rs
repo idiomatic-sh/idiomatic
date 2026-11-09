@@ -1,12 +1,11 @@
 //! Partitioned closure outcomes through the mandatory public execution owner.
 use super::super::super::fixtures;
-use ryo_values::selects;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::Value as Cell;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_relations::domain::relations::types::Integer;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
@@ -15,9 +14,10 @@ use ryo_values::cases::run;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as Source;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::selects;
 
 type Value = usize;
 type Failure = OperatingError;
@@ -90,10 +90,7 @@ fn assert_pairs(out: &Table, expected: &[[i64; 2]]) {
     assert_eq!(out.count.0, expected.len());
     assert_eq!(actual, expected);
 }
-fn grouped(
-    edges: &Table,
-    keys: &[u32],
-) -> Result<Table, OperatingError> {
+fn grouped(edges: &Table, keys: &[u32]) -> Result<Table, OperatingError> {
     table(
         &Operation::Closure {
             edges: FROM,
@@ -194,10 +191,7 @@ fn partitioned_cycles_and_disconnected_starts() -> Result<Value, OperatingError>
 }
 fn partitioned_empty_and_unpartitioned_owners_keep_exact_outputs() -> Result<Value, OperatingError>
 {
-    let partitioned = grouped(
-        &numbers(&[&[1, 2, 10], &[2, 3, 20]]),
-        &[2],
-    )?;
+    let partitioned = grouped(&numbers(&[&[1, 2, 10], &[2, 3, 20]]), &[2])?;
     assert_rows(&partitioned, 3, &[&[10, 1, 2], &[20, 2, 3]]);
     let ordinary = closure(&numbers(&[&[1, 2], &[2, 3]]))?;
     assert_pairs(&ordinary, &[[1, 2], [1, 3], [2, 3]]);
@@ -338,7 +332,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || partition_columns_are_checked_on_empty_input,
         expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
-    },];
+    },
+];
 fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }

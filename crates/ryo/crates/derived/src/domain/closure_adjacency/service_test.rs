@@ -42,7 +42,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_source_column_the_rows_lack_is_refused"),
         word: Word::Refuses,
         input: || Scenario::AbsentSource,
-        expect: Expect::Error(DerivedFault::NoSuchColumn { column: ColumnIndex(6) }),
+        expect: Expect::Error(DerivedFault::NoSuchColumn {
+            column: ColumnIndex(6),
+        }),
     },
 ];
 
@@ -78,12 +80,22 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::RecycledPartitionIsRewritten => {
             let grown = build(&edges(), None, &[], from, to, None, &mut buffer)?;
             let before = capacities(&grown).sources;
-            let again = build(&edges(), Some(&[RowIndex(0)]), &[], from, to, Some(grown), &mut buffer)?;
+            let again = build(
+                &edges(),
+                Some(&[RowIndex(0)]),
+                &[],
+                from,
+                to,
+                Some(grown),
+                &mut buffer,
+            )?;
             usize::from(capacities(&again).sources >= before)
         }
-        Scenario::AbsentSource => build(&edges(), None, &[], ColumnIndex(6), to, None, &mut buffer)?
-            .sources
-            .len(),
+        Scenario::AbsentSource => {
+            build(&edges(), None, &[], ColumnIndex(6), to, None, &mut buffer)?
+                .sources
+                .len()
+        }
     })
 }
 

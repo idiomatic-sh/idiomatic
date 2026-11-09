@@ -3,9 +3,10 @@ use crate::application::file_dag::program::{
     preparation::types::PreparedProgram, runtime::service::KernelPermit,
 };
 use ryo_execution_domain::domain::{
-    operating::errors::OperatingError, operator::types::OperatorContext,
-    step_classes::types::ClassPlace,
+    operating::errors::OperatingError,
+    operator::types::OperatorContext,
     shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
+    step_classes::types::ClassPlace,
 };
 /// Only the live engine permit can bind these borrowed, already-admitted rows.
 pub(crate) struct PermittedWalk<'call, 'context, 'scope> {

@@ -132,11 +132,9 @@ fn semantic_child_ordinals_are_global_across_call_argument_fields() {
 }
 
 /// Each check below states its own source and asserts its own outcome.
-const CHECKS: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("semantic_child_ordinals_are_global_across_call_argument_fields"),
-        word: Word::Succeeds,
-        input: || semantic_child_ordinals_are_global_across_call_argument_fields,
-        expect: Expect::Value(()),
-    },
-];
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("semantic_child_ordinals_are_global_across_call_argument_fields"),
+    word: Word::Succeeds,
+    input: || semantic_child_ordinals_are_global_across_call_argument_fields,
+    expect: Expect::Value(()),
+}];

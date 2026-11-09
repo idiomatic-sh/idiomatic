@@ -8,7 +8,9 @@ use ryo::languages::{self, FileId, FilePath};
 use super::constants::{
     CURRENT, EXTENSIONS, INDEX, PACKAGE_IMPORT, PARENT, ROOT, SEPARATOR, UNRESOLVED_CAUSE,
 };
-use super::types::{Candidate, Cause, FileIndex, ImportOutcome, JavaScriptImportLink, Linked, Unresolved};
+use super::types::{
+    Candidate, Cause, FileIndex, ImportOutcome, JavaScriptImportLink, Linked, Unresolved,
+};
 use crate::domain::fact_notes::types::{Note, Specifier};
 use crate::domain::packages::types::{Directory, RepositoryPath};
 
@@ -148,13 +150,15 @@ pub(crate) fn linked(files: &[FilePath], notes: &[Option<Note>]) -> Linked {
         found.analyzed.push(source);
         for import in &note.imports {
             match outcome(files, RepositoryPath(&file.0), &import.specifier) {
-                ImportOutcome::File(target) if target != source => found.dependencies.push(JavaScriptImportLink {
-                    source,
-                    target,
-                    start: import.start,
-                    end: import.end,
-                    written: import.text.clone(),
-                }),
+                ImportOutcome::File(target) if target != source => {
+                    found.dependencies.push(JavaScriptImportLink {
+                        source,
+                        target,
+                        start: import.start,
+                        end: import.end,
+                        written: import.text.clone(),
+                    })
+                }
                 ImportOutcome::Unresolved => found.unresolved.push(Unresolved {
                     file: source,
                     specifier: import.specifier.clone(),

@@ -1,15 +1,22 @@
 //! Standalone application preparation uses the same required declarations as request preparation.
 mod identity;
-use ryo_execution_domain::domain::{operating::errors::OperatingError, operation_schema::types::InputShape};
+use ryo_execution_domain::domain::{
+    operating::errors::OperatingError, operation_schema::types::InputShape,
+};
 
 /// All preparation routes delegate semantic metadata to the injected capability.
 pub fn view(
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     request: &ryo_execution_domain::domain::derived_views::types::ViewRequest,
     schemas: &[InputShape<'_>],
-) -> Result<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract, OperatingError> {
-    use ryo_execution_domain::domain::derived_views::types::{contract::value::DerivedContract, ViewRequest};
+) -> Result<
+    ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract,
+    OperatingError,
+> {
     use ryo_derived::domain::request::types::DerivedRequest as SemanticRequest;
+    use ryo_execution_domain::domain::derived_views::types::{
+        ViewRequest, contract::value::DerivedContract,
+    };
     let meaning = match request {
         ViewRequest::Equality { columns } => SemanticRequest::Equality {
             columns: columns.clone(),
@@ -75,7 +82,8 @@ pub fn view(
     let request = request.clone();
     use std::hash::{Hash, Hasher};
     let mut identity = std::collections::hash_map::DefaultHasher::new();
-    let kind = ryo_execution_domain::domain::derived_views::types::contract::value::kind_of(&request);
+    let kind =
+        ryo_execution_domain::domain::derived_views::types::contract::value::kind_of(&request);
     kind.hash(&mut identity);
     let schemas = schemas
         .iter()

@@ -26,7 +26,8 @@ fn failed(reason: ToolMessage) -> ProjectError {
 }
 /// Normalize an absolute path without accessing filesystem contents.
 fn absolute(path: &Path) -> Result<PathBuf, ProjectError> {
-    let path = std::path::absolute(path).map_err(|error| failed(ToolMessage(error.to_string().into_boxed_str())))?;
+    let path = std::path::absolute(path)
+        .map_err(|error| failed(ToolMessage(error.to_string().into_boxed_str())))?;
     let mut normalized = PathBuf::new();
     for component in path.components() {
         match component {
@@ -74,7 +75,10 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
             ) {
                 continue;
             }
-            let file_id = FileId(u32::try_from(number).map_err(|error| failed(ToolMessage(error.to_string().into_boxed_str())))?);
+            let file_id = FileId(
+                u32::try_from(number)
+                    .map_err(|error| failed(ToolMessage(error.to_string().into_boxed_str())))?,
+            );
             let decision = if let Some(root) = &root {
                 let full = absolute(&root.join(file_path))?;
                 loop {
@@ -92,12 +96,16 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                             };
                             let relative =
                                 service::relative_to(root, &marker).ok_or_else(|| {
-                                    failed(ToolMessage(MODULE_MARKER_CANNOT_BE_EXPRESSED_FROM_RUN_ROOT.into()))
+                                    failed(ToolMessage(
+                                        MODULE_MARKER_CANNOT_BE_EXPRESSED_FROM_RUN_ROOT.into(),
+                                    ))
                                 })?;
                             result.consulted.push(FilePath(
                                 relative
                                     .to_str()
-                                    .ok_or_else(|| failed(ToolMessage(MODULE_MARKER_PATH_IS_NOT_UTF_8.into())))?
+                                    .ok_or_else(|| {
+                                        failed(ToolMessage(MODULE_MARKER_PATH_IS_NOT_UTF_8.into()))
+                                    })?
                                     .into(),
                             ));
                             let _previous = markers.0.insert(marker, present);
@@ -116,10 +124,11 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                         Some(root) => absolute(&root.join(file_path))?,
                         None => file_path.to_path_buf(),
                     };
-                    let names =
-                        service::basenames(&source).ok_or_else(|| {
-                            failed(ToolMessage(KNOWN_MODULE_LACKS_SOURCE_PACKAGE_BASENAMES.into()))
-                        })?;
+                    let names = service::basenames(&source).ok_or_else(|| {
+                        failed(ToolMessage(
+                            KNOWN_MODULE_LACKS_SOURCE_PACKAGE_BASENAMES.into(),
+                        ))
+                    })?;
                     result.rows.push(ModuleIdentity {
                         file: file_id,
                         path: module.path,
@@ -131,7 +140,9 @@ impl ModuleContextPort for ModuleContextFilesystemAdapter {
                 ModuleDecision::Known(None) => {}
                 ModuleDecision::Unknown => result.partial = PartialContext(true),
                 ModuleDecision::Need(_) => {
-                    return Err(failed(ToolMessage(UNRESOLVED_MODULE_CONTEXT_OBSERVATION.into())));
+                    return Err(failed(ToolMessage(
+                        UNRESOLVED_MODULE_CONTEXT_OBSERVATION.into(),
+                    )));
                 }
             }
         }

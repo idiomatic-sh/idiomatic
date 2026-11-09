@@ -43,7 +43,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_endpoint_column_the_rows_lack_is_refused"),
         word: Word::Refuses,
         input: || Scenario::AbsentEndpoint,
-        expect: Expect::Error(DerivedFault::NoSuchColumn { column: ColumnIndex(7) }),
+        expect: Expect::Error(DerivedFault::NoSuchColumn {
+            column: ColumnIndex(7),
+        }),
     },
 ];
 
@@ -64,14 +66,20 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let ends = [ColumnIndex(0), ColumnIndex(1)];
     let build = |rows: &Table, ends: [ColumnIndex; 2]| build_borrowed(rows, ends, &[]);
     match input {
-        Scenario::ChainHasThreeVertices => Ok(build(&edges(&[[1, 2], [2, 3]]), ends)?
-            .map_or(0, |graph| graph.vertices().len())),
+        Scenario::ChainHasThreeVertices => {
+            Ok(build(&edges(&[[1, 2], [2, 3]]), ends)?.map_or(0, |graph| graph.vertices().len()))
+        }
         Scenario::ChainHasAForest => Ok(build(&edges(&[[1, 2], [2, 3]]), ends)?
-            .map_or(0, |graph| usize::from(graph.forest(EdgeDirection::Forward).is_some()))),
+            .map_or(0, |graph| {
+                usize::from(graph.forest(EdgeDirection::Forward).is_some())
+            })),
         Scenario::LoopHasNoForest => Ok(build(&edges(&[[1, 2], [2, 1]]), ends)?
-            .map_or(1, |graph| usize::from(graph.forest(EdgeDirection::Forward).is_some()))),
-        Scenario::AbsentEndpoint => build(&edges(&[[1, 2]]), [ColumnIndex(0), ColumnIndex(7)])
-            .map(|_| 0),
+            .map_or(1, |graph| {
+                usize::from(graph.forest(EdgeDirection::Forward).is_some())
+            })),
+        Scenario::AbsentEndpoint => {
+            build(&edges(&[[1, 2]]), [ColumnIndex(0), ColumnIndex(7)]).map(|_| 0)
+        }
     }
 }
 

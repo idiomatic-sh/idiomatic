@@ -229,7 +229,8 @@ pub(crate) fn judge(
     case: &PreparedCase,
     contestant: Contestant,
     mut report: RunReport,
-) -> Result<super::types::Judgement, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+) -> Result<super::types::Judgement, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
+{
     if contestant == Contestant::Candidate {
         ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
     }

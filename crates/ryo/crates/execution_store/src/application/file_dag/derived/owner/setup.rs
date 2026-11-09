@@ -66,10 +66,7 @@ impl DerivedOwner {
 }
 
 impl RequestDerived {
-    pub(crate) fn wanted(
-        &self,
-        demanded: &[RuleIndex],
-    ) -> Result<Vec<Relation>, OperatingError> {
+    pub(crate) fn wanted(&self, demanded: &[RuleIndex]) -> Result<Vec<Relation>, OperatingError> {
         if !demanded.windows(2).all(|pair| pair[0] < pair[1]) {
             return Err(OperatingError::NotRun);
         }

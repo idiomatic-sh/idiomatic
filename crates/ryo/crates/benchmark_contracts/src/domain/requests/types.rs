@@ -1,8 +1,8 @@
 //! Shared invocation data without scheduling, cache ownership or execution authority.
-use crate::domain::context::types::project_context_mode::value::ProjectContextMode;
-use crate::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use self::case_shard::value::CaseShard;
 use crate::domain::artifacts::types::FileExecutable;
+use crate::domain::context::types::project_context_mode::value::ProjectContextMode;
+use crate::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use crate::domain::context::types::{ContextManifest, PreparedRuleContext};
 use ryo::linter::{RelativePath, RuleId};
 use std::{collections::BTreeMap, path::PathBuf};

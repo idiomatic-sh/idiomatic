@@ -37,4 +37,3 @@ pub fn missing(path: &str) -> ryo::linter::ProjectDependency {
         state: ryo::linter::ProjectDependencyState::Missing,
     }
 }
-

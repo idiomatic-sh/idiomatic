@@ -1,9 +1,9 @@
 //! Request-graph dependencies: the producers a rule may read, their schemas and the plans linked beneath them.
-use crate::domain::rule_intent::errors::RuleIntentError;
 use super::fixtures::{binding, bound_input, export, exporting, observing, plan, rule};
 use super::service::link::{following, link};
 use super::service::observations::{schedule, schemas};
 use super::types::ResolvedObservationBinding;
+use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::observations::types::ObservationProducer;
 use ryo_values::domain::plan_parts::types::{ObservationBindingId, StepId};
@@ -119,36 +119,31 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::Chain => schedule(&pair("first")).map(|_| ()),
         Scenario::UnknownProducer => schedule(&pair("absent")).map(|_| ()),
-        Scenario::SelfRead => {
-            schedule(&[observing("only", vec![binding("rows", vec![export("only")])])])
-                .map(|_| ())
-        }
-        Scenario::ExecutableNoQuery => {
-            schedule(&[observing(
-                "only",
-                vec![binding(
-                    "rows",
-                    vec![ObservationProducer::NoQuery {
-                        rule: RuleId("only".into()),
-                    }],
-                )],
-            )])
-            .map(|_| ())
-        }
-        Scenario::RepeatedBinding => {
-            schedule(&[observing(
-                "only",
-                vec![binding("rows", vec![]), binding("rows", vec![])],
-            )])
-            .map(|_| ())
-        }
-        Scenario::Cycle => {
-            schedule(&[
-                observing("one", vec![binding("rows", vec![export("two")])]),
-                observing("two", vec![binding("rows", vec![export("one")])]),
-            ])
-            .map(|_| ())
-        }
+        Scenario::SelfRead => schedule(&[observing(
+            "only",
+            vec![binding("rows", vec![export("only")])],
+        )])
+        .map(|_| ()),
+        Scenario::ExecutableNoQuery => schedule(&[observing(
+            "only",
+            vec![binding(
+                "rows",
+                vec![ObservationProducer::NoQuery {
+                    rule: RuleId("only".into()),
+                }],
+            )],
+        )])
+        .map(|_| ()),
+        Scenario::RepeatedBinding => schedule(&[observing(
+            "only",
+            vec![binding("rows", vec![]), binding("rows", vec![])],
+        )])
+        .map(|_| ()),
+        Scenario::Cycle => schedule(&[
+            observing("one", vec![binding("rows", vec![export("two")])]),
+            observing("two", vec![binding("rows", vec![export("one")])]),
+        ])
+        .map(|_| ()),
         Scenario::NotCompiled => {
             let rules = pair("first");
             schemas::<Plan>(&rules[1], &rules, &[None, None]).map(|_| ())
@@ -161,9 +156,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let rules = pair("first");
             schemas(&rules[1], &rules, &[Some(exporting(vec![])), None]).map(|_| ())
         }
-        Scenario::StepNumbersExhausted => {
-            following(StepId(u32::MAX)).map(|_| ())
-        }
+        Scenario::StepNumbersExhausted => following(StepId(u32::MAX)).map(|_| ()),
         Scenario::DanglingStep => {
             let mut dangling = plan();
             dangling.emit.step = StepId(99);

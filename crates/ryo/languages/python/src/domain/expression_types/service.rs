@@ -278,10 +278,12 @@ fn classify_expression(
         Kind::Node(Node::GeneratorExp) => Resolution::Atom(BasicType::Generator),
         Kind::Node(Node::JoinedStr) => Resolution::Atom(BasicType::String),
         Kind::Node(Node::Constant) => match classify_literal(tree, at) {
-            LiteralClassification::Known(properties) => Resolution::Atom(super::constants::literal_type(
-                properties.kind,
-            )),
-            LiteralClassification::MissingPayload => return ExpressionClassification::MissingPayload,
+            LiteralClassification::Known(properties) => {
+                Resolution::Atom(super::constants::literal_type(properties.kind))
+            }
+            LiteralClassification::MissingPayload => {
+                return ExpressionClassification::MissingPayload;
+            }
             LiteralClassification::NotPrimitive => {
                 return ExpressionClassification::Complete(Resolution::Unknown);
             }
@@ -357,7 +359,9 @@ fn build(tree: &Tree<'_>, retained: &mut ExpressionTypeIndex) {
         return;
     }
     retained.entries.resize(length, None);
-    retained.state = if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete {
+    retained.state = if languages::has_incomplete_syntax(tree.elements)
+        == languages::SyntaxCompleteness::Incomplete
+    {
         ExpressionTypeState::Partial
     } else {
         ExpressionTypeState::Complete

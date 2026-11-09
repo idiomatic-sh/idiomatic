@@ -1,5 +1,7 @@
 //! The cases of discovery failures, primary manifest failures and project entry acquisition.
 use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::visit_test::visited_inputs;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::corpus::errors::CorpusError;
@@ -14,6 +16,7 @@ use crate::outbound::language::types::ProjectToRead;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::project_context::types::EntryObservation;
 use ryo_language::domain::symbols::types::Symbols;
@@ -27,10 +30,8 @@ use ryo_values::domain::files::types::Nanoseconds;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use super::super::service::FileAnalysis;
-use super::visit_test::visited_inputs;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-pub(super) fn discovery_failure_runs_without_parser_bytes_or_permission_invention() -> Result<usize, FileAnalysisError> {
+pub(super) fn discovery_failure_runs_without_parser_bytes_or_permission_invention()
+-> Result<usize, FileAnalysisError> {
     use crate::domain::{render::types::Answering, visit::types::Keeping};
     use ryo_values::domain::files::types::{CorpusInput, InputReadFailure};
     let corpus = Arc::new(CorpusFake::default());
@@ -91,7 +92,8 @@ pub(super) fn discovery_failure_runs_without_parser_bytes_or_permission_inventio
     Ok(1)
 }
 
-pub(super) fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_source() -> Result<usize, FileAnalysisError> {
+pub(super) fn primary_manifest_read_failure_retains_real_metadata_without_empty_project_source()
+-> Result<usize, FileAnalysisError> {
     use ryo_values::domain::files::types::{
         CorpusEntry, CorpusInput, FileSize, InputReadFailure, Nanoseconds,
     };
@@ -143,7 +145,8 @@ pub(super) fn primary_manifest_read_failure_retains_real_metadata_without_empty_
     Ok(1)
 }
 
-pub(super) fn project_entry_acquisition_deduplicates_provider_candidates_before_observing() -> Result<usize, FileAnalysisError> {
+pub(super) fn project_entry_acquisition_deduplicates_provider_candidates_before_observing()
+-> Result<usize, FileAnalysisError> {
     let observations = Arc::new(AtomicUsize::new(0));
     let corpus = Arc::new(CountingCorpus {
         inner: CorpusFake::default(),
@@ -221,8 +224,10 @@ struct Forgetful(LanguageFake);
 impl LanguagePort for Forgetful {
     fn relations(
         &self,
-    ) -> Result<crate::outbound::language::types::RelationList, crate::outbound::language::errors::LanguageError>
-    {
+    ) -> Result<
+        crate::outbound::language::types::RelationList,
+        crate::outbound::language::errors::LanguageError,
+    > {
         self.0.relations()
     }
     fn linked(&self) -> crate::outbound::language::types::LinkedNames {
@@ -257,8 +262,10 @@ impl LanguagePort for Forgetful {
         input: &ProjectToRead<'_>,
         symbols: &mut Symbols,
         out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
-    ) -> Result<crate::outbound::language::types::ProjectAnswer, crate::outbound::language::errors::LanguageError>
-    {
+    ) -> Result<
+        crate::outbound::language::types::ProjectAnswer,
+        crate::outbound::language::errors::LanguageError,
+    > {
         let mut answer = self.0.project(input, symbols, out)?;
         answer.observed_entries.clear();
         Ok(answer)
@@ -266,7 +273,8 @@ impl LanguagePort for Forgetful {
 }
 
 /// A project answer that drops an entry the run observed for it is refused: the project made from it is not the one observed.
-pub(super) fn a_project_answer_that_drops_an_observed_entry_is_refused() -> Result<usize, FileAnalysisError> {
+pub(super) fn a_project_answer_that_drops_an_observed_entry_is_refused()
+-> Result<usize, FileAnalysisError> {
     let service = FileAnalysis::new(
         Arc::new(CorpusFake::default()),
         Arc::new(Forgetful(LanguageFake {

@@ -1,18 +1,20 @@
 //! The registry of physical representations, through its production routes and every item.
-use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
-use crate::domain::table_model::service::{borrowed, kind, registered};
 use crate::domain::table_model::collections::representations::types::*;
-use crate::domain::table_model::service_test::{compact, number, column, check_rows};
+use crate::domain::table_model::service::{borrowed, kind, registered};
+use crate::domain::table_model::service_test::{check_rows, column, compact, number};
 use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_model::types::Rows;
+use crate::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::constants::NO_SYMBOL;
 use ryo_relations::domain::relations::service::{node_id, to_bits};
-use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FileId, KindBits, Offset, Position, Value as Cell};
+use ryo_relations::domain::relations::types::{
+    CellKind, ColumnsView, FileId, KindBits, Offset, Position, Value as Cell,
+};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
@@ -112,7 +114,9 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() -> Result<
         check_rows(&input, &expected);
         let bulk = registered(*variant).bulk(borrowed(&input)).unwrap();
         match bulk {
-            RepresentationInput::Stored(view) => assert!(std::ptr::eq(view.columns, source.columns)),
+            RepresentationInput::Stored(view) => {
+                assert!(std::ptr::eq(view.columns, source.columns))
+            }
             RepresentationInput::Tree(view) => assert!(std::ptr::eq(view.elements, &elements)),
             RepresentationInput::Computed(view) => assert!(std::ptr::eq(view, &table)),
             RepresentationInput::Compact(view) => assert!(std::ptr::eq(view, &compact)),
@@ -121,7 +125,8 @@ fn all_registered_representations_preserve_bulk_cells_rows_and_bags() -> Result<
     Ok(1)
 }
 
-fn metadata_preparation_does_not_eagerly_read_or_refuse_malformed_population() -> Result<Value, Failure> {
+fn metadata_preparation_does_not_eagerly_read_or_refuse_malformed_population()
+-> Result<Value, Failure> {
     let malformed = Table {
         kinds: vec![CellKind::Number],
         cells: vec![number(4)],
@@ -172,10 +177,7 @@ fn metadata_preparation_does_not_eagerly_read_or_refuse_malformed_population() -
 fn wrong_representation_never_falls_back_to_another_item() -> Result<Value, Failure> {
     let table = Table::default();
     let computed = RepresentationInput::Computed(&table);
-    for kind in [
-        RepresentationKind::Stored,
-        RepresentationKind::Tree,
-    ] {
+    for kind in [RepresentationKind::Stored, RepresentationKind::Tree] {
         assert!(matches!(
             registered(kind).prepare(computed),
             Err(OperatingError::WrongOperation)

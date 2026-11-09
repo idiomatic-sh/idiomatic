@@ -7,26 +7,36 @@ use crate::domain::registered_inputs::{
     service as inputs,
     types::{ObservationDeclaration, RegisteredInputs},
 };
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
-use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseContextIdentity, CaseDocument, CaseReference, EntryState, ExpectationContract, FileMetadata, InventoryCompleteness, ProjectInventory};
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
     ProjectInventoryCompleteness, RelativePath,
 };
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+    CaseContextIdentity, CaseDocument, CaseReference, EntryState, ExpectationContract,
+    FileMetadata, InventoryCompleteness, ProjectInventory,
+};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+    ExpectedFindings, RecordedFinding,
+};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
-    ContextMode, ContextRun, ObservationDocument, ProjectContextRecord, RecordedMetadata, RecordedReason,
-    ReferenceProcess, ReportedFindings, ReportedSkips, SourceIdentity, ToolContractRecord, ValidationRecord,
+    ContextMode, ContextRun, ObservationDocument, ProjectContextRecord, RecordedMetadata,
+    RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, SourceIdentity,
+    ToolContractRecord, ValidationRecord,
 };
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
     DiscrepancyRecord, DiscrepancyValidation, ProcessExpectation,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest, Sha256Text, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest, Sha256Text, YesNo,
+};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::reports::types::{ComparisonContract, CoverageAccounting, ExecutionMetadata};
+use ryo_benchmark_contracts::domain::reports::types::{
+    ComparisonContract, CoverageAccounting, ExecutionMetadata,
+};
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
 use std::collections::HashSet;
 
 type Failure = InventoryReceiptsError;
@@ -295,7 +305,8 @@ pub(crate) fn validate_with_artifacts(
                     CoverageAccounting::Unaccounted => false,
                 };
                 if row.expectation_contract != ComparisonContract::Diagnostics
-                    || row.execution_metadata != RecordedMetadata::Recorded(ExecutionMetadata::Complete)
+                    || row.execution_metadata
+                        != RecordedMetadata::Recorded(ExecutionMetadata::Complete)
                     || !accounted
                 {
                     return Err(Failure::CandidateNotAccounted);
@@ -335,9 +346,7 @@ pub(crate) fn validate_with_artifacts(
             {
                 return Err(Failure::DiscrepancyMetadataDiffers);
             }
-            let Some(proof) =
-                proof.filter(|proof| attestation(sides[1]) == Some(*proof))
-            else {
+            let Some(proof) = proof.filter(|proof| attestation(sides[1]) == Some(*proof)) else {
                 return Err(Failure::DiscrepancyValidationMissing);
             };
             if proof.discrepancy_basis != certificate.basis {

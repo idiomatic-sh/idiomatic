@@ -2,7 +2,9 @@
 use super::constants;
 use crate::outbound::receipts::errors::ReceiptsError;
 use crate::outbound::receipts::types::CapturedProcess;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ObservationDocument, ProcessArtifacts};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ObservationDocument, ProcessArtifacts,
+};
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ArtifactPointer;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, Sha256Text};
 use sha2::{Digest as _, Sha256};
@@ -54,8 +56,16 @@ pub(super) fn record(
         let invocation = super::invocation::schemas::bytes(process.invocation)?;
         let mut artifacts = std::collections::BTreeMap::new();
         for (label, filename, bytes) in [
-            (constants::STDOUT, constants::STDOUT_BIN, process.stdout.0.as_slice()),
-            (constants::STDERR, constants::STDERR_BIN, process.stderr.0.as_slice()),
+            (
+                constants::STDOUT,
+                constants::STDOUT_BIN,
+                process.stdout.0.as_slice(),
+            ),
+            (
+                constants::STDERR,
+                constants::STDERR_BIN,
+                process.stderr.0.as_slice(),
+            ),
             (
                 constants::INVOCATION,
                 constants::INVOCATION_JSON,

@@ -65,12 +65,12 @@ pub fn portable_fault(
 }
 
 /// The operating error a derived fault stands for.
-pub fn derived_fault(
-    fault: ryo_derived::domain::fault::types::DerivedFault,
-) -> OperatingError {
+pub fn derived_fault(fault: ryo_derived::domain::fault::types::DerivedFault) -> OperatingError {
     use ryo_derived::domain::fault::types::DerivedFault;
     match fault {
-        DerivedFault::MissingInput { position } => OperatingError::MissingInput { position: position.0 },
+        DerivedFault::MissingInput { position } => OperatingError::MissingInput {
+            position: position.0,
+        },
         DerivedFault::NoSuchColumn { column } => {
             ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: column.0 }.into()
         }
@@ -94,9 +94,7 @@ pub(crate) fn written_result(
         return Err(error);
     }
     match answer {
-        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
-            Ok(())
-        }
+        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => Ok(()),
         Ok(_) => Err(OperatingError::WrongOperation),
         Err(error) => Err(portable_fault(error)),
     }

@@ -1,5 +1,6 @@
 //! Normalize existing parser-owned payloads; never parse Python source spelling again.
 
+use super::constants;
 use super::constants::FLOAT_TEXT_BYTES;
 use super::types::{FloatBits, FloatBuffer, NumericClassification, NumericLiteral, NumericValue};
 use crate::domain::{
@@ -11,7 +12,6 @@ use crate::domain::{
     },
 };
 use ryo::languages::{self, ByteSlice, Flag, NameText, Position, Symbol, Symbols, Tree};
-use super::constants;
 
 /// Intern an occurrence without allocating temporary decimal text on each file read.
 pub(crate) fn intern_value(
@@ -74,14 +74,19 @@ pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassific
     let scalar_kind = languages::property_at(tree.elements, at, SCALAR_KIND);
     let value = languages::property_at(tree.elements, at, SCALAR_VALUE);
     match scalar_kind.map(|each| each.0) {
-        Some(INTEGER_SCALAR) => match value.filter(|value| canonical_integer(*value) == Flag::Raised) {
-            Some(value) => NumericClassification::Known(NumericLiteral {
-                kind: NameText(crate::domain::syntax::constants::INTEGER_SCALAR),
-                value: NumericValue::Integer(value),
-            }),
-            None => NumericClassification::MissingPayload,
-        },
-        Some(FLOAT_SCALAR) => match value.and_then(|value| match value.0.parse::<u64>() { Ok(parsed) => Some(parsed), Err(_) => None }) {
+        Some(INTEGER_SCALAR) => {
+            match value.filter(|value| canonical_integer(*value) == Flag::Raised) {
+                Some(value) => NumericClassification::Known(NumericLiteral {
+                    kind: NameText(crate::domain::syntax::constants::INTEGER_SCALAR),
+                    value: NumericValue::Integer(value),
+                }),
+                None => NumericClassification::MissingPayload,
+            }
+        }
+        Some(FLOAT_SCALAR) => match value.and_then(|value| match value.0.parse::<u64>() {
+            Ok(parsed) => Some(parsed),
+            Err(_) => None,
+        }) {
             Some(bits) => NumericClassification::Known(NumericLiteral {
                 kind: NameText(crate::domain::syntax::constants::FLOAT_SCALAR),
                 value: NumericValue::Float(FloatBits(bits)),
@@ -90,7 +95,9 @@ pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassific
         },
         // The literal discriminator remains available when scalar properties are missing.
         Some(COMPLEX_SCALAR) => NumericClassification::NotNumeric,
-        Some(_) | None if literal(tree, at) == Literal::Number => NumericClassification::MissingPayload,
+        Some(_) | None if literal(tree, at) == Literal::Number => {
+            NumericClassification::MissingPayload
+        }
         Some(_) | None => NumericClassification::NotNumeric,
     }
 }

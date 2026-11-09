@@ -12,8 +12,16 @@ pub enum KeyOrder {
 pub trait OrderedMatchDriver {
     fn left_len(&self) -> ryo_values::domain::rows::types::RowCount;
     fn right_len(&self) -> ryo_values::domain::rows::types::RowCount;
-    fn compare_keys(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> std::cmp::Ordering;
-    fn right_order_before_or_equal(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> KeyOrder;
+    fn compare_keys(
+        &self,
+        left: ryo_values::domain::rows::types::RowIndex,
+        right: ryo_values::domain::rows::types::RowIndex,
+    ) -> std::cmp::Ordering;
+    fn right_order_before_or_equal(
+        &self,
+        left: ryo_values::domain::rows::types::RowIndex,
+        right: ryo_values::domain::rows::types::RowIndex,
+    ) -> KeyOrder;
     /// Read both admitted rows before calling the projection; the original read order is observable.
     fn visit_pair(
         &mut self,
@@ -30,8 +38,8 @@ pub trait OrderedMatchDriver {
     ) -> Result<(), ContractError>;
 }
 
-use crate::domain::contract::types::{PortableOperatorFault};
 use crate::domain::contract::errors::ContractError;
+use crate::domain::contract::types::PortableOperatorFault;
 
 /// An engine driver that lends the ordered keys of both inputs.
 pub trait OrderedMatchEvaluation: crate::domain::contract::types::RowDriver {

@@ -1,5 +1,6 @@
 //! Finite authored pattern slots with demand-driven thread-safe compilation.
 
+use crate::domain::matching::types::PatternMatcher;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_texts::types::{RegexPattern, TextView};
 use ryo_matching::inbound::use_cases::matching::{
@@ -7,7 +8,6 @@ use ryo_matching::inbound::use_cases::matching::{
     errors::MatchingError,
     types::{GlobPattern, RegexSource as AuthoredRegex},
 };
-use crate::domain::matching::types::PatternMatcher;
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
 #[cfg(any(test, feature = "fixtures"))]
@@ -53,7 +53,10 @@ impl PreparedMatchers {
                 Operation::Join { filter, .. } => filter.as_slice(),
                 Operation::Axis { domain_filter, .. } => domain_filter.as_slice(),
                 Operation::Replace { pattern, .. } | Operation::SourceMatches { pattern, .. } => {
-                    prepared.declare(Test::Matches, crate::domain::table_texts::types::TextView(&pattern.0));
+                    prepared.declare(
+                        Test::Matches,
+                        crate::domain::table_texts::types::TextView(&pattern.0),
+                    );
                     continue;
                 }
                 _ => continue,

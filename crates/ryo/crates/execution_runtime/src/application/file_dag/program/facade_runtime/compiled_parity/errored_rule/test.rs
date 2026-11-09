@@ -3,8 +3,6 @@
 //! plan is the one its author hands over and its parameters are bound from its written spec (RyoQL refuses both authoring
 //! errors itself, so a provider is the author that can hand them over; compiling written text is the execution crate's).
 use super::super::*;
-use ryo_values::domain::query_tokens::types::QuerySourceText;
-use ryo_values::domain::runs::types::RuleId;
 use crate::application::file_dag::program::preparation::service::prepare;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
@@ -13,6 +11,8 @@ use ryo_values::domain::observations::types::{
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::PlanStep;
+use ryo_values::domain::query_tokens::types::QuerySourceText;
+use ryo_values::domain::runs::types::RuleId;
 
 /// A rule written as a user writes it: an id and its query text.
 fn written_rule(id: &str, text: &str) -> ryo_values::domain::rule_requests::types::RuleSpec {

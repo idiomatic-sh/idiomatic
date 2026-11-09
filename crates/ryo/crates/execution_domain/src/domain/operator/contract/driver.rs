@@ -93,21 +93,25 @@ pub(crate) fn evaluate(
         checked: lease
             .views
             .validated_source
-            .map(|checked| ryo_operators::domain::source_matches::types::CheckedSource {
-                base: checked.base,
-                text: checked.text,
-                line: checked.line,
-            })
+            .map(
+                |checked| ryo_operators::domain::source_matches::types::CheckedSource {
+                    base: checked.base,
+                    text: checked.text,
+                    line: checked.line,
+                },
+            )
             .into(),
         appended: resources.appended().into(),
         layers: resources.rank_layers().into(),
         cached_reach: lease
             .views
             .cached_reach
-            .map(|reach| ryo_operators::domain::equality_join::types::CachedReach {
-                request: reach.request,
-                destinations: reach.destinations,
-            })
+            .map(
+                |reach| ryo_operators::domain::equality_join::types::CachedReach {
+                    request: reach.request,
+                    destinations: reach.destinations,
+                },
+            )
             .into(),
         cached_axis: lease.views.cached_axis.map(|axis| axis.destinations).into(),
     };

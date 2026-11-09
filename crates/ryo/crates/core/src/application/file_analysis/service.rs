@@ -1,6 +1,9 @@
 //! Bounded read, parse and per-file evaluation of one file in the worker that took its job, over injected ports; its parts read,
 //! gate, evaluate, replay and record the file.
+use super::errors::FileAnalysisError;
+use super::types::{FileVisit, Worker};
 use crate::domain::budget::service::within;
+use crate::domain::handing::service::replay;
 use crate::domain::reading::service::read_failure_demanded;
 use crate::domain::reading::types::FailureDetail;
 use crate::domain::reading::types::ObservedFile;
@@ -9,7 +12,6 @@ use crate::domain::reading::types::ReadFailureDemand;
 use crate::domain::reading::types::RunRuleCount;
 use crate::domain::recording::service::cover;
 use crate::domain::recording::service::finish_file;
-use crate::domain::handing::service::replay;
 use crate::domain::render::types::Answering;
 use crate::domain::run_rules::service::governing;
 use crate::domain::visit::types::Keeping;
@@ -39,9 +41,6 @@ use ryo_values::domain::records::service::is_as_it_was;
 use ryo_values::domain::records::types::Freshness;
 use ryo_values::domain::stored_facts::types::Digest;
 use std::sync::Arc;
-use super::errors::FileAnalysisError;
-use super::types::{FileVisit, Worker};
-
 
 /// Analysis of one file or the project, with resources supplied by the composition.
 pub struct FileAnalysis {
@@ -144,7 +143,13 @@ impl FileAnalysis {
             return Ok(());
         };
         let number = FileId(job.0);
-        if govern(&MetadataUseCaseImpl, setting, &mut worker.tables, input_path(file)) == Governing::DoesNotGovern {
+        if govern(
+            &MetadataUseCaseImpl,
+            setting,
+            &mut worker.tables,
+            input_path(file),
+        ) == Governing::DoesNotGovern
+        {
             return Ok(());
         }
         if checking(at) == Checking::Now {
@@ -183,7 +188,8 @@ impl FileAnalysis {
         let kept = setting.records.get(at.0).copied().flatten();
         // A file the system says is as it was is not read: what came of it is used again.
         if let Some(record) = kept.filter(|record| {
-            read_failure_demanded(&MetadataUseCaseImpl, 
+            read_failure_demanded(
+                &MetadataUseCaseImpl,
                 setting.wanted,
                 &worker.tables.mask,
                 setting.needs,
@@ -230,7 +236,14 @@ impl FileAnalysis {
         let outcome = self.parse_file(worker, visit, file, number)?;
         let outcome = Self::stage_outcome(visit.store, outcome)?;
         let acceptance = syntax_acceptance(&worker.tables.elements);
-        cover(&MetadataUseCaseImpl, &mut worker.tables, setting, number, &file.path, acceptance);
+        cover(
+            &MetadataUseCaseImpl,
+            &mut worker.tables,
+            setting,
+            number,
+            &file.path,
+            acceptance,
+        );
         finish_file(
             &mut worker.tables,
             setting,

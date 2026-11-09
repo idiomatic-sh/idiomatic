@@ -1,13 +1,13 @@
 //! The memory adapter of the corpus port: its cases, on files given as text.
 
 use super::adapter::CorpusMemoryAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::fixtures::contract::check;
 use crate::outbound::corpus::interface::CorpusPort as _;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::project_context::types::{
-    EntryObservation, ObservedEntryState, GivenProjectInventory, ProjectInventoryCompleteness,
+    EntryObservation, GivenProjectInventory, ObservedEntryState, ProjectInventoryCompleteness,
 };
 use ryo_values::domain::files::types::{CorpusEntry, CorpusFile, FileBytes, FileSize, Nanoseconds};
 
@@ -194,7 +194,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_file_not_given_is_refused"),
         word: Word::Refuses,
         input: || Scenario::Read("c.rs"),
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, CorpusError::Unreadable { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, CorpusError::Unreadable { .. })))
+        }),
     },
 ];
 

@@ -1,5 +1,12 @@
 //! Compact row-span metadata and bounded copies preserve the existing postcard sequence format.
 
+use crate::outbound::lint_store::adapters::postcard::connection::BUFFER_BYTES;
+use crate::outbound::lint_store::adapters::postcard::connection::BucketReader;
+use crate::outbound::lint_store::adapters::postcard::connection::PositionalReader;
+use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
+use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;
+use crate::outbound::lint_store::adapters::postcard::connection::invalid;
+use crate::outbound::lint_store::adapters::postcard::connection::seek_buffered;
 use crate::outbound::lint_store::adapters::postcard::constants::BUCKET_SIZE_OVERFLOWS;
 use crate::outbound::lint_store::adapters::postcard::constants::COPIED_PAYLOAD_EXCEEDS_OLD_SNAPSHOT;
 use crate::outbound::lint_store::adapters::postcard::constants::HEADER_SIZE_OVERFLOWS;
@@ -25,13 +32,6 @@ use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_PAYLOAD_
 use crate::outbound::lint_store::adapters::postcard::constants::OLD_ROW_PAYLOAD_IS_TRUNCATED_OR;
 use crate::outbound::lint_store::adapters::postcard::constants::PAYLOAD_EXCEEDS_POSTCARD_LENGTH_WIDTH;
 use crate::outbound::lint_store::adapters::postcard::constants::STORE_OFFSET_OVERFLOWS;
-use crate::outbound::lint_store::adapters::postcard::connection::BUFFER_BYTES;
-use crate::outbound::lint_store::adapters::postcard::connection::BucketReader;
-use crate::outbound::lint_store::adapters::postcard::connection::PositionalReader;
-use crate::outbound::lint_store::adapters::postcard::connection::copy_buffered;
-use crate::outbound::lint_store::adapters::postcard::connection::seek_buffered;
-use crate::outbound::lint_store::adapters::postcard::connection::StagingConnection;
-use crate::outbound::lint_store::adapters::postcard::connection::invalid;
 use crate::outbound::lint_store::adapters::postcard::types::FileOffset;
 use crate::outbound::lint_store::adapters::postcard::types::Frame;
 use crate::outbound::lint_store::adapters::postcard::types::OldFrame;
@@ -309,10 +309,7 @@ fn integer(
 }
 
 /// Serialize numbers with the SAME codec used by the prior whole-sequence serializer.
-fn header<T: serde::Serialize>(
-    into: &mut impl Write,
-    value: &T,
-) -> std::io::Result<SectionLength> {
+fn header<T: serde::Serialize>(into: &mut impl Write, value: &T) -> std::io::Result<SectionLength> {
     let mut buffer = [0_u8; 16];
     let bytes = postcard::to_slice(value, &mut buffer).map_err(std::io::Error::other)?;
     into.write_all(bytes)?;
@@ -378,7 +375,11 @@ pub(super) fn write_bucket(
                     .as_mut()
                     .ok_or_else(|| invalid(NO_OLD_CACHE_SNAPSHOT_WAS_READ))?;
                 if old_position != span.start.0 {
-                    seek_buffered(reader, PayloadOffset(old_position), PayloadOffset(span.start.0))?;
+                    seek_buffered(
+                        reader,
+                        PayloadOffset(old_position),
+                        PayloadOffset(span.start.0),
+                    )?;
                 }
                 copy_buffered(reader, into, PayloadLength(span.length.0))?;
                 old_position = end;

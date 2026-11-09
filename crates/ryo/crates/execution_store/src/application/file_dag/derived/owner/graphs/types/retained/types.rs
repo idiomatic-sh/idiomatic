@@ -3,9 +3,9 @@ use crate::application::file_dag::derived::ledger::types::Backing;
 use crate::application::file_dag::derived::ledger::types::ResourceLease;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::DerivedStorage;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use ryo_execution_domain::domain::stored_graph::types::{GraphDomain, Orientation};
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::vertices::types::VertexId;
+use ryo_execution_domain::domain::stored_graph::types::{GraphDomain, Orientation};
 use std::sync::Arc;
 /// The dense vertices a completed closure reached, in typed value order: the bare numbers inside are named here.
 #[derive(Debug)]

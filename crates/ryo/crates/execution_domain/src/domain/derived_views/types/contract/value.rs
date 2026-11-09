@@ -1,12 +1,10 @@
 //! The sealed derived contract: only `issue` makes one, so its identity hash and kind cannot be forged.
 
-use crate::domain::derived_views::types::{
-    IdentityHash, InputsUsed, ViewRequest,
-};
-use ryo_values::domain::plan_parts::types::InputNumber;
+use crate::domain::derived_views::types::{IdentityHash, InputsUsed, ViewRequest};
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_values::domain::plan_parts::types::InputNumber;
 use std::sync::Arc;
 
 /// The kind a request asks for.
@@ -96,4 +94,3 @@ pub struct DerivedSlots {
     /// The view group of each derived kind, when the operation reads one.
     pub slots: [Option<Arc<PreparedViewGroup>>; DerivedKind::ALL.len()],
 }
-

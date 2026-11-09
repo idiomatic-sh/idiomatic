@@ -1,31 +1,30 @@
 //! A region the recogniser did not resolve keeps its registered operators, equivalent drafted regions merge as the linear scan
 //! would in linear cost, and demand compilation preserves declared order.
-use crate::domain::operator::types::ReaderMultiplicity;
 use super::{
     fusion::types::RegionSharing,
     merge::merge_equivalent,
     service::ordered_existence,
     types::{
-        DemandAction, DraftIndex, DraftRegion, LogicalInstruction,
-        PartitionRequirement, RegionMerge, Route, demand_program::value::DemandProgram,
-        instruction::value::Instruction,
+        DemandAction, DraftIndex, DraftRegion, LogicalInstruction, PartitionRequirement,
+        RegionMerge, Route, demand_program::value::DemandProgram, instruction::value::Instruction,
     },
 };
-use crate::domain::file_program::types::{ProgramNodeId, NodeInput};
-use std::sync::Arc;
+use crate::domain::file_program::types::{NodeInput, ProgramNodeId};
+use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::{
     operation_schema::types::InputShape, operator::contract::service::prepare_for,
     operator::contract::types::DemandOrder,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
+use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, StepScope},
-        plans::types::{Operation},
+        plans::types::Operation,
     },
 };
-use ryo_values::domain::query_operators::types::OperationKind;
+use std::sync::Arc;
 /// What a case checks: the demand program of an order, or the region merge.
 #[derive(Clone, Copy, Debug)]
 enum Check {
@@ -131,7 +130,10 @@ fn demand_program(order: DemandOrder, count: usize, expected: &[usize]) -> Resul
     let mut contract = prepare_for(OperationKind::Axis, &operation, &inputs, &[])?;
     assert_eq!(contract.semantics.demand, DemandOrder::LeftThenRight);
     contract.semantics.demand = order;
-    let program = DemandProgram::compiled(contract.semantics, ryo_values::domain::plan_parts::types::InputCount(count));
+    let program = DemandProgram::compiled(
+        contract.semantics,
+        ryo_values::domain::plan_parts::types::InputCount(count),
+    );
     let actual = program
         .actions()
         .iter()
@@ -189,7 +191,11 @@ struct Draft {
     sharing: RegionSharing,
     input: NodeInput,
 }
-fn region(contract: &Arc<crate::domain::operator::contract::types::OperatorContract>, node: usize, spec: &Draft) -> DraftRegion<Instruction> {
+fn region(
+    contract: &Arc<crate::domain::operator::contract::types::OperatorContract>,
+    node: usize,
+    spec: &Draft,
+) -> DraftRegion<Instruction> {
     DraftRegion {
         phase: spec.phase,
         nodes: vec![LogicalInstruction(node)],
@@ -198,7 +204,10 @@ fn region(contract: &Arc<crate::domain::operator::contract::types::OperatorContr
             crate::domain::coverage::types::RuleIndex(node),
             axis(spec.id),
             Arc::clone(contract),
-            DemandProgram::compiled(contract.semantics, ryo_values::domain::plan_parts::types::InputCount(1)),
+            DemandProgram::compiled(
+                contract.semantics,
+                ryo_values::domain::plan_parts::types::InputCount(1),
+            ),
             spec.partition,
         )],
         inputs: vec![spec.input],
@@ -223,11 +232,26 @@ fn spec(rule: usize, variant: usize, leaf: bool) -> Draft {
     };
     match variant {
         0 | 1 => base,
-        2 => Draft { id: u32::try_from(rule + 1).expect("small"), ..base },
-        3 => Draft { partition: PartitionRequirement::CurrentFile, ..base },
-        4 => Draft { phase: StepScope::CrossFile, ..base },
-        5 if leaf => Draft { input: NodeInput::Relation(Relation::SyntaxChild), ..base },
-        _ if leaf => Draft { sharing: RegionSharing::RuleScoped, ..base },
+        2 => Draft {
+            id: u32::try_from(rule + 1).expect("small"),
+            ..base
+        },
+        3 => Draft {
+            partition: PartitionRequirement::CurrentFile,
+            ..base
+        },
+        4 => Draft {
+            phase: StepScope::CrossFile,
+            ..base
+        },
+        5 if leaf => Draft {
+            input: NodeInput::Relation(Relation::SyntaxChild),
+            ..base
+        },
+        _ if leaf => Draft {
+            sharing: RegionSharing::RuleScoped,
+            ..base
+        },
         _ => base,
     }
 }
@@ -242,8 +266,16 @@ fn state(rules: usize, variant: impl Fn(usize) -> usize) -> State {
     let mut drafts = Vec::new();
     for rule in 0..rules {
         let variant = variant(rule);
-        drafts.push(Some(region(&contract, rule * 2, &spec(rule, variant, true))));
-        drafts.push(Some(region(&contract, rule * 2 + 1, &spec(rule, variant, false))));
+        drafts.push(Some(region(
+            &contract,
+            rule * 2,
+            &spec(rule, variant, true),
+        )));
+        drafts.push(Some(region(
+            &contract,
+            rule * 2 + 1,
+            &spec(rule, variant, false),
+        )));
     }
     let count = drafts.len();
     State {
@@ -265,7 +297,9 @@ fn reference(state: &mut State) -> Vec<DraftIndex> {
             })
             .collect()
     };
-    let equivalent = |left: &DraftRegion<Instruction>, right: &DraftRegion<Instruction>, mapping: &[DraftIndex]| {
+    let equivalent = |left: &DraftRegion<Instruction>,
+                      right: &DraftRegion<Instruction>,
+                      mapping: &[DraftIndex]| {
         left.phase == right.phase
             && left.instructions.len() == right.instructions.len()
             && left
@@ -328,7 +362,10 @@ fn merge_matches_the_linear_scan() {
     let shared = merged(&mut fast).shared;
     assert_eq!(shared, reference(&mut slow));
     assert!(shared.len() < fast.drafts.len(), "duplicates merged");
-    assert!(fast.drafts.iter().any(Option::is_none), "some regions merged away");
+    assert!(
+        fast.drafts.iter().any(Option::is_none),
+        "some regions merged away"
+    );
     assert_eq!(fast.mapping, slow.mapping);
     assert_eq!(fast.representative, slow.representative);
     assert_eq!(fast.readers, slow.readers);
@@ -345,7 +382,13 @@ fn comparisons(rules: usize) -> usize {
 fn regions_merge_cost_is_linear_in_rule_count() {
     let counts: Vec<usize> = [50, 100, 200, 400].into_iter().map(comparisons).collect();
     for pair in counts.windows(2) {
-        assert!(pair[1] < 3 * pair[0] + 16, "comparisons grew faster than linearly: {counts:?}");
+        assert!(
+            pair[1] < 3 * pair[0] + 16,
+            "comparisons grew faster than linearly: {counts:?}"
+        );
     }
-    assert!(counts[3] < 3 * counts[2] + 16, "comparisons grew faster than linearly: {counts:?}");
+    assert!(
+        counts[3] < 3 * counts[2] + 16,
+        "comparisons grew faster than linearly: {counts:?}"
+    );
 }

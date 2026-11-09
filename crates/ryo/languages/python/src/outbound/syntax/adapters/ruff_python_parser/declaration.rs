@@ -8,10 +8,10 @@ use super::constants::{
 };
 use super::scopes::{ScopeKind, ScopeState, VisitorState};
 use super::types::{BoundName, FutureAnnotations, SemanticSyntaxDiagnostic};
-use ryo::languages::NameText;
 use ruff_python_ast::visitor::{Visitor, walk_expr, walk_pattern, walk_stmt};
 use ruff_python_ast::{Expr, Mod, Pattern, PythonVersion, Stmt};
 use ruff_text_size::Ranged as _;
+use ryo::languages::NameText;
 use std::collections::HashSet;
 
 /// Compiler pattern validation compares names, independent of their order or nesting.

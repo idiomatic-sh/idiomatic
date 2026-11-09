@@ -4,7 +4,9 @@ use crate::outbound::suite::types::{
     CaseClaim, ClaimedDiscrepancy, ClaimedEvidence, ClaimedFinding, ClaimedIdentity,
     ClaimedMetadata, ClaimedProcess,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, PathText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CaseName, PathText, RuleName, Sha256Text,
+};
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
 use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
     ContractSourcePath, LanguageVersion, ParserTarget, Rationale, SourceRevision, WitnessCase,
@@ -113,7 +115,8 @@ pub(super) fn wire(basis: DiscrepancyBasis, discrepancy: ClaimedDiscrepancy) -> 
 /// The fixture case with no canonical expectation.
 pub(super) fn bare() -> PreparedCase {
     let mut prepared = case();
-    prepared.reference_discrepancy = ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees;
+    prepared.reference_discrepancy =
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees;
     prepared
 }
 

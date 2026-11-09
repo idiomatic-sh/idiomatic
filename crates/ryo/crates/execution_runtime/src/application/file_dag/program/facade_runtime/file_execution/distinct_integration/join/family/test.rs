@@ -1,8 +1,10 @@
 //! All nine real families reach the common admitted owner.
-use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{Scenario, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_derived::domain::request::types::DerivedKind;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{
+    Scenario, exercise,
+};
 type Input = DerivedKind;
 type Value = DerivedKind;
 type Failure = OperatingError;

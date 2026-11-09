@@ -1,5 +1,7 @@
 //! One raw invocation record kept beside a captured process, as a plain value.
-use crate::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, Pin, ReasonText, Sha256Text, Signal, YesNo};
+use crate::domain::documents::types::text::value::{
+    CanonicalJson, ExitStatus, PathText, Pin, ReasonText, Sha256Text, Signal, YesNo,
+};
 use std::collections::BTreeMap;
 
 /// One argument of the captured command line.
@@ -13,8 +15,6 @@ pub struct EnvironmentName(pub String);
 /// The value of one captured environment override.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnvironmentValue(pub String);
-
-
 
 /// The normalized settings a capture is bound to, with the three parts raw metadata re-derives.
 #[derive(Clone, Debug, PartialEq, Eq)]

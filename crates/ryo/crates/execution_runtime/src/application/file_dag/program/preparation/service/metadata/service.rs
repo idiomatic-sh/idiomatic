@@ -3,9 +3,11 @@ use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, RootMetadata, RuleMetadata, SemanticNeed,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
-use ryo_execution_domain::domain::executable_program::types::{executable_program::value::ExecutableProgram, InputSource};
+use ryo_execution_domain::domain::executable_program::types::{
+    InputSource, executable_program::value::ExecutableProgram,
+};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::{Operation, Plan};
@@ -44,14 +46,13 @@ pub(crate) fn rules(
                     phase: output.scope,
                     reads: match output.source {
                         // A refused rule's named output reads nothing: it is refused on its root before any read.
-                        Input::Step(step) => match reads
-                            .get(step.0 as usize)
-                            .ok_or(OperatingError::NotRun)?
-                        {
-                            Ok(reads) => reads.clone(),
-                            Err(_) if refusal.is_some() => Vec::new(),
-                            Err(error) => return Err(error.clone()),
-                        },
+                        Input::Step(step) => {
+                            match reads.get(step.0 as usize).ok_or(OperatingError::NotRun)? {
+                                Ok(reads) => reads.clone(),
+                                Err(_) if refusal.is_some() => Vec::new(),
+                                Err(error) => return Err(error.clone()),
+                            }
+                        }
                         Input::Relation(relation) => vec![RelationRead {
                             relation,
                             kinds: vec![],
@@ -81,10 +82,12 @@ pub(crate) fn rules(
                 .clone()
                 .into_boxed_slice(),
             frontier_dependencies:
-                ryo_execution_domain::domain::file_program::service::link::frontier_dependencies(plan)
-                    .map_err(|error| OperatingError::ObservationIncomplete {
-                        reason: error.to_string(),
-                    }),
+                ryo_execution_domain::domain::file_program::service::link::frontier_dependencies(
+                    plan,
+                )
+                .map_err(|error| OperatingError::ObservationIncomplete {
+                    reason: error.to_string(),
+                }),
             semantic_needed: if plan
                 .steps
                 .iter()
@@ -128,7 +131,11 @@ fn source(
                     .iter()
                     .position(|slot| slot.rule == rule && slot.input == input)
             })
-            .map(|slot| InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)))
+            .map(|slot| {
+                InputSource::Observation(
+                    ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+                )
+            })
             .ok_or(OperatingError::NotRun),
     }
 }

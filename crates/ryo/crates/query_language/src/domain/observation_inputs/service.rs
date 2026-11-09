@@ -1,7 +1,7 @@
 //! Bound input names inhabit the same explicit source namespace as catalog and hosted inputs.
 use super::errors::ObservationInputsError;
-use ryo_relations::domain::relations::service::relation_named;
 use ryo_relations::domain::labels::types::NameRef;
+use ryo_relations::domain::relations::service::relation_named;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     hosted::types::HostedRelation, observations::types::BoundObservationInput,

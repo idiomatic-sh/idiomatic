@@ -1,11 +1,11 @@
 //! What every `matching` adapter must pass.
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::selects;
-use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use crate::outbound::matching::interface::MatchingPort;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::{Hits, MatchCandidate};
+use ryo_values::selects;
 
 /// What a row of the contract is given: the globs, and the path matched against them.
 type Input = (&'static [&'static str], &'static str);

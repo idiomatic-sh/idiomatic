@@ -15,7 +15,8 @@ impl<'a> BorrowedInput<'a> {
         let actual = owner.private(publication)?;
         if self.publication_population != actual.population
             || population != owner.result_population(actual)
-            || GenerationLease::same(&self.origin.generation, &actual.generation) == Sameness::Different
+            || GenerationLease::same(&self.origin.generation, &actual.generation)
+                == Sameness::Different
         {
             return Err(OperatingError::NotRead);
         }
@@ -60,17 +61,22 @@ impl<'a> BorrowedInput<'a> {
     pub fn identity(
         &self,
         owner: &RelationOwner,
-    ) -> Result<crate::application::file_dag::relations::admission::types::AdmissionIdentity, OperatingError> {
+    ) -> Result<
+        crate::application::file_dag::relations::admission::types::AdmissionIdentity,
+        OperatingError,
+    > {
         if owner.matches_generation(&self.origin.generation) == Sameness::Different {
             return Err(OperatingError::NotRead);
         }
         if self.shape != PhysicalShape::Complete {
             return Err(OperatingError::ShapeMismatch);
         }
-        Ok(crate::application::file_dag::relations::admission::types::AdmissionIdentity {
-            population: self.origin.population,
-            relation: self.origin.relation,
-        })
+        Ok(
+            crate::application::file_dag::relations::admission::types::AdmissionIdentity {
+                population: self.origin.population,
+                relation: self.origin.relation,
+            },
+        )
     }
 }
 

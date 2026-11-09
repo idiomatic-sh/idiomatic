@@ -1,20 +1,13 @@
 //! Closed typed requirements, construction storage and immutable borrowed access.
-use ryo_language::domain::{
-    files::types::FilePath,
-    symbols::types::QuerySymbols,
-};
+use ryo_language::domain::{files::types::FilePath, symbols::types::QuerySymbols};
 use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::{
-    plan_parts::types::ColumnIndex,
-    stored_facts::types::ArenaBytes,
-};
+use ryo_values::domain::{plan_parts::types::ColumnIndex, stored_facts::types::ArenaBytes};
 
+use crate::domain::table_model::types::RepresentationInput;
 use {
-    crate::domain::stored_graph::types::GraphSource,
-    crate::domain::table_cells::types::TreeRows,
+    crate::domain::stored_graph::types::GraphSource, crate::domain::table_cells::types::TreeRows,
     crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
 };
-use crate::domain::table_model::types::RepresentationInput;
 
 /// The derived view an operation requests, and the columns it is built over.
 #[derive(Clone, Debug)]

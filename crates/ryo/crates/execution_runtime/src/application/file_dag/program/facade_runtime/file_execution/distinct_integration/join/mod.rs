@@ -2,7 +2,7 @@
 use super::*;
 use ryo_execution_domain::domain::{
     table_cells::types::TreeRows,
-    table_model::{types::RepresentationKind, service::materialize},
+    table_model::{service::materialize, types::RepresentationKind},
 };
 use ryo_relations::{
     domain::relations::{
@@ -34,7 +34,6 @@ mod lifecycle;
 #[cfg(test)]
 mod populations;
 
-
 #[cfg(test)]
 mod diagnostics;
 #[cfg(test)]
@@ -45,7 +44,6 @@ mod direct;
 
 #[cfg(test)]
 mod generations;
-
 
 #[cfg(test)]
 mod release;

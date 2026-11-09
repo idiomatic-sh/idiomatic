@@ -1,12 +1,24 @@
 //! One case a provider's authoring registers.
 use crate::outbound::inventory::adapters::local::types::{CaseText, DiscrepancyText};
 use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, DeclaredScope, EntryState, ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory, ProjectInventoryDocument};
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{RecordedFinding, FindingOffset};
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, RuleCohort, RuleContextRecord, RuleObservationsRecord};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{FileMetadataDigest, ProjectInputsDigest};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+    CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, DeclaredScope, EntryState,
+    ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory,
+    ProjectInventoryDocument,
+};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+    FindingOffset, RecordedFinding,
+};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ContextMode, RuleCohort, RuleContextRecord, RuleObservationsRecord,
+};
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyRecord;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, CaseName, PathText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, CaseName, PathText, RuleName, Sha256Text,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    FileMetadataDigest, ProjectInputsDigest,
+};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
 use ryo_benchmark_contracts::domain::workloads::types::{CaseComparison, FileObservation};
@@ -155,7 +167,11 @@ impl TryFrom<CaseSchema> for CaseDocument {
                 ComparisonSchema::Full => CaseComparison::Full,
                 ComparisonSchema::Rule => CaseComparison::Rule,
             },
-            expected: wire.expected.into_iter().map(RecordedFinding::from).collect(),
+            expected: wire
+                .expected
+                .into_iter()
+                .map(RecordedFinding::from)
+                .collect(),
             project_context_mode: wire.project_context_mode.into(),
             context_identity: wire.context_identity.map_or(
                 CaseContextIdentity::Isolated,
@@ -193,58 +209,62 @@ impl TryFrom<CaseSchema> for CaseDocument {
                 .map_or(FileObservation::Undeclared, |value| match value {
                     FileObservationSchema::PosixExecutable => FileObservation::PosixExecutable,
                 }),
-            file_metadata: wire.file_metadata.map_or(FileMetadata::Undeclared, |values| {
-                FileMetadata::Declared(
-                    values
-                    .into_iter()
-                    .map(|(file, executable)| {
-                        (
-                            path(file),
-                            if executable {
-                                FileExecutable::Set
-                            } else {
-                                FileExecutable::Unset
-                            },
-                        )
-                    })
-                    .collect(),
-                )
-            }),
+            file_metadata: wire
+                .file_metadata
+                .map_or(FileMetadata::Undeclared, |values| {
+                    FileMetadata::Declared(
+                        values
+                            .into_iter()
+                            .map(|(file, executable)| {
+                                (
+                                    path(file),
+                                    if executable {
+                                        FileExecutable::Set
+                                    } else {
+                                        FileExecutable::Unset
+                                    },
+                                )
+                            })
+                            .collect(),
+                    )
+                }),
             file_metadata_sha256: FileMetadataDigest::from(sha(wire.file_metadata_sha256)),
             project_search_roots: wire
                 .project_search_roots
                 .map_or(DeclaredScope::Undeclared, |roots| {
                     DeclaredScope::Roots(roots.into_iter().map(path).collect())
                 }),
-            given_project_inventory: wire.given_project_inventory.map_or(ProjectInventory::Undeclared, |inventory| {
-                ProjectInventory::Declared(ProjectInventoryDocument {
-                    completeness: match inventory.completeness {
-                        CompletenessSchema::Partial => InventoryCompleteness::Partial,
-                        CompletenessSchema::CompleteWithinDeclaredScope => {
-                            InventoryCompleteness::CompleteWithinDeclaredScope
-                        }
-                    },
-                    entries: inventory
-                        .entries
-                        .into_iter()
-                        .map(|entry| ProjectEntry {
-                            path: path(entry.path),
-                            state: match entry.state {
-                                EntryStateSchema::File => EntryState::Regular,
-                                EntryStateSchema::Directory => EntryState::Directory,
-                                EntryStateSchema::Other => EntryState::Other,
-                                EntryStateSchema::Missing => EntryState::Missing,
-                                EntryStateSchema::Unknown => EntryState::Unknown,
-                            },
-                        })
-                        .collect(),
-                })
-            }),
+            given_project_inventory: wire.given_project_inventory.map_or(
+                ProjectInventory::Undeclared,
+                |inventory| {
+                    ProjectInventory::Declared(ProjectInventoryDocument {
+                        completeness: match inventory.completeness {
+                            CompletenessSchema::Partial => InventoryCompleteness::Partial,
+                            CompletenessSchema::CompleteWithinDeclaredScope => {
+                                InventoryCompleteness::CompleteWithinDeclaredScope
+                            }
+                        },
+                        entries: inventory
+                            .entries
+                            .into_iter()
+                            .map(|entry| ProjectEntry {
+                                path: path(entry.path),
+                                state: match entry.state {
+                                    EntryStateSchema::File => EntryState::Regular,
+                                    EntryStateSchema::Directory => EntryState::Directory,
+                                    EntryStateSchema::Other => EntryState::Other,
+                                    EntryStateSchema::Missing => EntryState::Missing,
+                                    EntryStateSchema::Unknown => EntryState::Unknown,
+                                },
+                            })
+                            .collect(),
+                    })
+                },
+            ),
             project_inputs_sha256: ProjectInputsDigest::from(sha(wire.project_inputs_sha256)),
         })
     }
 }
-
 
 /// One diagnostic of a registered case.
 #[derive(Debug, Deserialize)]

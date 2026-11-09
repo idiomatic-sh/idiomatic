@@ -5,8 +5,7 @@
 
 /// The globset matching adapter, from what the edge passes.
 #[must_use]
-pub fn globset() -> impl crate::outbound::matching::interface::MatchingPort
-{
+pub fn globset() -> impl crate::outbound::matching::interface::MatchingPort {
     super::adapters::globset::adapter::MatchingGlobsetAdapter::new(
         ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl::new(),
     )

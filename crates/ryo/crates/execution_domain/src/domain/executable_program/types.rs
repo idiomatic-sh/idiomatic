@@ -4,7 +4,6 @@ use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingErro
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{StepId, StepScope};
 
-
 pub mod demand_program;
 pub mod executable_program;
 pub mod instruction;

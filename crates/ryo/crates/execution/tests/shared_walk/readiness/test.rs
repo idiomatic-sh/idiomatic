@@ -1,20 +1,20 @@
 //! Actual public file-owner readiness bounds and terminal failure replay.
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::super::{fixtures::*, no_catalog};
 use crate::boundary_fixture::{authored_request, corpus, demand};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
@@ -109,7 +109,10 @@ fn exercise_readiness_chain(empty: bool) {
     let (engine, _) = engine();
     let mut authored = authored_request(3);
     let steps = readiness_chain();
-    for (index, plan) in crate::boundary_fixture::plans(&mut authored).iter_mut().enumerate() {
+    for (index, plan) in crate::boundary_fixture::plans(&mut authored)
+        .iter_mut()
+        .enumerate()
+    {
         plan.steps = steps.clone();
         let last = Input::Step(StepId(u32::try_from(steps.len() - 1).unwrap()));
         let first = Input::Step(StepId(0));
@@ -203,7 +206,10 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         comparisons: vec![],
         kept: vec![],
     };
-    for (index, plan) in crate::boundary_fixture::plans(&mut authored)[..2].iter_mut().enumerate() {
+    for (index, plan) in crate::boundary_fixture::plans(&mut authored)[..2]
+        .iter_mut()
+        .enumerate()
+    {
         plan.steps = failing.clone();
         let last = Input::Step(StepId(u32::try_from(failing.len() - 1).unwrap()));
         let first = Input::Step(StepId(0));

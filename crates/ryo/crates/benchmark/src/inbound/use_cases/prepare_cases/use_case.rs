@@ -24,6 +24,11 @@ impl PrepareCasesUseCase for PrepareCasesUseCaseImpl<'_> {
         scratch: &Path,
     ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, ReportsError>
     {
-        crate::application::case_preparation::service::cases(self.suite, self.context, rules, scratch)
+        crate::application::case_preparation::service::cases(
+            self.suite,
+            self.context,
+            rules,
+            scratch,
+        )
     }
 }

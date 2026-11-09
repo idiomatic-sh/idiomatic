@@ -1,10 +1,14 @@
 //! A case declaring a completed process failure, the proof that validated it and the capture that satisfies both.
 use crate::domain::discrepancy::fixtures::case;
 use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind, ReferenceProof};
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, ReasonText, Sha256Text, YesNo};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+    ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, ExitStatus, PathText, ReasonText, Sha256Text, YesNo,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use ryo_benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ProcessExitCode, ProcessOutput, ResourceObservation,
 };
@@ -77,13 +81,20 @@ pub(super) fn record() -> CompleteInvocation {
 pub(super) fn passing() -> Actual {
     let mut prepared = case();
     prepared.request.root = "/root".into();
-    let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(discrepancy) = &mut prepared.reference_discrepancy else {
+    let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
+        discrepancy,
+    ) = &mut prepared.reference_discrepancy
+    else {
         panic!("fixture discrepancy");
     };
     discrepancy.expected = ReferenceExpectation::ProcessFailure(ProcessFailure {
         exit: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(2),
-        stdout: vec![OutputPart::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("payload".into()))],
-        stderr: vec![OutputPart::Literal(ryo_benchmark_contracts::domain::process::types::OutputText("issue".into()))],
+        stdout: vec![OutputPart::Literal(
+            ryo_benchmark_contracts::domain::process::types::OutputText("payload".into()),
+        )],
+        stderr: vec![OutputPart::Literal(
+            ryo_benchmark_contracts::domain::process::types::OutputText("issue".into()),
+        )],
         observations: Vec::new(),
     });
     Actual {

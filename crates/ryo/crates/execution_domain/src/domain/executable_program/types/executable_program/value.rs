@@ -16,7 +16,10 @@ pub struct ExecutableProgram {
     logical_regions: Box<[RegionId]>,
     observation_regions: Box<[Result<RegionId, OperatingError>]>,
     /// The partition requirement of each relation source: the first region declaring it decides, found once per program.
-    relation_partitions: rustc_hash::FxHashMap<ryo_relations::domain::relations::types::Relation, PartitionRequirement>,
+    relation_partitions: rustc_hash::FxHashMap<
+        ryo_relations::domain::relations::types::Relation,
+        PartitionRequirement,
+    >,
     /// The fusion classification of every instruction, indexed by its logical number.
     #[cfg(any(test, feature = "fixtures"))]
     fusibility: Box<[crate::domain::executable_program::fusion::types::Fusibility]>,
@@ -32,7 +35,10 @@ impl ExecutableProgram {
         observation_regions: Box<[Result<RegionId, OperatingError>]>,
     ) -> Self {
         let mut relation_partitions = rustc_hash::FxHashMap::default();
-        for declaration in regions.iter().flat_map(|region| region.source_partitions().iter()) {
+        for declaration in regions
+            .iter()
+            .flat_map(|region| region.source_partitions().iter())
+        {
             if let InputSource::Relation(relation) = declaration.source {
                 let _first = relation_partitions
                     .entry(relation)
@@ -165,7 +171,10 @@ impl ExecutableProgram {
     }
     /// Where the rows of one input of a region come from: a relation's from one file each, a region's or a named
     /// observation's as the compiler found, anything else from no one file.
-    pub fn source_lineage(&self, source: InputSource) -> ryo_values::domain::lineage::types::Lineage {
+    pub fn source_lineage(
+        &self,
+        source: InputSource,
+    ) -> ryo_values::domain::lineage::types::Lineage {
         use ryo_values::domain::lineage::types::Lineage;
         let of_region = |id: RegionId| {
             self.regions

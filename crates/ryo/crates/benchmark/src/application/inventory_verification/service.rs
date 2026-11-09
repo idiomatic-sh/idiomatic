@@ -9,15 +9,17 @@ use crate::outbound::{
         interface::InventoryPort,
         types::{
             Command, ReceiptDigest, ReceiptFile, RegisteredRule, Registration,
-            RegistrationAuthority, RowInstance, RowReason, RowStatus, RuleCommand, RuleDefinition,
-            RuleInstance, RuleReason, RunState, Row, Summary,
+            RegistrationAuthority, Row, RowInstance, RowReason, RowStatus, RuleCommand,
+            RuleDefinition, RuleInstance, RuleReason, RunState, Summary,
         },
     },
     receipts::{interface::ReceiptsPort, types::ReceiptPath},
     suite::{interface::SuitePort, types::ArtifactPath},
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    ReasonText, RuleName, Sha256Text,
+};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::receipts::constants::{
     CASE_RECEIPTS_ARGUMENT, CASES_JSONL, VERIFY_CASES,
@@ -72,7 +74,13 @@ fn summary(registration: &Registration, inventory: &Inventory, state: RunState) 
     let rules = inventory
         .rules()
         .iter()
-        .map(|result| row(registration, &RuleName(result.rule().0.clone()), result.outcome()))
+        .map(|result| {
+            row(
+                registration,
+                &RuleName(result.rule().0.clone()),
+                result.outcome(),
+            )
+        })
         .collect::<Vec<_>>();
     let passed = rules
         .iter()
@@ -113,7 +121,10 @@ pub fn verify(
             .collect::<Vec<_>>(),
     )?;
     store.begin(output)?;
-    store.publish(output, &summary(registration, &inventory, RunState::Running))?;
+    store.publish(
+        output,
+        &summary(registration, &inventory, RunState::Running),
+    )?;
     let mut registered = BTreeSet::new();
     if registration.rules.iter().any(|rule| {
         !registration.defaults.contains(&rule.rule_id) || !registered.insert(&rule.rule_id)
@@ -134,8 +145,9 @@ pub fn verify(
             .iter()
             .find(|entry| entry.rule_id.0 == rule.0);
         let outcome = (|| -> Result<PassedRule, FailureReason> {
-            let entry = entry
-                .ok_or_else(|| FailureReason(constants::MISSING_IMPLEMENTATION_REGISTRATION.into()))?;
+            let entry = entry.ok_or_else(|| {
+                FailureReason(constants::MISSING_IMPLEMENTATION_REGISTRATION.into())
+            })?;
             if let RuleReason::Stated(reason) = &entry.reason {
                 return Err(FailureReason(reason.0.clone()));
             }
@@ -241,7 +253,10 @@ pub fn verify(
         store.publish(output, &report)?;
     }
     require_authority(registration, suite, store)?;
-    store.publish(output, &summary(registration, &inventory, RunState::Complete))?;
+    store.publish(
+        output,
+        &summary(registration, &inventory, RunState::Complete),
+    )?;
     Ok(inventory.verdict())
 }
 
@@ -257,7 +272,8 @@ pub fn certify_registered(
     execution: &dyn ExecutionPort,
     store: &dyn InventoryPort,
 ) -> Result<CaseCount, Error> {
-    if verify(registration, output, suite, receipts, execution, store)? != InventoryVerdict::Passed {
+    if verify(registration, output, suite, receipts, execution, store)? != InventoryVerdict::Passed
+    {
         return Err(Error::Invalid(
             constants::REGISTERED_INDEPENDENT_CASE_CERTIFICATION_FA.into(),
         ));
@@ -317,7 +333,10 @@ pub fn require_authority(
         || observed_profile.0 != profile_sha256.0
         || observed_reference.0 != reference.sha256.0
         || observed_worker.0 != worker.sha256.0
-        || !tool.sha256.iter().any(|approved| approved.0 == reference.sha256.0)
+        || !tool
+            .sha256
+            .iter()
+            .any(|approved| approved.0 == reference.sha256.0)
     {
         return Err(Error::Invalid(
             constants::CANONICAL_INVENTORY_PROFILE_EXECUTABLE_IDENT.into(),
@@ -347,7 +366,9 @@ pub fn verify_context(
     store: &dyn InventoryPort,
 ) -> Result<(), FailureReason> {
     let RuleCommand::Registered(Command::CaseVerification { context }) = &entry.command else {
-        return Err(FailureReason(crate::domain::suite::constants::MISSING_VERIFICATION_COMMAND.into()));
+        return Err(FailureReason(
+            crate::domain::suite::constants::MISSING_VERIFICATION_COMMAND.into(),
+        ));
     };
     if entry.artifacts.is_empty() {
         return Err(FailureReason(

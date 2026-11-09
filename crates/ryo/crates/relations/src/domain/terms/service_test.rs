@@ -2,13 +2,13 @@
 
 use super::service::{is_term, symbols_with_text, term_symbol, term_text};
 use super::types::Wordness;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::declaration_kind::types::DeclarationKind;
 use crate::domain::dependency_kind::types::DependencyKind;
 use crate::domain::mapping_kind::types::MappingKind;
 use crate::domain::parameter_kind::types::ParameterKind;
-use crate::domain::value_kind::types::ValueKind;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::terms::types::Symbol;
+use crate::domain::value_kind::types::ValueKind;
 
 /// What a row asks: a word, written as the text it should have.
 #[derive(Clone, Copy)]

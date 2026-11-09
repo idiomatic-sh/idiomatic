@@ -1,12 +1,10 @@
 //! The `lineage` service's cases: which steps keep their rows in one file, and which of their columns lie in it.
 use super::service::{anchor_of, of_step, one_file, pairing};
 use super::types::{ColumnAnchor, KeyPairing, Lineage};
-use ryo_relations::domain::relations::types::CellKind;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::plan_parts::types::{
-    ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId,
-};
+use crate::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId};
 use crate::domain::plans::types::Operation;
+use ryo_relations::domain::relations::types::CellKind;
 
 /// What a row of the cases proves.
 #[derive(Clone, Copy)]

@@ -8,7 +8,9 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 /// The matching semantics the proofs of the domain run through.
 pub(crate) fn matcher() -> crate::domain::matching::types::PatternMatcher<'static> {
-    crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)
+    crate::domain::matching::types::PatternMatcher(
+        &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+    )
 }
 
 type Input = (&'static str, &'static str);
@@ -44,13 +46,17 @@ fn subject((text, pattern): Input) -> Result<Value, Failure> {
         &Datum::Text(TextView(text)),
         &Datum::Text(TextView(pattern)),
         &mut cache,
-        crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        crate::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
     )?;
     let second = matches(
         &Datum::Text(TextView(text)),
         &Datum::Text(TextView(pattern)),
         &mut cache,
-        crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+        crate::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
     )?;
     assert_eq!(cache.0.len(), 1);
     assert_eq!(first, second);

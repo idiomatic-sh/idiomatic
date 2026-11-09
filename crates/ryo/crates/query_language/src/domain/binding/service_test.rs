@@ -4,8 +4,8 @@ use super::service::{scalar_matches, substitute_value};
 use super::types::{Bindings, FragmentBindingKey, ScalarMatch};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::query_tokens::types::{TypeName, WrittenLiteral, WrittenParameter};
 use ryo_values::domain::query_syntax::types::ArgumentValue;
+use ryo_values::domain::query_tokens::types::{TypeName, WrittenLiteral, WrittenParameter};
 
 /// What a row asks of the service.
 #[derive(Clone, Copy)]
@@ -67,8 +67,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 == ScalarMatch::Matches
         }
         Scenario::TextForInteger => {
-            scalar_matches(&integer, &ArgumentValue::Text(WrittenLiteral("x".into())), &[])
-                == ScalarMatch::Matches
+            scalar_matches(
+                &integer,
+                &ArgumentValue::Text(WrittenLiteral("x".into())),
+                &[],
+            ) == ScalarMatch::Matches
         }
         Scenario::BoundParameter => {
             substitute_value(&parameter, &bindings) == ArgumentValue::Number(Integer(3))

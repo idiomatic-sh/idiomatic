@@ -14,8 +14,7 @@ pub(in super::super) fn verify_requirement(
     requirement: &EvidenceRequirement,
 ) -> Result<(), SuiteError> {
     use serde_json::Value;
-    let fail =
-        || SuiteError::Invalid(constants::TOOL_CONTRACT_EVIDENCE_DOES_NOT_ESTABLISH.into());
+    let fail = || SuiteError::Invalid(constants::TOOL_CONTRACT_EVIDENCE_DOES_NOT_ESTABLISH.into());
     let value = match requirement {
         EvidenceRequirement::Language => return Ok(()),
         _ => serde_json::from_slice::<Value>(bytes).map_err(|_| fail())?,

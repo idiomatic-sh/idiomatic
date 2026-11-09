@@ -14,8 +14,7 @@ pub(crate) const TARGET_GRAPH: &str = "ryo::diagnostic::graph";
 /// The tracing target of the resource-route counts.
 pub const TARGET_RESOURCE_ROUTES: &str =
     ryo_values::domain::table_words::constants::RESOURCE_ROUTES_TARGET;
-pub(crate) const TARGET_STORED_JOIN: &str =
-    "ryo::diagnostic::stored_join";
+pub(crate) const TARGET_STORED_JOIN: &str = "ryo::diagnostic::stored_join";
 /// The tracing target of the lifecycle memory events.
 pub const TARGET_LIFECYCLE_MEMORY: &str =
     ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
@@ -37,13 +36,10 @@ pub(crate) const EXPECT_REVERSE_LIST: &str = "installed reverse list";
 pub(crate) const EXPECT_KNOWN_POPULATION: &str = "known population";
 pub(crate) const EXPECT_EXISTING_VIEW: &str = "existing view";
 #[cfg(test)]
-pub(crate) const EXPECT_GRAPH_LEASE: &str =
-    "held graph has its required backing lease";
+pub(crate) const EXPECT_GRAPH_LEASE: &str = "held graph has its required backing lease";
 #[cfg(test)]
-pub(crate) const EXPECT_MEMBERSHIP_LEASE: &str =
-    "held membership has its required backing lease";
-pub(crate) const EXPECT_QUALIFYING_ENCOUNTER: &str =
-    "a qualifying encounter";
+pub(crate) const EXPECT_MEMBERSHIP_LEASE: &str = "held membership has its required backing lease";
+pub(crate) const EXPECT_QUALIFYING_ENCOUNTER: &str = "a qualifying encounter";
 /// Names of the admitted acquisition origin in its debug form.
 pub(super) const ORIGIN_TYPE: &str = "AcquisitionOrigin";
 pub(super) const ORIGIN_LIFETIME: &str = "lifetime";

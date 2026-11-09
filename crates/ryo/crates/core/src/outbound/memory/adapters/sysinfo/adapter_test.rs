@@ -1,7 +1,7 @@
 //! The sysinfo adapter of the memory port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::MemorySysinfoAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::memory::errors::MemoryError;
 use crate::outbound::memory::fixtures::contract::check;
 use crate::outbound::memory::interface::MemoryPort as _;
@@ -44,7 +44,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::AskedForMore,
         expect: Expect::Refusal(|error| {
-            selects(Matched(matches!(error, MemoryError::MoreThanAvailable { .. })))
+            selects(Matched(matches!(
+                error,
+                MemoryError::MoreThanAvailable { .. }
+            )))
         }),
     },
 ];

@@ -1,5 +1,7 @@
 //! The raw invocation record binds every identity the registration and the receipt state.
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ExitStatus, PathText, ReasonText, YesNo};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, ExitStatus, PathText, ReasonText, YesNo,
+};
 use sha2::Digest as _;
 
 use super::super::{
@@ -7,9 +9,7 @@ use super::super::{
     fixtures::{Documents, edited, invocation, passing},
 };
 use super::{Outcome, sha};
-use crate::{
-    cases::{Case, CaseName, Expect, Word, run},
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::ArgumentText;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 

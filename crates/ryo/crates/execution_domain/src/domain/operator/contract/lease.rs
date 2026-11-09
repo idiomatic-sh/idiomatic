@@ -1,17 +1,21 @@
 //! The lease's own operations: the capabilities a primitive reaches through its borrowed context.
 use super::types::{
-    DistinctWorkspace, FoundRows, PrimitiveLease, PrimitiveViews, PrimitiveWorkspace,
-    WorkCounters, WorkTotals,
+    DistinctWorkspace, FoundRows, PrimitiveLease, PrimitiveViews, PrimitiveWorkspace, WorkCounters,
+    WorkTotals,
 };
-use crate::domain::operating::types::PrimitiveSemantics;
 use super::views::PredicateProgram;
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::PrimitiveSemantics;
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::Value;
 
 impl WorkCounters {
     /// Adds the rows an input was found to hold.
-    pub fn found(&self, input: ryo_values::domain::plan_parts::types::InputNumber, rows: FoundRows) {
+    pub fn found(
+        &self,
+        input: ryo_values::domain::plan_parts::types::InputNumber,
+        rows: FoundRows,
+    ) {
         if let Some(total) = self.0.get(input.0) {
             total.set(total.get().saturating_add(rows.0));
         }
@@ -77,7 +81,11 @@ impl<'a> PrimitiveLease<'a> {
             work,
         }
     }
-    pub(crate) fn found(&self, input: ryo_values::domain::plan_parts::types::InputNumber, rows: FoundRows) {
+    pub(crate) fn found(
+        &self,
+        input: ryo_values::domain::plan_parts::types::InputNumber,
+        rows: FoundRows,
+    ) {
         self.work.found(input, rows);
     }
     /// Only the bound semantic program can be requested by a primitive.

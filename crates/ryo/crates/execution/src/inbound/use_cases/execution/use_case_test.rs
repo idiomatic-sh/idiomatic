@@ -1,12 +1,14 @@
 //! A request execution begins over a prepared program, and its file owner reuses only recognized stable sources.
 use super::fixtures::requests::{Authored, Preparation};
 use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::{FileInput, SourceLanguage};
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::{
+    FileInput, SourceLanguage,
+};
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
@@ -56,8 +58,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     let prepare = Preparation::real();
-    let prepared = prepare.prepare(Authored { plans: vec![],
-            bindings: vec![], rules: vec![],
+    let prepared = prepare.prepare(Authored {
+        plans: vec![],
+        bindings: vec![],
+        rules: vec![],
         digests: vec![],
         hosted: vec![],
         observations: ObservationIdentity::Independent,
@@ -179,7 +183,6 @@ mod conformance_boundary;
 #[cfg(test)]
 mod conformance_scale;
 
-
 #[cfg(test)]
 mod dispatch;
 
@@ -197,8 +200,6 @@ mod prepared_matching;
 
 #[cfg(test)]
 mod project_input;
-
-
 
 #[cfg(test)]
 mod contract_timing;

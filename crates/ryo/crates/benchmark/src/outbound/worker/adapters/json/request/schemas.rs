@@ -72,8 +72,9 @@ impl TryFrom<RequestSchema> for WorkerRequest {
                     rules
                         .into_iter()
                         .map(|id| {
-                            ryo::linter::RuleId::try_from(id.as_str())
-                                .map_err(|error| Error::Invalid(format!("invalid selected rule: {error}")))
+                            ryo::linter::RuleId::try_from(id.as_str()).map_err(|error| {
+                                Error::Invalid(format!("invalid selected rule: {error}"))
+                            })
                         })
                         .collect::<Result<_, Error>>()?,
                 ),
@@ -120,18 +121,30 @@ impl TryFrom<RequestSchema> for WorkerRequest {
                 .collect(),
             parser_configuration: request.parser_configuration.map_or(
                 ParserSelection::Unspecified,
-                |name| ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(name)),
+                |name| {
+                    ParserSelection::Named(
+                        ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+                            name,
+                        ),
+                    )
+                },
             ),
             source_language: request.source_language.map_or(
                 ProviderSelection::Unspecified,
-                |name| ProviderSelection::Selected(ryo_benchmark_contracts::domain::requests::types::SourceLanguageName(name)),
+                |name| {
+                    ProviderSelection::Selected(
+                        ryo_benchmark_contracts::domain::requests::types::SourceLanguageName(name),
+                    )
+                },
             ),
             files: request
                 .files
                 .into_iter()
                 .map(|path| ryo::linter::RelativePath(path.into_boxed_str()))
                 .collect(),
-            state: request.cache.map_or(WorkerState::Fresh, WorkerState::Retained),
+            state: request
+                .cache
+                .map_or(WorkerState::Fresh, WorkerState::Retained),
         })
     }
 }
@@ -158,7 +171,13 @@ struct DiagnosticsSchema {
 
 impl From<OptionsSchema> for PerformanceOptions {
     fn from(value: OptionsSchema) -> Self {
-        let switch = |on: bool| if on { DiagnosticSwitch::On } else { DiagnosticSwitch::Off };
+        let switch = |on: bool| {
+            if on {
+                DiagnosticSwitch::On
+            } else {
+                DiagnosticSwitch::Off
+            }
+        };
         let diagnostics = value.diagnostics;
         Self {
             diagnostics: DiagnosticOptions {

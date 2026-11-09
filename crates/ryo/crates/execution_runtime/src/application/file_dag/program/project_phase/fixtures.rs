@@ -2,31 +2,40 @@
 //! through the crate-private root evaluation of a phase or a stage.
 use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
+use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
 use crate::application::file_dag::program::project_phase::types::{
     FrontierDemand, FrontierRequest, PhaseScope, ProjectInput, ProjectPhase, ProjectTask,
 };
-use crate::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectOutputOutcome, RuleOutcome};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
+use crate::application::file_dag::program::rule_outcome::types::{
+    ProjectBatch, ProjectOutputOutcome, RuleOutcome,
+};
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
 use crate::outbound::facts::types::{ColumnsMut, KeptBucket, ResidentStability, WordsToKeep};
-use ryo_execution_domain::domain::coverage::types::{Covered, InapplicableFiles, Partials, RefusedFiles, RuleIndex};
+use ryo_execution_domain::domain::coverage::types::{
+    Covered, InapplicableFiles, Partials, RefusedFiles, RuleIndex,
+};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation};
-use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds};
-use ryo_values::domain::observations::types::{
-    BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, ObservationBindingId, StepId, StepScope};
+use ryo_values::domain::observations::types::{
+    BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
+    ObservationColumnName,
+};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, Input, ObservationBindingId, StepId, StepScope,
+};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::records::types::ObservationReadinessLayout;
@@ -46,7 +55,10 @@ impl FactsWorker for NoFacts {
     fn resident_stability(&self) -> ResidentStability {
         ResidentStability::Stable
     }
-    fn rows(&self, _: Relation) -> Result<ryo_relations::domain::relations::types::ColumnsView<'_>, FactsError> {
+    fn rows(
+        &self,
+        _: Relation,
+    ) -> Result<ryo_relations::domain::relations::types::ColumnsView<'_>, FactsError> {
         panic!("a submission control has no project relation to read")
     }
     fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
@@ -150,8 +162,12 @@ pub(super) fn program(entry: Entry, rule_count: usize) -> PreparedExecutionProgr
     let digests: Vec<Digest> = (0..rule_count)
         .map(|index| Digest([u8::try_from(index).expect("a few rules"); 16]))
         .collect();
-    let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(plans, vec![vec![]; rule_count], &rules)
-        .expect("valid authored plans");
+    let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(
+        plans,
+        vec![vec![]; rule_count],
+        &rules,
+    )
+    .expect("valid authored plans");
     crate::application::file_dag::program::prepared_execution::service::prepare(
         compiled,
         &rules,
@@ -159,9 +175,9 @@ pub(super) fn program(entry: Entry, rule_count: usize) -> PreparedExecutionProgr
         &[],
         identity,
         Arc::new(crate::outbound::operators::factory::use_case(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
-                ryo_operators::outbound::matching::factory::use_case(),
-            )),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+                Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+            ),
         )),
         &crate::application::file_dag::fixtures::real_derived_port().into(),
         Arc::new(crate::outbound::digest::factory::blake3()),
@@ -172,27 +188,63 @@ pub(super) fn program(entry: Entry, rule_count: usize) -> PreparedExecutionProgr
 /// One producer rule: a per-file emit, and a project observation of the files' module identities that only the facts' project
 /// relation could answer; rule 1 binds that observation, so the producer exports it as a root.
 pub(super) fn producer_program() -> PreparedExecutionProgram {
-    use ryo_values::domain::observations::types::{ObservationName, ObservationProducer, PlanObservation};
+    use ryo_values::domain::observations::types::{
+        ObservationName, ObservationProducer, PlanObservation,
+    };
     let relation = Relation::ModuleIdentity;
     let kinds = ryo_relations::domain::relations::fixtures::kinds(relation);
-    let file = kinds.iter().position(|kind| *kind == CellKind::File).and_then(|at| u32::try_from(at).ok());
-    let columns = vec![ObservationColumn { name: ObservationColumnName("file".into()), kind: CellKind::File }];
+    let file = kinds
+        .iter()
+        .position(|kind| *kind == CellKind::File)
+        .and_then(|at| u32::try_from(at).ok());
+    let columns = vec![ObservationColumn {
+        name: ObservationColumnName("file".into()),
+        kind: CellKind::File,
+    }];
     let select = |from, kept| PlanStep {
         scope: StepScope::CrossFile,
-        operation: Operation::Select { from, comparisons: vec![], kept },
+        operation: Operation::Select {
+            from,
+            comparisons: vec![],
+            kept,
+        },
     };
     let mut produced = plan();
-    produced.steps.push(select(Input::Relation(relation), vec![ColumnIndex(file.expect("a module identity row names its file"))]));
+    produced.steps.push(select(
+        Input::Relation(relation),
+        vec![ColumnIndex(
+            file.expect("a module identity row names its file"),
+        )],
+    ));
     let name = || ObservationName("files".into());
-    let observation = PlanObservation { name: name(), source: Input::Step(StepId(1)), columns: columns.clone(), scope: StepScope::CrossFile };
+    let observation = PlanObservation {
+        name: name(),
+        source: Input::Step(StepId(1)),
+        columns: columns.clone(),
+        scope: StepScope::CrossFile,
+    };
     produced.observations.push(observation);
     let mut rules = [rule(0), rule(1)];
-    let producers = vec![ObservationProducer::Output { rule: rules[0].id.clone(), output: name() }];
+    let producers = vec![ObservationProducer::Output {
+        rule: rules[0].id.clone(),
+        output: name(),
+    }];
     let binding = || ObservationBindingName("files".into());
-    rules[1].observations.push(ObservationBinding { name: binding(), columns: columns.clone(), producers });
+    rules[1].observations.push(ObservationBinding {
+        name: binding(),
+        columns: columns.clone(),
+        producers,
+    });
     let mut consumer = plan();
-    consumer.observation_inputs.push(BoundObservationInput { name: binding(), columns, scope: StepScope::CrossFile });
-    consumer.steps = vec![select(Input::BoundObservation(ObservationBindingId(0)), vec![])];
+    consumer.observation_inputs.push(BoundObservationInput {
+        name: binding(),
+        columns,
+        scope: StepScope::CrossFile,
+    });
+    consumer.steps = vec![select(
+        Input::BoundObservation(ObservationBindingId(0)),
+        vec![],
+    )];
     let compiled = ryo_execution_domain::domain::prepared_request::service::assemble(
         vec![produced, consumer],
         vec![vec![]; 2],
@@ -206,9 +258,9 @@ pub(super) fn producer_program() -> PreparedExecutionProgram {
         &[],
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([11; 16]))),
         Arc::new(crate::outbound::operators::factory::use_case(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
-                ryo_operators::outbound::matching::factory::use_case(),
-            )),
+            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+                Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+            ),
         )),
         &crate::application::file_dag::fixtures::real_derived_port().into(),
         Arc::new(crate::outbound::digest::factory::blake3()),
@@ -234,7 +286,11 @@ pub(super) fn covered(rule_count: usize) -> [Covered; 1] {
 }
 
 /// Prepare the frontiers of `rule` against `scope`.
-pub(super) fn prepare_for(request: &RequestExecution, scope: &PhaseScope, rule: RuleIndex) -> Result<PreparedFrontiers, PreparationError> {
+pub(super) fn prepare_for(
+    request: &RequestExecution,
+    scope: &PhaseScope,
+    rule: RuleIndex,
+) -> Result<PreparedFrontiers, PreparationError> {
     request.prepare_frontiers(
         FrontierRequest {
             demand: FrontierDemand::Diagnostic,
@@ -262,7 +318,14 @@ impl Held<'_> {
     }
     fn scope(&self, rule: RuleIndex, corpus: &[CorpusInput], covered: &[Covered]) -> PhaseScope {
         self.phase()
-            .project_scope(rule, corpus, covered, &[], &InapplicableFiles::default(), &RefusedFiles::default())
+            .project_scope(
+                rule,
+                corpus,
+                covered,
+                &[],
+                &InapplicableFiles::default(),
+                &RefusedFiles::default(),
+            )
             .expect("a declared rule has a scope")
     }
     fn finish(self) {
@@ -287,10 +350,17 @@ pub(crate) struct Submitted {
 }
 /// Evaluate `roots` through the real project phase of a request over `rule_count` rules; `refuse` is the rule the guard rejects,
 /// if any.
-pub(crate) fn submit(entry: Entry, rule_count: usize, roots: &[Root], refuse: Option<RuleIndex>) -> Submitted {
+pub(crate) fn submit(
+    entry: Entry,
+    rule_count: usize,
+    roots: &[Root],
+    refuse: Option<RuleIndex>,
+) -> Submitted {
     let prepared = program(entry, rule_count);
     let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let request = crate::application::file_dag::program::request_execution::service::begin(
+        &prepared, &corpus,
+    );
     let covered = covered(rule_count);
     let mut arenas = Vec::new();
     let held = match entry {
@@ -316,7 +386,8 @@ pub(crate) fn submit(entry: Entry, rule_count: usize, roots: &[Root], refuse: Op
                 scope,
                 evaluation: &partials,
                 publication: &partials,
-                ordinary: prepare_for(&request, scope, RuleIndex(root.declared)).expect("declared frontiers"),
+                ordinary: prepare_for(&request, scope, RuleIndex(root.declared))
+                    .expect("declared frontiers"),
                 bound: &[],
                 arenas: &[],
             },
@@ -349,14 +420,23 @@ pub(crate) fn submit(entry: Entry, rule_count: usize, roots: &[Root], refuse: Op
 pub(crate) fn foreign_phase_outcome() -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
     let prepared = program(Entry::Phase, 1);
     let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(&prepared, &corpus);
+    let request = crate::application::file_dag::program::request_execution::service::begin(
+        &prepared, &corpus,
+    );
     let covered = covered(1);
     let (owner, other) = (
         request.project_phase().expect("the first phase opens"),
         request.project_phase().expect("the second phase opens"),
     );
     let scope = owner
-        .project_scope(RuleIndex(0), &corpus, &covered, &[], &InapplicableFiles::default(), &RefusedFiles::default())
+        .project_scope(
+            RuleIndex(0),
+            &corpus,
+            &covered,
+            &[],
+            &InapplicableFiles::default(),
+            &RefusedFiles::default(),
+        )
         .expect("a declared rule has a scope");
     let ordinary = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
     let partials = Partials::default();

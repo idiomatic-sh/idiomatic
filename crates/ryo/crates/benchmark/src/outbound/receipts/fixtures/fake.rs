@@ -1,7 +1,7 @@
 //! The fake of the `receipts` port: what the core's tests stand in for it with. It records through the local
 //! filesystem adapter, so a row it appends is the row the real adapter appends.
-use super::super::interface::ReceiptsPort;
 use super::super::errors::ReceiptsError;
+use super::super::interface::ReceiptsPort;
 use super::super::types::{CapturedProcess, CaseReceipts, ReceiptPath};
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 
@@ -39,7 +39,8 @@ impl ReceiptsPort for ReceiptsFake {
         &self,
         receipt: ReceiptPath<'_>,
     ) -> Result<Vec<ObservationDocument>, ReceiptsError> {
-        crate::outbound::receipts::factory::local(self.case_receipts.clone()).case_observations(receipt)
+        crate::outbound::receipts::factory::local(self.case_receipts.clone())
+            .case_observations(receipt)
     }
 }
 

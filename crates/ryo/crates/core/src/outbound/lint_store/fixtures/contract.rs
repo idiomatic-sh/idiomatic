@@ -8,10 +8,10 @@ use super::tables::{
     again, failed, over_a_b_d_and_e, over_b_and_d, register_proofs, stored, words_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::records::types::RecordWords;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
-use ryo_values::domain::records::types::RecordWords;
 use ryo_values::domain::stores::types::{
     BucketsWanted, FileAgain, KeptRows, ReadWordPayload, Stored, StoredHanded, StoredWords,
 };

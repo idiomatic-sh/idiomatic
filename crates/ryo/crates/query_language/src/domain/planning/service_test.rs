@@ -126,7 +126,12 @@ fn column(kind: CellKind) -> PlannedColumn {
 }
 
 /// The step of this kind over `rows`, comparing them on the span at `span`; `other` is a column it reads besides.
-fn compared(kind: Compared, rows: parts::Input, span: parts::ColumnIndex, other: parts::ColumnIndex) -> plans::Operation {
+fn compared(
+    kind: Compared,
+    rows: parts::Input,
+    span: parts::ColumnIndex,
+    other: parts::ColumnIndex,
+) -> plans::Operation {
     match kind {
         Compared::Join => plans::Operation::Join {
             left: rows,
@@ -221,7 +226,12 @@ fn refused_after_the_files(kind: Compared) {
     super::service::push(
         &mut builder,
         None,
-        compared(kind, parts::Input::Step(parts::StepId(0)), parts::ColumnIndex(0), parts::ColumnIndex(1)),
+        compared(
+            kind,
+            parts::Input::Step(parts::StepId(0)),
+            parts::ColumnIndex(0),
+            parts::ColumnIndex(1),
+        ),
         vec![column(CellKind::Span)],
     );
     assert!(
@@ -241,11 +251,24 @@ fn kept_over_per_file_rows() {
         super::service::push(
             &mut builder,
             None,
-            compared(kind, parts::Input::Relation(Relation::Function), parts::ColumnIndex(3), parts::ColumnIndex(1)),
+            compared(
+                kind,
+                parts::Input::Relation(Relation::Function),
+                parts::ColumnIndex(3),
+                parts::ColumnIndex(1),
+            ),
             vec![column(CellKind::Span)],
         );
-        assert_eq!(super::service::refuse_spans_alone(&builder, 0), Ok(()), "{kind:?}");
-        assert_eq!(builder.steps[0].scope, parts::StepScope::PerFile, "{kind:?}");
+        assert_eq!(
+            super::service::refuse_spans_alone(&builder, 0),
+            Ok(()),
+            "{kind:?}"
+        );
+        assert_eq!(
+            builder.steps[0].scope,
+            parts::StepScope::PerFile,
+            "{kind:?}"
+        );
     }
 }
 
@@ -387,7 +410,11 @@ fn kept_with_a_file_key_after_the_files(kind: Compared) {
         plans::Operation::Hosted {
             relation: parts::HostedNumber(0),
         },
-        vec![column(CellKind::Span), column(CellKind::File), column(CellKind::Number)],
+        vec![
+            column(CellKind::Span),
+            column(CellKind::File),
+            column(CellKind::Number),
+        ],
     );
     super::service::push(
         &mut builder,
@@ -471,7 +498,12 @@ fn walked(cycles: bool, destination: u32) -> Result<(), LoweringError> {
             destination,
         }
     };
-    super::service::push(&mut builder, None, operation, vec![column(CellKind::Node), column(CellKind::Node)]);
+    super::service::push(
+        &mut builder,
+        None,
+        operation,
+        vec![column(CellKind::Node), column(CellKind::Node)],
+    );
     super::service::refuse_mixed_vertices(&builder, 0)
 }
 
@@ -482,7 +514,11 @@ fn a_walk_between_two_kinds_is_refused() {
             matches!(walked(cycles, 2), Err(LoweringError::MixedVertices { .. })),
             "a walk from a node to a file is kept (cycles: {cycles})"
         );
-        assert_eq!(walked(cycles, 0), Ok(()), "a walk from a node to a node is refused (cycles: {cycles})");
+        assert_eq!(
+            walked(cycles, 0),
+            Ok(()),
+            "a walk from a node to a node is refused (cycles: {cycles})"
+        );
     }
 }
 

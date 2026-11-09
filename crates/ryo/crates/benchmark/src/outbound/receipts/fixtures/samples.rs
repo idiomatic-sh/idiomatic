@@ -3,9 +3,15 @@ use ryo_benchmark_contracts::domain::documents::types::observation_document::val
 
 /// One complete observation row of a native side.
 pub fn observation() -> ObservationDocument {
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextRun, IntentMatch, ProjectContextRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, ContestantSide, FileMetadataDigest, ProjectInputsDigest, RuleName, SchemaName, YesNo};
-use ryo_benchmark_contracts::domain::documents::types::finding::value::ExpectedFindings;
+    use ryo_benchmark_contracts::domain::documents::types::finding::value::ExpectedFindings;
+    use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+        ContextRun, IntentMatch, ProjectContextRecord, RuleCohort, RuleContextRecord,
+        RuleObservationsRecord, SourceIdentity, ToolContractRecord,
+    };
+    use ryo_benchmark_contracts::domain::documents::types::text::value::{
+        CaseName, ContestantSide, FileMetadataDigest, ProjectInputsDigest, RuleName, SchemaName,
+        YesNo,
+    };
     use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
     ObservationDocument {
         rule: RuleName("R1".into()),
@@ -40,4 +46,3 @@ use ryo_benchmark_contracts::domain::documents::types::finding::value::ExpectedF
         process_observation: ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::NotObserved,
     }
 }
-

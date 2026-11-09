@@ -20,13 +20,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("known_texts_keep_their_positions"),
         word: Word::Succeeds,
-        input: || &[RenderAnswer::Known(CellText("a")), RenderAnswer::NotApplicable, RenderAnswer::Known(CellText("c"))],
+        input: || {
+            &[
+                RenderAnswer::Known(CellText("a")),
+                RenderAnswer::NotApplicable,
+                RenderAnswer::Known(CellText("c")),
+            ]
+        },
         expect: Expect::Value(std::borrow::Cow::Borrowed("0:a,2:c")),
     },
     Case {
         name: CaseName("an_unsupported_answer_refuses_before_any_delivery"),
         word: Word::Refuses,
-        input: || &[RenderAnswer::Known(CellText("a")), RenderAnswer::Unsupported],
+        input: || {
+            &[
+                RenderAnswer::Known(CellText("a")),
+                RenderAnswer::Unsupported,
+            ]
+        },
         expect: Expect::Error(PortableOperatorFault::UnsupportedRender),
     },
 ];

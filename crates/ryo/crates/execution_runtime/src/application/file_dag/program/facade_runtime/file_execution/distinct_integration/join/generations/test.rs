@@ -8,7 +8,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
     let right = schema_column(Relation::SequenceElement, CellKind::Number, 0);
     let payload = schema_column(Relation::SequenceElement, CellKind::Number, 1);
     let recorded = Arc::new(RecordedDerived::default());
-    let derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> = recorded.clone();
+    let derived: Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort> =
+        recorded.clone();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         Compiled {
             plans: vec![request(&[left], &[right], &[(Side::Right, payload)])],
@@ -84,7 +85,8 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
             ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None)
+            None,
+        )
         .unwrap();
         let weak = Rc::downgrade(&file.owner);
         let mut prefix = vec![];

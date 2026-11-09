@@ -91,14 +91,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_engine_refusal_inside_a_file_visit_is_the_lint_execution_failure"),
         word: Word::Fails,
         input: || Refusal::FileVisit,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Execution { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::Execution { .. })))
+        }),
     },
     Case {
         name: CaseName("an_engine_refusal_in_the_cross_file_phase_is_an_observation_failure"),
         word: Word::Fails,
         input: || Refusal::CrossFilePhase,
         expect: Expect::Refusal(|error| {
-            selects(Matched(matches!(error, LintError::ObservationExecution { .. })))
+            selects(Matched(matches!(
+                error,
+                LintError::ObservationExecution { .. }
+            )))
         }),
     },
     Case {
@@ -106,7 +111,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Refusal::UnadmittedPublication,
         expect: Expect::Refusal(|error| {
-            selects(Matched(matches!(error, LintError::ObservationBindings { .. })))
+            selects(Matched(matches!(
+                error,
+                LintError::ObservationBindings { .. }
+            )))
         }),
     },
 ];

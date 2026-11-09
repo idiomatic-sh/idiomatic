@@ -61,7 +61,10 @@ pub(crate) fn inputs_of(operation: &plans::Operation) -> Vec<parts::Input> {
 
 /// Whether a row holding these fields is kept in its file: one of them is held in its file by `held`.
 fn keyed(fields: &[PlannedColumn], held: fn(CellKind) -> FileOrigin) -> FileOrigin {
-    if fields.iter().any(|field| held(field.kind) == FileOrigin::Held) {
+    if fields
+        .iter()
+        .any(|field| held(field.kind) == FileOrigin::Held)
+    {
         FileOrigin::Held
     } else {
         FileOrigin::Loose
@@ -225,8 +228,12 @@ pub(crate) fn refuse_spans_alone(builder: &Builder<'_>, from: usize) -> Result<(
         {
             continue;
         }
-        let first = inputs.first().map_or(&[][..], |input| input.fields.as_slice());
-        let second = inputs.get(1).map_or(&[][..], |input| input.fields.as_slice());
+        let first = inputs
+            .first()
+            .map_or(&[][..], |input| input.fields.as_slice());
+        let second = inputs
+            .get(1)
+            .map_or(&[][..], |input| input.fields.as_slice());
         let on_spans_alone = |held: fn(CellKind) -> FileOrigin| match &step.operation {
             // The distinct rows compare every column they keep, whatever their input held.
             plans::Operation::Project {
@@ -277,7 +284,10 @@ pub(crate) fn refuse_spans_alone(builder: &Builder<'_>, from: usize) -> Result<(
 /// Refuses a closure or cycles step from `from` on of the plan under construction whose source and destination are of two kinds:
 /// a walk goes from a source to a destination that is the next source, so both are of one kind, and where the step runs is decided
 /// on its source alone.
-pub(crate) fn refuse_mixed_vertices(builder: &Builder<'_>, from: usize) -> Result<(), LoweringError> {
+pub(crate) fn refuse_mixed_vertices(
+    builder: &Builder<'_>,
+    from: usize,
+) -> Result<(), LoweringError> {
     for step in builder.steps.iter().skip(from) {
         let (plans::Operation::Closure {
             edges,

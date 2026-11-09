@@ -1,14 +1,15 @@
 //! The graph entry: adjacency and membership acquired through an admitted graph input.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released, released_at_exit};
-use crate::application::file_dag::derived::owner::{fixtures::{graph::GraphFixture, graph_snapshot::Snapshot}, index::service::LIMIT};
-use ryo_execution_domain::domain::{
-    operating::errors::OperatingError, table_model::types::Rows,
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
+    Exit, released, released_at_exit,
 };
-use ryo_execution_domain::domain::derived_views::types::ViewRequest;
+use crate::application::file_dag::derived::owner::{
+    fixtures::{graph::GraphFixture, graph_snapshot::Snapshot},
+    index::service::LIMIT,
+};
 use ryo_derived::domain::request::types::DerivedKind;
-use ryo_relations::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, Relation,
-};
+use ryo_execution_domain::domain::derived_views::types::ViewRequest;
+use ryo_execution_domain::domain::{operating::errors::OperatingError, table_model::types::Rows};
+use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 
 pub(super) fn graph(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
@@ -24,7 +25,11 @@ pub(super) fn graph(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, Operat
 }
 /// The required, optional and unique bytes the owner retains.
 fn retained(state: &Snapshot) -> (usize, usize, usize) {
-    (state.required_bytes, state.optional_bytes, state.unique_bytes)
+    (
+        state.required_bytes,
+        state.optional_bytes,
+        state.unique_bytes,
+    )
 }
 fn through_graph(
     kind: DerivedKind,
@@ -86,7 +91,10 @@ fn through_graph(
                     column: ColumnIndex(0),
                 },
             );
-            assert!(wrong.is_err(), "{kind:?}: a demand for another family is refused");
+            assert!(
+                wrong.is_err(),
+                "{kind:?}: a demand for another family is refused"
+            );
             wrong.map(|_| kind)
         }
     }

@@ -1,9 +1,12 @@
 //! What the `lint` use case promises, against the fakes of the ports it calls.
+use super::fixtures::contract::check;
+use super::use_case::LintUseCaseImpl;
 use crate::cases::Matched;
 use crate::cases::selects;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::lint::errors::LintError;
 use crate::inbound::use_cases::lint::fixtures::given::Given;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 use crate::inbound::use_cases::lint::fixtures::lookups::Between;
 use crate::inbound::use_cases::lint::fixtures::scenario::Scenario;
 use crate::inbound::use_cases::lint::fixtures::scenario::scenario;
@@ -14,14 +17,11 @@ use crate::outbound::memory::fixtures::fake::MemoryFake;
 use crate::outbound::row_sink;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::types::WorkerCount;
-use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
-use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use std::sync::Arc;
-use super::fixtures::contract::check;
-use super::use_case::LintUseCaseImpl;
-use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 mod inapplicable_identity;
 mod lifecycle;
@@ -106,7 +106,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::UnknownKind { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::UnknownKind { .. })))
+        }),
     },
 ];
 

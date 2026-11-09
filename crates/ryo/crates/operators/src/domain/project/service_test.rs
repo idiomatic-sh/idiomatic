@@ -1,8 +1,8 @@
 //! Projection's ordered bag and first-error cases.
 use super::service::project;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 #[derive(Clone, Copy)]
@@ -25,7 +25,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("first_missing_column_is_reported"),
         word: Word::Refuses,
         input: || Scenario::FirstMissingColumn,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(3) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(3),
+        }),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

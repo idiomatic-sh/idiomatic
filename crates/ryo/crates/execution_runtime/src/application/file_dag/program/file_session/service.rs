@@ -2,8 +2,8 @@
 use crate::application::file_dag::program::file_session::interface::FileExecution;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::FileFinished;
-use crate::application::file_dag::program::file_session::types::FinishedReadiness;
 use crate::application::file_dag::program::file_session::types::FileSession;
+use crate::application::file_dag::program::file_session::types::FinishedReadiness;
 use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -14,10 +14,10 @@ use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::stored_facts::types::Bucket;
 #[cfg(any(test, feature = "fixtures"))]
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::domain::stored_facts::types::Bucket;
 impl FileExecution for FileSession<'_, '_> {
     fn readiness_counts(&self) -> ReadinessCounts {
         self.parts.inner.readiness_counts()
@@ -35,7 +35,14 @@ impl FileExecution for FileSession<'_, '_> {
             &[ryo_relations::domain::relations::types::Value],
         ) -> Result<(), OperatingError>,
     ) -> Result<RowEmission, OperatingError> {
-        let read = |relation| source_rows(self.parts.read, self.parts.elements, self.parts.file, relation);
+        let read = |relation| {
+            source_rows(
+                self.parts.read,
+                self.parts.elements,
+                self.parts.file,
+                relation,
+            )
+        };
         self.parts.inner.emit_rows(rule, &read, symbols, each)
     }
     fn finish(self) -> Result<FileFinished, OperatingError> {
@@ -53,7 +60,14 @@ impl FileExecution for FileSession<'_, '_> {
         demand: RuleDemand,
         symbols: &mut Symbols,
     ) -> Result<RuleOutcome, OperatingError> {
-        let read = |relation| source_rows(self.parts.read, self.parts.elements, self.parts.file, relation);
+        let read = |relation| {
+            source_rows(
+                self.parts.read,
+                self.parts.elements,
+                self.parts.file,
+                relation,
+            )
+        };
         self.parts.inner.rule(rule, demand, &read, symbols)
     }
     fn capture_frontiers(
@@ -63,7 +77,14 @@ impl FileExecution for FileSession<'_, '_> {
         symbols: &mut Symbols,
         capture: CaptureContext<'_>,
     ) -> Result<Vec<FrontierCapture>, OperatingError> {
-        let read = |relation| source_rows(self.parts.read, self.parts.elements, self.parts.file, relation);
+        let read = |relation| {
+            source_rows(
+                self.parts.read,
+                self.parts.elements,
+                self.parts.file,
+                relation,
+            )
+        };
         let bound = ryo_execution_domain::domain::frontier_capture::types::CaptureScope {
             file: self.parts.file,
             rule_digest: self.parts.program.rule_digest(rule)?,
@@ -74,7 +95,8 @@ impl FileExecution for FileSession<'_, '_> {
             },
             words: capture.words,
         };
-        self.parts.inner
+        self.parts
+            .inner
             .capture_frontiers(rule, first, &read, symbols, bound)
     }
     fn commit_frontier(
@@ -124,14 +146,17 @@ impl FileSession<'_, '_> {
     }
     /// Weak lifetime observation of the file's relation owner; the caller never retains it.
     #[must_use]
-    pub fn owner_lifetime(&self) -> std::rc::Weak<ryo_execution_store::application::file_dag::relations::RelationOwner> {
+    pub fn owner_lifetime(
+        &self,
+    ) -> std::rc::Weak<ryo_execution_store::application::file_dag::relations::RelationOwner> {
         self.parts.inner.owner_lifetime()
     }
     /// The derived owner's resource counts of this file.
     #[must_use]
     pub fn resource_fixture_counts(
         &self,
-    ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot {
+    ) -> ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot
+    {
         self.parts.inner.resource_fixture_counts()
     }
 }

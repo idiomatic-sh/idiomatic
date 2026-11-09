@@ -24,7 +24,10 @@ pub(crate) fn artifact(bytes: &ContextBytes) -> ArtifactDigest {
 /// Content seal includes declared absences and stable logical location, never temporary physical directories.
 pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
     let mut hash = Sha256::new();
-    frame(&mut hash, OsStr::new(constants::LISTED_DISK_CONTEXT_DIGEST_TAG));
+    frame(
+        &mut hash,
+        OsStr::new(constants::LISTED_DISK_CONTEXT_DIGEST_TAG),
+    );
     frame(&mut hash, manifest.logical_root.as_os_str());
     for (kind, files) in [
         (SOURCE, &manifest.source_files),
@@ -354,7 +357,8 @@ impl ContextPort for ContextLocalAdapter {
     fn receipt_text(
         &self,
         receipt: &ProjectContextReceipt,
-    ) -> Result<ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error> {
+    ) -> Result<ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error>
+    {
         super::schemas::receipt_text(receipt)
     }
 }

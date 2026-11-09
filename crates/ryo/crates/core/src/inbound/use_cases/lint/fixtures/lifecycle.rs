@@ -1,6 +1,16 @@
 //! The lifecycle cases of a lint: unchanged, edited, deleted, failed and many runs over one store, and where a finding is placed.
 use super::super::interface::LintUseCase as _;
 type Failure = LintError;
+use super::super::errors::LintError;
+use super::given::Given;
+use super::given::SOURCES;
+use super::given::World;
+use super::given::request;
+use super::given::violations;
+use super::worlds::again;
+use super::worlds::lint;
+use super::worlds::read_and_unread;
+use super::worlds::world;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::row_sink::fixtures::fake::Ends;
@@ -12,21 +22,13 @@ use ryo_values::domain::stored_findings::types::FindingMade;
 use ryo_values::domain::stores::types::Stored;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use super::given::Given;
-use super::given::SOURCES;
-use super::given::World;
-use super::given::request;
-use super::given::violations;
-use super::super::errors::LintError;
-use super::worlds::again;
-use super::worlds::lint;
-use super::worlds::read_and_unread;
-use super::worlds::world;
 
 /// Lints three files with a rule that counts the files each function name is in, edits `a.rs` to `edit`, and lints again over the
 /// same store: answers how many files the second lint read, and 1 when the cross-file findings were taken from the store as they were
 /// kept, 0 when they were made again.
-pub(crate) fn crossed_after(edit: (&'static str, &'static str)) -> Result<(usize, usize), LintError> {
+pub(crate) fn crossed_after(
+    edit: (&'static str, &'static str),
+) -> Result<(usize, usize), LintError> {
     let store = Arc::new(LintStoreFake::default());
     let given = |files: Vec<(&'static str, &'static str)>| Given {
         files,

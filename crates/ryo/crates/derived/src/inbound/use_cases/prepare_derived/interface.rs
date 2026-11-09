@@ -24,5 +24,9 @@ use ryo_relations::domain::relations::types::CellKind;
 /// ```
 pub trait PrepareDerivedUseCase: Sync {
     /// Keeps the request with its literals in canonical order and the verdict of its metadata check.
-    fn prepare_derived(&self, request: DerivedRequest, schemas: Vec<Vec<CellKind>>) -> PreparedDerived;
+    fn prepare_derived(
+        &self,
+        request: DerivedRequest,
+        schemas: Vec<Vec<CellKind>>,
+    ) -> PreparedDerived;
 }

@@ -60,8 +60,12 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
                 crate::application::suite_auditing::service::audit(self.suite, profile, &tool)?;
             crate::domain::suite::service::require_accounted(&audit, &tool)?;
         }
-        let cases =
-            crate::application::case_preparation::service::cases(self.suite, self.context, rules, scratch)?;
+        let cases = crate::application::case_preparation::service::cases(
+            self.suite,
+            self.context,
+            rules,
+            scratch,
+        )?;
         super::service::verify_prepared_shard(
             self.suite,
             self.receipts,

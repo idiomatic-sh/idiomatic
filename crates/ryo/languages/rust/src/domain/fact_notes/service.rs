@@ -60,7 +60,10 @@ pub(crate) fn note_of(facts: &Facts) -> Note<'_> {
                 start: NoteOffset(written.start.0),
                 end: NoteOffset(written.end.0),
                 text: NoteName(Cow::Borrowed(&written.text.0)),
-                bound: written.bound.as_ref().map(|each| NoteName(Cow::Borrowed(each))),
+                bound: written
+                    .bound
+                    .as_ref()
+                    .map(|each| NoteName(Cow::Borrowed(each))),
             })
             .collect(),
     }
@@ -95,7 +98,11 @@ pub(crate) fn facts_of(note: Note<'_>, names: &dyn Fn(&Segment) -> Naming) -> Fa
                 Body::File
             },
             path: path(each.path),
-            gate: if each.test_only.0 { Gate::Test } else { Gate::Always },
+            gate: if each.test_only.0 {
+                Gate::Test
+            } else {
+                Gate::Always
+            },
         })
         .collect();
     // A name a `use` of the file binds names what that `use` names: a path that starts with it is kept to be resolved through it.

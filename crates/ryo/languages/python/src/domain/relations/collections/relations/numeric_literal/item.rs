@@ -1,5 +1,6 @@
 //! Read only demanded numeric occurrences, preserving partiality and real source IDs.
 
+use super::constants::INCOMPLETE;
 use crate::domain::{
     model::types::Declarations,
     nodes::types::Node,
@@ -11,8 +12,6 @@ use crate::domain::{
     syntax::{service::kind_bits, types::Kind},
 };
 use ryo::languages;
-use super::constants::INCOMPLETE;
-
 
 /// Optional numeric literal reader; no projection runs until this relation is requested.
 pub(crate) struct NumericLiteralItem;

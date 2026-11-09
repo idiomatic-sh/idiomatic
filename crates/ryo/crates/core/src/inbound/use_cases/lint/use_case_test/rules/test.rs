@@ -7,14 +7,15 @@ use crate::inbound::use_cases::lint::fixtures::given::Given;
 use crate::inbound::use_cases::lint::fixtures::given::SOURCES;
 use crate::inbound::use_cases::lint::fixtures::given::host_placed;
 use crate::inbound::use_cases::lint::fixtures::given::plan_over_hosted;
+use crate::inbound::use_cases::lint::fixtures::given::violations;
 use crate::inbound::use_cases::lint::fixtures::scenario::Scenario;
 use crate::inbound::use_cases::lint::fixtures::scenario::scenario;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use crate::outbound::row_sink::fixtures::fake::Ends;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
-use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_values::domain::plan_parts::types::ParameterName;
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;
@@ -22,7 +23,6 @@ use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::Budget;
 use std::sync::Arc;
-use crate::inbound::use_cases::lint::fixtures::given::violations;
 
 type Input = Scenario;
 type Value = (usize, usize);
@@ -120,7 +120,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Provider { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::Provider { .. })))
+        }),
     },
     Case {
         name: CaseName("a_source_provider_the_request_names_but_no_language_links_is_refused"),
@@ -180,25 +182,39 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::TooLarge { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::TooLarge { .. })))
+        }),
     },
     Case {
         name: CaseName("fails_when_the_file_analysis_execution_dependencies_disagree"),
         word: Word::Fails,
         input: || Scenario::FileAnalysisExecutionRefused,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Execution { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::Execution { .. })))
+        }),
     },
     Case {
         name: CaseName("fails_when_the_execution_cannot_admit_an_observation"),
         word: Word::Fails,
         input: || Scenario::CrossFileOperatingRefused,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::ObservationExecution { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(
+                error,
+                LintError::ObservationExecution { .. }
+            )))
+        }),
     },
     Case {
         name: CaseName("fails_when_the_observation_bindings_form_a_cycle"),
         word: Word::Fails,
         input: || Scenario::ObservationBindingsRefused,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::ObservationBindings { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(
+                error,
+                LintError::ObservationBindings { .. }
+            )))
+        }),
     },
     Case {
         name: CaseName("fails_when_facts_fail"),
@@ -220,7 +236,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Output { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::Output { .. })))
+        }),
     },
     Case {
         name: CaseName("fails_when_scheduler_fails"),
@@ -231,7 +249,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Scheduler { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::Scheduler { .. })))
+        }),
     },
     Case {
         name: CaseName("fails_when_memory_port_fails"),
@@ -245,7 +265,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ..violations()
             })
         },
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LintError::Memory { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LintError::Memory { .. })))
+        }),
     },
 ];
 

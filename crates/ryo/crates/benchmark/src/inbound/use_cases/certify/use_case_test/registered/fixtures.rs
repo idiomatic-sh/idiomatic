@@ -95,9 +95,14 @@ impl Fixture {
     pub(in crate::inbound::use_cases::certify::use_case_test) fn new() -> Self {
         let root = tempfile::tempdir().unwrap();
         let profile = root.path().join("measured");
-        let reference_executable = root.path().join(crate::inbound::use_cases::certify::constants::FIXTURE_TOOL_FILE);
+        let reference_executable = root
+            .path()
+            .join(crate::inbound::use_cases::certify::constants::FIXTURE_TOOL_FILE);
         let worker_executable = root.path().join("independent-worker");
-        write(&reference_executable, crate::inbound::use_cases::certify::constants::FIXTURE_TOOL_SCRIPT);
+        write(
+            &reference_executable,
+            crate::inbound::use_cases::certify::constants::FIXTURE_TOOL_SCRIPT,
+        );
         write(
             &worker_executable,
             "#!/bin/sh\nprintf 'independent worker\\n'\n",
@@ -193,7 +198,10 @@ impl Fixture {
         .unwrap();
     }
 }
-pub(in crate::inbound::use_cases::certify::use_case_test) fn copy_measured_profile(fixture: &Fixture, destination: &Path) {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn copy_measured_profile(
+    fixture: &Fixture,
+    destination: &Path,
+) {
     for relative in [
         "benchmark.toml",
         "helper.ryoql",
@@ -210,9 +218,13 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn copy_measured_profi
     }
 }
 
-
 /// The refusal named by `reason` when the error says it, else the error in full; no contestant ran beyond `launches`.
-pub(in crate::inbound::use_cases::certify::use_case_test) fn refusal(f: &Fixture, error: &ReportsError, reason: &'static str, launches: usize) -> Cow<'static, str> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn refusal(
+    f: &Fixture,
+    error: &ReportsError,
+    reason: &'static str,
+    launches: usize,
+) -> Cow<'static, str> {
     assert_eq!(*f.execution.launches.lock().unwrap(), launches, "{error}");
     let text = error.to_string();
     if text.contains(reason) {
@@ -222,11 +234,15 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn refusal(f: &Fixture
     }
 }
 
-pub(in crate::inbound::use_cases::certify::use_case_test) fn failed(error: &ReportsError) -> Cow<'static, str> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn failed(
+    error: &ReportsError,
+) -> Cow<'static, str> {
     Cow::Owned(error.to_string())
 }
 
-pub(in crate::inbound::use_cases::certify::use_case_test) fn swapped(reason: &'static str) -> Result<usize, Cow<'static, str>> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn swapped(
+    reason: &'static str,
+) -> Result<usize, Cow<'static, str>> {
     use crate::outbound::suite::interface::SuitePort as _;
     let f = Fixture::new();
     let suite = crate::outbound::suite::factory::local();
@@ -247,7 +263,10 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn swapped(reason: &'s
     .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
-pub(in crate::inbound::use_cases::certify::use_case_test) fn drift(change: &str, reason: &'static str) -> Result<usize, Cow<'static, str>> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn drift(
+    change: &str,
+    reason: &'static str,
+) -> Result<usize, Cow<'static, str>> {
     let mut f = Fixture::new();
     match change {
         "artifact" => write(
@@ -277,7 +296,8 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn drift(change: &str,
         .map_err(|error| refusal(&f, &error, reason, 0))
 }
 
-pub(in crate::inbound::use_cases::certify::use_case_test) fn missing_rule() -> Result<usize, Cow<'static, str>> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn missing_rule()
+-> Result<usize, Cow<'static, str>> {
     let mut f = Fixture::new();
     f.document["rules"].as_array_mut().unwrap().pop();
     f.save();
@@ -291,7 +311,10 @@ pub(in crate::inbound::use_cases::certify::use_case_test) fn missing_rule() -> R
     })
 }
 
-pub(in crate::inbound::use_cases::certify::use_case_test) fn modules(change: &str, reason: &'static str) -> Result<usize, Cow<'static, str>> {
+pub(in crate::inbound::use_cases::certify::use_case_test) fn modules(
+    change: &str,
+    reason: &'static str,
+) -> Result<usize, Cow<'static, str>> {
     let mut f = Fixture::new();
     let modules = f.document["rules"][0]["modules"].as_object_mut().unwrap();
     match change {

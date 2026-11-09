@@ -17,12 +17,16 @@ use std::borrow::Cow;
 /// a synthetic zero-width lexer error there, after all source tokens were read.
 /// Other lexer failures can lose string, interpolation or continuation state and
 /// remain incomplete even when their token ranges happen to cover every byte.
-pub(super) fn complete(parsed: &Parsed<Mod>, source: languages::ByteSlice<'_>) -> LexicallyComplete {
+pub(super) fn complete(
+    parsed: &Parsed<Mod>,
+    source: languages::ByteSlice<'_>,
+) -> LexicallyComplete {
     let mut delimiter_eof = DelimiterEof(false);
     for error in parsed.errors() {
         match &error.error {
             ParseErrorType::Lexical(LexicalErrorType::Eof)
-                if error.location.is_empty() && error.location.end().to_usize() == source.0.len() =>
+                if error.location.is_empty()
+                    && error.location.end().to_usize() == source.0.len() =>
             {
                 delimiter_eof = DelimiterEof(true);
             }
@@ -60,7 +64,11 @@ fn has_unclosed_delimiter(tokens: &[Token]) -> UnclosedDelimiter {
 
 /// Ordered, bounded tokens must cover every non-whitespace source byte.
 /// Only a separately certified synthetic EOF error token may be ignored.
-pub(super) fn covered(tokens: &[Token], source: languages::ByteSlice<'_>, delimiter_eof: DelimiterEof) -> LexicallyComplete {
+pub(super) fn covered(
+    tokens: &[Token],
+    source: languages::ByteSlice<'_>,
+    delimiter_eof: DelimiterEof,
+) -> LexicallyComplete {
     if u32::try_from(source.0.len()).is_err() {
         return LexicallyComplete(false);
     }

@@ -2,7 +2,7 @@
 
 use super::super::contract::check;
 use super::{CountingSchedulerFake, SchedulerFake};
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::scheduler::errors::SchedulerError;
 use crate::outbound::scheduler::interface::SchedulerPort as _;
 use crate::outbound::scheduler::types::{JobCount, JobNumber};

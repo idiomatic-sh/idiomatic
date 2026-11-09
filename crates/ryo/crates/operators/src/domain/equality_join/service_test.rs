@@ -1,10 +1,10 @@
 //! Ordered Join meaning: bag order, view mapping, refusal order and the prefix a downstream refusal keeps.
+use super::errors::EqualityJoinError;
 use super::service::join_row;
 use super::types::{Advance, JoinCells, JoinDriver, JoinRow};
-use super::errors::EqualityJoinError;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
 #[derive(Clone, Copy)]
@@ -56,13 +56,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing_left_key_is_refused_before_candidate_access"),
         word: Word::Refuses,
         input: || Scenario::MissingLeftKey,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(3) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(3),
+        }),
     },
     Case {
         name: CaseName("first_output_fault_stops_before_any_delivery"),
         word: Word::Refuses,
         input: || Scenario::FirstOutputFault,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(99) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(99),
+        }),
     },
     Case {
         name: CaseName("downstream_interruption_preserves_delivered_prefix_and_stops_scanning"),

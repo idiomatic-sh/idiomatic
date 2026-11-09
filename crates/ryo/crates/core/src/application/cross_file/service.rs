@@ -1,10 +1,9 @@
 //! Cross-file evaluation of the project batches over injected ports.
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::completion::service::ProjectCompletion;
 use super::completion::service::collected;
 use super::completion::types::CrossedWithPublications;
-use super::errors::CrossFileError;
 use super::constants::{MISSING_FRONTIER_BUCKET, MISSING_OUTCOME};
+use super::errors::CrossFileError;
 use super::rendering::service::Rendering;
 use super::types::BatchOccurrenceBinding;
 use super::types::ObservationRun;
@@ -13,20 +12,16 @@ use crate::domain::answering::service::settle;
 use crate::domain::answering::types::Answered;
 use crate::domain::answering::types::Todo;
 use crate::domain::crossing::service::inapplicable_files;
-use crate::domain::crossing::service::refused_files;
 use crate::domain::crossing::service::partials_for;
 use crate::domain::crossing::service::partials_for_reads;
+use crate::domain::crossing::service::refused_files;
 use crate::domain::render::types::Answering;
 use crate::outbound::corpus::interface::CorpusPort;
-use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::{AdmittedOutput, RuleSelection};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
 use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
@@ -34,11 +29,16 @@ use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::PreparationError;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::{AdmittedOutput, RuleSelection};
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::service::failed;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
@@ -75,7 +75,8 @@ impl CrossFile {
         slot: PublicationSlot,
         symbols: &mut Symbols,
     ) -> Result<CrossedWithPublications, CrossFileError> {
-        let evaluated = collected(outcome).map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
+        let evaluated =
+            collected(outcome).map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
         self.completion
             .complete_phase(crossing, todo, evaluated, symbols, slot)
             .map_err(CrossFileError::from)
@@ -190,7 +191,13 @@ impl CrossFile {
                     |occurrence| phase_partials(&crossing, submitted_todo(occurrence)?),
                     &mut guard,
                     |occurrence, outcome, slot, symbols: &mut Symbols| {
-                        self.complete_occurrence(&crossing, submitted_todo(occurrence)?, outcome, slot, symbols)
+                        self.complete_occurrence(
+                            &crossing,
+                            submitted_todo(occurrence)?,
+                            outcome,
+                            slot,
+                            symbols,
+                        )
                     },
                 );
                 match ran {
@@ -213,7 +220,8 @@ impl CrossFile {
                     }
                 };
                 if let Some(outcome) = outcome {
-                    let delivered = outcome.and_then(|result| deliver(&mut stage, todo, result, answered));
+                    let delivered =
+                        outcome.and_then(|result| deliver(&mut stage, todo, result, answered));
                     if let Err(error) = delivered {
                         first_error.get_or_insert(error);
                     }
@@ -265,7 +273,10 @@ fn deliver(
 
 /// The partials one occurrence of a phase is evaluated with: those its diagnostic sees, when findings are answered, and those its
 /// publication sees.
-pub(super) fn phase_partials(crossing: &ProjectCrossing<'_>, todo: &Todo) -> Result<PhasePartials, CrossFileError> {
+pub(super) fn phase_partials(
+    crossing: &ProjectCrossing<'_>,
+    todo: &Todo,
+) -> Result<PhasePartials, CrossFileError> {
     let evaluation = match crossing.answering {
         Answering::Findings => partials_for(&MetadataUseCaseImpl, &crossing.domain, todo.rule),
         Answering::Rows(_) => Default::default(),
@@ -284,7 +295,10 @@ pub(super) fn phase_partials(crossing: &ProjectCrossing<'_>, todo: &Todo) -> Res
 /// What binds one declared occurrence of an observation batch: the readiness of its frontiers, the publication slot it reserves and
 /// its bound inputs, in that order. The stage proves which producers of the rule's frontiers are published; the engine reads that
 /// proof, not a choice of ours.
-fn bind(stage: &mut impl ObservationExecution, todo: &Todo) -> Result<BatchOccurrenceBinding, CrossFileError> {
+fn bind(
+    stage: &mut impl ObservationExecution,
+    todo: &Todo,
+) -> Result<BatchOccurrenceBinding, CrossFileError> {
     let ready = stage.frontier_readiness(todo.rule)?;
     let slot = stage.reserve(todo.rule)?;
     let bound = stage.bindings(todo.rule)?;
@@ -300,7 +314,9 @@ pub(super) fn stopped(todo: &Todo, stop: PhaseStop<CrossFileError>) -> CrossFile
         PhaseStop::Frontiers(PreparationError::Metadata(error)) => {
             CrossFileError::from(failed(&todo.id, &error))
         }
-        PhaseStop::MissingFirstBucket => CrossFileError::from(failed(&todo.id, &MISSING_FRONTIER_BUCKET)),
+        PhaseStop::MissingFirstBucket => {
+            CrossFileError::from(failed(&todo.id, &MISSING_FRONTIER_BUCKET))
+        }
         PhaseStop::Unevaluated => CrossFileError::from(failed(&todo.id, &MISSING_OUTCOME)),
     }
 }

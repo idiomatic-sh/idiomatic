@@ -1,8 +1,8 @@
 //! Preserved validation diagnostics do not make literal rows incomplete.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::LiteralPropertiesItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::reading::reading;
 
 fn module_nonlocal_validation_keeps_literal_properties_complete() {
@@ -13,14 +13,12 @@ fn module_nonlocal_validation_keeps_literal_properties_complete() {
 }
 
 /// Each check below states its own source and asserts its own outcome.
-const CASES: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("module_nonlocal_validation_keeps_literal_properties_complete"),
-        word: Word::Succeeds,
-        input: || module_nonlocal_validation_keeps_literal_properties_complete,
-        expect: Expect::Value(()),
-    },
-];
+const CASES: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("module_nonlocal_validation_keeps_literal_properties_complete"),
+    word: Word::Succeeds,
+    input: || module_nonlocal_validation_keeps_literal_properties_complete,
+    expect: Expect::Value(()),
+}];
 
 #[test]
 fn succeeds() {

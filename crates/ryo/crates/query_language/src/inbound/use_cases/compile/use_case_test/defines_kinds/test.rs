@@ -1,9 +1,9 @@
 //! A word compared with the kind column of `defines`, from the compile inbound API.
 
 use super::super::compile_twice;
-use crate::inbound::use_cases::compile::fixtures::{Given, NOWHERE, program_with, read_function};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::compile::errors::CompileError;
+use crate::inbound::use_cases::compile::fixtures::{Given, NOWHERE, program_with, read_function};
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 use crate::selects;

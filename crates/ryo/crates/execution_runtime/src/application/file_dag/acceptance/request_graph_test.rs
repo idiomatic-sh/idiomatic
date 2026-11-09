@@ -3,13 +3,13 @@ use ryo_execution_domain::domain::file_program::fixtures::plan;
 use ryo_execution_domain::domain::file_program::service::compile_prepared;
 use ryo_execution_domain::domain::file_program::types::{NodeInput, RequestGraph, SchemaValidity};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use std::sync::Arc;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::*;
 use ryo_values::domain::plans::types::*;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
+use std::sync::Arc;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -70,7 +70,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 use ryo_values::domain::plan_parts::types::Input as InputSource;
 /// The request graph of `plans` over the operators the application prepares for them.
-fn graph(plans: &[Plan], bindings: &[Vec<ParameterBinding>]) -> Result<RequestGraph, OperatingError> {
+fn graph(
+    plans: &[Plan],
+    bindings: &[Vec<ParameterBinding>],
+) -> Result<RequestGraph, OperatingError> {
     let operators = crate::application::file_dag::service::prepare_with_schemas(
         plans,
         bindings,
@@ -147,8 +150,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             };
             let graph = graph(&[replaced.clone(), replaced], &[vec![], vec![]])?;
             assert_eq!(
-                graph.program_nodes[0][1].as_ref().expect("first derived text producer"),
-                graph.program_nodes[1][1].as_ref().expect("second derived text producer"),
+                graph.program_nodes[0][1]
+                    .as_ref()
+                    .expect("first derived text producer"),
+                graph.program_nodes[1][1]
+                    .as_ref()
+                    .expect("second derived text producer"),
             );
         }
         Scenario::RequestSource => {
@@ -164,8 +171,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             hosted.emit.step = StepId(0);
             let graph = graph(&[hosted.clone(), hosted], &[vec![], vec![]])?;
             assert_ne!(
-                graph.program_nodes[0][0].as_ref().expect("first request source producer"),
-                graph.program_nodes[1][0].as_ref().expect("second request source producer"),
+                graph.program_nodes[0][0]
+                    .as_ref()
+                    .expect("first request source producer"),
+                graph.program_nodes[1][0]
+                    .as_ref()
+                    .expect("second request source producer"),
             );
         }
         Scenario::Dependencies => {

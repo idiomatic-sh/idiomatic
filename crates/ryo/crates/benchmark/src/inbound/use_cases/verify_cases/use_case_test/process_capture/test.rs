@@ -55,7 +55,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Outcome::Holds),
     },
     Case {
-        name: CaseName("decoded success, deadline observers, signals and extra backtraces are not expected failures"),
+        name: CaseName(
+            "decoded success, deadline observers, signals and extra backtraces are not expected failures",
+        ),
         word: Word::Succeeds,
         input: || Scenario::TerminationsAreNotExpectedFailures,
         expect: Expect::Value(Outcome::Holds),
@@ -78,7 +80,10 @@ fn succeeds() {
 }
 
 /// The captured reference process matched against the fixture's declared failure and its proof.
-fn matches_capture(fixture: &Fixture, capture: &ProcessCapture) -> Result<(), ProcessDiscrepancyError> {
+fn matches_capture(
+    fixture: &Fixture,
+    capture: &ProcessCapture,
+) -> Result<(), ProcessDiscrepancyError> {
     crate::application::process_discrepancy::service::matches(
         &fixture.prepared,
         &capture.invocation,
@@ -131,7 +136,10 @@ fn providers_archive_and_validate() {
                 .as_bytes()
             );
         }
-        assert_eq!(captured.records[0].diagnostics, ReportedFindings::Unreported);
+        assert_eq!(
+            captured.records[0].diagnostics,
+            ReportedFindings::Unreported
+        );
         assert_eq!(
             captured.records[0].raw_parity_matches_intended,
             IntentMatch::Matched(YesNo::No)
@@ -192,7 +200,10 @@ fn metadata_failure_keeps_bytes() {
         &fixture.prepared,
         &fixture.rules,
     );
-    assert_eq!(outcome.result.unwrap_err().to_string(), "operational failure");
+    assert_eq!(
+        outcome.result.unwrap_err().to_string(),
+        "operational failure"
+    );
     let CaptureRecord::Kept(kept) = &outcome.capture else {
         panic!("an undecodable output keeps its raw bytes");
     };

@@ -25,9 +25,9 @@ fn evaluate(spans: &[Span]) -> Result<Vec<Value>, OperatingError> {
                 .iter()
                 .copied()
                 .map(|span| compiled::FileSpan {
-            file: FileId(0),
-            span,
-        })
+                    file: FileId(0),
+                    span,
+                })
                 .collect::<Vec<_>>(),
         ),
     }];
@@ -38,8 +38,24 @@ fn evaluate(spans: &[Span]) -> Result<Vec<Value>, OperatingError> {
             span: ColumnIndex(0),
         }),
     ];
-    let compiled::CompiledRun { result: collected, .. } = compiled::run(steps.clone(), &providers, SourceView(b"abcdef"), &mut Symbols::default(), compiled::Downstream::Collected);
-    let compiled::CompiledRun { result: streamed, .. } = compiled::run(steps, &providers, SourceView(b"abcdef"), &mut Symbols::default(), compiled::Downstream::Streamed);
+    let compiled::CompiledRun {
+        result: collected, ..
+    } = compiled::run(
+        steps.clone(),
+        &providers,
+        SourceView(b"abcdef"),
+        &mut Symbols::default(),
+        compiled::Downstream::Collected,
+    );
+    let compiled::CompiledRun {
+        result: streamed, ..
+    } = compiled::run(
+        steps,
+        &providers,
+        SourceView(b"abcdef"),
+        &mut Symbols::default(),
+        compiled::Downstream::Streamed,
+    );
     assert_eq!(collected, streamed);
     let output = collected?;
     assert_eq!(
@@ -104,7 +120,13 @@ fn equal_offsets_from_distinct_files_keep_both_file_identities() {
             span: ColumnIndex(1),
         }),
     ];
-    let compiled::CompiledRun { result: result, .. } = compiled::run(steps, &providers, SourceView(b""), &mut Symbols::default(), compiled::Downstream::Collected);
+    let compiled::CompiledRun { result: result, .. } = compiled::run(
+        steps,
+        &providers,
+        SourceView(b""),
+        &mut Symbols::default(),
+        compiled::Downstream::Collected,
+    );
     assert_eq!(
         result.expect("pure cross-file projection").cells,
         vec![

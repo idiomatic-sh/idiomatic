@@ -1,14 +1,14 @@
 //! Source-match calls with ordinary, line-less and span-only capture outputs keep the exact output shape.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::*;
+use crate::domain::source_matches::types::*;
 use crate::inbound::use_cases::operators::fixtures;
 use crate::inbound::use_cases::operators::types::*;
-use crate::domain::source_matches::types::*;
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
 use ryo_relations::domain::terms::types::Symbol;
-use crate::cases::{Case, CaseName, Expect, Word, run};
-use std::borrow::Cow;
 use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::row_texts::types::CellText;
+use std::borrow::Cow;
 
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -151,7 +151,10 @@ fn source_optional(input: Input) -> Result<Value, Failure> {
         let expected = if interrupted {
             vec![vec![fixtures::number(7), fixtures::span(3, 4)]]
         } else {
-            vec![vec![fixtures::number(7), fixtures::span(3, 4)], vec![fixtures::number(7), fixtures::span(5, 6)]]
+            vec![
+                vec![fixtures::number(7), fixtures::span(3, 4)],
+                vec![fixtures::number(7), fixtures::span(5, 6)],
+            ]
         };
         assert_eq!(
             delivery.rows, expected,
@@ -170,8 +173,18 @@ fn source_optional(input: Input) -> Result<Value, Failure> {
         assert_eq!(
             delivery.rows,
             vec![
-                vec![fixtures::number(7), fixtures::span(3, 4), fixtures::span(3, 4), Cell::Symbol(Symbol(1))],
-                vec![fixtures::number(7), fixtures::span(5, 6), fixtures::span(5, 6), Cell::Symbol(Symbol(2))],
+                vec![
+                    fixtures::number(7),
+                    fixtures::span(3, 4),
+                    fixtures::span(3, 4),
+                    Cell::Symbol(Symbol(1))
+                ],
+                vec![
+                    fixtures::number(7),
+                    fixtures::span(5, 6),
+                    fixtures::span(5, 6),
+                    Cell::Symbol(Symbol(2))
+                ],
             ]
         );
         assert_eq!((delivery.attempts, delivery.interns), (2, 2));
@@ -180,8 +193,18 @@ fn source_optional(input: Input) -> Result<Value, Failure> {
         assert_eq!(
             delivery.rows,
             vec![
-                vec![fixtures::number(7), fixtures::span(3, 4), fixtures::number(2), fixtures::span(3, 4)],
-                vec![fixtures::number(7), fixtures::span(5, 6), fixtures::number(3), fixtures::span(5, 6)],
+                vec![
+                    fixtures::number(7),
+                    fixtures::span(3, 4),
+                    fixtures::number(2),
+                    fixtures::span(3, 4)
+                ],
+                vec![
+                    fixtures::number(7),
+                    fixtures::span(5, 6),
+                    fixtures::number(3),
+                    fixtures::span(5, 6)
+                ],
             ]
         );
         assert_eq!((delivery.attempts, delivery.interns), (2, 0));

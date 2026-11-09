@@ -21,17 +21,22 @@ fn succeeds() {
             report: ryo_benchmark_contracts::domain::reports::types::RunReport {
                 execution_metadata:
                     ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                project_context:
+                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                 files: vec![],
                 skipped: Vec::new(),
-                coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                    ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    },
-                ),
+                coverage:
+                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
+                                1,
+                            ),
+                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                            unknown_or_unread:
+                                ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                        },
+                    ),
                 diagnostics: vec![],
             },
         };

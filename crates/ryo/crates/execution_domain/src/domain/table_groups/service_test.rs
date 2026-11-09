@@ -7,10 +7,10 @@ use super::service::count_groups;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::PrimitiveSemantics;
 use crate::domain::table_groups::types::CountRoom;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::RowsError;
 
@@ -19,8 +19,10 @@ pub(super) struct TestOperators;
 pub(super) static OPERATORS: TestOperators = TestOperators;
 impl PrimitiveSemantics for TestOperators {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
-            .operators(call)
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+            std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+        )
+        .operators(call)
     }
 }
 

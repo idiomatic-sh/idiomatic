@@ -173,8 +173,11 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             demand: FrontierDemand::Observations { ready: &ready },
             ..root
         };
-        let inapplicable = [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()];
-        let refused = [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()];
+        let inapplicable = [
+            ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
+        ];
+        let refused =
+            [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()];
         let (pair, single) = ([root, root], [observed]);
         let occurrences = |occurrences| PhaseOccurrences {
             occurrences,
@@ -244,7 +247,9 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             panic!("the guard admits the observed occurrence")
         };
         let [Ok(observed)] = observed.as_slice() else {
-            panic!("the observed occurrence is scoped, prepared over its ready frontiers and evaluated")
+            panic!(
+                "the observed occurrence is scoped, prepared over its ready frontiers and evaluated"
+            )
         };
         let RootOutcome::Complete(observed_table) = &observed.emit else {
             panic!("the observed population answers the same complete project diagnostic table")

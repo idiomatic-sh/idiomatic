@@ -340,7 +340,9 @@ impl CorpusPort for CorpusIgnoreAdapter {
                 Ok(metadata) if metadata.is_file() => ObservedEntryState::File,
                 Ok(metadata) if metadata.is_dir() => ObservedEntryState::Directory,
                 Ok(_) => ObservedEntryState::Other,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => ObservedEntryState::Missing,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    ObservedEntryState::Missing
+                }
                 Err(_) => ObservedEntryState::Unknown,
             }
         };

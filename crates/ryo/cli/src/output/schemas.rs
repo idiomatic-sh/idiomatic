@@ -11,7 +11,7 @@ use std::sync::{Mutex, PoisonError};
 
 use ryo_core::outbound::row_sink::errors::RowSinkError;
 use ryo_core::outbound::row_sink::interface::RowSinkPort;
-use ryo_core::outbound::row_sink::types::{LentCell, AnswerCounts};
+use ryo_core::outbound::row_sink::types::{AnswerCounts, LentCell};
 use ryo_relations::domain::relations::constants::UNLOCATED;
 use ryo_relations::domain::relations::service::location;
 use ryo_relations::domain::relations::types::Locatedness;

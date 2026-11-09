@@ -2,25 +2,34 @@
 use crate::domain::canonical_text::{service::text_digest, types::Document};
 use crate::domain::inventory_receipts::fixtures::{observed_row, registered_case};
 use crate::domain::process_failure::service::{group_digest, output_digest};
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, ReasonText, RuleName, Sha256Text, YesNo};
-use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
-    IntentMatch, ObservationDocument, ProcessArtifacts, ProcessArtifactsRecord, ProcessRecord, RecordedMetadata,
-    RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, ValidationRecord,
-};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
 use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseReference;
 use ryo_benchmark_contracts::domain::documents::types::finding::value::ExpectedFindings;
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{ArtifactPointer, DiscrepancyIdentity, DiscrepancyRecord, DiscrepancyValidation, ExpectationKind, ObservedExecutable, ProcessExpectation};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+    ArgumentText, CompleteInvocation, InvocationDocument, NormalizedSettings,
+};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    IntentMatch, ObservationDocument, ProcessArtifacts, ProcessArtifactsRecord, ProcessRecord,
+    RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips,
+    RequestRoot, ValidationRecord,
+};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+    ArtifactPointer, DiscrepancyIdentity, DiscrepancyRecord, DiscrepancyValidation,
+    ExpectationKind, ObservedExecutable, ProcessExpectation,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, ReasonText,
+    RuleName, Sha256Text, YesNo,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
 use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use ryo_benchmark_contracts::domain::process::types::{
     OutputPart, OutputText, ProcessArtifact, ProcessFailure, ProcessObservation as ProcessCapture,
 };
+use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use sha2::Digest as _;
 use std::collections::BTreeMap;

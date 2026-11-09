@@ -11,20 +11,20 @@ use index::IndexResource;
 use prepared_use::service::prepared;
 #[cfg(test)]
 mod observation;
-use ryo_execution_domain::domain::{operating::errors::OperatingError, operator::types::OperatorContext};
-use ryo_execution_domain::domain::operator::contract::{
-    views::NativeJoin,
-    resources::ResourceProgram,
-    types::OperatorContract,
-};
-use ryo_execution_domain::domain::table_reach::borrowed::IndexedRows;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::table_groups::types::Group;
-use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
-use ryo_derived::domain::ordered::types::OrderedMatching;
 use ryo_derived::domain::dfs::types::PreparedDfs;
+use ryo_derived::domain::equality::types::KeyIndex;
+use ryo_derived::domain::ordered::types::OrderedMatching;
+use ryo_execution_domain::domain::operator::contract::{
+    resources::ResourceProgram, types::OperatorContract, views::NativeJoin,
+};
+use ryo_execution_domain::domain::table_groups::types::Group;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_reach::borrowed::IndexedRows;
+use ryo_execution_domain::domain::{
+    operating::errors::OperatingError, operator::types::OperatorContext,
+};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, InputNumber, LiteralText},
@@ -58,14 +58,17 @@ pub(crate) struct InvocationInputs<'f> {
     pub(crate) native_storage: Option<AcquiredView>,
     pub(crate) cycles: Option<AcquiredView>,
     pub(crate) closure: AcquiredPartitions,
-    pub(crate) partitioned_closure: Option<ryo_execution_store::application::file_dag::closure_partitions::PartitionedClosure<'f>>,
+    pub(crate) partitioned_closure: Option<
+        ryo_execution_store::application::file_dag::closure_partitions::PartitionedClosure<'f>,
+    >,
     pub(crate) ordered: Option<AcquiredView>,
     pub(crate) dfs: Option<AcquiredView>,
     pub(crate) axis: Option<super::axis_resources::view::AxisResource<'f>>,
     pub(crate) groups: Option<Vec<Group>>,
     /// The file's profile, the observer the lent indexes report their probes to.
     #[cfg(feature = "diagnostic-row-progress")]
-    pub(crate) progress: ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
+    pub(crate) progress:
+        ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
 }
 impl<'f> InvocationResources<'f> {
     /// Validate required Join resource metadata without constructing a payload.
@@ -104,13 +107,19 @@ impl<'f> InvocationResources<'f> {
             {
                 return Ok(());
             }
-            if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered || !join.view.is_empty() {
+            if join.has_filter
+                == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+                || !join.view.is_empty()
+            {
                 return Err(OperatingError::WrongOperation);
             }
             validate(DerivedKind::Equality)
         } else {
             // The ordinary values driver has no native filter/view protocol.
-            if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered || !join.view.is_empty() {
+            if join.has_filter
+                == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+                || !join.view.is_empty()
+            {
                 return Err(OperatingError::WrongOperation);
             }
             validate(DerivedKind::Equality)
@@ -123,7 +132,10 @@ fn partitioned<'f>(
     input: RepresentationInput<'f>,
     admitted: &ryo_execution_store::application::file_dag::workspace::InputAdmissions<'_, 'f>,
     context: &mut OperatorContext<'_>,
-) -> Result<ryo_execution_store::application::file_dag::closure_partitions::PartitionedClosure<'f>, OperatingError> {
+) -> Result<
+    ryo_execution_store::application::file_dag::closure_partitions::PartitionedClosure<'f>,
+    OperatingError,
+> {
     use ryo_derived::domain::request::types::DerivedKind;
     let order = prepared(contract, DerivedKind::PartitionOrder)?;
     let closure = prepared(contract, DerivedKind::ClosureAdjacency)?;
@@ -150,7 +162,8 @@ impl ryo_execution_domain::domain::operator::contract::views::ClosureParts for A
     fn get(
         &self,
         at: ryo_execution_domain::domain::operator::contract::views::PartitionIndex,
-    ) -> Result<&ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError> {
+    ) -> Result<&ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError>
+    {
         let view = self
             .0
             .as_slice()
@@ -163,4 +176,3 @@ impl ryo_execution_domain::domain::operator::contract::views::ClosureParts for A
         }
     }
 }
-

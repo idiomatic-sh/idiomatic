@@ -1,8 +1,8 @@
 //! Missing payload is partial only when the optional bytes relation is demanded.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::super::fixtures::contract::check;
 use super::item::BytesLiteralItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     nodes::types::Node,
     syntax::{service::kind_bits, types::Kind},

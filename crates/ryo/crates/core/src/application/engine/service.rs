@@ -4,20 +4,22 @@
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase as _;
 use std::sync::Arc;
 
-use ryo_execution::inbound::use_cases::compile_rules::interface::{CompileRulesUseCase, CompiledRules, RuleCompilationError, CompiledPlans};
+use ryo_execution::inbound::use_cases::compile_rules::interface::{
+    CompileRulesUseCase, CompiledPlans, CompiledRules, RuleCompilationError,
+};
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::inbound::use_cases::compile_rules::use_case::CompileRulesUseCaseImpl;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 
 /// The engine's rule compilation, with the plans it keeps.
 pub(crate) struct Compilation(CompileRulesUseCaseImpl);
@@ -44,7 +46,10 @@ impl Compilation {
 }
 
 impl CompileRulesUseCase for Compilation {
-    fn compile_rules(&self, request: CompileRequest<'_>) -> Result<CompiledRules, RuleCompilationError> {
+    fn compile_rules(
+        &self,
+        request: CompileRequest<'_>,
+    ) -> Result<CompiledRules, RuleCompilationError> {
         self.0.compile_rules(request)
     }
 }

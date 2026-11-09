@@ -1,19 +1,22 @@
 //! Compact adjacency matches the actual public closure owner without enumerating unrelated roots.
-use ryo_derived::domain::vertices::types::VertexId;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use super::super::super::fixtures;
+use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::RowsError;
 
-use ryo_execution_runtime::application::file_dag::testing::CompleteTableRows;
-use ryo_execution_domain::domain::stored_graph::types::traversal::value::GraphTraversal;
-use ryo_execution_domain::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation, RelationPopulation, VisitEpoch};
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_derived::domain::contract::types::BuildOutcome;
-use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::contract::types::BuildInputs;
+use ryo_derived::domain::contract::types::BuildOutcome;
+use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::request::types::DerivedRequest;
+use ryo_execution_domain::domain::stored_graph::types::traversal::value::GraphTraversal;
+use ryo_execution_domain::domain::stored_graph::types::{
+    ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation, RelationPopulation,
+    VisitEpoch,
+};
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_runtime::application::file_dag::testing::CompleteTableRows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
@@ -91,7 +94,8 @@ fn build(
     }
 }
 
-fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates() -> Result<(), Failure> {
+fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates()
+-> Result<(), Failure> {
     let edges = table(
         &[
             &[9, 2, 1],
@@ -171,7 +175,10 @@ fn sparse_demand_work_is_independent_of_unrelated_components() -> Result<(), Fai
     .expect("columns")
     .expect("graph");
     let root = graph
-        .vertex(ryo_derived::domain::vertices::types::PartitionId(0), Cell::Number(Integer(1)))
+        .vertex(
+            ryo_derived::domain::vertices::types::PartitionId(0),
+            Cell::Number(Integer(1)),
+        )
         .expect("prepared vertex")
         .0;
     let mut walk = GraphWalk::default();
@@ -233,7 +240,10 @@ fn typed_endpoint_identity_never_coalesces_equal_payload_words() -> Result<(), F
     .expect("columns")
     .expect("graph");
     assert_eq!(graph.vertices().len(), 2);
-    assert_ne!(graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), number), graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), flag));
+    assert_ne!(
+        graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), number),
+        graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), flag)
+    );
     Ok(())
 }
 
@@ -251,13 +261,19 @@ type Value = ();
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(stringify!(compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates)),
+        name: CaseName(stringify!(
+            compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates
+        )),
         word: Word::Succeeds,
-        input: || Scenario::CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates,
+        input: || {
+            Scenario::CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates
+        },
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(sparse_demand_work_is_independent_of_unrelated_components)),
+        name: CaseName(stringify!(
+            sparse_demand_work_is_independent_of_unrelated_components
+        )),
         word: Word::Succeeds,
         input: || Scenario::SparseDemandWorkIsIndependentOfUnrelatedComponents,
         expect: Expect::Value(()),
@@ -269,7 +285,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(typed_endpoint_identity_never_coalesces_equal_payload_words)),
+        name: CaseName(stringify!(
+            typed_endpoint_identity_never_coalesces_equal_payload_words
+        )),
         word: Word::Succeeds,
         input: || Scenario::TypedEndpointIdentityNeverCoalescesEqualPayloadWords,
         expect: Expect::Value(()),
@@ -277,10 +295,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates => compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates(),
-        Scenario::SparseDemandWorkIsIndependentOfUnrelatedComponents => sparse_demand_work_is_independent_of_unrelated_components(),
-        Scenario::InvalidColumnsAreRejectedEvenOnEmptyEdges => invalid_columns_are_rejected_even_on_empty_edges(),
-        Scenario::TypedEndpointIdentityNeverCoalescesEqualPayloadWords => typed_endpoint_identity_never_coalesces_equal_payload_words(),
+        Scenario::CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates => {
+            compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates()
+        }
+        Scenario::SparseDemandWorkIsIndependentOfUnrelatedComponents => {
+            sparse_demand_work_is_independent_of_unrelated_components()
+        }
+        Scenario::InvalidColumnsAreRejectedEvenOnEmptyEdges => {
+            invalid_columns_are_rejected_even_on_empty_edges()
+        }
+        Scenario::TypedEndpointIdentityNeverCoalescesEqualPayloadWords => {
+            typed_endpoint_identity_never_coalesces_equal_payload_words()
+        }
     }
 }
 #[test]

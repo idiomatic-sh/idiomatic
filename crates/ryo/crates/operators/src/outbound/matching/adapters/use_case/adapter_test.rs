@@ -15,7 +15,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("a_zero_width_pattern_is_visited_at_every_boundary"),
     word: Word::Succeeds,
     input: || ("", "ab", None),
-    expect: Expect::Value(std::borrow::Cow::Borrowed(&[(0, 0, None), (1, 1, None), (2, 2, None)])),
+    expect: Expect::Value(std::borrow::Cow::Borrowed(&[
+        (0, 0, None),
+        (1, 1, None),
+        (2, 2, None),
+    ])),
 }];
 
 /// Calls the adapter on one input, for the contract's rows and for its own.

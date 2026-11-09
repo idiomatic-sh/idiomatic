@@ -1,10 +1,10 @@
 //! The source inventories every submission route is checked against, and the intents they enumerate.
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
-use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_values::domain::runs::types::Skipped;
 use std::collections::BTreeSet;
 
@@ -56,13 +56,18 @@ pub(super) fn intent_place(value: FileRuleIntent) -> usize {
         } => {
             1 + reasons
                 + refusals
-                + (delivery_place(diagnostic) * DEMANDS.len() + demand_place(observations)) * CAPTURES.len()
+                + (delivery_place(diagnostic) * DEMANDS.len() + demand_place(observations))
+                    * CAPTURES.len()
                 + capture_place(captured)
         }
     }
 }
 /// An inventory lists each variant once, at the place its exhaustive match gives it.
-pub(super) fn assert_inventory<T: Copy + std::fmt::Debug>(name: &str, values: &[T], position: fn(T) -> usize) {
+pub(super) fn assert_inventory<T: Copy + std::fmt::Debug>(
+    name: &str,
+    values: &[T],
+    position: fn(T) -> usize,
+) {
     let places: BTreeSet<usize> = values.iter().map(|&value| position(value)).collect();
     assert_eq!(
         places,

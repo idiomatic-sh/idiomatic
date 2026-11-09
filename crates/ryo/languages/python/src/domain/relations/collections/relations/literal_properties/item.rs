@@ -1,5 +1,6 @@
 //! Emit optional primitive-literal properties from parser-owned payloads.
 
+use super::constants::INCOMPLETE;
 use crate::domain::{
     literal_properties::{service::classify, types::LiteralClassification},
     model::types::Declarations,
@@ -8,8 +9,6 @@ use crate::domain::{
     syntax::{service::kind_bits, types::Kind},
 };
 use ryo::languages;
-use super::constants::INCOMPLETE;
-
 
 /// The optional Python primitive-literal reader.
 pub(crate) struct LiteralPropertiesItem;

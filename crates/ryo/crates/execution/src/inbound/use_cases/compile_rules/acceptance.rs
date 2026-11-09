@@ -37,7 +37,9 @@ fn rule(id: &str) -> RuleSpec {
 #[when(expr = "compilation runs")]
 fn runs(world: &mut Behavior) {
     let compile = CompileRulesUseCaseImpl::new(
-        Arc::new(ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake::default()),
+        Arc::new(
+            ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake::default(),
+        ),
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let rules = if world.input == "repeated" {

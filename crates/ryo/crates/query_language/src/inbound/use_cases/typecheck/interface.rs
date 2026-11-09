@@ -1,8 +1,8 @@
 //! What the `typecheck` use case promises its callers.
 
 use super::errors::TypecheckError;
-use ryo_values::domain::plans::types::QueryRequest;
 use ryo_values::domain::descriptions::types::ValidateReport;
+use ryo_values::domain::plans::types::QueryRequest;
 
 /// What `typecheck` offers its callers.
 pub trait TypecheckUseCase: Send + Sync {

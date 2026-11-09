@@ -1,5 +1,6 @@
 //! A prepared case with a distinct pinned reference, and the profile that pins its tool.
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
 use ryo_benchmark_contracts::domain::reports::types::{
@@ -11,7 +12,6 @@ use ryo_benchmark_contracts::domain::requests::types::{
     ParserConfigurationName, ParserSelection, ProviderSelection, RuleContextPreparation,
     RunRequest, SearchRoots, StagedSources,
 };
-use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
 use ryo_benchmark_contracts::domain::workloads::types::{
     CaseComparison, DiscrepancyBasis, DiscrepancyReason, FileObservation,
     MetadataDigestDeclaration, PreparedCase, PreparedReferenceBehavior,
@@ -110,7 +110,11 @@ pub(crate) fn profile() -> Tool {
         pending: BTreeMap::default(),
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName("python3.10".into())),
+        parser_configuration: ParserSelection::Named(
+            ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+                "python3.10".into(),
+            ),
+        ),
         source_language: ProviderSelection::Unspecified,
         project_search_roots: SearchRoots::Undeclared,
     }

@@ -25,7 +25,7 @@ use ryo_values::domain::query_operators::types::OperationKind;
 pub mod expectations;
 pub mod inputs;
 pub mod values;
-use values::{FROM, RIGHT, DOMAIN, n, span, node, table, numbers, matrix, text};
+use values::{DOMAIN, FROM, RIGHT, matrix, n, node, numbers, span, table, text};
 
 /// The authored rows, bindings and expected answer of one operation kind.
 #[must_use]

@@ -10,17 +10,17 @@ use crate::application::file_dag::program::facade_runtime::file_execution::readi
 use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::source_admission::observation_table;
 use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
-use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
 
@@ -75,9 +75,11 @@ impl FileRun<'_> {
         if owns_file_root {
             self.prepare_walk(read, symbols)?;
         }
-        let _rule_origin = self.routes.profile().rule(rule.0, self.program.rule_id(rule)?);
-        let _consumer_origin =
-            self.routes.profile().consumer(FILE_RULE_CONSUMER);
+        let _rule_origin = self
+            .routes
+            .profile()
+            .rule(rule.0, self.program.rule_id(rule)?);
+        let _consumer_origin = self.routes.profile().consumer(FILE_RULE_CONSUMER);
         let mut context = self.context.borrow(symbols, self.program, rule)?;
         let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;

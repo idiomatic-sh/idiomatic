@@ -3,7 +3,7 @@
 use super::super::interface::ComparisonsItem;
 use crate::domain::numeric_values::{
     service::{compare, integer_successor, read},
-    types::{Numeric, NumberText, Succession},
+    types::{NumberText, Numeric, Succession},
 };
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::Verdict;

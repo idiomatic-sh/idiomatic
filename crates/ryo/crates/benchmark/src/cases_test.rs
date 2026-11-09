@@ -96,9 +96,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let failure = std::panic::catch_unwind(|| run(TABLE, word, answer))
         .err()
         .ok_or(Unreported::Passed)?;
-    let text = failure
-        .downcast_ref::<String>()
-        .ok_or(Unreported::Silent)?;
+    let text = failure.downcast_ref::<String>().ok_or(Unreported::Silent)?;
     Ok(Reported {
         first: text.contains("the_first_row_is_red"),
         second: text.contains("the_second_row_is_green"),

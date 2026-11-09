@@ -13,9 +13,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::rows::types::Table;
 use std::mem::size_of;
 
-fn sum(
-    values: impl IntoIterator<Item = AllocationBytes>,
-) -> Result<AllocationBytes, DerivedFault> {
+fn sum(values: impl IntoIterator<Item = AllocationBytes>) -> Result<AllocationBytes, DerivedFault> {
     values.into_iter().try_fold(AllocationBytes(0), |a, b| {
         a.0.checked_add(b.0)
             .map(AllocationBytes)
@@ -110,12 +108,10 @@ pub fn describe(payload: &DerivedPayload) -> Result<PayloadFootprint, DerivedFau
             });
             AllocationBytes(0)
         }
-        PayloadData::Membership(DerivedMembership::Values(value)) => {
-            hash(
-                ElementCapacity(value.capacity()),
-                AllocationBytes(size_of::<Value>()),
-            )
-        }
+        PayloadData::Membership(DerivedMembership::Values(value)) => hash(
+            ElementCapacity(value.capacity()),
+            AllocationBytes(size_of::<Value>()),
+        ),
         PayloadData::PartitionOrder(value) => vector(value),
         PayloadData::ClosureAdjacency(value) => {
             let buffers = sum([

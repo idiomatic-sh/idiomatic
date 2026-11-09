@@ -2,10 +2,10 @@
 
 use super::super::contract::check;
 use super::{FakeCatalog, LanguageFake};
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::language::interface::LanguagePort as _;
-use crate::outbound::language::types::{ProjectToRead, ProjectNotes};
+use crate::outbound::language::types::{ProjectNotes, ProjectToRead};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::fixtures::contract::Discard;
 use ryo_language::inbound::use_cases::project::types::RootPath;
@@ -40,13 +40,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_the_catalog_cannot_be_read"),
         word: Word::Fails,
         input: || Scenario::BrokenCatalog,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LanguageError::Catalog { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LanguageError::Catalog { .. })))
+        }),
     },
     Case {
         name: CaseName("fails_when_a_manifest_does_not_parse"),
         word: Word::Fails,
         input: || Scenario::BrokenManifest,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, LanguageError::Manifest { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, LanguageError::Manifest { .. })))
+        }),
     },
 ];
 

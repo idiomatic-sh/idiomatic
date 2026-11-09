@@ -145,7 +145,10 @@ impl Fixture {
             .0;
         complete_of(&mut capture.invocation).source_sha256 =
             Pin::Sha256(Sha256Text(source_digest.clone()));
-        let settings = complete_of(&mut capture.invocation).settings_sha256.0.clone();
+        let settings = complete_of(&mut capture.invocation)
+            .settings_sha256
+            .0
+            .clone();
         let mut observations = Vec::new();
         for attempt in 0..2 {
             let directory = source.join(format!("archive-{attempt}"));
@@ -238,7 +241,9 @@ impl Fixture {
         .unwrap();
         let context = crate::outbound::context::factory::local();
         let receipts = crate::outbound::receipts::fixtures::fake::ReceiptsFake {
-            case_receipts: crate::outbound::receipts::types::CaseReceipts::Recorded(receipt.clone()),
+            case_receipts: crate::outbound::receipts::types::CaseReceipts::Recorded(
+                receipt.clone(),
+            ),
         };
         record(
             &suite,
@@ -258,8 +263,14 @@ impl Fixture {
                 status: 0,
                 ..Default::default()
             });
-        let candidate =
-            run_case(&suite, &context, &linter, &candidate_execution, &prepared, &rules);
+        let candidate = run_case(
+            &suite,
+            &context,
+            &linter,
+            &candidate_execution,
+            &prepared,
+            &rules,
+        );
         assert!(matches!(candidate.capture, CaptureRecord::Absent));
         record(
             &suite,
@@ -299,7 +310,11 @@ impl Fixture {
 /// The prepared discrepancy of a case the fixture made differ.
 fn differing(prepared: &PreparedCase) -> &PreparedReferenceDiscrepancy {
     match &prepared.reference_discrepancy {
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(discrepancy) => discrepancy,
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => panic!("fixture discrepancy"),
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
+            discrepancy,
+        ) => discrepancy,
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => {
+            panic!("fixture discrepancy")
+        }
     }
 }

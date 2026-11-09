@@ -13,9 +13,9 @@ pub(crate) mod operands;
 pub mod operating;
 pub mod operation_schema;
 pub mod operator;
-pub mod self_join_recogniser;
 pub mod placement;
 pub mod prepared_request;
+pub mod self_join_recogniser;
 pub mod shared_walk;
 pub mod table_cells;
 pub(crate) mod table_dedup;
@@ -48,7 +48,7 @@ pub mod output_coverage;
 
 pub mod source_partitions;
 
-pub mod rule_intent;
 pub mod frontier_capture;
-pub mod row_emission;
 pub mod readiness;
+pub mod row_emission;
+pub mod rule_intent;

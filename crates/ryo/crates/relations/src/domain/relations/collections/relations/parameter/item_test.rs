@@ -3,8 +3,8 @@
 use super::super::interface::RelationsItem as _;
 use super::item::{Parameter, ParameterRow};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
 use crate::domain::parameter_kind::types::ParameterKind;
+use crate::domain::relations::types::{Bits, FileId, Integer, NodeId, Offset, Span};
 use crate::domain::terms::types::Symbol;
 
 /// A row to write: every column holds a number of its own, so that a column moved is a column found.

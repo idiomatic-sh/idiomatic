@@ -70,7 +70,9 @@ pub(super) fn rule_programs(
                 let id = node?;
                 // A step no root reads has no root to deliver its schema fault to: its origin is the fault, so the
                 // rule is refused on its own roots instead of the fault being dropped.
-                if let (Some(StepUse::Unread), Some(Some(fault))) = (unread.get(step), faults.get(id.0)) {
+                if let (Some(StepUse::Unread), Some(Some(fault))) =
+                    (unread.get(step), faults.get(id.0))
+                {
                     return Err(fault.clone());
                 }
                 Ok(StepOrigin {

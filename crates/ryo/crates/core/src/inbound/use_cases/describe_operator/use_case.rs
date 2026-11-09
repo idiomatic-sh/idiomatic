@@ -3,8 +3,8 @@
 use super::errors::DescribeOperatorError;
 use super::interface::DescribeOperatorUseCase;
 use super::types::{DescribeOperatorReport, DescribeOperatorRequest};
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use crate::application::metadata::service::kernel_metadata;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 
 /// `describe_operator`; the operators are the kernel's own, asked through the `metadata` application service, so it calls no port.
 #[derive(Clone, Copy, Debug, Default)]

@@ -1,5 +1,6 @@
 //! What a file read came to, as the store keeps it.
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use super::super::service::FileAnalysis;
+use super::super::types::{FileVisit, Worker};
 use crate::domain::keeping::service::rows_of;
 use crate::domain::recording::service::frontier_flat;
 use crate::domain::recording::service::interface_bytes;
@@ -9,6 +10,7 @@ use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use ryo_execution::inbound::use_cases::execution::interface::NamedLayout;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_execution_runtime::outbound::digest::types::DigestWords;
@@ -22,8 +24,6 @@ use ryo_values::domain::records::types::RuleFrontier;
 use ryo_values::domain::row_texts::types::PlacedRule;
 use ryo_values::domain::stored_facts::types::ArenaBase;
 use ryo_values::domain::stored_facts::types::Digest;
-use super::super::service::FileAnalysis;
-use super::super::types::{FileVisit, Worker};
 
 impl FileAnalysis {
     /// What a file read came to, as the store keeps it: its findings, and what it shows other files: what its language noted of it,
@@ -73,7 +73,12 @@ impl FileAnalysis {
                 };
                 (Some(checked), slots)
             }
-            (None, Some(NamedLayout { frontiers: slots, .. })) if !slots.is_empty() => return None,
+            (
+                None,
+                Some(NamedLayout {
+                    frontiers: slots, ..
+                }),
+            ) if !slots.is_empty() => return None,
             (Some(_), None) => return None,
             _ => (None, &[][..]),
         };

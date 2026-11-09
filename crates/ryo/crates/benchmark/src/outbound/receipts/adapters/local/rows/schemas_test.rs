@@ -25,13 +25,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Reads one written row, or one with an extra field.
 fn subject(kind: Input) -> Result<Value, Failure> {
-    let bytes = crate::outbound::receipts::adapters::local::observation::schemas::row_bytes(&observation())
-        .map_err(|_refused| ())?;
+    let bytes =
+        crate::outbound::receipts::adapters::local::observation::schemas::row_bytes(&observation())
+            .map_err(|_refused| ())?;
     let mut line = String::from_utf8(bytes).map_err(|_refused| ())?;
     if kind == "surprise" {
         line = line.replacen('{', "{\"surprise\":1,", 1);
     }
-    rows(&line).map(|documents| documents.len()).map_err(|_refused| ())
+    rows(&line)
+        .map(|documents| documents.len())
+        .map_err(|_refused| ())
 }
 
 #[test]

@@ -1,8 +1,8 @@
 //! What every `digest` adapter must pass.
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::{DigestBytes, DigestWords};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 /// What a row of the contract is given: which question to ask of the adapter.
 type Input = Question;

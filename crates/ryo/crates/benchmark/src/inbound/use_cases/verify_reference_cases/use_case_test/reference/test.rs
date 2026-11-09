@@ -1,13 +1,12 @@
 //! Reference-only verification holds the reference to its exact derived expectation.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::verify_reference_cases::fixtures::authored::{
-    Refusal, Shape, category, history_len, prepared, project_rules, succeeding,
-    verify_reference,
+    Refusal, Shape, category, history_len, prepared, project_rules, succeeding, verify_reference,
 };
 use crate::outbound::suite::fixtures::authored::finding;
 use crate::outbound::{
-    execution::fixtures::fake::ExecutionFake,
-    linter::fixtures::fake::LinterFake, suite::fixtures::fake::SuiteFake,
+    execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
+    suite::fixtures::fake::SuiteFake,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
@@ -108,7 +107,10 @@ fn reference_only(
 
 /// The first prepared case, compared as a full report.
 fn full_case(suite: &mut SuiteFake) -> &mut PreparedCase {
-    let case = suite.prepared.first_mut().expect("fixture setup must include its case");
+    let case = suite
+        .prepared
+        .first_mut()
+        .expect("fixture setup must include its case");
     case.comparison = CaseComparison::Full;
     case
 }

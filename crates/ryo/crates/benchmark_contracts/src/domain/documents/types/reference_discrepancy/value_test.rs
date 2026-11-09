@@ -1,6 +1,6 @@
 //! An artifact pointer is its path and its digest together.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::value::ArtifactPointer;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::documents::types::text::value::{PathText, Sha256Text};
 
 type Input = (&'static str, &'static str);

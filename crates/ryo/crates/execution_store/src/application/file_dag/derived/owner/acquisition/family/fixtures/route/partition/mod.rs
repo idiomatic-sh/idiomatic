@@ -1,17 +1,20 @@
 //! The partition entry: families acquired through the `PartitionedClosure` cursor.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{Exit, released};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::numbers;
-use crate::application::file_dag::{
-    relations::RelationOwner, fixtures::program_derived_port,
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
+    Exit, released,
 };
+use crate::application::file_dag::{fixtures::program_derived_port, relations::RelationOwner};
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_derived::domain::request::types::DerivedKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
 
 pub(super) fn partition(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
-    let owner = Rc::new(RelationOwner::new(crate::application::file_dag::relations::types::ReuseEligibility::Eligible, program_derived_port()));
+    let owner = Rc::new(RelationOwner::new(
+        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        program_derived_port(),
+    ));
     let result = through_partition(kind, exit, &owner);
     owner.release_population();
     released(kind, exit, owner.derived().publication_ownership_bytes());
@@ -35,7 +38,11 @@ fn through_partition(
     match exit {
         Exit::Cancelled => Ok(kind),
         Exit::Succeeds => {
-            assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced, "{kind:?}: the first partition is built");
+            assert_eq!(
+                cursor.advance()?,
+                crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced,
+                "{kind:?}: the first partition is built"
+            );
             Ok(kind)
         }
         Exit::Errors => {
@@ -44,4 +51,3 @@ fn through_partition(
         }
     }
 }
-

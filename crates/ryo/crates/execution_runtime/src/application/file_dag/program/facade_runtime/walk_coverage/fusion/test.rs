@@ -1,10 +1,10 @@
 //! Every operation kind and route of the compiled corpus has a fusion classification.
-use ryo_execution_domain::domain::shared_walk::types::walk_route::value::{WalkBarrier, WalkRoute};
 use super::super::fixtures::operations::corpus::{Corpus, compiled_operations};
 use ryo_execution_domain::domain::executable_program::{
     fusion::types::{Barrier, Fusibility, Ineligible},
     types::LogicalInstruction,
 };
+use ryo_execution_domain::domain::shared_walk::types::walk_route::value::{WalkBarrier, WalkRoute};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::query_operators::types::OperationKind;
 use std::collections::HashSet;

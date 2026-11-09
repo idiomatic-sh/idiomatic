@@ -1,6 +1,6 @@
 //! The types of the `footprint` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 use crate::domain::allocation::types::{AllocationBytes, AllocationKey, ElementCapacity};
-use crate::domain::vertices::types::{PartitionId, VertexKey, VertexId};
+use crate::domain::vertices::types::{PartitionId, VertexId, VertexKey};
 use ryo_relations::domain::relations::types::Value;
 use std::sync::Arc;
 

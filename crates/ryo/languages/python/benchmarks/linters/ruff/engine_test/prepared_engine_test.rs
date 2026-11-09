@@ -1,7 +1,7 @@
 //! The prepared engine and the SDK fixtures every engine proof shares, below the proofs that use them.
+use ryo_benchmark::outbound::context::interface::ContextPort as _;
 use ryo_benchmark::outbound::engine::{factory, interface::EnginePort};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark::outbound::context::interface::ContextPort as _;
 use ryo_benchmark_contracts::domain::reports::types::ProjectContext;
 use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, WorkerRequest};
 use std::collections::BTreeMap;
@@ -61,10 +61,16 @@ pub(super) fn fixture_cohort(names: &[&str]) -> Vec<ryo::linter::RuleId> {
 /// The module registry of a worker request, keyed by logical module name.
 pub(super) fn module_names(
     modules: BTreeMap<String, std::path::PathBuf>,
-) -> BTreeMap<ryo_benchmark_contracts::domain::requests::types::QueryModuleName, std::path::PathBuf> {
+) -> BTreeMap<ryo_benchmark_contracts::domain::requests::types::QueryModuleName, std::path::PathBuf>
+{
     modules
         .into_iter()
-        .map(|(name, path)| (ryo_benchmark_contracts::domain::requests::types::QueryModuleName(name), path))
+        .map(|(name, path)| {
+            (
+                ryo_benchmark_contracts::domain::requests::types::QueryModuleName(name),
+                path,
+            )
+        })
         .collect()
 }
 
@@ -101,19 +107,22 @@ pub(super) fn suppress_modules() -> BTreeMap<String, std::path::PathBuf> {
     ])
 }
 
-pub(super) fn default_frontend_projection() -> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error>
-{
-    Ok(ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
-        rule: ryo::linter::RuleId::try_from("invalid-syntax")
+pub(super) fn default_frontend_projection()
+-> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
+    Ok(
+        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
+            rule: ryo::linter::RuleId::try_from("invalid-syntax")
+                .map_err(|error| Error::Invalid(error.to_string()))?,
+            query: ryo::query::RyoQlQuery::try_from(
+                crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
+            )
             .map_err(|error| Error::Invalid(error.to_string()))?,
-        query: ryo::query::RyoQlQuery::try_from(
-            crate::frontend_projection::constants::FRONTEND_DIAGNOSTIC_QUERY,
-        )
-        .map_err(|error| Error::Invalid(error.to_string()))?,
-    })
+        },
+    )
 }
 
-pub(super) fn custom_frontend_projection() -> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
+pub(super) fn custom_frontend_projection()
+-> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
     Ok(ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
         rule: ryo::linter::RuleId::try_from("parser-check")
             .map_err(|error| Error::Invalid(error.to_string()))?,

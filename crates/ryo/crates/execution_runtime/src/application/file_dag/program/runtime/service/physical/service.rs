@@ -1,19 +1,17 @@
 //! Semantic permits and the physical request that carries its validated authority.
-use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::{PermittedPhysical, SemanticPermit};
+use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl<'scope> SemanticPermit<'scope> {
-    pub(crate) fn operation(
-        &self,
-    ) -> &ryo_values::domain::plans::types::Operation {
+    pub(crate) fn operation(&self) -> &ryo_values::domain::plans::types::Operation {
         &self.program.regions()[self.region.0].instructions()[self.instruction.0].operation()
     }
-    pub(crate) fn validate_live(
-        &self,
-    ) -> Result<(), OperatingError> {
-        if self.live.is_live() == ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
+    pub(crate) fn validate_live(&self) -> Result<(), OperatingError> {
+        if self.live.is_live()
+            == ryo_execution_store::application::file_dag::relations::types::Liveness::Live
+        {
             Ok(())
         } else {
             Err(OperatingError::NotRead)
@@ -51,7 +49,9 @@ impl PermittedPhysical<'_, '_, '_> {
         ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         crate::application::file_dag::executor::KernelFault,
     > {
-        if self.permit.live.is_live() != ryo_execution_store::application::file_dag::relations::types::Liveness::Live {
+        if self.permit.live.is_live()
+            != ryo_execution_store::application::file_dag::relations::types::Liveness::Live
+        {
             return Err(
                 crate::application::file_dag::executor::KernelFault::Refused(
                     OperatingError::NotRead,

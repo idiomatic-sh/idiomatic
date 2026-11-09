@@ -1,12 +1,6 @@
 //! The cases of consulted executable metadata, cold, warm and edited runs, skipped syntax and removed files.
+use super::super::errors::LintError;
 use super::super::interface::LintUseCase as _;
-use crate::cases::run;
-use crate::outbound::language::fixtures::fake::LanguageFake;
-use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
-use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::row_texts::types::RowTotal;
-use ryo_values::domain::runs::types::AnswerShape;
-use std::sync::Arc;
 use super::given::Given;
 use super::given::SOURCES;
 use super::given::request;
@@ -15,12 +9,19 @@ use super::lifecycle::reading_the_project;
 use super::stores::THREE;
 use super::stores::answered;
 use super::stores::store_of;
-use super::super::errors::LintError;
 use super::worlds::lint;
 use super::worlds::world;
+use crate::cases::run;
 use crate::inbound::use_cases::lint::fixtures::given::violations;
+use crate::outbound::language::fixtures::fake::LanguageFake;
+use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
+use ryo_language::domain::files::types::FilePath;
+use ryo_values::domain::row_texts::types::RowTotal;
+use ryo_values::domain::runs::types::AnswerShape;
+use std::sync::Arc;
 
-pub(crate) fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change() -> Result<(usize, usize), LintError> {
+pub(crate) fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_change()
+-> Result<(usize, usize), LintError> {
     use ryo_values::domain::files::types::ExecutablePermission;
     for before in [false, true] {
         for changed in [false, true] {
@@ -61,7 +62,8 @@ pub(crate) fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_
 
 /// A cold, a warm and an edited run answer the rows and findings a cold run over the same files answers, whichever store keeps
 /// them; the stores that keep read only the files that changed, the one that discards reads every file each time.
-pub(crate) fn cold_warm_and_edited_runs_answer_the_same_in_every_store() -> Result<(usize, usize), LintError> {
+pub(crate) fn cold_warm_and_edited_runs_answer_the_same_in_every_store()
+-> Result<(usize, usize), LintError> {
     use ryo_values::domain::runs::types::RuleApplicability::Always;
     let edited = [("a.rs", "fn changed() {}"), THREE[1], THREE[2]];
     for answer in [AnswerShape::Findings, AnswerShape::Rows(RowTotal(20))] {
@@ -108,7 +110,8 @@ pub(crate) fn cold_warm_and_edited_runs_answer_the_same_in_every_store() -> Resu
 
 /// One file whose syntax a rule skips does not poison the cross-file partitions of the files around it: cold or warm, they answer
 /// what the same run without that file answers, and the skip is named and kept.
-pub(crate) fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm() -> Result<(usize, usize), LintError> {
+pub(crate) fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm()
+-> Result<(usize, usize), LintError> {
     use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
     let without = [THREE[0], THREE[2]];
     for kind in ["memory", "postcard"] {
@@ -152,7 +155,8 @@ pub(crate) fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or
 
 /// A file whose syntax a rule skips is Skipped with the reason the language gave, for the file-phase rule as for the cross-file one:
 /// the rows of the files around it are those of the same run without it, and nothing is undecided; it is never answered complete.
-pub(crate) fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete() -> Result<(usize, usize), LintError> {
+pub(crate) fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete()
+-> Result<(usize, usize), LintError> {
     use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
     let lint = |files: &[(&'static str, &'static str)], rejected: &[&str], applicability| {
         let mut given = Given {
@@ -249,7 +253,13 @@ pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError>
                     cold.rows
                 ),
             }
-            let warm = answered(&without, &["b.rs"], applicability, AnswerShape::Findings, kept_in);
+            let warm = answered(
+                &without,
+                &["b.rs"],
+                applicability,
+                AnswerShape::Findings,
+                kept_in,
+            );
             assert!(
                 !warm.undecided.contains("b.rs") && !warm.skipped.contains("b.rs"),
                 "{kind} {applicability:?}: the removed file is named: {} {}",
@@ -314,7 +324,8 @@ fn undetermined_lint(
 /// A file whose syntax acceptance the language leaves undetermined is Unknown to the cross-file rule that asks for accepted syntax,
 /// cold and when another file is edited: the lint finishes instead of refusing the rule's frontier, the file is undecided once
 /// refused for its undetermined syntax (the typed cause), and it is never skipped.
-pub(crate) fn an_undetermined_file_answers_unknown_and_the_lint_finishes() -> Result<(usize, usize), LintError> {
+pub(crate) fn an_undetermined_file_answers_unknown_and_the_lint_finishes()
+-> Result<(usize, usize), LintError> {
     use ryo_values::domain::runs::types::RuleApplicability::AcceptedSyntax;
     use ryo_values::domain::runs::types::{ApplicabilityRefusal, UnknownCause};
     let edited = [("a.rs", "fn changed() {}"), THREE[1], THREE[2]];
@@ -331,10 +342,15 @@ pub(crate) fn an_undetermined_file_answers_unknown_and_the_lint_finishes() -> Re
                 .collect::<Vec<_>>();
             assert_eq!(
                 of_b,
-                [UnknownCause::Refused(ApplicabilityRefusal::SyntaxUndetermined)],
+                [UnknownCause::Refused(
+                    ApplicabilityRefusal::SyntaxUndetermined
+                )],
                 "{kind} run {run}: the undetermined file is undecided once, refused for its undetermined syntax: {undecided:?}"
             );
-            assert_eq!(skipped, "[]", "{kind} run {run}: an undetermined file is not skipped");
+            assert_eq!(
+                skipped, "[]",
+                "{kind} run {run}: an undetermined file is not skipped"
+            );
         }
     }
     Ok((1, 0))
@@ -342,7 +358,8 @@ pub(crate) fn an_undetermined_file_answers_unknown_and_the_lint_finishes() -> Re
 
 /// Files whose syntax the language accepts are not touched by the refusal path: with every file accepted, the cross-file rule that
 /// asks for accepted syntax answers the rows a rule that always applies answers, cold and edited, and nothing is undecided.
-pub(crate) fn accepted_files_answer_as_a_rule_that_always_applies() -> Result<(usize, usize), LintError> {
+pub(crate) fn accepted_files_answer_as_a_rule_that_always_applies()
+-> Result<(usize, usize), LintError> {
     use ryo_values::domain::runs::types::RuleApplicability::{AcceptedSyntax, Always};
     let edited = [("a.rs", "fn changed() {}"), THREE[1], THREE[2]];
     for kind in ["memory", "postcard"] {
@@ -351,11 +368,20 @@ pub(crate) fn accepted_files_answer_as_a_rule_that_always_applies() -> Result<(u
         for (run, files) in [&THREE[..], &edited[..]].into_iter().enumerate() {
             // The language determines acceptance and accepts every file of the run: the one path it leaves undetermined is no
             // file of the run.
-            let accepted =
-                undetermined_lint(files, &["elsewhere.rs"], AcceptedSyntax, Arc::clone(&kept_in))?;
-            let oracle = undetermined_lint(files, &[], Always, store_of("discard", directory.path()))?;
+            let accepted = undetermined_lint(
+                files,
+                &["elsewhere.rs"],
+                AcceptedSyntax,
+                Arc::clone(&kept_in),
+            )?;
+            let oracle =
+                undetermined_lint(files, &[], Always, store_of("discard", directory.path()))?;
             assert_eq!(accepted.0, oracle.0, "{kind} run {run}: the rows");
-            assert!(accepted.1.is_empty(), "{kind} run {run}: nothing undecided: {:?}", accepted.1);
+            assert!(
+                accepted.1.is_empty(),
+                "{kind} run {run}: nothing undecided: {:?}",
+                accepted.1
+            );
             assert_eq!(accepted.1, oracle.1, "{kind} run {run}: what was undecided");
             assert_eq!(accepted.2, "[]", "{kind} run {run}: nothing skipped");
         }

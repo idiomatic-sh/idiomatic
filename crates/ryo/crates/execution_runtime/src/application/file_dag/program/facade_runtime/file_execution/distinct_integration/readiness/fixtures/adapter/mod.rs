@@ -7,7 +7,9 @@ use crate::application::file_dag::program::runtime::service::{
 use crate::application::file_dag::program::runtime::types::{
     InvocationFailure, KernelInput, KernelScratch,
 };
-use ryo_execution_domain::domain::executable_program::types::{instruction::value::Instruction, LogicalInstruction};
+use ryo_execution_domain::domain::executable_program::types::{
+    LogicalInstruction, instruction::value::Instruction,
+};
 use ryo_execution_domain::domain::operator::types::Emit as RowSink;
 use std::cell::Cell as Counter;
 pub(crate) struct ReadyAdapter<'a> {
@@ -22,7 +24,8 @@ impl KernelInvocation for ReadyAdapter<'_> {
         ready: &ReadySelection<'_, '_>,
         inputs: &[AdmittedInput],
         context: &mut OperatorContext<'_>,
-    ) -> Result<crate::application::file_dag::program::runtime::types::Submission, OperatingError> {
+    ) -> Result<crate::application::file_dag::program::runtime::types::Submission, OperatingError>
+    {
         let logical = ready.permit().descriptor().logical();
         {
             let events = self.events.0.lock().unwrap();
@@ -39,7 +42,9 @@ impl KernelInvocation for ReadyAdapter<'_> {
         if self.omitted == Some(logical) {
             self.skipped.set(self.skipped.get() + 1);
             // The skipped head still waits for its cohort, as a submitted one would.
-            return Ok(crate::application::file_dag::program::runtime::types::Submission::Submitted);
+            return Ok(
+                crate::application::file_dag::program::runtime::types::Submission::Submitted,
+            );
         }
         self.actual.ready(ready, inputs, context)
     }

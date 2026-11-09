@@ -1,7 +1,7 @@
 //! What the observation document writes, one row of `CASES` for each input.
+use super::ObservationSchema;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::receipts::fixtures::samples::observation;
-use super::ObservationSchema;
 
 type Input = ();
 type Value = bool;

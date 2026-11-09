@@ -1,9 +1,9 @@
 //! Borrowed adapters that present admitted rows and texts to the injected semantic port.
+use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::service::{name_text, symbol_text};
 use ryo_execution_domain::domain::table_texts::types::Texts;
-use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_language::domain::symbols::{
     service::query_intern_derived,
     types::{ByteSlice, QuerySymbols},
@@ -35,8 +35,12 @@ impl RowCells for AdmittedRows<'_, '_> {
             return None;
         };
         match rows {
-            RepresentationInput::Stored(source) => Some(ryo_derived::domain::row_cells::types::BulkRows::Stored(source)),
-            RepresentationInput::Computed(table) => Some(ryo_derived::domain::row_cells::types::BulkRows::Computed(table)),
+            RepresentationInput::Stored(source) => Some(
+                ryo_derived::domain::row_cells::types::BulkRows::Stored(source),
+            ),
+            RepresentationInput::Computed(table) => Some(
+                ryo_derived::domain::row_cells::types::BulkRows::Computed(table),
+            ),
             RepresentationInput::Tree(_) | RepresentationInput::Compact(_) => None,
         }
     }

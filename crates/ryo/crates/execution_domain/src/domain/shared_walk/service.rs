@@ -2,9 +2,11 @@
 //! provider demand, fallback, or owner lifetime is decided in this domain.
 
 use super::types::{
-    ClassCount, ClassWork, CohortPlace, Eligibility, KindCount, PredicateMemo, PredicatePlace, WalkWork,
-    native_batch::value::NativeBatch, prepared_walk::value::PreparedWalk,
+    ClassCount, ClassWork, CohortPlace, Eligibility, KindCount, PredicateMemo, PredicatePlace,
+    WalkWork, native_batch::value::NativeBatch, prepared_walk::value::PreparedWalk,
 };
+use crate::domain::operator::types::OperatorContext;
+use crate::domain::table_texts::types::Texts;
 use crate::domain::{
     comparing::{
         service::holds_bound,
@@ -15,8 +17,8 @@ use crate::domain::{
         types::KindScratch,
     },
     operating::types::{KindNaming, NameCount},
-    step_classes::types::ClassPlace,
     shared_walk::types::Slots,
+    step_classes::types::ClassPlace,
     step_classes::types::StepClass,
     table_cells::{
         service::read_tree_cells,
@@ -27,8 +29,6 @@ use crate::domain::{
         types::{Rows, Verdict},
     },
 };
-use crate::domain::operator::types::OperatorContext;
-use crate::domain::table_texts::types::Texts;
 use ryo_language::domain::elements::service::{kind_at, kind_names};
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Position, Relation, Value};

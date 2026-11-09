@@ -81,9 +81,14 @@ impl crate::outbound::linter::interface::LinterPort for Empty {
         _case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
         _profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
     ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
-        Ok(crate::outbound::linter::types::CanonicalText(format!("{normalized:?}")))
+        Ok(crate::outbound::linter::types::CanonicalText(format!(
+            "{normalized:?}"
+        )))
     }
-    fn rule_context_text(&self, prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext) -> crate::outbound::linter::types::CanonicalText {
+    fn rule_context_text(
+        &self,
+        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+    ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::types::CanonicalText(format!("{prepared:?}"))
     }
 }
@@ -119,7 +124,9 @@ impl crate::outbound::linter::interface::LinterPort for Pinned {
             ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN.into(),
             "1".into(),
         );
-        let _other = invocation.environment.insert("LINTER_HOME".into(), "fixture".into());
+        let _other = invocation
+            .environment
+            .insert("LINTER_HOME".into(), "fixture".into());
         Ok(invocation)
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
@@ -134,7 +141,10 @@ impl crate::outbound::linter::interface::LinterPort for Pinned {
         crate::outbound::linter::fixtures::fake::LinterFake::default()
             .settings_text(normalized, case, profile)
     }
-    fn rule_context_text(&self, prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext) -> crate::outbound::linter::types::CanonicalText {
+    fn rule_context_text(
+        &self,
+        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+    ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::fixtures::fake::LinterFake::default().rule_context_text(prepared)
     }
 }

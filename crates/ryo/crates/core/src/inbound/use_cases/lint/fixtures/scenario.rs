@@ -1,8 +1,6 @@
 //! What a row of the `lint` cases asks of the use case, and the run that answers it.
+use super::super::errors::LintError;
 use super::super::interface::LintUseCase as _;
-use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
 use super::given::Given;
 use super::given::Lint;
 use super::given::SOURCES;
@@ -23,21 +21,23 @@ use super::lookups::consulted;
 use super::lookups::interleaved_runs;
 use super::lookups::unreadable_again;
 use super::skips::a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undecided_or_complete;
+use super::skips::a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm;
 use super::skips::accepted_files_answer_as_a_rule_that_always_applies;
 use super::skips::an_undetermined_file_answers_unknown_and_the_lint_finishes;
-use super::skips::a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or_warm;
 use super::skips::cold_warm_and_edited_runs_answer_the_same_in_every_store;
 use super::skips::consulted_equal_byte_files_revalidate_on_each_executable_metadata_change;
 use super::skips::removed_file_leaves_nothing;
 use super::stores::accepted_syntax_applicability_replays_skips_and_invalidates_on_policy_change;
 use super::stores::project_entry_observations_invalidate_persisted_absence_and_presence;
 use super::stores::project_reuse_frames_root_and_repository_and_keeps_dependency_evidence;
-use super::super::errors::LintError;
 use super::worlds::again;
 use super::worlds::lint;
 use super::worlds::read_and_unread;
 use super::worlds::serial_and_parallel_agree;
 use super::worlds::world;
+use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 /// What a row of the cases asks of the use case.
 #[derive(Clone, Copy)]

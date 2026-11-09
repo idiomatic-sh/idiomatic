@@ -3,8 +3,8 @@
 use super::super::errors::NotesError;
 use super::super::interface::NotesPort;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::domain::fact_notes::types::Note;
+use crate::selects;
 use ryo::languages::Bytes;
 
 /// What a row of the contract asks of an adapter.

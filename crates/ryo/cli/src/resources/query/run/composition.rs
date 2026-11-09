@@ -37,8 +37,8 @@ pub(crate) fn build(
     use ryo_core::outbound::memory::interface::MemoryPort;
     use ryo_core::outbound::{corpus, lint_store, memory, scheduler};
     use ryo_execution::outbound::{matching, query_language};
-use ryo_execution_runtime::outbound::{digest, facts};
     use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+    use ryo_execution_runtime::outbound::{digest, facts};
     use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
     use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
     use std::sync::Arc;
@@ -66,11 +66,7 @@ use ryo_execution_runtime::outbound::{digest, facts};
     let memory: Arc<dyn MemoryPort> = Arc::new(memory::factory::sysinfo(budget));
     let store: Arc<dyn LintStorePort> = Arc::new(lint_store::factory::postcard(kept_in));
     let started = scheduler::types::WorkerCount(
-        ryo_values::domain::runs::service::workers_to_start(
-            workers,
-            edge.machine,
-        )
-        .0,
+        ryo_values::domain::runs::service::workers_to_start(workers, edge.machine).0,
     );
     compose(QueryRunParts {
         service: LintUseCaseImpl::new(

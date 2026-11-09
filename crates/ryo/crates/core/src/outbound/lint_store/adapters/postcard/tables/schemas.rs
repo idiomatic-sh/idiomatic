@@ -1,6 +1,11 @@
 //! The tables document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
-use std::borrow::Cow;
+use super::super::files::schemas::{FileSchema, file_from, file_schema};
+use super::super::findings::schemas::{
+    FindingSchema, KeySchema, ValueSchema, findings_from, findings_schema,
+};
+use super::super::strings::schemas::{StringsSchema, TextSchema, file_number, named, text};
+use super::super::unknowns::schemas::{UnknownSchema, unknown_from, unknown_schema};
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::project_context::types::{EntryObservation, ObservedEntryState};
 use ryo_language::domain::reasons::types::ToolMessage;
@@ -11,11 +16,10 @@ use ryo_values::domain::runs::constants::SYNTAX_REJECTED;
 use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
 use ryo_values::domain::stored_findings::types::StoredUnread;
-use ryo_values::domain::stores::types::{Crossing, Stored, StoredFile, StoredFrontier, StoredHanded, StoredRule};
-use super::super::strings::schemas::{StringsSchema, TextSchema, file_number, named, text};
-use super::super::files::schemas::{FileSchema, file_from, file_schema};
-use super::super::unknowns::schemas::{UnknownSchema, unknown_from, unknown_schema};
-use super::super::findings::schemas::{FindingSchema, KeySchema, ValueSchema, findings_from, findings_schema};
+use ryo_values::domain::stores::types::{
+    Crossing, Stored, StoredFile, StoredFrontier, StoredHanded, StoredRule,
+};
+use std::borrow::Cow;
 
 /// One exact project-entry observation retained for warm context validation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -353,7 +357,9 @@ impl TryFrom<TablesSchema<'_>> for Stored {
 }
 
 /// Decode rule identities and crossing policies from the interned snapshot tables.
-pub(in crate::outbound::lint_store::adapters::postcard) fn rules_from(tables: &TablesSchema<'_>) -> Result<Vec<StoredRule>, postcard::Error> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn rules_from(
+    tables: &TablesSchema<'_>,
+) -> Result<Vec<StoredRule>, postcard::Error> {
     let strings = &tables.strings;
     tables
         .rules
@@ -373,7 +379,9 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn rules_from(tables: &T
 }
 
 /// The tables of `stored` but what its files handed, as their section's bytes.
-pub(in crate::outbound::lint_store::adapters::postcard) fn tables_bytes(stored: &Stored) -> Result<Vec<u8>, postcard::Error> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn tables_bytes(
+    stored: &Stored,
+) -> Result<Vec<u8>, postcard::Error> {
     postcard::to_stdvec(&TablesSchema::from(stored))
 }
 

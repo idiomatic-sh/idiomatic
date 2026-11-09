@@ -75,7 +75,7 @@ pub(crate) fn output_layout(
 > {
     use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::plan_parts::types::InputNumber;
-use ryo_values::domain::plans::types::Operation;
+    use ryo_values::domain::plans::types::Operation;
     let mut kinds = inputs.first().map_or(&[][..], |input| input.kinds).to_vec();
     match operation {
         Operation::Select { kept, .. } => {

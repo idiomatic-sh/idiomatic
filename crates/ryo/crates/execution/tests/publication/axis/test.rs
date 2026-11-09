@@ -1,12 +1,10 @@
 //! Real native Axis failures must not leak partially evaluated held results.
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::*;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{
-    completion::fixtures as completion,
-    builders::fixtures as builders,
-    elements::types::Elements,
+    builders::fixtures as builders, completion::fixtures as completion, elements::types::Elements,
     symbols::types::ByteSlice,
 };
 use ryo_relations::{domain::relations::types::KindBits, domain::terms::types::NameText};

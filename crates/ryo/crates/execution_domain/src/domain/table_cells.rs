@@ -8,4 +8,3 @@ pub mod types;
 pub mod fixtures;
 #[cfg(test)]
 pub(crate) mod service_test;
-

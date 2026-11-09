@@ -2,8 +2,8 @@
 use crate::domain::{
     binding_lookup::service::resolve,
     binding_results::types::{
-        BindingResultEvent, EventKind, Read, ReadContext, ReadState, Shadow, ShadowRelationship, Usage,
-        UseCertainty,
+        BindingResultEvent, EventKind, Read, ReadContext, ReadState, Shadow, ShadowRelationship,
+        Usage, UseCertainty,
     },
     binding_states::service::{annotate, assign, candidates, delete, lookup, wildcard},
     definitions::service::definition,

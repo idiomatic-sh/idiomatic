@@ -32,7 +32,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// Calls the part on one input.
 fn subject(input: Input) -> Result<Value, Failure> {
     let parents = [1, FOREST_ROOT];
-    let forest = ForestParents { parents: ParentSlice(&parents) };
+    let forest = ForestParents {
+        parents: ParentSlice(&parents),
+    };
     Ok(match input {
         Scenario::ParentOfAChild => forest.parent(VertexId(0)),
         Scenario::ParentOfARoot => forest.parent(VertexId(1)),

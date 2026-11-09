@@ -91,7 +91,8 @@ fn line_count_asks_for_the_engine_rows() -> Value {
 
 fn recovery_from_syntax_errors_is_partial_in_the_relations_of_code() -> Value {
     let mut tables = tables_for(WorkerNumber(0), &[]);
-    start_partials(&MetadataUseCaseImpl, 
+    start_partials(
+        &MetadataUseCaseImpl,
         &mut tables,
         &[],
         Recovery::SyntaxErrors,

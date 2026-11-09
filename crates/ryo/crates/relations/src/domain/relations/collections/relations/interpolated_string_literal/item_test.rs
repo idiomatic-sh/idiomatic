@@ -18,16 +18,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn subject(_: Input) -> Result<Value, Failure> {
-    Ok(InterpolatedStringLiteral::words(InterpolatedStringLiteralRow {
-        id: NodeId(3),
-        owner: NodeId(5),
-        value: Symbol(7),
-        file: FileId(11),
-        span: Span {
-            start: Offset(13),
-            end: Offset(13),
+    Ok(InterpolatedStringLiteral::words(
+        InterpolatedStringLiteralRow {
+            id: NodeId(3),
+            owner: NodeId(5),
+            value: Symbol(7),
+            file: FileId(11),
+            span: Span {
+                start: Offset(13),
+                end: Offset(13),
+            },
         },
-    }))
+    ))
 }
 
 #[test]

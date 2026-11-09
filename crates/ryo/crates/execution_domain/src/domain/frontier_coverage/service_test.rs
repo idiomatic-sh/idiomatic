@@ -28,13 +28,17 @@ type Value = ();
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_kind_partial_is_cleared_by_a_select_that_stops_the_kind_and_by_nothing_else"),
+        name: CaseName(
+            "a_kind_partial_is_cleared_by_a_select_that_stops_the_kind_and_by_nothing_else",
+        ),
         word: Word::Succeeds,
         input: || Conversion::KindPartial,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touched_one_in_its_own_file"),
+        name: CaseName(
+            "a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touched_one_in_its_own_file",
+        ),
         word: Word::Succeeds,
         input: || Conversion::Restored,
         expect: Expect::Value(()),
@@ -42,35 +46,41 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("complete"),
         word: Word::Succeeds,
-        input: || Conversion::Coverage(FrontierCase {
-            coverage: CoverageState::Complete,
-            expected: FrontierCoverage::Complete,
-        }),
+        input: || {
+            Conversion::Coverage(FrontierCase {
+                coverage: CoverageState::Complete,
+                expected: FrontierCoverage::Complete,
+            })
+        },
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("current_file"),
         word: Word::Succeeds,
-        input: || Conversion::Coverage(FrontierCase {
-            coverage: CoverageState::Partial {
-                files: vec![Some(FileId(0))],
-                lacks: vec![],
-            },
-            expected: FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(
-                FrontierMissing::Any,
-            )]),
-        }),
+        input: || {
+            Conversion::Coverage(FrontierCase {
+                coverage: CoverageState::Partial {
+                    files: vec![Some(FileId(0))],
+                    lacks: vec![],
+                },
+                expected: FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(
+                    FrontierMissing::Any,
+                )]),
+            })
+        },
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("repository"),
         word: Word::Succeeds,
-        input: || Conversion::Coverage(FrontierCase {
-            coverage: partial_any(vec![None]),
-            expected: FrontierCoverage::Partial(vec![FrontierAffected::Repository(
-                FrontierMissing::Any,
-            )]),
-        }),
+        input: || {
+            Conversion::Coverage(FrontierCase {
+                coverage: partial_any(vec![None]),
+                expected: FrontierCoverage::Partial(vec![FrontierAffected::Repository(
+                    FrontierMissing::Any,
+                )]),
+            })
+        },
         expect: Expect::Value(()),
     },
     Case {
@@ -95,13 +105,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("foreign_file"),
         word: Word::Refuses,
-        input: || Conversion::Coverage(FrontierCase {
-            coverage: CoverageState::Partial {
-                files: vec![Some(FileId(1))],
-                lacks: vec![],
-            },
-            expected: FrontierCoverage::Complete,
-        }),
+        input: || {
+            Conversion::Coverage(FrontierCase {
+                coverage: CoverageState::Partial {
+                    files: vec![Some(FileId(1))],
+                    lacks: vec![],
+                },
+                expected: FrontierCoverage::Complete,
+            })
+        },
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(error, OperatingError::ObservationIncomplete { reason } if reason.as_str() == "file frontier carries a foreign physical partition"),
@@ -111,10 +123,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("empty_partial"),
         word: Word::Refuses,
-        input: || Conversion::Coverage(FrontierCase {
-            coverage: partial_any(vec![]),
-            expected: FrontierCoverage::Complete,
-        }),
+        input: || {
+            Conversion::Coverage(FrontierCase {
+                coverage: partial_any(vec![]),
+                expected: FrontierCoverage::Complete,
+            })
+        },
         expect: Expect::Refusal(|error| {
             selects!(
                 matches!(error, OperatingError::ObservationIncomplete { reason } if reason.as_str() == "partial frontier has no affected physical partition"),
@@ -140,14 +154,14 @@ fn subject(input: Input) -> Result<Value, Failure> {
     }
 }
 
-
-fn a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touched_one_in_its_own_file() {
+fn a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touched_one_in_its_own_file()
+ {
     use super::service::restored_lacks;
     use crate::domain::completion::service::partial_of_lacks;
     use crate::domain::completion::types::{FileLacks, MissingRows};
+    use crate::domain::coverage::types::LackingKind;
     use crate::domain::output_coverage::service::output_coverage;
     use crate::domain::output_coverage::types::{InputCoverage, OperandOrdinal};
-    use crate::domain::coverage::types::LackingKind;
     use ryo_relations::domain::relations::types::{CellKind, Relation};
     use ryo_values::domain::{
         plan_parts::types::{
@@ -165,13 +179,19 @@ fn a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touche
             kinds: vec![LackingKind("variable".into())],
         },
     };
-    let stored = super::service::file_frontier_coverage(partial_of_lacks(vec![lacks(3)]), FileId(3)).unwrap();
+    let stored =
+        super::service::file_frontier_coverage(partial_of_lacks(vec![lacks(3)]), FileId(3))
+            .unwrap();
     assert_eq!(
         stored,
-        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Kinds {
-            column: kind,
-            kinds: vec![ryo_values::domain::stored_facts::types::PartialKind("variable".into())],
-        })]),
+        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(
+            FrontierMissing::Kinds {
+                column: kind,
+                kinds: vec![ryo_values::domain::stored_facts::types::PartialKind(
+                    "variable".into()
+                )],
+            }
+        )]),
         "the proof carries the kinds"
     );
     let FrontierCoverage::Partial(affected) = stored else {
@@ -213,10 +233,10 @@ fn a_restored_frontier_proof_clears_for_an_untouched_kind_and_stays_for_a_touche
 /// A select, a project and a join over a relation partly read for rows of one kind in file 1 and for any row in file 0: a select that
 /// stops the missing kind clears file 1 only, one that lets it through keeps it, and no operator that is not a select clears either.
 fn a_kind_partial_is_cleared_by_a_select_that_stops_the_kind_and_by_nothing_else() {
-    use crate::domain::output_coverage::service::output_coverage;
-    use crate::domain::output_coverage::types::InputCoverage;
     use crate::domain::completion::types::{FileLacks, MissingRows};
     use crate::domain::coverage::types::LackingKind;
+    use crate::domain::output_coverage::service::output_coverage;
+    use crate::domain::output_coverage::types::InputCoverage;
     use ryo_relations::domain::relations::types::{CellKind, Relation};
     use ryo_values::domain::{
         plan_parts::types::{
@@ -234,7 +254,8 @@ fn a_kind_partial_is_cleared_by_a_select_that_stops_the_kind_and_by_nothing_else
             kinds: vec![LackingKind(name.into())],
         },
     };
-    let partial = |lacks: Vec<FileLacks>| crate::domain::completion::service::partial_of_lacks(lacks);
+    let partial =
+        |lacks: Vec<FileLacks>| crate::domain::completion::service::partial_of_lacks(lacks);
     let select = |test: Test, text: &str, column: ColumnIndex| Operation::Select {
         from: Input::Step(StepId(0)),
         comparisons: vec![PlanComparison {

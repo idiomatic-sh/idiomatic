@@ -29,10 +29,7 @@ fn a_retired_owner_refuses_graph_demand_instead_of_traversing() {
     let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
     assert!(matches!(fixture.cache_ready(), Ok(())));
     fixture.retire();
-    assert!(matches!(
-        fixture.cache_ready(),
-        Err(OperatingError::NotRun)
-    ));
+    assert!(matches!(fixture.cache_ready(), Err(OperatingError::NotRun)));
 }
 
 #[test]
@@ -94,8 +91,9 @@ fn graph_of(owner: &std::rc::Rc<RelationOwner>) -> Result<bool, OperatingError> 
         owner.derived().semantic.clone(),
     );
     let contract = program.regions()[0].instructions()[0].contract();
-    let workspace =
-        crate::application::file_dag::workspace::InvocationWorkspace::new(std::rc::Rc::clone(owner));
+    let workspace = crate::application::file_dag::workspace::InvocationWorkspace::new(
+        std::rc::Rc::clone(owner),
+    );
     owner
         .derived()
         .prepare_graph(contract, &workspace, &contract.resources, &[])

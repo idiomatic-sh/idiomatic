@@ -60,11 +60,9 @@ fn module_nonlocal_validation_keeps_expression_shapes_complete() {
 }
 
 /// Each check below states its own source and asserts its own outcome.
-const CHECKS: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("module_nonlocal_validation_keeps_expression_shapes_complete"),
-        word: Word::Succeeds,
-        input: || module_nonlocal_validation_keeps_expression_shapes_complete,
-        expect: Expect::Value(()),
-    },
-];
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("module_nonlocal_validation_keeps_expression_shapes_complete"),
+    word: Word::Succeeds,
+    input: || module_nonlocal_validation_keeps_expression_shapes_complete,
+    expect: Expect::Value(()),
+}];

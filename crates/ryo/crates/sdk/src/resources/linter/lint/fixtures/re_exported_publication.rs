@@ -1,5 +1,11 @@
 //! The test data of `linter lint` that fixes re exported publication.
 
+use super::capability_provider::provider_linter;
+use super::directory::case_directory;
+use super::observations::{column, incoming};
+use super::outcome::{Outcome, summary};
+use super::rules::{listed, ordinary, rule_id};
+use super::shared_calls::shared;
 use crate::domain::cell::types::Cell;
 use crate::domain::cell::types::HostText;
 use crate::domain::cell::types::Slot;
@@ -10,12 +16,6 @@ use crate::domain::parameter::types::ParameterValue;
 use crate::resources::linter::lint::entry::lint_with;
 use crate::resources::linter::lint::types::Cache;
 use std::collections::BTreeMap;
-use super::outcome::{Outcome, summary};
-use super::capability_provider::provider_linter;
-use super::rules::{listed, ordinary, rule_id};
-use super::directory::case_directory;
-use super::observations::{column, incoming};
-use super::shared_calls::shared;
 
 /// A publication re-exported by a second rule survives a cold run, a warm run, a replay of the consumer and a fresh engine.
 pub(crate) fn re_exported_publication() -> Outcome {
@@ -91,8 +91,7 @@ emit empty subject path key(path);"#,
             fresh
         );
         assert_eq!(
-            lint_with(&engine(Cache::At(store.path().to_owned())), requested)
-                .expect("a report"),
+            lint_with(&engine(Cache::At(store.path().to_owned())), requested).expect("a report"),
             fresh
         );
     }

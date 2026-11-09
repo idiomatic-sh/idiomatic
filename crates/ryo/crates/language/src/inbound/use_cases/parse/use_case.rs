@@ -138,7 +138,13 @@ impl<P: ParseUseCase> ParseEngine for P {
         table: &mut Elements,
         symbols: &mut Symbols,
     ) -> Result<(), ParseError> {
-        build_in(self, request, table, symbols, ParseUseCase::completion_requirement(self))
+        build_in(
+            self,
+            request,
+            table,
+            symbols,
+            ParseUseCase::completion_requirement(self),
+        )
     }
 
     fn baseline_file(&self, request: &ParseRequest<'_>) -> Result<(), ParseError> {

@@ -35,10 +35,10 @@ pub(crate) fn matches_prepared(
         return Ok(Verdict::Fails);
     };
     Ok(
-        if matcher
-            .0
-            .matches_regex(regex(*pattern, prepared, compiled, matcher)?, SearchText(text.0))
-            == MatchOutcome::Matches
+        if matcher.0.matches_regex(
+            regex(*pattern, prepared, compiled, matcher)?,
+            SearchText(text.0),
+        ) == MatchOutcome::Matches
         {
             Verdict::Holds
         } else {

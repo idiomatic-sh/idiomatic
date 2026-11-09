@@ -9,14 +9,14 @@ use ryo_relations::domain::relations::types::{
 };
 
 use super::constants::MATERIALIZED;
+use super::types::RepresentationKind;
 use super::types::registered_representation::value::RegisteredRepresentation;
 use super::types::{RepresentationInput, Rows};
-use super::types::RepresentationKind;
 use crate::domain::table_cells::service::{edge_of, element_of};
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::key::service::hash_key;
 use ryo_derived::domain::key::types::ChainLink;
-use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::key::types::On;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -159,8 +159,7 @@ fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Opt
 #[cfg(test)]
 /// Read one typed cell without decoding unused stored payload or allocating a row buffer.
 pub(crate) fn cell_at(rows: &Rows<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    borrowed(rows)
-        .cell(row, column)
+    borrowed(rows).cell(row, column)
 }
 
 #[cfg(any(test, feature = "fixtures"))]

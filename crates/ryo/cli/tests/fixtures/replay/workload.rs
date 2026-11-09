@@ -32,7 +32,11 @@ impl std::fmt::Display for NotAvailable {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CorpusAbsent(path) => {
-                write!(formatter, "the staged Django run {} is absent", path.display())
+                write!(
+                    formatter,
+                    "the staged Django run {} is absent",
+                    path.display()
+                )
             }
             Self::RequestNotStaged(path) => write!(
                 formatter,
@@ -196,7 +200,8 @@ pub(crate) fn request(
                 .expect("a file is a path")
                 .to_owned();
             let hash = request["context_manifest"]["source_files"][&first].clone();
-            request["context_manifest"]["source_files"] = serde_json::json!({ first.clone(): hash });
+            request["context_manifest"]["source_files"] =
+                serde_json::json!({ first.clone(): hash });
             request["files"] = serde_json::json!([first]);
         }
         Workload::Everything => {}
@@ -212,7 +217,8 @@ fn sampled(pid: u32) -> Option<(u128, u128)> {
     // The command is parenthesised and may hold spaces: the fields count from after its closing parenthesis.
     let fields: Vec<&str> = stat.get(stat.rfind(')')? + 2..)?.split(' ').collect();
     // `utime` and `stime` are the 14th and 15th fields of the line, the 12th and 13th after the state's place, in ticks of 10 ms.
-    let ticks: u128 = fields.get(11)?.parse::<u128>().ok()? + fields.get(12)?.parse::<u128>().ok()?;
+    let ticks: u128 =
+        fields.get(11)?.parse::<u128>().ok()? + fields.get(12)?.parse::<u128>().ok()?;
     let status = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
     let kilobytes = status.lines().find_map(|line| {
         line.strip_prefix("VmHWM:")?
@@ -233,7 +239,11 @@ fn sampled(pid: u32) -> Option<(u128, u128)> {
 fn root(request: &Path) -> PathBuf {
     let text = std::fs::read_to_string(request).expect("the request is read");
     let request: serde_json::Value = serde_json::from_str(&text).expect("a request is JSON");
-    PathBuf::from(request["root"].as_str().expect("the request names its corpus root"))
+    PathBuf::from(
+        request["root"]
+            .as_str()
+            .expect("the request names its corpus root"),
+    )
 }
 
 /// Runs the worker over `request` on one worker thread and measures it from outside: the last sample before it exits is its cost.

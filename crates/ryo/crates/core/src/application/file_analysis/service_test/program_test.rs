@@ -1,16 +1,24 @@
 //! The prepared programs, the replay and the gating checks the cases of `file_analysis` share.
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::types::RequestVisitSetting;
+use super::super::types::RuleGate;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
 use crate::domain::workers::types::Gating;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Mask;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PlanSource;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
+use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
@@ -37,14 +45,6 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::BucketsWanted;
 use std::sync::Arc;
-use super::super::errors::FileAnalysisError;
-use super::super::service::FileAnalysis;
-use super::super::types::RequestVisitSetting;
-use super::super::types::RuleGate;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-use ryo_execution::outbound::matching::interface::MatchingPort;
 pub(super) fn prepared_test_program(
     plans: &[Plan],
     ids: &[RuleId],
@@ -60,14 +60,23 @@ pub(super) fn prepared_test_program(
     };
     let engine = PrepareUseCaseImpl::new(
         Arc::new(
-            ryo_execution_runtime::outbound::operators::factory::use_case(ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))),
+            ryo_execution_runtime::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+                    std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+                ),
+            ),
         ),
         ryo_execution::derived(),
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
     let program = Arc::new(
         engine
-            .prepare(PrepareRequest { plans: PlanSource::Authored { plans: plans.to_vec(), bindings: vec![Vec::new(); plans.len()] }, rules: ids
+            .prepare(PrepareRequest {
+                plans: PlanSource::Authored {
+                    plans: plans.to_vec(),
+                    bindings: vec![Vec::new(); plans.len()],
+                },
+                rules: ids
                     .iter()
                     .map(|id| RuleSpec {
                         id: id.clone(),
@@ -85,7 +94,11 @@ pub(super) fn prepared_test_program(
                         include: Vec::new(),
                         exclude: Vec::new(),
                     })
-                    .collect(), digests: vec![Digest([0; 16]); plans.len()], hosted: Vec::new(), observations: ObservationIdentity::Independent })
+                    .collect(),
+                digests: vec![Digest([0; 16]); plans.len()],
+                hosted: Vec::new(),
+                observations: ObservationIdentity::Independent,
+            })
             .expect("valid prepared test request"),
     );
     let request = ExecutionUseCaseImpl::new().execution(&program, corpus);
@@ -360,12 +373,10 @@ pub(super) static NOTHING_STORED: std::sync::LazyLock<ryo_values::domain::stores
     std::sync::LazyLock::new(ryo_values::domain::stores::types::Stored::default);
 
 /// What the files of the last run handed, for a run that uses nothing of it.
-pub(super) static NOTHING_HANDED: std::sync::LazyLock<ryo_values::domain::stores::types::ReadHanded> =
-    std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
+pub(super) static NOTHING_HANDED: std::sync::LazyLock<
+    ryo_values::domain::stores::types::ReadHanded,
+> = std::sync::LazyLock::new(ryo_values::domain::stores::types::ReadHanded::default);
 
 /// No bucket of what the files handed, for a run that reads none.
 pub(super) static NOTHING_WANTED: ryo_values::domain::stores::types::BucketsWanted =
     ryo_values::domain::stores::types::BucketsWanted::These(Vec::new());
-
-
-

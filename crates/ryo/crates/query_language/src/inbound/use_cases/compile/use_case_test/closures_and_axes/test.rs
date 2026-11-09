@@ -1,12 +1,12 @@
 //! The `closure` and `axis` calls, on query text read by the real syntax adapter.
 
-use crate::inbound::use_cases::compile::use_case_test::SELECT_CLOSURE;
 use crate::domain::lowering::types::Builder;
 use crate::domain::selecting::service::lower_select;
 use crate::domain::syntax::constants::operator_named;
 use crate::domain::traversing::service::call_axis;
 use crate::domain::traversing::service::call_closure;
 use crate::domain::traversing::service::call_ordered_dfs;
+use crate::inbound::use_cases::compile::use_case_test::SELECT_CLOSURE;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::RepeatedRows;

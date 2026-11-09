@@ -8,14 +8,16 @@ use scenario::Scenario;
 
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
+#[cfg(test)]
+use ryo_execution_domain::domain::table_cells::fixtures::{
+    SMALL_SOURCE, SmallTree, rows_over, small_tree,
+};
 use ryo_execution_domain::domain::{
     file_program::types::RuleSchedule,
     operating::errors::OperatingError,
     prepared_request::types::{Compiled, ObservationIdentity},
     table_model::types::Rows,
 };
-#[cfg(test)]
-use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, rows_over, small_tree};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::{
     service::kinds,

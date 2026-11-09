@@ -10,4 +10,3 @@ pub mod prepare;
 
 /// Publishes a producer's names as portable values.
 pub mod publication;
-

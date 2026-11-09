@@ -3,14 +3,15 @@
 use super::super::ordered_dfs::fixtures::{execute_bound_request, execute_request};
 use super::super::*;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
-use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::table_inputs;
 use crate::application::file_dag::acceptance::operator_contract_test::fixtures::fixture;
+use crate::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::table_inputs;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
-    Applied, Direction, Function, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
+    Applied, Direction, Function, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral,
+    Test,
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
@@ -49,7 +50,9 @@ fn numbers(rows: &[&[i64]]) -> Table {
     for row in rows {
         push_row(
             &mut table,
-            &row.iter().map(|number| Cell::Number(Integer(*number))).collect::<Vec<_>>(),
+            &row.iter()
+                .map(|number| Cell::Number(Integer(*number)))
+                .collect::<Vec<_>>(),
         );
     }
     table
@@ -216,11 +219,21 @@ fn unary_pilots_keep_bounded_row_scratch() -> Result<Value, Failure> {
             count: RowCount(case.inputs[0].count.0 * times),
         };
         let (small, large) = (repeated(32), repeated(64));
-        let (first_rows, first) = measured(case.operation.clone(), &[&small], SOURCE, &mut case.symbols)?;
-        let (second_rows, second) = measured(case.operation.clone(), &[&large], SOURCE, &mut case.symbols)?;
+        let (first_rows, first) =
+            measured(case.operation.clone(), &[&small], SOURCE, &mut case.symbols)?;
+        let (second_rows, second) =
+            measured(case.operation.clone(), &[&large], SOURCE, &mut case.symbols)?;
         assert_eq!(second_rows.count.0, first_rows.count.0 * 2, "{kind:?}");
-        assert_eq!((first.row_capacity, first.other_capacity), scratch, "{kind:?}");
-        assert_eq!((second.row_capacity, second.other_capacity), scratch, "{kind:?}");
+        assert_eq!(
+            (first.row_capacity, first.other_capacity),
+            scratch,
+            "{kind:?}"
+        );
+        assert_eq!(
+            (second.row_capacity, second.other_capacity),
+            scratch,
+            "{kind:?}"
+        );
     }
     Ok(())
 }
@@ -293,7 +306,11 @@ fn only_dynamic_patterns_enter_local_caches() -> Result<Value, Failure> {
         ),
     ] {
         let (_, regexes, globs) = local_caches(operation.clone(), text, &[], &operation)?;
-        assert_eq!((regexes, globs), (0, 0), "finite literal slots never enter local invocation caches");
+        assert_eq!(
+            (regexes, globs),
+            (0, 0),
+            "finite literal slots never enter local invocation caches"
+        );
     }
     let shadow = select(Test::Matches, "a.*");
     let mut parameter = shadow.clone();
@@ -303,7 +320,11 @@ fn only_dynamic_patterns_enter_local_caches() -> Result<Value, Failure> {
     for (pattern, expected) in [("a.*", 1), ("b.*", 0)] {
         let bindings = [ParameterBinding::Text(LiteralText(pattern.into()))];
         let (count, regexes, _) = local_caches(parameter.clone(), "alpha", &bindings, &shadow)?;
-        assert_eq!((count, regexes), (expected, 1), "a bound value cannot reuse the same-byte finite slot");
+        assert_eq!(
+            (count, regexes),
+            (expected, 1),
+            "a bound value cannot reuse the same-byte finite slot"
+        );
     }
     let mut function = shadow.clone();
     if let Operation::Select { comparisons, .. } = &mut function {
@@ -330,7 +351,10 @@ fn only_dynamic_patterns_enter_local_caches() -> Result<Value, Failure> {
     }
     for (patterns, expected) in [(vec!["a*", "α*"], 1), (vec!["b*"], 0), (vec![], 0)] {
         let bindings = [ParameterBinding::Texts(
-            patterns.into_iter().map(|text| LiteralText(text.into())).collect(),
+            patterns
+                .into_iter()
+                .map(|text| LiteralText(text.into()))
+                .collect(),
         )];
         let (count, _, globs) = local_caches(lists.clone(), "alpha", &bindings, &shadow)?;
         assert_eq!((count, globs), (expected, 1));
@@ -339,7 +363,9 @@ fn only_dynamic_patterns_enter_local_caches() -> Result<Value, Failure> {
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(stringify!(successive_owners_hold_only_their_own_partition_rows)),
+        name: CaseName(stringify!(
+            successive_owners_hold_only_their_own_partition_rows
+        )),
         word: Word::Succeeds,
         input: || successive_owners_hold_only_their_own_partition_rows,
         expect: Expect::Value(()),

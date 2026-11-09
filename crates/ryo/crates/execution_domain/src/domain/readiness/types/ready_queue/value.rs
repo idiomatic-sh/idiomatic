@@ -1,11 +1,8 @@
 //! A producer completion wakes exactly the admissions waiting for that producer.
-use super::super::{
-    ReadinessAction, ReadinessCounts, ReadinessOutcome, RegionCount,
-    WaitingCount,
-};
+use super::super::{ReadinessAction, ReadinessCounts, ReadinessOutcome, RegionCount, WaitingCount};
 use crate::domain::{executable_program::types::RegionId, operating::errors::OperatingError};
-use std::collections::VecDeque;
 use rustc_hash::FxHashMap;
+use std::collections::VecDeque;
 
 #[derive(Clone, Copy, Debug)]
 enum State {
@@ -35,10 +32,7 @@ pub struct ReadyQueue {
 }
 impl ReadyQueue {
     /// A queue over the regions of a program, starting from its roots.
-    pub fn new(
-        region_count: RegionCount,
-        roots: &[RegionId],
-    ) -> Result<Self, OperatingError> {
+    pub fn new(region_count: RegionCount, roots: &[RegionId]) -> Result<Self, OperatingError> {
         let mut queue = Self {
             region_count,
             entries: FxHashMap::default(),

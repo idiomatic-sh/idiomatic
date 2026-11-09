@@ -10,8 +10,8 @@ use ryo_relations::domain::relations::types::{CellKind, Class, FileId, Missing, 
 use super::constants::REPOSITORY;
 use super::constants::{UNKNOWN_BECAUSE, UNKNOWN_IN};
 use super::types::{
-    CoverageScope, DeclaredFiles, FileOrdinal, Keying, KeyColumn, Lacking, LackingKind, Message, Partial,
-    PartialPlace, Recovery,
+    CoverageScope, DeclaredFiles, FileOrdinal, KeyColumn, Keying, Lacking, LackingKind, Message,
+    Partial, PartialPlace, Recovery,
 };
 
 use ryo_values::domain::plans::types::Operation;
@@ -184,8 +184,7 @@ pub(crate) fn drop_inapplicable(
         ryo_values::domain::plans::service::kind_of(operation),
     )
     .absence
-    .0
-        == 0
+    .0 == 0
     {
         return;
     }
@@ -204,11 +203,7 @@ pub(crate) fn drop_inapplicable(
 /// The relations of a file that are read in part: those the reader said so of, and, when the whole file is only a recovery of what was
 /// written (`everything` says how), every relation of code that was asked for.
 #[must_use]
-pub fn partial_of(
-    said: &[ReadInPart],
-    everything: Recovery,
-    wanted: &[Relation],
-) -> Vec<Partial> {
+pub fn partial_of(said: &[ReadInPart], everything: Recovery, wanted: &[Relation]) -> Vec<Partial> {
     let mut partial: Vec<Partial> = said
         .iter()
         .map(|each| Partial {

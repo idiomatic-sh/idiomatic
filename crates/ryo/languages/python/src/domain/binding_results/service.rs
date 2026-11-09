@@ -1,7 +1,9 @@
 //! Encode static semantic categories without embedding lint policy.
-use super::types::{Availability, EventKind, ReadContext, ReadState, ShadowRelationship, UseCertainty};
-use ryo::languages::{Integer, NameText};
 use super::constants;
+use super::types::{
+    Availability, EventKind, ReadContext, ReadState, ShadowRelationship, UseCertainty,
+};
+use ryo::languages::{Integer, NameText};
 /// Event category.
 pub(crate) const fn event(kind: EventKind) -> NameText<'static> {
     match kind {

@@ -154,20 +154,40 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() -> Value {
     );
 
     assert_eq!(
-        refusal(&plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl)).unwrap().origin,
+        refusal(
+            &plan,
+            &KindVocabularies(Vec::new()),
+            crate::domain::matching::types::PatternMatcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl
+            )
+        )
+        .unwrap()
+        .origin,
         KindOrigin::Recorded(origin)
     );
     assert_eq!(
-        refusal(&other_plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
-            .unwrap()
-            .origin,
+        refusal(
+            &other_plan,
+            &KindVocabularies(Vec::new()),
+            crate::domain::matching::types::PatternMatcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl
+            )
+        )
+        .unwrap()
+        .origin,
         KindOrigin::Recorded(other_origin)
     );
     Box::leak(
-        refusal(&other_plan, &KindVocabularies(Vec::new()), crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
-            .unwrap()
-            .message
-            .0,
+        refusal(
+            &other_plan,
+            &KindVocabularies(Vec::new()),
+            crate::domain::matching::types::PatternMatcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+            ),
+        )
+        .unwrap()
+        .message
+        .0,
     )
 }
 
@@ -291,21 +311,29 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_concat_of_constants_is_checked_as_the_text_it_makes"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (
-            Test::Equal,
-            made(Function::Concat, &["totally-", "made-up"]),
-            Vec::new(),
-        )),
+        input: || {
+            Scenario::Word(|| {
+                (
+                    Test::Equal,
+                    made(Function::Concat, &["totally-", "made-up"]),
+                    Vec::new(),
+                )
+            })
+        },
         expect: Expect::Value("kind `totally-made-up` names no kind of rust, toml"),
     },
     Case {
         name: CaseName("a_concat_that_makes_a_kind_is_no_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (
-            Test::Equal,
-            made(Function::Concat, &["source", "-file"]),
-            Vec::new(),
-        )),
+        input: || {
+            Scenario::Word(|| {
+                (
+                    Test::Equal,
+                    made(Function::Concat, &["source", "-file"]),
+                    Vec::new(),
+                )
+            })
+        },
         expect: Expect::Value(""),
     },
     Case {
@@ -326,9 +354,16 @@ fn message(given: fn() -> Given, relation: Relation, site: KindSite) -> Value {
     let (test, right, bound) = given();
     let plan = plan_comparing_kind(test, right, relation, site);
     let vocabularies = vocabularies();
-    let message = first_unknown(&[plan], &[bound], &vocabularies, crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl))
-        .map(|unknown| unknown_message(&unknown.word, &vocabularies).message.0)
-        .unwrap_or_default();
+    let message = first_unknown(
+        &[plan],
+        &[bound],
+        &vocabularies,
+        crate::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
+    )
+    .map(|unknown| unknown_message(&unknown.word, &vocabularies).message.0)
+    .unwrap_or_default();
     Box::leak(message)
 }
 

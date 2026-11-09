@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use super::constants::{HERE, PATTERN, PENDING, SEPARATOR, UP};
 use super::errors::WorkspacesError;
-use super::types::{WorkspaceConfiguration, Exclusion, Globbing, Looking, Reason, SegmentMatch};
+use super::types::{Exclusion, Globbing, Looking, Reason, SegmentMatch, WorkspaceConfiguration};
 use crate::domain::dependencies::service::declared_of;
 use crate::domain::dependencies::types::Shared;
 use crate::domain::paths::service::{directory_of, join, manifest_in, settlement_of, told, within};
@@ -40,7 +40,10 @@ pub(crate) fn matching_of(looking: &mut Looking, pattern: &Pattern, name: &Entry
 }
 
 /// The configurations above `directory`, nearest first, as they were told.
-pub(crate) fn configurations_above(looking: &mut Looking, directory: &RepoPath) -> Vec<WorkspaceConfiguration> {
+pub(crate) fn configurations_above(
+    looking: &mut Looking,
+    directory: &RepoPath,
+) -> Vec<WorkspaceConfiguration> {
     told(&mut looking.configurations, directory, Vec::new)
 }
 

@@ -37,7 +37,8 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                 distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
             },
         };
-        crate::boundary_fixture::plans(&mut input)[0].steps = vec![selected.clone(), projected.clone()];
+        crate::boundary_fixture::plans(&mut input)[0].steps =
+            vec![selected.clone(), projected.clone()];
         crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
         crate::boundary_fixture::plans(&mut input)[1].steps = vec![
             selected,
@@ -138,7 +139,9 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
                     &mut symbols,
                     CaptureContext {
                         worker: WorkerNumber(0),
-                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                            &mut arena,
+                        ),
                         places: &mut places,
                         words: &mut words,
                     },

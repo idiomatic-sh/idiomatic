@@ -10,8 +10,10 @@ use ryo_language::domain::symbols::{
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::sync::Arc;
 use {
-    ryo_execution_domain::domain::coverage::types::RuleIndex, ryo_execution_domain::domain::operating::errors::OperatingError,
-    ryo_execution_domain::domain::operating::types::Memo, ryo_execution_domain::domain::operator::types::OperatorContext,
+    ryo_execution_domain::domain::coverage::types::RuleIndex,
+    ryo_execution_domain::domain::operating::errors::OperatingError,
+    ryo_execution_domain::domain::operating::types::Memo,
+    ryo_execution_domain::domain::operator::types::OperatorContext,
     ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };
@@ -22,7 +24,9 @@ pub(super) struct RunContext<'a> {
     source: SourceView<'a>,
     symbols: TransportPermit,
     semantic: Option<&'a dyn ryo_execution_domain::domain::operating::types::SemanticLookup>,
-    kinds: Option<Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>>,
+    kinds: Option<
+        Arc<ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>,
+    >,
     arenas: &'a [ArenaBytes],
     memo: Vec<Memo>,
     scratch: OperatorScratch,
@@ -80,7 +84,9 @@ impl<'a> RunContext<'a> {
             semantic: self.semantic,
             prepared_kinds: self.kinds.as_deref(),
             prepared_matchers: Some(program.matchers().as_ref()),
-            matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
+            matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
+                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+            ),
             bindings: program.bindings(rule)?,
             symbols: symbols.into(),
             source: self.source,

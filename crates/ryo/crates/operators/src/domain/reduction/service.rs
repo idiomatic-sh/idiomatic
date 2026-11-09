@@ -1,11 +1,11 @@
 //! Count/digest semantics over borrowed engine-owned populations, indexes, and reduction scratch.
+use crate::domain::contract::types::FirstOccurrence;
 use crate::domain::contract::types::PortableOperatorFault as Fault;
 use crate::domain::reduction::types::{
     AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,
-    GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupMembership, GroupOutput, HashScratch, StreamingReduction,
-    ValueHash,
+    GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupMembership, GroupOutput,
+    HashScratch, StreamingReduction, ValueHash,
 };
-use crate::domain::contract::types::FirstOccurrence;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, FlagState},

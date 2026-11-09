@@ -3,7 +3,6 @@ use super::types::*;
 use crate::domain::executable_program::types::Fusibilities;
 use crate::domain::{
     coverage::types::RuleIndex,
-    operator::types::ReaderMultiplicity,
     file_program::types::{
         FileProgramNode, GraphObservationRoot, NodeInput, ProgramNodeId, RequestGraph,
         SchemaValidity,
@@ -12,6 +11,7 @@ use crate::domain::{
         resources::ResourceProgram,
         types::{Effects, InputMode, ReuseScope},
     },
+    operator::types::ReaderMultiplicity,
 };
 use ryo_values::domain::{
     plan_parts::types::{Input, Operand, RepeatedRows, StepId},
@@ -77,7 +77,9 @@ pub(super) fn rule_independent(values: &[Operand]) -> RegionSharing {
 /// Whether the node's answer depends only on its operation and inputs, so equal nodes of
 /// different rules may share one region. Rule-scoped work stays rule-scoped.
 pub(crate) fn region_sharing(node: &FileProgramNode, held: Option<Barrier>) -> RegionSharing {
-    if node.schema_valid == SchemaValidity::Invalid || !matches!(held, None | Some(Barrier::Handover)) {
+    if node.schema_valid == SchemaValidity::Invalid
+        || !matches!(held, None | Some(Barrier::Handover))
+    {
         return RegionSharing::RuleScoped;
     }
     match &node.operation {

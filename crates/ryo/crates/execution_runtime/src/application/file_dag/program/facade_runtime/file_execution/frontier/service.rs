@@ -6,15 +6,15 @@ use crate::application::file_dag::program::facade_runtime::source_admission::tab
 use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FrontierCommit,
 };
-use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::frontier_capture::types::CaptureScope;
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
-use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
-use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::stored_facts::types::Bucket;

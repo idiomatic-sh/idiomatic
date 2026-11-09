@@ -1,17 +1,17 @@
 //! Authored cases: independent sources, expected findings and declared inputs.
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types;
+use crate::outbound::suite::adapters::local::declarations::schemas::{
+    CaseContextSchema, ObservationBindingSchema, OptionsSchema, ProjectInventorySchema,
+    RuleConfigurationSchema, RuleContextDeclarationSchema, observation_declarations,
+    project_search_roots,
+};
 use crate::outbound::suite::adapters::local::reference::schemas::ReferenceDiscrepancySchema;
 use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::ClaimedDiscrepancy;
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::workloads::types;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use crate::outbound::suite::adapters::local::declarations::schemas::{
-    CaseContextSchema, ObservationBindingSchema, OptionsSchema, ProjectInventorySchema, RuleConfigurationSchema, RuleContextDeclarationSchema,
-    observation_declarations,
-    project_search_roots,
-};
 
 #[cfg(test)]
 #[path = "schemas_test.rs"]
@@ -41,8 +41,7 @@ struct CaseSchema {
     project_search_roots: Option<Vec<String>>,
     /// Contextual entry kinds for the candidate's Given corpus.
     #[serde(default, rename = "given-project-inventory")]
-    given_project_inventory:
-        Option<ProjectInventorySchema>,
+    given_project_inventory: Option<ProjectInventorySchema>,
     /// Optional explicit primary inventory; absent paths require the shared context absence seal.
     #[serde(default, rename = "requested-files")]
     requested_files: Option<Vec<String>>,
@@ -63,12 +62,10 @@ struct CaseSchema {
     expected: Vec<ExpectedSchema>,
     /// Optional separately pinned reference behavior and independent evidence.
     #[serde(default, rename = "reference-discrepancy")]
-    reference_discrepancy:
-        Option<ReferenceDiscrepancySchema>,
+    reference_discrepancy: Option<ReferenceDiscrepancySchema>,
     /// A documented difference from an already public tool selection contract.
     #[serde(default, rename = "tool-contract-difference")]
-    tool_contract_difference:
-        Option<ReferenceDiscrepancySchema>,
+    tool_contract_difference: Option<ReferenceDiscrepancySchema>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

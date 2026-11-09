@@ -1,11 +1,11 @@
 //! A compiled region: fields private, written only by the executable-program compiler, read through accessors.
-use crate::domain::operator::types::ReaderMultiplicity;
 use super::super::instruction::value::Instruction;
 use super::super::{InputSource, RegionId, Route, SourcePartition};
-use ryo_values::domain::lineage::types::Lineage;
+use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError, trust::types::RelationRead,
 };
+use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::{plan_parts::types::StepScope, plans::types::Operation};
 
 /// One region of the executable program: what it reads, what it computes and how many readers its publication has.
@@ -51,7 +51,10 @@ impl Region {
         self.consumers = ReaderMultiplicity(self.consumers.0 + 1);
     }
     /// The readers of the region's publication, counted by the compiler.
-    pub(in crate::domain::executable_program) fn set_consumers(&mut self, consumers: ReaderMultiplicity) {
+    pub(in crate::domain::executable_program) fn set_consumers(
+        &mut self,
+        consumers: ReaderMultiplicity,
+    ) {
         self.consumers = consumers;
     }
     /// The one route the compiler kept for the region.
@@ -59,7 +62,10 @@ impl Region {
         self.route = route;
     }
     /// The regions the region depends on, resolved once by the compiler.
-    pub(in crate::domain::executable_program) fn set_dependencies(&mut self, dependencies: Box<[RegionId]>) {
+    pub(in crate::domain::executable_program) fn set_dependencies(
+        &mut self,
+        dependencies: Box<[RegionId]>,
+    ) {
         self.dependencies = dependencies;
     }
     /// Where the rows the region publishes come from, compiled once from its instructions and inputs.

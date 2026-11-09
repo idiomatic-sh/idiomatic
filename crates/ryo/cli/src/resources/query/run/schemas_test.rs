@@ -109,13 +109,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Given::Stream(kind) => json_ended_by(kind).map(|()| Answered::Delivered),
         Given::Store(root) => {
             let here = ryo_language::inbound::use_cases::project::types::RootPath(root.into());
-            let edge =
-                crate::resources::edge_at(
-                    here.clone(),
-                    here.clone(),
-                    ryo_values::domain::runs::types::MachineWorkers(1),
-                    crate::output::Format::Quiet,
-                );
+            let edge = crate::resources::edge_at(
+                here.clone(),
+                here.clone(),
+                ryo_values::domain::runs::types::MachineWorkers(1),
+                crate::output::Format::Quiet,
+            );
             let store = super::store(&edge, &here);
             let directory = format!("{root}/{}", edge.store.0);
             Ok(

@@ -1,5 +1,13 @@
 //! What the whole per-file path must pass over the corpus: its allocation, its call count, its streaming and its output.
 
+use super::corpus::Corpus;
+use super::corpus::files;
+use super::runs::Written;
+use super::runs::agrees;
+use super::runs::given;
+use super::runs::lint;
+use super::runs::run_query;
+use super::runs::write_all;
 use crate::cases::run;
 use crate::domain::allocation_verdict::service::differences;
 use crate::domain::allocation_verdict::service::verdict;
@@ -16,18 +24,10 @@ use crate::outbound::row_sink::fixtures::fake::BytesRowSinkFake;
 use crate::outbound::row_sink::fixtures::fake::TallyRowSinkFake;
 use crate::outbound::scheduler::fixtures::fake::CountingSchedulerFake;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
-use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution_runtime::outbound::facts;
+use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use std::sync::Arc;
 use std::sync::PoisonError;
-use super::corpus::Corpus;
-use super::corpus::files;
-use super::runs::lint;
-use super::runs::given;
-use super::runs::agrees;
-use super::runs::Written;
-use super::runs::write_all;
-use super::runs::run_query;
 
 /// How many copies of each input the allocation corpus holds.
 pub(super) const FILES: u32 = 60;

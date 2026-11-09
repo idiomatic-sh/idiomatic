@@ -1,7 +1,8 @@
 //! A reference that changes a declared file mode stops the second candidate before it prepares.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::verify_cases::fixtures::shard::{
-    Refusal, Shape, category, history_len, prepared, set_mode, staged_case, succeeding, verify_shard,
+    Refusal, Shape, category, history_len, prepared, set_mode, staged_case, succeeding,
+    verify_shard,
 };
 use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort};
 use crate::outbound::receipts::fixtures::fake::ReceiptsFake;
@@ -43,28 +44,40 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an unchanged non-executable mode lets both cases execute"),
         word: Word::Succeeds,
-        input: || Scenario { declared: Declared::Plain, drift: Drift::Keeps },
+        input: || Scenario {
+            declared: Declared::Plain,
+            drift: Drift::Keeps,
+        },
         expect: Expect::Value(2),
     },
     #[cfg(unix)]
     Case {
         name: CaseName("an unchanged executable mode lets both cases execute"),
         word: Word::Succeeds,
-        input: || Scenario { declared: Declared::Executable, drift: Drift::Keeps },
+        input: || Scenario {
+            declared: Declared::Executable,
+            drift: Drift::Keeps,
+        },
         expect: Expect::Value(2),
     },
     #[cfg(unix)]
     Case {
         name: CaseName("a reference that makes a file executable stops the second candidate"),
         word: Word::Refuses,
-        input: || Scenario { declared: Declared::Plain, drift: Drift::Changes },
+        input: || Scenario {
+            declared: Declared::Plain,
+            drift: Drift::Changes,
+        },
         expect: Expect::Error(Refusal::MetadataDrift),
     },
     #[cfg(unix)]
     Case {
         name: CaseName("a reference that clears the executable bit stops the second candidate"),
         word: Word::Refuses,
-        input: || Scenario { declared: Declared::Executable, drift: Drift::Changes },
+        input: || Scenario {
+            declared: Declared::Executable,
+            drift: Drift::Changes,
+        },
         expect: Expect::Error(Refusal::MetadataDrift),
     },
 ];
@@ -103,7 +116,11 @@ impl LinterPort for DriftingReference {
         if calls == 2 && self.drift == Drift::Changes {
             set_mode(
                 &request.root.join("case.py"),
-                if self.declared == Declared::Executable { 0o644 } else { 0o744 },
+                if self.declared == Declared::Executable {
+                    0o644
+                } else {
+                    0o744
+                },
             );
         }
         LinterFake::default().prepare(request)
@@ -119,14 +136,21 @@ impl LinterPort for DriftingReference {
     ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
         LinterFake::default().settings_text(normalized, case, profile)
     }
-    fn rule_context_text(&self, prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext) -> crate::outbound::linter::types::CanonicalText {
+    fn rule_context_text(
+        &self,
+        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+    ) -> crate::outbound::linter::types::CanonicalText {
         LinterFake::default().rule_context_text(prepared)
     }
 }
 
 fn mode_drift(scenario: Scenario) -> Result<Value, Error> {
     let Scenario { declared, drift } = scenario;
-    let root = staged_case(if declared == Declared::Executable { 0o744 } else { 0o644 });
+    let root = staged_case(if declared == Declared::Executable {
+        0o744
+    } else {
+        0o644
+    });
     let (mut suite, _) = prepared(Shape::Agreement);
     let profile = suite.profile.as_mut().unwrap();
     profile.defaults.truncate(1);
@@ -135,10 +159,15 @@ fn mode_drift(scenario: Scenario) -> Result<Value, Error> {
     case.name = "first".into();
     case.expected.diagnostics.clear();
     case.request.root = root.path().to_path_buf();
-    case.request.file_metadata = FileMetadataDeclaration::Declared(std::collections::BTreeMap::from([(
-        case.request.files[0].clone(),
-        if declared == Declared::Executable { FileExecutable::Set } else { FileExecutable::Unset },
-    )]));
+    case.request.file_metadata =
+        FileMetadataDeclaration::Declared(std::collections::BTreeMap::from([(
+            case.request.files[0].clone(),
+            if declared == Declared::Executable {
+                FileExecutable::Set
+            } else {
+                FileExecutable::Unset
+            },
+        )]));
     let mut second = case.clone();
     second.name = "second".into();
     suite.prepared.push(second);

@@ -13,8 +13,8 @@ use crate::application::file_dag::program::constants::PHASE_AVAILABILITY;
 use crate::application::file_dag::program::constants::PHASE_DEPENDENCY;
 use crate::application::file_dag::program::constants::PHASE_PHYSICAL;
 use crate::application::file_dag::program::runtime::types::StageProgress;
-use ryo_execution_domain::domain::executable_program::types::region::value::Region;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::region::value::Region;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 
@@ -63,10 +63,7 @@ impl AdmissionProgress {
         Ok(emptiness)
     }
 
-    pub(crate) fn check_schema(
-        &mut self,
-        region: &Region,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn check_schema(&mut self, region: &Region) -> Result<(), OperatingError> {
         if self.schema_done == StageProgress::Pending {
             for instruction in region.instructions().iter().rev() {
                 if instruction.contract().semantics.preflight

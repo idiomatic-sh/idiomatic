@@ -71,16 +71,16 @@ fn succeeds() {
 use ryo_values::domain::rows::types::RowIndex;
 
 // The prepared derived payloads the crate's tests build their subjects from, through the derived crate's own use cases.
+use crate::domain::table_model::types::Rows;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase as _;
 use ryo_derived::inbound::use_cases::build::use_case::BuildUseCaseImpl;
 use ryo_derived::inbound::use_cases::prepare_derived::interface::PrepareDerivedUseCase as _;
 use ryo_derived::inbound::use_cases::prepare_derived::use_case::PrepareDerivedUseCaseImpl;
 use ryo_derived::inbound::use_cases::view::interface::ViewUseCase as _;
 use ryo_derived::inbound::use_cases::view::use_case::ViewUseCaseImpl;
-use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use crate::domain::table_model::types::Rows;
 /// Finite typed input adapter for pure semantic conformance, with no cache or scheduler.
 pub(crate) struct SemanticRows<'f>(pub crate::domain::table_model::types::Rows<'f>);
 impl ryo_derived::domain::row_cells::types::RowCells for SemanticRows<'_> {
@@ -167,8 +167,9 @@ pub(crate) fn prepared_order(
         request,
         vec![crate::domain::table_model::service::kinds_of(rows).to_vec()],
     );
-    let DerivedView::PartitionOrder(order) =
-        ViewUseCaseImpl::new().view(&plan, &payload).expect("prepared order")
+    let DerivedView::PartitionOrder(order) = ViewUseCaseImpl::new()
+        .view(&plan, &payload)
+        .expect("prepared order")
     else {
         panic!("partition order")
     };

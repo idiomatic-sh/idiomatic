@@ -198,12 +198,7 @@ impl Authored {
     }
     /// Two ordered inputs of one combining operation, each a head, a pure projection and an
     /// Extend that can fault; `held` gives every head a second reader so nothing fuses.
-    pub(crate) fn combined(
-        combine: Combine,
-        left: Feed,
-        right: Feed,
-        fusion: Fusion,
-    ) -> Self {
+    pub(crate) fn combined(combine: Combine, left: Feed, right: Feed, fusion: Fusion) -> Self {
         let mut steps = vec![];
         let mut feed = |feed: Feed, offset: i64| {
             let head = steps.len() as u32;

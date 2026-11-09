@@ -1,22 +1,22 @@
 //! Test support for `cross_file`: the worlds, plans and frontier rows its cases are stated over.
 #![cfg(test)]
-use ryo_execution_runtime::outbound::facts::interface::{FactsFinish, FactsPort as _, FactsWorker};
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use super::service::CrossFile;
 use super::types::ProjectCrossing;
 use crate::domain::answering::types::Todo;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
-use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::Partial;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_runtime::outbound::facts::interface::{FactsFinish, FactsPort as _, FactsWorker};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::FileId;
@@ -97,9 +97,13 @@ pub(super) fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
 pub(super) fn world(plan: Plan) -> World {
     world_with(
         vec![plan],
-        Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
-            ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
-        )),
+        Arc::new(
+            ryo_execution_runtime::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+                    std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+                ),
+            ),
+        ),
     )
 }
 
@@ -168,7 +172,12 @@ pub(super) fn world_with_applicability(
     );
     let program = Arc::new(
         engine
-            .prepare(PrepareRequest { plans: PlanSource::Authored { bindings: vec![Vec::new(); plans.len()], plans: plans.clone() }, rules: ids
+            .prepare(PrepareRequest {
+                plans: PlanSource::Authored {
+                    bindings: vec![Vec::new(); plans.len()],
+                    plans: plans.clone(),
+                },
+                rules: ids
                     .iter()
                     .enumerate()
                     .map(|(rule, id)| RuleSpec {
@@ -187,7 +196,11 @@ pub(super) fn world_with_applicability(
                         include: Vec::new(),
                         exclude: Vec::new(),
                     })
-                    .collect(), digests: vec![Digest([0; 16]); plans.len()], hosted: Vec::new(), observations: ObservationIdentity::Independent })
+                    .collect(),
+                digests: vec![Digest([0; 16]); plans.len()],
+                hosted: Vec::new(),
+                observations: ObservationIdentity::Independent,
+            })
             .expect("prepared cross rule"),
     );
     let request = ExecutionUseCaseImpl::new().execution(&program, &files);
@@ -261,7 +274,11 @@ pub(super) fn kept_facts(world: &World, kept: &[(RuleIndex, &[(FileId, Table)])]
             encode_table(table, &[], &mut words);
             let packed = pack(WordSlice(&words.0));
             let bucket = Bucket(u32::try_from(rule.0).expect("a fixture rule numbers its bucket"));
-            let kept = WordsToKeep { words: &packed, file: *file, proof: &proof };
+            let kept = WordsToKeep {
+                words: &packed,
+                file: *file,
+                proof: &proof,
+            };
             worker.keep(bucket, kept).expect("source frame");
             workers.push(worker);
         }
@@ -314,15 +331,17 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Pr
         ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
-        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
+        use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use std::sync::atomic::Ordering;
         match &mut call {
             OperatorCall::ReduceCount { .. } => {
                 self.reductions.fetch_add(1, Ordering::SeqCst);
             }
             OperatorCall::Evaluate {
-                operation: ryo_values::domain::plans::types::Operation::GroupCount { .. } | ryo_values::domain::plans::types::Operation::GroupDigest { .. },
+                operation:
+                    ryo_values::domain::plans::types::Operation::GroupCount { .. }
+                    | ryo_values::domain::plans::types::Operation::GroupDigest { .. },
                 driver,
                 ..
             } => {
@@ -332,13 +351,18 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Pr
             }
             _ => {}
         }
-        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()))
-            .operators(call)
+        ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(
+            std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case()),
+        )
+        .operators(call)
     }
 }
 
 pub(super) fn service() -> CrossFile {
-    CrossFile::new(std::sync::Arc::new(
-        crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
-    ), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new()))
+    CrossFile::new(
+        std::sync::Arc::new(crate::outbound::corpus::fixtures::fake::CorpusFake::default()),
+        std::sync::Arc::new(
+            ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new(),
+        ),
+    )
 }

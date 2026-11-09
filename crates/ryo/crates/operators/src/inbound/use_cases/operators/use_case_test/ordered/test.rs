@@ -1,9 +1,8 @@
 //! The public ordered-pair call observes prepared inputs and immediately honors downstream refusal.
-use crate::domain::contract::errors::ContractError;
-use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::capture::types::*;
+use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::*;
-use crate::inbound::use_cases::operators::types::*;
 use crate::domain::equality_join::types::*;
 use crate::domain::ordered_existence::types::*;
 use crate::domain::ordered_match::types::*;
@@ -11,8 +10,9 @@ use crate::domain::reduction::types::*;
 use crate::domain::set_rows::types::*;
 use crate::domain::source_matches::types::*;
 use crate::domain::words::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
 use std::borrow::Cow;
@@ -51,7 +51,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("ordered_projection_fault_precedes_any_delivery"),
         word: Word::Refuses,
         input: || Scenario::OrderedMissing,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(2) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(2),
+        }),
     },
     Case {
         name: CaseName("ordered_sink_failure_preserves_prefix_and_stops_reads"),
@@ -86,10 +88,18 @@ impl OrderedMatchDriver for Driver {
     fn right_len(&self) -> ryo_values::domain::rows::types::RowCount {
         ryo_values::domain::rows::types::RowCount(RIGHT.len())
     }
-    fn compare_keys(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> std::cmp::Ordering {
+    fn compare_keys(
+        &self,
+        left: ryo_values::domain::rows::types::RowIndex,
+        right: ryo_values::domain::rows::types::RowIndex,
+    ) -> std::cmp::Ordering {
         LEFT[left.0].0.cmp(&RIGHT[right.0].0)
     }
-    fn right_order_before_or_equal(&self, left: ryo_values::domain::rows::types::RowIndex, right: ryo_values::domain::rows::types::RowIndex) -> crate::domain::ordered_match::types::KeyOrder {
+    fn right_order_before_or_equal(
+        &self,
+        left: ryo_values::domain::rows::types::RowIndex,
+        right: ryo_values::domain::rows::types::RowIndex,
+    ) -> crate::domain::ordered_match::types::KeyOrder {
         if RIGHT[right.0].1 <= LEFT[left.0].1 {
             crate::domain::ordered_match::types::KeyOrder::BeforeOrEqual
         } else {

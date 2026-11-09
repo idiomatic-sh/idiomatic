@@ -37,7 +37,9 @@ type Failure = ();
 const CASES: &[Case<Input, Outcome, Failure>] = &[
     #[cfg(unix)]
     Case {
-        name: CaseName("metadata drift blocks each attempt before prepare with a live positive control"),
+        name: CaseName(
+            "metadata drift blocks each attempt before prepare with a live positive control",
+        ),
         word: Word::Succeeds,
         input: || Scenario::ModeDrift,
         expect: Expect::Value(Outcome::Blocked),
@@ -84,9 +86,14 @@ impl LinterPort for ObservedPrepare {
         _case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
         _profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
     ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
-        Ok(crate::outbound::linter::types::CanonicalText(format!("{normalized:?}")))
+        Ok(crate::outbound::linter::types::CanonicalText(format!(
+            "{normalized:?}"
+        )))
     }
-    fn rule_context_text(&self, prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext) -> crate::outbound::linter::types::CanonicalText {
+    fn rule_context_text(
+        &self,
+        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+    ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::types::CanonicalText(format!("{prepared:?}"))
     }
 }
@@ -120,7 +127,11 @@ fn metadata_drift_blocks_each_attempt() {
                 staged_sources: StagedSources::Unlisted,
                 file_metadata: FileMetadataDeclaration::Declared(BTreeMap::from([(
                     file.clone(),
-                    if expected { FileExecutable::Set } else { FileExecutable::Unset },
+                    if expected {
+                        FileExecutable::Set
+                    } else {
+                        FileExecutable::Unset
+                    },
                 )])),
                 context_manifest: ContextSeal::Unsealed,
                 root: root.path().to_path_buf(),
@@ -171,7 +182,7 @@ fn metadata_drift_blocks_each_attempt() {
         assert!(
             candidate(
                 &crate::outbound::suite::factory::local(),
-            &crate::outbound::context::factory::local(),
+                &crate::outbound::context::factory::local(),
                 &observed,
                 &execution,
                 &case.request
@@ -185,7 +196,6 @@ fn metadata_drift_blocks_each_attempt() {
     }
 }
 
-
 fn declared_missing_primary_is_reverified() {
     use crate::outbound::context::interface::ContextPort as _;
     use ryo_benchmark_contracts::domain::context::types::CaseContext;
@@ -196,16 +206,17 @@ fn declared_missing_primary_is_reverified() {
         ryo::linter::SourceText("x = 1\n".into()),
     )]
     .into();
-    let manifest = crate::outbound::context::factory::local().materialize(
-        &boundary,
-        &CaseContext {
-            logical_root: "project".into(),
-            auxiliary_files: Default::default(),
-            missing: vec!["project/gone.py".into()],
-        },
-        &sources,
-    )
-    .unwrap();
+    let manifest = crate::outbound::context::factory::local()
+        .materialize(
+            &boundary,
+            &CaseContext {
+                logical_root: "project".into(),
+                auxiliary_files: Default::default(),
+                missing: vec!["project/gone.py".into()],
+            },
+            &sources,
+        )
+        .unwrap();
     let root = boundary.join("project");
     let files = vec![
         ryo::linter::RelativePath("companion.py".into()),

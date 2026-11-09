@@ -8,7 +8,10 @@ use ryo_execution_domain::domain::table_model::types::Verdict;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
-use {ryo_execution_domain::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView};
+use {
+    ryo_execution_domain::domain::table_texts::types::Texts,
+    ryo_values::domain::files::types::SourceView,
+};
 
 pub(crate) struct BoundPredicate<'a> {
     pub program: &'a PreparedPredicates,
@@ -86,7 +89,7 @@ mod tests {
     use super::*;
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{
-        PlanComparison, Input, LiteralText, Operand, QueryLiteral, Test,
+        Input, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
     };
     use ryo_values::domain::plans::types::Operation;
     use std::sync::atomic::Ordering;
@@ -151,7 +154,9 @@ mod tests {
         let mut memo = Vec::new();
         let mut names = None;
         #[cfg(feature = "diagnostic-row-progress")]
-        let routes = ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default();
+        let routes =
+            ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(
+            );
         let mut evaluator = BoundPredicate {
             program: &program,
             bindings: &[],

@@ -1,13 +1,12 @@
 //! Generation, request and partition identity: what a partition supplies and who it matches.
 use super::super::{
-    Agreement, ApplicabilityProof, FileGeneration, Partition, PartitionSupply,
-    RequiredPartitions,
+    Agreement, ApplicabilityProof, FileGeneration, Partition, PartitionSupply, RequiredPartitions,
 };
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
     rule_intent::types::ApplicabilityReason,
 };
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_relations::domain::relations::types::FileId;
 use std::sync::Arc;
 
@@ -29,10 +28,7 @@ impl FileGeneration {
     pub(crate) fn file(&self) -> FileId {
         self.file
     }
-    pub(crate) fn from_owner(
-        file: FileId,
-        owner: &RelationOwner,
-    ) -> Self {
+    pub(crate) fn from_owner(file: FileId, owner: &RelationOwner) -> Self {
         Self {
             file,
             generation: owner.current_generation(),
@@ -126,19 +122,13 @@ impl RequiredPartitions {
 }
 
 impl Partition {
-    pub(crate) fn require_supply(
-        &self,
-        required: &Self,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn require_supply(&self, required: &Self) -> Result<(), OperatingError> {
         match self.supplies(required) {
             PartitionSupply::Supplies => Ok(()),
             PartitionSupply::Lacks => Err(OperatingError::NotRead),
         }
     }
-    pub(crate) fn supplies(
-        &self,
-        required: &Self,
-    ) -> PartitionSupply {
+    pub(crate) fn supplies(&self, required: &Self) -> PartitionSupply {
         let supplied = match (self, required) {
             (Self::RequestInvariant, _) => true,
             (Self::File(actual), Self::File(required)) => {

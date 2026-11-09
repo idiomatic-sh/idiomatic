@@ -1,5 +1,11 @@
 //! The `pushing` service: free functions named by verb over the lookups into a join of edges and elements made before the join.
 
+use super::types::ColumnPrefixLength;
+use super::types::FilterDepth;
+use super::types::FilterStep;
+use super::types::FilteredElements;
+use super::types::KeptColumns;
+use super::types::Pushed;
 use crate::domain::fusing::service::source_column;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
@@ -15,12 +21,6 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use super::types::ColumnPrefixLength;
-use super::types::FilterDepth;
-use super::types::FilterStep;
-use super::types::FilteredElements;
-use super::types::KeptColumns;
-use super::types::Pushed;
 
 /// The steps with each lookup into a join of the edges of the tree with a filter of its elements made before the join:
 /// asking the edges and the elements for the children of a few nodes does not need the children of every node.

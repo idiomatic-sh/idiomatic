@@ -3,9 +3,9 @@ use super::interface::RunRyoUseCase;
 use crate::outbound::{
     context::interface::ContextPort, engine::interface::EnginePort, worker::interface::WorkerPort,
 };
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::ProjectContext;
 use ryo_benchmark_contracts::domain::requests::types::ContextSeal;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Arc;
 /// Handles one child-process request through independently injected boundaries.
 pub struct RunRyoUseCaseImpl {

@@ -1,10 +1,8 @@
 //! Representation semantics expose no input scheduler or cache owner.
-use crate::domain::table_model::types::{PhysicalShape, RelationContract};
-use super::types::{
-    CellRead, RowRead,
-};
+use super::types::{CellRead, RowRead};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_model::types::RepresentationInput;
+use crate::domain::table_model::types::{PhysicalShape, RelationContract};
 
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;

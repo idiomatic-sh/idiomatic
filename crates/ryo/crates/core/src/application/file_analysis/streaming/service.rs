@@ -90,7 +90,10 @@ impl FileVisits {
                 Ok(facts) => facts,
                 Err(error) => return Ok(Err(error.into())),
             };
-            states.push(Worker::new(tables_for(WorkerNumber(number), run.metadata), facts));
+            states.push(Worker::new(
+                tables_for(WorkerNumber(number), run.metadata),
+                facts,
+            ));
         }
         let (mut headings, limit) = match run.answering {
             Answering::Findings => (

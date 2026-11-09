@@ -285,7 +285,9 @@ pub(crate) fn binding_dependent(
         }
         ryo_values::domain::plans::types::Operation::Rank { .. }
         | ryo_values::domain::plans::types::Operation::Rows { .. }
-        | ryo_values::domain::plans::types::Operation::Extend { .. } => return BindingUse::Dependent,
+        | ryo_values::domain::plans::types::Operation::Extend { .. } => {
+            return BindingUse::Dependent;
+        }
         _ => &[],
     };
     if comparisons.iter().any(|comparison| {

@@ -1,27 +1,35 @@
 //! Completed source data and authored requests; every execution enters the public owner.
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use crate::boundary_fixture::authored_request;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_domain::domain::shared_walk::types::WalkPassCount;
 use ryo_execution_domain::domain::shared_walk::types::WalkSourceRows;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_language::domain::{completion::fixtures::{completion, name_kind}, elements::{fixtures::{kind_names, real_count, text_at}, types::Elements}, kind_index::fixtures::index_kinds, symbols::types::{ByteSlice, Symbols}};
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::{
+    completion::fixtures::{completion, name_kind},
+    elements::{
+        fixtures::{kind_names, real_count, text_at},
+        types::Elements,
+    },
+    kind_index::fixtures::index_kinds,
+    symbols::types::{ByteSlice, Symbols},
+};
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::{
     relations::{
@@ -48,10 +56,19 @@ use std::sync::{
 pub(super) struct SemanticCalls(AtomicUsize);
 impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for SemanticCalls {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        if matches!(&call, OperatorCall::Evaluate { operation: ryo_values::domain::plans::types::Operation::Select { .. }, .. }) {
+        if matches!(
+            &call,
+            OperatorCall::Evaluate {
+                operation: ryo_values::domain::plans::types::Operation::Select { .. },
+                ..
+            }
+        ) {
             let _previous = self.0.fetch_add(1, Ordering::Relaxed);
         }
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())).operators(call)
+        OperatorsUseCaseImpl::new(std::sync::Arc::new(
+            ryo_operators::outbound::matching::factory::use_case(),
+        ))
+        .operators(call)
     }
 }
 impl SemanticCalls {
@@ -116,11 +133,14 @@ pub(super) fn prepared(
             kept: vec![],
         };
         if let Selector::Parameter(value) = selector {
-            crate::boundary_fixture::plans(&mut input)[index].parameters.push(PlanParameter {
-                name: ParameterName("name".into()),
-                kind: ParameterType::Text,
-            });
-            crate::boundary_fixture::bindings(&mut input)[index] = vec![ParameterBinding::Text(LiteralText(value.into()))];
+            crate::boundary_fixture::plans(&mut input)[index]
+                .parameters
+                .push(PlanParameter {
+                    name: ParameterName("name".into()),
+                    kind: ParameterType::Text,
+                });
+            crate::boundary_fixture::bindings(&mut input)[index] =
+                vec![ParameterBinding::Text(LiteralText(value.into()))];
         }
     }
     engine

@@ -1,7 +1,7 @@
 //! A native tree on either side of an actual compiled Join publishes the same exact cells.
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_relations::domain::relations::{
     service::node_id,
     types::{FileId, Position, Relation, Value as Cell},
@@ -10,7 +10,7 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
         plan_parts::types::{
-            ColumnIndex, PlanComparison, Input as PlanInput, JoinColumn, LiteralText, Operand,
+            ColumnIndex, Input as PlanInput, JoinColumn, LiteralText, Operand, PlanComparison,
             QueryLiteral, Side, StepId, Test,
         },
         plans::types::Operation,
@@ -76,8 +76,16 @@ fn subject((): Input) -> Result<Value, Failure> {
             reach: None,
         },
     ]);
-    let right = fixtures::requests::published_file(right, vec![], vec![], b"abcd", &elements, &mut symbols)?;
-    let left = fixtures::requests::published_file(left, vec![], vec![], b"abcd", &elements, &mut symbols)?;
+    let right = fixtures::requests::published_file(
+        right,
+        vec![],
+        vec![],
+        b"abcd",
+        &elements,
+        &mut symbols,
+    )?;
+    let left =
+        fixtures::requests::published_file(left, vec![], vec![], b"abcd", &elements, &mut symbols)?;
     assert_eq!(right.count.0, 2);
     assert_eq!(left.count.0, 2);
     assert_eq!(right.cells, left.cells);

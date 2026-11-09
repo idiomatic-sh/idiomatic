@@ -8,7 +8,6 @@ pub mod population;
 
 pub(crate) mod graph;
 
-
 pub mod admission;
 
 #[cfg(any(test, feature = "fixtures"))]

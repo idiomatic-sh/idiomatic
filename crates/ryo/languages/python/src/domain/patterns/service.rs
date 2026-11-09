@@ -2,7 +2,7 @@
 //! is a glob of path parts: `*` and `?` inside one part, `**` for any number of parts.
 
 use crate::domain::patterns::constants::{ANY_ONE, ANY_PARTS, ANY_RUN, HERE, SEPARATOR};
-use crate::domain::patterns::types::{Directory, Matching, PatternPart, Pattern};
+use crate::domain::patterns::types::{Directory, Matching, Pattern, PatternPart};
 
 /// Whether the directory `directory` is the one the pattern `pattern` names, both from the same place.
 #[must_use]
@@ -61,12 +61,15 @@ fn text_matches(pattern: PatternPart<'_>, text: PatternPart<'_>) -> Matching {
             let after = rest.as_str();
             (0..=text.0.len())
                 .filter_map(|place| text.0.get(place..))
-                .any(|tail| text_matches(PatternPart(after), PatternPart(tail)) == Matching::Matches)
+                .any(|tail| {
+                    text_matches(PatternPart(after), PatternPart(tail)) == Matching::Matches
+                })
         }
         Some(ANY_ONE) => {
             let mut others = text.0.chars();
             others.next().is_some()
-                && text_matches(PatternPart(rest.as_str()), PatternPart(others.as_str())) == Matching::Matches
+                && text_matches(PatternPart(rest.as_str()), PatternPart(others.as_str()))
+                    == Matching::Matches
         }
         Some(literal) => text.0.strip_prefix(literal).is_some_and(|others| {
             text_matches(PatternPart(rest.as_str()), PatternPart(others)) == Matching::Matches

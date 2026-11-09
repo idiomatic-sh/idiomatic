@@ -1,7 +1,7 @@
 //! Actual physical suite observations, exact digest bytes and profile decoding.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::suite::fixtures::contract::check;
 use crate::outbound::suite::errors::SuiteError;
+use crate::outbound::suite::fixtures::contract::check;
 use crate::outbound::suite::{
     factory::local,
     interface::SuitePort as _,
@@ -77,21 +77,22 @@ fn source_identity_uses_utf8_name_order_on_every_platform() {
         files.push(file);
     }
     files.reverse();
-    local().verify_discrepancy_artifacts(CaseArtifacts {
-        profile: root.path(),
-        root: root.path(),
-        files: &files,
-        source_sha256: &ArtifactDigest(
-            fixture["source_sha256"]
-                .as_str()
-                .expect("Python source digest")
-                .to_owned(),
-        ),
-        file_metadata_files: &[],
-        file_metadata: ArtifactMetadata::Undeclared,
-        evidence: &[],
-    })
-    .expect("identical UTF8 digest with BMP and supplementary-plane filenames");
+    local()
+        .verify_discrepancy_artifacts(CaseArtifacts {
+            profile: root.path(),
+            root: root.path(),
+            files: &files,
+            source_sha256: &ArtifactDigest(
+                fixture["source_sha256"]
+                    .as_str()
+                    .expect("Python source digest")
+                    .to_owned(),
+            ),
+            file_metadata_files: &[],
+            file_metadata: ArtifactMetadata::Undeclared,
+            evidence: &[],
+        })
+        .expect("identical UTF8 digest with BMP and supplementary-plane filenames");
 }
 #[cfg(unix)]
 fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
@@ -102,7 +103,12 @@ fn artifact_binding_recomputes_actual_metadata_in_both_directions() {
         std::fs::write(&file, b"same bytes").unwrap();
         let mode = if expected { 0o744 } else { 0o644 };
         set_mode(&file, mode);
-        let source = ArtifactDigest(local().case_source_digest(ArtifactPath(root.path()), ArtifactSet(&files)).unwrap().0);
+        let source = ArtifactDigest(
+            local()
+                .case_source_digest(ArtifactPath(root.path()), ArtifactSet(&files))
+                .unwrap()
+                .0,
+        );
         let metadata = ArtifactDigest(
             crate::outbound::suite::adapters::local::file_metadata::schemas::actual_digest(
                 root.path(),
@@ -142,7 +148,12 @@ fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_
         let mode = if before { 0o744 } else { 0o644 };
         set_mode(&root.path().join(&files[0]), mode);
         let scope = vec![files[0].clone()];
-        let source = ArtifactDigest(local().case_source_digest(ArtifactPath(root.path()), ArtifactSet(&files)).unwrap().0);
+        let source = ArtifactDigest(
+            local()
+                .case_source_digest(ArtifactPath(root.path()), ArtifactSet(&files))
+                .unwrap()
+                .0,
+        );
         let metadata = ArtifactDigest(
             crate::outbound::suite::adapters::local::file_metadata::schemas::actual_digest(
                 root.path(),
@@ -166,7 +177,10 @@ fn optional_partial_observation_scope_tracks_only_declared_files_without_losing_
             set_mode(&root.path().join(&files[1]), other);
             check(&scope).unwrap();
         }
-        set_mode(&root.path().join(&files[0]), if before { 0o644 } else { 0o744 });
+        set_mode(
+            &root.path().join(&files[0]),
+            if before { 0o644 } else { 0o744 },
+        );
         assert!(invalid(check(&scope)));
         set_mode(&root.path().join(&files[0]), mode);
         check(&scope).unwrap();
@@ -232,9 +246,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     #[cfg(unix)]
     Case {
-        name: CaseName("optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity"),
+        name: CaseName(
+            "optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity",
+        ),
         word: Word::Succeeds,
-        input: || optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity as fn(),
+        input: || {
+            optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity as fn()
+        },
         expect: Expect::Value(()),
     },
 ];

@@ -3,8 +3,8 @@
 use super::errors::ListOperatorsError;
 use super::interface::ListOperatorsUseCase;
 use super::types::{ListOperatorsReport, OperatorSummary};
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use crate::application::metadata::service::kernel_metadata;
+use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 
 /// `list_operators`; the operators are the kernel's own, asked through the `metadata` application service, so it calls no port.
 #[derive(Clone, Copy, Debug, Default)]

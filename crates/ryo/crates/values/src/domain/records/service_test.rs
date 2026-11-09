@@ -82,7 +82,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("a_partial_frontier_with_lacks_is_well_formed_only_when_sorted_distinct_and_named_once_per_scope"),
+        name: CaseName(
+            "a_partial_frontier_with_lacks_is_well_formed_only_when_sorted_distinct_and_named_once_per_scope",
+        ),
         word: Word::Succeeds,
         input: || Scenario::PartialFrontiers,
         expect: Expect::Value(1),
@@ -175,7 +177,9 @@ fn partial_frontiers_are_well_formed_only_when_sorted() -> bool {
     ]) == FrontierShape::WellFormed
         && is_well_formed(&[]) == FrontierShape::Malformed
         && is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[]))]) == FrontierShape::Malformed
-        && is_well_formed(&[FrontierAffected::CurrentFile(kinds(&["variable", "function"]))])
+        && is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[
+            "variable", "function",
+        ]))])
             == FrontierShape::Malformed
         && is_well_formed(&[
             FrontierAffected::CurrentFile(FrontierMissing::Any),

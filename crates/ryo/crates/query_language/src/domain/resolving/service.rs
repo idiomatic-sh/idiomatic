@@ -1,9 +1,9 @@
 //! The `resolving` service: where a name a query writes becomes what it names, and where the
 //! arguments of a call are read, for the lowering of a program.
 
+use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service::{column_name, columns, kind, relation_named};
 use ryo_relations::domain::relations::service::{is_key, vocabulary_of};
-use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::types::{ColumnKeyness, Relation};
 use ryo_relations::domain::terms::types::Vocabulary;
 

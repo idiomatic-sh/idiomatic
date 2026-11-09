@@ -1,7 +1,7 @@
 //! Thin composition of external registration with the shared inventory loop.
 use super::interface::VerifyInventoryUseCase;
-use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::application::inventory_verification::service as inventory;
+use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::inventory::interface::InventoryPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
@@ -39,7 +39,11 @@ impl std::fmt::Debug for VerifyInventoryUseCaseImpl {
     }
 }
 impl VerifyInventoryUseCase for VerifyInventoryUseCaseImpl {
-    fn verify_inventory(&self, registration: &Path, output: &Path) -> Result<InventoryVerdict, ReportsError> {
+    fn verify_inventory(
+        &self,
+        registration: &Path,
+        output: &Path,
+    ) -> Result<InventoryVerdict, ReportsError> {
         let registration = self.store.load(registration)?;
         inventory::verify(
             &registration,

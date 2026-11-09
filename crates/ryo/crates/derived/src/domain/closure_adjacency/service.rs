@@ -42,7 +42,10 @@ pub(crate) fn build(
     part.sources.clear();
     for at in 0..positions.map_or(input.count().0, <[RowIndex]>::len) {
         let row = input
-            .read_row(positions.map_or(RowIndex(at), |positions| positions[at]), buffer)
+            .read_row(
+                positions.map_or(RowIndex(at), |positions| positions[at]),
+                buffer,
+            )
             .ok_or(DerivedFault::ShapeMismatch)?;
         let from = *row
             .get(source.0 as usize)
@@ -54,11 +57,8 @@ pub(crate) fn build(
         part.table.count.0 += 1;
         part.sources.push(from);
     }
-    part.index = crate::domain::equality::service::build(
-        &part.table,
-        &[ColumnIndex(0)],
-        Some(part.index),
-    )?;
+    part.index =
+        crate::domain::equality::service::build(&part.table, &[ColumnIndex(0)], Some(part.index))?;
     part.sources.sort_unstable();
     part.sources.dedup();
     Ok(part)

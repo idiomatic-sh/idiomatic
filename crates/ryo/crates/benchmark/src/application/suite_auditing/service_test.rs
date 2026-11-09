@@ -1,11 +1,7 @@
 //! Actual decoded artifacts cannot hide missing defaults or certify negative-only evidence.
 use super::service;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::outbound::suite::{
-    factory::local,
-    interface::SuitePort as _,
-    types::ArtifactPath,
-};
+use crate::outbound::suite::{factory::local, interface::SuitePort as _, types::ArtifactPath};
 fn negative_only_evidence(directory: &std::path::Path) {
     let oracle = directory.join("oracle");
     std::fs::create_dir_all(oracle.join("rules/F621")).expect("oracle rule");

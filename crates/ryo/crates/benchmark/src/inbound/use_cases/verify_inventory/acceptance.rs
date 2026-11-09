@@ -5,10 +5,10 @@
 )]
 use cucumber::then;
 use ryo_benchmark::{
+    domain::suite::types::inventory::value::InventoryVerdict,
     inbound::use_cases::verify_inventory::{
         interface::VerifyInventoryUseCase as _, use_case::VerifyInventoryUseCaseImpl,
     },
-    domain::suite::types::inventory::value::InventoryVerdict,
     outbound::{execution::fixtures::fake::ExecutionFake, inventory::factory::local},
 };
 use std::sync::Arc;

@@ -8,9 +8,7 @@ pub struct IndexObservation {
 }
 impl DerivedOwner {
     /// The scoped builds counted, and the storage of the last one.
-    pub fn scoped_observation(
-        &self,
-    ) -> (usize, Weak<DerivedStorage>) {
+    pub fn scoped_observation(&self) -> (usize, Weak<DerivedStorage>) {
         (
             self.next_scope.get().0,
             self.last_scoped_storage.borrow().clone(),
@@ -59,9 +57,7 @@ impl DerivedOwner {
     }
 
     /// A weak reference to the first retained index, to observe its release.
-    pub fn first_index_weak(
-        &self,
-    ) -> Option<Weak<ryo_derived::domain::equality::types::KeyIndex>> {
+    pub fn first_index_weak(&self) -> Option<Weak<ryo_derived::domain::equality::types::KeyIndex>> {
         self.state.borrow().entries.values().find_map(|entry| {
             if entry._plan.kind != DerivedKind::Equality {
                 return None;
@@ -81,9 +77,7 @@ impl DerivedOwner {
             .0
     }
     /// The publication, ownership and retained bytes the owner accounts for.
-    pub fn publication_ownership_bytes(
-        &self,
-    ) -> (usize, usize, usize) {
+    pub fn publication_ownership_bytes(&self) -> (usize, usize, usize) {
         let state = self.ledger.borrow().snapshot();
         (
             state.required_bytes.0,

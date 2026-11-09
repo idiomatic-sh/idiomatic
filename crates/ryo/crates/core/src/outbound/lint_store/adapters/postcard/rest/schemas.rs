@@ -1,13 +1,16 @@
 //! The rest document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
-use std::borrow::Cow;
+use super::super::proofs::schemas::{FrontierProofSchema, proof_row, proof_schema};
+use super::super::strings::schemas::{StringsSchema, TextSchema, as_bytes, named, text};
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::records::types::GoverningRules;
-use ryo_values::domain::stored_facts::types::{ArenaBytes, Digest, FileNotes, LanguageNumber, NoteBytes, PartialAt, PartialCause, PartialKind, PartialScope, StoredPartial};
+use ryo_values::domain::stored_facts::types::{
+    ArenaBytes, Digest, FileNotes, LanguageNumber, NoteBytes, PartialAt, PartialCause, PartialKind,
+    PartialScope, StoredPartial,
+};
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::{StoredCovered, StoredHanded, StoredNotes, StoredText};
-use super::super::strings::schemas::{StringsSchema, TextSchema, as_bytes, named, text};
-use super::super::proofs::schemas::{FrontierProofSchema, proof_row, proof_schema};
+use std::borrow::Cow;
 
 /// Bytes of a file only the core reads, its names' text: one row for each file that has some.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -70,7 +73,8 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct ObservationSchema
     pub(in crate::outbound::lint_store::adapters::postcard) slots: u32,
     pub(in crate::outbound::lint_store::adapters::postcard) complete: Vec<u64>,
     pub(in crate::outbound::lint_store::adapters::postcard) skipped: Vec<u64>,
-    pub(in crate::outbound::lint_store::adapters::postcard) refusals: Vec<(u32, ObservationReadinessSchema)>,
+    pub(in crate::outbound::lint_store::adapters::postcard) refusals:
+        Vec<(u32, ObservationReadinessSchema)>,
 }
 
 /// What the files handed the steps that read across files and the project but their words.
@@ -97,7 +101,9 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct RestSchema<'a> {
     pub(in crate::outbound::lint_store::adapters::postcard) partials: Vec<PartialSchema>,
 }
 
-pub(in crate::outbound::lint_store::adapters::postcard) fn rest_of<'a>(stored: &'a StoredHanded) -> RestSchema<'a> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn rest_of<'a>(
+    stored: &'a StoredHanded,
+) -> RestSchema<'a> {
     let mut strings = StringsSchema::default();
     let bytes = |file: StoredFileNumber, bytes: &'a [u8]| BytesSchema {
         file: file.0,
@@ -194,7 +200,9 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn rest_of<'a>(stored: &
 }
 
 /// What the files handed but their words, from its section.
-pub(in crate::outbound::lint_store::adapters::postcard) fn handed_of(rest: &RestSchema<'_>) -> Result<StoredHanded, postcard::Error> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn handed_of(
+    rest: &RestSchema<'_>,
+) -> Result<StoredHanded, postcard::Error> {
     let strings = &rest.strings;
     let mut proofs = rest
         .proofs
@@ -312,7 +320,9 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn handed_of(rest: &Rest
 }
 
 /// What the files of `stored` handed but their words, as their section's bytes.
-pub(in crate::outbound::lint_store::adapters::postcard) fn rest_bytes(stored: &StoredHanded) -> Result<Vec<u8>, postcard::Error> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn rest_bytes(
+    stored: &StoredHanded,
+) -> Result<Vec<u8>, postcard::Error> {
     // The room the bytes take, at least, so they are written once and never moved as the section grows.
     let room = stored
         .texts
@@ -328,7 +338,9 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn rest_bytes(stored: &S
 }
 
 /// What the files handed but their words, from the section's bytes.
-pub(in crate::outbound::lint_store::adapters::postcard) fn rest_from(bytes: &[u8]) -> Option<StoredHanded> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn rest_from(
+    bytes: &[u8],
+) -> Option<StoredHanded> {
     // A section that does not read back holds nothing the run can use again.
     let Ok(rest) = postcard::from_bytes::<RestSchema<'_>>(bytes) else {
         return None;

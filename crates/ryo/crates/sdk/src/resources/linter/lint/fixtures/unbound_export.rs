@@ -1,12 +1,12 @@
 //! The test data of `linter lint` that fixes unbound export.
 
+use super::capability_provider::provider_linter;
+use super::directory::case_directory;
+use super::outcome::{Outcome, summary};
+use super::rules::{listed, ordinary, rule_id};
 use crate::resources::linter::lint::entry::lint_with;
 use crate::resources::linter::lint::types::Cache;
 use std::collections::BTreeMap;
-use super::outcome::{Outcome, summary};
-use super::capability_provider::provider_linter;
-use super::rules::{listed, ordinary, rule_id};
-use super::directory::case_directory;
 
 /// An export nothing binds demands no reader and changes no ordinary result.
 pub(crate) fn unbound_export() -> Outcome {

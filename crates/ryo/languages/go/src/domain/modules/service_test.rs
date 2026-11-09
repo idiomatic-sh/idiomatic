@@ -7,8 +7,8 @@ use super::service::{
     holdings_in, manifestness_of, placed_in, replacement_text, resolve, wirings_in,
 };
 use super::types::{
-    Declared, Directory, Indirectness, Manifest, ManifestPath, Member, ModulePath, ModuleVersion,
-    Modules, Relative, Replacement, Requirement, ModuleReplacementTarget,
+    Declared, Directory, Indirectness, Manifest, ManifestPath, Member, ModulePath,
+    ModuleReplacementTarget, ModuleVersion, Modules, Relative, Replacement, Requirement,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 

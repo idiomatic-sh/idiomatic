@@ -1,19 +1,16 @@
 //! Producer population binding, backing identity and derived-view pinning.
-use crate::application::file_dag::relations::*;
 use crate::application::file_dag::relations::publication::types::ProducerScope;
+use crate::application::file_dag::relations::*;
 impl RelationOwner {
     /// The population identity of the project scope.
-    pub fn project_identity(
-        &self,
-    ) -> Result<PopulationId, OperatingError> {
+    pub fn project_identity(&self) -> Result<PopulationId, OperatingError> {
         self.allocate_population()
     }
-    pub(crate) fn allocate_population(
-        &self,
-    ) -> Result<PopulationId, OperatingError> {
+    pub(crate) fn allocate_population(&self) -> Result<PopulationId, OperatingError> {
         let id = self.next_population.get();
         self.next_population.set(PopulationId(
-            id.0.checked_add(1).ok_or_else(|| OperatingError::ShapeMismatch)?,
+            id.0.checked_add(1)
+                .ok_or_else(|| OperatingError::ShapeMismatch)?,
         ));
         Ok(id)
     }
@@ -98,8 +95,10 @@ impl RelationOwner {
         scope: ProducerScope,
         node: RegionId,
         kind: ryo_derived::domain::request::types::DerivedKind,
-    ) -> Result<Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>, OperatingError>
-    {
+    ) -> Result<
+        Option<crate::application::file_dag::derived::owner::witness::service::BackingWitness>,
+        OperatingError,
+    > {
         let Some(known) = self
             .producer_populations
             .borrow()
@@ -116,11 +115,7 @@ impl RelationOwner {
     }
     /// Global consumer cancellation need not retain the producer payload.
     /// A generation clear has already released all pins and removed this map.
-    pub fn release_derived_producer(
-        &self,
-        scope: ProducerScope,
-        node: RegionId,
-    ) {
+    pub fn release_derived_producer(&self, scope: ProducerScope, node: RegionId) {
         if let Some(known) = self
             .producer_populations
             .borrow()

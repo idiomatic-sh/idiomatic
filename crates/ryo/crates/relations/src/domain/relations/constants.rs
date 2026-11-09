@@ -1,7 +1,7 @@
 //! The names of the `relations` concept: what a kind of column is called when a listing shows it.
 
-use crate::domain::relations::types::{CellKind, FileId, Flag, Flags, Offset, Span};
 use crate::domain::relations::types::FieldId;
+use crate::domain::relations::types::{CellKind, FileId, Flag, Flags, Offset, Span};
 use crate::domain::terms::types::Symbol;
 
 /// The text of a kind.

@@ -104,7 +104,11 @@ pub enum RightMembership {
 impl From<bool> for RightMembership {
     /// A key reported contained is `Present`.
     fn from(contained: bool) -> Self {
-        if contained { Self::Present } else { Self::Absent }
+        if contained {
+            Self::Present
+        } else {
+            Self::Absent
+        }
     }
 }
 

@@ -8,7 +8,9 @@ use ryo::languages::{self, Position, Symbol, Tree};
 
 use super::types::{CategoryIndex, Context, Evaluation, Scopeness, Targeting};
 use crate::domain::model::service::redirect_of;
-use crate::domain::model::types::{BindingRedirect, Declarations, QualificationState, ScopeDeclaration};
+use crate::domain::model::types::{
+    BindingRedirect, Declarations, QualificationState, ScopeDeclaration,
+};
 use crate::domain::nodes::types::Category;
 use crate::domain::syntax::service::{category, is_root, kind, name_of, nodes, nodes_of, parent};
 use crate::domain::syntax::types::{Kind, Rootness};

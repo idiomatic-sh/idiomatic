@@ -4,7 +4,7 @@ use ryo::languages::{self, Offset};
 
 use super::item::SourceDependencyItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::links::types::{SourceDependencyLink, Linked};
+use crate::domain::links::types::{Linked, SourceDependencyLink};
 use crate::domain::module_tree::types::{ModuleText, SourceCount, Spelling, Unfollowed};
 use crate::domain::package_index::types::ListIndex;
 use crate::domain::paths::types::RepoPath;

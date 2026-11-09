@@ -4,14 +4,14 @@
 use std::path::PathBuf;
 
 use super::adapter::FactsSpillAdapter;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::selects;
+use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::fixtures::contract::check;
 use crate::outbound::facts::fixtures::words::test_words;
-use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsPort as _;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
+use ryo_values::selects;
 
 /// What a row of the cases asks of the adapter.
 #[derive(Clone, Copy)]

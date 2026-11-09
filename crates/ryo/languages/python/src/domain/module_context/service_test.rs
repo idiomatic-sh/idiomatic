@@ -1,9 +1,9 @@
 //! Pure module decisions preserve marker boundaries and Given isolation.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::{
     service::{disk, given, relative_to},
     types::{Basenames, Markers, ModuleDecision, ModuleDottedPath, PackageModule, PackageRootName},
 };
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::languages::NameText;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -40,7 +40,10 @@ fn standalone_is_complete_empty_and_pyi_is_not_a_marker() {
         ModuleDecision::Known(None)
     );
     let files = BTreeSet::from([PathBuf::from("__init__.pyi"), PathBuf::from("mod.py")]);
-    assert_eq!(given(Path::new("mod.py"), &files), ModuleDecision::Known(None));
+    assert_eq!(
+        given(Path::new("mod.py"), &files),
+        ModuleDecision::Known(None)
+    );
 }
 fn given_knows_nested_packages_but_never_an_unnamed_root_package() {
     let mut files = BTreeSet::from([
@@ -55,7 +58,10 @@ fn given_knows_nested_packages_but_never_an_unnamed_root_package() {
         }))
     );
     let _inserted = files.insert("__init__.py".into());
-    assert_eq!(given(Path::new("pkg/mod.py"), &files), ModuleDecision::Unknown);
+    assert_eq!(
+        given(Path::new("pkg/mod.py"), &files),
+        ModuleDecision::Unknown
+    );
 }
 fn paths_above_root_remain_real_relative_dependencies() {
     assert_eq!(
@@ -70,10 +76,13 @@ fn paths_above_root_remain_real_relative_dependencies() {
 fn raw_basenames_and_directory_components_are_not_filename_stems() {
     use super::service::basenames;
     let source = Path::new("/boundary/pkg.with.dot/nested.name/mod.with.dot.pyi");
-    assert_eq!(basenames(source), Some(Basenames {
-        module: NameText("mod.with.dot"),
-        package: NameText("nested.name"),
-    }));
+    assert_eq!(
+        basenames(source),
+        Some(Basenames {
+            module: NameText("mod.with.dot"),
+            package: NameText("nested.name"),
+        })
+    );
     let markers = Markers(BTreeMap::from([
         (
             "/boundary/pkg.with.dot/nested.name/__init__.py".into(),

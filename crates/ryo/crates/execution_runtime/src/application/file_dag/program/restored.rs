@@ -6,14 +6,14 @@ use super::admission::ProducerRoot;
 use super::admission::ReadProof;
 use super::admission::RequiredPartitions;
 use super::facade_runtime::types::PublicationScope;
-use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::observed_publication::types::ObservedPublication;
-use ryo_execution_domain::domain::{
-    completion::types::CoverageState,
-    coverage::types::RuleIndex,
-    executable_program::types::InputSource,
-    operating::errors::OperatingError, operator::types::OperatorContext};
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::{
+    completion::types::CoverageState, coverage::types::RuleIndex,
+    executable_program::types::InputSource, operating::errors::OperatingError,
+    operator::types::OperatorContext,
+};
 use ryo_values::domain::{
     plan_parts::types::InputNumber,
     stored_facts::types::{Bucket, KeptWords},
@@ -80,7 +80,9 @@ pub(crate) fn validate_restored_frontier(
         InputSource::Relation(relation) => {
             ryo_relations::domain::relations::service::kinds(relation).to_vec()
         }
-        InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot)) => {
+        InputSource::Observation(
+            ryo_execution_domain::domain::executable_program::types::ObservationPlace(slot),
+        ) => {
             let region = *prepared
                 .program()
                 .observation_regions()
@@ -136,7 +138,8 @@ impl ValidatedFrontier {
         context: &mut OperatorContext<'_>,
     ) -> Result<ObservedPublication, OperatingError> {
         if !Arc::ptr_eq(&self.program, scope.program())
-            || scope.owner().matches_generation(&self.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+            || scope.owner().matches_generation(&self.generation)
+                == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
             || self.partition.same_request(required)
                 == crate::application::file_dag::program::admission::Agreement::Different
         {

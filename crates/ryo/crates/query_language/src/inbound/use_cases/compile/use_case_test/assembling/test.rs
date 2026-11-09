@@ -1,7 +1,7 @@
 //! The `assembling` service's cases, on query text read by the real syntax adapter.
 
-use crate::inbound::use_cases::compile::use_case_test::SELECT_PROJECT;
 use crate::inbound::use_cases::compile::use_case_test::DISTINCT_COUNT;
+use crate::inbound::use_cases::compile::use_case_test::SELECT_PROJECT;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};

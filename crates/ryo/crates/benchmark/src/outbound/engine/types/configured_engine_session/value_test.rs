@@ -36,9 +36,14 @@ fn subject((): Input) -> Result<Value, Failure> {
             hosted: Vec::new(),
         },
     );
-    let report = configured.execute().expect("actual port fake executes").report;
+    let report = configured
+        .execute()
+        .expect("actual port fake executes")
+        .report;
     assert_eq!(report.files, request.files);
-    let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) = report.coverage else {
+    let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
+        report.coverage
+    else {
         panic!("accounting retained");
     };
     Ok(coverage.selected.0)

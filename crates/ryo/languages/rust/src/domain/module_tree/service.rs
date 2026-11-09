@@ -5,8 +5,8 @@ use super::constants::{
     CRATE, DIRECTORY_OWNER, GLOB, MACRO_CRATE, MODULE_SEPARATOR, SELF, SELF_TYPE, SOURCE, SUPER,
 };
 use super::types::{
-    Body, Facts, Gate, ModDeclaration, ModulePath, ModuleText, ModuleTree, Placing, Segment, SourceCount,
-    Unfollowed,
+    Body, Facts, Gate, ModDeclaration, ModulePath, ModuleText, ModuleTree, Placing, Segment,
+    SourceCount, Unfollowed,
 };
 use crate::domain::paths::service::{directory_of, lexical_join, owns_directory, stem};
 use crate::domain::paths::types::RepoPath;

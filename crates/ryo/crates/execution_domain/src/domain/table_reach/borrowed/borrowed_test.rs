@@ -2,14 +2,14 @@
 use super::*;
 use ryo_relations::domain::relations::types::Value as Cell;
 
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
-use ryo_derived::domain::row_cells::types::BulkRows;
-use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::DerivedView;
-use ryo_derived::domain::row_cells::types::RowCells;
+use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
+use ryo_derived::domain::row_cells::types::BulkRows;
+use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::types::{RowCount, Table};
@@ -42,7 +42,11 @@ impl RowCells for Cells<'_> {
     fn count(&self) -> ryo_values::domain::rows::types::RowCount {
         self.0.count
     }
-    fn cell(&self, row: ryo_values::domain::rows::types::RowIndex, column: ColumnIndex) -> Option<Cell> {
+    fn cell(
+        &self,
+        row: ryo_values::domain::rows::types::RowIndex,
+        column: ColumnIndex,
+    ) -> Option<Cell> {
         self.0
             .cells
             .get(row.0 * self.0.kinds.len() + column.0 as usize)
@@ -92,7 +96,8 @@ fn view<'a>(table: &'a Table, index: &'a KeyIndex, columns: &'a [ColumnIndex]) -
     }
 }
 
-fn nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties() -> Value {
+fn nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties() -> Value
+{
     for rows in [
         vec![[1, 2], [2, 3], [3, 4]],
         vec![[1, 2], [1, 3], [2, 4], [3, 5]],
@@ -119,7 +124,9 @@ fn nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_
                         ColumnIndex(1),
                         number(start),
                         &mut nearest,
-                        |value| Ok::<_, ()>(membership(admitted.iter().any(|n| number(*n) == value))),
+                        |value| {
+                            Ok::<_, ()>(membership(admitted.iter().any(|n| number(*n) == value)))
+                        },
                     )
                     .expect("infallible membership");
                     assert_eq!(
@@ -209,9 +216,13 @@ type Failure = std::convert::Infallible;
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties"),
+        name: CaseName(
+            "nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties",
+        ),
         word: Word::Succeeds,
-        input: || nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties,
+        input: || {
+            nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties
+        },
         expect: Expect::Value(1),
     },
     Case {
@@ -221,9 +232,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission"),
+        name: CaseName(
+            "admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission",
+        ),
         word: Word::Succeeds,
-        input: || admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission,
+        input: || {
+            admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission
+        },
         expect: Expect::Value(1),
     },
     Case {

@@ -1,6 +1,6 @@
 //! Findings order by rule, then file, then span.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::value::{FindingOffset, RecordedFinding, RecordedSpan};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::documents::types::text::value::{PathText, RuleName};
 use std::cmp::Ordering;
 

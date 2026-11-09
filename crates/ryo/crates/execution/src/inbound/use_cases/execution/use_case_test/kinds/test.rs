@@ -2,8 +2,8 @@
 use super::super::super::fixtures;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 
-use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::kind_index::service::index_kinds;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -18,16 +18,16 @@ use ryo_execution_domain::domain::kind_sets::service::{names_a_kind, satisfies};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::KindNaming;
 use ryo_execution_domain::domain::table_model::types::Verdict;
+use ryo_execution_domain::domain::table_texts::types::TextView;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
-use ryo_execution_domain::domain::table_texts::types::TextView;
 
 /// A scenario: what a row observes of the kind sets, as a number.
 type Input = fn() -> Result<Value, OperatingError>;
@@ -79,7 +79,15 @@ fn finds_the_elements_of_a_named_kind() -> Result<Value, OperatingError> {
             comparisons,
             kept: vec![column(0)],
         }]);
-        Ok(fixtures::requests::published_file(plan, vec![], vec![], source, &elements, &mut symbols)?.cells)
+        Ok(fixtures::requests::published_file(
+            plan,
+            vec![],
+            vec![],
+            source,
+            &elements,
+            &mut symbols,
+        )?
+        .cells)
     };
     let id = |at: u32| Cell::Node(node_id(FileId(0), Position(at)));
     let words = found(vec![kind_is("word")])?;
@@ -121,7 +129,8 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
         comparisons: vec![compared(Test::Equal, 1, "word")],
         kept: vec![column(0)],
     };
-    let (engine, prepared) = fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
+    let (engine, prepared) =
+        fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
     let never = |_| Err(OperatingError::NotRead);
     let empty = fixtures::requests::run_prepared(
         &engine,
@@ -132,8 +141,14 @@ fn a_file_with_no_names_teaches_nothing_about_kinds() -> Result<Value, Operating
         &never,
     )?;
     let (elements, mut symbols) = tree_of(&[(1, "file"), (2, "word")], 2);
-    let later =
-        fixtures::requests::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?;
+    let later = fixtures::requests::run_prepared(
+        &engine,
+        &prepared,
+        b"abcd",
+        &elements,
+        &mut symbols,
+        &never,
+    )?;
     Ok(empty.count.0 * 10 + later.count.0)
 }
 
@@ -169,14 +184,20 @@ fn another_language_does_not_inherit_the_sets_of_the_first() -> Result<Value, Op
         }],
         kept: vec![column(0)],
     };
-    let (engine, prepared) = fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
+    let (engine, prepared) =
+        fixtures::requests::prepared(inputs::plan(vec![operation]), vec![], vec![])?;
     let found = |names: &[(u16, &str)], token_kind: u16| -> Result<Vec<Cell>, OperatingError> {
         let (elements, mut symbols) = tree_of(names, token_kind);
         let never = |_| Err(OperatingError::NotRead);
-        Ok(
-            fixtures::requests::run_prepared(&engine, &prepared, b"abcd", &elements, &mut symbols, &never)?
-                .cells,
-        )
+        Ok(fixtures::requests::run_prepared(
+            &engine,
+            &prepared,
+            b"abcd",
+            &elements,
+            &mut symbols,
+            &never,
+        )?
+        .cells)
     };
     let id = |at: u32| Cell::Node(node_id(FileId(0), Position(at)));
     // In the first language the token is a `word` numbered 2; in the second, `word` is numbered 3 and number 2 is `other`.
@@ -197,10 +218,30 @@ fn names_a_kind_by_a_test_on_its_name() -> Value {
     let naming = names_a_kind(&by_name) == KindNaming::Names
         && names_a_kind(&by_text) == KindNaming::Silent
         && names_a_kind(&by_order) == KindNaming::Silent;
-    let satisfying = satisfies(Test::Equal, TextView("word"), TextView("word"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds
-        && satisfies(Test::NotEqual, TextView("word"), TextView("word"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()) == Verdict::Fails
-        && satisfies(Test::StartsWith, TextView("word"), TextView("wo"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds
-        && satisfies(Test::GlobAny, TextView("word"), TextView("{file,word}"), ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher()) == Verdict::Holds;
+    let satisfying = satisfies(
+        Test::Equal,
+        TextView("word"),
+        TextView("word"),
+        ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(),
+    ) == Verdict::Holds
+        && satisfies(
+            Test::NotEqual,
+            TextView("word"),
+            TextView("word"),
+            ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(),
+        ) == Verdict::Fails
+        && satisfies(
+            Test::StartsWith,
+            TextView("word"),
+            TextView("wo"),
+            ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(),
+        ) == Verdict::Holds
+        && satisfies(
+            Test::GlobAny,
+            TextView("word"),
+            TextView("{file,word}"),
+            ryo_execution_runtime::application::file_dag::fixtures::pattern_matcher(),
+        ) == Verdict::Holds;
     usize::from(naming && satisfying)
 }
 

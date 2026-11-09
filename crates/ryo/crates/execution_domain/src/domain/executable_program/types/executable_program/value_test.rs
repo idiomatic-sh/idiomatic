@@ -5,8 +5,8 @@ use super::value::ExecutableProgram;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
-        FileReaderGraph, InputSource, ObservationPlace, PartitionRequirement,
-        RegionId, RemainingMemo, SourcePartition, region::value::Region,
+        FileReaderGraph, InputSource, ObservationPlace, PartitionRequirement, RegionId,
+        RemainingMemo, SourcePartition, region::value::Region,
     },
     operating::errors::OperatingError,
 };

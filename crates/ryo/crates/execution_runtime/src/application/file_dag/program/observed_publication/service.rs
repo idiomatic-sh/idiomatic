@@ -25,11 +25,16 @@ impl ObservedPublication {
                 ryo_values::domain::records::types::ProducerReadiness::Complete,
             ) => Ok(()),
             (
-                ryo_execution_domain::domain::completion::types::CoverageState::Partial { files, .. },
+                ryo_execution_domain::domain::completion::types::CoverageState::Partial {
+                    files,
+                    ..
+                },
                 ryo_values::domain::records::types::ProducerReadiness::Unknown(_),
             ) if !files.is_empty() => Ok(()),
             (
-                ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable { files },
+                ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable {
+                    files,
+                },
                 ryo_values::domain::records::types::ProducerReadiness::Unknown(_),
             ) if !files.is_empty() => Ok(()),
             _ => Err(OperatingError::ObservationIncomplete {

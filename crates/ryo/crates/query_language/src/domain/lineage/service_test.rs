@@ -81,8 +81,18 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }),
     ];
     Ok(match scenario {
-        Scenario::AFileThroughAJoin => column_kind(&steps, &mut LineageMemo::default(), Reads::Step(StepId(1)), ColumnIndex(0)),
-        Scenario::ACount => column_kind(&steps, &mut LineageMemo::default(), Reads::Step(StepId(2)), ColumnIndex(1)),
+        Scenario::AFileThroughAJoin => column_kind(
+            &steps,
+            &mut LineageMemo::default(),
+            Reads::Step(StepId(1)),
+            ColumnIndex(0),
+        ),
+        Scenario::ACount => column_kind(
+            &steps,
+            &mut LineageMemo::default(),
+            Reads::Step(StepId(2)),
+            ColumnIndex(1),
+        ),
     })
 }
 

@@ -4,22 +4,22 @@ use super::{
     types::{Edges, OrderedVisit, OrderedWalk},
 };
 use crate::domain::operating::errors::OperatingError;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
-use ryo_derived::domain::row_cells::types::BulkRows;
-use ryo_derived::domain::row_cells::types::CanonicalTexts;
-use ryo_derived::domain::fault::types::DerivedFault;
-use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::dfs::types::PreparedDfs;
+use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_derived::domain::request::types::DerivedRequest;
+use ryo_derived::domain::row_cells::types::BulkRows;
+use ryo_derived::domain::row_cells::types::CanonicalTexts;
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_derived::domain::row_cells::types::ValueTexts;
-use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_relations::{
     domain::relations::types::{CellKind, Integer, Name, PlaceNumber, TextHash, Value as Cell},
     domain::terms::types::Symbol,
 };
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     rows::{
@@ -45,10 +45,12 @@ impl RowCells for Rows<'_> {
     fn count(&self) -> ryo_values::domain::rows::types::RowCount {
         self.0.count
     }
-    fn cell(&self, row: ryo_values::domain::rows::types::RowIndex, column: ColumnIndex) -> Option<Cell> {
-        row_in(self.0, row)?
-            .get(column.0 as usize)
-            .copied()
+    fn cell(
+        &self,
+        row: ryo_values::domain::rows::types::RowIndex,
+        column: ColumnIndex,
+    ) -> Option<Cell> {
+        row_in(self.0, row)?.get(column.0 as usize).copied()
     }
 }
 #[derive(Default)]
@@ -71,7 +73,10 @@ impl ValueTexts for Texts {
     }
 }
 impl CanonicalTexts for Texts {
-    fn intern(&mut self, text: ryo_values::domain::row_texts::types::CellText<'_>) -> Result<Cell, DerivedFault> {
+    fn intern(
+        &mut self,
+        text: ryo_values::domain::row_texts::types::CellText<'_>,
+    ) -> Result<Cell, DerivedFault> {
         let at = if let Some(at) = self.canonical.iter().position(|value| value == text.0) {
             at
         } else {
@@ -244,11 +249,7 @@ fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() -> Value {
                 row_in(&edges, RowIndex(row)).unwrap()
             );
             assert_eq!(
-                cell(
-                    row_in(&graph.edges, RowIndex(row)).unwrap(),
-                    ColumnIndex(3)
-                )
-                .unwrap(),
+                cell(row_in(&graph.edges, RowIndex(row)).unwrap(), ColumnIndex(3)).unwrap(),
                 retained(4)
             );
         }
@@ -269,17 +270,35 @@ fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() -> Value {
             (
                 a,
                 vec![
-                    OrderedVisit { edge: RowIndex(0), ordinal: Integer(0) },
-                    OrderedVisit { edge: RowIndex(1), ordinal: Integer(1) },
-                    OrderedVisit { edge: RowIndex(2), ordinal: Integer(2) },
+                    OrderedVisit {
+                        edge: RowIndex(0),
+                        ordinal: Integer(0),
+                    },
+                    OrderedVisit {
+                        edge: RowIndex(1),
+                        ordinal: Integer(1),
+                    },
+                    OrderedVisit {
+                        edge: RowIndex(2),
+                        ordinal: Integer(2),
+                    },
                 ],
             ),
             (
                 b,
                 vec![
-                    OrderedVisit { edge: RowIndex(1), ordinal: Integer(0) },
-                    OrderedVisit { edge: RowIndex(2), ordinal: Integer(1) },
-                    OrderedVisit { edge: RowIndex(0), ordinal: Integer(2) },
+                    OrderedVisit {
+                        edge: RowIndex(1),
+                        ordinal: Integer(0),
+                    },
+                    OrderedVisit {
+                        edge: RowIndex(2),
+                        ordinal: Integer(1),
+                    },
+                    OrderedVisit {
+                        edge: RowIndex(0),
+                        ordinal: Integer(2),
+                    },
                 ],
             ),
         ] {

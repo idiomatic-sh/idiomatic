@@ -151,8 +151,8 @@ fn reach_join(
     driver: &mut dyn crate::domain::equality_join::types::JoinEvaluation,
     scratch: &mut crate::domain::contract::types::RowScratch,
 ) -> Result<(), PortableOperatorFault> {
-    use crate::domain::contract::types::FirstOccurrence;
     use crate::domain::closure::types::PartitionPlace;
+    use crate::domain::contract::types::FirstOccurrence;
     use crate::domain::contract::types::VertexPlace;
     let crate::domain::contract::types::RowScratch {
         row: right,
@@ -189,7 +189,9 @@ fn reach_join(
                     return Err(PortableOperatorFault::ShapeMismatch);
                 });
             }
-            if keyed(shape.right_on, key, right) == crate::domain::contract::types::PredicateOutcome::Fails {
+            if keyed(shape.right_on, key, right)
+                == crate::domain::contract::types::PredicateOutcome::Fails
+            {
                 continue;
             }
             if driver.first_time(right)? != FirstOccurrence::First {
@@ -240,7 +242,9 @@ fn reach_join(
                 for column in &reach.columns {
                     right.push(closure_cell(partition_key, *column, source, vertex)?);
                 }
-                if keyed(shape.right_on, key, right) == crate::domain::contract::types::PredicateOutcome::Fails {
+                if keyed(shape.right_on, key, right)
+                    == crate::domain::contract::types::PredicateOutcome::Fails
+                {
                     continue;
                 }
                 if driver.first_time(right)? != FirstOccurrence::First {

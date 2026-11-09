@@ -6,8 +6,8 @@ use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::RequiredPartitions;
 use crate::application::file_dag::program::request_identity::RequestIdentity;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use std::{rc::Rc, sync::Arc};
 
 /// Whether the frontier a file root publishes has been committed by its owner.
@@ -38,8 +38,7 @@ pub(super) struct PreparedNamed {
 /// The delivery, observation and capture a file declared for one rule.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct DeclaredIntent {
-    pub(super) delivery:
-        ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery,
+    pub(super) delivery: ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery,
     pub(super) demand: ryo_execution_domain::domain::rule_intent::types::ObservationDemand,
     pub(super) capture_intent: ryo_execution_domain::domain::rule_intent::types::CaptureIntent,
 }
@@ -71,12 +70,15 @@ pub(super) struct FileRoot {
 pub(crate) struct ProgramServices {
     pub(super) request: Arc<RequestIdentity>,
     pub(super) kernels: Arc<dyn PrimitiveExecutor + Send>,
-    pub(super) derived: ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess,
+    pub(super) derived:
+        ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess,
 }
 impl ProgramServices {
     pub(crate) fn new(
         kernels: Arc<dyn PrimitiveExecutor + Send>,
-        derived: impl Into<ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess>,
+        derived: impl Into<
+            ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess,
+        >,
         corpus: &[ryo_values::domain::files::types::CorpusInput],
     ) -> Self {
         Self {
@@ -126,7 +128,9 @@ pub(crate) struct PublicationScope {
     pub(super) decodes: crate::application::file_dag::frontiers::types::FrontierDecodes,
 }
 impl PublicationScope {
-    pub(crate) fn readiness_counts(&self) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
+    pub(crate) fn readiness_counts(
+        &self,
+    ) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
         self.execution
             .get()
             .map_or_else(Default::default, ProgramExecution::readiness_counts)
@@ -134,17 +138,23 @@ impl PublicationScope {
 
     /// The project-stage walk's totals, retired batches included.
     #[cfg(test)]
-    pub(crate) fn walk_counts(&self) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
+    pub(crate) fn walk_counts(
+        &self,
+    ) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {
         self.walk.counts()
     }
 
     /// How many packed frontiers the scope decoded.
     #[cfg(test)]
-    pub(crate) fn frontier_decodes(&self) -> crate::application::file_dag::frontiers::types::DecodeCount {
+    pub(crate) fn frontier_decodes(
+        &self,
+    ) -> crate::application::file_dag::frontiers::types::DecodeCount {
         self.decodes.count()
     }
 
-    pub(crate) fn state_counts(&self) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
+    pub(crate) fn state_counts(
+        &self,
+    ) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
         self.execution
             .get()
             .map_or_else(Default::default, |execution| execution.state_counts())
@@ -160,7 +170,7 @@ impl PublicationScope {
     }
     pub(crate) fn program(
         &self,
-    ) -> &Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram> {
+    ) -> &Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>{
         &self.program
     }
     pub(crate) fn owner(&self) -> &Rc<RelationOwner> {

@@ -3,7 +3,7 @@
 use super::adapter::agree;
 use super::fixtures::{inventory, listed, permissions, reading, walking::walking};
 use super::types::{BytesRead, Stability, Stamp};
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::fixtures::contract::check;
 use crate::outbound::corpus::interface::CorpusPort as _;
@@ -108,9 +108,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 "target/z.rs",
             ],
         ),
-        Scenario::SkipsAPath => {
-            inventory::skipping(&["./target"], inventory::WITHOUT_ROOT_TARGET)
-        }
+        Scenario::SkipsAPath => inventory::skipping(&["./target"], inventory::WITHOUT_ROOT_TARGET),
         Scenario::GivenOverDisk => reading::given_over_disk(),
         Scenario::MissingFile => reading::missing_file(),
         Scenario::Whole => reading::whole(),
@@ -260,13 +258,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_root_that_is_not_there_is_refused"),
         word: Word::Refuses,
         input: || Scenario::MissingRoot,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, CorpusError::Unreadable { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, CorpusError::Unreadable { .. })))
+        }),
     },
     Case {
         name: CaseName("a_file_the_engine_cannot_number_is_refused_before_it_is_read"),
         word: Word::Refuses,
         input: || Scenario::TooLarge,
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, CorpusError::TooLarge { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, CorpusError::TooLarge { .. })))
+        }),
     },
 ];
 
@@ -284,4 +286,3 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
-

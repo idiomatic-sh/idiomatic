@@ -1,19 +1,19 @@
 //! Public text calls preserve Unicode word, path-capture, rank and literal replacement semantics.
-use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;
-use crate::inbound::use_cases::operators::types::*;
 use crate::domain::equality_join::types::*;
 use crate::domain::ordered_existence::types::*;
 use crate::domain::ordered_match::types::*;
 use crate::domain::reduction::types::*;
+use crate::domain::replace::types::{ReplacedText, ReplacementText};
 use crate::domain::set_rows::types::*;
 use crate::domain::source_matches::types::*;
 use crate::domain::words::types::*;
-use crate::domain::replace::types::{ReplacedText, ReplacementText};
-use ryo_values::domain::row_texts::types::CellText;
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::inbound::use_cases::operators::types::*;
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use ryo_values::domain::plan_parts::types::LiteralText;
+use ryo_values::domain::row_texts::types::CellText;
 use std::borrow::Cow;
 
 #[derive(Clone, Copy)]

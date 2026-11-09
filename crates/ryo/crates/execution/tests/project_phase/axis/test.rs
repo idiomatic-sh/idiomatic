@@ -95,7 +95,8 @@ fn reach(scope: StepScope) -> Vec<PlanStep> {
 
 #[test]
 fn an_axis_after_the_files_answers_the_parents_it_answers_in_each_file() {
-    let in_each_file = rows(axis(StepScope::PerFile), StepId(2), FILES).expect("the axis in each file");
+    let in_each_file =
+        rows(axis(StepScope::PerFile), StepId(2), FILES).expect("the axis in each file");
     let after_the_files =
         rows(axis(StepScope::CrossFile), StepId(2), FILES).expect("the axis after the files");
     // Each file's two tokens have the root as their parent; the root has none.
@@ -105,7 +106,8 @@ fn an_axis_after_the_files_answers_the_parents_it_answers_in_each_file() {
 
 #[test]
 fn a_join_with_reach_after_the_files_answers_what_it_reaches_in_each_file() {
-    let in_each_file = rows(reach(StepScope::PerFile), StepId(2), FILES).expect("the reach in each file");
+    let in_each_file =
+        rows(reach(StepScope::PerFile), StepId(2), FILES).expect("the reach in each file");
     let after_the_files =
         rows(reach(StepScope::CrossFile), StepId(2), FILES).expect("the reach after the files");
     // Each file's root reaches its two tokens; a token reaches nothing.
@@ -140,9 +142,18 @@ fn an_anti_join_over_the_self_join_of_syntax_child_ordinals_answers_the_first_to
                 left_on: vec![ColumnIndex(0)],
                 right_on: vec![ColumnIndex(1)],
                 output: vec![
-                    JoinColumn { side: Side::Left, column: ColumnIndex(0) },
-                    JoinColumn { side: Side::Right, column: ColumnIndex(0) },
-                    JoinColumn { side: Side::Right, column: ColumnIndex(2) },
+                    JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(0),
+                    },
+                    JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(0),
+                    },
+                    JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(2),
+                    },
                 ],
                 filter: vec![],
                 view: vec![],
@@ -158,10 +169,22 @@ fn an_anti_join_over_the_self_join_of_syntax_child_ordinals_answers_the_first_to
                 left_on: vec![ColumnIndex(1)],
                 right_on: vec![ColumnIndex(1)],
                 output: vec![
-                    JoinColumn { side: Side::Left, column: ColumnIndex(0) },
-                    JoinColumn { side: Side::Left, column: ColumnIndex(1) },
-                    JoinColumn { side: Side::Left, column: ColumnIndex(2) },
-                    JoinColumn { side: Side::Right, column: ColumnIndex(2) },
+                    JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(0),
+                    },
+                    JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(1),
+                    },
+                    JoinColumn {
+                        side: Side::Left,
+                        column: ColumnIndex(2),
+                    },
+                    JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(2),
+                    },
                 ],
                 filter: vec![],
                 view: vec![],
@@ -202,7 +225,11 @@ fn an_anti_join_over_the_self_join_of_syntax_child_ordinals_answers_the_first_to
         ),
     ];
     let first = rows(steps, StepId(5), FILES).expect("the anti-join answers");
-    assert_eq!(first.len(), FILES, "one first token in each file: {first:?}");
+    assert_eq!(
+        first.len(),
+        FILES,
+        "one first token in each file: {first:?}"
+    );
     assert!(
         first.iter().all(|row| row.ends_with("Number(Integer(0))]")),
         "the first token is the one at ordinal 0: {first:?}"

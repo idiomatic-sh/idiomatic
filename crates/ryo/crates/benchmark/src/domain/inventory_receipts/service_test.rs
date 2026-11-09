@@ -4,14 +4,16 @@ use ryo_benchmark_contracts::domain::{
         case_document::value::CaseReference,
         finding::value::ExpectedFindings,
         observation_document::value::{
-            ProcessArtifactsRecord, ProcessRecord, RecordedMetadata, RecordedReason, RuleContextRecord,
+            ProcessArtifactsRecord, ProcessRecord, RecordedMetadata, RecordedReason,
+            RuleContextRecord,
         },
         reference_discrepancy::value::{
-            DiscrepancyIdentity, DiscrepancyRecord, ExpectationKind, ObservedExecutable, ProcessExpectation,
+            DiscrepancyIdentity, DiscrepancyRecord, ExpectationKind, ObservedExecutable,
+            ProcessExpectation,
         },
         text::value::{
-            CanonicalJson, CaseName as DocumentCaseName, ExitStatus, FileMetadataDigest, PathText, Pin,
-            ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo,
+            CanonicalJson, CaseName as DocumentCaseName, ExitStatus, FileMetadataDigest, PathText,
+            Pin, ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo,
         },
     },
     reports::types::{CoverageAccounting, ExecutionMetadata, RuleCoverage},

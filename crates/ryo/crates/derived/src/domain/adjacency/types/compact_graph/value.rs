@@ -29,7 +29,9 @@ impl CompactGraph {
     /// The key tuple of a partition.
     #[must_use]
     pub fn partition_values(&self, id: PartitionId) -> Option<&[Value]> {
-        self.partitions.get(id.0 as usize).map(|values| values.as_ref())
+        self.partitions
+            .get(id.0 as usize)
+            .map(|values| values.as_ref())
     }
     /// The vertex values in first-seen order.
     #[must_use]
@@ -44,7 +46,9 @@ impl CompactGraph {
     /// The vertex of a value within a partition.
     #[must_use]
     pub fn vertex(&self, partition: PartitionId, value: Value) -> Option<VertexId> {
-        self.vertex_ids.get(&VertexKey { partition, value }).copied()
+        self.vertex_ids
+            .get(&VertexKey { partition, value })
+            .copied()
     }
     /// Where each vertex's edges begin, for one direction.
     #[must_use]

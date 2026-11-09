@@ -3,9 +3,10 @@ use super::{PartitionedClosure, types::OrderCursor};
 use crate::application::file_dag::{
     derived::owner::acquisition::admission::service::AcquiredView, relations::RelationOwner,
 };
-use ryo_execution_domain::domain::{
-    derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::{
+    derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError,
+};
 use std::{rc::Rc, sync::Arc};
 
 pub(crate) fn from_prepared<'f>(
@@ -62,12 +63,16 @@ pub fn prepare<'f>(
     destination: ryo_values::domain::plan_parts::types::ColumnIndex,
     owner: Rc<RelationOwner>,
 ) -> Result<PartitionedClosure<'f>, OperatingError> {
-    use ryo_execution_domain::domain::derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest};
+    use ryo_execution_domain::domain::derived_views::types::{
+        DerivedInputs, DerivedScratch, ViewRequest,
+    };
     input.validate()?;
-    let schema = [ryo_execution_domain::domain::operation_schema::types::InputShape {
-        kinds: input.kinds(),
-        tree: None,
-    }];
+    let schema = [
+        ryo_execution_domain::domain::operation_schema::types::InputShape {
+            kinds: input.kinds(),
+            tree: None,
+        },
+    ];
     let partition_plan = Arc::new(owner.derived().prepare_view(
         &ViewRequest::PartitionOrder {
             keys: keys.to_vec(),

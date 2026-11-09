@@ -1,21 +1,38 @@
 //! Registered cases and native observation rows the receipt validation is proven over.
 use crate::domain::registered_inputs::service::project_inputs_digest;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
-use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, EntryState, ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory, ProjectInventoryDocument};
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo::linter::RelativePath;
 use ryo_benchmark_contracts::domain::artifacts::types::{
     FileExecutable, FileMetadataEntry, digest::value::ArtifactDigest,
 };
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding, FindingOffset};
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, ContextRun, IntentMatch, ObservationDocument, ProjectContextRecord, RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord, ValidationRecord};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo};
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{DiscrepancyIdentity, DiscrepancyRecord, DiscrepancyValidation, ExpectationKind, ObservedExecutable, ProcessExpectation};
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
+use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+    CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, EntryState,
+    ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory,
+    ProjectInventoryDocument,
+};
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+    ExpectedFindings, FindingOffset, RecordedFinding,
+};
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ContextMode, ContextRun, IntentMatch, ObservationDocument, ProjectContextRecord,
+    RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips,
+    RequestRoot, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity,
+    ToolContractRecord, ValidationRecord,
+};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+    DiscrepancyIdentity, DiscrepancyRecord, DiscrepancyValidation, ExpectationKind,
+    ObservedExecutable, ProcessExpectation,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, Pin,
+    ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo,
+};
 use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, CoverageAccounting, ExecutionMetadata, RuleCoverage,
 };
+use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
 
 /// The registered documents and the native rows observed for them.
 pub type Documents = (Vec<CaseDocument>, Vec<ObservationDocument>);
@@ -282,7 +299,8 @@ pub fn project_scope(roots: &[&str], state: EntryState, row_identity: Option<&st
         }],
     };
     declared.0[0].project_search_roots = DeclaredScope::Roots(vec![PathText("src".into())]);
-    declared.0[0].given_project_inventory = ProjectInventory::Declared(inventory(EntryState::Regular));
+    declared.0[0].given_project_inventory =
+        ProjectInventory::Declared(inventory(EntryState::Regular));
     let digest = project_inputs_digest(
         &crate::domain::inventory_receipts::service::registered_inputs(&declared.0[0]),
     )

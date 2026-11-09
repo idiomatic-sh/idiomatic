@@ -8,7 +8,7 @@ use super::constants::{EXPECT_BINDING_SLOTS, ORDERED_EXISTENCE_DECLINED, PREPARA
 use super::types::canonical_operation::value::CanonicalOperation;
 use super::types::fingerprint::value::Fingerprint;
 use super::types::{
-    BindingOffset, DerivedSources, FileProgramNode, ProgramNodeId, NodeInput, ObservationRequest,
+    BindingOffset, DerivedSources, FileProgramNode, NodeInput, ObservationRequest, ProgramNodeId,
     RequestGraph, ResolvedAlternative, ResolvedShape, SchemaValidity,
 };
 use crate::domain::coverage::types::RuleIndex;
@@ -22,14 +22,10 @@ use ryo_values::domain::plans::types::{Operation, Plan};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-
 /// Compile one DAG for the entire ordered request. Unsupported descendants
 /// break the chain; no raw Debug serialization or source-origin text is a key.
 #[cfg(any(test, feature = "fixtures"))]
-pub fn compile_prepared(
-    plans: &[Plan],
-    operators: &RequestOperators,
-) -> RequestGraph {
+pub fn compile_prepared(plans: &[Plan], operators: &RequestOperators) -> RequestGraph {
     compile_prepared_observations(plans, operators, ObservationRequest::Independent)
 }
 
@@ -58,8 +54,8 @@ pub fn compile_prepared_observations(
         let mut mapped = Vec::with_capacity(plan.steps.len());
         let mut rule_cuts = Vec::with_capacity(plan.steps.len());
         for (index, step) in plan.steps.iter().enumerate() {
-            let node = CanonicalOperation::of(&step.operation, &mapped, rule_index, &bound_offsets).and_then(
-                |CanonicalOperation { operation, inputs }| {
+            let node = CanonicalOperation::of(&step.operation, &mapped, rule_index, &bound_offsets)
+                .and_then(|CanonicalOperation { operation, inputs }| {
                     let contract = Arc::clone(operators.rules.get(rule)?.get(index)?);
                     let scope = (contract.reuse
                         == crate::domain::operator::contract::types::ReuseScope::Rule)
@@ -83,7 +79,9 @@ pub fn compile_prepared_observations(
                     }
                     let schema_valid = if contract.schema.is_ok()
                         && inputs.iter().all(|input| match input {
-                            NodeInput::Node(id) => nodes[id.0].schema_valid == SchemaValidity::Valid,
+                            NodeInput::Node(id) => {
+                                nodes[id.0].schema_valid == SchemaValidity::Valid
+                            }
                             NodeInput::Relation(_) | NodeInput::Observation(_) => true,
                         }) {
                         SchemaValidity::Valid
@@ -107,8 +105,7 @@ pub fn compile_prepared_observations(
                     });
                     buckets.entry(hash).or_default().push(id);
                     Some(id)
-                },
-            );
+                });
             let exported = plan
                 .observations
                 .iter()
@@ -253,11 +250,14 @@ fn ordered_alternatives(
             continue;
         };
         let program = slot.get_or_init(|| {
-            crate::domain::self_join_recogniser::service::compile(plan, &|id| {
-                match &operators.rules.get(rule)?.get(id.0 as usize)?.schema {
-                    Ok(kinds) => Some(kinds.as_slice()),
-                    Err(_) => None,
-                }
+            crate::domain::self_join_recogniser::service::compile(plan, &|id| match &operators
+                .rules
+                .get(rule)?
+                .get(id.0 as usize)?
+                .schema
+            {
+                Ok(kinds) => Some(kinds.as_slice()),
+                Err(_) => None,
             })
         });
         for shape in &program.shapes {

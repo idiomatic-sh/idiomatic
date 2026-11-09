@@ -47,13 +47,15 @@ impl InvocationWorkspace {
         inputs: &InputAdmissions<'_, '_>,
         identity: crate::application::file_dag::derived::owner::ViewContext,
         supplied: ViewInputs<'_, '_>,
-    ) -> Result<crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView, OperatingError>
-    {
+    ) -> Result<
+        crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView,
+        OperatingError,
+    > {
+        use ryo_derived::domain::request::types::DerivedKind;
         use ryo_execution_domain::domain::{
             derived_views::types::{DerivedInputs, MembershipSpace},
             operating::errors::OperatingError,
         };
-        use ryo_derived::domain::request::types::DerivedKind;
         let count = usize::from(use_.len.0);
         if !(1..=2).contains(&count) {
             return Err(OperatingError::WrongOperation);
@@ -84,11 +86,10 @@ impl InvocationWorkspace {
         }
         let rows = [
             proofs[0].as_ref().expect(EXPECT_FIRST_INPUT).rows(),
-            proofs[1]
-                .as_ref()
-                .map_or(RepresentationInput::Computed(&EMPTY_DERIVED_INPUT), |proof| {
-                    proof.rows()
-                }),
+            proofs[1].as_ref().map_or(
+                RepresentationInput::Computed(&EMPTY_DERIVED_INPUT),
+                |proof| proof.rows(),
+            ),
         ];
         let supplied = match supplied {
             ViewInputs::Rows => DerivedInputs::Rows(&rows[..count]),
@@ -127,9 +128,7 @@ impl InvocationWorkspace {
             match rows[0] {
                 RepresentationInput::Stored(source) => relations[0]
                     .or(use_.relations[0])
-                    .map(|relation| StoredColumns {
-                        relation,
-                    }),
+                    .map(|relation| StoredColumns { relation }),
                 _ => None,
             }
         } else {

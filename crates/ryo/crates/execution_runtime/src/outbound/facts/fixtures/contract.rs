@@ -5,10 +5,10 @@ use super::words::{FRONTIER_PROOF, test_words};
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsPort;
 use crate::outbound::facts::types::WordsToKeep;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::table_words::service::{pack, unpacked};
@@ -134,7 +134,8 @@ fn frontier_proofs_follow_their_bytes(facts: &dyn FactsPort) -> Result<Value, Fa
     let mut first = facts.worker()?;
     let mut second = facts.worker()?;
     let mut partial = FRONTIER_PROOF.clone();
-    partial.coverage = FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)]);
+    partial.coverage =
+        FrontierCoverage::Partial(vec![FrontierAffected::CurrentFile(FrontierMissing::Any)]);
     first.keep(
         Bucket(3),
         WordsToKeep {
@@ -187,16 +188,17 @@ fn resident_rows_survive_other_reads_and_word_flushes(
             }
         }
     }
-    let snapshot = |resident: &dyn crate::outbound::facts::interface::FactsWorker| -> Result<_, FactsError> {
-        let rows = resident.rows(Relation::Function)?;
-        Ok((
-            rows.kinds.to_vec(),
-            rows.columns
-                .iter()
-                .map(|column| column.0.clone())
-                .collect::<Vec<_>>(),
-        ))
-    };
+    let snapshot =
+        |resident: &dyn crate::outbound::facts::interface::FactsWorker| -> Result<_, FactsError> {
+            let rows = resident.rows(Relation::Function)?;
+            Ok((
+                rows.kinds.to_vec(),
+                rows.columns
+                    .iter()
+                    .map(|column| column.0.clone())
+                    .collect::<Vec<_>>(),
+            ))
+        };
     let expected = snapshot(worker.as_ref())?;
     for amount in [2, (1_usize << 20_u32) + 17, 3] {
         let _scope_rows = worker.rows(Relation::Scope)?;

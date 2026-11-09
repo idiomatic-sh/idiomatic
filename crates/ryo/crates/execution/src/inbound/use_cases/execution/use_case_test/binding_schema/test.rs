@@ -3,7 +3,7 @@ use super::super::super::fixtures;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, PlanComparison, LiteralText, Operand, ParameterId, Test},
+    plan_parts::types::{ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, Test},
     query_bindings::types::ParameterBinding,
     rows::types::{RowCount, Table},
 };
@@ -74,8 +74,12 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
             vec![Cell::Symbol(word)]
         },
     };
-    let reached =
-        fixtures::requests::table_request(operation, &[&populated], bindings.to_vec(), &mut symbols);
+    let reached = fixtures::requests::table_request(
+        operation,
+        &[&populated],
+        bindings.to_vec(),
+        &mut symbols,
+    );
     assert!(matches!(reached, Err(OperatingError::InvalidRegex { .. })));
     Ok(2)
 }

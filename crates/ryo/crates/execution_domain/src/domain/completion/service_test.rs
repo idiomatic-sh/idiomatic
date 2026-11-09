@@ -49,7 +49,10 @@ fn kinds_missing(kinds: &[&str]) -> FileLacks {
         file: Some(FileId(1)),
         missing: MissingRows::Kinds {
             column: ColumnIndex(1),
-            kinds: kinds.iter().map(|kind| LackingKind((*kind).into())).collect(),
+            kinds: kinds
+                .iter()
+                .map(|kind| LackingKind((*kind).into()))
+                .collect(),
         },
     }
 }
@@ -69,10 +72,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
             .filter(|each| each.missing == MissingRows::Any)
             .count(),
         Scenario::KindsUnited => {
-            let CoverageState::Partial { lacks, .. } = partial_of_lacks(vec![
-                kinds_missing(&["variable"]),
-                kinds_missing(&["enum"]),
-            ]) else {
+            let CoverageState::Partial { lacks, .. } =
+                partial_of_lacks(vec![kinds_missing(&["variable"]), kinds_missing(&["enum"])])
+            else {
                 return Err(());
             };
             lacks

@@ -1,7 +1,9 @@
 //! Executable acceptance steps for the derived view entry.
 use crate::Behavior;
 use cucumber::{given, then, when};
-use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
+use ryo_derived::domain::contract::types::{
+    BuildInputs, BuildOutcome, BuildWorkspace, DerivedView,
+};
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::inbound::use_cases::build::interface::BuildUseCase as _;

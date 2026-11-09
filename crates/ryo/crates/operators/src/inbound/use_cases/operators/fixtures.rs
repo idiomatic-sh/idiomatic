@@ -1,22 +1,24 @@
 //! The test support of the `operators` use case: the capability and the matcher its tests share.
 use super::interface::OperatorsUseCase;
 use super::types::{OperatorAnswer, OperatorCall};
+use super::use_case::OperatorsUseCaseImpl;
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::TextRowDriver;
-use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
-use ryo_relations::domain::terms::types::Symbol;
-use ryo_values::domain::row_texts::types::CellText;
-use super::use_case::OperatorsUseCaseImpl;
 use ryo_matching::inbound::use_cases::matching::{
     compiled::CompiledRegex, interface::MatchingUseCase, types::RegexSource,
     use_case::MatchingUseCaseImpl,
 };
+use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
+use ryo_relations::domain::terms::types::Symbol;
+use ryo_values::domain::row_texts::types::CellText;
 
 /// The operators capability composed as an edge composes it.
 #[must_use]
 pub fn operators() -> impl OperatorsUseCase {
-    OperatorsUseCaseImpl::new(std::sync::Arc::new(crate::outbound::matching::factory::use_case()))
+    OperatorsUseCaseImpl::new(std::sync::Arc::new(
+        crate::outbound::matching::factory::use_case(),
+    ))
 }
 
 /// A compiled regex of an authored pattern the tests know to be valid.

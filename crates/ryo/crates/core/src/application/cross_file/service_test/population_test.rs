@@ -66,7 +66,15 @@ pub(super) fn ordinary_phase_keeps_valid_rule_populations_and_partiality_separat
                 rule: RuleIndex(rule),
                 id: rules.ids[rule].clone(),
             };
-            let done = evaluate_fixture(&rules, &declared, source, &rules.covered, &mut symbols, &phase).unwrap();
+            let done = evaluate_fixture(
+                &rules,
+                &declared,
+                source,
+                &rules.covered,
+                &mut symbols,
+                &phase,
+            )
+            .unwrap();
             let rendered = done
                 .rendered
                 .expect("valid population renders through the actual core route");
@@ -134,7 +142,12 @@ pub(super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
             );
             let mut outcomes = vec![outcome];
             assert_eq!(outcomes.len(), 1);
-            let table = match outcomes.pop().unwrap().expect("the occurrence is evaluated").emit {
+            let table = match outcomes
+                .pop()
+                .unwrap()
+                .expect("the occurrence is evaluated")
+                .emit
+            {
                 RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => table,
                 RootOutcome::Failed(error) | RootOutcome::Unknown(error) => {
                     panic!("actual prepared population refused: {error}")
@@ -158,7 +171,15 @@ pub(super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
                 rule: RuleIndex(rule),
                 id: rules.ids[rule].clone(),
             };
-            let done = evaluate_fixture(&rules, &declared, source, &rules.covered, &mut symbols, &phase).unwrap();
+            let done = evaluate_fixture(
+                &rules,
+                &declared,
+                source,
+                &rules.covered,
+                &mut symbols,
+                &phase,
+            )
+            .unwrap();
             assert!(done.unknowns.is_empty());
             let rendered = done.rendered.unwrap();
             assert_count_findings(
@@ -227,7 +248,15 @@ pub(super) fn many_distinct_project_populations_allocate_only_reached_region_sta
             rows[0].1.cells.push(repeated);
             rows[0].1.count.0 += 1;
         }
-        let result = evaluate_fixture(&rules, &todo(0), &rows, &rules.covered, &mut symbols, &phase).unwrap();
+        let result = evaluate_fixture(
+            &rules,
+            &todo(0),
+            &rows,
+            &rules.covered,
+            &mut symbols,
+            &phase,
+        )
+        .unwrap();
         assert_eq!(result.rendered.as_ref().unwrap().order.len(), 2);
         let state = phase.state_counts();
         assert_eq!(state.populations.0, population + 1);

@@ -112,7 +112,8 @@ enum BuildSchema {
 #[derive(Debug, Default, Deserialize)]
 struct LibrarySchema {
     /// The library's root file, when not `src/lib.rs`.
-    path: Option<String>,    /// The library's crate name, when not the package's.
+    path: Option<String>,
+    /// The library's crate name, when not the package's.
     name: Option<String>,
 }
 

@@ -37,7 +37,14 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
             .collect::<Vec<_>>();
         let rows = frontier_rows();
         let kept: [(RuleIndex, &[_]); 2] = [(RuleIndex(0), &rows), (RuleIndex(1), &rows)];
-        let results = completed_batch(evaluate_rules(&rules, &phase, &todos, &kept, &mut symbols, |_| Ok(())));
+        let results = completed_batch(evaluate_rules(
+            &rules,
+            &phase,
+            &todos,
+            &kept,
+            &mut symbols,
+            |_| Ok(()),
+        ));
         assert_eq!(results.len(), todos.len());
         let mut previous = Vec::new();
         for (todo, result) in todos.iter().zip(results) {
@@ -57,7 +64,14 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
         assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
         assert_eq!(phase.state_counts().slots.0, 1);
         let before_replay = phase.readiness_counts();
-        let repeated = completed_batch(evaluate_rules(&rules, &phase, &todos, &kept, &mut symbols, |_| Ok(())));
+        let repeated = completed_batch(evaluate_rules(
+            &rules,
+            &phase,
+            &todos,
+            &kept,
+            &mut symbols,
+            |_| Ok(()),
+        ));
         assert_eq!(repeated.len(), previous.len());
         for (result, previous) in repeated.into_iter().zip(&previous) {
             assert_eq!(result.unwrap().crossed.rendered.as_ref(), Some(previous));
@@ -115,7 +129,14 @@ pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_bo
             })
             .collect::<Vec<_>>();
         let kept: [(RuleIndex, &[_]); 2] = [(RuleIndex(0), &rows[..1]), (RuleIndex(1), &rows[..])];
-        let results = completed_batch(evaluate_rules(&rules, &phase, &todos, &kept, &mut symbols, |_| Ok(())));
+        let results = completed_batch(evaluate_rules(
+            &rules,
+            &phase,
+            &todos,
+            &kept,
+            &mut symbols,
+            |_| Ok(()),
+        ));
         assert_eq!(results.len(), order.len());
         for (rule, result) in order.into_iter().zip(results) {
             let result = result.unwrap().crossed;

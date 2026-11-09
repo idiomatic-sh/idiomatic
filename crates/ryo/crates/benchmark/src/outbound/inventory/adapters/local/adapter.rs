@@ -1,9 +1,6 @@
 //! Filesystem encoding and atomic publication of complete inventory snapshots.
 use super::constants;
 use super::types::{AuditJson, InvocationBytes, RegistrationBytes, RowJson, SummaryJson};
-use ryo_benchmark_contracts::domain::receipts::constants::{
-    CASES_JSONL, INVOCATION_JSON, STDERR_BIN, STDOUT_BIN,
-};
 use crate::outbound::inventory::interface::InventoryPort;
 use crate::outbound::inventory::types::{
     ContextFiles, RawArtifacts, ReceiptFile, Registration, Row, Summary,
@@ -12,6 +9,9 @@ use ryo_benchmark_contracts::domain::documents::types::invocation_document::valu
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ArtifactPointer;
 use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use ryo_benchmark_contracts::domain::receipts::constants::{
+    CASES_JSONL, INVOCATION_JSON, STDERR_BIN, STDOUT_BIN,
+};
 use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
@@ -45,14 +45,9 @@ fn begin(output: &Path) -> Result<(), Error> {
 
 /// Each invocation owns fresh native case receipts.
 fn prepare(observations: &Path) -> Result<(), Error> {
-    if [
-        CASES_JSONL,
-        STDOUT_BIN,
-        STDERR_BIN,
-        constants::RESULT_JSON,
-    ]
-    .iter()
-    .any(|name| std::fs::metadata(observations.join(name)).is_ok())
+    if [CASES_JSONL, STDOUT_BIN, STDERR_BIN, constants::RESULT_JSON]
+        .iter()
+        .any(|name| std::fs::metadata(observations.join(name)).is_ok())
     {
         return Err(Error::Invalid(
             constants::INVENTORY_RULE_OUTPUT_ALREADY_CONTAINS_RECEI.into(),
@@ -152,7 +147,9 @@ fn raw_artifacts(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArti
                     .iter()
                     .all(|part| matches!(part, Component::Normal(_)))
             {
-                return Err(Error::Invalid(constants::UNSAFE_RAW_PROCESS_ARTIFACT_PATH.into()));
+                return Err(Error::Invalid(
+                    constants::UNSAFE_RAW_PROCESS_ARTIFACT_PATH.into(),
+                ));
             }
             let attempt = components[0]
                 .as_os_str()
@@ -170,15 +167,21 @@ fn raw_artifacts(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArti
                     .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
                 || components[2].as_os_str() != filename
             {
-                return Err(Error::Invalid(constants::RAW_ARTIFACT_IS_OUTSIDE_ITS_RECEIPT.into()));
+                return Err(Error::Invalid(
+                    constants::RAW_ARTIFACT_IS_OUTSIDE_ITS_RECEIPT.into(),
+                ));
             }
             let full = parent.join(&path).canonicalize()?;
             if !full.starts_with(&parent) || !full.is_file() {
-                return Err(Error::Invalid(constants::RAW_ARTIFACT_ESCAPES_ITS_RECEIPT_BOUNDARY.into()));
+                return Err(Error::Invalid(
+                    constants::RAW_ARTIFACT_ESCAPES_ITS_RECEIPT_BOUNDARY.into(),
+                ));
             }
             let data = std::fs::read(&full)?;
             if sha256.0 != format!("{:x}", Sha256::digest(&data)) {
-                return Err(Error::Invalid(constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into()));
+                return Err(Error::Invalid(
+                    constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into(),
+                ));
             }
             if filename == INVOCATION_JSON {
                 let _previous = invocations.insert(
@@ -187,11 +190,15 @@ fn raw_artifacts(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArti
                 );
             }
             if bytes.insert(path.clone(), CapturedBytes(data)).is_some() {
-                return Err(Error::Invalid(constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into()));
+                return Err(Error::Invalid(
+                    constants::RAW_PROCESS_ARTIFACT_IS_STALE_OR.into(),
+                ));
             }
             let _new = directories.insert(
                 full.parent()
-                    .ok_or_else(|| Error::Invalid(constants::RAW_ARTIFACT_HAS_NO_CASE_DIRECTORY.into()))?
+                    .ok_or_else(|| {
+                        Error::Invalid(constants::RAW_ARTIFACT_HAS_NO_CASE_DIRECTORY.into())
+                    })?
                     .to_path_buf(),
             );
         }
@@ -201,15 +208,10 @@ fn raw_artifacts(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArti
             .map(|entry| entry.map(|entry| entry.file_name()))
             .collect::<Result<Vec<_>, _>>()?;
         names.sort();
-        if names
-            != [
-                INVOCATION_JSON,
-                STDERR_BIN,
-                STDOUT_BIN,
-            ]
-            .map(std::ffi::OsString::from)
-        {
-            return Err(Error::Invalid(constants::EXTRA_RAW_ARTIFACTS_IN_REFERENCED_CASE.into()));
+        if names != [INVOCATION_JSON, STDERR_BIN, STDOUT_BIN].map(std::ffi::OsString::from) {
+            return Err(Error::Invalid(
+                constants::EXTRA_RAW_ARTIFACTS_IN_REFERENCED_CASE.into(),
+            ));
         }
     }
     Ok(RawArtifacts { bytes, invocations })

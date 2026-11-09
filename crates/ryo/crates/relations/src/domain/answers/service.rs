@@ -1,6 +1,8 @@
 //! The `answers` concept's service: the text a reason a language does not read a relation is called by when a listing shows it.
 
-use super::constants::{NO_SUCH_CONSTRUCT, NOT_CODE, NOT_A_KEYED_DOCUMENT, NOT_A_DOCUMENT, NOT_YET_READ, NO_MANIFESTS};
+use super::constants::{
+    NO_MANIFESTS, NO_SUCH_CONSTRUCT, NOT_A_DOCUMENT, NOT_A_KEYED_DOCUMENT, NOT_CODE, NOT_YET_READ,
+};
 use super::types::AbsenceCause;
 use crate::domain::terms::types::NameText;
 

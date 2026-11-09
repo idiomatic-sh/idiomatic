@@ -1,8 +1,10 @@
 //! The shape of the raw invocation record kept beside a captured process, and its encoding from the core's document.
 use crate::outbound::receipts::errors::ReceiptsError;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{ArgumentText, EnvironmentName, EnvironmentValue, InvocationDocument};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+    ArgumentText, EnvironmentName, EnvironmentValue, InvocationDocument,
+};
 use ryo_benchmark_contracts::domain::documents::types::text::value::YesNo;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -62,9 +64,7 @@ fn arguments(values: &[ArgumentText]) -> Vec<String> {
     values.iter().map(|value| value.0.clone()).collect()
 }
 
-fn environment(
-    values: &BTreeMap<EnvironmentName, EnvironmentValue>,
-) -> BTreeMap<String, String> {
+fn environment(values: &BTreeMap<EnvironmentName, EnvironmentValue>) -> BTreeMap<String, String> {
     values
         .iter()
         .map(|(name, value)| (name.0.clone(), value.0.clone()))
@@ -93,8 +93,10 @@ impl From<&InvocationDocument> for InvocationSchema {
                 files: complete.files.iter().map(|file| file.0.clone()).collect(),
                 executable_sha256: complete.executable_sha256.0.clone(),
                 settings_sha256: complete.settings_sha256.0.clone(),
-                normalized_settings: serde_json::from_str(&complete.normalized_settings.canonical.0)
-                    .unwrap_or(serde_json::Value::Null),
+                normalized_settings: serde_json::from_str(
+                    &complete.normalized_settings.canonical.0,
+                )
+                .unwrap_or(serde_json::Value::Null),
                 profile_sha256: complete.profile_sha256.0.clone(),
                 tool: complete.tool.0.clone(),
                 version: complete.version.0.clone(),

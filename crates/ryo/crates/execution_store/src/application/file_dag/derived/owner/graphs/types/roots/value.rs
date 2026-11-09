@@ -1,15 +1,11 @@
 //! Pure traversals feed completed answers to the common resource owner.
-use ryo_derived::domain::vertices::types::VertexId;
 use super::super::{
     handles::{
         service::{DomainHandle, GraphHandle, RootAnswer},
         types::GraphSharing,
     },
     reserve::types::Reserve,
-    retained::types::{
-        GraphEntry, NearestMemo, NearestSlot, ReachedVertices,
-        RootMemo,
-    },
+    retained::types::{GraphEntry, NearestMemo, NearestSlot, ReachedVertices, RootMemo},
 };
 use super::completed::service::completed;
 use crate::application::file_dag::derived::{
@@ -24,9 +20,13 @@ use crate::application::file_dag::derived::{
         graphs::service::{replace, slot},
     },
 };
+use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
-    stored_graph::types::{BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus, Nearest, Orientation, traversal::value::{GraphTraversal, UNKNOWN},
+    stored_graph::types::{
+        BreadthEnd, ExaminedVertices, ExpandedVertices, GraphDomain, GraphWalk, MemoStatus,
+        Nearest, Orientation,
+        traversal::value::{GraphTraversal, UNKNOWN},
     },
 };
 use ryo_relations::domain::relations::types::Value;
@@ -100,8 +100,8 @@ impl<'a> DemandAnswers<'a> {
             constants::ROUTE_GRAPH,
         );
         let mut traversal = GraphTraversal::new(access.raw_graph(), walk);
-        let stopped = traversal.breadth(VertexId(root), access.orientation(), None)
-            == BreadthEnd::Stopped;
+        let stopped =
+            traversal.breadth(VertexId(root), access.orientation(), None) == BreadthEnd::Stopped;
         traversal.sort();
         {
             let cache = &mut *self.cache;
@@ -161,7 +161,11 @@ impl<'a> DemandAnswers<'a> {
         );
         if access
             .graph()
-            .forest(ryo_execution_domain::domain::stored_graph::types::traversal::value::direction(orientation))
+            .forest(
+                ryo_execution_domain::domain::stored_graph::types::traversal::value::direction(
+                    orientation,
+                ),
+            )
             .is_none()
         {
             crate::application::file_dag::route_counts::event(
@@ -199,12 +203,7 @@ impl<'a> DemandAnswers<'a> {
                 &mut self.cache.nearest[index.0].answers,
             )
         } else {
-            GraphTraversal::new(access.raw_graph(), walk).nearest(
-                root,
-                orientation,
-                domain,
-                local,
-            )
+            GraphTraversal::new(access.raw_graph(), walk).nearest(root, orientation, domain, local)
         };
         let hit = memo == MemoStatus::Memoized;
         {

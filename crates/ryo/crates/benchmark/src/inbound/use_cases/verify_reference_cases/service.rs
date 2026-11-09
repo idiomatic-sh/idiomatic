@@ -1,5 +1,4 @@
 //! The reference of every admitted case answers its own derived expectations.
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
 use crate::application::case_execution::{service::run as run_case, types::AttemptOutcome};
 use crate::application::case_observation::service::write as record;
 use crate::domain::discrepancy::service::judge;
@@ -14,6 +13,7 @@ use crate::outbound::{
     linter::interface::LinterPort,
     suite::interface::SuitePort,
 };
+use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::workloads::types::{
     PreparedCase, reference_case_count::value::ReferenceCaseCount,
@@ -52,7 +52,8 @@ pub(super) fn verify_prepared_reference_cases(
     }
     let contestant = Contestant::Reference;
     for (case, proof) in cases.into_iter().zip(proofs) {
-        let AttemptOutcome { result, capture } = run_case(suite, context, reference, execution, &case, rules);
+        let AttemptOutcome { result, capture } =
+            run_case(suite, context, reference, execution, &case, rules);
         match result {
             Ok(result) => {
                 let full_report = result.report.clone();
@@ -71,7 +72,10 @@ pub(super) fn verify_prepared_reference_cases(
                         proof.as_ref(),
                         &CaptureRecord::Absent,
                     )?;
-                    failures.push(format!("{}/{} {contestant}: {}", case.rule, case.name, message.0));
+                    failures.push(format!(
+                        "{}/{} {contestant}: {}",
+                        case.rule, case.name, message.0
+                    ));
                     continue;
                 }
                 let comparison = judge(&case, contestant, result.report)?.comparison;
@@ -96,12 +100,12 @@ pub(super) fn verify_prepared_reference_cases(
             }
             Err(error) => {
                 let assessment = crate::application::process_discrepancy::service::matches_capture(
-                            &case,
-                            &capture,
-                            proof.as_ref(),
-                            suite,
-                            rules,
-                        );
+                    &case,
+                    &capture,
+                    proof.as_ref(),
+                    suite,
+                    rules,
+                );
                 let accepted = matches!(assessment, Some(Ok(())));
                 let message = ReasonText(match assessment {
                     Some(Err(mismatch)) => format!("{error}; {mismatch}"),
@@ -120,7 +124,10 @@ pub(super) fn verify_prepared_reference_cases(
                     &capture,
                 )?;
                 if !accepted {
-                    failures.push(format!("{}/{} {contestant}: {}", case.rule, case.name, message.0));
+                    failures.push(format!(
+                        "{}/{} {contestant}: {}",
+                        case.rule, case.name, message.0
+                    ));
                 }
             }
         }
@@ -134,4 +141,3 @@ pub(super) fn verify_prepared_reference_cases(
         )))
     }
 }
-

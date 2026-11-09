@@ -1,8 +1,8 @@
 //! What every `matching` adapter must pass.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::selects;
 use crate::outbound::matching::interface::MatchingPort;
+use crate::selects;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
 use ryo_matching::inbound::use_cases::matching::types::{GroupName, RegexSource, SearchText};
@@ -21,7 +21,11 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("occurrences_are_visited_in_source_order"),
         word: Word::Succeeds,
         input: || ("a", "banana", None),
-        expect: Expect::Value(std::borrow::Cow::Borrowed(&[(1, 2, None), (3, 4, None), (5, 6, None)])),
+        expect: Expect::Value(std::borrow::Cow::Borrowed(&[
+            (1, 2, None),
+            (3, 4, None),
+            (5, 6, None),
+        ])),
     },
     Case {
         name: CaseName("a_text_without_the_pattern_has_no_occurrences"),
@@ -39,7 +43,9 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_group_the_pattern_lacks_is_refused"),
         word: Word::Refuses,
         input: || ("a", "banana", Some("rest")),
-        expect: Expect::Refusal(|error| selects!(matches!(error, MatchingError::InvalidRegex { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, MatchingError::InvalidRegex { .. }))
+        }),
     },
 ];
 
@@ -48,7 +54,10 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Errors
 ///
 /// `InvalidRegex` when the pattern has no group of the name asked for.
-pub fn answer(adapter: &impl MatchingPort, (pattern, text, group): Input) -> Result<Value, Failure> {
+pub fn answer(
+    adapter: &impl MatchingPort,
+    (pattern, text, group): Input,
+) -> Result<Value, Failure> {
     let regex = MatchingUseCaseImpl::new().compile_regex(RegexSource(pattern))?;
     let mut found = Vec::new();
     match group {

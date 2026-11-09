@@ -7,7 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::constants::OUTPUTS;
 use super::errors::PackagesError;
 use super::types::{
-    Analysis, Cause, Dependency, Diagnosed, Library, Packages, Refusal, Stage, WorkspacePackageMembership,
+    Analysis, Cause, Dependency, Diagnosed, Library, Packages, Refusal, Stage,
+    WorkspacePackageMembership,
 };
 use crate::domain::dependencies::service::declared_of;
 use crate::domain::dependencies::types::{DeclaredDependency, Shared};

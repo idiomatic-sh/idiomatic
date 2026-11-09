@@ -56,7 +56,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let outcome = match input {
         Scenario::EqualityBuilds => BuildUseCaseImpl::new().build(
             &prepare(
-                DerivedRequest::Equality { columns: vec![ColumnIndex(0)] },
+                DerivedRequest::Equality {
+                    columns: vec![ColumnIndex(0)],
+                },
                 vec![schema],
             ),
             BuildInputs::Rows(&rows),
@@ -78,7 +80,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
         )?,
         Scenario::InputsOfAnotherKind => BuildUseCaseImpl::new().build(
             &prepare(
-                DerivedRequest::Equality { columns: vec![ColumnIndex(0)] },
+                DerivedRequest::Equality {
+                    columns: vec![ColumnIndex(0)],
+                },
                 vec![schema],
             ),
             BuildInputs::Native(NativeForm::Edges),

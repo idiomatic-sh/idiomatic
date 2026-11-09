@@ -8,7 +8,9 @@ impl AcquisitionOrigin {
         owner: &DerivedOwner,
         plan: &Arc<DerivedContract>,
     ) -> Result<(), OperatingError> {
-        if !Arc::ptr_eq(&self.owner, &owner.identity) || self.live.is_live() != crate::application::file_dag::relations::types::Liveness::Live {
+        if !Arc::ptr_eq(&self.owner, &owner.identity)
+            || self.live.is_live() != crate::application::file_dag::relations::types::Liveness::Live
+        {
             return Err(OperatingError::NotRead);
         }
         if !Arc::ptr_eq(&self.plan, plan) {
@@ -27,7 +29,7 @@ impl AdmittedViewInputs<'_> {
     ) -> Result<(), OperatingError> {
         self.origin.validate(owner, plan)?;
 
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+        use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         let admitted_rows = match (&self.sources, inputs) {
             (
                 AcquisitionSources::Rows(_),
@@ -50,8 +52,9 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
         };
         let rows = match inputs {
             DerivedInputs::Rows(rows) | DerivedInputs::Text { rows, .. } => rows.to_vec(),
-            DerivedInputs::Partition { rows, .. }
-            | DerivedInputs::Adjacency { rows, .. } => vec![*rows],
+            DerivedInputs::Partition { rows, .. } | DerivedInputs::Adjacency { rows, .. } => {
+                vec![*rows]
+            }
             DerivedInputs::Membership {
                 rows,
                 space: MembershipSpace::Native(tree),
@@ -132,7 +135,9 @@ impl DerivedOwner {
     ) -> Result<AdmittedViewInputs<'a>, OperatingError> {
         let mut admitted = input.admission(plan)?;
         admitted.origin.populations = vec![input.population()?];
-        if input.canonical_backing() == crate::application::file_dag::relations::types::BackingForm::Foreign {
+        if input.canonical_backing()
+            == crate::application::file_dag::relations::types::BackingForm::Foreign
+        {
             admitted.origin.lifetime = AcquisitionLifetime::Invocation;
         }
         Ok(admitted)
@@ -158,7 +163,11 @@ impl DerivedOwner {
         }
         parent.origin().validate(self, &parent.origin().plan)?;
         let mut admitted = self.graph_sources(plan, input)?;
-        if crate::application::file_dag::relations::generation::service::GenerationLease::same(&parent.origin().live, &admitted.origin.live) == crate::application::file_dag::relations::types::Sameness::Different {
+        if crate::application::file_dag::relations::generation::service::GenerationLease::same(
+            &parent.origin().live,
+            &admitted.origin.live,
+        ) == crate::application::file_dag::relations::types::Sameness::Different
+        {
             return Err(OperatingError::NotRead);
         }
         let graph = parent
@@ -181,9 +190,7 @@ impl DerivedOwner {
 }
 
 impl AdmittedViewInputs<'_> {
-    pub(crate) fn lifetime(
-        &self,
-    ) -> AcquisitionLifetime {
+    pub(crate) fn lifetime(&self) -> AcquisitionLifetime {
         self.origin.lifetime
     }
     pub(crate) fn validate_origin(
@@ -219,10 +226,7 @@ impl DerivedOwner {
 }
 
 impl AcquiredView {
-    pub(crate) fn validate_owner(
-        &self,
-        owner: &DerivedOwner,
-    ) -> Result<(), OperatingError> {
+    pub(crate) fn validate_owner(&self, owner: &DerivedOwner) -> Result<(), OperatingError> {
         self.origin.validate(owner, &self.plan)
     }
 }

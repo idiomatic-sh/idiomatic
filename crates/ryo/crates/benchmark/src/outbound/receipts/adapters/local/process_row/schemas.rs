@@ -93,15 +93,19 @@ impl From<ProcessRowSchema> for ProcessRecord {
             settings_sha256: pin(schema.settings_sha256),
             metadata_error: schema
                 .metadata_error
-                .map_or(RecordedReason::Absent, |reason| RecordedReason::Stated(ReasonText(reason))),
+                .map_or(RecordedReason::Absent, |reason| {
+                    RecordedReason::Stated(ReasonText(reason))
+                }),
             template_sha256: pin(schema.template_sha256),
-            artifacts: schema.artifacts.map_or(ProcessArtifactsRecord::Unattached, |artifacts| {
-                ProcessArtifactsRecord::Attached(ProcessArtifacts {
-                    stdout: artifacts.stdout.into(),
-                    stderr: artifacts.stderr.into(),
-                    invocation: artifacts.invocation.into(),
-                })
-            }),
+            artifacts: schema
+                .artifacts
+                .map_or(ProcessArtifactsRecord::Unattached, |artifacts| {
+                    ProcessArtifactsRecord::Attached(ProcessArtifacts {
+                        stdout: artifacts.stdout.into(),
+                        stderr: artifacts.stderr.into(),
+                        invocation: artifacts.invocation.into(),
+                    })
+                }),
         }
     }
 }

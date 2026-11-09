@@ -172,8 +172,10 @@ where
             &mut index.memo,
             crate::domain::grammar_cache::types::DialectName(P::GRAMMAR.0),
         );
-        index.state = if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete
-            || languages::has_incomplete_lexical_stream(tree.elements) == languages::SyntaxCompleteness::Incomplete
+        index.state = if languages::has_incomplete_syntax(tree.elements)
+            == languages::SyntaxCompleteness::Incomplete
+            || languages::has_incomplete_lexical_stream(tree.elements)
+                == languages::SyntaxCompleteness::Incomplete
         {
             LiteralParseState::Partial
         } else {

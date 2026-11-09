@@ -1,33 +1,32 @@
 //! One admitted project-stage source population is scanned once for every rule of its cohort.
 use super::super::lease::service::PermittedWalk;
 use super::super::{
-    Deliveries, Fate, FileWalk, Owed, SourceWork, WalkDelivery, WalkResult,
-    WalkSourceIdentity,
+    Deliveries, Fate, FileWalk, Owed, SourceWork, WalkDelivery, WalkResult, WalkSourceIdentity,
 };
-use crate::application::file_dag::program::runtime::types::Submission;
-use crate::application::file_dag::program::admission::AdmittedInput;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use std::rc::Rc;
 use crate::application::file_dag::executor::{
-    KernelCall, PrimitiveExecutor,
-    KernelAnswer, KernelFault,
+    KernelAnswer, KernelCall, KernelFault, PrimitiveExecutor,
 };
+use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::{KernelPermit, ReadySelection};
+use crate::application::file_dag::program::runtime::types::Submission;
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    operating::errors::OperatingError, operator::types::OperatorContext,
-    step_classes::types::ClassPlace,
+    operating::errors::OperatingError,
+    operator::types::OperatorContext,
     shared_walk::types::{WalkCounts, WalkWork, native_batch::value::NativeBatch},
+    step_classes::types::ClassPlace,
     table_model::types::Rows,
 };
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
+use std::rc::Rc;
 use std::{
     cell::{Cell, Ref, RefCell},
     collections::BTreeSet,
 };
-use rustc_hash::FxHashMap;
 
 /// The production invocation is explicitly bound to a file owner or project stage.
 /// An invocation of either partition cannot opt out of its shared-walk owner.
@@ -227,9 +226,9 @@ impl ProjectWalk {
                 Ok(KernelAnswer::Walk(batch)) => batch,
                 Err(KernelFault::Refused(error)) => return Err(error),
                 Err(KernelFault::Portable(error)) => {
-                    return Err(ryo_execution_domain::domain::operating::service::portable_fault(
-                        error,
-                    ));
+                    return Err(
+                        ryo_execution_domain::domain::operating::service::portable_fault(error),
+                    );
                 }
                 _ => return Err(OperatingError::WrongOperation),
             };
@@ -246,12 +245,7 @@ impl ProjectWalk {
     }
     /// Declare that `rule` is a root of a cohort and will make `deliveries` entry-point
     /// calls that may consume this scope's project-stage classes.
-    pub(crate) fn owe(
-        &self,
-        prepared: &PreparedProgram,
-        rule: RuleIndex,
-        deliveries: Deliveries,
-    ) {
+    pub(crate) fn owe(&self, prepared: &PreparedProgram, rule: RuleIndex, deliveries: Deliveries) {
         let classes = prepared
             .walk()
             .class_of(rule)
@@ -290,11 +284,7 @@ impl ProjectWalk {
     /// One entry-point call of `rule` finished, whatever its outcome (success,
     /// cancellation or error). The last one releases the rule's classes and every
     /// batch no remaining declared rule can still consume.
-    pub(crate) fn delivered(
-        &self,
-        prepared: &PreparedProgram,
-        rule: RuleIndex,
-    ) {
+    pub(crate) fn delivered(&self, prepared: &PreparedProgram, rule: RuleIndex) {
         {
             let mut owed = self.owed.borrow_mut();
             let Some(entry) = owed.get_mut(&rule) else {
@@ -339,9 +329,7 @@ impl ProjectWalk {
         self.retired.set(retired);
     }
     #[cfg(test)]
-    pub(crate) fn retained(
-        &self,
-    ) -> super::super::RetainedBatches {
+    pub(crate) fn retained(&self) -> super::super::RetainedBatches {
         super::super::RetainedBatches(self.batches.borrow().len())
     }
     #[cfg(test)]

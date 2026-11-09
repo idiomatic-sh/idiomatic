@@ -34,8 +34,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
     }
     fn configuration_identity(
         &self,
-    ) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_>
-    {
+    ) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
         ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity(self.1)
     }
     fn recognition(
@@ -44,9 +43,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
     ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
         ryo_language::inbound::use_cases::parse::types::Recognition::Reads
     }
-    fn skips(
-        &self,
-    ) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory] {
+    fn skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory] {
         &[]
     }
     fn kind_count(&self) -> ryo_relations::domain::relations::types::Count {
@@ -125,9 +122,11 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         wanted: &[ryo_relations::domain::relations::types::Relation],
         out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
     ) {
-        use ryo_relations::domain::relations::collections::relations::identifier::item::IdentifierRow;
-        use ryo_relations::domain::relations::types::{Missing, Offset, Position, Relation, ReportText, Rows, Span};
         use ryo_relations::domain::capabilities::types::OptionalCapability;
+        use ryo_relations::domain::relations::collections::relations::identifier::item::IdentifierRow;
+        use ryo_relations::domain::relations::types::{
+            Missing, Offset, Position, Relation, ReportText, Rows, Span,
+        };
         use ryo_relations::domain::terms::types::NameText;
         if wanted.contains(&Relation::Identifier) {
             if self.0.contains(&OptionalCapability::Identifier) {
@@ -215,8 +214,7 @@ impl ryo_language::inbound::use_cases::parse::types::ParseEngine for CapabilityP
         use ryo_relations::domain::answers::types::AbsenceCause;
         use ryo_relations::domain::capabilities::types::OptionalCapability;
         use ryo_relations::domain::relations::types::Relation;
-        ((relation == Relation::Identifier
-            && !self.0.contains(&OptionalCapability::Identifier))
+        ((relation == Relation::Identifier && !self.0.contains(&OptionalCapability::Identifier))
             || (relation == Relation::RawFormatSegment
                 && !self.0.contains(&OptionalCapability::RawFormatSegment))
             || (relation == Relation::LiteralExpressionParse

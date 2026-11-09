@@ -17,12 +17,12 @@ use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::Session;
 
 use ryo_core::outbound::language::fixtures::fake::LanguageFake;
-use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
 use ryo_core::outbound::memory::fixtures::fake::MemoryFake;
-use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_core::outbound::row_sink;
 use ryo_core::outbound::row_sink::interface::RowSinkPort;
 use ryo_core::outbound::scheduler::fixtures::fake::SchedulerFake;
+use ryo_execution::outbound::matching::fixtures::fake::MatchingFake;
+use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;

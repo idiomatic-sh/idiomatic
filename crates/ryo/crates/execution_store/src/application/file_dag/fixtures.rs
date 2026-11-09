@@ -8,6 +8,7 @@ pub fn derived() -> crate::outbound::derived::fixtures::fake::DerivedFake {
 
 /// The derived capability as the engine holds it.
 #[must_use]
-pub fn program_derived_port() -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort> {
+pub fn program_derived_port() -> std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>
+{
     std::sync::Arc::new(derived())
 }

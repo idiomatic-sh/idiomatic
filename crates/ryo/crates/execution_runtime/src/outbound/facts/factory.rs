@@ -11,16 +11,13 @@ pub fn memory() -> impl crate::outbound::facts::interface::FactsPort {
 
 /// The facts adapter that keeps the words the files leave for the cross-file finish in a file of `directory`, not in memory.
 #[must_use]
-pub fn spill(
-    directory: std::path::PathBuf,
-) -> impl crate::outbound::facts::interface::FactsPort {
+pub fn spill(directory: std::path::PathBuf) -> impl crate::outbound::facts::interface::FactsPort {
     super::adapters::spill::adapter::FactsSpillAdapter::new(directory)
 }
 
 /// The facts adapter that keeps the words the files leave for the cross-file finish in a file of the system's temporary directory,
 /// for a run that keeps nothing: the file is removed from it as soon as it is open.
 #[must_use]
-pub fn spill_scratch() -> impl crate::outbound::facts::interface::FactsPort
-{
+pub fn spill_scratch() -> impl crate::outbound::facts::interface::FactsPort {
     super::adapters::spill::adapter::FactsSpillAdapter::in_scratch()
 }

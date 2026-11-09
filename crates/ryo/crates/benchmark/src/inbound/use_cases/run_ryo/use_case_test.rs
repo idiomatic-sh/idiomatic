@@ -226,21 +226,27 @@ impl EngineExecution for Session<'_> {
         Ok(crate::outbound::engine::types::EngineRun {
             dependencies: Vec::new(),
             report: RunReport {
-            execution_metadata:
-                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-            project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-            files: self.request.files.clone(),
-            skipped: Vec::new(),
-            coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                },
-            ),
-            diagnostics: Vec::new(),
-        } })
+                execution_metadata:
+                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+                project_context:
+                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                files: self.request.files.clone(),
+                skipped: Vec::new(),
+                coverage:
+                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
+                                1,
+                            ),
+                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                            unknown_or_unread:
+                                ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                        },
+                    ),
+                diagnostics: Vec::new(),
+            },
+        })
     }
 }
 // This wrapper uses only the public EnginePort contract: it cannot inspect or mutate the handle.
@@ -293,23 +299,30 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         received: transport.receive_calls(),
         loaded: engine.loaded.load(Ordering::SeqCst),
         closed: engine.closed.load(Ordering::SeqCst),
-        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(engine.calls.load(Ordering::SeqCst)),
+        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
+            engine.calls.load(Ordering::SeqCst),
+        ),
         responded: transport.respond_calls(),
         published: transport.reports()
             == [RunReport {
                 execution_metadata:
                     ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                project_context: ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                project_context:
+                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                 files: request().files,
                 skipped: Vec::new(),
-                coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                    ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    },
-                ),
+                coverage:
+                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
+                                1,
+                            ),
+                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                            unknown_or_unread:
+                                ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                        },
+                    ),
                 diagnostics: Vec::new(),
             }],
     };

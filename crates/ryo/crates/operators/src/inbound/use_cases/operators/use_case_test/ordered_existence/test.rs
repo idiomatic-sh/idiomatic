@@ -1,17 +1,17 @@
 //! Public acceptance of extrema, projection, antijoin and interruption semantics.
-use crate::domain::equality_join::errors::EqualityJoinError;
-use crate::domain::set_rows::errors::SetRowsError;
-use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;
-use crate::inbound::use_cases::operators::types::*;
+use crate::domain::equality_join::errors::EqualityJoinError;
 use crate::domain::equality_join::types::*;
 use crate::domain::ordered_existence::types::*;
 use crate::domain::ordered_match::types::*;
 use crate::domain::reduction::types::*;
+use crate::domain::set_rows::errors::SetRowsError;
 use crate::domain::set_rows::types::*;
 use crate::domain::source_matches::types::*;
 use crate::domain::words::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use ryo_relations::domain::relations::types::{Integer, Value as ValueCell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
@@ -27,7 +27,11 @@ impl OrderedExistenceDriver for Driver {
     fn len(&self) -> RowCount {
         RowCount(self.rows.len())
     }
-    fn key_cell(&mut self, row: RowIndex, column: ColumnIndex) -> Result<ValueCell, EqualityJoinError> {
+    fn key_cell(
+        &mut self,
+        row: RowIndex,
+        column: ColumnIndex,
+    ) -> Result<ValueCell, EqualityJoinError> {
         if self.failed {
             return Err(EqualityJoinError::Interrupted);
         }
@@ -54,7 +58,11 @@ impl OrderedExistenceDriver for Driver {
             }
         }
     }
-    fn emit_dominated(&mut self, row: RowIndex, witness: RowIndex) -> Result<(), EqualityJoinError> {
+    fn emit_dominated(
+        &mut self,
+        row: RowIndex,
+        witness: RowIndex,
+    ) -> Result<(), EqualityJoinError> {
         if self.failed || self.fail_emit {
             self.failed = true;
             return Err(EqualityJoinError::Interrupted);
@@ -141,7 +149,9 @@ impl SetRowDriver for Reordered {
         Ok(RightPopulation::from(self.dropped.is_empty()))
     }
     fn contains_right(&mut self, key: &[ValueCell]) -> Result<RightMembership, SetRowsError> {
-        Ok(RightMembership::from(self.dropped.iter().any(|row| row == key)))
+        Ok(RightMembership::from(
+            self.dropped.iter().any(|row| row == key),
+        ))
     }
     fn first_time(&mut self, _: &[ValueCell]) -> Result<FirstOccurrence, SetRowsError> {
         panic!("bag-preserving antijoin")

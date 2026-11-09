@@ -3,22 +3,21 @@ use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::types::PopulationId;
+use acquisition::semantics::storage::DerivedStorage;
+use footprint::service::storage_bytes;
+use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedContract, *},
     operating::errors::OperatingError,
 };
-use acquisition::semantics::storage::DerivedStorage;
-use footprint::service::storage_bytes;
 use std::{
     cell::RefCell,
     sync::{Arc, Weak},
 };
-use rustc_hash::FxHashMap;
 use types::{
-    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation,
-    HitCount, IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState,
-    PopulationCount, ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId,
-    ViewCount,
+    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation, HitCount,
+    IdentityCompatibility, MembershipOrder, MemoBudget, PinCount, PinState, PopulationCount,
+    ReclaimOutlook, RefusalCount, ReleasedEntries, Room, ScopeId, ViewCount,
 };
 
 pub mod acquisition;
@@ -241,7 +240,6 @@ fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
 
 #[cfg(test)]
 mod test;
-
 
 use ryo_derived::domain::request::types::DerivedKind;
 

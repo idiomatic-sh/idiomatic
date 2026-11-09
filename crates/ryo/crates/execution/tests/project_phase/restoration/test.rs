@@ -1,12 +1,12 @@
 //! Named restoration retains partition-qualified physical coverage despite cached readiness.
-use crate::boundary_fixture::Observed as _;
-use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
-use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
-use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use super::super::*;
+use crate::boundary_fixture::Observed as _;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
+use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
+use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
     files::types::CorpusInput,
@@ -86,7 +86,9 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                     &mut symbols,
                     CaptureContext {
                         worker: WorkerNumber(0),
-                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                            &mut arena,
+                        ),
                         places: &mut places,
                         words: &mut words,
                     },
@@ -96,7 +98,11 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                 .unwrap();
             file.commit_frontier(RuleIndex(0), capture.input).unwrap();
             captures.push((file_id, capture.outcome.unwrap()));
-            let root = file.finish().unwrap().readiness.observed("the finished file observed its readiness");
+            let root = file
+                .finish()
+                .unwrap()
+                .readiness
+                .observed("the finished file observed its readiness");
             assert!(root.complete.0.iter().any(|bits| *bits != 0));
             readiness.push(FileObservationReadiness {
                 file: file_id,

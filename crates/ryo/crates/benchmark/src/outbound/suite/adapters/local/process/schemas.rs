@@ -3,11 +3,11 @@ use crate::outbound::suite::adapters::local::constants;
 use ryo_benchmark_contracts::domain::artifacts::types::{
     digest::value::ArtifactDigest, relative_artifact_path::value::RelativeArtifactPath,
 };
+use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use ryo_benchmark_contracts::domain::process::types::OutputText;
 use ryo_benchmark_contracts::domain::process::types::{
     OutputPart, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
 };
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::process::types::OutputText;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -15,7 +15,6 @@ use std::path::PathBuf;
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
-
 
 /// Only this explicit variant can request process-failure comparison.
 #[derive(Deserialize)]
@@ -77,7 +76,6 @@ pub(in super::super) struct ProcessObservationSchema {
     stderr: ProcessArtifactSchema,
 }
 
-
 /// An identity digest is exactly 64 lowercase hexadecimal digits.
 fn identity_digest(value: String) -> Result<ArtifactDigest, Error> {
     if value.len() != 64
@@ -109,7 +107,9 @@ impl TryFrom<OutputPartSchema> for OutputPart {
 
     fn try_from(wire: OutputPartSchema) -> Result<Self, Error> {
         match wire {
-            OutputPartSchema::Literal { value } => Ok(Self::Literal(ryo_benchmark_contracts::domain::process::types::OutputText(value))),
+            OutputPartSchema::Literal { value } => Ok(Self::Literal(
+                ryo_benchmark_contracts::domain::process::types::OutputText(value),
+            )),
             OutputPartSchema::InputPath { file, encoding } => {
                 let _file = RelativeArtifactPath::try_from(file.as_path())?;
                 Ok(Self::InputPath {

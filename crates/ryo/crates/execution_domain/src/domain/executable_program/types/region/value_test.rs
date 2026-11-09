@@ -35,7 +35,10 @@ fn a_new_region_is_generic_with_no_resolved_dependencies() {
     assert!(region.dependencies().is_empty());
     assert!(region.source_partitions().is_empty());
     assert!(region.needs().as_ref().is_ok_and(|needs| needs.is_empty()));
-    assert!(matches!(region.last_operation(), Err(OperatingError::NotRun)));
+    assert!(matches!(
+        region.last_operation(),
+        Err(OperatingError::NotRun)
+    ));
 }
 
 #[test]

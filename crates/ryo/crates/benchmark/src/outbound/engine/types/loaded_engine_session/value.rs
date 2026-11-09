@@ -2,8 +2,7 @@
 use crate::outbound::engine::types::{EngineConfiguration, EngineRun};
 use ryo::linter::{RelativePath, Rule, RuleId};
 use ryo_benchmark_contracts::domain::{
-    reports::errors::ReportsError,
-    requests::types::WorkerRequest,
+    reports::errors::ReportsError, requests::types::WorkerRequest,
 };
 use std::collections::BTreeMap;
 /// One loaded request, its exact rules, and its request-scoped effects.

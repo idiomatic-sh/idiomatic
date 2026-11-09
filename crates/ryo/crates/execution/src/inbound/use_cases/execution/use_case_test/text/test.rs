@@ -1,7 +1,7 @@
 //! Text row operators retain the original row and publish exact appended words or slots.
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::{
@@ -71,7 +71,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
     });
     let mut symbols = Symbols::default();
-    let output = fixtures::requests::published(inputs::plan(operations), vec![], hosted, &mut symbols)?;
+    let output =
+        fixtures::requests::published(inputs::plan(operations), vec![], hosted, &mut symbols)?;
     let width = output.kinds.len();
     let mut appended = Vec::new();
     for row in output.cells.chunks(width) {

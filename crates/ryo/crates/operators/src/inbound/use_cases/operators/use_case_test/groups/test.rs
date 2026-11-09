@@ -1,9 +1,7 @@
 //! Public grouping requests borrow fixture-owned storage; fixtures implement storage, never reductions.
-use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::capture::types::*;
 use crate::domain::contract::types::*;
-use ryo_values::domain::row_texts::types::CellText;
-use crate::inbound::use_cases::operators::types::*;
 use crate::domain::equality_join::types::*;
 use crate::domain::ordered_existence::types::*;
 use crate::domain::ordered_match::types::*;
@@ -11,10 +9,12 @@ use crate::domain::reduction::types::*;
 use crate::domain::set_rows::types::*;
 use crate::domain::source_matches::types::*;
 use crate::domain::words::types::*;
+use crate::inbound::use_cases::operators::types::*;
+use crate::inbound::use_cases::operators::{fixtures, interface::OperatorsUseCase};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::WholeNumber;
+use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 use std::borrow::Cow;
 
@@ -54,7 +54,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("collected_count_operand_fault_precedes_key_fault"),
         word: Word::Refuses,
         input: || Scenario::CountOperandFirst,
-        expect: Expect::Error(Failure::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
+        expect: Expect::Error(Failure::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(98),
+        }),
     },
     Case {
         name: CaseName("digest_dispatch_uses_resolved_text_not_handles_repeats_or_order"),

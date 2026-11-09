@@ -3,18 +3,17 @@ use super::constants::{
     COMPILED_PLANS, EVERY_RULE_BOUND, EVERY_RULE_PLANNED, RULE_COMPILATION_NAME,
 };
 use super::errors::RuleCompilationError;
+use super::types::PreparedRuleIdentities;
 use super::types::{CachedPlan, PlanCache};
-use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution_domain::domain::prepared_request::types::Compiled;
+use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_values::domain::hosted::service::declarations;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::rule_requests::service::{bind, check_ids};
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::{Arc, Mutex, PoisonError};
-use ryo_execution_runtime::outbound::digest::interface::DigestPort;
-use super::types::PreparedRuleIdentities;
-
 
 /// The plan compiled so far for each rule id, shared by every use case built over them: a program that lints many projects with the
 /// same rules compiles each rule once. A rule id keeps one plan: the one of its latest query; past `COMPILED_PLANS` the plan that
@@ -71,7 +70,8 @@ pub(crate) struct RuleCompilation {
 
 impl std::fmt::Debug for RuleCompilation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(RULE_COMPILATION_NAME).finish_non_exhaustive()
+        f.debug_struct(RULE_COMPILATION_NAME)
+            .finish_non_exhaustive()
     }
 }
 
@@ -103,9 +103,12 @@ impl RuleCompilation {
     ) -> Result<Compiled, RuleCompilationError> {
         check_ids(rules)?;
         let declared = declarations(hosted);
-        let schedule = ryo_execution_domain::domain::file_program::service::observations::schedule(rules)?;
-        if let ryo_execution_domain::domain::file_program::types::RuleSchedule::Dependencies { order, .. } =
-            &schedule
+        let schedule =
+            ryo_execution_domain::domain::file_program::service::observations::schedule(rules)?;
+        if let ryo_execution_domain::domain::file_program::types::RuleSchedule::Dependencies {
+            order,
+            ..
+        } = &schedule
         {
             let mut plans: Vec<Option<ryo_values::domain::plans::types::Plan>> =
                 vec![None; rules.len()];
@@ -113,9 +116,10 @@ impl RuleCompilation {
             let mut observations = vec![Vec::new(); rules.len()];
             for index in order {
                 let rule = &rules[index.0];
-                let schemas = ryo_execution_domain::domain::file_program::service::observations::schemas(
-                    rule, rules, &plans,
-                )?;
+                let schemas =
+                    ryo_execution_domain::domain::file_program::service::observations::schemas(
+                        rule, rules, &plans,
+                    )?;
                 let plan = self.compile_one(rule, &declared, &schemas.schemas)?;
                 observations[index.0] = schemas.bindings;
                 bindings[index.0] = Some(bind(&plan, rule)?);
@@ -123,9 +127,7 @@ impl RuleCompilation {
             }
             let plans = plans
                 .into_iter()
-                .map(|plan| {
-                    plan.expect(EVERY_RULE_PLANNED)
-                })
+                .map(|plan| plan.expect(EVERY_RULE_PLANNED))
                 .collect();
             let bindings = bindings
                 .into_iter()
@@ -168,7 +170,8 @@ impl RuleCompilation {
         compiled.observations = linked.bindings;
         // Scheduling independence does not erase the per-rule producer declarations.
         if compiled.observations.iter().all(Vec::is_empty) {
-            compiled.schedule = ryo_execution_domain::domain::file_program::types::RuleSchedule::Independent;
+            compiled.schedule =
+                ryo_execution_domain::domain::file_program::types::RuleSchedule::Independent;
         }
         Ok(compiled)
     }
@@ -289,8 +292,10 @@ pub(crate) fn named(
     rules: &[RuleSpec],
     place: ryo_execution_domain::domain::kind_check::types::RulePlace,
 ) -> Result<&RuleSpec, RuleCompilationError> {
-    rules.get(place.0).ok_or(RuleCompilationError::UnknownRuleIndex {
-        index: place.0,
-        rules: rules.len(),
-    })
+    rules
+        .get(place.0)
+        .ok_or(RuleCompilationError::UnknownRuleIndex {
+            index: place.0,
+            rules: rules.len(),
+        })
 }

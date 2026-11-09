@@ -2,16 +2,16 @@
 //! closure partitions and its ordered depth-first graph, and its prepared adjacency and ordered keys, are
 //! its strategies behind the operators' closure, depth-first, cycle and ordered-match driver ports.
 use super::driver::LeaseDriver;
-use super::views::PreparedAdjacency;
 use super::primitive::PreparedInputs;
 use super::types::{ExaminedCount, ExpandedCount};
+use super::views::PreparedAdjacency;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::table_reach::types::{Edges, OrderedVisit};
+use ryo_operators::domain::closure::types::PartitionPlace;
 use ryo_operators::domain::closure::types::{ClosureDriver, ClosureEvaluation};
 use ryo_operators::domain::contract::errors::ContractError;
 use ryo_operators::domain::contract::types::PortableOperatorFault as Fault;
 use ryo_operators::domain::contract::types::{RowDriver, RowRead, VertexPlace};
-use ryo_operators::domain::closure::types::PartitionPlace;
 use ryo_operators::domain::cycles::types::{
     CycleDriver, CyclesEvaluation, EdgePlace, NodeCount, NodeNumber,
 };
@@ -148,7 +148,11 @@ impl ClosureDriver for LeaseDriver<'_, '_> {
                 .map_or(0, |partition| partition.sources.len()),
         )
     }
-    fn source(&mut self, partition: PartitionPlace, at: VertexPlace) -> Result<Option<Value>, Fault> {
+    fn source(
+        &mut self,
+        partition: PartitionPlace,
+        at: VertexPlace,
+    ) -> Result<Option<Value>, Fault> {
         let found = self
             .graph
             .closure

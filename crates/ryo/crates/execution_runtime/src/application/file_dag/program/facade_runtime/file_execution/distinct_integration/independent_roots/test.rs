@@ -1,10 +1,10 @@
 //! Real semantic refusal at one compiled root cannot erase the independent root.
-use crate::outbound::operators::interface::OperatorsPort as _;
 use super::super::*;
+use crate::outbound::operators::interface::OperatorsPort as _;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -157,7 +157,8 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
             ReuseEligibility::Eligible,
             &mut symbols,
             None,
-            None)
+            None,
+        )
         .unwrap();
         let table = function_rows(&[0]);
         let read = |relation| {

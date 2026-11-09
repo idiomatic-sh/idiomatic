@@ -1,11 +1,11 @@
 //! Endpoint extraction keeps the order of the span and never mutates its row.
 use super::service::bounds;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::{
     constants::NO_SPAN,
     types::{Integer, Offset, Span, Value as Cell},
 };
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 type Input = (Vec<Cell>, u32);
 type Value = [Cell; 2];
@@ -50,7 +50,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("missing_column_is_reported_by_index"),
         word: Word::Refuses,
         input: || (vec![], 7),
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(7) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(7),
+        }),
     },
     Case {
         name: CaseName("a_number_is_not_a_span"),

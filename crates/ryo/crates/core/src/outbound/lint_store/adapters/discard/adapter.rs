@@ -46,7 +46,8 @@ impl ReadStore for DiscardRead {
     fn begin_old_rows(
         &self,
         _wanted: &ryo_values::domain::stores::types::BucketsWanted,
-    ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError> {
+    ) -> Result<Option<Box<dyn crate::outbound::lint_store::interface::OldRowBatch>>, LintStoreError>
+    {
         Ok(None)
     }
 
@@ -54,7 +55,9 @@ impl ReadStore for DiscardRead {
         &self,
         words: ryo_values::domain::stored_facts::types::PackedWords,
     ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError> {
-        Ok(ryo_values::domain::records::types::RecordWords::Inline(words))
+        Ok(ryo_values::domain::records::types::RecordWords::Inline(
+            words,
+        ))
     }
 
     fn read_staged(

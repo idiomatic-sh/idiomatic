@@ -2,7 +2,7 @@
 
 use super::value::Fingerprint;
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::types::{ProgramNodeId, NodeInput};
+use crate::domain::file_program::types::{NodeInput, ProgramNodeId};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, RepeatedRows, StepId, StepScope};
 use ryo_values::domain::plans::types::Operation;
 

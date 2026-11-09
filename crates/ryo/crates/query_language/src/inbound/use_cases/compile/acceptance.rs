@@ -6,9 +6,9 @@ use crate::Behavior;
 use std::sync::Arc;
 
 use ryo_query_language::inbound::use_cases::compile::interface::CompileUseCase as _;
-use ryo_values::domain::plans::types::QueryRequest;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::plans::types::QueryRequest;
 
 /// Names the scene the next `compile` step runs.
 #[given(expr = "the compile input {string}")]

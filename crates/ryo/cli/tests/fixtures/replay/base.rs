@@ -130,7 +130,10 @@ pub(crate) fn parameter(name: &str, value: &toml::Value) -> Option<RuleParameter
 /// The plan ryo compiles a query to, or why it does not compile it.
 pub(crate) fn compiled(
     query: &str,
-) -> Result<ryo_values::domain::plans::types::Plan, ryo_query_language::inbound::use_cases::compile::errors::CompileError> {
+) -> Result<
+    ryo_values::domain::plans::types::Plan,
+    ryo_query_language::inbound::use_cases::compile::errors::CompileError,
+> {
     let compiler = CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
@@ -156,7 +159,11 @@ pub(crate) fn relations_read(plan: &ryo_values::domain::plans::types::Plan) -> V
         let mut operation = step.operation.clone();
         ryo_values::domain::plans::service::each_input(&mut operation, &mut |input| {
             if let ryo_values::domain::plan_parts::types::Input::Relation(relation) = input {
-                let _new = read.insert(ryo_relations::domain::relations::service::name(*relation).0.to_owned());
+                let _new = read.insert(
+                    ryo_relations::domain::relations::service::name(*relation)
+                        .0
+                        .to_owned(),
+                );
             }
         });
     }
@@ -197,7 +204,8 @@ pub(crate) fn recording_at(at: &Path) -> Recording {
     let scope = table_at(at, "scope.toml");
     // A scope says which files the rule was recorded over: its `include` globs, and the `exclude` globs it may add. Nothing else.
     assert!(
-        scope.contains_key("include") && scope.keys().all(|key| key == "include" || key == "exclude"),
+        scope.contains_key("include")
+            && scope.keys().all(|key| key == "include" || key == "exclude"),
         "{}: scope.toml holds {:?}, not `include` and an optional `exclude`",
         at.display(),
         scope.keys().collect::<Vec<_>>()
@@ -215,7 +223,8 @@ pub(crate) fn recording_at(at: &Path) -> Recording {
         .filter(|declared| !given.contains_key(&*declared.name.0))
         .map(|declared| declared.name.0.to_string())
         .collect();
-    let pending = Some(text(&at.join("pending.txt")).trim().to_owned()).filter(|why| !why.is_empty());
+    let pending =
+        Some(text(&at.join("pending.txt")).trim().to_owned()).filter(|why| !why.is_empty());
     let mut recording = Recording {
         name,
         query,
@@ -293,9 +302,9 @@ pub(crate) fn unprovided(why: &str) -> Vec<String> {
 /// own (a host's) is provided by no language.
 pub(crate) fn provided(relation: &str) -> bool {
     use ryo_core::outbound::language::interface::LanguagePort as _;
-    let Some(owned) =
-        ryo_relations::domain::relations::service::relation_named(ryo_relations::domain::labels::types::NameRef(relation))
-    else {
+    let Some(owned) = ryo_relations::domain::relations::service::relation_named(
+        ryo_relations::domain::labels::types::NameRef(relation),
+    ) else {
         return false;
     };
     language::factory::use_case(vec![LanguageConnection::from(ryo_rust::linked())])
@@ -463,7 +472,10 @@ pub(crate) fn lint_report_with_languages(
             ryo_values::domain::runs::service::workers_to_start(
                 ryo_values::domain::runs::types::WorkersAsked(0),
                 ryo_values::domain::runs::types::MachineWorkers(
-                    u32::try_from(std::thread::available_parallelism().map_or(1, std::num::NonZero::get)).unwrap_or(1),
+                    u32::try_from(
+                        std::thread::available_parallelism().map_or(1, std::num::NonZero::get),
+                    )
+                    .unwrap_or(1),
                 ),
             )
             .0,
@@ -556,13 +568,25 @@ pub(crate) fn does_not_run(each: &Recording) -> Option<String> {
 
 /// Why a rule does not run in the sample directory `sample`: a sample that could not be made or written is a failure too, never a
 /// rule that runs.
-pub(crate) fn does_not_run_in(sample: std::io::Result<tempfile::TempDir>, each: &Recording) -> Option<String> {
+pub(crate) fn does_not_run_in(
+    sample: std::io::Result<tempfile::TempDir>,
+    each: &Recording,
+) -> Option<String> {
     let sample = match sample {
         Ok(sample) => sample,
-        Err(error) => return Some(format!("the sample to run the recorded query in was not made: {error}")),
+        Err(error) => {
+            return Some(format!(
+                "the sample to run the recorded query in was not made: {error}"
+            ));
+        }
     };
-    if let Err(error) = std::fs::write(sample.path().join("lib.rs"), "use std::fmt;\nfn run(value: u8) -> u8 { value }\nstruct Point { x: u8 }\nimpl Point { fn new() -> Self { Point { x: 0 } } }\n") {
-        return Some(format!("the sample to run the recorded query in was not written: {error}"));
+    if let Err(error) = std::fs::write(
+        sample.path().join("lib.rs"),
+        "use std::fmt;\nfn run(value: u8) -> u8 { value }\nstruct Point { x: u8 }\nimpl Point { fn new() -> Self { Point { x: 0 } } }\n",
+    ) {
+        return Some(format!(
+            "the sample to run the recorded query in was not written: {error}"
+        ));
     }
     lint_over(sample.path(), vec![rule_of(each)])
         .err()

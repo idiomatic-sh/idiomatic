@@ -30,7 +30,10 @@ pub(in super::super) fn observed(_: &Path) -> Result<bool, Error> {
 }
 
 /// Recompute a complete observation identity from the current physical sources.
-pub(in super::super) fn actual_digest(root: &Path, files: &[std::path::PathBuf]) -> Result<String, Error> {
+pub(in super::super) fn actual_digest(
+    root: &Path,
+    files: &[std::path::PathBuf],
+) -> Result<String, Error> {
     let root = root.canonicalize()?;
     let mut values = std::collections::BTreeMap::new();
     for file in files {
@@ -91,7 +94,9 @@ pub(in super::super) fn stage_executable(path: &Path, executable: bool) -> Resul
 
 /// Unconditional per-attempt verification, including Isolated input mode.
 pub(in super::super) fn validate(request: &RunRequest) -> Result<(), Error> {
-    let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) = &request.file_metadata else {
+    let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) =
+        &request.file_metadata
+    else {
         return Ok(());
     };
     let root = request.root.canonicalize()?;

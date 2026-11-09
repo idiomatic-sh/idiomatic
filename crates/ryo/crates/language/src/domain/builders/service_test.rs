@@ -17,8 +17,8 @@ use crate::domain::elements::service::{
 use crate::domain::elements::types::{Elements, SourceOrder};
 use crate::domain::symbols::service::text_of;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::elements::types::ElementOrigin;
+use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::PropertyId;
 use ryo_relations::domain::relations::types::{KindBits, Offset, Position, ReportText};
 use ryo_relations::domain::terms::types::NameText;

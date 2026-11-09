@@ -1,11 +1,11 @@
 //! The `rules` service's cases, on values alone.
 
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use super::service::{governing, ids_of, owner_of, scopes_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution::inbound::use_cases::metadata::interface::{
     GlobOwner, GlobSide, Mask, ScopePlacement,
 };
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::runs::types::RuleId;
@@ -108,7 +108,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::Governing => {
             let mut read = [0; 3];
-            for (slot, id) in read.iter_mut().zip(governing(&MetadataUseCaseImpl, &Mask(vec![0b101]), &ids())) {
+            for (slot, id) in
+                read.iter_mut()
+                    .zip(governing(&MetadataUseCaseImpl, &Mask(vec![0b101]), &ids()))
+            {
                 *slot = byte(&id.0);
             }
             read

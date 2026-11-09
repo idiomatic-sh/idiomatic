@@ -1,11 +1,9 @@
 //! The ordinary project phase: the phase opened, one call that prepares each declared rule within the budget, evaluates the batch
 //! and completes each outcome, then the phase released.
 use super::super::constants::CROSS_RULE_MEMORY;
-use ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 use super::super::errors::CrossFileError;
 use super::super::service::{CrossFile, phase_partials, stopped};
 use super::super::types::{OrdinaryOutcome, OrdinaryRun, ProjectOutcome};
-use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use crate::domain::budget::service::within;
 use crate::domain::crossing::service::inapplicable_files;
 use crate::domain::crossing::service::refused_files;
@@ -21,8 +19,10 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecutio
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage as _;
 use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::service::failed;
+use ryo_values::domain::table_words::constants::LIFECYCLE_TARGET;
 
 impl CrossFile {
     /// Makes the ordinary rules that cross files in one phase: they are independent of one another and share one interpreter and
@@ -36,7 +36,9 @@ impl CrossFile {
         let Some(first_rule) = run.todo.first() else {
             return Ok(None);
         };
-        within(memory.resident_bytes()?, run.budget, || vec![first_rule.id.clone()])?;
+        within(memory.resident_bytes()?, run.budget, || {
+            vec![first_rule.id.clone()]
+        })?;
         // All ordinary project rules use the same interpreter and symbol generation.
         let mut cross = Symbols::default();
         let crossing = &run.crossing;
@@ -109,7 +111,8 @@ impl CrossFile {
         // Every scope and outcome of the phase is released above, so the phase owns its publication alone again.
         let finished = stage.finish();
         // The caller keeps an earlier rule or budget failure over a refusal of the phase's release.
-        let finished = finished.map_err(|error| CrossFileError::from(failed(&first_rule.id, &error)));
+        let finished =
+            finished.map_err(|error| CrossFileError::from(failed(&first_rule.id, &error)));
         Ok(Some(OrdinaryOutcome {
             outcomes,
             refused,

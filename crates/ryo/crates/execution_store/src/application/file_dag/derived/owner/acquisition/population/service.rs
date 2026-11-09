@@ -66,7 +66,11 @@ impl DerivedOwner {
             Arc::as_ptr(plan) as usize,
             ids.map(|id| (id.0 != usize::MAX).then_some(id.0)),
         );
-        route_counts::event(&self.routes, constants::OWNER_REQUEST, route_counts::derived(plan.kind));
+        route_counts::event(
+            &self.routes,
+            constants::OWNER_REQUEST,
+            route_counts::derived(plan.kind),
+        );
         {
             let mut state = self.state.borrow_mut();
             let required = populations
@@ -126,7 +130,11 @@ impl DerivedOwner {
                     .expect(constants::EXPECT_EXISTING_VIEW)
                     .lease = Arc::downgrade(handle.lease());
                 state.hits += 1;
-                route_counts::event(&self.routes, constants::OWNER_HIT, route_counts::derived(plan.kind));
+                route_counts::event(
+                    &self.routes,
+                    constants::OWNER_HIT,
+                    route_counts::derived(plan.kind),
+                );
                 if let Some(cache) = cache.as_deref_mut() {
                     if stored_observation == StoredObservation::Observed
                         && plan.kind == DerivedKind::Equality

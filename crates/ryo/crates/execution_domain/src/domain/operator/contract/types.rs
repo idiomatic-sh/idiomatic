@@ -1,15 +1,15 @@
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
-use crate::domain::operating::types::PrimitiveSemantics;
 use super::views::{PredicateProgram, ValidatedSource};
-use crate::domain::table_reach::borrowed::IndexedRows;
 use crate::domain::operating::errors::OperatingError;
+use crate::domain::operating::types::PrimitiveSemantics;
+use crate::domain::table_reach::borrowed::IndexedRows;
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::Inputs;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_operators::types::OperationKind;
 
 /// The finite existing semantic input shapes; dependency acquisition is engine work.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -225,9 +225,7 @@ pub trait PrimitiveResources {
     /// The native join lookup, while its derived acquisition is held.
     fn native_join(&self) -> Option<super::views::NativeJoin<'_>>;
     /// The prepared depth-first search, when the operation runs one.
-    fn dfs(
-        &self,
-    ) -> Result<Option<&ryo_derived::domain::dfs::types::PreparedDfs>, OperatingError>;
+    fn dfs(&self) -> Result<Option<&ryo_derived::domain::dfs::types::PreparedDfs>, OperatingError>;
     /// The cycle adjacency, when the operation reads one.
     fn cycles(
         &self,

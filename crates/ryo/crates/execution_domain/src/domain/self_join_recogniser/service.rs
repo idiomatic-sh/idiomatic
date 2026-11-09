@@ -239,8 +239,13 @@ fn recognize<'a>(
         }
         projected_left.push(projected.column);
     }
-    let origins = number_origins(plan, Input::Step(source), a.column, StepPlace(join.0 as usize))
-        .ok_or(Decline::UnprovenNumberOrigin)?;
+    let origins = number_origins(
+        plan,
+        Input::Step(source),
+        a.column,
+        StepPlace(join.0 as usize),
+    )
+    .ok_or(Decline::UnprovenNumberOrigin)?;
     Ok(Shape {
         plan: PlanIdentity(std::ptr::from_ref(plan).addr()),
         source,

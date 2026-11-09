@@ -1,7 +1,9 @@
 //! What the schemas of what the files handed accept: readiness and proofs read back as they were written.
 
 use super::{rest_bytes, rest_from};
-use crate::outbound::lint_store::adapters::postcard::buckets::schemas::{bucket_bytes, bucket_from};
+use crate::outbound::lint_store::adapters::postcard::buckets::schemas::{
+    bucket_bytes, bucket_from,
+};
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stores::types::{StoredHanded, StoredWords};
 

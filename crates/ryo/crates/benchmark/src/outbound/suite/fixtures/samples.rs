@@ -1,10 +1,12 @@
 //! Sample requests, cases, inventories and observation rows the suite contract and its fake run over.
 
 /// A request that declares no file metadata.
-pub fn request(root: &std::path::Path) -> ryo_benchmark_contracts::domain::requests::types::RunRequest {
+pub fn request(
+    root: &std::path::Path,
+) -> ryo_benchmark_contracts::domain::requests::types::RunRequest {
     use ryo_benchmark_contracts::domain::requests::types::{
-        CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration, RuleContextPreparation,
-        RunRequest, SearchRoots, StagedSources,
+        CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
+        RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
     };
     RunRequest {
         performance: Default::default(),

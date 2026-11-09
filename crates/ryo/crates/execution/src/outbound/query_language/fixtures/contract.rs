@@ -52,9 +52,17 @@ pub fn check(adapter: &impl QueryLanguagePort) {
     // the modules the first left parsed.
     let in_session = |text| {
         let mut modules = ParsedModules::default();
-        let first = adapter.compile_parsed(&text, &mut modules, &[], &[]).map(|_| true);
-        let again = adapter.compile_parsed(&text, &mut modules, &[], &[]).map(|_| true);
-        assert_eq!(first.is_ok(), again.is_ok(), "a later compile of the session answers as the first");
+        let first = adapter
+            .compile_parsed(&text, &mut modules, &[], &[])
+            .map(|_| true);
+        let again = adapter
+            .compile_parsed(&text, &mut modules, &[], &[])
+            .map(|_| true);
+        assert_eq!(
+            first.is_ok(),
+            again.is_ok(),
+            "a later compile of the session answers as the first"
+        );
         first
     };
     run(CASES, Word::Succeeds, in_session);

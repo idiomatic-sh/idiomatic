@@ -217,12 +217,11 @@ fn compare(
     if suite.language.0 != constants::PYTHON || !(2..=3).contains(&suite.projects.len()) {
         return Err(Error::Invalid(constants::PROJECT_COUNT_ERROR.into()));
     }
-    let evidence: Arc<dyn EvidencePort> = Arc::new(
-        ryo_benchmark::outbound::evidence::factory::bmf(
+    let evidence: Arc<dyn EvidencePort> =
+        Arc::new(ryo_benchmark::outbound::evidence::factory::bmf(
             Box::new(std::io::stdout()),
             Box::new(std::io::stderr()),
-        ),
-    );
+        ));
     let profile = if matches!(
         command.0,
         constants::MEASURE_VALID | constants::MEASURE_ACCOUNTED_VALID

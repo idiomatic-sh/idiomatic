@@ -1,9 +1,9 @@
 //! The globset adapter of the matching port: the port's contract rows run through it, then the cases specific to it.
 
 use super::adapter::MatchingGlobsetAdapter;
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::matching::fixtures::contract::{CASES as CONTRACT, answer};
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 type Input = (&'static [&'static str], &'static str);
 type Value = usize;

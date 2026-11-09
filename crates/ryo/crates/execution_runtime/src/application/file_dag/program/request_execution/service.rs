@@ -3,6 +3,7 @@ use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::frontiers::service::PreparationPolicy;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
+use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
 use crate::application::file_dag::program::file_session::interface::FileExecution;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::EmittedRoot;
@@ -10,38 +11,39 @@ use crate::application::file_dag::program::file_session::types::FileEnd;
 use crate::application::file_dag::program::file_session::types::FileInput;
 use crate::application::file_dag::program::file_session::types::FileRules;
 use crate::application::file_dag::program::file_session::types::FileRunInput;
+use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::file_session::types::FileStop;
+use crate::application::file_dag::program::file_session::types::KindSupport;
+use crate::application::file_dag::program::file_session::types::RanRule;
 use crate::application::file_dag::program::file_session::types::RuleAfter;
 use crate::application::file_dag::program::file_session::types::RuleFile;
-use crate::application::file_dag::program::file_session::types::RanRule;
-use crate::application::file_dag::program::file_session::types::SourceRows;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_domain::domain::finish::types::Arena;
-use ryo_execution_domain::domain::rule_intent::types::{DiagnosticDelivery, EmitDemand, FileRuleIntent, RuleDemand};
-use crate::outbound::facts::errors::FactsError;
-use crate::outbound::facts::interface::FactsWorker;
-use crate::outbound::facts::types::WordsToKeep;
-use std::cell::RefCell;
-use crate::application::file_dag::program::file_session::types::KindSupport;
 use crate::application::file_dag::program::file_session::types::SemanticSupport;
-use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::file_session::types::SessionParts;
 use crate::application::file_dag::program::file_session::types::SourceLanguage;
+use crate::application::file_dag::program::file_session::types::SourceRows;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
+use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use crate::application::file_dag::program::project_phase::types::FrontierDemand;
+use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
-use crate::application::file_dag::program::project_phase::types::FrontierDemand;
-use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::outbound::facts::errors::FactsError;
+use crate::outbound::facts::interface::FactsWorker;
 use crate::outbound::facts::types::ResidentStability;
+use crate::outbound::facts::types::WordsToKeep;
+use ryo_execution_domain::domain::finish::types::Arena;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::rule_intent::types::{
+    DiagnosticDelivery, EmitDemand, FileRuleIntent, RuleDemand,
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;
-use std::sync::Arc;
-use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_values::domain::files::types::CorpusInput;
+use std::cell::RefCell;
+use std::sync::Arc;
 impl ExecutionRequest for RequestExecution {
     fn observations<'a>(
         &'a self,
@@ -73,7 +75,8 @@ impl ExecutionRequest for RequestExecution {
         input: FileInput<'a, 'facts>,
         symbols: &mut Symbols,
     ) -> Result<FileSession<'a, 'facts>, OperatingError> {
-        self.open_session(input, symbols).map(|parts| FileSession { parts })
+        self.open_session(input, symbols)
+            .map(|parts| FileSession { parts })
     }
     fn run_file(
         &self,
@@ -105,7 +108,9 @@ impl RequestExecution {
     ) -> Result<PreparedFrontiers, PreparationError> {
         let policy = match input.demand {
             FrontierDemand::Diagnostic => PreparationPolicy::Diagnostic,
-            FrontierDemand::Observations { ready } => PreparationPolicy::Observations { ready: &ready.0 },
+            FrontierDemand::Observations { ready } => {
+                PreparationPolicy::Observations { ready: &ready.0 }
+            }
         };
         self.frontiers.prepared(
             &self.program,
@@ -169,7 +174,7 @@ impl RequestExecution {
         })
     }
     /// Sessions exist only inside the crate-private `ProjectPhase::evaluate`, one per declared root, which only
-/// `ProjectRootExecution::evaluate_occurrences` calls.
+    /// `ProjectRootExecution::evaluate_occurrences` calls.
     pub(crate) fn open_project<'a>(
         &'a self,
         input: ProjectInput<'a>,
@@ -281,9 +286,10 @@ fn run_file(
         let outcome = session.rule(rule, demand, symbols);
         let (emit, after) = match outcome {
             Err(error) => (EmittedRoot::Withheld, stopped(error, &refused)),
-            Ok(_) if refused.borrow().is_some() => {
-                (EmittedRoot::Withheld, stopped(OperatingError::NotRead, &refused))
-            }
+            Ok(_) if refused.borrow().is_some() => (
+                EmittedRoot::Withheld,
+                stopped(OperatingError::NotRead, &refused),
+            ),
             Ok(outcome) => {
                 let emit = if emits {
                     EmittedRoot::Delivered(outcome.emit)
@@ -329,7 +335,11 @@ fn run_file(
 
 /// The stop of a rule: the facts' own refusal when a read of them was refused, else the engine's `error`.
 fn stopped(error: OperatingError, refused: &RefCell<Option<FactsError>>) -> RuleAfter {
-    RuleAfter::Stopped(refused.take().map_or(FileStop::Operating(error), FileStop::Facts))
+    RuleAfter::Stopped(
+        refused
+            .take()
+            .map_or(FileStop::Operating(error), FileStop::Facts),
+    )
 }
 
 /// What a rule does after its emitted root: its frontiers captured, each one captured kept in `facts` and committed, and its steps

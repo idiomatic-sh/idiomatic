@@ -1,8 +1,8 @@
 //! Restore demanded file roots through the same request owner, once per physical bucket.
-use crate::application::file_dag::observations::types::CrossRoot;
 use crate::application::file_dag::observations::cross::incomplete;
+use crate::application::file_dag::observations::types::CrossRoot;
 use crate::application::file_dag::observations::types::{
-    FrontierCompatibility, CrossPublications, FileFrontiers, FrontierPopulation, FrontierSlot,
+    CrossPublications, FileFrontiers, FrontierCompatibility, FrontierPopulation, FrontierSlot,
     PreparedFrontier, RuleSelection,
 };
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
@@ -61,7 +61,9 @@ impl CrossPublications<'_> {
         prepared: &PreparedFrontier,
         readiness: &FrontierPopulation<'_>,
     ) -> Result<(), OperatingError> {
-        if frontier_compatible(slot, readiness, prepared.token.coverage())? == FrontierCompatibility::Incompatible {
+        if frontier_compatible(slot, readiness, prepared.token.coverage())?
+            == FrontierCompatibility::Incompatible
+        {
             return Err(incomplete());
         }
         let entry = self.metadata.frontiers.get(slot.0).ok_or_else(incomplete)?;
@@ -122,7 +124,10 @@ pub(crate) fn frontier_readiness<'a>(
         .map(|file| {
             let frame = indexed.get(&file.0).ok_or_else(incomplete)?;
             validate_frontiers(frame, metadata.layout, count)
-                .map(|frontiers| FileFrontiers { file: *file, frontiers })
+                .map(|frontiers| FileFrontiers {
+                    file: *file,
+                    frontiers,
+                })
                 .map_err(|_| incomplete())
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -176,9 +181,11 @@ pub(crate) fn restore_frontiers(
     use crate::application::file_dag::program::facade_runtime;
     use ryo_values::domain::stored_facts::types::Bucket;
 
-        // One set of inapplicable files and of refused files per rule, or none for the whole run.
+    // One set of inapplicable files and of refused files per rule, or none for the whole run.
     let rules = program.program().rules().len();
-    if (!inapplicable.is_empty() && inapplicable.len() != rules) || (!refused.is_empty() && refused.len() != rules) {
+    if (!inapplicable.is_empty() && inapplicable.len() != rules)
+        || (!refused.is_empty() && refused.len() != rules)
+    {
         return Err(OperatingError::NotRun);
     }
     let metadata = program
@@ -256,7 +263,9 @@ pub(crate) fn restore_frontiers(
             entry.insert(restored);
         }
         match physical.get(&bucket).ok_or(OperatingError::NotRun)? {
-            Ok(prepared) => publications.install_frontier(FrontierSlot(slot), prepared, &readiness)?,
+            Ok(prepared) => {
+                publications.install_frontier(FrontierSlot(slot), prepared, &readiness)?
+            }
             Err(OperatingError::ObservationIncomplete { .. }) => (),
             Err(error) => return Err(error.clone()),
         }

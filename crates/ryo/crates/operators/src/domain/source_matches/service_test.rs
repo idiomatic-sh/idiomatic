@@ -1,18 +1,19 @@
 //! Exact physical spans, CRLF lines, capture refusals and interruption prefixes.
 use super::service::occurrences;
-use crate::domain::contract::types::{PortableOperatorFault};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::errors::ContractError;
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::source_matches::types::{
     BaseLine, CaptureRequest, LineBytes, SourceBase, SourceMatchesInput, TextRowDriver,
 };
-use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
-use ryo_values::domain::row_texts::types::CellText;
 use ryo_matching::inbound::use_cases::matching::{
-    interface::MatchingUseCase, types::{GroupName, RegexSource, SearchText},
+    interface::MatchingUseCase,
+    types::{GroupName, RegexSource, SearchText},
     use_case::MatchingUseCaseImpl,
 };
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
+use ryo_values::domain::row_texts::types::CellText;
 #[derive(Clone, Copy)]
 enum Scenario {
     Lines,

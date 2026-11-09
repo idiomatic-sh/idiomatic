@@ -1,6 +1,6 @@
 //! The worker request document carries every explicit input of the invocation.
-use crate::outbound::linter::adapters::ryo::types::RequestJson;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::outbound::linter::adapters::ryo::types::RequestJson;
 use ryo_benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, QueryModuleName, RuleLabel, WorkerRequest,
 };
@@ -50,18 +50,20 @@ fn listed_context_request() -> WorkerRequest {
     let mut request = crate::outbound::worker::fixtures::data::request();
     request.project_context_mode =
         ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
-    request.context_manifest = ContextSeal::Sealed(ryo_benchmark_contracts::domain::context::types::ContextManifest {
-        boundary: "/snapshot".into(),
-        logical_root: "pkg".into(),
-        auxiliary_files: std::collections::BTreeMap::from([(
-            "pkg/__init__.py".into(),
-            ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
-                "auxiliary-hash".into(),
-            ),
-        )]),
-        source_files: std::collections::BTreeMap::new(),
-        missing: vec!["__init__.py".into()],
-    });
+    request.context_manifest = ContextSeal::Sealed(
+        ryo_benchmark_contracts::domain::context::types::ContextManifest {
+            boundary: "/snapshot".into(),
+            logical_root: "pkg".into(),
+            auxiliary_files: std::collections::BTreeMap::from([(
+                "pkg/__init__.py".into(),
+                ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+                    "auxiliary-hash".into(),
+                ),
+            )]),
+            source_files: std::collections::BTreeMap::new(),
+            missing: vec!["__init__.py".into()],
+        },
+    );
     request
 }
 fn listed_context_is_transported(value: &serde_json::Value) -> bool {

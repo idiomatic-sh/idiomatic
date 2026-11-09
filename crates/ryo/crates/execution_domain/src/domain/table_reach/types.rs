@@ -53,7 +53,6 @@ pub struct OrderedWalk {
     pub examined: EdgesExamined,
 }
 
-
 /// The cursor of one active stack frame of the depth-first walk: the next edge and the end of its edges.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AdjacencyCursor(pub std::ops::Range<usize>);

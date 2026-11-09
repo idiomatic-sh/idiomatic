@@ -1,8 +1,17 @@
 //! What the languages make of the project: its manifests, the project made now and the files its lookup consulted.
+use super::super::errors::FileAnalysisError;
+use super::super::service::FileAnalysis;
+use super::super::streaming::service::FileVisits;
+use super::super::types::ProjectMaking;
 use crate::domain::project::types::Projected;
+use crate::domain::workers::service::note_slots;
+use crate::domain::workers::types::{FileTotal, FreshNotes, ProjectHandle};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::types::PathStat;
 use crate::outbound::language::types::ProjectToRead;
+use crate::outbound::language::types::{ManifestReading, ProjectNotes};
+use crate::outbound::scheduler::errors::SchedulerError;
+use crate::outbound::scheduler::types::{JobCount, JobNumber};
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase as _;
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
@@ -17,15 +26,6 @@ use ryo_values::domain::runs::types::ManifestRefused;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stored_facts::types::ReadInPart;
 use ryo_values::domain::stores::types::StoredFile;
-use super::super::errors::FileAnalysisError;
-use super::super::service::FileAnalysis;
-use super::super::streaming::service::FileVisits;
-use super::super::types::ProjectMaking;
-use crate::domain::workers::service::note_slots;
-use crate::domain::workers::types::{FileTotal, FreshNotes, ProjectHandle};
-use crate::outbound::language::types::{ManifestReading, ProjectNotes};
-use crate::outbound::scheduler::errors::SchedulerError;
-use crate::outbound::scheduler::types::{JobCount, JobNumber};
 
 impl FileAnalysis {
     /// Reads primary inventoried manifests once before project preparation, retaining genuine read failures.
@@ -185,7 +185,8 @@ impl FileVisits {
         for input in run.files {
             let detail = match input {
                 CorpusInput::ReadFailed { reason, .. } | CorpusInput::Unreadable { reason, .. }
-                    if self.analysis.language.reads_manifest(input_path(input)) == ManifestReading::Read =>
+                    if self.analysis.language.reads_manifest(input_path(input))
+                        == ManifestReading::Read =>
                 {
                     reason
                 }
@@ -205,7 +206,8 @@ impl FileVisits {
             .map(|file| input_path(file).clone())
             .chain(now.unlisted.iter().cloned())
             .collect();
-        now.unknowns = MetadataUseCaseImpl.project_unknowns(&now.partials, &named, run.needs, run.ids);
+        now.unknowns =
+            MetadataUseCaseImpl.project_unknowns(&now.partials, &named, run.needs, run.ids);
         Ok(Ok(now))
     }
 
@@ -222,11 +224,8 @@ impl FileVisits {
             let analysis = &self.analysis;
             let made = &mut projected;
             let mut job: Box<dyn FnMut(JobNumber) + Send + '_> = Box::new(move |_| {
-                *made = Some(analysis.project_now(
-                    input,
-                    &mut project.symbols,
-                    &mut *project.facts,
-                ));
+                *made =
+                    Some(analysis.project_now(input, &mut project.symbols, &mut *project.facts));
             });
             self.scheduler
                 .run(std::slice::from_mut(&mut job), JobCount(1))?;

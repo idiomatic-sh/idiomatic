@@ -11,13 +11,13 @@ use ryo::linter::{
 };
 use ryo_benchmark_contracts::domain::context::types::CaseContext;
 use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
-use ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride;
 use ryo_benchmark_contracts::domain::requests::types::{
     CohortSelection, FileMetadataDeclaration, InputDeclaration, SearchRoots,
 };
 use ryo_benchmark_contracts::domain::workloads::types::Case as SuiteCase;
 use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
 use ryo_benchmark_contracts::domain::workloads::types::Cases;
+use ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride;
 use ryo_benchmark_contracts::domain::workloads::types::Expected;
 use ryo_benchmark_contracts::domain::workloads::types::ExpectedRule;
 use ryo_benchmark_contracts::domain::workloads::types::benchmark_case_name::value::BenchmarkCaseName;
@@ -148,7 +148,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(explicit_missing(), |case| {
-                let ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(context) = &mut case.context else {
+                let ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(
+                    context,
+                ) = &mut case.context
+                else {
                     panic!("explicit missing context");
                 };
                 context.missing.clear();

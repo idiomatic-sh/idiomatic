@@ -28,7 +28,7 @@ impl ryo_derived::domain::row_cells::types::RowCells for CompleteTableRows<'_> {
         column: ryo_values::domain::plan_parts::types::ColumnIndex,
     ) -> Option<Value> {
         ryo_values::domain::rows::service::row_in(self.0, row)?
-        .get(column.0 as usize)
-        .copied()
+            .get(column.0 as usize)
+            .copied()
     }
 }

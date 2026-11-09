@@ -1,24 +1,23 @@
 //! A project phase: roots evaluated in declaration order over the request.
+use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage;
-use crate::application::file_dag::program::project_phase::types::ProjectPhase;
-use crate::application::file_dag::program::project_phase::types::PhaseScope;
-use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::project_phase::types::OccurrenceNumber;
 use crate::application::file_dag::program::project_phase::types::PhaseOccurrence;
 use crate::application::file_dag::program::project_phase::types::PhaseOccurrences;
-use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::project_phase::types::PhasePartials;
+use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::PhaseStop;
 use crate::application::file_dag::program::project_phase::types::PreparedOccurrence;
-use crate::application::file_dag::program::project_phase::types::ReadyOccurrence;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
-use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
+use crate::application::file_dag::program::project_phase::types::ProjectPhase;
+use crate::application::file_dag::program::project_phase::types::ProjectTask;
+use crate::application::file_dag::program::project_phase::types::ReadyOccurrence;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
 use ryo_execution_domain::domain::coverage::types::RefusedFiles;
@@ -26,6 +25,7 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
 use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
+use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
@@ -37,7 +37,12 @@ impl ProjectRootExecution for ProjectPhase<'_> {
         mut before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
         mut partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
-        mut complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, E>,
+        mut complete: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            PublicationSlot,
+            &mut Symbols,
+        ) -> Result<T, E>,
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
         let prepared = phase
             .occurrences
@@ -115,7 +120,8 @@ impl ProjectRootExecution for ProjectPhase<'_> {
                         continue;
                     };
                     outcome.map_err(PhaseStop::Operating).and_then(|outcome| {
-                        complete(OccurrenceNumber(at), outcome, ready.slot, symbols).map_err(PhaseStop::Caller)
+                        complete(OccurrenceNumber(at), outcome, ready.slot, symbols)
+                            .map_err(PhaseStop::Caller)
                     })
                 }
             };
@@ -206,7 +212,10 @@ impl ProjectPhase<'_> {
         symbols: &mut Symbols,
     ) -> Result<PreparedOccurrence<'o>, PhaseStop<E>> {
         let rule = occurrence.rule;
-        let first = *phase.first.get(rule.0).ok_or(PhaseStop::MissingFirstBucket)?;
+        let first = *phase
+            .first
+            .get(rule.0)
+            .ok_or(PhaseStop::MissingFirstBucket)?;
         let inapplicable = phase
             .inapplicable
             .get(rule.0)
@@ -216,7 +225,14 @@ impl ProjectPhase<'_> {
             .get(rule.0)
             .ok_or(PhaseStop::Operating(OperatingError::NotRun))?;
         let scope = self
-            .project_scope(rule, phase.corpus, phase.covered, phase.skipped, inapplicable, refused)
+            .project_scope(
+                rule,
+                phase.corpus,
+                phase.covered,
+                phase.skipped,
+                inapplicable,
+                refused,
+            )
             .map_err(PhaseStop::Operating)?;
         let frontier = self
             .request

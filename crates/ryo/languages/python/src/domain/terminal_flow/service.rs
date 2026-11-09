@@ -1,4 +1,5 @@
 //! One reverse-preorder fold for every function and compound statement.
+use super::constants;
 use crate::domain::{
     extras::types::Extra,
     fields::service::field_of,
@@ -14,7 +15,6 @@ use crate::domain::{
 };
 use ryo::languages::{self, NameText, Position, Tree};
 use std::cell::{Ref, RefCell};
-use super::constants;
 
 /// Reset the retained terminal summaries before processing a fresh tree.
 pub(crate) fn clear(index: &mut TerminalIndex) {
@@ -65,7 +65,9 @@ fn sequence(tree: &Tree<'_>, nodes: &[NodeSummary], at: Position, field: Field) 
 fn has_return(value: TerminalOutcome) -> Returns {
     Returns(matches!(
         value,
-        TerminalOutcome::Return | TerminalOutcome::RaiseOrReturn | TerminalOutcome::ConditionalReturn
+        TerminalOutcome::Return
+            | TerminalOutcome::RaiseOrReturn
+            | TerminalOutcome::ConditionalReturn
     ))
 }
 
@@ -341,7 +343,9 @@ fn build(tree: &Tree<'_>, index: &mut TerminalIndex) {
         return;
     }
     index.nodes.resize(length, NodeSummary::default());
-    index.state = if languages::has_incomplete_syntax(tree.elements) == languages::SyntaxCompleteness::Incomplete {
+    index.state = if languages::has_incomplete_syntax(tree.elements)
+        == languages::SyntaxCompleteness::Incomplete
+    {
         IndexState::Partial
     } else {
         IndexState::Complete

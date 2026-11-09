@@ -52,7 +52,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
     };
     let schemas = vec![vec![CellKind::Number]];
     let equality = prepare(
-        DerivedRequest::Equality { columns: vec![ColumnIndex(0)] },
+        DerivedRequest::Equality {
+            columns: vec![ColumnIndex(0)],
+        },
         schemas.clone(),
     );
     let mut room = BuildWorkspace::default();
@@ -77,11 +79,17 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 },
                 vec![vec![CellKind::Number, CellKind::Number]; 2],
             );
-            Ok(usize::from(native_finding(&native, NativeForm::Edges)?.is_some()))
+            Ok(usize::from(
+                native_finding(&native, NativeForm::Edges)?.is_some(),
+            ))
         }
-        Scenario::InputsOfAnotherKindAreRefused => {
-            build(&equality, BuildInputs::Native(NativeForm::Edges), &mut room, None).map(|_| 0)
-        }
+        Scenario::InputsOfAnotherKindAreRefused => build(
+            &equality,
+            BuildInputs::Native(NativeForm::Edges),
+            &mut room,
+            None,
+        )
+        .map(|_| 0),
     }
 }
 

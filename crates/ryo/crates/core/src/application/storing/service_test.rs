@@ -4,23 +4,23 @@ use super::errors::StoringError;
 use super::service::Storing;
 use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::render::types::Answering;
+use crate::domain::storing::types::Decision;
 use crate::outbound::corpus::fixtures::fake::CorpusFake;
 use crate::outbound::lint_store::fixtures::fake::LintStoreFake;
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use crate::outbound::scheduler::fixtures::fake::SchedulerFake;
 use crate::outbound::scheduler::types::WorkerCount;
+use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::{CorpusFile, ExecutablePermission, FileBytes};
-use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::Stored;
-use crate::domain::storing::types::Decision;
 use std::sync::Arc;
 
 /// Which port of the listing a row makes fail.
@@ -137,7 +137,11 @@ fn storing(failing: Failing) -> Storing {
         }),
         Arc::new(MemoryFake {
             fails: matches!(failing, Failing::Memory),
-            available: if matches!(failing, Failing::Budget) { 1 } else { 1 << 30 },
+            available: if matches!(failing, Failing::Budget) {
+                1
+            } else {
+                1 << 30
+            },
             ..MemoryFake::default()
         }),
         Arc::new(SchedulerFake {

@@ -2,10 +2,10 @@
 
 use std::sync::PoisonError;
 
+use super::connection::CollectorConnection;
 use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::row_sink::interface::RowSinkPort;
-use super::connection::CollectorConnection;
-use crate::outbound::row_sink::types::{LentCell, KeptRow, AnswerCounts};
+use crate::outbound::row_sink::types::{AnswerCounts, KeptRow, LentCell};
 use ryo_values::domain::plan_parts::types::Heading;
 use ryo_values::domain::records::service::owned;
 use ryo_values::domain::records::types::Unread;

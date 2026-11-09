@@ -17,11 +17,18 @@ enum Scenario {
     /// A byte-identical staged copy of the measured profile.
     Staged,
     /// The document or its context substitutes an invocation or the canonical profile.
-    Substitution { change: &'static str, reason: &'static str },
+    Substitution {
+        change: &'static str,
+        reason: &'static str,
+    },
     /// The measured profile identity is substituted via the query directory.
     ForeignProfile,
     /// A profile whose `benchmark.toml` is identical but whose source bytes differ.
-    Identical { changed: &'static str, route: Route, reason: &'static str },
+    Identical {
+        changed: &'static str,
+        route: Route,
+        reason: &'static str,
+    },
 }
 
 type Input = Scenario;
@@ -38,85 +45,144 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a substituted executable refuses before launch"),
         word: Word::Refuses,
-        input: || Scenario::Substitution { change: "executable", reason: UNKNOWN_FIELD },
+        input: || Scenario::Substitution {
+            change: "executable",
+            reason: UNKNOWN_FIELD,
+        },
         expect: Expect::Error(Cow::Borrowed(UNKNOWN_FIELD)),
     },
     Case {
         name: CaseName("substituted arguments refuse before launch"),
         word: Word::Refuses,
-        input: || Scenario::Substitution { change: "arguments", reason: UNKNOWN_FIELD },
+        input: || Scenario::Substitution {
+            change: "arguments",
+            reason: UNKNOWN_FIELD,
+        },
         expect: Expect::Error(Cow::Borrowed(UNKNOWN_FIELD)),
     },
     Case {
         name: CaseName("a substituted directory refuses before launch"),
         word: Word::Refuses,
-        input: || Scenario::Substitution { change: "directory", reason: UNKNOWN_FIELD },
+        input: || Scenario::Substitution {
+            change: "directory",
+            reason: UNKNOWN_FIELD,
+        },
         expect: Expect::Error(Cow::Borrowed(UNKNOWN_FIELD)),
     },
     Case {
         name: CaseName("a substituted environment refuses before launch"),
         word: Word::Refuses,
-        input: || Scenario::Substitution { change: "environment", reason: UNKNOWN_FIELD },
+        input: || Scenario::Substitution {
+            change: "environment",
+            reason: UNKNOWN_FIELD,
+        },
         expect: Expect::Error(Cow::Borrowed(UNKNOWN_FIELD)),
     },
     Case {
         name: CaseName("a substituted context refuses before launch"),
         word: Word::Refuses,
-        input: || Scenario::Substitution { change: "context", reason: NAMESPACE },
+        input: || Scenario::Substitution {
+            change: "context",
+            reason: NAMESPACE,
+        },
         expect: Expect::Error(Cow::Borrowed(NAMESPACE)),
     },
     Case {
         name: CaseName("an extra context file refuses before launch"),
         word: Word::Refuses,
-        input: || Scenario::Substitution { change: "extra-context-file", reason: NAMESPACE },
+        input: || Scenario::Substitution {
+            change: "extra-context-file",
+            reason: NAMESPACE,
+        },
         expect: Expect::Error(Cow::Borrowed(NAMESPACE)),
     },
     Case {
         name: CaseName("a foreign canonical profile in the registration refuses before launch"),
         word: Word::Refuses,
-        input: || Scenario::Substitution { change: "foreign-profile", reason: AUTHORITY },
+        input: || Scenario::Substitution {
+            change: "foreign-profile",
+            reason: AUTHORITY,
+        },
         expect: Expect::Error(Cow::Borrowed(AUTHORITY)),
     },
     Case {
-        name: CaseName("the measured profile identity cannot be substituted via the query directory"),
+        name: CaseName(
+            "the measured profile identity cannot be substituted via the query directory",
+        ),
         word: Word::Refuses,
         input: || Scenario::ForeignProfile,
         expect: Expect::Error(Cow::Borrowed(AUTHORITY)),
     },
     Case {
-        name: CaseName("identical profile toml cannot substitute measured query bytes in certification"),
+        name: CaseName(
+            "identical profile toml cannot substitute measured query bytes in certification",
+        ),
         word: Word::Refuses,
-        input: || Scenario::Identical { changed: "rules/A/query.ryoql", route: Route::Certify, reason: ROOT },
+        input: || Scenario::Identical {
+            changed: "rules/A/query.ryoql",
+            route: Route::Certify,
+            reason: ROOT,
+        },
         expect: Expect::Error(Cow::Borrowed(ROOT)),
     },
     Case {
-        name: CaseName("identical profile toml cannot substitute measured query bytes in preparation"),
+        name: CaseName(
+            "identical profile toml cannot substitute measured query bytes in preparation",
+        ),
         word: Word::Refuses,
-        input: || Scenario::Identical { changed: "rules/A/query.ryoql", route: Route::Prepare, reason: ROOT },
+        input: || Scenario::Identical {
+            changed: "rules/A/query.ryoql",
+            route: Route::Prepare,
+            reason: ROOT,
+        },
         expect: Expect::Error(Cow::Borrowed(ROOT)),
     },
     Case {
-        name: CaseName("identical profile toml cannot substitute measured query bytes with foreign rules"),
+        name: CaseName(
+            "identical profile toml cannot substitute measured query bytes with foreign rules",
+        ),
         word: Word::Refuses,
-        input: || Scenario::Identical { changed: "rules/A/query.ryoql", route: Route::Rules, reason: QUERY_CONTEXT },
+        input: || Scenario::Identical {
+            changed: "rules/A/query.ryoql",
+            route: Route::Rules,
+            reason: QUERY_CONTEXT,
+        },
         expect: Expect::Error(Cow::Borrowed(QUERY_CONTEXT)),
     },
     Case {
-        name: CaseName("identical profile toml cannot substitute measured helper bytes in certification"),
+        name: CaseName(
+            "identical profile toml cannot substitute measured helper bytes in certification",
+        ),
         word: Word::Refuses,
-        input: || Scenario::Identical { changed: "helper.ryoql", route: Route::Certify, reason: ROOT },
+        input: || Scenario::Identical {
+            changed: "helper.ryoql",
+            route: Route::Certify,
+            reason: ROOT,
+        },
         expect: Expect::Error(Cow::Borrowed(ROOT)),
     },
     Case {
-        name: CaseName("identical profile toml cannot substitute measured helper bytes in preparation"),
+        name: CaseName(
+            "identical profile toml cannot substitute measured helper bytes in preparation",
+        ),
         word: Word::Refuses,
-        input: || Scenario::Identical { changed: "helper.ryoql", route: Route::Prepare, reason: ROOT },
+        input: || Scenario::Identical {
+            changed: "helper.ryoql",
+            route: Route::Prepare,
+            reason: ROOT,
+        },
         expect: Expect::Error(Cow::Borrowed(ROOT)),
     },
     Case {
-        name: CaseName("identical profile toml cannot substitute measured helper bytes with foreign rules"),
+        name: CaseName(
+            "identical profile toml cannot substitute measured helper bytes with foreign rules",
+        ),
         word: Word::Refuses,
-        input: || Scenario::Identical { changed: "helper.ryoql", route: Route::Rules, reason: MODULE_CONTEXT },
+        input: || Scenario::Identical {
+            changed: "helper.ryoql",
+            route: Route::Rules,
+            reason: MODULE_CONTEXT,
+        },
         expect: Expect::Error(Cow::Borrowed(MODULE_CONTEXT)),
     },
 ];
@@ -142,7 +208,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Staged => staged(),
         Scenario::Substitution { change, reason } => substitution(change, reason),
         Scenario::ForeignProfile => foreign_profile(AUTHORITY),
-        Scenario::Identical { changed, route, reason } => identical(changed, route, reason),
+        Scenario::Identical {
+            changed,
+            route,
+            reason,
+        } => identical(changed, route, reason),
     }
 }
 

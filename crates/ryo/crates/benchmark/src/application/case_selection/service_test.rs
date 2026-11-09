@@ -41,16 +41,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an unsharded inventory selects every case in rule and name order"),
         word: Word::Succeeds,
-        input: || Request { shard: None, ids: None },
+        input: || Request {
+            shard: None,
+            ids: None,
+        },
         expect: Expect::Value(Chosen {
             global: 3,
             names: ['a', 'b', 'c'],
         }),
     },
     Case {
-        name: CaseName("the second of two shards selects the odd positions of the sorted inventory"),
+        name: CaseName(
+            "the second of two shards selects the odd positions of the sorted inventory",
+        ),
         word: Word::Succeeds,
-        input: || Request { shard: Some((1, 2)), ids: None },
+        input: || Request {
+            shard: Some((1, 2)),
+            ids: None,
+        },
         expect: Expect::Value(Chosen {
             global: 3,
             names: ['b', '-', '-'],
@@ -59,7 +67,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a subset inside the shard keeps exactly its cases"),
         word: Word::Succeeds,
-        input: || Request { shard: None, ids: Some(&["a", "c"]) },
+        input: || Request {
+            shard: None,
+            ids: Some(&["a", "c"]),
+        },
         expect: Expect::Value(Chosen {
             global: 3,
             names: ['a', 'c', '-'],
@@ -68,13 +79,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a subset naming a case outside its shard is refused"),
         word: Word::Refuses,
-        input: || Request { shard: Some((1, 2)), ids: Some(&["a"]) },
+        input: || Request {
+            shard: Some((1, 2)),
+            ids: Some(&["a"]),
+        },
         expect: Expect::Error(Refusal::EmptyOrOutside),
     },
     Case {
         name: CaseName("an empty subset is refused"),
         word: Word::Refuses,
-        input: || Request { shard: None, ids: Some(&[]) },
+        input: || Request {
+            shard: None,
+            ids: Some(&[]),
+        },
         expect: Expect::Error(Refusal::EmptyOrOutside),
     },
 ];

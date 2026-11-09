@@ -6,7 +6,7 @@ use super::errors::OpenError;
 use super::interface::OpenUseCase as _;
 use super::types::OpenRequest;
 use super::use_case::OpenUseCaseImpl;
-use crate::cases::{Case, CaseName, Expect, Word, run, Matched, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::language::fixtures::fake::{FakeCatalog, LanguageFake};
 use crate::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_language::inbound::use_cases::project::types::RootPath;
@@ -44,19 +44,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_budget_the_machine_cannot_give_is_refused"),
         word: Word::Refuses,
         input: || Ask::Root(FakeCatalog::Lists, false, u64::MAX),
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, OpenError::Memory { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, OpenError::Memory { .. })))
+        }),
     },
     Case {
         name: CaseName("fails_when_language_port_fails"),
         word: Word::Fails,
         input: || Ask::Root(FakeCatalog::Fails, false, 1024),
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, OpenError::Language { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, OpenError::Language { .. })))
+        }),
     },
     Case {
         name: CaseName("fails_when_memory_cannot_be_read"),
         word: Word::Fails,
         input: || Ask::Root(FakeCatalog::Lists, true, 1024),
-        expect: Expect::Refusal(|error| selects(Matched(matches!(error, OpenError::Memory { .. })))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, OpenError::Memory { .. })))
+        }),
     },
 ];
 
@@ -86,8 +92,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Ask::Declared => {
             use ryo_language::domain::files::types::FilePath;
             use ryo_language::domain::project_context::types::{
-                EntryObservation, ObservedEntryState, GivenProjectInventory, ProjectInventoryCompleteness,
-                ProjectSearchScope,
+                EntryObservation, GivenProjectInventory, ObservedEntryState,
+                ProjectInventoryCompleteness, ProjectSearchScope,
             };
 
             let scope =

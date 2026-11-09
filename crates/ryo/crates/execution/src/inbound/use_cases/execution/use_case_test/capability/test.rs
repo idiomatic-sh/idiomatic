@@ -1,29 +1,29 @@
 //! Recursive producers and roots use the actual injected semantic capability, with terminal refusal.
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
-use super::super::super::fixtures::requests::{Authored, Preparation};
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use super::super::super::fixtures::requests::{Authored, Preparation};
 use crate::inbound::use_cases::execution::interface::CaptureIntent;
 use crate::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::inbound::use_cases::execution::interface::FileRuleIntent;
 use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -105,10 +105,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         projects: AtomicUsize::new(0),
         appends: AtomicUsize::new(0),
     });
-    let engine = Preparation::new(
-        port.clone(),
-        Arc::new(fixtures::derived()),
-    );
+    let engine = Preparation::new(port.clone(), Arc::new(fixtures::derived()));
     let mut plan = inputs::plan(vec![
         Operation::Hosted {
             relation: HostedNumber(0),
@@ -138,7 +135,10 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
     }
     // An authored identity boundary keeps the union a genuine recursive producer.
     plan.frontier.push(Source::Step(StepId(2)));
-    let prepared = engine.prepare(Authored { plans: vec![plan], bindings: vec![vec![]], rules: vec![RuleSpec {
+    let prepared = engine.prepare(Authored {
+        plans: vec![plan],
+        bindings: vec![vec![]],
+        rules: vec![RuleSpec {
             id: RuleId("injected-semantics".into()),
             query: QueryBundle {
                 root: QueryDocumentSource {
@@ -153,10 +153,14 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
             spelled: RuleParameters("".into()),
             include: vec![],
             exclude: vec![],
-        }], digests: vec![Digest([0; 16])], hosted: vec![
+        }],
+        digests: vec![Digest([0; 16])],
+        hosted: vec![
             fixtures::requests::numbers("left", 1, &[&[1], &[1], &[2]]),
             fixtures::requests::numbers("right", 1, &[&[2], &[3]]),
-        ], observations: ObservationIdentity::Independent })?;
+        ],
+        observations: ObservationIdentity::Independent,
+    })?;
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("injected.py".into()),
         executable: ExecutablePermission::Unknown,

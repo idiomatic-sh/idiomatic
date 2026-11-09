@@ -55,11 +55,9 @@ fn complete_ast_semantic_error_does_not_hide_qualified_names() {
 }
 
 /// Each check below states its own source and asserts its own outcome.
-const CHECKS: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("complete_ast_semantic_error_does_not_hide_qualified_names"),
-        word: Word::Succeeds,
-        input: || complete_ast_semantic_error_does_not_hide_qualified_names,
-        expect: Expect::Value(()),
-    },
-];
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("complete_ast_semantic_error_does_not_hide_qualified_names"),
+    word: Word::Succeeds,
+    input: || complete_ast_semantic_error_does_not_hide_qualified_names,
+    expect: Expect::Value(()),
+}];

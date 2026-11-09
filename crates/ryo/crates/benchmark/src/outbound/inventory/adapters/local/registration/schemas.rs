@@ -2,11 +2,13 @@
 use crate::outbound::inventory::adapters::local::types::{CaseText, RegistrationBytes};
 use crate::outbound::inventory::types::{
     Command, ExecutablePin, FilePin, IdentityKey, ProviderName, RegisteredModuleName,
-    RegisteredRule, Registration, RegistrationAuthority, RuleCommand, RuleDefinition,
-    RuleInstance, RuleReason,
+    RegisteredRule, Registration, RegistrationAuthority, RuleCommand, RuleDefinition, RuleInstance,
+    RuleReason,
 };
 use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, ReasonText, RuleName, Sha256Text};
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, ReasonText, RuleName, Sha256Text,
+};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -125,11 +127,9 @@ impl TryFrom<RegisteredRuleSchema> for RegisteredRule {
             sha256: Sha256Text(pin.sha256),
         };
         Ok(Self {
-            definition: wire
-                .definition
-                .map_or(RuleDefinition::Unpinned, |value| {
-                    RuleDefinition::Pinned(pin(value))
-                }),
+            definition: wire.definition.map_or(RuleDefinition::Unpinned, |value| {
+                RuleDefinition::Pinned(pin(value))
+            }),
             modules: wire
                 .modules
                 .into_iter()
@@ -148,9 +148,9 @@ impl TryFrom<RegisteredRuleSchema> for RegisteredRule {
                     }
                 })
             }),
-            reason: wire
-                .reason
-                .map_or(RuleReason::Unstated, |reason| RuleReason::Stated(ReasonText(reason))),
+            reason: wire.reason.map_or(RuleReason::Unstated, |reason| {
+                RuleReason::Stated(ReasonText(reason))
+            }),
             cases: wire
                 .cases
                 .iter()
@@ -162,8 +162,6 @@ impl TryFrom<RegisteredRuleSchema> for RegisteredRule {
         })
     }
 }
-
-
 
 impl TryFrom<RegistrationBytes<'_>> for Registration {
     type Error = Error;

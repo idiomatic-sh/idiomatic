@@ -1,4 +1,5 @@
 //! Authored values, rows and the name table the conformance fixtures are built from.
+use super::expectations::SOURCE;
 use ryo_language::domain::semantics::types::RenderOutcome;
 use ryo_language::domain::semantics::types::RenderRequest;
 use ryo_language::domain::symbols::service::query_intern_derived;
@@ -18,7 +19,6 @@ use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
-use super::expectations::SOURCE;
 
 /// A semantic lookup that knows every node it is asked to render.
 #[derive(Clone, Copy, Debug)]
@@ -28,10 +28,15 @@ impl ryo_execution_domain::domain::operating::types::SemanticLookup for KnownSyn
         &self,
         requests: &[RenderRequest],
         _: ryo_values::domain::files::types::SourceView<'_>,
-    ) -> Result<Vec<RenderOutcome>, ryo_execution_domain::domain::operating::errors::OperatingError> {
+    ) -> Result<Vec<RenderOutcome>, ryo_execution_domain::domain::operating::errors::OperatingError>
+    {
         Ok(requests
             .iter()
-            .map(|_| RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(Arc::from("a"))))
+            .map(|_| {
+                RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(
+                    Arc::from("a"),
+                ))
+            })
             .collect())
     }
 }

@@ -8,8 +8,8 @@ pub(crate) mod parsing;
 pub(crate) mod project;
 pub(crate) mod replaying;
 pub(crate) mod semantic;
-pub(crate) mod streaming;
 pub mod service;
 #[cfg(test)]
 mod service_test;
+pub(crate) mod streaming;
 pub mod types;

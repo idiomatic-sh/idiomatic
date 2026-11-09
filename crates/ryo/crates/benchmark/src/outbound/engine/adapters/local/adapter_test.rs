@@ -1,8 +1,10 @@
 //! The concrete local implementation executes the complete shared contract, and its event writer keeps its records.
+use super::writer::{
+    self, DiagnosticEventWriter, RULE_FILE_TARGET, RULE_STEP_TARGET, open, subscriber,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::fixtures::contract::check;
 use std::io::Write as _;
-use super::writer::{self, DiagnosticEventWriter, RULE_FILE_TARGET, RULE_STEP_TARGET, open, subscriber};
 use tracing_subscriber::fmt::writer::MakeWriter as _;
 
 fn concrete_implementation_answers_the_shared_contract() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,7 +14,6 @@ fn concrete_implementation_answers_the_shared_contract() -> Result<(), Box<dyn s
     ));
     Ok(())
 }
-
 
 fn event_writer_flushes_complete_lines_for_live_diagnostics()
 -> Result<(), Box<dyn std::error::Error>> {
@@ -197,7 +198,8 @@ fn lifecycle_profile_excludes_per_file_steps_and_other_aggregates()
         &path,
         ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
             execution: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
-            lifecycle_memory: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
+            lifecycle_memory:
+                ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
             ..Default::default()
         },
     )?);
@@ -227,7 +229,11 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
         let dispatch = tracing::Dispatch::new(writer::subscriber(
             &path,
             ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-                resource_routes: if enabled { ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On } else { ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::Off },
+                resource_routes: if enabled {
+                    ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
+                } else {
+                    ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::Off
+                },
                 ..Default::default()
             },
         )?);
@@ -251,7 +257,6 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
     }
     Ok(())
 }
-
 
 type Scenario = fn() -> Result<(), Box<dyn std::error::Error>>;
 type Input = Scenario;
@@ -307,10 +312,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
 ];
-#[expect(
-    clippy::expect_used,
-    reason = "a failed scenario must fail the test"
-)]
+#[expect(clippy::expect_used, reason = "a failed scenario must fail the test")]
 fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario().expect("the scenario holds");
     Ok(())

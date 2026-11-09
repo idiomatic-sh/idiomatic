@@ -3,13 +3,13 @@ use super::types::{DerivedMembership, MarkSpace};
 use crate::domain::fault::types::DerivedFault;
 use crate::domain::row_cells::types::RowCells;
 use crate::domain::sharing::types::SharedMarks;
-use std::sync::Arc;
 use ryo_relations::domain::relations::{
     service::{node_file, node_position},
     types::Value,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;
+use std::sync::Arc;
 
 /// Collects the values of a column and marks them in the space.
 pub(crate) fn build(

@@ -14,8 +14,10 @@ fn check(received: &str) -> bool {
     let mut worker_request = request();
     worker_request.parser_configuration =
         ParserSelection::Named(ParserConfigurationName(received.into()));
-    worker_request.rule_applicability =
-        BTreeMap::from([(RuleLabel("EXE004".into()), ApplicabilityPolicy("always".into()))]);
+    worker_request.rule_applicability = BTreeMap::from([(
+        RuleLabel("EXE004".into()),
+        ApplicabilityPolicy("always".into()),
+    )]);
     let expectation = WorkerExpectation {
         parser_configuration: ParserConfigurationName("python-target=3.10".into()),
         pinned_applicability: BTreeMap::new(),

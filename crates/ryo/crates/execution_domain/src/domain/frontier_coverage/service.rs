@@ -43,9 +43,7 @@ pub fn file_frontier_coverage(
 }
 
 /// What a frontier proof says is missing, from what a coverage says of its file.
-fn frontier_missing(
-    missing: MissingRows,
-) -> ryo_values::domain::records::types::FrontierMissing {
+fn frontier_missing(missing: MissingRows) -> ryo_values::domain::records::types::FrontierMissing {
     use ryo_values::domain::records::types::FrontierMissing;
     match missing {
         MissingRows::Any => FrontierMissing::Any,
@@ -81,9 +79,7 @@ pub fn restored_lacks(
 }
 
 /// What a coverage says is missing, from what a frontier proof says of its file.
-fn coverage_missing(
-    missing: &ryo_values::domain::records::types::FrontierMissing,
-) -> MissingRows {
+fn coverage_missing(missing: &ryo_values::domain::records::types::FrontierMissing) -> MissingRows {
     use ryo_values::domain::records::types::FrontierMissing;
     match missing {
         FrontierMissing::Any => MissingRows::Any,
@@ -98,9 +94,7 @@ fn coverage_missing(
 }
 
 /// The files a coverage lacks input of, an inapplicable one as the file it is; none when nothing lacks input.
-pub fn affected_files(
-    coverage: &CoverageState,
-) -> Option<Vec<Option<FileId>>> {
+pub fn affected_files(coverage: &CoverageState) -> Option<Vec<Option<FileId>>> {
     match coverage {
         CoverageState::Complete => None,
         CoverageState::Partial { files, .. } => Some(files.clone()),

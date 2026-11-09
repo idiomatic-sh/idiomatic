@@ -3,10 +3,9 @@
 use super::errors::CompileError;
 use super::fixtures::{
     Given, catalog_without_relations, comparing_text_with_a_number, emitting_a_step_nobody_defined,
-    failing_catalog, same_text_twice, text_the_fake_refuses, text_the_fake_reads,
+    failing_catalog, same_text_twice, text_the_fake_reads, text_the_fake_refuses,
 };
 use super::interface::CompileUseCase;
-use ryo_values::domain::plans::types::QueryRequest;
 use super::use_case::CompileUseCaseImpl;
 use crate::cases::Case;
 use crate::cases::CaseName;
@@ -23,6 +22,7 @@ use ryo_values::domain::observations::types::{
 };
 use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::plan_parts::types::StepScope;
+use ryo_values::domain::plans::types::QueryRequest;
 use std::sync::Arc;
 
 /// What a row gives the use case.

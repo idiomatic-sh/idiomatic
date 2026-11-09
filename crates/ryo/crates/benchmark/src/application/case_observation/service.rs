@@ -1,27 +1,41 @@
 //! Convert one verification outcome into a durable boundary-owned observation.
-use crate::domain::process_failure::types::CaptureRecord;
 use crate::domain::canonical_text::types::Label;
-use crate::domain::process_output::types::ReceiptKeyParts;
 use crate::domain::discrepancy::types::{
     Contestant, OptionalDigest, ReferenceKind, ReferenceProof,
 };
+use crate::domain::process_failure::types::CaptureRecord;
+use crate::domain::process_output::types::ReceiptKeyParts;
 use crate::outbound::context::interface::ContextPort;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::Pin;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::receipts::types::{CapturedProcess, CaseReceipts, ReceiptPath};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{ExpectedFindings, RecordedFinding, FindingOffset, SkippedPair};
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProcessArtifactsRecord, ProcessRecord, ProjectContextRecord, RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, ValidationRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity, ToolContractRecord};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText, ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo};
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{DiscrepancyValidation, ExpectationKind};
-use ryo_benchmark_contracts::domain::requests::types::{
-    ContextSeal, CohortSelection, InputDeclaration, RuleContextPreparation, SearchRoots,
+use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+    ExpectedFindings, FindingOffset, RecordedFinding, SkippedPair,
+};
+use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+    ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument,
+    ProcessArtifactsRecord, ProcessRecord, ProjectContextRecord, RecordedMetadata, RecordedReason,
+    ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, RuleCohort, RuleContextRecord,
+    RuleObservationsRecord, SourceIdentity, ToolContractRecord, ValidationRecord,
+};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+    DiscrepancyValidation, ExpectationKind,
+};
+use ryo_benchmark_contracts::domain::documents::types::text::value::Pin;
+use ryo_benchmark_contracts::domain::documents::types::text::value::{
+    CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText,
+    ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo,
 };
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{CoverageAccounting, ProjectContext, RunReport};
 use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, ComparisonContract};
+use ryo_benchmark_contracts::domain::reports::types::{
+    CoverageAccounting, ProjectContext, RunReport,
+};
+use ryo_benchmark_contracts::domain::requests::types::{
+    CohortSelection, ContextSeal, InputDeclaration, RuleContextPreparation, SearchRoots,
+};
 use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::Path;
@@ -50,7 +64,9 @@ fn pinned(digest: &OptionalDigest) -> Pin {
 fn declared_metadata(digest: &OptionalDigest) -> FileMetadataDigest {
     match digest {
         OptionalDigest::Absent => FileMetadataDigest::Undeclared,
-        OptionalDigest::Pinned(digest) => FileMetadataDigest::Declared(Sha256Text(digest.0.clone())),
+        OptionalDigest::Pinned(digest) => {
+            FileMetadataDigest::Declared(Sha256Text(digest.0.clone()))
+        }
     }
 }
 
@@ -124,9 +140,10 @@ fn bound(
 ) -> InvocationDocument {
     let mut invocation = invocation.clone();
     let (source_pin, metadata_pin) = match &mut invocation {
-        InvocationDocument::Complete(complete) => {
-            (&mut complete.source_sha256, &mut complete.file_metadata_sha256)
-        }
+        InvocationDocument::Complete(complete) => (
+            &mut complete.source_sha256,
+            &mut complete.file_metadata_sha256,
+        ),
         InvocationDocument::Failed(failed) => {
             (&mut failed.source_sha256, &mut failed.file_metadata_sha256)
         }
@@ -191,7 +208,8 @@ pub(crate) fn write(
             &case.request,
         )),
     );
-    let metadata_identity = crate::domain::input_metadata::service::digest(&case.request.file_metadata);
+    let metadata_identity =
+        crate::domain::input_metadata::service::digest(&case.request.file_metadata);
     let project_identity = crate::domain::project_inputs::service::digest(
         match &case.request.project_search_roots {
             SearchRoots::Declared(roots) => Some(roots.as_slice()),
@@ -237,8 +255,12 @@ pub(crate) fn write(
         )
     });
     let basis = match &case.reference_discrepancy {
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(item) => Some(item.basis),
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => None,
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
+            item,
+        ) => Some(item.basis),
+        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => {
+            None
+        }
     };
     let mut record = ObservationDocument {
         rule: RuleName(case.rule.as_ref().to_owned()),
@@ -264,7 +286,9 @@ pub(crate) fn write(
             ReportedFindings::Reported(findings(&report.diagnostics))
         }),
         skipped,
-        observation_schema: SchemaName(crate::domain::suite::constants::BENCHMARK_CASE_V2.to_owned()),
+        observation_schema: SchemaName(
+            crate::domain::suite::constants::BENCHMARK_CASE_V2.to_owned(),
+        ),
         expectation_contract: ComparisonContract::Diagnostics,
         execution_metadata: report.map_or(RecordedMetadata::Unrecorded, |report| {
             RecordedMetadata::Recorded(report.execution_metadata.clone())
@@ -272,9 +296,10 @@ pub(crate) fn write(
         coverage: report.map_or(CoverageAccounting::Unaccounted, |report| report.coverage),
         context_manifest: context_manifest.map_or(ContextRun::Isolated, ContextRun::Listed),
         project_context: match report.map(|report| &report.project_context) {
-            Some(ProjectContext::Observed(receipt)) => context
-                .receipt_text(receipt)
-                .map_or(ProjectContextRecord::NotCarried, ProjectContextRecord::Carried),
+            Some(ProjectContext::Observed(receipt)) => context.receipt_text(receipt).map_or(
+                ProjectContextRecord::NotCarried,
+                ProjectContextRecord::Carried,
+            ),
             _ => ProjectContextRecord::NotCarried,
         },
         rule_context: match &case.request.rule_context {
@@ -291,7 +316,10 @@ pub(crate) fn write(
         },
         selected_rules: match &case.request.selected_rules {
             CohortSelection::Explicit(selected) => RuleCohort::Declared(
-                selected.iter().map(|rule| RuleName(rule.to_string())).collect(),
+                selected
+                    .iter()
+                    .map(|rule| RuleName(rule.to_string()))
+                    .collect(),
             ),
             CohortSelection::Frozen => RuleCohort::Undeclared,
         },
@@ -331,20 +359,16 @@ pub(crate) fn write(
             ReferenceProcess::Observed(process_observation(case, invocation));
         record.raw_parity_matches_intended = IntentMatch::Matched(YesNo::No);
     }
-    let key = crate::domain::process_output::service::observation_key(
-        &ReceiptKeyParts {
-            rule: Label::from(case.rule.as_ref()),
-            name: Label::from(case.name.to_string().as_str()),
-            side: Label::from(contestant.to_string().as_str()),
-        },
-    );
-    let process = kept.as_ref().map(|(invocation, output)| {
-        CapturedProcess {
-            key: &key,
-            invocation,
-            stdout: &output.stdout,
-            stderr: &output.stderr,
-        }
+    let key = crate::domain::process_output::service::observation_key(&ReceiptKeyParts {
+        rule: Label::from(case.rule.as_ref()),
+        name: Label::from(case.name.to_string().as_str()),
+        side: Label::from(contestant.to_string().as_str()),
+    });
+    let process = kept.as_ref().map(|(invocation, output)| CapturedProcess {
+        key: &key,
+        invocation,
+        stdout: &output.stdout,
+        stderr: &output.stderr,
     });
     receipts
         .record_case(ReceiptPath(Path::new(&path)), record, process)

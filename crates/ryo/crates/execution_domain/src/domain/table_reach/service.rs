@@ -62,7 +62,9 @@ fn ordered_frame(
     matching(edges.table, On::Columns(edges.from), edges.order, &walk.key)
         .next()
         .and_then(|at| graph.adjacency.get(at.0))
-        .map_or(AdjacencyCursor(0..0), |run| AdjacencyCursor(run.start.0..run.end.0))
+        .map_or(AdjacencyCursor(0..0), |run| {
+            AdjacencyCursor(run.start.0..run.end.0)
+        })
 }
 
 /// Start one independent DFS; the root is already visited before any edge is emitted.
@@ -116,10 +118,7 @@ pub(crate) fn next_ordered(
             row_in(edges.table, at).unwrap_or_default(),
             edges.to,
         )?);
-        return Ok(Some(OrderedVisit {
-            edge: at,
-            ordinal,
-        }));
+        return Ok(Some(OrderedVisit { edge: at, ordinal }));
     }
     Ok(None)
 }

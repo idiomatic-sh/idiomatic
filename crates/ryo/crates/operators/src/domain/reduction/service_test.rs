@@ -1,15 +1,15 @@
 //! Reduction invariants use explicit independent group descriptors and competing column faults.
 use super::service as reduction;
-use crate::domain::contract::types::{PortableOperatorFault};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::contract::errors::ContractError;
+use crate::domain::contract::types::FirstOccurrence;
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::reduction::types::{
     AggregationCheckOrder, AggregationHash, AggregationPlan, DigestDatum, DigestValues, Finishing,
     GroupColumns, GroupCoordinate, GroupCounts, GroupDigest, GroupOutput, HashScratch,
     StreamingReduction, ValueHash,
 };
-use crate::domain::contract::types::FirstOccurrence;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, WholeNumber},
     rows::types::{RowCount, RowIndex, Table},
@@ -51,25 +51,33 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("bad_early_row_refuses_before_later_upstream_work"),
         word: Word::Refuses,
         input: || Scenario::StreamEarlyRow,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(1) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(1),
+        }),
     },
     Case {
         name: CaseName("streamed_count_checks_keys_before_distinct"),
         word: Word::Refuses,
         input: || Scenario::StreamCountOrder,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(99) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(99),
+        }),
     },
     Case {
         name: CaseName("collected_count_checks_distinct_before_keys"),
         word: Word::Refuses,
         input: || Scenario::CollectedCountOrder,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(98),
+        }),
     },
     Case {
         name: CaseName("streamed_digest_checks_operand_before_keys"),
         word: Word::Refuses,
         input: || Scenario::StreamDigestOrder,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn { index: ryo_values::domain::plan_parts::types::ColumnIndex(98) }),
+        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
+            index: ryo_values::domain::plan_parts::types::ColumnIndex(98),
+        }),
     },
     Case {
         name: CaseName("digest_depends_on_resolved_text_set_and_not_order_repeats_or_handles"),

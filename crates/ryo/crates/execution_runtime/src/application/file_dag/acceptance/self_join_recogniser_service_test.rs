@@ -73,24 +73,24 @@ fn fixture() -> Plan {
         right_on: vec![ColumnIndex(0)],
     };
     Plan {
-            observation_inputs: Vec::new(),
-            observations: Vec::new(),
-            parameters: vec![],
-            steps: [source, join, select, project, anti]
-                .into_iter()
-                .map(|operation| PlanStep {
-                    operation,
-                    scope: StepScope::PerFile,
-                })
-                .collect(),
-            comparison_origins: vec![],
-            emit: Emit {
-                step: StepId(4),
-                subject: ColumnIndex(0),
-                key: vec![],
-                headings: vec![],
-            },
-            frontier: vec![],
+        observation_inputs: Vec::new(),
+        observations: Vec::new(),
+        parameters: vec![],
+        steps: [source, join, select, project, anti]
+            .into_iter()
+            .map(|operation| PlanStep {
+                operation,
+                scope: StepScope::PerFile,
+            })
+            .collect(),
+        comparison_origins: vec![],
+        emit: Emit {
+            step: StepId(4),
+            subject: ColumnIndex(0),
+            key: vec![],
+            headings: vec![],
+        },
+        frontier: vec![],
     }
 }
 
@@ -106,18 +106,22 @@ fn a_second_rules_bag_sensitive_terminal_select_declines_the_shape() -> Result<V
         &plans,
         &[vec![], vec![]],
         &[],
-        std::sync::Arc::new(
-            ryo_execution_store::outbound::derived::factory::semantics(),
-        ),
+        std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
     )
     .unwrap();
     assert!(
-        request.ordered_existence.iter().all(|slot| slot.get().is_none()),
+        request
+            .ordered_existence
+            .iter()
+            .all(|slot| slot.get().is_none()),
         "no rule's ordered existence is compiled before its regions are resolved"
     );
-    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &request);
+    let graph =
+        ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &request);
     assert_eq!(
-        request.ordered_existence[0].get().map(|program| program.shapes.len()),
+        request.ordered_existence[0]
+            .get()
+            .map(|program| program.shapes.len()),
         Some(1),
         "local shape alone is insufficient"
     );

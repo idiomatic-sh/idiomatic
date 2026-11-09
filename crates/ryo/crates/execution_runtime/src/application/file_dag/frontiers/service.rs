@@ -10,19 +10,20 @@ use super::types::{
     FileAccounting, FrontierCache, FrontierDecodes, FrontierInput, FrontierSource, InputReadiness,
     PackedFrontier, PreparedFrontiers, ProviderAddress, Providers,
 };
-use ryo_execution_store::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
 use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
+use ryo_execution_store::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
 use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
 use ryo_values::domain::{
     plan_parts::types::{Input, InputNumber},
     stored_facts::types::Bucket,
 };
 use {
-    ryo_execution_domain::domain::frontiers::types::RefusedFrontier,
     ryo_execution_domain::domain::frontiers::service::decode_input,
     ryo_execution_domain::domain::frontiers::service::project_input,
     ryo_execution_domain::domain::frontiers::service::project_relation,
-    ryo_execution_domain::domain::operating::errors::OperatingError, ryo_execution_domain::domain::table_model::types::Frontier,
+    ryo_execution_domain::domain::frontiers::types::RefusedFrontier,
+    ryo_execution_domain::domain::operating::errors::OperatingError,
+    ryo_execution_domain::domain::table_model::types::Frontier,
     ryo_values::domain::table_words::service::decode_complete,
     ryo_values::domain::table_words::types::DecodeMode,
 };
@@ -69,7 +70,9 @@ pub(super) fn prepare(
     for (place, input) in program.frontiers(rule)?.iter().copied().enumerate() {
         let _input = memory.then(|| tracing::trace_span!(target: TARGET_LIFECYCLE_MEMORY, INPUT_MEMORY_SPAN, input_index=place, input=?input).entered());
         if let PreparationPolicy::Observations { ready } = policy {
-            if ready.get(place).copied().ok_or(OperatingError::NotRun)? == InputReadiness::Unavailable {
+            if ready.get(place).copied().ok_or(OperatingError::NotRun)?
+                == InputReadiness::Unavailable
+            {
                 refused.push(RefusedFrontier {
                     input,
                     error: OperatingError::ObservationIncomplete {
@@ -102,7 +105,15 @@ pub(super) fn prepare(
         let bucket =
             ryo_values::domain::stored_facts::service::frontier_bucket(first, InputNumber(place));
         let words = facts.kept(bucket)?;
-        let coverage = validate_bucket(program, rule, InputNumber(place), first, bucket, required, &words)?;
+        let coverage = validate_bucket(
+            program,
+            rule,
+            InputNumber(place),
+            first,
+            bucket,
+            required,
+            &words,
+        )?;
         if words.sources.is_empty() && !required.files().is_empty() {
             refused.push(RefusedFrontier {
                 input,
@@ -254,8 +265,7 @@ pub(crate) fn validate_bucket(
     };
     let expected = program.rule_digest(rule)?;
     let skipped = required.skipped_files(program, rule)?;
-    if ryo_values::domain::stored_facts::service::frontier_bucket(first, input)
-        != bucket
+    if ryo_values::domain::stored_facts::service::frontier_bucket(first, input) != bucket
         || program.frontiers(rule)?.get(input.0).is_none()
     {
         return Err(refuse());
@@ -292,10 +302,12 @@ pub(crate) fn validate_bucket(
                 {
                     return Err(refuse());
                 }
-                affected.extend(ryo_execution_domain::domain::frontier_coverage::service::restored_lacks(
-                    source.file,
-                    scopes,
-                ));
+                affected.extend(
+                    ryo_execution_domain::domain::frontier_coverage::service::restored_lacks(
+                        source.file,
+                        scopes,
+                    ),
+                );
             }
         }
     }
@@ -306,7 +318,10 @@ pub(crate) fn validate_bucket(
         .filter(|file| required.files().contains(file))
         .copied()
         .collect::<std::collections::BTreeSet<_>>();
-    if refused.iter().any(|file| seen_files.contains(file) || skipped.contains(file)) {
+    if refused
+        .iter()
+        .any(|file| seen_files.contains(file) || skipped.contains(file))
+    {
         return Err(refuse());
     }
     // Account for known unavailable partitions without inventing encoded empty

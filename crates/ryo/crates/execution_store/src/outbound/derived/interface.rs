@@ -2,7 +2,9 @@
 //! borrowed rows, and view a built payload; execution authority never crosses it.
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
-use ryo_derived::domain::contract::types::{BuildInputs, BuildOutcome, BuildWorkspace, DerivedView};
+use ryo_derived::domain::contract::types::{
+    BuildInputs, BuildOutcome, BuildWorkspace, DerivedView,
+};
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_relations::domain::relations::types::CellKind;

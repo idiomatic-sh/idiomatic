@@ -2,11 +2,11 @@
 //! retirement on every exit.
 use super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
+use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::DecodeCount;
 use crate::application::file_dag::frontiers::types::FrontierInput;
-use crate::application::file_dag::frontiers::types::PackedFrontier;
 use crate::application::file_dag::frontiers::types::FrontierSource;
-use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
+use crate::application::file_dag::frontiers::types::PackedFrontier;
 use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
 use crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers;
@@ -70,7 +70,9 @@ fn exercise(exit: PhaseExit, values: [i64; 4], stored: Stored) -> Observed {
         corpus,
     } = prepare_case(exit).expect("compile the four project readers");
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
-        &prepared, &services, std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+        &prepared,
+        &services,
+        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )
     .expect("open the publication scope");
     let required =
@@ -255,7 +257,10 @@ fn one_population_is_decoded_once_for_every_rule_of_its_cohort() {
         DecodeCount(1),
         "four rules reading their own copies of one population's words decode them once"
     );
-    assert_eq!(seen.counts.passes.0, 1, "the shared decode is one population, read in one pass");
+    assert_eq!(
+        seen.counts.passes.0, 1,
+        "the shared decode is one population, read in one pass"
+    );
     assert_eq!(seen.retained, RetainedBatches(0));
 }
 
@@ -268,14 +273,21 @@ fn a_second_population_is_decoded_on_its_own() {
         DecodeCount(2),
         "two populations are two decodes, one for each, never one for each rule"
     );
-    assert_eq!(seen.counts.passes.0, 2, "two populations are two source passes");
+    assert_eq!(
+        seen.counts.passes.0, 2,
+        "two populations are two source passes"
+    );
     assert_eq!(seen.retained, RetainedBatches(0));
 }
 
 #[test]
 fn decoded_rows_are_never_decoded_again() {
     let seen = exercise(PhaseExit::Complete, [2, 2, 2, 2], Stored::Decoded);
-    assert_eq!(seen.decodes, DecodeCount(0), "rows handed decoded are admitted as they are");
+    assert_eq!(
+        seen.decodes,
+        DecodeCount(0),
+        "rows handed decoded are admitted as they are"
+    );
 }
 
 #[test]

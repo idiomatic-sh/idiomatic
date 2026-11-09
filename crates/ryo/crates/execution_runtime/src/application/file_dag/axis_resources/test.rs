@@ -1,14 +1,17 @@
 //! Real borrowed-index traversal, duplicate order and admission timing controls.
-use super::*;
 use super::view::AxisResource;
-use ryo_execution_domain::domain::derived_views::types::{DerivedInputs, DerivedScratch, MembershipSpace};
+use super::*;
+use ryo_execution_domain::domain::derived_views::types::{
+    DerivedInputs, DerivedScratch, MembershipSpace,
+};
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::table_words::types::ColumnCount;
 use std::sync::Arc;
 use {
     ryo_execution_domain::domain::operator::contract::views::PreparedAxis,
     ryo_execution_domain::domain::table_reach::borrowed::follow,
-    ryo_execution_domain::domain::table_reach::borrowed::reach_breadth, ryo_execution_domain::domain::table_reach::types::Walk,
+    ryo_execution_domain::domain::table_reach::borrowed::reach_breadth,
+    ryo_execution_domain::domain::table_reach::types::Walk,
     ryo_values::domain::rows::service::push_row,
 };
 
@@ -36,7 +39,8 @@ fn program(direction: Direction) -> AxisResources {
         parent: ColumnIndex(0),
         child: ColumnIndex(1),
         domain_id: ColumnIndex(0),
-        has_filter: ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
+        has_filter:
+            ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
         domain_view: Vec::new(),
         output: Vec::new(),
         direction,
@@ -50,22 +54,22 @@ fn acquired(
 ) -> AcquiredView {
     let plan = Arc::new(
         ryo_execution_store::application::file_dag::derived::prepare::view(
-            (std::sync::Arc::new(
-                ryo_execution_store::application::file_dag::fixtures::derived(),
-            ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+            (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
+                as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &request,
-            &[ryo_execution_domain::domain::operation_schema::types::InputShape {
-                kinds: rows.kinds(),
-                tree: None,
-            }],
+            &[
+                ryo_execution_domain::domain::operation_schema::types::InputShape {
+                    kinds: rows.kinds(),
+                    tree: None,
+                },
+            ],
         )
         .unwrap(),
     );
     let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::new(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible,
-        (std::sync::Arc::new(
-            ryo_execution_store::application::file_dag::fixtures::derived(),
-        ) as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
+        (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
+            as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     );
     let RepresentationInput::Computed(table) = rows else {
         panic!("computed fixture")
@@ -89,7 +93,10 @@ fn acquired(
         .derived()
         .acquire_stored(
             &plan,
-            &owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap(),
+            &owner
+                .derived()
+                .admit_view(&plan, &owner, &[&proof])
+                .unwrap(),
             ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
             data,
             &mut DerivedScratch::default(),

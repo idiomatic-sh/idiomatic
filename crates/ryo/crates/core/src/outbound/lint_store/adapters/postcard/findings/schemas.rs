@@ -1,12 +1,14 @@
 //! The findings document of the postcard store: its wire shapes and their conversion from and into the core's tables.
 
-use std::borrow::Cow;
+use super::super::strings::schemas::{StringsSchema, TextSchema, file_number, named, text};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::row_texts::types::{Cell, PlacedColumn, PlacedLine};
 use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::stored_findings::types::{FindingMade, FindingPlace, StoredCell, StoredFinding, StoredPlace, StoredValue};
-use super::super::strings::schemas::{StringsSchema, TextSchema, file_number, named, text};
+use ryo_values::domain::stored_findings::types::{
+    FindingMade, FindingPlace, StoredCell, StoredFinding, StoredPlace, StoredValue,
+};
+use std::borrow::Cow;
 
 /// A value a finding holds, typed: a file or a text by its place in the table of strings, a whole number, or a stretch of a file by
 /// its two ends.
@@ -56,7 +58,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) struct ValueSchema {
 }
 
 /// The row of a typed value, its text gained by `strings` when it has some.
-pub(in crate::outbound::lint_store::adapters::postcard) fn cell_schema<'a>(strings: &mut StringsSchema<'a>, cell: &'a Cell) -> CellSchema {
+pub(in crate::outbound::lint_store::adapters::postcard) fn cell_schema<'a>(
+    strings: &mut StringsSchema<'a>,
+    cell: &'a Cell,
+) -> CellSchema {
     match cell {
         Cell::File(path) => CellSchema::File(text(strings, path)),
         Cell::Text(each) => CellSchema::Text(text(strings, each)),
@@ -66,7 +71,10 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn cell_schema<'a>(strin
 }
 
 /// The typed value a row names; a refusal when the table of strings has none of its text.
-pub(in crate::outbound::lint_store::adapters::postcard) fn cell_from(strings: &[Cow<'_, str>], cell: CellSchema) -> Result<Cell, postcard::Error> {
+pub(in crate::outbound::lint_store::adapters::postcard) fn cell_from(
+    strings: &[Cow<'_, str>],
+    cell: CellSchema,
+) -> Result<Cell, postcard::Error> {
     Ok(match cell {
         CellSchema::File(path) => Cell::File(named(strings, path)?),
         CellSchema::Text(each) => Cell::Text(named(strings, each)?),

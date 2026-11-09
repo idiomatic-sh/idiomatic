@@ -45,8 +45,7 @@ fn audit(audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
                 .collect::<Vec<_>>()
         );
     }
-    let mut bytes =
-        serde_json::to_vec(&result).map_err(|error| Error::Json(Box::new(error)))?;
+    let mut bytes = serde_json::to_vec(&result).map_err(|error| Error::Json(Box::new(error)))?;
     bytes.push(b'\n');
     Ok(CapturedBytes(bytes))
 }
@@ -84,27 +83,27 @@ fn value(text: &CanonicalJson) -> Result<serde_json::Value, Error> {
 /// The wire shape of a row.
 fn row_schema(row: &Row) -> Result<RowSchema, Error> {
     Ok(RowSchema {
-            rule_id: row.rule_id.0.clone(),
-            status: match row.status {
-                RowStatus::Pass => PASS,
-                RowStatus::Fail => FAIL,
-            },
-            reason: match &row.reason {
-                RowReason::Failed(reason) => Some(reason.0.clone()),
-                RowReason::Passed => None,
-            },
-            instance: match &row.instance {
-                RowInstance::Carried(text) => Some(value(text)?),
-                RowInstance::Absent => None,
-            },
-            case_results_sha256: match &row.case_results_sha256 {
-                ReceiptDigest::Recorded(digest) => Some(digest.0.clone()),
-                ReceiptDigest::Unrecorded => None,
-            },
-            case_count: row.case_count.0,
-            raw_exact: row.raw_exact.0,
-            documented_discrepancies: row.documented_discrepancies.0,
-            contract_only: row.contract_only.0,
+        rule_id: row.rule_id.0.clone(),
+        status: match row.status {
+            RowStatus::Pass => PASS,
+            RowStatus::Fail => FAIL,
+        },
+        reason: match &row.reason {
+            RowReason::Failed(reason) => Some(reason.0.clone()),
+            RowReason::Passed => None,
+        },
+        instance: match &row.instance {
+            RowInstance::Carried(text) => Some(value(text)?),
+            RowInstance::Absent => None,
+        },
+        case_results_sha256: match &row.case_results_sha256 {
+            ReceiptDigest::Recorded(digest) => Some(digest.0.clone()),
+            ReceiptDigest::Unrecorded => None,
+        },
+        case_count: row.case_count.0,
+        raw_exact: row.raw_exact.0,
+        documented_discrepancies: row.documented_discrepancies.0,
+        contract_only: row.contract_only.0,
     })
 }
 
@@ -130,21 +129,18 @@ fn summary(summary: &Summary) -> Result<CapturedBytes, Error> {
             .iter()
             .map(|(key, text)| Ok((key.0.clone(), value(text)?)))
             .collect::<Result<_, Error>>()?,
-        counts: BTreeMap::from([
-            (PASS, summary.passed.0),
-            (FAIL, summary.failed.0),
-        ]),
+        counts: BTreeMap::from([(PASS, summary.passed.0), (FAIL, summary.failed.0)]),
         rules: summary
             .rules
             .iter()
             .map(row_schema)
             .collect::<Result<_, _>>()?,
     };
-    let mut bytes = serde_json::to_vec_pretty(&wire).map_err(|error| Error::Json(Box::new(error)))?;
+    let mut bytes =
+        serde_json::to_vec_pretty(&wire).map_err(|error| Error::Json(Box::new(error)))?;
     bytes.extend_from_slice(constants::NEWLINE);
     Ok(CapturedBytes(bytes))
 }
-
 
 impl TryFrom<&ReceiptAudit> for AuditJson {
     type Error = Error;

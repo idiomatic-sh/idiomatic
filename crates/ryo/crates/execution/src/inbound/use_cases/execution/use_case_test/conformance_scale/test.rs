@@ -109,7 +109,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(former_binary_pilots_keep_linear_visits_for_unique_keys)),
+        name: CaseName(stringify!(
+            former_binary_pilots_keep_linear_visits_for_unique_keys
+        )),
         word: Word::Succeeds,
         input: || Scenario::FormerBinaryPilotsKeepLinearVisitsForUniqueKeys,
         expect: Expect::Value(()),
@@ -118,7 +120,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Scenario::FormerUnaryPilotsKeepLinearVisits => former_unary_pilots_keep_linear_visits(),
-        Scenario::FormerBinaryPilotsKeepLinearVisitsForUniqueKeys => former_binary_pilots_keep_linear_visits_for_unique_keys(),
+        Scenario::FormerBinaryPilotsKeepLinearVisitsForUniqueKeys => {
+            former_binary_pilots_keep_linear_visits_for_unique_keys()
+        }
     }
 }
 #[test]

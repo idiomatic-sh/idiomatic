@@ -1,13 +1,14 @@
 //! The application owns each invocation's mutable allocations and release boundary.
+use self::constants::EXPECT_DEMANDED_INPUT;
 use super::relations::admission::service::BorrowedInput;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     derived_views::types::{InputsUsed, contract::value::PreparedViewUse},
-    operating::errors::OperatingError, operator::types::OperatorContext};
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use std::sync::Arc;
-use self::constants::EXPECT_DEMANDED_INPUT;
+    operating::errors::OperatingError,
+    operator::types::OperatorContext,
+};
 use ryo_values::domain::plan_parts::types::InputNumber;
-
+use std::sync::Arc;
 
 use ryo_relations::domain::relations::types::{Position, Value};
 /// One invocation's mutable allocations and the admitted publications it reads, released when it ends.
@@ -15,7 +16,8 @@ pub struct InvocationWorkspace {
     work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
     progress_origin: super::route_counts::types::CapturedOrigin,
-    derived_scratch: std::cell::RefCell<ryo_execution_domain::domain::derived_views::types::DerivedScratch>,
+    derived_scratch:
+        std::cell::RefCell<ryo_execution_domain::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
     publications:
         Vec<Option<crate::application::file_dag::relations::handle::service::PublishedInput>>,
@@ -68,7 +70,9 @@ impl InvocationWorkspace {
 
     /// What the invocation's allocations measure now, for the proofs of their reuse and release.
     #[cfg(any(test, feature = "fixtures"))]
-    pub fn measured(&self) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
+    pub fn measured(
+        &self,
+    ) -> ryo_execution_domain::domain::operating::fixtures::ExecutionObservation {
         let mut observed = self.observation;
         observed.regexes = self
             .predicates
@@ -138,7 +142,9 @@ impl InvocationWorkspace {
         &self.progress_origin
     }
     /// The primitive operators' working allocations, to read what they hold.
-    pub fn primitive(&self) -> &ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
+    pub fn primitive(
+        &self,
+    ) -> &ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
         &self.primitive
     }
     /// The primitive operators' working allocations, lent to a kernel.
@@ -279,9 +285,12 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             .get(place.0)
             .ok_or(OperatingError::WrongOperation)?;
         if cell.get().is_none() {
-            let rows = *self.inputs.get(place.0).ok_or(OperatingError::MissingInput {
-                position: place.0 + 1,
-            })?;
+            let rows = *self
+                .inputs
+                .get(place.0)
+                .ok_or(OperatingError::MissingInput {
+                    position: place.0 + 1,
+                })?;
             cell.set(self.workspace.admit(place, rows)?)
                 .map_err(|_| OperatingError::WrongOperation)?;
         }
@@ -296,7 +305,9 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         context: &mut OperatorContext<'_>,
     ) -> Result<super::closure_partitions::PartitionedClosure<'f>, OperatingError> {
         let proof = self.proof(order.inputs[0])?;
-        if super::relations::same_admitted_rows(input, proof.rows()) == crate::application::file_dag::relations::types::Sameness::Different {
+        if super::relations::same_admitted_rows(input, proof.rows())
+            == crate::application::file_dag::relations::types::Sameness::Different
+        {
             return Err(OperatingError::NotRead);
         }
         let storage = self.acquire_rows(order, context)?;
@@ -330,7 +341,10 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         owner.derived().try_acquire_rows(
             &use_.plan,
             &admitted,
-            ryo_execution_domain::domain::derived_views::types::DerivedInputs::Rows(&[left.rows(), right.rows()]),
+            ryo_execution_domain::domain::derived_views::types::DerivedInputs::Rows(&[
+                left.rows(),
+                right.rows(),
+            ]),
             &mut self.workspace.derived_scratch.borrow_mut(),
         )
     }
@@ -362,8 +376,8 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
 
 mod constants;
 mod service;
-pub mod types;
 #[cfg(test)]
 mod test;
+pub mod types;
 
 use ryo_values::domain::rows::types::{RowIndex, Table};

@@ -8,7 +8,8 @@ use ryo::languages::{self, FileId, FilePath};
 
 use super::constants::{GO, ROOT, SEPARATOR, TEST, UNREAD_CAUSE, UNRESOLVED_CAUSE};
 use super::types::{
-    Doubt, FileIndex, ImportOutcome, Layout, PackageImportLink, Linked, Owner, Rest, Root, UnlinkedFile,
+    Doubt, FileIndex, ImportOutcome, Layout, Linked, Owner, PackageImportLink, Rest, Root,
+    UnlinkedFile,
 };
 use crate::domain::fact_notes::types::{ImportPath, Note};
 use crate::domain::modules::constants::MODULE_FILE;

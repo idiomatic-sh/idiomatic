@@ -30,12 +30,16 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     let request = RunRequest {
         performance: Default::default(),
         selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        rule_observations:
+            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context:
+            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
-        file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        file_metadata:
+            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
         context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         files: (0_usize..8_000_usize)
@@ -140,8 +144,10 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         rules: "rules".into(),
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        parser_configuration:
+            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language:
+            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
     };
     use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared;
     use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected;
@@ -207,7 +213,9 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
                     forged["rule_observations"]["A001"][0]["unknown"] = serde_json::json!(true);
                 }
                 let worker = crate::outbound::worker::factory::json(
-                    crate::outbound::worker::types::WorkerSource::Argument(forged.to_string().into()),
+                    crate::outbound::worker::types::WorkerSource::Argument(
+                        forged.to_string().into(),
+                    ),
                     Box::new(Vec::<u8>::new()),
                 );
                 assert!(matches!(worker.receive(), Err(_refused)));
@@ -235,9 +243,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName("authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override"),
+        name: CaseName(
+            "authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override",
+        ),
         word: Word::Succeeds,
-        input: || authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override as Scenario,
+        input: || {
+            authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override
+                as Scenario
+        },
         expect: Expect::Value(()),
     },
 ];

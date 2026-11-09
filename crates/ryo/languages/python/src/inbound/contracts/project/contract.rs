@@ -285,8 +285,10 @@ impl Project for ProjectContract {
                     match shape {
                         EntryShape::File => languages::entry_state(&request.observed_entries, path)
                             .map(|state| state == languages::ObservedEntryState::File),
-                        EntryShape::Directory => languages::entry_state(&request.observed_entries, path)
-                            .map(|state| state == languages::ObservedEntryState::Directory),
+                        EntryShape::Directory => {
+                            languages::entry_state(&request.observed_entries, path)
+                                .map(|state| state == languages::ObservedEntryState::Directory)
+                        }
                     }
                     .map(Presence::from)
                 },

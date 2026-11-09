@@ -2,10 +2,10 @@
 use crate::application::file_dag::derived::owner::*;
 use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Number];
 fn fixture(columns: &[FactColumn]) -> ResourceFixture {
     let fixture = ResourceFixture::new(
@@ -32,8 +32,7 @@ fn fixture(columns: &[FactColumn]) -> ResourceFixture {
         ]
     );
     assert_eq!(
-        columns[1].0[index.rows[0].0],
-        10,
+        columns[1].0[index.rows[0].0], 10,
         "the indexed first matching row retains its payload"
     );
     drop(held);
@@ -65,7 +64,10 @@ fn hold(
         .derived()
         .acquire_stored(
             &plan,
-            &owner.derived().admit_view(&plan, &owner, &[&proof]).unwrap(),
+            &owner
+                .derived()
+                .admit_view(&plan, &owner, &[&proof])
+                .unwrap(),
             ViewContext::default(),
             DerivedInputs::Rows(&[rows]),
             &mut DerivedScratch::default(),

@@ -32,13 +32,11 @@ pub(crate) fn compiled_glob(
     };
     let matching = matcher.0;
     let literal = match (prepared, &comparison.right) {
-        (Some(prepared), Operand::Literal(QueryLiteral::Text(pattern))) => {
-            prepared.glob(
-                comparison.test,
-                crate::domain::table_texts::types::TextView(&pattern.0),
-                matcher,
-            )
-        }
+        (Some(prepared), Operand::Literal(QueryLiteral::Text(pattern))) => prepared.glob(
+            comparison.test,
+            crate::domain::table_texts::types::TextView(&pattern.0),
+            matcher,
+        ),
         _ => None,
     };
     let ready = match literal {

@@ -41,11 +41,7 @@ where
         Ok(GlobsMatcher {
             matches: Arc::new(move |path: MatchCandidate<'_>, hits: &mut Hits| {
                 let mut found = GlobHits(std::mem::take(&mut hits.0));
-                semantics.match_globs(
-                    &compiled,
-                    std::path::Path::new(path.0),
-                    &mut found,
-                );
+                semantics.match_globs(&compiled, std::path::Path::new(path.0), &mut found);
                 hits.0 = found.0;
             }),
         })

@@ -115,12 +115,7 @@ impl ExecutionPort for ExecutionProcessAdapter {
         } else {
             let output = command.output()?;
             let exit = decode(output.status).map_err(|error| Error::Invalid(error.to_string()))?;
-            (
-                exit.code,
-                exit.termination,
-                output.stdout,
-                output.stderr,
-            )
+            (exit.code, exit.termination, output.stdout, output.stderr)
         };
         Ok(ProcessOutput {
             signal,

@@ -1,26 +1,26 @@
 //! The sole admitted-program interpreter, authority issuance and physical dispatch.
+#[cfg(test)]
+use super::types::CallCount;
 use super::types::{
-    ActionCursor, Dependencies, InstructionIndex, InvocationFailure, KernelInput,
-    KernelScratch, PollMode, ReaderCount, StageProgress,
+    ActionCursor, Dependencies, InstructionIndex, InvocationFailure, KernelInput, KernelScratch,
+    PollMode, ReaderCount, StageProgress,
 };
 #[cfg(test)]
 use super::types::{ProducerLeaseEvent, ReaderInitializations};
-#[cfg(test)]
-use super::types::CallCount;
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::AvailableInput;
 use crate::application::file_dag::program::admission::Emptiness;
 use crate::application::file_dag::program::admission::Inputs;
 use crate::application::file_dag::program::admission::Partition;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction;
 use ryo_execution_domain::domain::executable_program::types::region::value::Region;
-use ryo_execution_domain::domain::executable_program::types::RegionId;
-use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
+use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -118,8 +118,9 @@ struct Slot {
     remaining: ReaderCount,
     dependencies_consumed: Dependencies,
     waiting_on: Option<RegionId>,
-    completion:
-        Option<ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy>,
+    completion: Option<
+        ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy,
+    >,
 }
 /// Reused scope-local planning buffers. No per-row allocation or mutation of
 /// reader counts occurs until the entire cancellation cascade validates.
@@ -132,14 +133,17 @@ struct RetirementWork {
     retired_scratch: Vec<Vec<KernelScratch>>,
 }
 struct ProjectState {
-    population: ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+    population:
+        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
     state: std::rc::Rc<RuntimeState>,
 }
 pub(crate) struct ProgramExecution {
     program: Arc<ExecutableProgram>,
     owner: std::rc::Rc<RelationOwner>,
     /// The owner's generation when this execution opened; its liveness is the execution's.
-    generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+    generation: Arc<
+        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
+    >,
     partition: Partition,
     file_state: RuntimeState,
     project_states: RefCell<Vec<ProjectState>>,
@@ -154,7 +158,9 @@ enum RootReaders {
     Selected(Arc<ryo_execution_domain::domain::executable_program::types::RemainingTable>),
 }
 pub(crate) struct RuntimeState {
-    generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+    generation: Arc<
+        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
+    >,
     scope: ryo_execution_store::application::file_dag::relations::publication::types::ProducerScope,
     roots: RefCell<RootReaders>,
     slots: RefCell<rustc_hash::FxHashMap<RegionId, Slot>>,
@@ -202,8 +208,9 @@ pub(crate) struct KernelPermit<'scope> {
     program: &'scope ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
-    generation:
-        &'scope Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+    generation: &'scope Arc<
+        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
+    >,
     partition: &'scope Partition,
     bindings: BoundInputs<'scope>,
     strategy: RouteKind,
@@ -216,8 +223,9 @@ pub(crate) struct SemanticPermit<'scope> {
     program: &'scope ExecutableProgram,
     region: RegionId,
     instruction: InstructionIndex,
-    live:
-        &'scope Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+    live: &'scope Arc<
+        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
+    >,
     strategy: RouteKind,
 }
 

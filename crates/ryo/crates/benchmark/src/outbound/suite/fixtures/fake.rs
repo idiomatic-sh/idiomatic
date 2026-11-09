@@ -1,8 +1,8 @@
 //! Empty in-memory suite preserves the distinction between defaults and implementations.
 use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
 use crate::outbound::suite::types::{
-    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText,
-    MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery, SelectedName, SourceDigest,
+    ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, MaterializedCase,
+    MaterializedContext, RetainedDirectory, RuleQuery, SelectedName, SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -85,11 +85,9 @@ impl SuitePort for SuiteFake {
         if self.discrepancy_artifacts_valid {
             Ok(())
         } else {
-            Err(
-                crate::outbound::suite::errors::SuiteError::Invalid(
-                    "fixture has no independent discrepancy artifacts".into(),
-                ),
-            )
+            Err(crate::outbound::suite::errors::SuiteError::Invalid(
+                "fixture has no independent discrepancy artifacts".into(),
+            ))
         }
     }
     fn scoped_directory(

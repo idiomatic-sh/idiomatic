@@ -4,7 +4,6 @@ use ryo_values::domain::descriptions::types::KindVocabularies;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::descriptions::types::KindWord;
 use ryo_values::domain::descriptions::types::LanguageName;
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::LiteralText;
@@ -12,6 +11,7 @@ use ryo_values::domain::plan_parts::types::Operand;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::plans::types::Operation;
@@ -62,8 +62,8 @@ pub fn vocabularies() -> KindVocabularies {
 }
 /// Retain the former operator-service example/catalog assertion through public descriptors.
 pub fn example_unknown_relations(example: &str) -> usize {
-    use ryo_relations::domain::relations::service::relation_named;
     use ryo_relations::domain::labels::types::NameRef;
+    use ryo_relations::domain::relations::service::relation_named;
     let fields = [
         "from",
         "from=",

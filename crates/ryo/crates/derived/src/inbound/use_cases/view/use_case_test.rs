@@ -44,11 +44,15 @@ fn subject(input: Input) -> Result<Value, Failure> {
         count: RowCount(2),
     };
     let equality = prepare(
-        DerivedRequest::Equality { columns: vec![ColumnIndex(0)] },
+        DerivedRequest::Equality {
+            columns: vec![ColumnIndex(0)],
+        },
         vec![vec![CellKind::Number]],
     );
     let raw = prepare(
-        DerivedRequest::PartitionOrder { keys: vec![ColumnIndex(0)] },
+        DerivedRequest::PartitionOrder {
+            keys: vec![ColumnIndex(0)],
+        },
         vec![vec![CellKind::Number]],
     );
     let mut room = BuildWorkspace::default();

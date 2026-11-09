@@ -117,7 +117,10 @@ fn observed_missing_paths_are_sealed_once_per_corpus_state() -> Result<(), Error
 
     std::fs::create_dir(root.join("pkg"))?;
     std::fs::write(root.join("pkg/__init__.py"), b"now present")?;
-    assert!(matches!(verify_receipt(&initial, root, &cold), Err(_refused)));
+    assert!(matches!(
+        verify_receipt(&initial, root, &cold),
+        Err(_refused)
+    ));
     std::fs::remove_file(root.join("pkg/__init__.py"))?;
     verify_receipt(&initial, root, &cold)?;
 
@@ -126,7 +129,10 @@ fn observed_missing_paths_are_sealed_once_per_corpus_state() -> Result<(), Error
     let edited_receipt = receipt(&edited, root, absent())?;
     assert_ne!(edited_receipt.manifest_hash, cold.manifest_hash);
     verify_receipt(&edited, root, &edited_receipt)?;
-    assert!(matches!(verify_receipt(&initial, root, &edited_receipt), Err(_refused)));
+    assert!(matches!(
+        verify_receipt(&initial, root, &edited_receipt),
+        Err(_refused)
+    ));
     Ok(())
 }
 fn observed_missing_cannot_hide_present_untracked_or_symlinked_paths() -> Result<(), Error> {
@@ -145,18 +151,48 @@ fn observed_missing_cannot_hide_present_untracked_or_symlinked_paths() -> Result
         }]
     };
     std::fs::write(root.join("untracked.py"), b"present")?;
-    assert!(matches!(receipt(&manifest, root, missing("untracked.py")), Err(_refused)));
-    assert!(matches!(receipt(&manifest, root, missing("source.py")), Err(_refused)));
-    assert!(matches!(receipt(&manifest, root, missing("pkg/../source.py")), Err(_refused)));
-    assert!(matches!(receipt(&manifest, root, missing("source.py/../new.py")), Err(_refused)));
-    assert!(matches!(receipt(&manifest, root, missing("absent/../new.py")), Err(_refused)));
-    assert!(matches!(receipt(&manifest, root, missing("../escape.py")), Err(_refused)));
-    assert!(matches!(receipt(&manifest, root, missing("untracked.py/child")), Err(_refused)));
+    assert!(matches!(
+        receipt(&manifest, root, missing("untracked.py")),
+        Err(_refused)
+    ));
+    assert!(matches!(
+        receipt(&manifest, root, missing("source.py")),
+        Err(_refused)
+    ));
+    assert!(matches!(
+        receipt(&manifest, root, missing("pkg/../source.py")),
+        Err(_refused)
+    ));
+    assert!(matches!(
+        receipt(&manifest, root, missing("source.py/../new.py")),
+        Err(_refused)
+    ));
+    assert!(matches!(
+        receipt(&manifest, root, missing("absent/../new.py")),
+        Err(_refused)
+    ));
+    assert!(matches!(
+        receipt(&manifest, root, missing("../escape.py")),
+        Err(_refused)
+    ));
+    assert!(matches!(
+        receipt(&manifest, root, missing("untracked.py/child")),
+        Err(_refused)
+    ));
     link(root, &root.join("linked"))?;
-    assert!(matches!(receipt(&manifest, root, missing("linked/absent.py")), Err(_refused)));
-    assert!(matches!(receipt(&manifest, root, missing("linked/../new.py")), Err(_refused)));
+    assert!(matches!(
+        receipt(&manifest, root, missing("linked/absent.py")),
+        Err(_refused)
+    ));
+    assert!(matches!(
+        receipt(&manifest, root, missing("linked/../new.py")),
+        Err(_refused)
+    ));
     link(&root.join("absent-target"), &root.join("dangling"))?;
-    assert!(matches!(receipt(&manifest, root, missing("dangling")), Err(_refused)));
+    assert!(matches!(
+        receipt(&manifest, root, missing("dangling")),
+        Err(_refused)
+    ));
     Ok(())
 }
 fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
@@ -166,9 +202,10 @@ fn path_roles_and_symlinked_context_are_not_accepted() -> Result<(), Error> {
     manifest.missing.push("../escape".into());
     let _verified_5 = validate(&manifest, &root).expect_err("expected refusal");
     let _removed_missing = manifest.missing.pop();
-    let _previous = manifest
-        .auxiliary_files
-        .insert("pkg/mod.py".into(), artifact(&ContextBytes(b"import pkg.mod\n".to_vec())));
+    let _previous = manifest.auxiliary_files.insert(
+        "pkg/mod.py".into(),
+        artifact(&ContextBytes(b"import pkg.mod\n".to_vec())),
+    );
     let _verified_6 = validate(&manifest, &root).expect_err("expected refusal");
     let _removed_auxiliary = manifest.auxiliary_files.remove(Path::new("pkg/mod.py"));
     std::fs::remove_file(root.join("__init__.py"))?;

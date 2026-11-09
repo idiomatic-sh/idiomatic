@@ -73,25 +73,29 @@ pub fn check(adapter: &impl EnginePort) {
             std::fs::create_dir_all(request.rules.join("R1")).expect("rule directory");
             std::fs::write(request.rules.join("R1/query.ryoql"), "let missing = select path as file, span from \"filesystem.read-failure\"; emit missing subject file key(file);").expect("query");
             let boundary = temporary.path().join("snapshot");
-            request.context_manifest = ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
-                {
-                    use crate::outbound::context::interface::ContextPort as _;
-                    crate::outbound::context::factory::local().materialize(
-                    &boundary,
-                    &ryo_benchmark_contracts::domain::context::types::CaseContext {
-                        logical_root: "project".into(),
-                        auxiliary_files: Default::default(),
-                        missing: vec!["project/missing.py".into()],
-                    },
-                    &Default::default(),
-                )
-                }.expect("sealed absence"),
-            );
+            request.context_manifest =
+                ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+                    {
+                        use crate::outbound::context::interface::ContextPort as _;
+                        crate::outbound::context::factory::local().materialize(
+                            &boundary,
+                            &ryo_benchmark_contracts::domain::context::types::CaseContext {
+                                logical_root: "project".into(),
+                                auxiliary_files: Default::default(),
+                                missing: vec!["project/missing.py".into()],
+                            },
+                            &Default::default(),
+                        )
+                    }
+                    .expect("sealed absence"),
+                );
             request.project_context_mode = ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
             request.root = boundary.join("project");
             request.files = vec![ryo::linter::RelativePath("missing.py".into())];
             request.selected_rules =
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![id.clone()]);
+                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![
+                    id.clone(),
+                ]);
             let mut session = adapter.load(&request).map_err(|_| Failure::Unexpected)?;
             assert_eq!(session.rules_mut().len(), 1);
             assert!(session.frontend_rule().is_none());

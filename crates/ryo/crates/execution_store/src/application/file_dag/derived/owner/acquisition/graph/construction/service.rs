@@ -26,7 +26,9 @@ pub(crate) fn adjacency(
     owner: &DerivedOwner,
     population: PopulationId,
     admitted: &AdmittedViewInputs<'_>,
-    plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
+    plan: &Arc<
+        ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract,
+    >,
     source: ryo_execution_domain::domain::stored_graph::types::GraphSource,
     rows: &Rows<'_>,
     cache: Option<&mut CacheBackend>,
@@ -57,7 +59,10 @@ pub(crate) fn adjacency(
                 plan,
                 admitted,
                 ryo_execution_domain::domain::derived_views::types::DerivedInputs::Adjacency {
-                    rows: ryo_execution_domain::domain::table_model::types::RepresentationInput::from(rows),
+                    rows:
+                        ryo_execution_domain::domain::table_model::types::RepresentationInput::from(
+                            rows,
+                        ),
                     source,
                 },
                 &mut ryo_execution_domain::domain::derived_views::types::DerivedScratch::default(),
@@ -93,14 +98,17 @@ pub(crate) fn adjacency(
 pub(crate) fn domain(
     owner: &DerivedOwner,
     population: PopulationId,
-    plan: &Arc<ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract>,
+    plan: &Arc<
+        ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract,
+    >,
     admitted: &AdmittedViewInputs<'_>,
     access: &GraphHandle,
     identity: Option<ryo_execution_domain::domain::stored_graph::types::DomainIdentity>,
     rows: &Rows<'_>,
     mut cache: Option<&mut CacheBackend>,
 ) -> Result<BuiltDomain, OperatingError> {
-    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Membership { column } = &plan.request
+    let ryo_execution_domain::domain::derived_views::types::ViewRequest::Membership { column } =
+        &plan.request
     else {
         return Err(OperatingError::WrongOperation);
     };
@@ -128,10 +136,14 @@ pub(crate) fn domain(
                 plan,
                 admitted,
                 ryo_execution_domain::domain::derived_views::types::DerivedInputs::Membership {
-                    rows: ryo_execution_domain::domain::table_model::types::RepresentationInput::from(rows),
-                    space: ryo_execution_domain::domain::derived_views::types::MembershipSpace::Dense(
-                        access.graph().vertices(),
-                    ),
+                    rows:
+                        ryo_execution_domain::domain::table_model::types::RepresentationInput::from(
+                            rows,
+                        ),
+                    space:
+                        ryo_execution_domain::domain::derived_views::types::MembershipSpace::Dense(
+                            access.graph().vertices(),
+                        ),
                 },
                 &mut ryo_execution_domain::domain::derived_views::types::DerivedScratch::default(),
                 None,
@@ -146,10 +158,7 @@ pub(crate) fn domain(
     if members.0.len() != access.graph().vertices().len() {
         return Err(OperatingError::ShapeMismatch);
     }
-    let domain = Arc::new(GraphDomain {
-        identity,
-        members,
-    });
+    let domain = Arc::new(GraphDomain { identity, members });
     let storage = Arc::new(storage);
     let mut backings = owner.graph_backings(&storage)?;
     let mut dependencies = backings.to_vec();

@@ -149,7 +149,10 @@ fn a_cold_run_over_ruff_holds_the_peak_ratchet() {
                 "--nocapture",
                 "--test-threads=1",
             ])
-            .arg(format!("{COLD_DIRECTORY}{}", base::snapshot::ruff().display()))
+            .arg(format!(
+                "{COLD_DIRECTORY}{}",
+                base::snapshot::ruff().display()
+            ))
             .output()
             .expect("the child runs");
         let said = String::from_utf8_lossy(&child.stderr);

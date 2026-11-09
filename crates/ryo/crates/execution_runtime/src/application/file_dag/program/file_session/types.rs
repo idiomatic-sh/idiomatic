@@ -1,10 +1,10 @@
 //! One file session: the input it is opened with and what it answers.
+use crate::outbound::facts::types::ResidentStability;
 use ryo_execution_domain::domain::coverage::types::Partial;
 use ryo_execution_domain::domain::kind_sets::types::vocabulary::value::PreparedVocabulary;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::SemanticLookup;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
-use crate::outbound::facts::types::ResidentStability;
 use std::sync::Arc;
 /// Physical provider data; execution-owned projections and publications cannot be supplied here.
 #[derive(Clone, Debug)]

@@ -1,13 +1,13 @@
 //! Rule compilation keeps bounded session plans and request-local bindings over injected ports.
 use super::errors::RuleCompilationError;
-use ryo_execution_domain::domain::operator::constants::{OPERATORS, describe};
-use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
-use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
-use super::service::RuleCompilation;
 use super::service::CompiledPlans;
+use super::service::RuleCompilation;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution_domain::domain::operator::constants::{OPERATORS, describe};
+use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
+use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::{
@@ -318,7 +318,11 @@ fn uncompiled() -> usize {
         .filter(|operator| {
             let described = describe(**operator);
             matches!(
-                adapter.compile(&QueryBundle::from(QueryText(described.example.0.clone())), &[], &[]),
+                adapter.compile(
+                    &QueryBundle::from(QueryText(described.example.0.clone())),
+                    &[],
+                    &[]
+                ),
                 Err(QueryLanguageError::Refused { .. })
             )
         })

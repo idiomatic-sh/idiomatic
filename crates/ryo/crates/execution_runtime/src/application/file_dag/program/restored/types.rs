@@ -9,7 +9,9 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub(crate) struct ValidatedFrontier {
     pub(super) program: Arc<ExecutableProgram>,
-    pub(super) generation: Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+    pub(super) generation: Arc<
+        ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease,
+    >,
     pub(super) root: ProducerRoot,
     pub(super) partition: RequiredPartitions,
     pub(super) coverage: CoverageState,

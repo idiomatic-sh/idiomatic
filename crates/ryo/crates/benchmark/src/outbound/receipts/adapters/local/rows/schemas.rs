@@ -6,9 +6,9 @@ use ryo_benchmark_contracts::domain::documents::types::finding::value::{
     ExpectedFindings, FindingOffset, RecordedFinding, RecordedSpan, SkippedPair,
 };
 use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
-    ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, RecordedMetadata,
-    RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot,
-    ProjectContextRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity,
+    ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProjectContextRecord,
+    RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips,
+    RequestRoot, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity,
     ToolContractRecord, ValidationRecord,
 };
 use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyValidation;
@@ -186,11 +186,15 @@ fn findings(rows: Vec<FindingSchema>) -> Vec<RecordedFinding> {
 }
 
 fn reason(value: Option<String>) -> RecordedReason {
-    value.map_or(RecordedReason::Absent, |text| RecordedReason::Stated(ReasonText(text)))
+    value.map_or(RecordedReason::Absent, |text| {
+        RecordedReason::Stated(ReasonText(text))
+    })
 }
 
 fn intent(value: Option<bool>) -> IntentMatch {
-    value.map_or(IntentMatch::Unreported, |answer| IntentMatch::Matched(YesNo::from(answer)))
+    value.map_or(IntentMatch::Unreported, |answer| {
+        IntentMatch::Matched(YesNo::from(answer))
+    })
 }
 
 fn canonical(value: serde_json::Value) -> CanonicalJson {
@@ -234,16 +238,26 @@ impl From<RowSchema> for ObservationDocument {
             files: schema.files.into_iter().map(PathText).collect(),
             source_sha256: schema
                 .source_sha256
-                .map_or(SourceIdentity::Unavailable, |digest| SourceIdentity::Sealed(Sha256Text(digest))),
-            file_metadata_sha256: FileMetadataDigest::from(schema.file_metadata_sha256.map(Sha256Text)),
-            project_inputs_sha256: ProjectInputsDigest::from(schema.project_inputs_sha256.map(Sha256Text)),
+                .map_or(SourceIdentity::Unavailable, |digest| {
+                    SourceIdentity::Sealed(Sha256Text(digest))
+                }),
+            file_metadata_sha256: FileMetadataDigest::from(
+                schema.file_metadata_sha256.map(Sha256Text),
+            ),
+            project_inputs_sha256: ProjectInputsDigest::from(
+                schema.project_inputs_sha256.map(Sha256Text),
+            ),
             expected: findings(schema.expected),
             reference_expected: schema
                 .reference_expected
-                .map_or(ExpectedFindings::Underivable, |rows| ExpectedFindings::Derived(findings(rows))),
+                .map_or(ExpectedFindings::Underivable, |rows| {
+                    ExpectedFindings::Derived(findings(rows))
+                }),
             diagnostics: schema
                 .diagnostics
-                .map_or(ReportedFindings::Unreported, |rows| ReportedFindings::Reported(findings(rows))),
+                .map_or(ReportedFindings::Unreported, |rows| {
+                    ReportedFindings::Reported(findings(rows))
+                }),
             skipped: schema.skipped.map_or(ReportedSkips::Unreported, |rows| {
                 ReportedSkips::Reported(
                     rows.into_iter()
@@ -262,49 +276,66 @@ impl From<RowSchema> for ObservationDocument {
                 ContractSchema::Diagnostics => ComparisonContract::Diagnostics,
                 ContractSchema::CompleteReport => ComparisonContract::CompleteReport,
             },
-            execution_metadata: schema.execution_metadata.map_or(RecordedMetadata::Unrecorded, |metadata| {
-                RecordedMetadata::Recorded(match metadata {
-                    ExecutionSchema::Unknown {} => ExecutionMetadata::Unknown,
-                    ExecutionSchema::Unavailable { reason } => ExecutionMetadata::Unavailable {
-                        reason: UnavailableReason(reason),
-                    },
-                    ExecutionSchema::Complete {} => ExecutionMetadata::Complete,
-                })
-            }),
-            coverage: schema.coverage.map_or(CoverageAccounting::Unaccounted, |coverage| {
-                CoverageAccounting::Accounted(RuleCoverage {
-                    selected: PairCount(coverage.selected_rule_file_pairs),
-                    evaluated: PairCount(coverage.evaluated_rule_file_pairs),
-                    skipped: PairCount(coverage.skipped_rule_file_pairs),
-                    unknown_or_unread: PairCount(coverage.unknown_or_unread_rule_file_pairs),
-                })
-            }),
-            context_manifest: schema.context_manifest.map_or(ContextRun::Isolated, |context| {
-                ContextRun::Listed(ListedContext {
-                    mode: match context.mode {
-                        ModeSchema::Isolated => ContextMode::Isolated,
-                        ModeSchema::ListedDisk => ContextMode::ListedDisk,
-                    },
-                    logical_root: PathText(context.logical_root),
-                    actual_root: PathText(context.actual_root),
-                    manifest_hash: Sha256Text(context.manifest_hash),
-                })
-            }),
+            execution_metadata: schema.execution_metadata.map_or(
+                RecordedMetadata::Unrecorded,
+                |metadata| {
+                    RecordedMetadata::Recorded(match metadata {
+                        ExecutionSchema::Unknown {} => ExecutionMetadata::Unknown,
+                        ExecutionSchema::Unavailable { reason } => ExecutionMetadata::Unavailable {
+                            reason: UnavailableReason(reason),
+                        },
+                        ExecutionSchema::Complete {} => ExecutionMetadata::Complete,
+                    })
+                },
+            ),
+            coverage: schema
+                .coverage
+                .map_or(CoverageAccounting::Unaccounted, |coverage| {
+                    CoverageAccounting::Accounted(RuleCoverage {
+                        selected: PairCount(coverage.selected_rule_file_pairs),
+                        evaluated: PairCount(coverage.evaluated_rule_file_pairs),
+                        skipped: PairCount(coverage.skipped_rule_file_pairs),
+                        unknown_or_unread: PairCount(coverage.unknown_or_unread_rule_file_pairs),
+                    })
+                }),
+            context_manifest: schema
+                .context_manifest
+                .map_or(ContextRun::Isolated, |context| {
+                    ContextRun::Listed(ListedContext {
+                        mode: match context.mode {
+                            ModeSchema::Isolated => ContextMode::Isolated,
+                            ModeSchema::ListedDisk => ContextMode::ListedDisk,
+                        },
+                        logical_root: PathText(context.logical_root),
+                        actual_root: PathText(context.actual_root),
+                        manifest_hash: Sha256Text(context.manifest_hash),
+                    })
+                }),
             project_context: schema
                 .project_context
-                .map_or(ProjectContextRecord::NotCarried, |value| ProjectContextRecord::Carried(canonical(value))),
+                .map_or(ProjectContextRecord::NotCarried, |value| {
+                    ProjectContextRecord::Carried(canonical(value))
+                }),
             rule_context: schema
                 .rule_context
-                .map_or(RuleContextRecord::Undeclared, |value| RuleContextRecord::Declared(canonical(value))),
-            rule_observations: schema.rule_observations.map_or(RuleObservationsRecord::Undeclared, |value| {
-                RuleObservationsRecord::Declared(canonical(value))
-            }),
-            selected_rules: schema.selected_rules.map_or(RuleCohort::Undeclared, |rules| {
-                RuleCohort::Declared(rules.into_iter().map(RuleName).collect())
-            }),
+                .map_or(RuleContextRecord::Undeclared, |value| {
+                    RuleContextRecord::Declared(canonical(value))
+                }),
+            rule_observations: schema
+                .rule_observations
+                .map_or(RuleObservationsRecord::Undeclared, |value| {
+                    RuleObservationsRecord::Declared(canonical(value))
+                }),
+            selected_rules: schema
+                .selected_rules
+                .map_or(RuleCohort::Undeclared, |rules| {
+                    RuleCohort::Declared(rules.into_iter().map(RuleName).collect())
+                }),
             actual_request_root: schema
                 .actual_request_root
-                .map_or(RequestRoot::Unwritten, |root| RequestRoot::Written(PathText(root))),
+                .map_or(RequestRoot::Unwritten, |root| {
+                    RequestRoot::Written(PathText(root))
+                }),
             documented_reference_discrepancy: YesNo::from(schema.documented_reference_discrepancy),
             documented_tool_contract_difference: schema
                 .documented_tool_contract_difference
@@ -313,12 +344,16 @@ impl From<RowSchema> for ObservationDocument {
                 }),
             discrepancy_validation: schema
                 .discrepancy_validation
-                .map_or(ValidationRecord::Unattested, |proof| ValidationRecord::Attested(proof.into())),
+                .map_or(ValidationRecord::Unattested, |proof| {
+                    ValidationRecord::Attested(proof.into())
+                }),
             raw_parity_matches_intended: intent(schema.raw_parity_matches_intended),
             diagnostics_match_intended: intent(schema.diagnostics_match_intended),
             process_observation: schema
                 .process_observation
-                .map_or(ReferenceProcess::NotObserved, |process| ReferenceProcess::Observed(process.into())),
+                .map_or(ReferenceProcess::NotObserved, |process| {
+                    ReferenceProcess::Observed(process.into())
+                }),
         }
     }
 }
@@ -330,7 +365,9 @@ pub(in super::super) fn rows(text: &str) -> Result<Vec<ObservationDocument>, Rec
         .map(|(index, line)| {
             serde_json::from_str::<RowSchema>(line)
                 .map(ObservationDocument::from)
-                .map_err(|error| ReceiptsError::Invalid(format!("receipt row {}: {error}", index + 1)))
+                .map_err(|error| {
+                    ReceiptsError::Invalid(format!("receipt row {}: {error}", index + 1))
+                })
         })
         .collect()
 }

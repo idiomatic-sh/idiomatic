@@ -1,17 +1,22 @@
 //! An observation stage: its reservations, installs and restored frontiers.
 use crate::application::file_dag::frontiers::types::BoundInput;
-use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
+use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::observations::types::{AdmittedOutput, RuleSelection};
 use crate::application::file_dag::program::observation_stage::interface::ObservationExecution;
 use crate::application::file_dag::program::observation_stage::interface::ObservationPublication;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
-use crate::application::file_dag::program::project_phase::interface::{ProjectRootExecution, ProjectStage};
-use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
+use crate::application::file_dag::program::project_phase::interface::{
+    ProjectRootExecution, ProjectStage,
+};
+use crate::application::file_dag::program::project_phase::types::{
+    OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop,
+};
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
+use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
+use crate::outbound::facts::interface::FactsFinish;
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::FileObservationReadiness;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
@@ -19,7 +24,6 @@ use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
-use crate::outbound::facts::interface::FactsFinish;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::records::types::CrossPublicationTransfer;
@@ -33,7 +37,12 @@ impl ProjectRootExecution for ObservationStage<'_> {
         before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
         partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
         guard: impl FnMut(RuleIndex) -> Result<(), E>,
-        complete: impl FnMut(OccurrenceNumber, RuleOutcome<ProjectOutputOutcome>, PublicationSlot, &mut Symbols) -> Result<T, E>,
+        complete: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            PublicationSlot,
+            &mut Symbols,
+        ) -> Result<T, E>,
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
         self.phase
             .evaluate_occurrences(phase, symbols, before, partials, guard, complete)

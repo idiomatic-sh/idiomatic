@@ -1,5 +1,10 @@
 //! The test data of `linter lint` that fixes producer without query.
 
+use super::capability_provider::provider_linter;
+use super::directory::case_directory;
+use super::observations::{column, incoming};
+use super::outcome::{Outcome, summary};
+use super::rules::{listed, ordinary, rule_id};
 use crate::domain::observation::types::ObservationBindingName;
 use crate::domain::observation::types::ObservationKind;
 use crate::resources::linter::lint::entry::lint_with;
@@ -7,11 +12,6 @@ use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::ObservationBinding;
 use crate::resources::linter::lint::types::ObservationProducer;
 use std::collections::BTreeMap;
-use super::outcome::{Outcome, summary};
-use super::capability_provider::provider_linter;
-use super::rules::{listed, ordinary, rule_id};
-use super::directory::case_directory;
-use super::observations::{column, incoming};
 
 /// A selected producer that has no query never becomes a complete empty input of its consumer.
 pub(crate) fn producer_without_query() -> Outcome {

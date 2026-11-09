@@ -1,9 +1,12 @@
 //! The authoritative family list drives the matrix: a new `DerivedKind` fails the exhaustive
 //! `entry` match of the fixtures and is exercised on every exit. Each stored exit ends with the owner
 //! generation retired and `(required, optional, unique) == (0, 0, 0)` asserted by `exercise`.
-use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{Scenario, exercise, exercise_forgetful, route::{exit::Exit, leave}};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_derived::domain::request::types::DerivedKind;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{
+    Scenario, exercise, exercise_forgetful,
+    route::{exit::Exit, leave},
+};
 
 #[test]
 fn every_family_releases_its_last_consumer_on_success_cancellation_and_error() {

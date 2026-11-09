@@ -49,12 +49,13 @@ impl TryFrom<DocumentWire<serde_json::Value>> for RuleObservationDeclarations {
     fn try_from(wire: DocumentWire<serde_json::Value>) -> Result<Self, Self::Error> {
         let declarations: BTreeMap<String, Vec<ObservationBindingSchema>> =
             serde_json::from_value(wire.0).map_err(|error| Error::Json(Box::new(error)))?;
-        let invalid = |message: String| Error::Invalid(format!("invalid observation declaration: {message}"));
+        let invalid =
+            |message: String| Error::Invalid(format!("invalid observation declaration: {message}"));
         declarations
             .into_iter()
             .map(|(consumer, bindings)| {
-                let consumer =
-                    RuleId::try_from(consumer.as_str()).map_err(|error| invalid(error.to_string()))?;
+                let consumer = RuleId::try_from(consumer.as_str())
+                    .map_err(|error| invalid(error.to_string()))?;
                 let bindings = bindings
                     .into_iter()
                     .map(|binding| {
@@ -133,7 +134,8 @@ impl TryFrom<DocumentWire<serde_json::Value>> for PreparedRuleContext {
     fn try_from(wire: DocumentWire<serde_json::Value>) -> Result<Self, Self::Error> {
         let schema: PreparedRuleContextSchema =
             serde_json::from_value(wire.0).map_err(|error| Error::Json(Box::new(error)))?;
-        let invalid = |message: String| Error::Invalid(format!("invalid rule configuration: {message}"));
+        let invalid =
+            |message: String| Error::Invalid(format!("invalid rule configuration: {message}"));
         Ok(Self {
             tables: RuleContextTables {
                 selected: TableName(schema.tables.selected),

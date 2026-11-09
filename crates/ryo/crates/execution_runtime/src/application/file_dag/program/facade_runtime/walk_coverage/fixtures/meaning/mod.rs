@@ -1,5 +1,7 @@
 //! What each operation means for a source walk, and the route that meaning implies.
-use ryo_execution_domain::domain::executable_program::types::{executable_program::value::ExecutableProgram, InputSource};
+use ryo_execution_domain::domain::executable_program::types::{
+    InputSource, executable_program::value::ExecutableProgram,
+};
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::plans::types::Operation;
@@ -83,11 +85,7 @@ pub(crate) fn meaning(kind: OperationKind) -> Meaning {
 
 /// The route of the first instruction of a region.
 /// `head` is the independent eligibility of a per-file relation head.
-pub(crate) fn head_route(
-    operation: &Operation,
-    first: FirstInput,
-    head: Eligibility,
-) -> Route {
+pub(crate) fn head_route(operation: &Operation, first: FirstInput, head: Eligibility) -> Route {
     match meaning(kind_of(operation)) {
         Meaning::PerRow => Route::Row,
         Meaning::WholeInput => Route::Derived,

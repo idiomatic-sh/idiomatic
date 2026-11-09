@@ -5,8 +5,8 @@ use crate::application::file_dag::relations::publication::types::{
 };
 use crate::application::file_dag::relations::types::Sameness;
 
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_model::service::kind;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::{FactColumn, Relation};
 
 macro_rules! sameness {
@@ -27,7 +27,9 @@ fn span<T>(pointer: *const T, length: SpanLength) -> StorageSpan {
 fn column_span(column: &FactColumn) -> StorageSpan {
     span(column.0.as_ptr(), SpanLength(column.0.len()))
 }
-fn tree_spans(tree: &ryo_execution_domain::domain::table_cells::types::TreeRows<'_>) -> Vec<StorageSpan> {
+fn tree_spans(
+    tree: &ryo_execution_domain::domain::table_cells::types::TreeRows<'_>,
+) -> Vec<StorageSpan> {
     let e = tree.elements;
     vec![
         span(e, SpanLength(tree.file.0 as usize)),
@@ -40,9 +42,7 @@ fn tree_spans(tree: &ryo_execution_domain::domain::table_cells::types::TreeRows<
         span(e.size.as_ptr(), SpanLength(e.size.len())),
     ]
 }
-fn compact_spans(
-    table: &ryo_values::domain::table_words::types::CompactTable,
-) -> Vec<StorageSpan> {
+fn compact_spans(table: &ryo_values::domain::table_words::types::CompactTable) -> Vec<StorageSpan> {
     let storage = ryo_values::domain::compact_table::service::compact_storage(table);
     vec![
         StorageSpan {
@@ -95,10 +95,7 @@ pub(super) fn describe(relation: Relation, input: RepresentationInput<'_>) -> So
     }
 }
 pub(super) fn matches(source: &SourceDescriptor, input: RepresentationInput<'_>) -> Sameness {
-    if source.kind != kind(input)
-        || source.kinds != input.kinds()
-        || source.rows != input.count()
-    {
+    if source.kind != kind(input) || source.kinds != input.kinds() || source.rows != input.count() {
         return Sameness::Different;
     }
     match input {
@@ -130,7 +127,9 @@ pub(super) fn same(left: RepresentationInput<'_>, right: RepresentationInput<'_>
         })
     }
     match (left, right) {
-        (RepresentationInput::Stored(left), RepresentationInput::Stored(right)) => columns(left, right),
+        (RepresentationInput::Stored(left), RepresentationInput::Stored(right)) => {
+            columns(left, right)
+        }
         (RepresentationInput::Computed(left), RepresentationInput::Computed(right)) => {
             sameness!(std::ptr::eq(left, right))
         }

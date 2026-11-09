@@ -39,11 +39,11 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort
         ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
         ryo_operators::domain::contract::types::PortableOperatorFault,
     > {
+        use ryo_operators::domain::evaluation::types::EvaluationInput;
+        use ryo_operators::domain::set_rows::errors::SetRowsError;
+        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
         use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-        use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-        use ryo_operators::domain::set_rows::errors::SetRowsError;
-        use ryo_operators::domain::evaluation::types::EvaluationInput;
         match call {
             OperatorCall::Evaluate {
                 operation: ryo_values::domain::plans::types::Operation::Union { .. },
@@ -66,13 +66,12 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort
                 }
                 Ok(OperatorAnswer::Written)
             }
-            other => {
-                owner_fixtures::operators().operators(other)
-            }
+            other => owner_fixtures::operators().operators(other),
         }
     }
 }
-fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks() -> Result<(), Failure> {
+fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks() -> Result<(), Failure>
+{
     let mut case = fixture(OperationKind::Union);
     let port = Arc::new(ContinuesAfterDriverRefusal::default());
     let observed = compare_delivery_with_port(
@@ -100,7 +99,8 @@ fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks() -
     );
     Ok(())
 }
-fn every_registered_class_runs_real_collect_and_stream_with_independent_expectations() -> Result<(), Failure> {
+fn every_registered_class_runs_real_collect_and_stream_with_independent_expectations()
+-> Result<(), Failure> {
     let semantic = KnownSyntax;
     assert_eq!(OperationKind::ALL.len(), 26);
     for kind in OperationKind::ALL {
@@ -142,7 +142,9 @@ fn unsupported_semantic_batch_publishes_no_prefix() -> Result<(), Failure> {
             _: ryo_values::domain::files::types::SourceView<'_>,
         ) -> Result<Vec<RenderOutcome>, OperatingError> {
             Ok(vec![
-                RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(Arc::from("a"))),
+                RenderOutcome::Known(ryo_language::domain::semantics::types::RenderedNode(
+                    Arc::from("a"),
+                )),
                 RenderOutcome::Unsupported(ryo_relations::domain::terms::types::UnknownReason(24)),
             ])
         }
@@ -200,10 +202,12 @@ fn a_semantic_batch_of_another_length_is_refused() -> Result<(), Failure> {
         let mut case = fixture(OperationKind::RenderSyntax);
         ryo_values::domain::rows::service::push_row(
             &mut case.inputs[0],
-            &[Cell::Node(ryo_relations::domain::relations::service::node_id(
-                ryo_relations::domain::relations::types::FileId(0),
-                ryo_relations::domain::relations::types::Position(1),
-            ))],
+            &[Cell::Node(
+                ryo_relations::domain::relations::service::node_id(
+                    ryo_relations::domain::relations::types::FileId(0),
+                    ryo_relations::domain::relations::types::Position(1),
+                ),
+            )],
         );
         compare_delivery_with_semantic(
             &case.operation,
@@ -243,13 +247,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks)),
+        name: CaseName(stringify!(
+            engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks
+        )),
         word: Word::Succeeds,
         input: || engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks,
         expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(every_registered_class_runs_real_collect_and_stream_with_independent_expectations)),
+        name: CaseName(stringify!(
+            every_registered_class_runs_real_collect_and_stream_with_independent_expectations
+        )),
         word: Word::Succeeds,
         input: || every_registered_class_runs_real_collect_and_stream_with_independent_expectations,
         expect: Expect::Value(()),
@@ -259,7 +267,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || unsupported_semantic_batch_publishes_no_prefix,
         expect: Expect::Value(()),
-    },];
+    },
+];
 fn subject(input: Input) -> Result<Value, Failure> {
     input()
 }

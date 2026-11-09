@@ -1,6 +1,5 @@
 //! Real preparation/append algorithms: identity, interning, ordinary-provider and failure controls.
 use super::service::*;
-use ryo_relations::domain::elements::types::EmbeddedMapping;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
     builders::service::*,
@@ -13,6 +12,7 @@ use crate::domain::{
         types::{ByteSlice, Symbols},
     },
 };
+use ryo_relations::domain::elements::types::EmbeddedMapping;
 use ryo_relations::domain::relations::{constants::NO_SYMBOL, types::*};
 use ryo_relations::domain::terms::types::NameText;
 use std::panic::{AssertUnwindSafe, catch_unwind};

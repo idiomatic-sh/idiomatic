@@ -5,8 +5,8 @@ use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::types::{BucketSource, KeptBucket};
 use ryo_language::domain::{
-    builders::fixtures as builders, completion::fixtures as completion,
-    elements::types::Elements, symbols::types::ByteSlice,
+    builders::fixtures as builders, completion::fixtures as completion, elements::types::Elements,
+    symbols::types::ByteSlice,
 };
 use ryo_relations::domain::relations::types::{KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
@@ -30,7 +30,8 @@ fn native_tree(file: FileId) -> (Elements, Symbols) {
         builders::token(&mut builder, KindBits(1), Offset(2), Offset(3));
         builders::leave_node(&mut builder, Offset(4));
     }
-    let mut completion = completion::completion(&mut elements, &mut symbols, ByteSlice(SOURCE), file);
+    let mut completion =
+        completion::completion(&mut elements, &mut symbols, ByteSlice(SOURCE), file);
     completion::name_kind(&mut completion, KindBits(0), NameText("root"));
     completion::name_kind(&mut completion, KindBits(1), NameText("token"));
     (elements, symbols)
@@ -89,7 +90,11 @@ fn written(table: &ryo_values::domain::rows::types::Table) -> Vec<String> {
 /// The rows a plan of `steps` emitting `emitted` answers over `files` native trees, run through the owner as a run runs
 /// it: each file's steps in the file, then the steps after the files over what every file captured. A file or the
 /// project phase that does not complete is its outcome, never rows.
-pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: usize) -> Result<Vec<String>, String> {
+pub(super) fn rows(
+    steps: Vec<PlanStep>,
+    emitted: StepId,
+    files: usize,
+) -> Result<Vec<String>, String> {
     let crossing = steps.iter().any(|step| step.scope == StepScope::CrossFile);
     let engine = engine();
     let mut input = authored_request(1);

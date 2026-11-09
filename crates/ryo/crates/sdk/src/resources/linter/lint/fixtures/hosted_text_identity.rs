@@ -1,5 +1,10 @@
 //! The test data of `linter lint` that fixes hosted text identity.
 
+use super::capability_provider::provider_linter;
+use super::directory::case_directory;
+use super::outcome::{Outcome, summary};
+use super::rules::{listed, ordinary, rule_id};
+use super::shared_calls::shared;
 use crate::domain::cell::types::Cell;
 use crate::domain::cell::types::HostText;
 use crate::domain::file::types::RelativePath;
@@ -12,11 +17,6 @@ use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::HostRelation;
 use crate::resources::linter::lint::types::HostRow;
 use std::collections::BTreeMap;
-use super::outcome::{Outcome, summary};
-use super::capability_provider::provider_linter;
-use super::rules::{listed, ordinary, rule_id};
-use super::directory::case_directory;
-use super::shared_calls::shared;
 
 /// Hosted text that collides in the readable wire form invalidates the retained cross-file findings when it changes.
 pub(crate) fn hosted_text_identity() -> Outcome {

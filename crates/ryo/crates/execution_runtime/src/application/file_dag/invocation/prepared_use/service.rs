@@ -5,7 +5,10 @@ use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
 pub(crate) fn prepared(
     contract: &OperatorContract,
     kind: ryo_derived::domain::request::types::DerivedKind,
-) -> Result<&ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse, OperatingError> {
+) -> Result<
+    &ryo_execution_domain::domain::derived_views::types::contract::value::PreparedViewUse,
+    OperatingError,
+> {
     let slots = &contract.derived.slots;
     slots[kind.ordinal()]
         .as_ref()

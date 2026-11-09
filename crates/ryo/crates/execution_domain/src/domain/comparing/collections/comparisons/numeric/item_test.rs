@@ -128,7 +128,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Verdict::Fails),
     },
     Case {
-        name: CaseName("the_finite_float_text_family_refuses_infinity_that_the_numeric_family_accepts"),
+        name: CaseName(
+            "the_finite_float_text_family_refuses_infinity_that_the_numeric_family_accepts",
+        ),
         word: Word::Succeeds,
         input: || {
             (

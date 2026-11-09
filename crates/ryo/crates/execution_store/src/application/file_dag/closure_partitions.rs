@@ -2,12 +2,14 @@
 use super::{
     derived::owner::acquisition::admission::service::AcquiredView, relations::RelationOwner,
 };
+use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest},
+    derived_views::types::{
+        DerivedInputs, DerivedScratch, ViewRequest, contract::value::DerivedContract,
+    },
     operating::errors::OperatingError,
 };
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_relations::domain::relations::types::Value;
 use std::{rc::Rc, sync::Arc};
 
@@ -90,9 +92,7 @@ impl<'f> PartitionedClosure<'f> {
         Ok(PartitionAdvance::Advanced)
     }
     /// Takes the current partition's view out of the cursor, for the invocation to hold.
-    pub fn take_current(
-        &mut self,
-    ) -> Result<AcquiredView, OperatingError> {
+    pub fn take_current(&mut self) -> Result<AcquiredView, OperatingError> {
         self.current.take().ok_or(OperatingError::NotRun)
     }
     /// The partition the cursor is on.
@@ -107,10 +107,9 @@ impl<'f> PartitionedClosure<'f> {
     }
 }
 
+mod constants;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod partitions_test;
-mod constants;
 pub mod schemas;
 pub mod types;
-use types::{PartitionAdvance, OrderCursor};
-
+use types::{OrderCursor, PartitionAdvance};

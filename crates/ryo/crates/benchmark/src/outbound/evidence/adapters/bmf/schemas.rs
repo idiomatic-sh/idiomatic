@@ -6,11 +6,11 @@ use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::reports::types::{
     Comparison, ComparisonContract, ExecutionMetadata, ReportComparison, RunReport,
 };
-use serde::Serialize;
-use std::collections::BTreeMap;
 use ryo_benchmark_contracts::domain::reports::types::{
     EndPair, FindingPosition, LocatedFinding, ParityReport, RuleComparison,
 };
+use serde::Serialize;
+use std::collections::BTreeMap;
 
 /// Median and observed extrema for one BMF metric.
 #[derive(Serialize)]
@@ -62,7 +62,10 @@ pub(super) fn encode(publication: &MeasuredPublication<'_>) -> Result<Vec<u8>, E
             ryo_benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into(),
         ));
     }
-    if samples.iter().any(|sample| sample.inventory != ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete) {
+    if samples.iter().any(|sample| {
+        sample.inventory
+            != ryo_benchmark_contracts::domain::measurements::types::InventoryStatus::Complete
+    }) {
         return Err(Error::Invalid(
             ryo_benchmark_contracts::domain::reports::constants::DIAGNOSTIC_OBSERVATIONS_CANNOT_PUBLISH.into(),
         ));
@@ -229,7 +232,10 @@ pub(super) fn parity_metrics(parity: &ParityReport<'_>) -> Result<Vec<u8>, Error
         parity.reference.0,
         BTreeMap::from([
             (constants::DIFFERING_RULES, count(differing)?),
-            (constants::UNACCEPTED_DIFFERENCES, count(parity.problems.len())?),
+            (
+                constants::UNACCEPTED_DIFFERENCES,
+                count(parity.problems.len())?,
+            ),
         ]),
     )]);
     serde_json::to_vec(&document).map_err(|error| Error::Json(Box::new(error)))

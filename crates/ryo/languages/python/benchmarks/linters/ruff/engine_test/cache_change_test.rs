@@ -57,7 +57,8 @@ pub(super) fn projection_cache_query_change(root: &std::path::Path) -> Result<bo
         ))
     };
     let first = run("nonlocal-at-module")?.run_prepared(WorkerRequest {
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.join("retained-parse-cache"),
@@ -65,7 +66,8 @@ pub(super) fn projection_cache_query_change(root: &std::path::Path) -> Result<bo
         ..request.clone()
     })?;
     let second = run("no-such-parser-code")?.run_prepared(WorkerRequest {
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        project_search_roots:
+            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
             root.join("retained-parse-cache"),

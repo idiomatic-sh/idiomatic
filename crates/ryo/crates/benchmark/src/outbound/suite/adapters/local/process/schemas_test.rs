@@ -65,9 +65,16 @@ fn tagged_process_certificate_and_declared_json_path_survive_real_case_toml_deco
     );
 }
 fn unknown_process_variants_and_unknown_byte_normalizations_are_not_decoded() {
-    assert!(refused(&source().replace("kind = \"process-failure\"", "kind = \"normal-report\"")));
-    assert!(refused(&source().replace("json-string-content", "strip-all-paths")));
-    assert!(refused(&source().replace("exit = 2", "exit = 2\nignore-backtrace = true")));
+    assert!(refused(&source().replace(
+        "kind = \"process-failure\"",
+        "kind = \"normal-report\""
+    )));
+    assert!(refused(
+        &source().replace("json-string-content", "strip-all-paths")
+    ));
+    assert!(refused(
+        &source().replace("exit = 2", "exit = 2\nignore-backtrace = true")
+    ));
 }
 
 fn one_case_cannot_declare_two_discrepancy_authorities() {
@@ -145,15 +152,22 @@ type Value = ();
 type Failure = std::convert::Infallible;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("tagged_process_certificate_and_declared_json_path_survive_real_case_toml_decoding"),
+        name: CaseName(
+            "tagged_process_certificate_and_declared_json_path_survive_real_case_toml_decoding",
+        ),
         word: Word::Succeeds,
-        input: || tagged_process_certificate_and_declared_json_path_survive_real_case_toml_decoding as fn(),
+        input: || {
+            tagged_process_certificate_and_declared_json_path_survive_real_case_toml_decoding
+                as fn()
+        },
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("unknown_process_variants_and_unknown_byte_normalizations_are_not_decoded"),
         word: Word::Succeeds,
-        input: || unknown_process_variants_and_unknown_byte_normalizations_are_not_decoded as fn(),
+        input: || {
+            unknown_process_variants_and_unknown_byte_normalizations_are_not_decoded as fn()
+        },
         expect: Expect::Value(()),
     },
     Case {
@@ -165,7 +179,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("authored_toml_decodes_each_evidence_kind_with_its_documented_field_names"),
         word: Word::Succeeds,
-        input: || authored_toml_decodes_each_evidence_kind_with_its_documented_field_names as fn(),
+        input: || {
+            authored_toml_decodes_each_evidence_kind_with_its_documented_field_names as fn()
+        },
         expect: Expect::Value(()),
     },
 ];

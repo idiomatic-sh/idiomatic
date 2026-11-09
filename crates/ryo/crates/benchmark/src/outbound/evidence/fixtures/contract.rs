@@ -1,6 +1,6 @@
 //! Every evidence destination accepts complete samples and refuses incomplete publication.
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use super::sample::SampleInput;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::evidence::interface::EvidencePort;
 use ryo_benchmark_contracts::domain::measurements::types::Measurement;
 use ryo_benchmark_contracts::domain::measurements::types::Resources;
@@ -145,12 +145,18 @@ pub fn check(adapter: &impl EvidencePort) {
     );
     assert_eq!(
         adapter
-            .parity(&ryo_benchmark_contracts::domain::reports::types::ParityReport {
-                reference: ryo_benchmark_contracts::domain::reports::types::ContestantName("reference"),
-                candidate: ryo_benchmark_contracts::domain::reports::types::ContestantName("candidate"),
-                rules: Vec::new(),
-                problems: Vec::new(),
-            })
+            .parity(
+                &ryo_benchmark_contracts::domain::reports::types::ParityReport {
+                    reference: ryo_benchmark_contracts::domain::reports::types::ContestantName(
+                        "reference"
+                    ),
+                    candidate: ryo_benchmark_contracts::domain::reports::types::ContestantName(
+                        "candidate"
+                    ),
+                    rules: Vec::new(),
+                    problems: Vec::new(),
+                }
+            )
             .map_err(|_invalid_boundary_value| ()),
         Ok(()),
         "a parity report is written"
