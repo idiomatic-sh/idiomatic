@@ -76,13 +76,30 @@ inputs = [".github"]
 [[tools]]
 id = "commitizen"
 group = "lint"
-# The branch's commit messages are conventional commits (cz.toml); a branch with no commit ahead of origin/main has none to check.
-# The commit being made is checked at the next commit, or in CI. The run names the range origin/main..HEAD, so its cached run is
-# kept only while those commits are the same. On GitHub Actions, run for a pull request (the event GITHUB_EVENT_PATH names holds
-# one), the pull request's title is a conventional commit too: a squash merge makes it the commit main keeps, and the changelog
-# is written from those.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || cz check --rev-range origin/main..HEAD; [ -z \"${GITHUB_EVENT_PATH:-}\" ] || ! jq -e .pull_request \"$GITHUB_EVENT_PATH\" > /dev/null || cz check --message \"$(jq -r .pull_request.title \"$GITHUB_EVENT_PATH\")\""]
+# The branch's commit messages since a pinned baseline are conventional commits (cz.toml), through cz's own --rev-range.
+# The baseline is the landed consolidation head (dcea2ee7df, 2026-11-09): the 901 non-conventional commits before it are history, not rewritten.
+# A shallow clone, or one without the baseline, stops the tool: a range it cannot resolve is no range it checked.
+run = ["bash", "-c", "set -e; [ \"$(git rev-parse --is-shallow-repository)\" = false ] || { echo 'commitizen: a shallow clone cannot resolve the range' >&2; exit 2; }; base=$(git rev-parse --verify \"dcea2ee7df7c02711f42c332cbc403ff7b84a034^{commit}\"); ahead=$(git rev-list \"$base..HEAD\"); [ -z \"$ahead\" ] || cz check --rev-range \"$base..HEAD\""]
 timeout-seconds = 300
+
+[[tools]]
+id = "gitleaks"
+group = "lint"
+# No secret is committed (.gitleaks.toml: gitleaks' default rules and the allowlist of what is proven not a secret; .gitleaksignore:
+# single findings proven not secrets). The pre-commit hook runs the lint group, so this scans the staged change alone, which is
+# fast; gitleaks-history scans the branch's commits. Exit 1 is a finding; --redact keeps the secret out of the output.
+run = ["gitleaks", "git", "--pre-commit", "--staged", "--redact", "--no-banner", "."]
+timeout-seconds = 600
+
+[[tools]]
+id = "gitleaks-history"
+group = "check"
+# Every commit of the branch since its merge-base with origin/main, so a secret committed and then deleted still fails, and a
+# checkout of a pushed branch (CI's) scans the branch's own commits; secrets matter for the whole history, which was scanned once,
+# on 2026-11-09. In the check group, which the CI checks job and the checkpoint workflow run and the pre-commit hook does not.
+# A shallow clone, or one without origin/main (a --single-branch clone), stops the tool: a range it cannot resolve is no range it scanned.
+run = ["bash", "-c", "set -e; [ \"$(git rev-parse --is-shallow-repository)\" = false ] || { echo 'gitleaks-history: a shallow clone cannot resolve the range' >&2; exit 2; }; base=$(git rev-parse --verify origin/main^{commit}); ahead=$(git rev-list \"$base..HEAD\"); [ -z \"$ahead\" ] || gitleaks git --redact --no-banner \"--log-opts=$base..HEAD\" ."]
+timeout-seconds = 600
 
 [[tools]]
 id = "ci-tests"
@@ -91,6 +108,19 @@ group = "check"
 run = ["bash", "-c", "mkdir -p target/checks/ci-tests; set +e; pytest --quiet -p no:cacheprovider --import-mode=importlib -o pythonpath=. -o 'python_files=*_test.py' -o python_classes= -o 'norecursedirs=.* __pycache__' ci > target/checks/ci-tests/stdout.log 2> target/checks/ci-tests/stderr.log; tool_status=$?; cat target/checks/ci-tests/stdout.log; cat target/checks/ci-tests/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/ci-tests/status; exit \"$tool_status\""]
 timeout-seconds = 1800
 inputs = ["ci", ".claude/hooks", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/release-plz.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+
+[[tools]]
+id = "checkpoint"
+group = "checkpoint"
+# The ryo checkpoint validation (crates/ryo/docs/contracts/evidence/checkpoint/README.md): run.py runs every command of
+# commands.json over the checked-out source, writes each command's log and exit under target/checks/checkpoint, and writes
+# validation.json, identity.json and tests.json beside itself; the checkpoint workflow uploads them with the logs. The commands
+# build offline, so the two workspaces they build are fetched first. Its exit is run.py's, from the results alone (a red command no
+# README row owns, or a ticked row the results do not prove), kept in target/checks/checkpoint/status. Its output is kept in
+# summary.log, and on GitHub Actions each command it did not run (`NOT RUN ruff_parity: parity not run: ...`), each red and a stale
+# record go to the run's summary, so an owned refusal is never folded into a green job unseen.
+run = ["bash", "-c", "set -e; mkdir -p target/checks/checkpoint; cargo fetch --locked --manifest-path crates/ryo/Cargo.toml; cargo fetch --locked --manifest-path crates/tastemaker/Cargo.toml; set +e -o pipefail; python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py target/checks/checkpoint | tee target/checks/checkpoint/summary.log; tool_status=$?; [ -z \"${GITHUB_STEP_SUMMARY:-}\" ] || grep -E '^(NOT RUN|RED|UNTICKED ROW|TICKED ROW|STALE RECORD) ' target/checks/checkpoint/summary.log >> \"$GITHUB_STEP_SUMMARY\"; printf '%s\\n' \"$tool_status\" > target/checks/checkpoint/status; exit \"$tool_status\""]
+timeout-seconds = 21600
 
 [[tools]]
 id = "speed"
@@ -113,7 +143,7 @@ inputs = ["crates/ryo", "tastemaker", "rust-toolchain.toml", ".cargo"]
 [[tools]]
 id = "benchmarks"
 group = "benchmarks"
-# The weekly record of the whole-project benchmarks: each product's `distribution` bench and ryo's `lint` bench run once, their
+# The record of the whole-project benchmarks, run by hand: each product's `distribution` bench and ryo's `lint` bench run once, their
 # Bencher Metric Format documents kept under target/benchmarks, which the benchmarks workflow uploads. It judges nothing.
 run = ["uv", "run", "ci/perf/command.py", "--bench", "distribution", "--bench", "lint", "--output", "target/benchmarks"]
 timeout-seconds = 21600

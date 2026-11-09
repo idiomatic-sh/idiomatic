@@ -3295,7 +3295,7 @@ given.files.'src/collections/shapes/types.rs' = "pub mod key;"
 given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
 given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
 given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
-then.findings = [{path="src/collections/shapes/types/key.rs"}, {path="src/collections/shapes/types/key/value.rs"}, {path="src/collections/shapes/types/key/value_test.rs"}]
+then.findings = [{ path = "src/collections/shapes/types/key.rs" }, { path = "src/collections/shapes/types/key/value.rs" }, { path = "src/collections/shapes/types/key/value_test.rs" }]
 
 [[scenarios]]
 id = "wrong-role-does-not-authorize-types-directory"
@@ -3311,7 +3311,7 @@ given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
 given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
 given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"] }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"idiomatic.arch/unit-test\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
 then.only = ["idiomatic.arch/collection-members"]
-then.findings = [{path="src/collections/shapes/types/key/value.rs"}]
+then.findings = [{ path = "src/collections/shapes/types/key/value.rs" }]
 
 [[scenarios]]
 id = "foreign-package-cannot-spoof-value-role"
@@ -3327,4 +3327,4 @@ given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
 given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
 given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }, { package = \"foreign\", path = \"../../../../crates/tastemaker/cli/tests/fixtures/replay/roles\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"] }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"foreign/value\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
 then.only = ["idiomatic.arch/collection-members"]
-then.findings = [{path="src/collections/shapes/types/key/value.rs"}]
+then.findings = [{ path = "src/collections/shapes/types/key/value.rs" }]

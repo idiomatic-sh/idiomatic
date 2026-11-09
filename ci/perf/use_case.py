@@ -1,6 +1,6 @@
 """The `perf` job's use case: the order of its steps over their ports, and nothing else.
 
-Without a base, every bench asked for runs once over the checkout, its documents kept (the weekly record). With a base (a pull
+Without a base, every bench asked for runs once over the checkout, its documents kept (the benchmarks record). With a base (a pull
 request's `main`), the base is checked out beside the checkout and every bench the change reaches runs over both, alternately,
 base then head, for `ROUNDS` rounds, so a hosted runner's drift falls on both alike. Each measure's ratio is the median of the
 rounds' head/base ratios: above `FAIL` it fails the job, above `WARN` it is a warning. Absolute times are never compared: they

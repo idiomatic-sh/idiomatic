@@ -198,5 +198,5 @@ templates = [
   { alias = "walk-coverage-13", template = "idiomatic.ryo/program-runtime-proof", file = "program/facade_runtime/walk_coverage/identity/test.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { alias = "walk-coverage-14", template = "idiomatic.ryo/program-runtime-proof", file = "program/facade_runtime/walk_coverage/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { alias = "walk-coverage-17", template = "idiomatic.ryo/program-runtime-proof", file = "program/facade_runtime/walk_coverage/routes/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
-  { alias = "walk-coverage-18", template = "idiomatic.ryo/program-runtime-proof", file = "program/facade_runtime/walk_coverage/routes/test.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." }
+  { alias = "walk-coverage-18", template = "idiomatic.ryo/program-runtime-proof", file = "program/facade_runtime/walk_coverage/routes/test.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
 ]

@@ -1,11 +1,9 @@
-# The weekly record of the whole-project benchmarks on main, on Linux: the `benchmarks` group of the root asymptote.toml, each
-# product's `distribution` bench and ryo's `lint` bench (ryo's cost over ruff) run once, their Bencher Metric Format documents
-# uploaded as the run's artifact. It judges nothing and gates no pull request; the speed of a change is the `check` workflow's
+# The record of the whole-project benchmarks, started only by hand (no paid CI: no schedule), on Linux: the `benchmarks` group of
+# the root asymptote.toml, each product's `distribution` bench and ryo's `lint` bench (ryo's cost over ruff) run once, their Bencher
+# Metric Format documents uploaded as the run's artifact. It judges nothing and gates no pull request; the speed of a change is the `check` workflow's
 # `speed` job.
 name: benchmarks
 on:
-  schedule:
-    - cron: "0 3 * * 0"
   workflow_dispatch:
 permissions:
   contents: read

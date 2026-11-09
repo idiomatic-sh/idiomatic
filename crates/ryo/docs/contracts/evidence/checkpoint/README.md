@@ -5,7 +5,10 @@
 The quick checks (`asymptote check --groups lint,check` in `crates/ryo`) have no record here: the TM steward runs them at the landed head, and Asymptote's committed lock (`.asymptote/`) is the record of their findings.
 
 `commands.json` is the list of `[name, argv]` validation commands the matrix's
-numbers rest on: library tests, `boundary_contract`, `project_boundary`,
+numbers rest on: `checkout_tools` (this checkout's `tm` and `ryo`, built into the run's target directory, which the commands over
+`crates/ryo`, pinned to the unreleased Tastemaker 0.1.2, and `ownership_edges` run; the root and `crates/tastemaker`, pinned to
+0.1.0, keep the installed `tm`: `tm_validate_all`'s root half and `tm_validate_no_heap_accounting` move to the checkout's `tm` when
+the Tastemaker 0.1.2 release lets the root pin follow), library tests, `boundary_contract`, `project_boundary`,
 `activation`, `bdd`, `core_bdd`, `core_allocation`, the execution program
 authority targets, the doctests (execution, its domain, store and runtime, values, core, sdk, derived),
 `ruff` (the python target), the ten language `conformance`
@@ -40,6 +43,11 @@ committed; `validation.json` and `identity.json` are.
 The matrix's numbers come from `validation.json`, which records the exact
 sources and approved reuse of those runs.
 
+On GitHub Actions the checkpoint workflow (`.github/workflows/checkpoint.yml`), started by hand on a ref, runs `run.py` through the
+root `asymptote.toml`'s `checkpoint` tool with `target/checks/checkpoint` as the output directory, and uploads `validation.json`,
+`identity.json`, `tests.json`, `summary.log` (run.py's output) and every command's `.log` and `.json` as the
+`checkpoint-validation` artifact; its `NOT RUN`, `RED`, ticked-row and `STALE RECORD` lines go to the run's summary.
+
 ## What `run.py` writes and checks
 
 After the commands, `run.py` raises `validation` by one, records the source and
@@ -57,8 +65,17 @@ types those cells.
 
 `python3 crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` runs no
 cargo and takes no lock. It rewrites the block from the committed
-`validation.json` and exits 1 when the file changed (stage it and run again),
-so a stale block cannot pass. Both modes also exit 1 when a ticked row (`☑`,
+`validation.json`, and when a file changed it prints `STALE RECORD` with the files and exits 1 (stage them and run again),
+so a stale block cannot pass. A full run rewrites the block every time (its validation number is new), which is not a failure:
+it exits on the validation's results alone.
+
+Both modes exit 1 for a red command no open README row owns, and print every red command with its owning rows. A red is owned
+only by its exact recorded test id, `(command, test binary, test)` in `RED_OWNERS`; a red command that recorded no failed test
+(a build failure, a `harness = false` target that prints no case) is unowned, and so is a binary that crashed: one cargo failed
+(`error: test failed, to rerun pass ...`) that printed no `test result:` line or no failed test is recorded red under `CRASHED`. A command that cannot run on
+the machine prints `not available: <why>` as its first line and exits non-zero (`ruff_parity`, whose pinned Django request stays
+outside the repository); `run.py` records the reason in its check, prints it as `NOT RUN ruff_parity: parity not run: <why>`, and
+only that refusal is owned, by its `UNAVAILABLE_OWNERS` row. An owning row must be open: `own()` and the exit refuse a ticked one. Both modes also exit 1 when a ticked row (`☑`,
 `[x]`) of the matrix cites no validation (`validationNNN`, `proofNNN`,
 `reviewNNN`, `passNNN`, `runtimeNNN`, `reuseNNN`, `inNNN`, `atNNN`) or cites one
 greater than `validation`; each offending row is printed with its line number.

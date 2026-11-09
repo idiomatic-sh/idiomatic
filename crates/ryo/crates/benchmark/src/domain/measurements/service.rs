@@ -28,7 +28,7 @@ pub fn require_inventory(
         || declared != actual
     {
         return Err(Error::Invalid(
-            constants::BENCHMARK_RULE_IDENTITIES_DIFFER_FROM_DECLAR.into(),
+            constants::RULE_IDENTITIES_DIFFER_FROM_DECLARED.into(),
         ));
     }
     Ok(())

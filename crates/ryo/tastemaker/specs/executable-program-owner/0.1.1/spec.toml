@@ -1,6 +1,6 @@
 description = "The cohesive file DAG executable-program application owner and its exact nested parts."
 why = "The application service owns one request's preparation, admission, invocation, and publication. These exact files are declared so a new nested implementation must be deliberately placed; the existing application-service sibling boundary and program implementation dependency rule remain active."
-closed      = false
+closed = false
 
 templates = [
   { template = "idiomatic.ryo/executable-program-part@0.1.0", file = "program.rs", description = "The executable-program module boundary." },

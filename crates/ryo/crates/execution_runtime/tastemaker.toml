@@ -97,5 +97,5 @@ templates = [
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/observations/constants.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/observations/restore.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/observations/restore/service.rs", description = "One explicitly placed nested part of a cohesive application operation." },
-  { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/observations/types.rs", description = "One explicitly placed nested part of a cohesive application operation." }
+  { template = "idiomatic.ryo/application-part", file = "src/application/file_dag/observations/types.rs", description = "One explicitly placed nested part of a cohesive application operation." },
 ]

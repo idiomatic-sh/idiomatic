@@ -1,7 +1,7 @@
 //! Parse the child's request transport without putting large JSON in argv.
 use super::targets::TargetConfiguration;
 use crate::constants;
-use crate::constants::WORKER_REQUIRES_AN_EXPLICIT_SUPPOR;
+use crate::constants::WORKER_REQUIRES_A_SUPPORTED_PARSER;
 use ryo_benchmark::inbound::use_cases::check_worker_request::types::WorkerExpectation;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName;
@@ -52,7 +52,7 @@ pub(super) fn worker_expectation(
 ) -> Result<WorkerExpectation, Error> {
     let configuration = configuration
         .filter(|value| super::targets::resolve(Some(*value)).is_ok())
-        .ok_or_else(|| Error::Invalid(WORKER_REQUIRES_AN_EXPLICIT_SUPPOR.into()))?;
+        .ok_or_else(|| Error::Invalid(WORKER_REQUIRES_A_SUPPORTED_PARSER.into()))?;
     Ok(WorkerExpectation {
         parser_configuration: ParserConfigurationName(configuration.0.into()),
         pinned_applicability: crate::schemas::pinned_rule_phases()?,

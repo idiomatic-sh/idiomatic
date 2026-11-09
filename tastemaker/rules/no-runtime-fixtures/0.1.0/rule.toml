@@ -993,13 +993,13 @@ given.files.'src/lib.rs' = "#[cfg(test)] mod proof { mod nested { use crate::fix
 id = "production-alias-control"
 scenario = "production alias control"
 given.files.'src/lib.rs' = "fn check() { use crate::fixtures::VALUE as expected; let _ = expected; }"
-then.findings = [{path = "src/lib.rs", line = 1}]
+then.findings = [{ path = "src/lib.rs", line = 1 }]
 
 [[scenarios]]
 id = "negated-item-control"
 scenario = "negated item control"
 given.files.'src/lib.rs' = "#[cfg(not(test))] fn check() { use crate::fixtures::VALUE as expected; let _ = expected; }"
-then.findings = [{path = "src/lib.rs", line = 1}]
+then.findings = [{ path = "src/lib.rs", line = 1 }]
 
 [[scenarios]]
 id = "test-include-preserves-registered-role"

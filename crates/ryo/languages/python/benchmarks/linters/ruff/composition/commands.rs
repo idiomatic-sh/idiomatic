@@ -2,7 +2,7 @@
 use super::super::{adapter::LinterRuffAdapter, settings::LinterRuffSettings};
 use super::constants;
 use super::constants::{
-    PINNED_REFERENCE_DOES_NOT_EVALUATE, PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMEN,
+    PINNED_REFERENCE_DOES_NOT_EVALUATE, PYTHON_TARGET, UNEXPECTED_TRAILING_WORKER_ARGUMENT,
     UNEXPECTED_WORKER_CONFIGURATION,
 };
 use super::diagnostic_protocol::WorkerTracing;
@@ -66,7 +66,7 @@ pub(super) fn worker(
         None => (None, None),
     };
     if args.next().is_some() {
-        return Err(Error::Invalid(UNEXPECTED_TRAILING_WORKER_ARGUMEN.into()));
+        return Err(Error::Invalid(UNEXPECTED_TRAILING_WORKER_ARGUMENT.into()));
     }
     let expectation = worker_expectation(parser_configuration.as_deref().map(TargetConfiguration))?;
     let source = match input {

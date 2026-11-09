@@ -1,0 +1,5 @@
+# Findings of gitleaks (the `gitleaks` tool of asymptote.toml) proven not secrets, one fingerprint each, the reason above it.
+# A Claude Code session id (a UUID naming a session, which authenticates nothing) in a recorded review attempt.
+891070bd99af6c70f458e02fe1ada547741f99a3:crates/ryo/crates/benchmark/results/django-bottlenecks-2026-11-04/progressive-survey/fable-attempt.json:generic-api-key:7
+# The SHA-256 of the `api` job's log, an entry of the `local_job_log_sha256` map of a CI triage record.
+37e561bf42a07c610b06f0c195db668e9241fa3f:crates/ryo/languages/python/benchmarks/linters/ruff/results/ci-80be-full-inventory-2026-11-03/quality-triage.json:generic-api-key:45

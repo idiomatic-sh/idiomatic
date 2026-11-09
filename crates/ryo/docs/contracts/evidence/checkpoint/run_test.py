@@ -1,5 +1,5 @@
 """Fixture cases of `run.py --check`: a ticked row (a `[x]` box or a `☑` cell) stays ticked only when it cites a test, every test it cites passed in the recorded logs, and it does not say its review is pending."""
-import importlib.util,json,tempfile,unittest
+import importlib.util,json,re,tempfile,unittest
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('run',Path(__file__).resolve().parent/'run.py'); run=importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
 LOG='''     Running unittests src/lib.rs (/target/debug/deps/ryo_values-0123abcd)
@@ -91,6 +91,9 @@ class Check(unittest.TestCase):
   results={k:{'exit':101} for k in run.OWNERS if '::' not in k}
   results['cli_replay_reds']=[k for k in run.OWNERS if '::' in k]
   return results
+ def owned_record(self):
+  """owned_reds() as own() leaves it: every OWNERS entry red and carrying its owner note, so finish() rewrites nothing for owners."""
+  results=self.owned_reds(); run.own({'results':results},''); return results
  def test_every_red_result_carries_its_owner_and_a_green_one_carries_none(self):
   readme=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
   v={'results':{**self.owned_reds(),'ruff_rule_phases':{'exit':0,'note':'repaired; owned by "Close full TM, contracts, independent review and normal CI."'},'unowned_target':{'failed':1},'libraries_total':{'passed':1,'failed':1}}}
@@ -107,4 +110,91 @@ class Check(unittest.TestCase):
   replay=self.owned_reds(); replay['cli_replay_reds']=[]
   changed,bad=run.own({'results':replay},readme)
   self.assertEqual(sorted(bad),sorted('stale owner: '+k+' is not red, so OWNERS may not pre-own it' for k in run.OWNERS if '::' in k))
+ def test_a_red_is_owned_only_by_its_exact_command_binary_and_test(self):
+  benchmark=('libraries','ryo_benchmark','inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds')
+  tests={'libraries':{'ryo_benchmark':{'failed':{benchmark[2]:{}}}},'cli_cost':{'replay':{'failed':{'cost::a_cold_run_over_ruff_holds_the_peak_ratchet':{}}}}}
+  v={'tests':tests,'checks':{'libraries':{'exit':101},'cli_cost':{'exit':101},'ruff':{'exit':0}}}
+  self.assertEqual(run.red_commands(v),[('libraries',101,[run.RED_OWNERS[benchmark]]),('cli_cost',101,[run.OWNERS['cli_cost']])])
+  tests['libraries']['ryo_core']={'failed':{'brand_new::regression':{}}}
+  self.assertEqual(run.red_commands(v)[0],('libraries',101,[]))
+ def test_the_allocation_runner_reports_its_case_as_cargo_does_and_its_red_is_owned_by_that_id(self):
+  source=(Path(run.__file__).parents[4]/'crates/core/tests/allocation.rs').read_text()
+  case=re.search(r'const CASE: &str = "([^"]+)";',source).group(1)
+  log=Path(self.raw.name)/'core_allocation.log'
+  log.write_text('     Running tests/allocation.rs (/t/debug/deps/allocation-7c079f4def874c49)\n\nrunning 1 test\nthread \'main\' panicked at measures.rs:115:5:\nassertion failed\ntest '+case+' ... FAILED\n\nfailures:\n    '+case+'\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n')
+  tests={'core_allocation':run.test_results(log)}
+  self.assertEqual(list(tests['core_allocation']['allocation']['failed']),[case])
+  self.assertEqual(run.command_owners('core_allocation',{'exit':101},tests),[run.OWNERS['core_allocation']])
+ def test_a_binary_cargo_failed_without_a_test_result_line_crashed_and_its_red_is_unowned(self):
+  benchmark='inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds'
+  log=Path(self.raw.name)/'libraries.log'
+  log.write_text('     Running unittests src/lib.rs (/t/debug/deps/ryo_benchmark-e4783985ddbec807)\n'
+   'test '+benchmark+' ... FAILED\n\ntest result: FAILED. 227 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n\n'
+   'error: test failed, to rerun pass `-p idiomatic-sh-ryo-benchmark --lib`\n'
+   '     Running unittests src/lib.rs (/t/debug/deps/ryo_core-90ad667b7be178a2)\n\nrunning 120 tests\n'
+   "thread 'main' has overflowed its stack\nfatal runtime error: stack overflow\n"
+   'error: test failed, to rerun pass `-p idiomatic-sh-ryo-core --lib`\n'
+   '     Running unittests src/lib.rs (/t/debug/deps/ryo_values-0bf301fa394de9a3)\n'
+   'test domain::rows::service_test::succeeds ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n')
+  tests={'libraries':run.test_results(log)}
+  self.assertEqual(list(tests['libraries']['ryo_core']['failed']),[run.CRASHED])
+  self.assertEqual(list(tests['libraries']['ryo_benchmark']['failed']),[benchmark])
+  self.assertEqual(tests['libraries']['ryo_values']['failed'],{})
+  self.assertEqual(run.command_owners('libraries',{'exit':101},tests),[])
+ def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
+  v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
+  self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])
+ def test_an_owner_row_that_is_ticked_owns_nothing(self):
+  rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  self.assertEqual(run.open_row_problems(rows),[])
+  ticked=rows.replace('- [ ] '+run.CLOSE,'- [x] '+run.CLOSE)
+  self.assertTrue(run.open_row_problems(ticked)); self.assertTrue(all('ticked README row' in x for x in run.open_row_problems(ticked)))
+  self.assertTrue(any('ticked README row' in x for x in run.own({'results':{}},ticked)[1]))
+ def test_a_refusal_to_run_here_is_owned_only_as_a_refusal(self):
+  raw=Path(self.raw.name)
+  (raw/'ruff_parity.log').write_text('not available: the pinned Django request is absent\n')
+  (raw/'other.log').write_text('error: parity differs\n')
+  self.assertEqual(run.unavailable(raw/'ruff_parity.log'),'the pinned Django request is absent')
+  self.assertIsNone(run.unavailable(raw/'other.log')); self.assertIsNone(run.unavailable(raw/'absent.log'))
+  self.assertEqual(run.command_owners('ruff_parity',{'exit':2,'not_available':'absent'},{}),[run.UNAVAILABLE_OWNERS['ruff_parity']])
+  self.assertEqual(run.command_owners('ruff_parity',{'exit':1},{}),[])
+  self.assertEqual(run.command_owners('bench_build',{'exit':2,'not_available':'absent'},{}),[])
+ def test_a_rewritten_record_fails_only_the_check_of_the_committed_record_and_an_unowned_red_fails_both(self):
+  folder=Path(self.raw.name)/'contracts'; folder.mkdir()
+  rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  saved=(run.readme,run.contracts,run.validation_json)
+  run.readme,run.contracts,run.validation_json=folder/'README.md',folder,folder/'validation.json'
+  try:
+   def verdict(check,checks):
+    run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
+    v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':self.owned_record(),'checks':checks,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
+    return run.finish(v,check=check)
+   self.assertEqual((verdict(False,{}),verdict(True,{})),(0,1))
+   refused={'ruff_parity':{'exit':2,'not_available':'the pinned Django request is absent'}}
+   import io,contextlib
+   said=io.StringIO()
+   with contextlib.redirect_stdout(said): self.assertEqual(verdict(False,refused),0)
+   self.assertIn('NOT RUN ruff_parity: parity not run: the pinned Django request is absent',said.getvalue())
+   self.assertEqual((verdict(False,{'bench_build':{'exit':101}}),verdict(True,{'bench_build':{'exit':101}})),(1,1))
+   # The leak review's three plants over the committed record: a new red test under an owned command, a red command with no
+   # test, and the parity refusal.
+   committed=json.loads((Path(run.__file__).parent/'validation.json').read_text())['checks']
+   run_tests=run.loaded(json.loads((Path(run.__file__).parent/'tests.json').read_text()))
+   run_tests['libraries'].setdefault('ryo_core',{'passed':[],'ignored':[],'not_run':[],'failed':{}})['failed']['brand_new::regression']={'rows':[],'collected':False}
+   planted=dict(committed,tm_import_cli={'exit':101},**refused)
+   # The re-check's plant: a ryo_core crash beside the owned reds of the same command.
+   alone=dict(committed,**refused)
+   crashed=run.loaded(json.loads((Path(run.__file__).parent/'tests.json').read_text()))
+   crashed['libraries']['ryo_core']={'passed':[],'ignored':[],'not_run':[],'failed':{run.CRASHED:{'rows':[],'collected':False}}}
+   crashed['core_allocation']={'allocation':{'passed':[],'ignored':[],'not_run':[],'failed':{'per_file_path::allocates_as_the_parser_library_does':{'rows':[],'collected':False}}}}
+   run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
+   v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':self.owned_record(),'checks':alone,'tests':crashed,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
+   with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(v),1)
+   del crashed['libraries']['ryo_core']
+   run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
+   with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(dict(v,tests=crashed)),0)
+   run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
+   v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':self.owned_record(),'checks':planted,'tests':run_tests,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
+   with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(v),1)
+  finally: run.readme,run.contracts,run.validation_json=saved
 if __name__=='__main__': unittest.main()

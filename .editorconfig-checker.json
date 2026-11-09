@@ -4,7 +4,9 @@
     "/resources/",
     "\\.bundle$",
     "\\.patch$",
-    "^crates/ryo/languages/[^/]+/tests/fixtures/(suite|corpus)/"
+    "^crates/ryo/languages/[^/]+/tests/fixtures/(suite|corpus)/",
+    "^crates/ryo/languages/python/benchmarks/linters/ruff/(rules|profiles|evidence|results)/",
+    "^crates/ryo/languages/[^/]+/tests/fixtures/manifests/invalid-manifest/"
   ],
   "SpacesAfterTabs": false,
   "NoColor": true

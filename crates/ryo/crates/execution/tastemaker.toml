@@ -107,5 +107,5 @@ templates = [
   { template = "idiomatic.ryo/application-part", file = "src/application/rule_compilation/identity.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/rule_compilation/observing.rs", description = "One explicitly placed nested part of a cohesive application operation." },
   { template = "idiomatic.ryo/application-part", file = "src/application/rule_compilation/observing/tests.rs", description = "One explicitly placed nested part of a cohesive application operation." },
-  { template = "idiomatic.ryo/application-part", file = "src/application/rule_compilation/eviction_service_test.rs", description = "One explicitly placed nested part of a cohesive application operation." }
+  { template = "idiomatic.ryo/application-part", file = "src/application/rule_compilation/eviction_service_test.rs", description = "One explicitly placed nested part of a cohesive application operation." },
 ]
