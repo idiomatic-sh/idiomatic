@@ -19,7 +19,7 @@ name = "ryo_markdown"
 strum.workspace = true
 # The CommonMark parser of mdBook and of the rustdoc ecosystem; its pull parser gives every event with its byte range.
 pulldown-cmark = { version = "=0.13.4", default-features = false }
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.2" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.1.3" }
 
 [dev-dependencies]
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }

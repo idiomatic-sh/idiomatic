@@ -86,12 +86,25 @@ class Check(unittest.TestCase):
   self.assertEqual(len(run.reruns_without_log([('note','the row passes in its narrow run (libraries.log)')],self.v)),0)
   self.assertEqual(len(run.reruns_without_log([('note','rerun in boundary-rerun.log')],self.v)),1)
   self.assertEqual(len(run.reruns_without_log([('note','green on five reruns')],self.v)),1)
+ def owned_reds(self):
+  """Every OWNERS entry red: replay tests in cli_replay_reds, the rest as failed results."""
+  results={k:{'exit':101} for k in run.OWNERS if '::' not in k}
+  results['cli_replay_reds']=[k for k in run.OWNERS if '::' in k]
+  return results
  def test_every_red_result_carries_its_owner_and_a_green_one_carries_none(self):
   readme=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
-  v={'results':{'core_allocation':{'exit':101},'ruff_rule_phases':{'exit':0,'note':'repaired; owned by "Close full TM, contracts, independent review and normal CI."'},'unowned_target':{'failed':1},'libraries_total':{'passed':1,'failed':1}}}
+  v={'results':{**self.owned_reds(),'ruff_rule_phases':{'exit':0,'note':'repaired; owned by "Close full TM, contracts, independent review and normal CI."'},'unowned_target':{'failed':1},'libraries_total':{'passed':1,'failed':1}}}
   changed,bad=run.own(v,readme)
   self.assertTrue(changed); self.assertEqual(bad,['red unowned_target has no owner in OWNERS'])
   self.assertEqual(v['results']['core_allocation']['note'],'owned by "'+run.OWNERS['core_allocation']+'"')
   self.assertEqual(v['results']['ruff_rule_phases']['note'],'repaired')
   self.assertNotIn('note',v['results']['libraries_total'])
+ def test_a_green_result_with_only_a_stale_owner_fails_the_check(self):
+  readme=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  results=self.owned_reds(); results['core_allocation']={'exit':0}
+  changed,bad=run.own({'results':results},readme)
+  self.assertEqual(bad,['stale owner: core_allocation is not red, so OWNERS may not pre-own it'])
+  replay=self.owned_reds(); replay['cli_replay_reds']=[]
+  changed,bad=run.own({'results':replay},readme)
+  self.assertEqual(sorted(bad),sorted('stale owner: '+k+' is not red, so OWNERS may not pre-own it' for k in run.OWNERS if '::' in k))
 if __name__=='__main__': unittest.main()

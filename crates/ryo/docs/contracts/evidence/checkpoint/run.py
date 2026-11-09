@@ -239,48 +239,18 @@ def reruns_without_log(texts,v):
   logs=re.findall(r'[\w.-]+\.log\b',text)
   if not logs or not all((Path(v['raw_identity'])/x).is_file() for x in logs): bad.append(where+': cites a rerun with no raw log in '+v['raw_identity']+': '+text[:110])
  return bad
-REPAIR='Repair every deferred output failure; rerun all 413 and full corpus.'
 RUST_REGRESSIONS='Measure full-Django cold/warm/edit and Rust regressions; meet final objective.'
 CLOSE='Close full TM, contracts, independent review and normal CI.'
+# One entry per result or replay test that is red now, chosen when it turned red; `own()` refuses an entry whose result or
+# test is green (a stale owner would pre-own a red that has not happened yet).
 OWNERS={
- 'core_library':REPAIR,
  'benchmark_library':CLOSE,
  'core_allocation':RUST_REGRESSIONS,
  'cli_cost':'Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, Rust regression guards within bounds.',
- 'behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows':'Consolidate the kernels: run the all-413 parity run against Ruff with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.',
  'behavior::ruff_findings_equal_the_expected_findings':CLOSE,
  'behavior::every_recorded_rule_gives_the_recorded_rows':CLOSE,
- 'cache::the_store_every_recorded_rule_keeps_over_ruff_stays_within_its_bound':REPAIR,
  'peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound':'Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.',
- 'tm_import_cli':CLOSE,
  'tastemaker_workspace':CLOSE,
- 'cache::a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root':CLOSE,
- 'behavior::the_files_that_say_why_something_differs_name_only_recorded_rules_and_real_features':CLOSE,
- 'behavior::recorded_recognition_gives_the_recorded_unread_files':CLOSE,
- 'cache::a_warm_run_leaves_the_store_as_it_was_and_a_removed_file_does_not':CLOSE,
- 'cache::a_run_whose_store_keeps_nothing_answers_what_one_that_keeps_does':CLOSE,
- 'behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference':CLOSE,
- 'behavior::row_that_differs_is_reported_with_its_plan_id':CLOSE,
- 'cache::a_warm_run_reads_nothing_and_an_edit_reads_what_it_must':CLOSE,
- 'cache::an_edit_hands_the_store_the_words_of_the_file_read_alone':CLOSE,
- 'damage::a_store_cut_short_damaged_or_removed_is_empty_and_the_run_answers_as_with_none':CLOSE,
- 'cache::files_added_and_removed_before_others_move_what_the_others_handed_with_them':CLOSE,
- 'damage::a_store_whose_table_of_contents_gives_a_section_longer_than_the_file_is_no_store':CLOSE,
- 'damage::a_store_with_one_section_damaged_gives_the_findings_of_a_run_that_keeps_nothing':CLOSE,
- 'finish::an_edit_that_leaves_what_a_file_shows_the_others_as_it_was_keeps_the_cross_file_findings':CLOSE,
- 'frontier::no_rule_is_handed_words_in_proportion_to_the_elements_of_a_file':CLOSE,
- 'frontier::the_finish_is_handed_a_row_for_each_function_and_none_for_a_token':CLOSE,
- 'lowering::every_rule_gives_the_same_rows_on_two_runs_over_ruff':CLOSE,
- 'manifests::a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_completeness_query':CLOSE,
- 'manifests::a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones':CLOSE,
- 'manifests_bun::ryo_says_what_bun_says_of_the_manifests_of_a_workspace':CLOSE,
- 'interface::an_edit_inside_a_body_reads_one_file_and_an_edit_of_what_a_file_declares_or_imports_makes_the_cross_file_steps_again':CLOSE,
- 'recordings::a_pending_txt_naming_exactly_the_refused_relation_waits':CLOSE,
- 'manifests_go::ryo_says_what_go_says_of_the_manifests_of_a_workspace':CLOSE,
- 'manifests_uv::ryo_says_what_uv_says_of_the_manifests_of_a_workspace':CLOSE,
- 'manifests_pnpm::ryo_says_what_pnpm_says_of_the_manifests_of_a_workspace':CLOSE,
- 'manifests_npm::ryo_says_what_npm_says_of_the_manifests_of_a_workspace':CLOSE,
- 'manifests_cargo::ryo_says_what_cargo_says_of_the_manifests_of_every_target':CLOSE,
 }
 OWNED=re.compile(r'(?:; )?(?:[a-z_]+ )?owned by "[^"]*"')
 def owned(note,clauses):
@@ -293,15 +263,16 @@ def red(x):
 def own(v,readme_text):
  """Each red result carries its owning row's exact title in its validation.json note, from OWNERS; a green result carries none. A red with no owner and a title that is no README row are reported. Returns (changed, problems)."""
  results=v['results']; bad=[]; before=json.dumps(results)
+ reds=results.get('cli_replay_reds',[])
  for key,title in OWNERS.items():
   if '[ ] '+title not in readme_text and '[x] '+title not in readme_text: bad.append('owner of '+key+' is no README row: '+title[:80])
+  if not (key in reds or red(results.get(key))): bad.append('stale owner: '+key+' is not red, so OWNERS may not pre-own it')
  for key,x in results.items():
   if not isinstance(x,dict) or key in LISTED: continue
   if red(x):
    if key in OWNERS: x['note']=owned(x.get('note',''),['owned by "'+OWNERS[key]+'"'])
    else: bad.append('red '+key+' has no owner in OWNERS')
   elif 'note' in x: x['note']=owned(x['note'],[])
- reds=results.get('cli_replay_reds',[])
  if reds: results['cli_replay_note']=owned(results.get('cli_replay_note',''),[r.split('::')[0]+' owned by "'+OWNERS[r]+'"' for r in reds if r in OWNERS])
  bad+=['red '+r+' has no owner in OWNERS' for r in reds if r not in OWNERS]
  return json.dumps(results)!=before,bad

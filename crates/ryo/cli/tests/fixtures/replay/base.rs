@@ -330,8 +330,18 @@ pub(crate) fn unprovided(why: &str) -> Vec<String> {
     relations
 }
 
-/// Whether the Rust language, the one the replay links, provides the relation RyoQL calls `relation`: a relation ryo does not
-/// own (a host's) is provided by no language.
+/// The languages the replay links: the Rust language, and the TOML language for the rules that read a Cargo manifest's tree.
+/// The pending check, the hosted lint and the counting lint all link these, so a relation is pending only when none of them
+/// provides it.
+pub(crate) fn replay_languages() -> Vec<LanguageConnection> {
+    vec![
+        LanguageConnection::from(ryo_rust::linked()),
+        LanguageConnection::from(ryo_toml::linked()),
+    ]
+}
+
+/// Whether a language the replay links provides the relation RyoQL calls `relation`: a relation ryo does not own (a host's)
+/// is provided by no language.
 pub(crate) fn provided(relation: &str) -> bool {
     use ryo_core::outbound::language::interface::LanguagePort as _;
     let Some(owned) = ryo_relations::domain::relations::service::relation_named(
@@ -339,7 +349,7 @@ pub(crate) fn provided(relation: &str) -> bool {
     ) else {
         return false;
     };
-    language::factory::use_case(vec![LanguageConnection::from(ryo_rust::linked())])
+    language::factory::use_case(replay_languages())
         .supports(owned)
         .0
         .iter()
@@ -472,14 +482,14 @@ pub(crate) fn lint_report_with_languages(
     ),
     String,
 > {
-    let rust = ryo_rust::linked();
-    let mut handles = vec![LanguageConnection::from(rust)];
+    // Rules that locate a finding in a manifest read its tree, which only the TOML language gives: those runs link the
+    // replay's languages; the others the Rust language alone. A scene's own providers come after.
+    let mut handles = if manifests_read {
+        replay_languages()
+    } else {
+        vec![LanguageConnection::from(ryo_rust::linked())]
+    };
     handles.extend(additional);
-    // Rules that locate a finding in a manifest read its tree, which only the TOML language gives.
-    if manifests_read {
-        let toml = ryo_toml::linked();
-        handles.push(LanguageConnection::from(toml));
-    }
     let compile = CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),

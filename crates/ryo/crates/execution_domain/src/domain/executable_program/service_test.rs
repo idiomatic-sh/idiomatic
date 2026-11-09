@@ -1,5 +1,6 @@
 //! A region the recogniser did not resolve keeps its registered operators, equivalent drafted regions merge as the linear scan
 //! would in linear cost, and demand compilation preserves declared order.
+use super::fixtures::{axis, merged, reference, state};
 use super::{
     service::ordered_existence,
     types::{DemandAction, Route, demand_program::value::DemandProgram},
@@ -17,7 +18,6 @@ use ryo_values::{
         plans::types::Operation,
     },
 };
-use super::fixtures::{axis, merged, reference, state};
 /// What a case checks: the demand program of an order, or the region merge.
 #[derive(Clone, Copy, Debug)]
 enum Check {

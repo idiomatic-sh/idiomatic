@@ -13,10 +13,10 @@ autobenches = false
 name = "ryo_benchmark"
 
 [dependencies]
-ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../benchmark_contracts", version = "0.1.2" }
+ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../benchmark_contracts", version = "0.1.3" }
 globset.workspace = true
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.2" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.1.3" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3" }
 rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true

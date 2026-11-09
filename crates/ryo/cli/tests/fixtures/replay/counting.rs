@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
-use ryo_core::outbound::language::factory::LanguageConnection;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::runs::types::Budget;
 use ryo_values::domain::runs::types::Session;
@@ -158,7 +157,6 @@ pub(crate) fn lint_observing<T>(
 ) -> Result<T, String> {
     let reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let projects = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let rust = ryo_rust::linked();
     let compile = CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),
@@ -174,11 +172,8 @@ pub(crate) fn lint_observing<T>(
                 corpus::types::SkippedDirectories(vec![".ryo_cache".into()]),
             ));
         let analysis_language: Arc<dyn language::interface::LanguagePort> = Arc::new(Counting {
-            // The recorded rules that read a Cargo manifest's tree need the TOML language beside the Rust language.
-            language: Arc::new(language::factory::use_case(vec![
-                LanguageConnection::from(rust),
-                LanguageConnection::from(ryo_toml::linked()),
-            ])),
+            // The replay's languages, the same the pending check asks.
+            language: Arc::new(language::factory::use_case(super::base::replay_languages())),
             reads: Arc::clone(&reads),
             projects: Arc::clone(&projects),
         });

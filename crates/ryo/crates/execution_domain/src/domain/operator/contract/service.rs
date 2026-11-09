@@ -227,7 +227,21 @@ fn failure(
         Operation::Select { comparisons, .. } => comparison_failure(comparisons, InputMask(1)),
         Operation::Join { filter, .. } => comparison_failure(filter, InputMask(2)),
         Operation::Axis { domain_filter, .. } => comparison_failure(domain_filter, InputMask(4)),
-        _ => RowFailure::Never,
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Antijoin { .. }
+        | Operation::Difference { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Words { .. }
+        | Operation::Closure { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. } => RowFailure::Never,
     }
 }
 

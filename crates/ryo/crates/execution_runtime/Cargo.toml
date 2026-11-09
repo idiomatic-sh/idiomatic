@@ -13,14 +13,14 @@ autobenches = false
 name = "ryo_execution_runtime"
 
 [dependencies]
-ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.2" }
-ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.2" }
-ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.2" }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2" }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2" }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2" }
-ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.2" }
-ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.2" }
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.3" }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.3" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.3" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3" }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.3" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.3" }
 thiserror.workspace = true
 blake3.workspace = true
 rustc-hash.workspace = true
@@ -28,11 +28,11 @@ tracing.workspace = true
 
 [dev-dependencies]
 idiomatic-sh-ryo-execution-runtime = { path = ".", features = ["fixtures"] }
-ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.2", features = ["fixtures"] }
-ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.2", features = ["fixtures"] }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.2", features = ["fixtures"] }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.2", features = ["fixtures"] }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.2", features = ["fixtures"] }
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.3", features = ["fixtures"] }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.3", features = ["fixtures"] }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3", features = ["fixtures"] }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3", features = ["fixtures"] }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3", features = ["fixtures"] }
 divan.workspace = true
 tempfile.workspace = true
 
