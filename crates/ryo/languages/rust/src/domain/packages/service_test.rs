@@ -111,7 +111,7 @@ const NOT_A_MEMBER: Files = &[
 ];
 
 /// A manifest that is not TOML.
-const UNPARSEABLE: Files = &[("Cargo.toml", "[package\nname = \"a\"\n")];
+const UNPARSABLE: Files = &[("Cargo.toml", "[package\nname = \"a\"\n")];
 
 /// A workspace one of whose members has no manifest.
 const UNREADABLE: Files = &[
@@ -338,7 +338,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_manifest_that_is_not_toml_is_a_diagnostic_of_the_reading"),
         word: Word::Succeeds,
-        input: || Scenario::Diagnoses(UNPARSEABLE),
+        input: || Scenario::Diagnoses(UNPARSABLE),
         expect: Expect::Value("0 Parse: unclosed table, expected `]`"),
     },
     Case {

@@ -94,4 +94,32 @@ class Check(unittest.TestCase):
   self.assertEqual(v['results']['core_allocation']['note'],'owned by "'+run.OWNERS['core_allocation']+'"')
   self.assertEqual(v['results']['ruff_rule_phases']['note'],'repaired')
   self.assertNotIn('note',v['results']['libraries_total'])
+ def test_a_red_command_is_owned_by_its_row_or_by_the_rows_of_every_red_test_it_recorded(self):
+  tests={'libraries':{'ryo_benchmark':{'failed':{'a::test':{}}}},'cli_tests':{'replay':{'failed':{'peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound':{},'b::unowned':{}}}}}
+  v={'tests':tests,'checks':{'libraries':{'exit':101},'core_allocation':{'exit':101},'cli_tests':{'exit':101},'bench_build':{'exit':101},'ruff':{'exit':0}}}
+  self.assertEqual(run.red_commands(v),[('libraries',101,[run.OWNERS['benchmark_library']]),('core_allocation',101,[run.OWNERS['core_allocation']]),('cli_tests',101,[]),('bench_build',101,[])])
+ def test_a_refusal_to_run_here_is_owned_only_as_a_refusal(self):
+  raw=Path(self.raw.name)
+  (raw/'ruff_parity.log').write_text('not available: the pinned Django request is absent\n')
+  (raw/'other.log').write_text('error: parity differs\n')
+  self.assertEqual(run.unavailable(raw/'ruff_parity.log'),'the pinned Django request is absent')
+  self.assertIsNone(run.unavailable(raw/'other.log')); self.assertIsNone(run.unavailable(raw/'absent.log'))
+  self.assertEqual(run.command_owners('ruff_parity',{'exit':2,'not_available':'absent'},{}),[run.UNAVAILABLE_OWNERS['ruff_parity']])
+  self.assertEqual(run.command_owners('ruff_parity',{'exit':1},{}),[])
+  self.assertEqual(run.command_owners('bench_build',{'exit':2,'not_available':'absent'},{}),[])
+ def test_a_rewritten_record_fails_only_the_check_of_the_committed_record_and_an_unowned_red_fails_both(self):
+  folder=Path(self.raw.name)/'contracts'; folder.mkdir()
+  rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  saved=(run.readme,run.contracts,run.validation_json)
+  run.readme,run.contracts,run.validation_json=folder/'README.md',folder,folder/'validation.json'
+  try:
+   def verdict(check,checks):
+    run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
+    v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':{},'checks':checks,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
+    return run.finish(v,check=check)
+   self.assertEqual((verdict(False,{}),verdict(True,{})),(0,1))
+   owned={'core_allocation':{'exit':101}}
+   self.assertEqual(verdict(False,owned),0)
+   self.assertEqual((verdict(False,{'bench_build':{'exit':101}}),verdict(True,{'bench_build':{'exit':101}})),(1,1))
+  finally: run.readme,run.contracts,run.validation_json=saved
 if __name__=='__main__': unittest.main()

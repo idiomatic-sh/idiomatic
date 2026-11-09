@@ -46,7 +46,7 @@ pub(crate) const MISSING_WORKER_REQUEST: &str = "missing worker request";
 /// Child argument that carries a request from an owned JSON file.
 pub(crate) const REQUEST_FILE: &str = "--request-file";
 /// Text `worker requires an explicit supported...`.
-pub(crate) const WORKER_REQUIRES_AN_EXPLICIT_SUPPOR: &str =
+pub(crate) const WORKER_REQUIRES_A_SUPPORTED_PARSER: &str =
     "worker requires an explicit supported parser configuration";
 /// Text `python-target=3.7`.
 pub(crate) const PYTHON_TARGET_3_7: &str = "python-target=3.7";

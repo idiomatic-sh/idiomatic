@@ -600,19 +600,19 @@ scenario = "All production bridges and concrete registered operator/physical imp
 id = "unregistered-item-next-to-registered"
 scenario = "A second implementer in an existing registered source does not acquire the first type's registration."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "renamed-unregistered-operator"
 scenario = "An import alias cannot give an unregistered implementation a catalog route."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem as Route; pub struct Extra; impl Route for Extra {}"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=1}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "qualified-unregistered-physical"
 scenario = "A qualified physical trait use still requires actual typed registration."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "pub struct Extra; impl crate::domain::table_model::collections::representations::interface::RepresentationsItem for Extra {}"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "new-unregistered-operator-module"
@@ -620,14 +620,14 @@ scenario = "New modules are checked against actual registry dispatch rather than
 given.files.'src/domain/operator/collections/operators.rs' = "pub mod select; pub mod interface; pub mod extra;"
 given.files.'src/domain/operator/collections/operators/extra.rs' = "pub mod item;"
 given.files.'src/domain/operator/collections/operators/extra/item.rs' = "pub struct Extra; impl crate::domain::operator::collections::operators::interface::OperatorsItem for Extra {}"
-then.findings = [{path="src/domain/operator/collections/operators/extra/item.rs",line=1}]
+then.findings = [{ path = "src/domain/operator/collections/operators/extra/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "import-is-not-registration"
 scenario = "An unused registry import cannot authorize a second callable implementer."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } use super::super::collections::operators::select::item::Extra;"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "registry-alias-preserves-actual-member"
@@ -638,39 +638,39 @@ given.files.'src/domain/operator/contract/registration.rs' = "use super::super::
 id = "unregistered-kernel-in-owner-file"
 scenario = "Another invocation implementation cannot hide next to the one required production bridge."
 given.files.'src/application/file_dag/program/kernel_session.rs' = "pub fn dispatch() {} use super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}\npub struct Extra; impl KernelInvocation for Extra {}"
-then.findings = [{path="src/application/file_dag/program/kernel_session.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 2 }]
 
 [[scenarios]]
 id = "aliased-kernel-in-new-module"
 scenario = "An aliased invocation implementation in a new program module is refused."
 given.files.'src/application/file_dag/program.rs' = "pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection; pub mod extra;"
 given.files.'src/application/file_dag/program/extra.rs' = "use super::runtime::service::KernelInvocation as Route; pub struct Extra; impl Route for Extra {}"
-then.findings = [{path="src/application/file_dag/program/extra.rs",line=1}]
+then.findings = [{ path = "src/application/file_dag/program/extra.rs", line = 1 }]
 
 [[scenarios]]
 id = "qualified-source-implementation"
 scenario = "An alternate source supplier cannot bypass the admitted source owner."
 given.files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}\npub struct Extra; impl crate::application::file_dag::program::admission::Inputs for Extra {}"
-then.findings = [{path="src/application/file_dag/program/facade_runtime/source_admission.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/program/facade_runtime/source_admission.rs", line = 2 }]
 
 [[scenarios]]
 id = "unregistered-semantic-executor"
 scenario = "A new executor beside the adapter does not become the common engine."
 given.files.'src/application/file_dag/execution.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveExecutor for Extra {}"
-then.findings = [{path="src/application/file_dag/execution.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/execution.rs", line = 2 }]
 
 [[scenarios]]
 id = "unregistered-semantic-bridge"
 scenario = "Another borrowed semantics implementation cannot bypass physical authorization."
 given.files.'src/application/file_dag/execution.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveSemantics for Extra {}"
-then.findings = [{path="src/application/file_dag/execution.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/execution.rs", line = 2 }]
 
 [[scenarios]]
 id = "unplaced-implementation-proof-refused"
 scenario = "A test-looking file without placement does not authorize an implementation."
 given.files.'src/domain/operator/collections/operators/select.rs' = "pub mod item; #[cfg(test)] mod item_test;"
 given.files.'src/domain/operator/collections/operators/select/item_test.rs' = "use super::super::interface::OperatorsItem; pub struct Extra; impl OperatorsItem for Extra {}"
-then.findings = [{path="src/domain/operator/collections/operators/select/item_test.rs",line=1}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item_test.rs", line = 1 }]
 
 [[scenarios]]
 id = "placed-implementation-proof-supported"
@@ -684,25 +684,25 @@ then.only = ["idiomatic.ryo/program-implementation-boundary"]
 id = "unregistered-at-trait-definition"
 scenario = "Defining the same trait beside an implementation does not authorize that implementation."
 given.files.'src/domain/operator/collections/operators/interface.rs' = "pub trait OperatorsItem {} pub struct Extra; impl OperatorsItem for Extra {}"
-then.findings = [{path="src/domain/operator/collections/operators/interface.rs",line=1}]
+then.findings = [{ path = "src/domain/operator/collections/operators/interface.rs", line = 1 }]
 
 [[scenarios]]
 id = "deleted-operator-registration"
 scenario = "Removing the actual typed match-arm registration leaves its implementation unregistered."
 given.files.'src/domain/operator/contract/registration.rs' = "pub fn registered() {}"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=1}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "deleted-physical-registration"
 scenario = "Removing a physical match-arm registration cannot silently drop the corresponding implementation."
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub fn registered() {}"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "invocation-coordinator-cannot-directly-dispatch-registry"
 scenario = "The invocation coordinator must use the issued lease rather than call the semantic registry directly."
 given.files.'src/application/file_dag/execution/lease.rs' = "pub fn bypass() { crate::domain::operator::contract::registration::registered(); }"
-then.findings = [{path="src/application/file_dag/execution/lease.rs",line=1}]
+then.findings = [{ path = "src/application/file_dag/execution/lease.rs", line = 1 }]
 
 [[scenarios]]
 id = "peer-cannot-alias-issued-lease-capability"
@@ -711,7 +711,7 @@ given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability;
 given.files.'src/application/file_dag/execution/lease/capability.rs' = 'pub mod service;'
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = 'pub struct Lease;'
 given.files.'src/application/caller.rs' = "use crate::application::file_dag::execution::lease::capability::service::Lease as Alternative;"
-then.findings = [{path="src/application/caller.rs",line=1}]
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
 id = "foreign-package-cannot-spoof-implementation-proof"
@@ -720,7 +720,7 @@ given.files.'src/domain/operator/collections/operators/select.rs' = "pub mod ite
 given.files.'src/domain/operator/collections/operators/select/item_test.rs' = "use super::super::interface::OperatorsItem; pub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'tastemaker.toml' = "workspace = { name = \"proof\", dependencies = [{ package = \"idiomatic.ryo\", path = \"../../..\" }, { package = \"foreign\", path = \"../../../../../tastemaker/cli/tests/fixtures/replay/roles\" }] }\nrules = [{ rule = \"idiomatic.ryo/program-implementation-boundary\", include = [\"src/**\"] }]\ntemplates = [{ template = \"foreign/item-test\", file = \"src/domain/operator/collections/operators/select/item_test.rs\" }]\n"
 then.only = ["idiomatic.ryo/program-implementation-boundary"]
-then.findings = [{path="src/domain/operator/collections/operators/select/item_test.rs", line=1}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item_test.rs", line = 1 }]
 
 [[scenarios]]
 id = "executor-borrows-issued-native-leaf-types"
@@ -745,7 +745,7 @@ given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; 
 given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
 given.files.'src/application/file_dag/executor.rs' = "use crate::application::file_dag::program::native_walk::FileWalk; fn bypass(_: &FileWalk) {}"
-then.findings = [{path="src/application/file_dag/executor.rs",line=1}]
+then.findings = [{ path = "src/application/file_dag/executor.rs", line = 1 }]
 
 [[scenarios]]
 id = "executor-cannot-borrow-old-join-owner"
@@ -758,7 +758,7 @@ given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; 
 given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
 given.files.'src/application/file_dag/executor.rs' = "use crate::application::file_dag::program::native_join::Eligibility; fn bypass(_: &Eligibility) {}"
-then.findings = [{path="src/application/file_dag/executor.rs",line=1}]
+then.findings = [{ path = "src/application/file_dag/executor.rs", line = 1 }]
 
 [[scenarios]]
 id = "foreign-alias-of-issued-walk-refused"
@@ -771,7 +771,7 @@ given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; 
 given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
 given.files.'src/application/caller.rs' = "use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk as Alternate;"
-then.findings = [{path="src/application/caller.rs",line=1}]
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
 id = "foreign-qualified-issued-join-refused"
@@ -784,7 +784,7 @@ given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; 
 given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
 given.files.'src/application/caller.rs' = "pub fn bypass(_: &crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin) {}"
-then.findings = [{path="src/application/caller.rs",line=1}]
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
 id = "new-module-issued-native-leaf-refused"
@@ -798,35 +798,35 @@ given.files.'src/application/file_dag/program/native_join/lease/mod.rs' = "pub m
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
 given.files.'src/application.rs' = "pub mod file_dag; pub mod caller; pub mod new_route;"
 given.files.'src/application/new_route.rs' = "use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk;"
-then.findings = [{path="src/application/new_route.rs",line=1}]
+then.findings = [{ path = "src/application/new_route.rs", line = 1 }]
 
 [[scenarios]]
 id = "operator-incidental-same-arm-does-not-register"
 scenario = "A block arm referring to Extra but returning SelectItem is not a pure catalog selection."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::{SelectItem, Extra}; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { let _ = &Extra; &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=1}, {path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }, { path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-incidental-same-arm-does-not-register"
 scenario = "A physical block arm referring to Extra but returning StoredItem is not a pure catalog selection."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => { let _ = &super::super::super::collections::representations::stored::item::Extra; &super::super::super::collections::representations::stored::item::StoredItem } } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}, {path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 1 }, { path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-incidental-aliased-member-does-not-register"
 scenario = "Renamed imports inside a block do not turn incidental paths into selected implementations."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::{SelectItem as Selected, Extra as Incidental}; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { let _ = &Incidental; &Selected } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=1}, {path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }, { path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-incidental-aliased-member-does-not-register"
 scenario = "A renamed physical incidental import remains outside typed catalog dispatch."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "use super::super::super::collections::representations::stored::item::{StoredItem as Selected, Extra as Incidental}; pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => { let _ = &Incidental; &Selected } } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}, {path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 1 }, { path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "new-operator-module-incidental-reference-does-not-register"
@@ -835,7 +835,7 @@ given.files.'src/domain/operator/collections/operators.rs' = "pub mod select; pu
 given.files.'src/domain/operator/collections/operators/extra.rs' = "pub mod item;"
 given.files.'src/domain/operator/collections/operators/extra/item.rs' = "use super::super::interface::OperatorsItem; pub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select, Other } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem, Kind::Other => { let _ = &super::super::collections::operators::extra::item::Extra; &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-then.findings = [{path="src/domain/operator/collections/operators/extra/item.rs",line=1}]
+then.findings = [{ path = "src/domain/operator/collections/operators/extra/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "new-physical-module-incidental-reference-does-not-register"
@@ -844,19 +844,19 @@ given.files.'src/domain/table_model/collections/representations.rs' = "pub mod i
 given.files.'src/domain/table_model/collections/representations/extra.rs' = "pub mod item;"
 given.files.'src/domain/table_model/collections/representations/extra/item.rs' = "use super::super::interface::RepresentationsItem; pub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored, Other } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem, Kind::Other => { let _ = &super::super::super::collections::representations::extra::item::Extra; &super::super::super::collections::representations::stored::item::StoredItem } } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/extra/item.rs",line=1}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/extra/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "operator-block-only-return-is-not-pure-registration"
 scenario = "Registry arms use an unambiguous direct immutable reference, not general block dataflow."
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => { &SelectItem } } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=1}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "physical-block-only-return-is-not-pure-registration"
 scenario = "Physical registry arms use the same direct immutable reference contract."
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => { &super::super::super::collections::representations::stored::item::StoredItem } } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=1}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 1 }]
 
 [[scenarios]]
 id = "qualified-selected-operator-is-registered"
@@ -873,98 +873,98 @@ id = "operator-unrelated-method-match-does-not-register"
 scenario = "A different method of the actual catalog owner cannot supply registration."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } impl RegisteredOperator { fn kind() -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-other-owner-item-method-does-not-register"
 scenario = "A similarly named method of another owner is outside the designated selector."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } pub struct Other; impl Other { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-discarded-match-does-not-register"
 scenario = "Only the selector tail expression, not an unused earlier match in that method, registers types."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { let _ = match () { () => &super::super::collections::operators::select::item::Extra }; match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-guard-reference-does-not-register"
 scenario = "Mentioning an implementation inside the arm guard does not select it."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select if { let _ = &super::super::collections::operators::select::item::Extra; true } => &SelectItem, Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-guarded-result-is-not-pure-registration"
 scenario = "A guarded conditional result is not an unguarded constant catalog selection."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select if false => &super::super::collections::operators::select::item::Extra, Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-pattern-reference-does-not-register"
 scenario = "A unit implementation in a match pattern supplies no selected result identity."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match (self.kind, super::super::collections::operators::select::item::Extra) { (Kind::Select, super::super::collections::operators::select::item::Extra) => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "operator-nested-lookalike-owner-does-not-register"
 scenario = "A nested lookalike cannot impersonate the actual top-level catalog owner."
 given.files.'src/domain/operator/collections/operators/select/item.rs' = "use super::super::interface::OperatorsItem; pub struct SelectItem; impl OperatorsItem for SelectItem {} pub fn evaluate() {}\npub struct Extra; impl OperatorsItem for Extra {}"
 given.files.'src/domain/operator/contract/registration.rs' = "use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } } pub fn registered(kind: Kind) -> RegisteredOperator { RegisteredOperator { kind } } fn unrelated() { struct RegisteredOperator; impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match () { () => &super::super::collections::operators::select::item::Extra } } } }"
-then.findings = [{path="src/domain/operator/collections/operators/select/item.rs",line=2}]
+then.findings = [{ path = "src/domain/operator/collections/operators/select/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-unrelated-method-match-does-not-register"
 scenario = "A different method of the actual catalog owner cannot supply registration."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } } impl RegisteredRepresentation { fn kind() -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match () { () => &super::super::super::collections::representations::stored::item::Extra } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-other-owner-item-method-does-not-register"
 scenario = "A similarly named method of another owner is outside the designated selector."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } } pub struct Other; impl Other { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match () { () => &super::super::super::collections::representations::stored::item::Extra } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-discarded-match-does-not-register"
 scenario = "Only the selector tail expression, not an unused earlier match in that method, registers types."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { let _ = match () { () => &super::super::super::collections::representations::stored::item::Extra }; match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-guard-reference-does-not-register"
 scenario = "Mentioning an implementation inside the arm guard does not select it."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored if { let _ = &super::super::super::collections::representations::stored::item::Extra; true } => &super::super::super::collections::representations::stored::item::StoredItem, Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-guarded-result-is-not-pure-registration"
 scenario = "A guarded conditional result is not an unguarded constant catalog selection."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored if false => &super::super::super::collections::representations::stored::item::Extra, Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-pattern-reference-does-not-register"
 scenario = "A unit implementation in a match pattern supplies no selected result identity."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match (self.kind, super::super::super::collections::representations::stored::item::Extra) { (Kind::Stored, super::super::super::collections::representations::stored::item::Extra) => &super::super::super::collections::representations::stored::item::StoredItem } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "physical-nested-lookalike-owner-does-not-register"
 scenario = "A nested lookalike cannot impersonate the actual top-level catalog owner."
 given.files.'src/domain/table_model/collections/representations/stored/item.rs' = "use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}\npub struct Extra; impl RepresentationsItem for Extra {}"
 given.files.'src/domain/table_model/types/registered_representation/value.rs' = "pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } } fn unrelated() { struct RegisteredRepresentation; impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match () { () => &super::super::super::collections::representations::stored::item::Extra } } } }"
-then.findings = [{path="src/domain/table_model/collections/representations/stored/item.rs",line=2}]
+then.findings = [{ path = "src/domain/table_model/collections/representations/stored/item.rs", line = 2 }]
 
 [[scenarios]]
 id = "lease-constructor-visibility-is-not-owner-access"
@@ -986,7 +986,7 @@ scenario = "The same file and owner path still expose an actual imported functio
 given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\nuse crate::application::file_dag::execution::lease::bridge;"
-then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 2 }]
 
 [[scenarios]]
 id = "lease-visibility-does-not-hide-real-type"
@@ -994,7 +994,7 @@ scenario = "Only the visibility span is excluded; an argument type still borrows
 given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn consume(_: &crate::application::file_dag::execution::lease::Lease) {}"
-then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 2 }]
 
 [[scenarios]]
 id = "lease-visibility-does-not-hide-qualified-call"
@@ -1002,7 +1002,7 @@ scenario = "A real qualified call at the same path remains prohibited."
 given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn bypass() { crate::application::file_dag::execution::lease::bridge(); }"
-then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 2 }]
 
 [[scenarios]]
 id = "lease-visibility-does-not-hide-renamed-import-call"
@@ -1010,7 +1010,7 @@ scenario = "Renaming an imported owner function cannot turn it into visibility m
 given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\nuse crate::application::file_dag::execution::lease::bridge as invoke;\npub fn bypass() { invoke(); }"
-then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 2 }]
 
 [[scenarios]]
 id = "lease-real-import-before-visibility-stays-prohibited"
@@ -1018,7 +1018,7 @@ scenario = "Visibility later in the same file cannot erase an earlier import spa
 given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod service;"
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = "use crate::application::file_dag::execution::lease::bridge;\npub(in crate::application::file_dag::execution::lease) fn create() {}"
-then.findings = [{path="src/application/file_dag/execution/lease/capability/service.rs",line=1}]
+then.findings = [{ path = "src/application/file_dag/execution/lease/capability/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "new-lease-module-visibility-does-not-hide-call"
@@ -1026,7 +1026,7 @@ scenario = "A newly declared adjacent module gets the same exact-span filter."
 given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub struct Lease; pub fn bridge() {}'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = "pub mod new_route;"
 given.files.'src/application/file_dag/execution/lease/capability/new_route.rs' = "pub(in crate::application::file_dag::execution::lease) fn create() {}\npub fn bypass() { crate::application::file_dag::execution::lease::bridge(); }"
-then.findings = [{path="src/application/file_dag/execution/lease/capability/new_route.rs",line=2}]
+then.findings = [{ path = "src/application/file_dag/execution/lease/capability/new_route.rs", line = 2 }]
 
 [[scenarios]]
 id = "kernel-session-concept-may-call-the-semantic-dispatcher"

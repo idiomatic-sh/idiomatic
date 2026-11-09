@@ -93,7 +93,7 @@ pub(crate) const PYTHON_TARGET: &str = "python-target=";
 /// Text `unexpected worker configuration`.
 pub(crate) const UNEXPECTED_WORKER_CONFIGURATION: &str = "unexpected worker configuration";
 /// Text `unexpected trailing worker argument`.
-pub(crate) const UNEXPECTED_TRAILING_WORKER_ARGUMEN: &str = "unexpected trailing worker argument";
+pub(crate) const UNEXPECTED_TRAILING_WORKER_ARGUMENT: &str = "unexpected trailing worker argument";
 /// Text `pinned reference does not evaluate PO...`.
 pub(crate) const PINNED_REFERENCE_DOES_NOT_EVALUATE: &str =
     "pinned reference does not evaluate POSIX executable checks on this host";

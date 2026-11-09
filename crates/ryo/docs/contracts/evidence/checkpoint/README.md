@@ -5,7 +5,9 @@
 `asymptote.json` is the integrator's record of the quick checks for the landed sha, in the [review evidence schema](../../review/README.md#review-evidence-schema) with `reviewer` `integrator` and one check per group (`lint`, `check`, `clippy`); the TM steward reads only this file.
 
 `commands.json` is the list of `[name, argv]` validation commands the matrix's
-numbers rest on: library tests, `boundary_contract`, `project_boundary`,
+numbers rest on: `checkout_tools` (this checkout's `tm` and `ryo`, built into the run's target directory, which the commands over
+`crates/ryo`, pinned to the unreleased Tastemaker 0.1.2, and `ownership_edges` run; the root and `crates/tastemaker`, pinned to
+0.1.0, keep the installed `tm`), library tests, `boundary_contract`, `project_boundary`,
 `activation`, `bdd`, `core_bdd`, `core_allocation`, the execution program
 authority targets, the doctests (execution, its domain, store and runtime, values, core, sdk, derived),
 `ruff` (the python target), the ten language `conformance`
@@ -61,8 +63,15 @@ types those cells.
 
 `python3 crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` runs no
 cargo and takes no lock. It rewrites the block from the committed
-`validation.json` and exits 1 when the file changed (stage it and run again),
-so a stale block cannot pass. Both modes also exit 1 when a ticked row (`☑`,
+`validation.json`, and when a file changed it prints `STALE RECORD` with the files and exits 1 (stage them and run again),
+so a stale block cannot pass. A full run rewrites the block every time (its validation number is new), which is not a failure:
+it exits on the validation's results alone.
+
+Both modes exit 1 for a red command no README row owns, and print every red command with its owning rows: its own `OWNERS` row,
+or the rows of every red test it recorded (a test by its name, a library test binary `ryo_<x>` by `<x>_library`). A command that
+cannot run on the machine prints `not available: <why>` as its first line and exits non-zero (`ruff_parity`, whose pinned Django
+request stays outside the repository); `run.py` records the reason in its check, and only that refusal is owned, by its
+`UNAVAILABLE_OWNERS` row. Both modes also exit 1 when a ticked row (`☑`,
 `[x]`) of the matrix cites no validation (`validationNNN`, `proofNNN`,
 `reviewNNN`, `passNNN`, `runtimeNNN`, `reuseNNN`, `inNNN`, `atNNN`) or cites one
 greater than `validation`; each offending row is printed with its line number.

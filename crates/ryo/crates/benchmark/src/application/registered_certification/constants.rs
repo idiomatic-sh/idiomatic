@@ -1,6 +1,6 @@
 //! Refusals of certifying a registered case context.
 /// The registered defaults must be exactly the measured profile's defaults.
-pub(super) const CASE_INVENTORY_DIFFERS_FROM_MEASURED_COMPLET: &str =
+pub(super) const CASE_INVENTORY_DIFFERS_FROM_MEASURED: &str =
     "case inventory differs from measured complete rule identities";
 /// Only an execution authority can certify registered cases.
 pub(super) const REGISTERED_CERTIFICATION_REQUIRES_ACTUAL_EXE: &str =

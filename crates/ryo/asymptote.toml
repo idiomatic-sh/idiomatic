@@ -258,4 +258,3 @@ run = ["bash", "-o", "pipefail", "-c", "set -euo pipefail\nout=target/benchmark/
 output = "bmf"
 timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
-

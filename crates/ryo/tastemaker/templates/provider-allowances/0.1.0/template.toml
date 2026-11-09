@@ -2,7 +2,7 @@ description = "The provider source import allowance, derived from its language c
 why = "Parser libraries are declared once at the language root. The source scope receives the same allowances while the root still prevents parser imports in domains and integration tests."
 content = '''
 imports-allow = {{ libraries[:-1] }}{% if extra != "[]" %}, {{ extra[1:] }}{% else %}]{% endif %}
-'''  
+'''
 [params]
 libraries = { type = "list<string>", description = "Parser clients declared by the language root." }
 extra = { type = "list<string>", description = "Pure dependencies permitted outside parser adapters." }

@@ -243,26 +243,26 @@ then.findings = [{ path = "execution_domain/src/domain/shared_walk/types.rs", li
 id = "old-walk-owner-cannot-dispatch-semantics"
 scenario = "Only the issued request consumes semantic dispatch after the owner queues ready work."
 given.files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \nfn bypass() { execution_domain::domain::shared_walk::service::evaluate(); }"
-then.findings = [{path="execution_runtime/src/application/file_dag/program/native_walk.rs",line=2}]
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 2 }]
 
 [[scenarios]]
 id = "old-walk-owner-cannot-alias-semantics"
 scenario = "The previous parent role cannot retain evaluator permission through a renamed import."
 given.files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \nuse execution_domain::domain::shared_walk as semantic; fn bypass() { semantic::service::evaluate(); }"
-then.findings = [{path="execution_runtime/src/application/file_dag/program/native_walk.rs",line=2}, {path="execution_runtime/src/application/file_dag/program/native_walk.rs",line=2}]
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 2 }, { path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 2 }]
 
 [[scenarios]]
 id = "new-neighbor-cannot-dispatch-semantics"
 scenario = "An adjacent lease helper cannot acquire the exact consuming data owner role."
 given.files.'execution_runtime/src/application/file_dag/program/native_walk/lease/mod.rs' = "pub(super) mod service; pub(super) mod rogue;"
 given.files.'execution_runtime/src/application/file_dag/program/native_walk/lease/rogue.rs' = "fn bypass() { execution_domain::domain::shared_walk::service::evaluate(); }"
-then.findings = [{path="execution_runtime/src/application/file_dag/program/native_walk/lease/rogue.rs",line=1}]
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk/lease/rogue.rs", line = 1 }]
 
 [[scenarios]]
 id = "permitted-request-cannot-return-to-parent"
 scenario = "The issued data declaration cannot move back into the workflow owner."
 given.files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () } pub(super) struct WalkResult { result: () } pub(super) mod lease; \npub(crate) struct PermittedWalk { permit: (), ready: () }"
-then.findings = [{path="execution_runtime/src/application/file_dag/program/native_walk.rs",line=2}]
+then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk.rs", line = 2 }]
 
 [[scenarios]]
 id = "cross-crate-aliased-semantic-service-refused"

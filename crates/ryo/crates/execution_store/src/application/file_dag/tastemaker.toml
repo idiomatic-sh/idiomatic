@@ -136,5 +136,5 @@ templates = [
   { template = "idiomatic.ryo/program-runtime-proof", file = "derived/owner/lifetime/index/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "derived/owner/lifetime/index/test.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { alias = "activation-diagnostic-vocabulary", template = "idiomatic.arch/constants", file = "derived/constants.rs", description = "A part's constants: the constants the part's code uses: no literal sits in code." },
-  { template = "idiomatic.ryo/application-part", file = "workspace/types.rs", description = "One explicitly placed nested part of a cohesive application operation." }
+  { template = "idiomatic.ryo/application-part", file = "workspace/types.rs", description = "One explicitly placed nested part of a cohesive application operation." },
 ]

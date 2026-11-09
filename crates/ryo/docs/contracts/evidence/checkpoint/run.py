@@ -282,6 +282,26 @@ OWNERS={
  'manifests_npm::ryo_says_what_npm_says_of_the_manifests_of_a_workspace':CLOSE,
  'manifests_cargo::ryo_says_what_cargo_says_of_the_manifests_of_every_target':CLOSE,
 }
+# A command that cannot run on this machine says so on its first output line (`not available: <why>`) and exits non-zero; the row
+# named here owns that refusal, and only that refusal: any other red of the command is its own.
+UNAVAILABLE_OWNERS={'ruff_parity':CLOSE}
+NOT_AVAILABLE_LINE=re.compile(r'^not available: (.+)$')
+def unavailable(log):
+ """The reason a command's raw log gives on its first line for not running here, or None."""
+ lines=Path(log).read_text(errors='replace').splitlines() if Path(log).is_file() else []
+ m=NOT_AVAILABLE_LINE.match(lines[0]) if lines else None
+ return m.group(1) if m else None
+def command_owners(name,check,tests):
+ """The rows that own a red command: its UNAVAILABLE_OWNERS row for a recorded `not available` refusal, its own OWNERS row, or the
+ rows of the red tests it recorded (a test by its name, a library test binary `ryo_<x>` by `<x>_library`); [] when one red has none."""
+ if check.get('not_available'): return [UNAVAILABLE_OWNERS[name]] if name in UNAVAILABLE_OWNERS else []
+ if name in OWNERS: return [OWNERS[name]]
+ failed=[(binary,test) for binary,t in tests.get(name,{}).items() for test in t['failed']]
+ owners=[OWNERS.get(test) or OWNERS.get(binary.removeprefix('ryo_')+'_library') for binary,test in failed]
+ return sorted(set(owners)) if failed and all(owners) else []
+def red_commands(v):
+ """(name, exit, owning rows) of every command the validation recorded red."""
+ return [(n,c['exit'],command_owners(n,c,v.get('tests',{}))) for n,c in v.get('checks',{}).items() if c.get('exit',0)!=0]
 OWNED=re.compile(r'(?:; )?(?:[a-z_]+ )?owned by "[^"]*"')
 def owned(note,clauses):
  """The note without its owner clauses, then one `owned by "<row title>"` clause per owner."""
@@ -314,24 +334,29 @@ def write_block(text,v):
 def red_green_problems(v):
  """Each red_green entry must be {test, base_sha, merge_sha} with 40-hex shas."""
  return ['red_green entry '+str(n)+' is not {test, base_sha, merge_sha} with 40-hex shas' for n,x in enumerate(v.get('red_green',[])) if not (isinstance(x,dict) and set(x)=={'test','base_sha','merge_sha'} and isinstance(x['test'],str) and x['test'] and all(isinstance(x[s],str) and re.fullmatch('[0-9a-f]{40}',x[s]) for s in ('base_sha','merge_sha')))]
-def finish(v):
- """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row that cites no test or a test the recorded logs do not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code."""
+def finish(v,check=False):
+ """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row that cites no test or a test the recorded logs do not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code, from the validation's results alone: 1 for a red command no row owns, a ticked row the results do not prove, or a record that breaks its own rules. Rewriting the numbers block is what a full run does; under `check` (`--check`, over the committed record) a rewrite means the committed record is stale, which fails with its reason."""
  old=readme.read_text(); owners_changed,owner_bad=own(v,old); text=write_block(old,v)
  if owners_changed: validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
  for line in scope_delta(v): print(line)
- bad=list(owner_bad)+red_green_problems(v); texts=[]; changed=['validation.json'] if owners_changed else []
+ bad=list(owner_bad)+red_green_problems(v); texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
  for part in sorted(contracts.glob('*.md')):
   before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
   if body!=before: part.write_text(body); changed.append(part.name)
   for line in unticked: print('UNTICKED ROW '+where+line)
+  unticked_any=unticked_any or bool(unticked)
   bad+=[where+x for x in ticked_rows_without_proof(body,v['validation'])]
   texts+=[(part.name+':'+str(n),line) for n,line in enumerate(body.splitlines(),1) if TICKED.match(line)]
  texts+=[('validation.json results '+k,OWNED.sub('',x['note'])) for k,x in v['results'].items() if isinstance(x,dict) and 'note' in x]
  bad+=reruns_without_log(texts,v)
  for line in bad: print('TICKED ROW '+line)
- if changed: print('rewritten from validation.json (numbers block, un-ticked rows): '+', '.join(changed)+'; stage them')
- return 1 if bad or changed else 0
-if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {})))
+ unowned=[]
+ for name,code,owners in red_commands(v):
+  print('RED '+name+' exit '+str(code)+(', owned by '+'; '.join('"'+x+'"' for x in owners) if owners else ', owned by no row'))
+  if not owners: unowned.append(name)
+ if changed: print(('STALE RECORD: the committed record is not what validation.json gives: ' if check else 'rewritten from validation.json (numbers block, owner notes, un-ticked rows): ')+', '.join(changed)+'; stage them')
+ return 1 if bad or unowned or unticked_any or (check and changed) else 0
+if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {}),check=True))
 def validate():
  """Runs every command of commands.json at a frozen head, records its results and tests, and checks the matrix."""
  locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
@@ -372,6 +397,7 @@ def validate():
   started=time.time()
   with (out_dir/(name+'.log')).open('w') as out: r=locked(lambda: subprocess.run(cmd,stdout=out,stderr=subprocess.STDOUT))
   result={'source':head,'command':listed[name],'exit':r.returncode,'elapsed_seconds':time.time()-started}
+  if r.returncode and (reason:=unavailable(out_dir/(name+'.log'))): result['not_available']=reason
   if name=='tm_source': result['findings']=finding_split(cmd,out_dir/(name+'.log'))
   (out_dir/(name+'.json')).write_text(json.dumps(result,indent=2))
   print('END '+name+' exit='+str(r.returncode),flush=True)

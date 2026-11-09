@@ -31,7 +31,7 @@ pub fn admit(
         loaded.defaults.iter().map(|rule| rule.0.clone()).collect();
     if expected != actual || loaded.defaults.len() != expected.len() {
         return Err(Error::Invalid(
-            constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED_COMPLET.into(),
+            constants::CASE_INVENTORY_DIFFERS_FROM_MEASURED.into(),
         ));
     }
     let RegistrationAuthority::Execution {
