@@ -8,7 +8,7 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{plan_parts::types::ColumnIndex, plans::types::Plan};
 use std::sync::Arc;
 /// Compile actual plans/declarations before installing the production file descriptors.
-pub(crate) fn prepared_sources(
+pub fn prepared_sources(
     plans: &[Plan],
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
 ) -> super::super::prepared::RequestDerived {

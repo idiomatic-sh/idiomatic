@@ -233,6 +233,25 @@ invalid_html_tags = "deny"
 redundant_explicit_links = "deny"
 unescaped_backticks = "deny"
 
+# The ryo adapter fills fields of the SDK in this repository, which is not yet published: every ryo crate the lock holds
+# resolves to its directory here until the SDK release that carries them.
+[patch.crates-io]
+idiomatic-sh-ryo-core = { path = "../ryo/crates/core" }
+idiomatic-sh-ryo-css = { path = "../ryo/languages/css" }
+idiomatic-sh-ryo-go = { path = "../ryo/languages/go" }
+idiomatic-sh-ryo-html = { path = "../ryo/languages/html" }
+idiomatic-sh-ryo-javascript = { path = "../ryo/languages/javascript" }
+idiomatic-sh-ryo-json = { path = "../ryo/languages/json" }
+idiomatic-sh-ryo-language = { path = "../ryo/crates/language" }
+idiomatic-sh-ryo-markdown = { path = "../ryo/languages/markdown" }
+idiomatic-sh-ryo-python = { path = "../ryo/languages/python" }
+idiomatic-sh-ryo-query_language = { path = "../ryo/crates/query_language" }
+idiomatic-sh-ryo-rust = { path = "../ryo/languages/rust" }
+idiomatic-sh-ryo-sdk = { path = "../ryo/crates/sdk" }
+idiomatic-sh-ryo-toml = { path = "../ryo/languages/toml" }
+idiomatic-sh-ryo-typescript = { path = "../ryo/languages/typescript" }
+idiomatic-sh-ryo-values = { path = "../ryo/crates/values" }
+
 [profile.release]
 lto = "fat"
 codegen-units = 1

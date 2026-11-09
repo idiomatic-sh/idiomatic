@@ -56,6 +56,28 @@ impl DerivedOwner {
     }
     /// Sets the owner up for the project phase: it is never prepared for one file and holds no graph cache. An owner
     /// already prepared for a file is refused.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when the owner is already prepared for one file of the program: a file owner never
+    /// serves the project.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_domain::domain::operating::errors::OperatingError;
+    /// use ryo_execution_store::application::file_dag::derived::owner::fixtures::prepared_sources;
+    /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+    /// use ryo_execution_store::application::file_dag::relations::RelationOwner;
+    /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+    /// let fresh = RelationOwner::new(ReuseEligibility::Eligible, program_derived_port());
+    /// assert!(matches!(fresh.derived().serve_project(), Ok(())));
+    /// let file = RelationOwner::new(ReuseEligibility::Eligible, program_derived_port());
+    /// let request = prepared_sources(&[], program_derived_port());
+    /// file.derived().prepare_program_file(&request, &[], &[])?;
+    /// assert!(matches!(file.derived().serve_project(), Err(OperatingError::WrongOperation)));
+    /// # Ok::<(), OperatingError>(())
+    /// ```
     pub fn serve_project(&self) -> Result<(), OperatingError> {
         if self.file_prepared.get() == FilePreparation::Prepared {
             return Err(OperatingError::WrongOperation);

@@ -2,12 +2,15 @@
 //! port. The crate exports nothing from here: the impl is the whole of it.
 
 use crate::domain::matching::types::PatternSemantics;
+use crate::domain::matching::types::sealed::Sealed;
 use ryo_matching::inbound::use_cases::matching::compiled::{CompiledRegex, CompiledTextGlobs};
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 use ryo_matching::inbound::use_cases::matching::types::{
     GlobPattern, MatchOutcome, RegexSource, SearchText,
 };
+
+impl<Matching: MatchingUseCase + ?Sized> Sealed for Matching {}
 
 impl<Matching: MatchingUseCase + ?Sized> PatternSemantics for Matching {
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError> {

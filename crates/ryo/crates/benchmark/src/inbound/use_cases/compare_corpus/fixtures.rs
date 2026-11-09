@@ -167,7 +167,10 @@ pub fn use_case_with(outside: Outside) -> CompareCorpusUseCaseImpl {
             diagnostics: candidate,
             arguments: Vec::new(),
         }),
-        Arc::new(ExecutionFake::default()),
+        Arc::new(ExecutionFake {
+            status: 0,
+            ..ExecutionFake::default()
+        }),
         Arc::new(ContextFake),
         Arc::new(SuiteFake::default()),
         Arc::new(EvidenceFake),

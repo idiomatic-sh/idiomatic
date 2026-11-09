@@ -8,9 +8,33 @@ use ryo_matching::inbound::use_cases::matching::types::{
     GlobPattern, MatchOutcome, RegexSource, SearchText,
 };
 
+/// Seals [`PatternSemantics`]: the trait is public so the engine crates can lend it, and its one implementation is the blanket
+/// bridge over the kernel's matching use case, which the application layer holds.
+pub(crate) mod sealed {
+    /// Implemented only by the application bridge, so no crate outside this one adds a second matching semantics.
+    #[expect(
+        unnameable_types,
+        reason = "the seal: a supertrait other crates can reach but never name, so they cannot implement PatternSemantics"
+    )]
+    pub trait Sealed {}
+}
+
 /// The regex and text-glob semantics the domain compiles and matches through: a port its parent hands down, so the domain names
-/// no use case.
-pub trait PatternSemantics {
+/// no use case. It is sealed: any matching use case answers it through this crate's blanket bridge, and nothing else does.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::matching::types::{PatternMatcher, PatternSemantics};
+/// use ryo_matching::inbound::use_cases::matching::types::{MatchOutcome, RegexSource, SearchText};
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+/// let matcher = PatternMatcher(&MatchingUseCaseImpl);
+/// assert!(matcher.0.compile_regex(RegexSource("(")).is_err());
+/// let regex = matcher.0.compile_regex(RegexSource("^ab+$")).expect("valid syntax compiles");
+/// assert_eq!(matcher.0.matches_regex(&regex, SearchText("abb")), MatchOutcome::Matches);
+/// assert_eq!(matcher.0.matches_regex(&regex, SearchText("ba")), MatchOutcome::Differs);
+/// ```
+pub trait PatternSemantics: sealed::Sealed {
     /// Compiles a regex; invalid syntax is a refusal, not an empty match.
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError>;
     /// Searches text with a compiled regex.

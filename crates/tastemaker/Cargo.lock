@@ -99,7 +99,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -110,7 +110,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -246,6 +246,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "boxcar"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36f64beae40a84da1b4b26ff2761a5b895c12adc41dc25aaee1c4f2bbfe97a6e"
+
+[[package]]
 name = "bstr"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -313,7 +319,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "thiserror",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -417,7 +423,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fa961b519f0b462e3a3b4a34b64d119eeaca1d59af726fe450bbba07a9fc0a1"
 dependencies = [
- "thiserror",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -790,7 +796,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -993,7 +999,7 @@ dependencies = [
  "serde_json",
  "syn 2.0.119",
  "textwrap",
- "thiserror",
+ "thiserror 2.0.20",
  "typed-builder 0.23.2",
 ]
 
@@ -1214,34 +1220,32 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
 name = "idiomatic-sh-ryo-core"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7888bc5afbf43f887e0ff8c77debcaf3c1dab2e2b8a023f19248c272db2a415b"
+version = "0.1.2"
 dependencies = [
  "blake3",
- "globset",
- "hashbrown 0.17.1",
- "heck",
+ "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "ignore",
  "memchr",
  "postcard",
  "rayon",
- "regex-automata",
  "rustc-hash 2.1.3",
  "serde",
  "sysinfo",
- "thiserror",
+ "tempfile",
+ "thiserror 2.0.20",
  "tracing",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-css"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d77119f521d9d3c5a3b244548be9ae0d3799273eba14685cd2ea67f7940c154"
+version = "0.1.2"
 dependencies = [
  "cssparser",
  "idiomatic-sh-ryo-sdk",
@@ -1249,25 +1253,101 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-derived"
+version = "0.1.2"
+dependencies = [
+ "hashbrown 0.17.1",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution"
+version = "0.1.2"
+dependencies = [
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution-domain",
+ "idiomatic-sh-ryo-execution-runtime",
+ "idiomatic-sh-ryo-execution-store",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-domain"
+version = "0.1.2"
+dependencies = [
+ "hashbrown 0.17.1",
+ "heck",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "memchr",
+ "num-bigint 0.4.8",
+ "rustc-hash 2.1.3",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-runtime"
+version = "0.1.2"
+dependencies = [
+ "blake3",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution-domain",
+ "idiomatic-sh-ryo-execution-store",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-execution-store"
+version = "0.1.2"
+dependencies = [
+ "hashbrown 0.17.1",
+ "idiomatic-sh-ryo-derived",
+ "idiomatic-sh-ryo-execution-domain",
+ "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+ "tracing",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-go"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d2df62498036220f20a940c7833d719d58537727430426eb3dc993d6efaf4f4"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "postcard",
  "serde",
  "strum",
- "thiserror",
+ "thiserror 2.0.20",
  "tree-sitter",
  "tree-sitter-go",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-html"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d42daa456f267db8a4b20f4fc60ef7a5cd4eecf344ad4e67822b3852be160502"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "serde_json",
@@ -1280,9 +1360,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-javascript"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12abc1bed68616c90946a19432db6133a6e70649b2308f61e98c0c30c32401f9"
+version = "0.1.2"
 dependencies = [
  "globset",
  "idiomatic-sh-ryo-sdk",
@@ -1296,15 +1374,13 @@ dependencies = [
  "serde",
  "serde_json",
  "strum",
- "thiserror",
+ "thiserror 2.0.20",
  "yaml_serde",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-json"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8e8a61ef523e13119844e38a616d9d164f44824deca3bdf0d05f2ef61e6712f"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "jsonc-parser",
@@ -1313,21 +1389,17 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-ryo-language"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef096ee9454ae5cc5061c60900a7c8b4c2311f56a5ba5d739202c215f1b61bd1"
+version = "0.1.2"
 dependencies = [
  "hashbrown 0.17.1",
+ "idiomatic-sh-ryo-relations",
  "rustc-hash 2.1.3",
- "strum",
- "thiserror",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-markdown"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa4c9387c04b1e68db092ec21d538a112884661f5f166dca00f3e6cf3aeea5ac"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "pulldown-cmark",
@@ -1335,39 +1407,68 @@ dependencies = [
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-matching"
+version = "0.1.2"
+dependencies = [
+ "globset",
+ "regex-automata",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-operators"
+version = "0.1.2"
+dependencies = [
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-relations",
+ "idiomatic-sh-ryo-values",
+ "rustc-hash 2.1.3",
+ "thiserror 2.0.20",
+ "unicode-width",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-python"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64c6b5c78401df232b136d4a75bbb7cb01711e80e11457d01362aaacec6bb019"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
+ "indexmap",
+ "pep508_rs",
  "postcard",
+ "pyproject-toml",
  "ruff_python_ast",
  "ruff_python_parser",
  "ruff_text_size",
  "serde",
  "strum",
- "thiserror",
- "toml",
+ "thiserror 2.0.20",
+ "toml 1.1.4+spec-1.1.0",
+ "unicode-properties",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-query_language"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e543b55be8c8dfd414731a163fb4be76420bf12245c9eb3a104bbf6a1aaa85dc"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
- "thiserror",
+ "regex-automata",
+ "regex-syntax",
+ "thiserror 2.0.20",
  "winnow 0.7.15",
 ]
 
 [[package]]
+name = "idiomatic-sh-ryo-relations"
+version = "0.1.2"
+dependencies = [
+ "strum",
+]
+
+[[package]]
 name = "idiomatic-sh-ryo-rust"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00fae3116c66cfe774b4468984c8b7556badd00f295d980759571a8baf8a98da"
+version = "0.1.2"
 dependencies = [
  "cargo-platform",
  "globset",
@@ -1379,43 +1480,42 @@ dependencies = [
  "rustc-literal-escaper",
  "serde",
  "strum",
- "thiserror",
- "toml",
+ "thiserror 2.0.20",
+ "toml 1.1.4+spec-1.1.0",
  "unicode-ident",
  "unicode-properties",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-sdk"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c17be65e116dcc85eb9fbef0e0dc5d49dbbaa80ee8688c383bce27d506ce4b0c"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-core",
+ "idiomatic-sh-ryo-execution",
+ "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-query_language",
+ "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "rayon",
- "thiserror",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-toml"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02cad6cc2f7ce761b71ad3aa8a9ee0f7572ce2fa6a935cc4732bce2a8f09eb7d"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "strum",
- "toml",
+ "toml 1.1.4+spec-1.1.0",
  "toml_parser",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-typescript"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9b188c7e21dde78adff4847bcaaa094c9f70994b46e5bcfec3ef4791adf80e8"
+version = "0.1.2"
 dependencies = [
  "globset",
  "idiomatic-sh-ryo-sdk",
@@ -1430,17 +1530,18 @@ dependencies = [
  "serde",
  "serde_json",
  "strum",
- "thiserror",
+ "thiserror 2.0.20",
  "yaml_serde",
 ]
 
 [[package]]
 name = "idiomatic-sh-ryo-values"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f80590be41b289ec0dae20c1a086f0f4988916869419874de28d17285892c87e"
+version = "0.1.2"
 dependencies = [
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-relations",
+ "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
@@ -1475,9 +1576,9 @@ dependencies = [
  "snapbox",
  "sysinfo",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.20",
  "tikv-jemallocator",
- "toml",
+ "toml 1.1.4+spec-1.1.0",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
@@ -1504,9 +1605,9 @@ dependencies = [
  "regex",
  "serde",
  "tempfile",
- "thiserror",
+ "thiserror 2.0.20",
  "tokio",
- "toml",
+ "toml 1.1.4+spec-1.1.0",
  "toml_edit 0.25.13+spec-1.1.0",
  "tracing",
 ]
@@ -1556,6 +1657,8 @@ checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -1609,6 +1712,15 @@ name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "itertools"
@@ -1773,7 +1885,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "536bfad37a309d62069485248eeaba1e8d9853aaf951caaeaed0585a95346f08"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1829,7 +1941,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1926,7 +2038,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1946,7 +2058,7 @@ dependencies = [
  "owo-colors",
  "oxc-miette-derive",
  "textwrap",
- "thiserror",
+ "thiserror 2.0.20",
  "unicode-segmentation",
  "unicode-width",
 ]
@@ -2203,6 +2315,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9555b1514d2d99d78150d3c799d4c357a3e2c2a8062cd108e93a06d9057629c5"
 
 [[package]]
+name = "pep440_rs"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31095ca1f396e3de32745f42b20deef7bc09077f918b085307e8eab6ddd8fb9c"
+dependencies = [
+ "once_cell",
+ "serde",
+ "unicode-width",
+ "unscanny",
+ "version-ranges",
+]
+
+[[package]]
+name = "pep508_rs"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c2feee999fa547bacab06a4881bacc74688858b92fa8ef1e206c748b0a76048"
+dependencies = [
+ "boxcar",
+ "indexmap",
+ "itertools 0.13.0",
+ "once_cell",
+ "pep440_rs",
+ "regex",
+ "rustc-hash 2.1.3",
+ "serde",
+ "smallvec",
+ "thiserror 1.0.69",
+ "unicode-width",
+ "url",
+ "urlencoding",
+ "version-ranges",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2393,6 +2540,20 @@ dependencies = [
  "bitflags",
  "memchr",
  "unicase",
+]
+
+[[package]]
+name = "pyproject-toml"
+version = "0.13.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6d755483ad14b49e76713b52285235461a5b4f73f17612353e11a5de36a5fd2"
+dependencies = [
+ "indexmap",
+ "pep440_rs",
+ "pep508_rs",
+ "serde",
+ "thiserror 2.0.20",
+ "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]
@@ -2637,7 +2798,7 @@ dependencies = [
  "ruff_text_size",
  "rustc-hash 2.1.3",
  "thin-vec",
- "thiserror",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -2755,7 +2916,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2871,7 +3032,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "syn 2.0.119",
- "thiserror",
+ "thiserror 2.0.20",
  "typed-builder 0.21.2",
 ]
 
@@ -3057,7 +3218,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3316,7 +3477,7 @@ dependencies = [
  "getrandom",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3326,7 +3487,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -3354,11 +3515,31 @@ checksum = "d6a4b9ba8738cb4a4f399d37e266becfd475e75eb73425b87a05a2f2039ba63e"
 
 [[package]]
 name = "thiserror"
+version = "1.0.69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
+dependencies = [
+ "thiserror-impl 1.0.69",
+]
+
+[[package]]
+name = "thiserror"
 version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f"
 dependencies = [
- "thiserror-impl",
+ "thiserror-impl 2.0.20",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.69"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -3437,6 +3618,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "toml"
+version = "0.9.12+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf92845e79fc2e2def6a5d828f0801e29a2f8acc037becc5ab08595c7d5e9863"
+dependencies = [
+ "indexmap",
+ "serde_core",
+ "serde_spanned",
+ "toml_datetime 0.7.5+spec-1.1.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow 0.7.15",
 ]
 
 [[package]]
@@ -3745,6 +3941,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
 
 [[package]]
+name = "unscanny"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9df2af067a7953e9c3831320f35c1cc0600c30d44d9f7a12b01db1cd88d6b47"
+
+[[package]]
 name = "uriparse"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3764,7 +3966,14 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+ "serde_derive",
 ]
+
+[[package]]
+name = "urlencoding"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
 name = "utf8_iter"
@@ -3783,6 +3992,15 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
+
+[[package]]
+name = "version-ranges"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31e9bd4e9c9ff6a2a9b5969462ba26216af3e010df0377dad8320ab515262ef8"
+dependencies = [
+ "smallvec",
+]
 
 [[package]]
 name = "version_check"
@@ -3886,7 +4104,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
