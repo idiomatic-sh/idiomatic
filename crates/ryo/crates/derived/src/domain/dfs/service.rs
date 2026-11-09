@@ -45,7 +45,7 @@ fn canonical_columns(
         table.kinds.push(
             *table
                 .kinds
-                .get(column.0 as usize)
+                .get(usize::try_from(column.0).unwrap_or(usize::MAX))
                 .ok_or(DerivedFault::ShapeMismatch)?,
         );
     }
@@ -118,14 +118,28 @@ pub(crate) fn build(
     check(edges, edge_keys)?;
     let kind = roots
         .kinds()
-        .get(root.0 as usize)
+        .get(usize::try_from(root.0).unwrap_or(usize::MAX))
         .ok_or(DerivedFault::ShapeMismatch)?;
-    if Some(kind) != edges.kinds().get(source.0 as usize)
-        || Some(kind) != edges.kinds().get(destination.0 as usize)
-        || edges.kinds().get(order.0 as usize) != Some(&CellKind::Number)
+    if Some(kind)
+        != edges
+            .kinds()
+            .get(usize::try_from(source.0).unwrap_or(usize::MAX))
+        || Some(kind)
+            != edges
+                .kinds()
+                .get(usize::try_from(destination.0).unwrap_or(usize::MAX))
+        || edges
+            .kinds()
+            .get(usize::try_from(order.0).unwrap_or(usize::MAX))
+            != Some(&CellKind::Number)
         || root_keys.len() != edge_keys.len()
         || root_keys.iter().zip(edge_keys).any(|(left, right)| {
-            roots.kinds().get(left.0 as usize) != edges.kinds().get(right.0 as usize)
+            roots
+                .kinds()
+                .get(usize::try_from(left.0).unwrap_or(usize::MAX))
+                != edges
+                    .kinds()
+                    .get(usize::try_from(right.0).unwrap_or(usize::MAX))
         })
     {
         return Err(DerivedFault::ShapeMismatch);

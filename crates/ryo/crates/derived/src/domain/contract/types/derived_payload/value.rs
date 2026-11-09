@@ -50,33 +50,37 @@ impl DerivedPayload {
     /// Capacity of the immutable typed ordering allocation, without lending its ownership.
     #[must_use]
     pub fn partition_order_capacity(&self) -> Option<ElementCapacity> {
-        match &self.data {
-            PayloadData::PartitionOrder(rows) => Some(ElementCapacity(rows.capacity())),
-            _ => None,
+        if let PayloadData::PartitionOrder(rows) = &self.data {
+            Some(ElementCapacity(rows.capacity()))
+        } else {
+            None
         }
     }
     /// The shared marks of a dense membership payload.
     #[must_use]
     pub fn share_marks(&self) -> Option<SharedMarks> {
-        match &self.data {
-            PayloadData::Membership(DerivedMembership::Dense(rows)) => Some(rows.clone()),
-            _ => None,
+        if let PayloadData::Membership(DerivedMembership::Dense(rows)) = &self.data {
+            Some(rows.clone())
+        } else {
+            None
         }
     }
     /// The shared key index of an equality payload.
     #[must_use]
     pub fn share_equality(&self) -> Option<SharedKeyIndex> {
-        match &self.data {
-            PayloadData::Equality(data) => Some(SharedKeyIndex(Arc::clone(data))),
-            _ => None,
+        if let PayloadData::Equality(data) = &self.data {
+            Some(SharedKeyIndex(Arc::clone(data)))
+        } else {
+            None
         }
     }
     /// The shared graph of an adjacency payload.
     #[must_use]
     pub fn share_adjacency(&self) -> Option<SharedGraph> {
-        match &self.data {
-            PayloadData::Adjacency(data) => Some(SharedGraph(Arc::clone(data))),
-            _ => None,
+        if let PayloadData::Adjacency(data) = &self.data {
+            Some(SharedGraph(Arc::clone(data)))
+        } else {
+            None
         }
     }
 }

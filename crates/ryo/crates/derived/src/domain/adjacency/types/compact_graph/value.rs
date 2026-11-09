@@ -30,7 +30,7 @@ impl CompactGraph {
     #[must_use]
     pub fn partition_values(&self, id: PartitionId) -> Option<&[Value]> {
         self.partitions
-            .get(id.0 as usize)
+            .get(usize::try_from(id.0).unwrap_or(usize::MAX))
             .map(|values| values.as_ref())
     }
     /// The vertex values in first-seen order.

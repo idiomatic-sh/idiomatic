@@ -15,7 +15,7 @@ enum Scenario {
     AbsentColumn,
 }
 type Input = Scenario;
-type Value = u64;
+type Value = usize;
 type Failure = DerivedFault;
 
 /// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
@@ -60,19 +60,19 @@ fn table(keys: &[i64]) -> Table {
 fn subject(input: Input) -> Result<Value, Failure> {
     let first = [ColumnIndex(0)];
     Ok(match input {
-        Scenario::ChainsEveryRow => build(&table(&[5, 6, 5]), &first, None)?.rows.len() as u64,
+        Scenario::ChainsEveryRow => build(&table(&[5, 6, 5]), &first, None)?.rows.len(),
         Scenario::EqualKeysShareAHash => build(&table(&[5, 6, 5]), &first, None)?
             .hashes
             .iter()
             .collect::<std::collections::BTreeSet<_>>()
-            .len() as u64,
+            .len(),
         Scenario::RecycledBuffersKeepTheirCapacity => {
             let grown = build(&table(&[1, 2, 3, 4]), &first, None)?;
             let before = capacities(&grown).rows;
             let again = build(&table(&[1]), &first, Some(grown))?;
-            u64::from(capacities(&again).rows >= before)
+            usize::from(capacities(&again).rows >= before)
         }
-        Scenario::AbsentColumn => build(&table(&[1]), &[ColumnIndex(4)], None)?.rows.len() as u64,
+        Scenario::AbsentColumn => build(&table(&[1]), &[ColumnIndex(4)], None)?.rows.len(),
     })
 }
 

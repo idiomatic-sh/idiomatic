@@ -12,7 +12,7 @@ impl ForestParents<'_> {
     /// The parent of a vertex, absent for a root.
     #[must_use]
     pub fn parent(&self, vertex: VertexId) -> Option<VertexId> {
-        let parent = self.parents.0[vertex.0 as usize];
+        let parent = self.parents.0[usize::try_from(vertex.0).unwrap_or(usize::MAX)];
         (parent != FOREST_ROOT).then_some(VertexId(parent))
     }
 }

@@ -31,7 +31,9 @@ pub(crate) fn build(
             let cells = table
                 .cells
                 .get(row.0.checked_mul(width)?..row.0.checked_add(1)?.checked_mul(width)?)?;
-            cells.get(column.0 as usize).copied()
+            cells
+                .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+                .copied()
         }),
         None => fill(count, columns, &mut out, |row, column| {
             rows.cell(row, column)
@@ -67,7 +69,7 @@ pub fn capacities(index: &KeyIndex) -> KeyIndexCapacities {
 }
 
 fn stored_cell(view: ColumnsView<'_>, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    let at = column.0 as usize;
+    let at = usize::try_from(column.0).unwrap_or(usize::MAX);
     let kind = *view.kinds.get(at)?;
     let bits = *view.columns.get(at)?.0.get(row.0)?;
     Some(ryo_relations::domain::relations::service::from_bits(
