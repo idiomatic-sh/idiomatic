@@ -139,7 +139,7 @@ def guards_1() -> tuple[int, tuple]:
             except ValueError:
                 continue
             raise ValueError('native phase guard admitted missing/duplicate rules or wrong phases')
-        if profile_proofs.selected_rule_applicability(prepared, prepared['combined_profiles']['current-canonical']['selected_rules']) != {rule: phase_registry['rules'][rule]['applicability'] for rule in prepared['combined_profiles']['current-canonical']['selected_rules']}:
+        if profile_proofs.selected_rule_applicability(prepared, prepared['combined_profiles']['current-canonical-ready-310-r2']['selected_rules']) != {rule: phase_registry['rules'][rule]['applicability'] for rule in prepared['combined_profiles']['current-canonical-ready-310-r2']['selected_rules']}:
             raise ValueError('applicability projection changed the selected rule inventory')
         missing_phase = json.loads(json.dumps(phase_registry))
         missing_phase['rules'].pop(next(iter(missing_phase['rules'])))
