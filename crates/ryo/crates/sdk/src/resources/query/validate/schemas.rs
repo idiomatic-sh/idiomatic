@@ -242,7 +242,10 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
                             }),
                         }
                     }
-                    _ => invalid(schema.text, error.to_string()),
+                    ryo_values::domain::query_tokens::types::Attribution::Located(_)
+                    | ryo_values::domain::query_tokens::types::Attribution::Unlocated => {
+                        invalid(schema.text, error.to_string())
+                    }
                 }
             }
             CoreError::UnknownKind { reason, origin } => match origin {
