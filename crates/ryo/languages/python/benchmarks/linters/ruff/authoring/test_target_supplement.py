@@ -176,8 +176,7 @@ class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
 
     def test_actual_failed_fixture_evidence_cannot_promote(self):
         target = RUFF / CURRENT / "latest-failed-observations"
-        if not target.is_dir():
-            target = RUFF / CURRENT / "ruf101-target-supplement"
+        self.assertTrue(target.is_dir(), f"the failed observation {target} is absent")
         # RUF100 is the rule that fails a case on the current engine (29 of 30); N999, the earlier failed observation,
         # passes all 55 of its cases since checkpoint 333 and stays only as the superseded observation below.
         rows = verified_failed_rows(RUFF, {"RUF100": {"status": "FAIL"}}, target)
@@ -186,7 +185,7 @@ class OptionalModuleAndFailureEvidenceTests(unittest.TestCase):
             verified_failed_rows(RUFF, {"RUF100": {"status": "PASS"}}, target)
 
     def test_superseded_settings_cannot_certify_current_failed_observation(self):
-        if not (RUFF / CURRENT / "latest-failed-observations").is_dir():
-            self.skipTest("no newer failed observation registered")
+        newer = RUFF / CURRENT / "latest-failed-observations"
+        self.assertTrue(newer.is_dir(), f"the newer failed observation {newer} is absent")
         with self.assertRaisesRegex(ValueError, "changed failed fixture source/settings"):
             verified_failed_rows(RUFF, {"N999": {"status": "FAIL"}}, RUFF / CURRENT / "ruf101-target-supplement")

@@ -53,13 +53,14 @@ class PreflightValidationScopeTest(unittest.TestCase):
             self.assertIn("not checked: query parsing/typechecking", output.getvalue())
             self.assertNotIn("checked: query parsing/typechecking and fixture", output.getvalue())
 
-    @unittest.skipUnless(
-        os.environ.get("RYO_PREFLIGHT_WORKER") and os.environ.get("RYO_PREFLIGHT_RUFF"),
-        "requires existing sealed worker and pinned Ruff; run after the active native gate",
-    )
     def test_real_worker_accepts_control_and_rejects_chained_join(self) -> None:
-        worker = Path(os.environ["RYO_PREFLIGHT_WORKER"])
-        ruff = Path(os.environ["RYO_PREFLIGHT_RUFF"])
+        # The sealed worker and the pinned Ruff are this test's input: named by the environment after the active native gate,
+        # and present on disk; an absent one fails the test, never skips it.
+        named = {name: os.environ.get(name) for name in ("RYO_PREFLIGHT_WORKER", "RYO_PREFLIGHT_RUFF")}
+        absent = [name for name, value in named.items() if not value or not Path(value).is_file()]
+        self.assertEqual(absent, [], "the sealed worker and pinned Ruff must be named and present: run after the active native gate")
+        worker = Path(named["RYO_PREFLIGHT_WORKER"])
+        ruff = Path(named["RYO_PREFLIGHT_RUFF"])
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             self.make_stage(root, VALID_QUERY)
