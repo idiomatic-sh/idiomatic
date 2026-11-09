@@ -18,30 +18,56 @@ pub(crate) struct Expectation {
 
 /// What `each` expects, read from its recording.
 pub(crate) fn expectation(each: &Recording) -> Expectation {
-    let at = directory().join(&each.name);
-    // The rows of a recording, each as `path<TAB>key` the way the replay writes what it finds.
-    let lines = |file: &str| -> Vec<String> {
-        let table: toml::Table = text(&at.join(file)).parse().expect("the recorded rows");
-        table
-            .get("rows")
-            .and_then(toml::Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|row| {
-                let row = row.as_table()?;
-                Some(format!(
-                    "{}\t{}",
-                    row.get("path")?.as_str()?,
-                    row.get("key")?.as_str()?
-                ))
-            })
-            .collect()
+    expectation_at(&directory().join(&each.name))
+}
+
+/// The rows of the recorded file `file` under `at`, each as `path<TAB>key` the way the replay writes what it finds. The file must
+/// be there, and each row must have a path and a key.
+pub(crate) fn recorded_rows(at: &Path, file: &str) -> Vec<String> {
+    let path = at.join(file);
+    let read = std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let table: toml::Table = read
+        .parse()
+        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let rows = table
+        .get("rows")
+        .and_then(toml::Value::as_array)
+        .unwrap_or_else(|| panic!("{}: no `rows` list", path.display()));
+    rows.iter().map(|row| row_text(row, &path)).collect()
+}
+
+/// One recorded row, a table with a `path` and a `key`, as `path<TAB>key`.
+fn row_text(row: &toml::Value, file: &Path) -> String {
+    let field = |name: &str| {
+        row.as_table()
+            .and_then(|row| row.get(name))
+            .and_then(toml::Value::as_str)
+            .unwrap_or_else(|| panic!("{}: a row has no `{name}`: {row}", file.display()))
+            .to_owned()
     };
+    format!("{}\t{}", field("path"), field("key"))
+}
+
+/// What the recording in the directory `at` expects. A recording holds its rows in `expected.toml`; one today's ryo could not
+/// decide says why in `undecided.txt` and holds the findings checked by hand in `checked.toml`, `rows = []` when there are none.
+pub(crate) fn expectation_at(at: &Path) -> Expectation {
+    let undecided = at.join("undecided.txt").exists();
+    if undecided {
+        assert!(
+            !text(&at.join("undecided.txt")).trim().is_empty(),
+            "{}: undecided.txt names no reason",
+            at.display()
+        );
+    }
     Expectation {
         plan: text(&at.join("plan")).trim().to_owned(),
-        expected: lines("expected.toml"),
-        undecided: at.join("undecided.txt").exists(),
-        checked: lines("checked.toml"),
+        expected: recorded_rows(at, "expected.toml"),
+        undecided,
+        checked: if undecided {
+            recorded_rows(at, "checked.toml")
+        } else {
+            Vec::new()
+        },
     }
 }
 
@@ -88,24 +114,39 @@ pub(crate) fn replay(recordings: &[Recording]) -> Result<Replayed, String> {
         .map(|file| file.path.0.to_string())
         .collect();
     eprintln!("the replay took {} ms", started.elapsed().as_millis());
-    let mut by_rule: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for row in &rows {
-        if let [rule, path, key, ..] = row.as_slice() {
-            by_rule
-                .entry(rule.clone())
-                .or_default()
-                .push(format!("{path}\t{key}"));
-        }
-    }
-    for each in by_rule.values_mut() {
-        each.sort();
-    }
+    let live: Vec<&str> = recordings
+        .iter()
+        .filter(|each| each.pending == Pending::Missing)
+        .map(|each| each.name.as_str())
+        .collect();
     Ok(Replayed {
-        rows: by_rule,
+        rows: by_rule(&rows, &live)?,
         unread,
         unknowns,
         fed,
     })
+}
+
+/// The findings `rows` by the rule that gave them, each as `path<TAB>key`, sorted. A row of fewer than three cells, or one under a
+/// rule that is not in `live`, is a failure: it would otherwise be dropped unseen.
+pub(crate) fn by_rule(rows: &[Vec<String>], live: &[&str]) -> Result<BTreeMap<String, Vec<String>>, String> {
+    let mut by_rule: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for row in rows {
+        let [rule, path, key, ..] = row.as_slice() else {
+            return Err(format!("a finding has fewer than three cells: {row:?}"));
+        };
+        if !live.contains(&rule.as_str()) {
+            return Err(format!("a finding is given under `{rule}`, which is not a live recorded rule: {row:?}"));
+        }
+        by_rule
+            .entry(rule.clone())
+            .or_default()
+            .push(format!("{path}\t{key}"));
+    }
+    for each in by_rule.values_mut() {
+        each.sort();
+    }
+    Ok(by_rule)
 }
 
 /// A feature as the listings write it: `operation:join`, `family:glob-any`, `direction:nearest-ancestor`, `relation:syntax-tree`.
@@ -183,23 +224,34 @@ pub(crate) fn difference(each: &Recording, given: &[String]) -> Option<String> {
 fn recorded_extra_rows(rule: &str) -> Vec<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/differences.toml");
     let table: toml::Table = text(&path).parse().expect("the recorded row differences");
-    table
+    extra_rows_in(&table, rule, &path)
+}
+
+/// The rows `table`, read from `path`, lists for `rule`. An entry must say why ryo gives them, in a non-empty `why`, and each row
+/// must have a path and a key.
+pub(crate) fn extra_rows_in(table: &toml::Table, rule: &str, path: &Path) -> Vec<String> {
+    let Some(each) = table
         .get("rule")
         .and_then(toml::Value::as_table)
         .and_then(|rules| rules.get(rule))
-        .and_then(toml::Value::as_table)
-        .and_then(|each| each.get("extra"))
+    else {
+        return Vec::new();
+    };
+    let each = each
+        .as_table()
+        .unwrap_or_else(|| panic!("{}: `rule.{rule}` is not a table", path.display()));
+    assert!(
+        each.get("why")
+            .and_then(toml::Value::as_str)
+            .is_some_and(|why| !why.trim().is_empty()),
+        "{}: `rule.{rule}` says no `why`",
+        path.display()
+    );
+    each.get("extra")
         .and_then(toml::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|row| {
-            let row = row.as_table()?;
-            Some(format!(
-                "{}\t{}",
-                row.get("path")?.as_str()?,
-                row.get("key")?.as_str()?
-            ))
-        })
+        .unwrap_or_else(|| panic!("{}: `rule.{rule}` lists no `extra` rows", path.display()))
+        .iter()
+        .map(|row| row_text(row, path))
         .collect()
 }
 
