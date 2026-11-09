@@ -1,6 +1,6 @@
 {
  "branch": "claude/w15-loop",
- "source": "cde5651c7d5a82a72192aebbb045095395a98f59",
+ "source": "25b93d6312b6bb1b07f46fe7447d7a86b5f0975c",
  "base": "dcea2ee7df",
  "verdict": "FAIL",
  "reviewer": "leak-review",
@@ -8,200 +8,332 @@
   {
    "id": "1",
    "verdict": "PASS",
-   "evidence": "The diff (16 files) asserts no engine, core or SDK contract from benchmarks/ or languages/; the only Rust-tree change is the workspace lint table, crates/ryo/Cargo.toml:149-152 (missing_errors_doc, missing_panics_doc = deny). run.py --census reads tracked sources statically (run.py:429-447) and proves no contract."
+   "evidence": "The repair range cde5651c7d..25b93d6312 changes no Rust source and no manifest; dcea2ee7df..25b93d6312 changes only crates/ryo/Cargo.toml:149-152 (two clippy lints) among Rust files. No engine, core or SDK contract is asserted from benchmarks/ or languages/; run.py --census (run.py:484-506) reads sources statically and proves nothing."
   },
   {
    "id": "2",
    "verdict": "FAIL",
-   "evidence": "Planted violations pass five new gates. (a) The builder test gate: guard_shell.py:249-257 package_scoped scans every word, including words after `--`, and accepts any -p value. `flock LOCK cargo test --target-dir /workspaces/idiomatic-target/<tree> -- -p` and `... -- --package x` exit 0; crates/ryo/Cargo.toml is a virtual workspace, so that runs every member. `cargo test -p '*'` and `cargo nextest run -p '*'` exit 0; cargo help test documents -p glob patterns. Nothing limits a builder to its own crate (-p a -p b ... passes). The lock rule (guard_shell.py:236) is a substring test: `echo LOCK; cargo test ...`, `env Z=LOCK cargo test ...`, `flock LOCKx cargo test ...` and `flock -s LOCK cargo test ...` (a shared lock, so builders overlap) all exit 0. CARGO_BUILDS (guard_shell.py:14) lacks cargo's built-in aliases and the repo's aliases, and runs_cargo_verb needs words[0]=='cargo', so `cargo t --workspace`, `cargo b --workspace`, `cargo coverage-all` and `cargo-nextest nextest run --workspace` exit 0 for a builder; this class predates the diff, but this diff now gives builders the test lane. (b) The reviewer hold (acceptance_on_stop.py:16-18, 60-81): any branches/*.json with reviewer leak-review whose mtime is after the transcript start satisfies every leak-review instance, so another branch's parallel review, or `touch` on an old file, releases a reviewer that wrote nothing. A verdict 'not decided' with no source and no checks passes, because shape() in ci/contract_review/service.py is not called. A transcript without a timestamp disables the mtime test (line 74), so any old file passes. The failure counter key 'review-<agent>' (line 99) is shared by every instance of that agent type and persists across runs, and the fifth stop exits 0. (c) The main push refusal (guard_shell.py:486-489): push_targets skips an empty-source refspec (guard_shell.py:349), so `git push origin :main` and `+:refs/heads/main` (deleting main) exit 0. A push resolved by config (`git -c push.default=upstream push` from a branch tracking main, `-c remote.origin.push=HEAD:refs/heads/main`) exits 0. (d) FIX (run.py:342-360): NAMED_TEST (run.py:336) accepts any module path or 4-word snake identifier, so `guard_shell::builder_check` counts as a test. The entry's test is never matched to the commit's. One existing log of any name satisfies 'red and green logs' (run.py:358): an entry citing cli_tests.log passes, and so does one log. A behaviour change typed chore: is not checked. A missing the consolidation remote branch returns [] (run.py:347). (e) DOC (run.py:381-397): renamed files are skipped (--diff-filter=AM, run.py:386). A new item whose (kind, name) is pub anywhere in the crate at base, test files included, is exempt (run.py:394): `pub fn new() -> Result` on a new type gives 0. A src/test_*.rs file is exempt. No base returns [] (run.py:384). (f) The census counts drop without a real change: `use Operation as O` takes the exhaustive-match file count from 1 to 0 (run.py:439). Declaring a same-named pub struct anywhere outside the runtime removes it from the vocabulary: total 3 to 1, vocabulary 2 to 1. Moving a cross-crate test to src/.../tests.rs takes cross_crate_tests from 1 to 0 and counts the file as production (run.py:426). The clippy deny lints were not planted: the guard refuses clippy outside an integration tree and the build lock was held, so that claim has no plant evidence. Observed live on this review: reviewer_stop's tree regex (acceptance_on_stop.py:92, INTEGRATION_TREE\\W{0,3}\\s*(/[^\\s`'\"]+), rstrip('.,;')) took '/workspaces/ryo-333:' from the prompt 'INTEGRATION_TREE=/workspaces/ryo-333: write ...', so it held this reviewer although its verdict file was written; the hold fails on a real verdict, not only passes without one."
+   "evidence": "Every earlier plant is now refused (plants list). New escapes, each passing with exit 0: (a) builder lane: guard_shell.py:87 consumes one word per option, so a short cluster ending in a value flag leaves its value as the lock operand and the lock path as the command word; `flock -sw 5 /workspaces/.cargo-build.lock cargo test --workspace` (a shared lock, all members) and `... cargo build --workspace` are invisible to every cargo rule; the same holds for xargs -0n 1, timeout -vs KILL 5, env -iu X, env -iC, ionice -tc 2. `flock LOCK -c '...'`, `env --split-string=...` and `rustup run stable cargo build --workspace` also hide cargo (guard_shell.py:62, 83, 90). `cargo --config check test -p pa --target-dir <check target>` reads as a check because the verb is the first non-dash word (guard_shell.py:341). (b) push to main: `GIT_CONFIG_PARAMETERS=\"'push.default=matching'\" git push origin`, `GIT_CONFIG_COUNT=1 ...remote.origin.push=HEAD:refs/heads/main git push origin`, `git -c alias.p=push p origin HEAD:main`, `git config push.default matching; git push origin` and `git send-pack` pass; dry-run --porcelain on a scratch remote shows refs/heads/main updated (guard_shell.py:388, 440-455). (c) reviewer hold: token() takes the first NAME= match (acceptance_on_stop.py:62); a prompt that quotes the previous SOURCE= before the current one releases a verdict for the old sha. (d) FIX: a behaviour change typed refactor: or perf: is exempt by its own label (run.py:336); README.md:89 says refactor is judged by the Rust gate, but rust-principal-review.md has no refactor check (0 matches), and the perf gate demands identical_output only when the message states a number (guard_shell.py:808-809), so the exemption is a leak. A fix in ci/contract_review/service.py or run.py is not production (run.py:335); merge commits are skipped (run.py:375); hand-written red and green logs for a test that never ran pass (run.py:367). (e) DOC: a top-level pub fn whose name is pub at top level in another module of the crate is exempt (run.py:439, owner None); a bare `/// # Examples` heading passes (run.py:441). (f) census: `type O = Operation;` takes exhaustive matches 24 to 23 (run.py:481); a `#[cfg(test)] mod x {}` at the top of a production file moves the whole file to test (run.py:476, exhaustive 24 to 23); renaming a cfg(test) module file off test.rs takes cross_crate_tests 51 to 50 and production 41 to 42 (run.py:471); a decoy `pub struct AdmittedOutput;` in another crate drops vocabulary 68 to 67 (run.py:494). Unit suites stay green (test_hooks 146 OK, run_test 31 OK), so none of these is covered. The clippy deny lints (Cargo.toml:151-152) remain unplanted: the guard refuses clippy outside an integration tree."
   },
   {
    "id": "3",
    "verdict": "PASS",
-   "evidence": "No Rust visibility, package allowlist, import boundary or feature changes in the diff; the only Cargo.toml edit is the lint table (crates/ryo/Cargo.toml:149-152), inherited by every package crate (26 [lints] workspace = true; the five without are test fixture manifests under languages/rust/tests/fixtures/manifests)."
+   "evidence": "No visibility, package allowlist, import boundary or feature change: the only manifest edit is the [workspace.lints] table at crates/ryo/Cargo.toml:149-152, which every package crate inherits."
   },
   {
    "id": "4",
    "verdict": "FAIL",
-   "evidence": "acceptance_on_stop.py:69-81 written_verdict is a second definition of a valid review evidence file: reviewer == agent and a non-empty verdict string. The review README (Review evidence schema) names `shape` in ci/contract_review/service.py as the one definition, with two callers, review_shape in guard_shell.py:388 and the CI job. The copy is weaker: it accepts any verdict text and requires neither source nor checks. Required change: load service.py as guard_shell.validated does and call shape(review, agent), plus a source check against the reviewed sha the prompt names."
+   "evidence": "The earlier finding is fixed: acceptance_on_stop.py:66-80 shape_problem calls shape() in ci/contract_review/service.py, and review/README.md lists it as the third caller. New: run.py now holds three definitions of a test file that disagree. is_test_path (run.py:18, '/test' substring) splits tm findings; validate's is_test (run.py:520-522) splits finding counts; this branch adds is_test_file (run.py:329-332) for FIX, DOC and the census. crates/x/benches/a.rs and crates/x/src/foo_tests.rs are tests to is_test_file and production to is_test; crates/testing_support/src/lib.rs is a test to is_test_path only. Required: one is_test_file, called by all three."
   },
   {
    "id": "5",
    "verdict": "PASS",
-   "evidence": "No Rust module, port or adapter moved; no inbound or application item crosses a crate (the diff touches no .rs file)."
+   "evidence": "No .rs file changed in dcea2ee7df..25b93d6312, so no layer or crate-crossing item moved."
   },
   {
    "id": "6",
    "verdict": "PASS",
-   "evidence": "No feature, cfg(test) bypass, pub test helper or fixture constructor added; the diff adds lints and Python harness code only (git diff --stat dcea2ee7df..cde5651c7d)."
+   "evidence": "No feature, cfg(test) bypass, pub test helper or fixture constructor added; the diff is Python harness code, agent docs and the lint table."
   }
  ],
  "plants": [
   {
-   "claim": "guard_shell builder tests package-scoped (-- -p)",
-   "file": ".claude/hooks/guard_shell.py:253",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell builder tests package-scoped (-p '*', test and nextest)",
-   "file": ".claude/hooks/guard_shell.py:253",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell builder tests control (no -p)",
-   "file": ".claude/hooks/guard_shell.py:273",
+   "claim": "re-run: builder tests past -- (-- -p, -- --package x)",
+   "file": ".claude/hooks/guard_shell.py:340",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "guard_shell lock (echo LOCK; env Z=LOCK; flock LOCKx; flock -s LOCK)",
-   "file": ".claude/hooks/guard_shell.py:236",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell lock control (no flock)",
-   "file": ".claude/hooks/guard_shell.py:236",
+   "claim": "re-run: builder tests -p '*' (test and nextest run)",
+   "file": ".claude/hooks/guard_shell.py:293",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "guard_shell builder builds (cargo t/b --workspace, cargo coverage-all, cargo-nextest)",
-   "file": ".claude/hooks/guard_shell.py:14",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "bulk_push main refusal (origin main, HEAD:main, HEAD:refs/heads/master, -d origin main)",
-   "file": ".claude/hooks/guard_shell.py:488",
+   "claim": "re-run: builder tests -p pa -p pb",
+   "file": ".claude/hooks/guard_shell.py:350",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "bulk_push main refusal (:main, +:refs/heads/main)",
-   "file": ".claude/hooks/guard_shell.py:349",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "bulk_push main refusal (push.default=upstream, remote.origin.push config)",
-   "file": ".claude/hooks/guard_shell.py:487",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "reviewer hold control (nothing written)",
-   "file": ".claude/hooks/acceptance_on_stop.py:99",
+   "claim": "re-run: lock spelled elsewhere (echo LOCK; env Z=LOCK; flock LOCKx; flock -s; flock --shared; flock -n)",
+   "file": ".claude/hooks/guard_shell.py:344",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "reviewer hold (another branch's fresh leak-review file)",
-   "file": ".claude/hooks/acceptance_on_stop.py:18",
+   "claim": "re-run: cargo t/b --workspace, cargo coverage-all, cargo-nextest nextest run --workspace",
+   "file": ".claude/hooks/guard_shell.py:131",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "control: flock LOCK cargo test -p pa --target-dir <own> (allowed form passes)",
+   "file": ".claude/hooks/guard_shell.py:357",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "reviewer hold (verdict 'not decided', no source or checks)",
-   "file": ".claude/hooks/acceptance_on_stop.py:80",
+   "claim": "new: flock -sw 5 LOCK cargo test --workspace (and build --workspace, -nw 5, -sE 3)",
+   "file": ".claude/hooks/guard_shell.py:87",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "reviewer hold (old file, transcript without timestamp)",
-   "file": ".claude/hooks/acceptance_on_stop.py:74",
+   "claim": "new: same option-cluster class on other wrappers (xargs -0n 1, timeout -vs KILL 5, env -iu X, env -iC /tmp, ionice -tc 2)",
+   "file": ".claude/hooks/guard_shell.py:87",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "reviewer hold (old file touched)",
-   "file": ".claude/hooks/acceptance_on_stop.py:74",
+   "claim": "new: flock LOCK -c 'cargo test --workspace' and flock -c ... LOCK and flock LOCK --command ...",
+   "file": ".claude/hooks/guard_shell.py:90",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "reviewer hold (fifth stop without a verdict)",
-   "file": ".claude/hooks/acceptance_on_stop.py:143",
+   "claim": "new: env --split-string='cargo build --workspace'",
+   "file": ".claude/hooks/guard_shell.py:83",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "FIX (module path as test, unrelated cli_tests.log)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:358",
+   "claim": "new: rustup run stable cargo build --workspace",
+   "file": ".claude/hooks/guard_shell.py:62",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "FIX (one log only)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:358",
+   "claim": "new: cargo --config check test -p pa --target-dir <check target> (first non-dash word is the --config value)",
+   "file": ".claude/hooks/guard_shell.py:341",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "FIX (behaviour change typed chore:)",
+   "claim": "re-run: git push origin :main, +:refs/heads/main",
+   "file": ".claude/hooks/guard_shell.py:433",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: git -c push.default=upstream push; -c remote.origin.push=HEAD:refs/heads/main",
+   "file": ".claude/hooks/guard_shell.py:446",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "new: GIT_CONFIG_PARAMETERS / GIT_CONFIG_COUNT env push config (dry-run --porcelain shows refs/heads/main)",
+   "file": ".claude/hooks/guard_shell.py:440",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: git -c alias.p=push p origin HEAD:main; git config alias.p push; git p ...",
+   "file": ".claude/hooks/guard_shell.py:388",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: git config push.default matching; git push origin (and remote.origin.push refs/heads/*:refs/heads/*)",
+   "file": ".claude/hooks/guard_shell.py:452",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: git send-pack origin HEAD:refs/heads/main",
+   "file": ".claude/hooks/guard_shell.py:375",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: reviewer hold, another branch's file only",
+   "file": ".claude/hooks/acceptance_on_stop.py:122",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: reviewer hold, verdict 'not decided' without source or checks",
+   "file": ".claude/hooks/acceptance_on_stop.py:79",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: reviewer hold, transcript without timestamp",
+   "file": ".claude/hooks/acceptance_on_stop.py:118",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: reviewer hold, old mtime",
+   "file": ".claude/hooks/acceptance_on_stop.py:84",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: reviewer hold, stale source",
+   "file": ".claude/hooks/acceptance_on_stop.py:96",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: INTEGRATION_TREE=<path>: trailing colon (valid verdict released, as it must)",
+   "file": ".claude/hooks/acceptance_on_stop.py:63",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: reviewer hold, prompt names an earlier SOURCE= before the current one; stale-source verdict released",
+   "file": ".claude/hooks/acceptance_on_stop.py:62",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: FIX module path named, one log twice",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:367",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: FIX same log as red and green",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:367",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: FIX entry test differs from commit test",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:365",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: FIX chore: behaviour change",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:380",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: FIX no base",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:373",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "control: FIX proper entry passes",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:368",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: FIX refactor: behaviour change",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:336",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: FIX perf: behaviour change without a number",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:336",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: FIX fix: in ci/contract_review/service.py (the evidence validator)",
    "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:335",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "FIX (no consolidation base)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:347",
+   "claim": "new: FIX fix: in evidence/checkpoint/run.py",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:335",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "DOC control (new undocumented pub fn)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:395",
-   "count": 2,
-   "reverted": true
-  },
-  {
-   "claim": "DOC (pub fn new on a new type, name pub elsewhere in crate)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:394",
+   "claim": "new: FIX behaviour change inside a merge commit",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:375",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "DOC (name pub in a base test file)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:391",
+   "claim": "new: FIX hand-written red and green logs for a test that never ran",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:367",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "DOC (new item in a renamed file)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:386",
-   "count": 0,
+   "claim": "re-run: DOC new item in a renamed file",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:433",
+   "count": 1,
    "reverted": true
   },
   {
-   "claim": "DOC (src/test_support.rs)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:329",
-   "count": 0,
+   "claim": "re-run: DOC src/test_*.rs production module",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:332",
+   "count": 1,
    "reverted": true
   },
   {
-   "claim": "DOC (no consolidation base)",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:384",
-   "count": 0,
+   "claim": "re-run: DOC no base",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:431",
+   "count": 1,
    "reverted": true
   },
   {
-   "claim": "census operation_exhaustive_matches (use Operation as O): 1 -> 0",
+   "claim": "re-run: DOC impl N { pub fn new() -> Result } on a new type",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:439",
+   "count": 3,
+   "reverted": true
+  },
+  {
+   "claim": "open: DOC top-level pub fn parse() -> Result in y.rs when x.rs has a pub fn parse",
    "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:439",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "census replace_the_evaluator (same-named pub struct in another crate's test): 3 -> 1",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:432",
+   "claim": "new: DOC /// # Examples heading with no example",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:441",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "census cross_crate_tests (test moved to src/tests.rs): 1 -> 0",
-   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:426",
+   "claim": "re-run: census use crate::Operation as O (exhaustive files 24 -> 24)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:480",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: census same-named pub struct in another crate's test (vocabulary unchanged)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:494",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "re-run: census cross-crate test in tests.rs counted as test",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:332",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "new: census type O = Operation; O::X (exhaustive files 24 -> 23)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:481",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: census #[cfg(test)] mod early_tests {} at the top of a production file (exhaustive 24 -> 23)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:476",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: census test.rs renamed check.rs under its pub(super) mod (cross_crate_tests 51 -> 50, production 41 -> 42)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:471",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "new: census decoy pub struct AdmittedOutput; in crates/values/src/lib.rs (vocabulary 68 -> 67)",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:494",
    "count": 0,
    "reverted": true
   }
@@ -222,7 +354,7 @@
      "text": "flock /workspaces/.cargo-build.lock cargo test --target-dir /workspaces/idiomatic-target/<tree> -- -p"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "cargo-package-glob-accepted-3b04ff14",
@@ -239,7 +371,7 @@
      "text": "flock /workspaces/.cargo-build.lock cargo nextest run -p '*' --target-dir /workspaces/idiomatic-target/<tree>"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "lock-substring-match-38bf0f42",
@@ -261,7 +393,7 @@
      "text": "flock -s /workspaces/.cargo-build.lock cargo test -p x --target-dir /workspaces/idiomatic-target/<tree>"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "cargo-verb-set-misses-aliases-c5f1d132",
@@ -283,7 +415,7 @@
      "text": "cargo-nextest nextest run --workspace"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "push-refspec-empty-source-skipped-675cdcce",
@@ -300,7 +432,7 @@
      "text": "git push origin :main"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "reviewer-verdict-second-validator-28e12b70",
@@ -317,7 +449,7 @@
      "text": "{\"reviewer\":\"leak-review\",\"verdict\":\"not decided\"}"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "reviewer-hold-any-file-in-directory-bdd367cd",
@@ -334,7 +466,7 @@
      "text": "{\"reviewer\":\"leak-review\",\"verdict\":\"PASS\",\"source\":\"x\"}"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "diff-filter-skips-renames-aceba679",
@@ -351,7 +483,7 @@
      "text": "pub fn brand_new() -> Result<(), E> { todo!() }  // in a file renamed from a/src/lib.rs"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "fail-open-on-missing-base-3183081a",
@@ -368,7 +500,7 @@
      "text": "fix_problems(v) in a tree with no the consolidation remote branch"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "doc-exemption-by-name-only-c7d940e1",
@@ -402,7 +534,7 @@
      "text": "{\"test\":\"nothing (cli_tests.log)\",\"base_sha\":\"<base>\",\"merge_sha\":\"<fix>\"}"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "census-literal-name-regex-edc8de66",
@@ -436,7 +568,7 @@
      "text": "FileSession"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "shared-failure-counter-per-agent-type-252e8c5c",
@@ -453,17 +585,257 @@
      "text": "five SubagentStop calls of any leak-review instances without a verdict file"
     }
    ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "wrapper-option-cluster-hides-command-c198ea5b",
+   "class": "wrapper-option-cluster-hides-command",
+   "signature": "words = words[2:] if flag in values or (wrapper == \"script\" and flag in (\"-c\", \"--command\")) else words[1:]",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 87,
+     "text": "flock -sw 5 /workspaces/.cargo-build.lock cargo test --workspace"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 87,
+     "text": "xargs -0n 1 cargo build --workspace"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 87,
+     "text": "env -iu X cargo build --workspace"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "cargo-behind-unrecognised-launcher-2ea2a219",
+   "class": "cargo-behind-unrecognised-launcher",
+   "signature": "WRAPPERS = {\"env\", \"time\", \"exec\", \"nohup\", \"command\", \"nice\", \"timeout\", \"stdbuf\", \"xargs\", \"flock\", \"ionice\", \"unbuffer\", \"script\", \"watch\"}",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 62,
+     "text": "rustup run stable cargo build --workspace"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 62,
+     "text": "flock /workspaces/.cargo-build.lock -c 'cargo test --workspace'"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 62,
+     "text": "env --split-string='cargo build --workspace'"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "push-destination-outside-argv-9151a27d",
+   "class": "push-destination-outside-argv",
+   "signature": "if i >= len(words) or words[i] != verb:",
+   "scope": [
+    ".claude/hooks/guard_shell.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 388,
+     "text": "git -c alias.p=push p origin HEAD:main"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 440,
+     "text": "GIT_CONFIG_PARAMETERS=\"'push.default=matching'\" git push origin"
+    },
+    {
+     "file": ".claude/hooks/guard_shell.py",
+     "line": 440,
+     "text": "git config push.default matching; git push origin"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "reviewer-token-first-match-332f487a",
+   "class": "reviewer-token-first-match",
+   "signature": "found = re.search(r\"(?<![A-Za-z0-9_])\" + name + r\"=(\\S+)\", text)",
+   "scope": [
+    ".claude/hooks/acceptance_on_stop.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": ".claude/hooks/acceptance_on_stop.py",
+     "line": 62,
+     "text": "Previous SOURCE=cde5651c7d5a82a72192aebbb045095395a98f59 was FAIL. SOURCE=25b93d6312b6bb1b07f46fe7447d7a86b5f0975c"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "fix-exemption-by-commit-type-da27fb6c",
+   "class": "fix-exemption-by-commit-type",
+   "signature": "NOT_BEHAVIOUR=re.compile(r'^(perf|refactor)(\\([^)]*\\))?!?:')",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 336,
+     "text": "refactor: tidy  (changes pub fn f() -> u8 { 1 } to { 2 })"
+    },
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 336,
+     "text": "perf(a): faster  (same change, no number, no after.json)"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "fix-scope-excludes-harness-code-db7cadbc",
+   "class": "fix-scope-excludes-harness-code",
+   "signature": "path.endswith('.rs') or path.startswith('.claude/hooks/') and path.endswith('.py')",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "ci/contract_review/service.py",
+     "line": 28,
+     "text": "def shape(r): return None  # in a fix: commit naming no test"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "fix-skips-merge-commits-8f027951",
+   "class": "fix-skips-merge-commits",
+   "signature": "git(repo,'rev-list','--no-merges',base+'..'+head)",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 375,
+     "text": "a merge commit whose resolution changes pub fn f() -> u8 { 3 }"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "fix-log-provenance-unbound-d24d168c",
+   "class": "fix-log-provenance-unbound",
+   "signature": "(raw/red.group(1)).is_file()",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 367,
+     "text": "hand-red.log: test a::t::never_ran_test ... FAILED; hand-green.log: test a::t::never_ran_test ... ok"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "doc-examples-heading-only-074a596b",
+   "class": "doc-examples-heading-only",
+   "signature": "'# Examples' not in doc",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/a/src/y.rs",
+     "line": 1,
+     "text": "/// # Examples"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "census-test-split-by-text-position-2c355bb0",
+   "class": "census-test-split-by-text-position",
+   "signature": "CFG_TEST=re.compile(r'^\\s*#\\[cfg\\(test\\)\\]',re.M)",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/values/src/domain/plans/service.rs",
+     "line": 1,
+     "text": "#[cfg(test)] mod early_tests {}"
+    },
+    {
+     "file": "crates/execution/src/inbound/use_cases/execution/use_case_test/admission_order/check.rs",
+     "line": 1,
+     "text": "(test.rs renamed check.rs; parent declares pub(super) mod check)"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "census-vocabulary-decoy-declaration-c9bc4e18",
+   "class": "census-vocabulary-decoy-declaration",
+   "signature": "vocabulary=home-{n for f,t in prod_text.items() if not f.startswith(EVALUATOR) for n in declared.findall(t)}-{'Demand'}",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/values/src/lib.rs",
+     "line": 1,
+     "text": "pub struct AdmittedOutput;"
+    }
+   ],
+   "instance_status": "open"
+  },
+  {
+   "id": "test-file-classifier-three-definitions-c7d88a5c",
+   "class": "test-file-classifier-three-definitions",
+   "signature": "def is_test_path(path): return '/test' in path or '_test.rs' in path",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 18,
+     "text": "def is_test_path(path): return '/test' in path or '_test.rs' in path"
+    },
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 520,
+     "text": " def is_test(path):"
+    }
+   ],
    "instance_status": "open"
   }
  ],
- "findings": [
-  "check 2: builder test lane escapes (-- -p, -p glob, lock substring, aliases)",
-  "check 2: reviewer verdict hold satisfied without this reviewer's verdict",
-  "check 2: push to main by delete refspec or config",
-  "check 2: FIX accepts unrelated logs and non-test names; fails open without base",
-  "check 2: DOC skips renames and name-collisions; fails open without base",
-  "check 2: census counts drop by aliasing, name collision or file placement",
-  "check 4: second verdict-file validator beside service.py shape"
- ],
- "date": "2026-11-09T17:27:43+00:00"
+ "date": "2026-11-09T17:51:53+00:00"
 }

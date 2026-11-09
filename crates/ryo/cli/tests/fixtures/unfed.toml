@@ -38,9 +38,6 @@ why = "no recorded rule reads the relation; `todo-comments`, `unsafe-without-saf
 [feature."relation:FilePackage"]
 why = "added by the declarations batch; no recorded rule reads it yet."
 
-[feature."relation:Mapping"]
-why = "no recorded rule reads it."
-
 [feature."relation:Directive"]
 why = "no recorded rule reads it; ruff's files are Python and Rust, which have no build directive in source."
 
@@ -51,7 +48,7 @@ why = "no recorded rule reads it; it was added for the comparison of a template 
 why = "added by the declarations batch; no recorded rule reads it yet."
 
 [feature."relation:SequenceElement"]
-why = "no recorded rule reads it."
+why = "read only by `dependency-feature-sprawl`, over the few sequences of ruff's Cargo manifests: 268 rows."
 
 [feature."relation:SyntaxError"]
 why = "read only by `parse-errors`; 0 rows over ruff."
