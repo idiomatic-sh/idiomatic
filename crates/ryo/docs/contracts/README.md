@@ -13,8 +13,10 @@ Phases 1-7 are complete when each box below is ticked.
 - [ ] all-413 parity run against Ruff: every rule identical or each difference named and accepted
 - [ ] perf levers, each landed from a committed diagnosis with byte-identical receipts, in priority order:
   - [ ] skip rules that cannot match
+  - [ ] the engine port (the runtime per-file state component, a typed interface the runtime takes)
   - [ ] the relational hot path (multi-input region overhead, join/antijoin/group/axis kernels, materialised intermediates, relational fusion)
-  - [ ] per-file state component, then dense slots and streaming rows
+  - [ ] dense slots and streaming rows behind the port
+  - [ ] the simple path as a small engine-adapter piece passed into that port, not a second implementation
   - [ ] shared prepared program and compile cache
   - [ ] allocation churn
   - [ ] allocator decay
@@ -22,7 +24,6 @@ Phases 1-7 are complete when each box below is ticked.
   - [ ] store size at most 18.5 MB
   - [ ] warm and edit runs (target 200 ms, tracked like the speed target)
   - [ ] memory guard
-  - [ ] simple-rule speedups last, unless a single path for all rules
 - [ ] runtime per-file state is one typed component inside `execution_runtime` (slots, polls and publication bookkeeping behind a narrow interface, one implementation), with the dense-slot version swapped in. Nothing outside touches it, proven by `compile_fail` probes plus `private_interfaces = deny`: each probe refuses code outside the component that names one member type or calls its internals.
   - Members: the per-file maps in `execution_runtime` `runtime/service.rs`: `slots` (line 160, the one the diagnosis names; the dense-slot swap replaces this map), `dormant` (line 161) and the two retirement maps (lines 127 and 130).
   - Boundary: `ReadyQueue` and `ReadinessCounts` (`execution_domain` readiness), the publication scope and generation types (`execution_store`) and the replay buffer (`execution_domain` replay) stay where they are, as domain values the component holds and uses. The component owns their per-file instances and lifetime, not their definitions. The streaming-rows lever changes how the component feeds the replay buffer and touches the domain type only within its own crate. Readiness does not move, so the ring row is unaffected.
@@ -35,6 +36,8 @@ Phases 1-7 are complete when each box below is ticked.
 
 
 Owner decision on perf priority (owner, 2026-11-08): "while this might get us better speed for ruff rules it's not going to solve the relational speeds that make ryo special. we should prioritize those while they are the hot path now, and then do the other changes after, unless we can figure a way that there is only a single path for all".
+
+Owner decision, final framing (owner, 2026-11-08): "we're prioritizing the tm fixes and also building that engine port, and then after relational perf fixes, we'll also add the simple path, WHICH IS NOT A SECOND IMPLEMENTATION BUT JUST A SMALL PART OF THE ENGINE ADAPTER PASSED INTO A PORT".
 
 ### Why the target stays red
 
