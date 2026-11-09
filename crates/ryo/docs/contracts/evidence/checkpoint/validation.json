@@ -87,10 +87,10 @@
       "elapsed_seconds": 1.999051809310913
     },
     "tm_import_cli": {
-      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
+      "source": "10c561ef6a9dc6508eb2d08c39a172542055d3ff",
       "command": ["cargo", "test", "--manifest-path", "crates/tastemaker/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "-p", "idiomatic-sh-tastemaker", "--no-default-features", "--features", "rust,toml", "--test", "replay", "imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls", "--", "--exact"],
-      "exit": 101,
-      "elapsed_seconds": 2.768886089324951
+      "exit": 0,
+      "elapsed_seconds": 39.06
     },
     "tm_cli_source": {
       "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
@@ -213,13 +213,17 @@
     "execution_store_library": {"passed": 83, "failed": 0, "note": "81 at validation331; tm-rebuild added the project owner graph-cache cases"},
     "core_library": {"passed": 120, "failed": 0, "note": "as at validation331"},
     "benchmark_library": {
-      "passed": 227,
-      "failed": 3,
-      "note": "verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted: raw process identity unavailable, entity not found), as since validation326; and claude/w13-bench-parity's compare_corpus use_case_test refuses (3 rows) and succeeds (2 rows), each answered Err(\"operational failure\") over the fakes, not run on its branch; owned by \"Close full TM, contracts, independent review and normal CI.\""
+      "passed": 229,
+      "failed": 1,
+      "note": "verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted: raw process identity unavailable, entity not found), as since validation326. compare_corpus use_case_test succeeds (2 rows) and refuses (3 rows) are green in the rerun at 10c561ef6a, its fixture handing ExecutionFake status 0 (Rust gate 332 F2; gatefix_benchmark_lib.log, gatefix_compare_corpus.log; the benchmark bdd 43 scenarios / 0, compare_corpus 2 of them, gatefix_benchmark_bdd.log); owned by \"Close full TM, contracts, independent review and normal CI.\""
     },
     "sdk_passed": 29,
     "other_libraries_passed": 191,
-    "libraries_total": {"passed": 1123, "failed": 3, "note": "1099/1 at validation331; counted from libraries.log (tests.json): benchmark 227/3, core 120, derived 35, execution 73, domain 140, runtime 218, store 83, matching 5, operators 63, query_language 101, sdk 29, values 29"},
+    "libraries_total": {
+      "passed": 1125,
+      "failed": 1,
+      "note": "1099/1 at validation331; counted from libraries.log (tests.json) with the benchmark library rerun at 10c561ef6a (gatefix_benchmark_lib.log): benchmark 229/1, core 120, derived 35, execution 73, domain 140, runtime 218, store 83, matching 5, operators 63, query_language 101, sdk 29, values 29"
+    },
     "execution_boundary": {"passed": 99, "failed": 0, "note": "97 at validation331; tm-rebuild added the two project_phase::axis engine contracts (a walk after the files, a join with reach after the files)"},
     "activation": {"passed": 11, "failed": 0, "note": "11 actual cases, the facts-finish dhat control among them"},
     "bdd": {"scenarios": 9, "failed": 0},
@@ -229,19 +233,17 @@
     "ruff_rule_phases": {"exit": 0, "note": "the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X"},
     "doctests": {
       "execution": 0,
-      "execution_domain": 1,
+      "execution_domain": 2,
       "execution_runtime": 5,
       "core": 1,
       "sdk": 3,
       "values": 16,
       "derived": 11,
       "failed": 0,
-      "note": "counted from doctest*.log of validation332; values 16 and execution_domain 1 since the 331 Rust gate F1 doctests"
+      "note": "counted from doctest*.log of validation332; values 16 since the 331 Rust gate F1 doctests; execution_domain 2 and execution_store 1 from the rerun at 10c561ef6a for the 332 Rust gate F1 (PatternSemantics, serve_project; gatefix_doctests.log)",
+      "execution_store": 1
     },
-    "tm_import_cli": {
-      "exit": 101,
-      "note": "red, new at 332: idiomatic-sh-tastemaker-core does not compile against the published ryo SDK 0.1.1 (8 errors, E0432/E0560, e.g. LintRequest has no field given_project_inventory), because claude/w13-tm-rebuild e1dfa19a93 made the tastemaker ryo adapter fill the fields of the local SDK; owned by \"Close full TM, contracts, independent review and normal CI.\""
-    },
+    "tm_import_cli": {"exit": 0, "note": "rerun at 10c561ef6a (gatefix_tm_import_cli.log), 1 passed: crates/tastemaker patches the 15 ryo crates its lock holds to their directories here, so tastemaker-core compiles against the SDK its ryo adapter fills since e1dfa19a93 (Rust gate 332 F3)"},
     "tm_cli_source_findings": 0,
     "tm_guards": "pass",
     "core_allocation": {"exit": 101, "phase": 7, "note": "the 327 erratum's owed run, on the tree's own target: a file allocates 1,698 to 1,700 blocks beyond the parser library; owned by \"Measure full-Django cold/warm/edit and Rust regressions; meet final objective.\""},
@@ -369,6 +371,12 @@
     {"test": "cli replay manifests_npm::ryo_says_what_npm_says_of_the_manifests_of_a_workspace", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
     {"test": "cli replay manifests_pnpm::ryo_says_what_pnpm_says_of_the_manifests_of_a_workspace", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
     {"test": "cli replay manifests_uv::ryo_says_what_uv_says_of_the_manifests_of_a_workspace", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
-    {"test": "cli replay recordings::a_pending_txt_naming_exactly_the_refused_relation_waits", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"}
+    {"test": "cli replay recordings::a_pending_txt_naming_exactly_the_refused_relation_waits", "base_sha": "a4cc608275ada8b3fef840ef7c36729cf122b06a", "merge_sha": "4b9580619f531fd4db4791958e8eecddf1e0e35b"},
+    {"test": "execution_domain domain::operation_schema::service_test::refuses", "base_sha": "add03c25b31f592a9525804f2fea69674aa8c971", "merge_sha": "10c561ef6a9dc6508eb2d08c39a172542055d3ff"},
+    {"test": "language domain::elements::service_test::succeeds", "base_sha": "616dbb9433d1a68825eec7dbe9a117328d60b5f3", "merge_sha": "10c561ef6a9dc6508eb2d08c39a172542055d3ff"},
+    {"test": "python domain::semantic_syntax::service_test::comparisons_test::succeeds", "base_sha": "616dbb9433d1a68825eec7dbe9a117328d60b5f3", "merge_sha": "10c561ef6a9dc6508eb2d08c39a172542055d3ff"},
+    {"test": "python domain::semantic_syntax::service_test::nested_test::succeeds", "base_sha": "616dbb9433d1a68825eec7dbe9a117328d60b5f3", "merge_sha": "10c561ef6a9dc6508eb2d08c39a172542055d3ff"},
+    {"test": "python domain::semantic_syntax::service_test::comparisons_test::succeeds at 616dbb9433 tests", "base_sha": "b1e81f724206237fad67a42bfe1557fdb838b9e2", "merge_sha": "10c561ef6a9dc6508eb2d08c39a172542055d3ff"},
+    {"test": "python domain::semantic_syntax::service_test::nested_test::succeeds at 616dbb9433 tests", "base_sha": "b1e81f724206237fad67a42bfe1557fdb838b9e2", "merge_sha": "10c561ef6a9dc6508eb2d08c39a172542055d3ff"}
   ]
 }
