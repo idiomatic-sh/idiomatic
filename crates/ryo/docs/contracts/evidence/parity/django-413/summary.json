@@ -198,5 +198,20 @@
    "suspected_cause": "ryo misses .format() on a multi-line implicit concatenation that repeats positional indexes ({1}, {2} reused) in db/migrations/loader.py."
   }
  ],
- "fixes": "none; measurement only"
+ "fixes": "none; measurement only",
+ "validation332": {
+  "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
+  "command": "ruff_parity in evidence/checkpoint/commands.json (validation332): the ruff bench worker built from the source, verify_profiles.py --stage-request over the pinned cold request, worker parity against ruff 0.16.5 with accepted-differences.json",
+  "staged_digest": "1a9cf78801045140d1d7cf39d8e380ab1390684c1a0be467d678b9c66bc3066e",
+  "request_sha256": "1ed7412b2509d13e0dc16dc61cb703c65457a5eb85f79057cae55348bde179d6",
+  "result": "412 identical of 413 rules; 0 unaccepted",
+  "non_identical": {
+   "FURB122": {
+    "class": "ryo-extra",
+    "differences": 3,
+    "accepted": true
+   }
+  },
+  "per_rule": "per-rule.json is this run's output; the fields above it describe the 330 baseline run"
+ }
 }

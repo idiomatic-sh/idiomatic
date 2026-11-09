@@ -365,45 +365,17 @@
  },
  {
   "rule": "B020",
-  "ryo": 36,
+  "ryo": 6,
   "ruff": 6,
   "matched": 6,
   "missing": 0,
-  "extra": 30,
+  "extra": 0,
   "end_differs": 0,
   "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "django/contrib/admin/options.py",
-    "line": 530,
-    "column": 13,
-    "end": [
-     530,
-     25
-    ]
-   },
-   {
-    "file": "django/contrib/admin/views/main.py",
-    "line": 184,
-    "column": 13,
-    "end": [
-     184,
-     24
-    ]
-   },
-   {
-    "file": "django/contrib/auth/tokens.py",
-    "line": 69,
-    "column": 13,
-    "end": [
-     69,
-     19
-    ]
-   }
-  ],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-extra",
-  "differences": 30
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "B021",
@@ -1513,27 +1485,17 @@
  },
  {
   "rule": "F811",
-  "ryo": 1,
+  "ryo": 0,
   "ruff": 0,
   "matched": 0,
   "missing": 0,
-  "extra": 1,
+  "extra": 0,
   "end_differs": 0,
   "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "django/db/backends/postgresql/psycopg_any.py",
-    "line": 20,
-    "column": 17,
-    "end": [
-     20,
-     20
-    ]
-   }
-  ],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-extra",
-  "differences": 1
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "F821",
@@ -1551,45 +1513,17 @@
  },
  {
   "rule": "F822",
-  "ryo": 3,
+  "ryo": 0,
   "ruff": 0,
   "matched": 0,
   "missing": 0,
-  "extra": 3,
+  "extra": 0,
   "end_differs": 0,
   "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "django/core/mail/__init__.py",
-    "line": 44,
-    "column": 5,
-    "end": [
-     44,
-     21
-    ]
-   },
-   {
-    "file": "django/core/mail/__init__.py",
-    "line": 45,
-    "column": 5,
-    "end": [
-     45,
-     19
-    ]
-   },
-   {
-    "file": "django/core/mail/__init__.py",
-    "line": 46,
-    "column": 5,
-    "end": [
-     46,
-     24
-    ]
-   }
-  ],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-extra",
-  "differences": 3
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "F823",
@@ -2013,76 +1947,17 @@
  },
  {
   "rule": "I001",
-  "ryo": 17,
+  "ryo": 16,
   "ruff": 16,
-  "matched": 13,
-  "missing": 3,
-  "extra": 4,
+  "matched": 16,
+  "missing": 0,
+  "extra": 0,
   "end_differs": 0,
-  "missing_samples": [
-   {
-    "file": "tests/template_tests/syntax_tests/i18n/test_get_current_language.py",
-    "line": 1,
-    "column": 1,
-    "end": [
-     4,
-     39
-    ],
-    "ruff_message": "Import block is un-sorted or un-formatted"
-   },
-   {
-    "file": "tests/template_tests/syntax_tests/i18n/test_get_current_language_bidi.py",
-    "line": 1,
-    "column": 1,
-    "end": [
-     4,
-     39
-    ],
-    "ruff_message": "Import block is un-sorted or un-formatted"
-   },
-   {
-    "file": "tests/template_tests/syntax_tests/i18n/test_language.py",
-    "line": 1,
-    "column": 1,
-    "end": [
-     4,
-     39
-    ],
-    "ruff_message": "Import block is un-sorted or un-formatted"
-   }
-  ],
-  "extra_samples": [
-   {
-    "file": "django/db/models/options.py",
-    "line": 1,
-    "column": 1,
-    "end": [
-     23,
-     46
-    ]
-   },
-   {
-    "file": "django/db/models/sql/query.py",
-    "line": 10,
-    "column": 1,
-    "end": [
-     50,
-     35
-    ]
-   },
-   {
-    "file": "django/http/request.py",
-    "line": 1,
-    "column": 1,
-    "end": [
-     31,
-     55
-    ]
-   }
-  ],
+  "missing_samples": [],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "both",
-  "differences": 7
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "INT001",
@@ -2128,36 +2003,17 @@
  },
  {
   "rule": "ISC004",
-  "ryo": 292,
+  "ryo": 290,
   "ruff": 290,
   "matched": 290,
   "missing": 0,
-  "extra": 2,
+  "extra": 0,
   "end_differs": 0,
   "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "django/db/backends/mysql/operations.py",
-    "line": 120,
-    "column": 17,
-    "end": [
-     122,
-     56
-    ]
-   },
-   {
-    "file": "django/db/backends/mysql/operations.py",
-    "line": 126,
-    "column": 17,
-    "end": [
-     127,
-     82
-    ]
-   }
-  ],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-extra",
-  "differences": 2
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "LOG001",
@@ -3043,36 +2899,17 @@
  },
  {
   "rule": "PLR1704",
-  "ryo": 15,
+  "ryo": 13,
   "ruff": 13,
   "matched": 13,
   "missing": 0,
-  "extra": 2,
+  "extra": 0,
   "end_differs": 0,
   "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "django/core/exceptions.py",
-    "line": 169,
-    "column": 17,
-    "end": [
-     169,
-     24
-    ]
-   },
-   {
-    "file": "django/forms/fields.py",
-    "line": 1183,
-    "column": 20,
-    "end": [
-     1183,
-     27
-    ]
-   }
-  ],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-extra",
-  "differences": 2
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "PLR1708",
@@ -3202,45 +3039,17 @@
  },
  {
   "rule": "PLW0127",
-  "ryo": 12,
+  "ryo": 2,
   "ruff": 2,
   "matched": 2,
   "missing": 0,
-  "extra": 10,
+  "extra": 0,
   "end_differs": 0,
   "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "django/db/models/deletion.py",
-    "line": 143,
-    "column": 13,
-    "end": [
-     143,
-     18
-    ]
-   },
-   {
-    "file": "django/db/models/deletion.py",
-    "line": 143,
-    "column": 20,
-    "end": [
-     143,
-     30
-    ]
-   },
-   {
-    "file": "django/utils/timesince.py",
-    "line": 73,
-    "column": 9,
-    "end": [
-     73,
-     10
-    ]
-   }
-  ],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-extra",
-  "differences": 10
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "PLW0128",
@@ -4700,45 +4509,17 @@
  },
  {
   "rule": "RUF059",
-  "ryo": 328,
+  "ryo": 244,
   "ruff": 244,
   "matched": 244,
   "missing": 0,
-  "extra": 84,
+  "extra": 0,
   "end_differs": 0,
   "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "django/contrib/admin/checks.py",
-    "line": 1044,
-    "column": 13,
-    "end": [
-     1044,
-     18
-    ]
-   },
-   {
-    "file": "django/core/management/commands/makemessages.py",
-    "line": 738,
-    "column": 13,
-    "end": [
-     738,
-     17
-    ]
-   },
-   {
-    "file": "django/db/models/sql/compiler.py",
-    "line": 1047,
-    "column": 25,
-    "end": [
-     1047,
-     30
-    ]
-   }
-  ],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-extra",
-  "differences": 84
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "RUF063",
@@ -4770,28 +4551,17 @@
  },
  {
   "rule": "RUF100",
-  "ryo": 77,
+  "ryo": 78,
   "ruff": 78,
-  "matched": 77,
-  "missing": 1,
+  "matched": 78,
+  "missing": 0,
   "extra": 0,
   "end_differs": 0,
-  "missing_samples": [
-   {
-    "file": "django/db/models/sql/__init__.py",
-    "line": 1,
-    "column": 43,
-    "end": [
-     1,
-     49
-    ],
-    "ruff_message": "Unused blanket `noqa` directive"
-   }
-  ],
+  "missing_samples": [],
   "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-missing",
-  "differences": 1
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "RUF101",
@@ -5607,45 +5377,17 @@
  },
  {
   "rule": "UP028",
-  "ryo": 7,
+  "ryo": 0,
   "ruff": 0,
   "matched": 0,
   "missing": 0,
-  "extra": 7,
+  "extra": 0,
   "end_differs": 0,
   "missing_samples": [],
-  "extra_samples": [
-   {
-    "file": "django/core/paginator.py",
-    "line": 106,
-    "column": 13,
-    "end": [
-     107,
-     27
-    ]
-   },
-   {
-    "file": "django/core/paginator.py",
-    "line": 111,
-    "column": 13,
-    "end": [
-     112,
-     27
-    ]
-   },
-   {
-    "file": "django/core/paginator.py",
-    "line": 114,
-    "column": 13,
-    "end": [
-     115,
-     27
-    ]
-   }
-  ],
+  "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-extra",
-  "differences": 7
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "UP029",
@@ -5691,28 +5433,17 @@
  },
  {
   "rule": "UP032",
-  "ryo": 180,
+  "ryo": 181,
   "ruff": 181,
-  "matched": 180,
-  "missing": 1,
+  "matched": 181,
+  "missing": 0,
   "extra": 0,
   "end_differs": 0,
-  "missing_samples": [
-   {
-    "file": "django/db/migrations/loader.py",
-    "line": 333,
-    "column": 25,
-    "end": [
-     338,
-     26
-    ],
-    "ruff_message": "Use f-string instead of `format` call"
-   }
-  ],
+  "missing_samples": [],
   "extra_samples": [],
   "end_differs_samples": [],
-  "class": "ryo-missing",
-  "differences": 1
+  "class": "identical",
+  "differences": 0
  },
  {
   "rule": "UP033",

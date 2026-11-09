@@ -1,5 +1,5 @@
 {
-  "source": "9a130bb4493919f776372285ebd01fb5dc45aed8",
+  "source": "95319943b38cecf5d97685232c80a2ee350b7c8e",
   "commands": [
     [
       "libraries",
@@ -28,6 +28,10 @@
     [
       "ruff_rule_phases",
       ["python3", "-I", "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py", "--self-test"]
+    ],
+    [
+      "ruff_parity",
+      ["sh", "-c", "set -e; o=/tmp/ryo-ruff-parity-{worktree}; rm -rf \"$o\"; mkdir -p \"$o\"; w=$(cargo bench --no-run --manifest-path crates/ryo/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 -p idiomatic-sh-ryo-python --bench ruff --message-format=json | python3 -I -c 'import sys; sys.path.insert(0, \"crates/ryo/languages/python/benchmarks/linters/ruff\"); from authoring.profile_worker import parse_worker_artifact; print(parse_worker_artifact(sys.stdin.buffer.read()))'); python3 -I crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py --stage-request /tmp/ryo-event-ready-django213-20261105/cold-request.json --output-dir \"$o/stage\"; \"$w\" parity \"$(command -v ruff)\" \"$w\" \"$o/stage/request.json\" crates/ryo/docs/contracts/evidence/parity/django-413/accepted-differences.json \"$o/per-rule.json\""]
     ],
     [
       "core_bdd",
