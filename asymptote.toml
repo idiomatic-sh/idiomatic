@@ -90,7 +90,7 @@ group = "check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["bash", "-c", "mkdir -p target/checks/ci-tests; set +e; pytest --quiet -p no:cacheprovider --import-mode=importlib -o pythonpath=. -o 'python_files=*_test.py' -o python_classes= -o 'norecursedirs=.* __pycache__' ci > target/checks/ci-tests/stdout.log 2> target/checks/ci-tests/stderr.log; tool_status=$?; cat target/checks/ci-tests/stdout.log; cat target/checks/ci-tests/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/ci-tests/status; exit \"$tool_status\""]
 timeout-seconds = 1800
-inputs = ["ci", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/release-plz.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
+inputs = ["ci", ".claude/hooks", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/release-plz.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
 
 [[tools]]
 id = "speed"

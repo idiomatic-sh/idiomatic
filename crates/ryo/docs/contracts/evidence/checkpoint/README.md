@@ -2,6 +2,8 @@
 
 ## Validation set
 
+`asymptote.json` is the integrator's record of the quick checks for the landed sha, in the [review evidence schema](../../review/README.md#review-evidence-schema) with `reviewer` `integrator` and one check per group (`lint`, `check`, `clippy`); the TM steward reads only this file.
+
 `commands.json` is the list of `[name, argv]` validation commands the matrix's
 numbers rest on: library tests, `boundary_contract`, `project_boundary`,
 `activation`, `bdd`, `core_bdd`, `core_allocation`, the execution program
@@ -72,3 +74,6 @@ each red test with its red rows.
 Both modes print the scope delta against `validation.json` at `HEAD`: each
 newly scoped directory with its finding count, and each directory no longer
 scoped. The checkpoint commit message carries these lines.
+
+## Red-then-green record
+For each fix (a change to production behaviour) the integrator appends to the `red_green` list in [validation.json](validation.json) an entry `{test, base_sha, merge_sha}`: the test id the builder named, the 40-hex base sha where it fails (red) and the 40-hex merge sha where it passes (green). `run.py --check` refuses an entry of any other shape. Docs-only, evidence-only and perf changes are exempt. See the [Builder test rule](../../review/README.md#builder-test-rule).

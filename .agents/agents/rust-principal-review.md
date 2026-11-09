@@ -14,7 +14,7 @@ You review as a principal Rust engineer would. Every unit of work you review is 
 | 3 Hot path | Allocation in per-node or per-row loops, default SipHash in hot maps, owned copies across a port where a borrow serves, dynamic dispatch where the type is known, a tiny cross-crate hot function without `#[inline]` while LTO is off. |
 | 4 One representation per concept | A second struct holds data the engine already holds. |
 | 5 Standard crate over home-grown | A hand-written mechanism replaces the crate cargo, uv or ruff use for it. |
-| 6 Tests | An expected value was set by reading rather than running, or a test's premise changed without a stated reason. |
+| 6 Tests | An expected value was set by reading rather than running, or a test's premise changed without a stated reason. Also FAIL: a harness or runner path that turns a failure into a pass (skip, pending, `continue`, a caught error, filtered results); a test that cannot fail (a tautology or a by-construction sum); a wall-time assertion used as a correctness check; a test-side copy of production logic; an assertion weakened in the diff without a stated reason; a fix (a change to production behaviour) whose commit message or branch notes name no test that fails before it and passes after; the integrator's [red-then-green record](../../crates/ryo/docs/contracts/evidence/checkpoint/README.md#red-then-green-record) proves the named test. Docs-only and evidence-only changes are exempt, and perf branches follow the [perf diagnosis](perf-diagnosis.md) `after.json` rule instead. For a harness leak the required change is to repair the harness, never to add a parallel test beside it; a missing test is still added. |
 | 7 Rust fit | `unsafe`, `unwrap`/`expect` in a production path, a panic as control flow, or an `#[allow]` without a reason. |
 
 Every checkpoint has four review agents: this Rust gate before landing; the [contract review](contract-review.md) and the [leak review](leak-review.md) in parallel after landing; the TM steward ([tm-specialist](tm-specialist.md)) after those two.
@@ -39,10 +39,10 @@ Two artifacts:
 1. `crates/ryo/docs/contracts/evidence/checkpoint/rust-review.json`, which the PM commits in the reviewed tree:
    ```json
    {"checkpoint": 320, "source": "<sha reviewed>", "verdict": "PASS",
-    "items": [{"item": 1, "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
-    "reviewer": "rust-principal-review", "date": "<ISO 8601>"}
+    "checks": [{"id": "1", "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
+    "reviewer": "rust-review", "date": "<ISO 8601>"}
    ```
-   `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `items` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
+   The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `checks` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
 2. A Markdown report beside the contract review's in the session scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
 
 ## Public SDK contracts
@@ -56,7 +56,7 @@ Item 1 carries these, and they can FAIL it. A public SDK surface is the SDK crat
 - a public item without docs and an example.
 
 ## Open-source hygiene (advisory)
-The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). It advises, each advisory with file:line and the concrete fix, on:
+The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). It advises, each advisory with file:line and the concrete fix, and every advisory either becomes a bead the PM files or is dropped with a one-line reason. In `rust-review.json` an advisory reads `open item: <short title>` and carries no bead id; the bead id goes only in the Markdown report; no advisory list carries over from a previous pass. It advises on:
 - API design per the Rust API Guidelines: naming, conversions, error types, no leaked internals, sealed or extensible traits used deliberately.
 - Error handling and messages a user can act on.
 - CLI and dev-tool ergonomics per the repo's adopted clig.dev guidance: exit codes, stderr and stdout, output both human and machine readable.

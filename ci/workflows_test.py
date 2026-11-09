@@ -921,13 +921,13 @@ def contract_review_problems(workflow: dict) -> list[str]:
         "steps": [
             {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0, "persist-credentials": False}},
             {"uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "with": {"python-version": "3.12"}},
-            {"name": "Require exact-source Astra and Opus reviews", "env": {"REVIEW_BASE": "${{ github.event.pull_request.base.sha || format('refs/remotes/origin/{0}', github.event.repository.default_branch) }}"}, "run": CONTRACT_REVIEW_SCRIPT},
+            {"name": "Require an exact-source contract review", "env": {"REVIEW_BASE": "${{ github.event.pull_request.base.sha || format('refs/remotes/origin/{0}', github.event.repository.default_branch) }}"}, "run": CONTRACT_REVIEW_SCRIPT},
         ],
     }
     gate = jobs.get("gate", {})
     allowed = gate.get("steps", [{}])[0].get("with", {}).get("allowed-skips", "")
     if jobs.get("contract-review") != expected or "contract-review" not in needs(gate) or "contract-review" in allowed:
-        return ["paired contract review must run unconditionally and be required by gate"]
+        return ["contract review must run unconditionally and be required by gate"]
     return []
 
 

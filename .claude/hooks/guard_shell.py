@@ -22,6 +22,7 @@ CONSOLIDATION = "claude/ryo-consolidation"
 EVIDENCE_ROOT = "crates/ryo/docs/contracts/evidence/"
 EVIDENCE = EVIDENCE_ROOT + "checkpoint/"
 RUST_REVIEW = EVIDENCE + "rust-review.json"
+ASYMPTOTE = EVIDENCE + "asymptote.json"
 BOOTSTRAP_HEAD = "171789169e"  # checkpoint 329: landed before the leak and TM agents existed
 PREVIOUS_REVIEWS = (("contract-review.json", "contract-review"), ("leak-review.json", "leak-review"),
                     ("tm-steward.json", "tm-steward"))
@@ -303,6 +304,28 @@ def full_sha(value):
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
 
 
+def review_shape(review, reviewer):
+    """The problem with a review evidence file against the shared schema, or None.
+
+    The one definition is shape() in ci/contract_review/service.py, loaded by path (stdlib only), so this hook,
+    run with python3 -I, and the contract-review CI job cannot drift. The schema is
+    crates/ryo/docs/contracts/review/README.md#review-evidence-schema.
+    """
+    import importlib.util
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ci", "contract_review", "service.py")
+    try:
+        spec = importlib.util.spec_from_file_location("contract_review_service", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.shape(review, reviewer)
+    except ValueError as error:
+        return str(error)
+    except Exception as error:  # a missing or old service.py must refuse, never pass
+        return "cannot be validated: ci/contract_review/service.py failed to load or lacks shape (" + \
+            type(error).__name__ + ": " + str(error) + ")"
+    return None
+
+
 def bulk_push(words, here):
     """git push --all / --mirror would push refs no gate has looked at; this repository refuses them."""
     push = git_verb(words, "push")
@@ -335,8 +358,11 @@ def rust_review(words, here):
             review = json.loads(text)
         except ValueError:
             return refused + RUST_REVIEW + " at " + source + " is not JSON"
-        if not isinstance(review, dict) or review.get("verdict") != "PASS":
-            verdict = review.get("verdict") if isinstance(review, dict) else None
+        shape = review_shape(review, "rust-review")
+        if shape:
+            return refused + RUST_REVIEW + " at " + source + " " + shape + "; run the rust-review subagent again"
+        if review.get("verdict") != "PASS":
+            verdict = review.get("verdict")
             return (refused + RUST_REVIEW + " at " + source + " has verdict " + repr(verdict) +
                     ", not \"PASS\"; repair its findings and run the rust-review subagent again, or the owner "
                     "overrules and pushes")
@@ -396,14 +422,24 @@ def previous_reviews(words, here):
                 review = json.loads(text)
             except ValueError:
                 return refused + EVIDENCE + name + " at " + source + " is not JSON; " + run
-            if not isinstance(review, dict) or "verdict" not in review:
-                return refused + EVIDENCE + name + " at " + source + " has no \"verdict\"; " + run
+            shape = review_shape(review, agent)
+            if shape:
+                return refused + EVIDENCE + name + " at " + source + " " + shape + "; " + run
             reviewed = review.get("source")
             if not full_sha(reviewed) or \
                     not stands_for(tree, reviewed, head, EVIDENCE):
                 return (refused + "the source " + repr(reviewed) + " in " + EVIDENCE + name +
                         " is not the previous landed head " + head +
                         " (or an ancestor with only evidence changed since); " + run)
+        code, text = git_out(tree, "show", sha + ":" + ASYMPTOTE)
+        if code == 0:
+            run = "rerun the integrator's quick checks on " + head
+            try:
+                shape = review_shape(json.loads(text), "integrator")
+            except ValueError:
+                shape = "is not JSON"
+            if shape:
+                return refused + ASYMPTOTE + " at " + source + " " + shape + "; " + run
     return None
 
 
@@ -613,8 +649,9 @@ def branch_review(words, here):
             return refused + path + " at HEAD is not JSON" + run
         if not isinstance(review, dict) or not full_sha(review.get("source")) or review.get("source") != sha:
             return refused + "the source in " + path + " is not the branch head " + sha + run
-        if review.get("reviewer") != "leak-review" or "verdict" not in review:
-            return refused + path + " lacks \"reviewer\": \"leak-review\" or a \"verdict\"" + run
+        shape = review_shape(review, "leak-review")
+        if shape:
+            return refused + path + " " + shape + run
         if review["verdict"] != "PASS":
             return (refused + path + " has verdict " + repr(review["verdict"]) +
                     "; repair the findings on the branch, then run the leak-review subagent on its new head")
@@ -673,6 +710,16 @@ def working_dirs(clean, cwd):
     return found
 
 
+GATED_TEXT = re.compile(r"\bgit\b[\s\S]*\b(push|merge|pull)\b")
+
+
+def gated_text(command):
+    """True when the command, with quotes and backslashes removed, names git push, merge or pull; cannot raise."""
+    plain = str(command).replace("'", "").replace('"', "").replace("\\", "")
+    return GATED_TEXT.search(plain) is not None
+GATES = (bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
+
+
 def reason(command, cwd=None):
     clean = COMMENT.sub("", command)
     if re.search(r"\b(while|until|for)\b", clean) and re.search(r"\b(pgrep|pkill)\b[^;&|\n]*\s-[A-Za-z]*f", clean):
@@ -693,8 +740,8 @@ def reason(command, cwd=None):
             if found:
                 return found
         for inner in unwrapped(words):
-            for found in (bulk_push(inner, here), rust_review(inner, here), previous_reviews(inner, here), perf_gate(inner, here),
-                          branch_review(inner, here)):
+            for gate in GATES:
+                found = gate(inner, here)
                 if found:
                     return found
         before += segment + " "
@@ -707,7 +754,15 @@ def main():
     except ValueError:
         return 0
     command = (data.get("tool_input") or {}).get("command") or ""
-    found = reason(command, data.get("cwd"))
+    try:
+        found = reason(command, data.get("cwd"))
+    except Exception as error:
+        # Claude Code treats a hook crash as non-blocking, so a guard that breaks on a git push, merge or pull
+        # must refuse it. The scan is plain text and cannot raise; any other command keeps the crash.
+        if gated_text(command):
+            print("Blocked: guard failed closed: " + type(error).__name__ + ": " + str(error), file=sys.stderr)
+            return 2
+        raise
     if found:
         print("Blocked: " + found, file=sys.stderr)
         return 2

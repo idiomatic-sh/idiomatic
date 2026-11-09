@@ -16,7 +16,7 @@ The PM names: the measured sha, the iteration label (`<iteration>`, for example 
 ## How it runs
 The PM launches this agent as a subagent. It spawns no subagents.
 - Stage every request with `python3 -I crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py --stage-request <pinned request> --source <sha> --output-dir <fresh directory>`; record the printed staged digest.
-- Every run goes under `flock /workspaces/.measure.lock`, with the load average under 3 at the start; record the load.
+- Every run goes under `flock /workspaces/.measure.lock`, with the load average under 3 at the start. Record the load at the start and the end of every timed row; a row whose load rose above 3 during the run is marked `timing: false` and is never used as a speed claim.
 - Profile the worker and the reference tool the same way, on the same workloads.
 - List the hypotheses before reading the data (lock contention, I/O, parse and facts, allocation, and so on). Test each with a profile or counter and mark it `confirmed` or `refuted` with the number that decided it. Example: perf 6 refuted lock contention, I/O and parse/facts as levers.
 - Rank the levers the confirmed hypotheses leave, each with an evidence line (profile frame, share of wall or CPU, allocation site).
@@ -26,7 +26,7 @@ The PM launches this agent as a subagent. It spawns no subagents.
 Committed by the PM under `crates/ryo/docs/contracts/evidence/perf/<iteration>/`:
 ```json
 {"iteration": "p6", "source": "<sha measured>", "worker_sha256": "<sha256>", "staged_digest": "<sha256>",
- "workloads": [{"name": "<workload>", "wall_s": 0.0, "cpu_s": 0.0, "peak_mb": 0, "load": 0.0}],
+ "workloads": [{"name": "<workload>", "wall_s": 0.0, "cpu_s": 0.0, "peak_mb": 0, "load_start": 0.0, "load_end": 0.0, "timing": true}],
  "hypotheses": [{"id": "h1", "claim": "<claim>", "verdict": "refuted", "evidence": "<number and tool>"}],
  "levers": [{"id": "l1", "rank": 1, "lever": "<what to change>", "evidence": "<profile frame and share>"}],
  "reviewer": "perf-diagnosis", "date": "<ISO 8601>"}

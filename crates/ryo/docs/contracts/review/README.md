@@ -48,11 +48,11 @@ Raw logs live under `/tmp` per run and are never committed.
 ## How reviews run
 
 The [contract-review agent](../../../../../.agents/agents/contract-review.md)
-runs each review. Astra is unavailable, so Opus is the single independent
-reviewer. Each phase writes a verdict JSON (`contract-review-verdict/v1`) under
+runs each review. Each phase writes its verdict as the
+[review evidence schema](#review-evidence-schema) file under
 `audits/2026-11-06-phase<N>/`. A BLOCKING verdict gates the matrix tick for its
-rows, not the merge. Source changes invalidate a verdict; pin fresh
-base/head/tree each round.
+rows, not the merge. Source changes invalidate a verdict; pin a fresh source
+sha each round.
 
 ## Requesting a review
 
@@ -82,6 +82,23 @@ The five adversarial bullets in the agent file apply unchanged: callers and
 bypasses, authority and identity, derived-kind ownership, shared-walk coverage
 of the configured 413 rules, and real positive and negative tests with TM
 enforcement. See "Adversarial pass" and "Architectural enforcement" there.
+
+## Builder test rule
+Every fix names the test that fails before it and passes after, in its commit message or branch notes. A fix is a change to production behaviour: docs-only and evidence-only changes are exempt, and perf branches follow the [perf diagnosis](../../../../../.agents/agents/perf-diagnosis.md) `after.json` rule instead. The integrator records that test red, then green, in the [red-then-green record](../evidence/checkpoint/README.md#red-then-green-record); the Rust gate item 6 fails a fix whose commit names no such test. A fix to a harness repairs the harness; it is not covered by a parallel test beside it. The worker agent [contract-migration](../../../../../.agents/agents/contract-migration.md) carries this rule.
+
+## Review evidence schema
+Every review evidence file (rust-review, contract-review, leak-review, tm-steward and the per-branch leak result) has this shape, and `.claude/hooks/guard_shell.py` refuses a file that does not:
+
+```json
+{"source": "<40-hex>", "verdict": "PASS"|"FAIL"|"NOTE"|"BLOCKING", "reviewer": "<subagent name>",
+ "checks": [{"id": "...", "verdict": "...", "evidence": "..."}], "findings": [...]}
+```
+
+Evidence JSON carries no tracker ids (the no-tracker-text-shipped check flags them): an advisory in `findings` reads `open item: <short title>`, and its bead id goes only in the Markdown report, where the PM files the bead.
+
+`source` is the full sha reviewed, never a ref name. `reviewer` is the agent's frontmatter name (`rust-review`, `contract-review`, `leak-review`, `tm-steward`); `evidence/checkpoint/asymptote.json`, the integrator's quick-check record, is the one file whose `reviewer` is `integrator`. `checks` is a list (the items, criteria or gate results of that agent); further fields (`checkpoint`, `date`, `plants`, `gate`, `classes`) may sit beside them.
+
+One definition validates this shape: `shape` in `ci/contract_review/service.py`. Its two callers are `review_shape` in `.claude/hooks/guard_shell.py` (which loads it by path and returns its message; it checks every push and merge that reads evidence, including `evidence/checkpoint/asymptote.json` when present) and the `contract-review` CI job. `VARIANTS` in `ci/contract_review/service_test.py` is the behaviour table; the `ci-tests` tool reruns it when either file changes.
 
 ## Known red
 

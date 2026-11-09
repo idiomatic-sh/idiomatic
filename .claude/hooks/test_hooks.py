@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -29,6 +30,9 @@ def repo(parent, name, branch):
     os.mkdir(path)
     subprocess.run(["git", "-C", path, "init", "-q", "-b", branch], check=True)
     return path
+
+
+GOOD_CHECKS = [{"id": "1", "verdict": "PASS", "evidence": "x.rs:1"}]
 
 
 class GuardShell(unittest.TestCase):
@@ -202,8 +206,8 @@ class RustReviewPush(unittest.TestCase):
         path = os.path.join(self.tree, self.REVIEW)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as handle:
-            json.dump({"checkpoint": 9, "source": source, "verdict": verdict, "items": [],
-                       "reviewer": "rust-principal-review", "date": "2026-11-07"}, handle)
+            json.dump({"checkpoint": 9, "source": source, "verdict": verdict, "checks": GOOD_CHECKS,
+                       "reviewer": "rust-review", "date": "2026-11-07"}, handle)
         git(self.tree, "add", self.REVIEW)
         git(self.tree, "commit", "-q", "-m", "review")
 
@@ -270,6 +274,87 @@ class RustReviewPush(unittest.TestCase):
                 self.assertEqual(self.push(command).returncode, 0)
 
 
+class FailsClosed(unittest.TestCase):
+    """A gated command whose guard breaks is refused (exit 2); a crash would be non-blocking and let it run."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.root = os.path.join(self.dir.name, "hooks-tree")
+        os.makedirs(os.path.join(self.root, ".claude", "hooks"))
+        shutil.copy(os.path.join(HERE, "guard_shell.py"), os.path.join(self.root, ".claude", "hooks"))
+        self.tree = repo(self.dir.name, "tree", "claude/checkpoint-9")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "base")
+        base = git(self.tree, "rev-parse", "HEAD")
+        path = os.path.join(self.tree, RustReviewPush.REVIEW)
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"source": base, "verdict": "PASS", "reviewer": "rust-review", "checks": GOOD_CHECKS}, handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "review")
+
+    def run_copy(self, command):
+        hook = os.path.join(self.root, ".claude", "hooks", "guard_shell.py")
+        return subprocess.run(["python3", "-I", hook], input=json.dumps({"tool_input": {"command": command}, "cwd": self.tree}),
+                              capture_output=True, text=True, check=False, cwd=tempfile.gettempdir())
+
+    PUSH = "git push origin HEAD:claude/ryo-consolidation"
+
+    def add_service(self, text):
+        folder = os.path.join(self.root, "ci", "contract_review")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "service.py"), "w", encoding="utf-8") as handle:
+            handle.write(text)
+
+    def test_the_copy_passes_with_the_real_service(self):
+        shutil.copytree(os.path.join(HERE, "..", "..", "ci", "contract_review"), os.path.join(self.root, "ci", "contract_review"))
+        self.assertEqual(self.run_copy(self.PUSH).returncode, 0)
+
+    def test_a_missing_service_refuses_the_push(self):
+        done = self.run_copy(self.PUSH)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("service.py", done.stderr)
+
+    def test_a_service_without_shape_refuses_the_push(self):
+        self.add_service("VERDICTS = ()\n")
+        done = self.run_copy(self.PUSH)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("service.py", done.stderr)
+
+    def inject(self, old, new):
+        path = os.path.join(self.root, ".claude", "hooks", "guard_shell.py")
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn(old, text)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text.replace(old, new, 1))
+
+    def test_an_exception_in_any_stage_refuses_a_push_and_a_merge_but_not_other_commands(self):
+        stages = {"a gate": ("GATES = (", "def broken(inner, here):\n    raise RuntimeError('injected')\n\n\nGATES = (broken, "),
+                  "stash": ("def stash(words):", "def stash(words):\n    raise RuntimeError('injected')\n\n\ndef _stash(words):"),
+                  "segments": ("def segments(text):", "def segments(text):\n    raise RuntimeError('injected')\n\n\ndef _segments(text):")}
+        for label, (old, new) in stages.items():
+            with self.subTest(label):
+                self.setUp()
+                self.inject(old, new)
+                for command in (self.PUSH, "git merge claude/w1-x", "cd /tmp && git pull"):
+                    done = self.run_copy(command)
+                    self.assertEqual(done.returncode, 2, command)
+                    self.assertIn("guard failed closed: RuntimeError: injected", done.stderr)
+                self.assertEqual(self.run_copy("ls").returncode, 1)
+
+    def test_a_nul_byte_in_a_cargo_argument_still_refuses_a_push_in_the_same_command(self):
+        done = self.run_copy("cd /tmp/a\x00b && cargo build && " + self.PUSH)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("guard failed closed", done.stderr)
+
+    def test_quoted_or_escaped_spellings_of_the_verb_are_still_refused_when_the_guard_breaks(self):
+        self.inject("def segments(text):", "def segments(text):\n    raise RuntimeError('injected')\n\n\ndef _segments(text):")
+        for command in ("gi''t merge x", 'git mer""ge x', "g\\it merge x", "git m\\erge x", "git 'pu'sh origin"):
+            with self.subTest(command=command):
+                self.assertEqual(self.run_copy(command).returncode, 2)
+
+
 class PreviousReviewsPush(unittest.TestCase):
     EVIDENCE = "crates/ryo/docs/contracts/evidence/checkpoint/"
     NAMES = ["contract-review.json", "leak-review.json", "tm-steward.json"]
@@ -285,7 +370,11 @@ class PreviousReviewsPush(unittest.TestCase):
         git(self.tree, "remote", "add", "origin", self.remote)
         git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
         git(self.tree, "commit", "-q", "--allow-empty", "-m", "checkpoint work")
-        self.write("rust-review.json", {"verdict": "PASS", "source": git(self.tree, "rev-parse", "HEAD")})
+        self.write("rust-review.json", self.body("PASS", "rust-review", git(self.tree, "rev-parse", "HEAD")))
+
+    @staticmethod
+    def body(verdict, reviewer, source):
+        return {"source": source, "verdict": verdict, "reviewer": reviewer, "checks": GOOD_CHECKS}
 
     def write(self, name, body):
         path = os.path.join(self.tree, self.EVIDENCE, name)
@@ -298,7 +387,7 @@ class PreviousReviewsPush(unittest.TestCase):
     def all_reviews(self, source=None, skip=()):
         for name in self.NAMES:
             if name not in skip:
-                self.write(name, {"verdict": "BLOCKING", "source": source or self.previous})
+                self.write(name, self.body("BLOCKING", name[:-5], source or self.previous))
 
     def push(self):
         return run_hook("guard_shell.py", {"tool_input": {"command": "git push origin HEAD:claude/ryo-consolidation"},
@@ -328,8 +417,40 @@ class PreviousReviewsPush(unittest.TestCase):
 
     def test_missing_verdict_is_refused(self):
         self.all_reviews()
-        self.write("leak-review.json", {"source": self.previous})
-        self.assertIn('no "verdict"', self.push().stderr)
+        self.write("leak-review.json", {"source": self.previous, "reviewer": "leak-review", "checks": GOOD_CHECKS})
+        self.assertIn("no known verdict", self.push().stderr)
+
+    def test_malformed_review_evidence_is_refused(self):
+        good = self.body("PASS", "leak-review", self.previous)
+        bad = {"short source": dict(good, source=self.previous[:12]),
+               "unknown verdict": dict(good, verdict="MAYBE"),
+               "wrong reviewer": dict(good, reviewer="someone"),
+               "no reviewer": {k: v for k, v in good.items() if k != "reviewer"},
+               "checks not a list": dict(good, checks="none"),
+               "empty checks": dict(good, checks=[]),
+               "check is a string": dict(good, checks=["x"]),
+               "check is a number": dict(good, checks=[1]),
+               "check without evidence": dict(good, checks=[{"id": "1", "verdict": "PASS", "evidence": ""}]),
+               "check with unknown verdict": dict(good, checks=[{"id": "1", "verdict": "OK", "evidence": "e"}]),
+               "FAIL check under PASS": dict(good, checks=[{"id": "1", "verdict": "FAIL", "evidence": "e"}]),
+               "no checks": {k: v for k, v in good.items() if k != "checks"}}
+        for label, body in bad.items():
+            with self.subTest(label):
+                self.setUp()
+                self.all_reviews(skip=("leak-review.json",))
+                self.write("leak-review.json", body)
+                result = self.push()
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("leak-review.json", result.stderr)
+
+    def test_asymptote_record_is_validated_when_present(self):
+        self.all_reviews()
+        self.write("asymptote.json", self.body("PASS", "someone", self.previous))
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("asymptote.json", result.stderr)
+        self.write("asymptote.json", self.body("PASS", "integrator", self.previous))
+        self.assertEqual(self.push().returncode, 0)
 
     def test_bootstrap_head_needs_only_the_contract_review(self):
         # the bootstrap sha cannot be forged, so point the constant at this remote head
@@ -340,7 +461,7 @@ class PreviousReviewsPush(unittest.TestCase):
         module.BOOTSTRAP_HEAD = self.previous[:10]
         words = ["git", "push", "origin", "HEAD:claude/ryo-consolidation"]
         self.assertIn("contract-review.json", module.previous_reviews(words, self.tree))
-        self.write("contract-review.json", {"verdict": "PASS", "source": self.previous})
+        self.write("contract-review.json", self.body("PASS", "contract-review", self.previous))
         self.assertIsNone(module.previous_reviews(words, self.tree))
 
 
@@ -571,7 +692,8 @@ class ConsolidationRef(unittest.TestCase):
         path = os.path.join(self.tree, self.REVIEW)
         os.makedirs(os.path.dirname(path))
         with open(path, "w", encoding="utf-8") as handle:
-            json.dump({"verdict": "PASS", "source": git(self.tree, "rev-parse", "HEAD")}, handle)
+            json.dump({"verdict": "PASS", "reviewer": "rust-review", "checks": GOOD_CHECKS,
+                       "source": git(self.tree, "rev-parse", "HEAD")}, handle)
         git(self.tree, "add", self.REVIEW)
         git(self.tree, "commit", "-q", "-m", "review")
         self.assertEqual(self.run_in("git push origin claude/ryo-consolidation").returncode, 2)
@@ -599,7 +721,7 @@ class BranchMerge(unittest.TestCase):
         git(self.tree, "checkout", "-q", "claude/checkpoint-9")
 
     def evidence(self, **fields):
-        body = {"source": self.head, "verdict": "PASS", "reviewer": "leak-review"}
+        body = {"source": self.head, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD_CHECKS}
         body.update(fields)
         path = os.path.join(self.tree, self.EVIDENCE)
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -666,6 +788,13 @@ class BranchMerge(unittest.TestCase):
     def test_wrong_reviewer_or_missing_verdict_is_refused(self):
         self.evidence(reviewer="someone")
         self.assertEqual(self.merge().returncode, 2)
+
+    def test_malformed_branch_evidence_is_refused(self):
+        for label, fields in {"no checks": {"checks": "x"}, "empty checks": {"checks": []}, "FAIL check under PASS": {"checks": [{"id": "1", "verdict": "FAIL", "evidence": "e"}]}, "unknown verdict": {"verdict": "MAYBE"},
+                              "short source": {"source": self.head[:12]}}.items():
+            with self.subTest(label):
+                self.evidence(**fields)
+                self.assertEqual(self.merge().returncode, 2)
 
     def test_pass_is_allowed_by_name_or_sha(self):
         self.evidence()

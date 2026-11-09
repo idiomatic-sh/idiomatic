@@ -15,7 +15,7 @@ The design primitives are the four in [crates/tastemaker/README.md](../../crates
 The PM names: the landed sha, the previous checkpoint sha, the checkpoint number `N`, the three review reports and a scratch directory.
 
 ## Procedure
-1. **Gate.** Confirm the quick checks ran on the landed sha through Asymptote, from `crates/ryo` (groups `lint`: cargo-fmt, `tm check`, cargo-machete, cargo-deny; `check`; `clippy`, in [asymptote.toml](../../crates/ryo/asymptote.toml)): `asymptote check --groups lint,check`, and `asymptote check --since <previous checkpoint> --groups lint,check` for what is new ([asymptote README](../../crates/asymptote/README.md)). If they did not run, run them. If any fails, stop and report. Record the exact commands and results.
+1. **Gate.** Read only `crates/ryo/docs/contracts/evidence/checkpoint/asymptote.json`, the integrator's recorded `asymptote check --groups lint,check,clippy` results for the landed sha (groups in [asymptote.toml](../../crates/ryo/asymptote.toml); [asymptote README](../../crates/asymptote/README.md)). Run only what the hook itself lets you run; never rebuild the workspace. If that file is missing, its `source` is not the landed sha, or any result fails, stop and report. Record the exact commands and results read.
 2. **Collect** every finding class from the three reviews and from the record's integration fixes.
 3. **Decide** per class, in this order, taking the cheapest mechanism that fully holds:
    - (a) The compiler already enforces it, or can with visibility or types: recommend that; add no Tastemaker asset.
@@ -29,9 +29,9 @@ The PM names: the landed sha, the previous checkpoint sha, the checkpoint number
 ## Output
 Two artifacts in the scratch directory, `tm-steward-<N>.md` and `tm-steward-<N>.json`, which the PM commits beside the reviews:
 ```json
-{"checkpoint": 330, "source": "<sha>", "gate": [{"command": "asymptote check --groups lint,check", "result": "PASS"}],
+{"checkpoint": 330, "source": "<sha>", "verdict": "PASS", "reviewer": "tm-steward", "checks": [{"id": "gate", "verdict": "PASS", "evidence": "asymptote check --groups lint,check,clippy"}],
  "classes": [{"class": "<finding class>", "decision": "b", "mechanism": "<asset@version>", "proof_count": 1}],
  "assets": {"before": {"rules": 0, "specs": 0, "templates": 0, "placements": 0}, "after": {"rules": 0, "specs": 0, "templates": 0, "placements": 0}},
- "branch": "<branch holding the asset changes, or null>", "reviewer": "tm-specialist", "date": "<ISO 8601>"}
+ "branch": "<branch holding the asset changes, or null>", "date": "<ISO 8601>"}
 ```
-The Markdown report has the gate results, the per-class decision table (class / decision a-d / mechanism / proof count), the asset counts before and after with the justification lines, and the branch. Assets are authored on that branch only; its source, placement and validation receipts go to the three reviewers of the next checkpoint.
+The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). The Markdown report has the gate results, the per-class decision table (class / decision a-d / mechanism / proof count), the asset counts before and after with the justification lines, and the branch. Assets are authored on that branch only; its source, placement and validation receipts go to the three reviewers of the next checkpoint.
