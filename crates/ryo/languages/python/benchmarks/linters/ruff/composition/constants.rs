@@ -56,10 +56,16 @@ pub(crate) const REFERENCE_NAME: &str = "ruff";
 pub(crate) const AUDIT: &str = "audit";
 /// Stable command, artifact or observation identity for verify tool.
 pub(crate) const VERIFY_TOOL: &str = "verify-tool";
+/// The command comparing the configured rules over a staged request, rule by rule.
+pub(crate) const PARITY: &str = "parity";
+/// Refusal of a parity command line that is not its five paths.
+pub(crate) const PARITY_ARGUMENTS: &str = "expected parity <ruff> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output>";
+/// Name prefix of the scratch directory both parity contestants keep their state in.
+pub(crate) const PARITY_SCRATCH: &str = "parity-";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | run-ryo (<json>|--request-file <path>) <python-target=3.MINOR> | diagnostic-ryo (<json>|--request-file <path>) <python-target=3.MINOR> <events.jsonl> (MINOR:7..15)";
+pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | parity <ruff> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output> | run-ryo (<json>|--request-file <path>) <python-target=3.MINOR> | diagnostic-ryo (<json>|--request-file <path>) <python-target=3.MINOR> <events.jsonl> (MINOR:7..15)";
 /// Stable command, artifact or observation identity for ruff directory.
 pub(crate) const RUFF_DIRECTORY: &str = "benchmarks/linters/ruff";
 /// Accounted measurement command with explicitly audited invalid-source exclusions.
