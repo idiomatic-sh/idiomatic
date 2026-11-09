@@ -1,81 +1,142 @@
 {
- "source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
- "verdict": "blocking",
- "schema": "contract-review-verdict/v1",
- "checkpoint": 330,
- "base": "171789169ee342550bab8f76e7563f9e04a8acfd",
- "validated": "4df6abaca2fb9b8e24bf35261477ceae87bb60ab",
- "reviewer": "Opus 5.5 (claude-opus-5-5), single independent reviewer, read-only on archives of fixed shas; tm whole-tree on both archives, run.py --check, cargo check -p core/values/sdk --all-targets into /workspaces/idiomatic-check-target/cr330 (rc 0, 0 errors; deleted after), SCC recount over validation330 ownership_edges.log; no tests, no seeds; no Astra session (two-reviewer binding not met, manual judgment)",
- "receipts": {
-  "tm": {
-   "met": false,
-   "claimed": "whole-tree 18 / 6 suppressed",
-   "measured": {
-    "4df6abaca2": "28 / 6 (18 ring + 8 crate-readme#template query_language + 1 error-variants-reached UnknownRuleIndex + 1 pub-item-unreferenced-elsewhere file_owner_released)",
-    "1086daee4b": "31 / 6 (adds no-machine-paths-shipped x2, no-tracker-text-shipped at docs/contracts/README.md:45)"
-   },
-   "cause": "validation.json tm_whole_tree is checkpoint 328's; no tm_whole_tree.json in validation330 raw dir; tm_source scope excludes query_language and execution/rule_compilation"
+ "source": "b1e81f724206237fad67a42bfe1557fdb838b9e2",
+ "verdict": "BLOCKING",
+ "reviewer": "contract-review",
+ "checkpoint": 331,
+ "date": "2026-11-09",
+ "base": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
+ "validated": "340808449fa966f5a51f9eeb809d4e2b43c7c59f",
+ "checks": [
+  {
+   "id": "Enforced boundaries",
+   "verdict": "FAIL",
+   "evidence": "Rust privacy closes the 330 phase-call bypass: ProjectRootExecution offers only evaluate_occurrences (execution_runtime project_phase/interface.rs:34-49), root evaluate is pub(crate) (project_phase/service.rs:178), compile_fail E0603 on ProjectTask (interface.rs:31), project-batch-owner deleted. TM enforcement evidence is missing: shared-walk-owner 0.2.0 held back (a0515aba32), tm rebuild blocked, planted-violation after-counts pending. Enforcement is the leak review's lens; missing evidence is FAIL."
   },
-  "run_py_check": {
-   "met": true,
-   "exit": 0
+  {
+   "id": "Clear ownership and flow",
+   "verdict": "PASS",
+   "evidence": "Reviewed scope: one phase call through evaluate_occurrences (core cross_file/service.rs:174, ordinary/service.rs:61); engine-owned sharing tests ok in libraries.log (producer_lifetime::project::sharing 8 rows, walk_routes::sharing); plan identity owned by core storing (storing/service.rs:161-200, repository/service.rs:114). Standing: the 18-finding domain concept ring (ring row, crates.md:15)."
   },
-  "validation_json": {
-   "met": "in substance; record stale",
-   "no_print_exit": 0,
-   "cycles_recomputed": "0 SCCs over 4,691 occurrences, 745 files (validation330 ownership_edges.log)",
-   "stale": "ownership_graph names 4a982fa0a5 / validation328 / 4,645"
+  {
+   "id": "Proof",
+   "verdict": "FAIL",
+   "evidence": "Receipts recount exactly from validation331 raw logs (libraries 1099/1, boundary 97/0, activation 11/0, ruff 13/0, core_bdd 18/7 summaries, tm validate 241/224, cycles 0/4,741/745 files, cli replay 75/3, cli_cost 4/3, Django rc 0 sha 53b163f4 worker 0670974a). Unproven: two new replay reds (import-fan-in 67 vs 32, cli_tests.log:8844, :8865) called real findings with no row checked; the store and peak rise attributed to the lineage span-key rule from one run, no A/B or census."
   }
- },
- "request_refused": "receipt 1 (tm) false: 28/6 measured on the validated source against 18/6 claimed",
- "phases": {
-  "1": {
-   "verdict": "NOTE",
-   "file": "review-phase1-330.json",
-   "blocking": []
+ ],
+ "receipts": [
+  {
+   "id": "tm",
+   "verdict": "PASS",
+   "evidence": "tm --root crates/ryo check --format json on an archive of the source: rc 1, 18 findings (all idiomatic-rust/no-domain-concept-cycles in crates/execution_domain/src/domain, the ring row) / 6 suppressed (in-source file-length ignores with reasons). Raw tm_whole_tree.json on 340808449f is 36 (adds 18 no-tracker-text-shipped)."
   },
-  "2": {
-   "verdict": "BLOCKING",
-   "file": "review-phase2-330.json",
-   "blocking": [
-    "BLOCKING (329 standing): project-batch-owner inert across crates; one phase call unenforced"
-   ]
+  {
+   "id": "run.py --check",
+   "verdict": "PASS",
+   "evidence": "exit 0"
   },
-  "3": {
-   "verdict": "NOTE",
-   "file": "review-phase3-330.json",
-   "blocking": []
-  },
-  "4": {
-   "verdict": "BLOCKING",
-   "file": "review-phase4-330.json",
-   "blocking": [
-    "BLOCKING (329 standing): matrix contradicts the source"
-   ]
-  },
-  "5": {
-   "verdict": "NOTE",
-   "file": "review-phase5-330.json",
-   "blocking": []
-  },
-  "6": {
-   "verdict": "BLOCKING",
-   "file": "review-phase6-330.json",
-   "blocking": [
-    "BLOCKING: retained-frontier identity omits the plan"
-   ]
-  },
-  "7": {
-   "verdict": "BLOCKING",
-   "file": "review-phase7-330.json",
-   "blocking": [
-    "BLOCKING: receipt 1 false"
-   ]
+  {
+   "id": "validation.json",
+   "verdict": "PASS",
+   "evidence": "no_print.json exit 0, 0 error lines; SCC recount over ownership_edges.log 0 over 4,741 occurrences, matching ownership_graph source 340808449f"
   }
- },
- "dispositions": [],
+ ],
+ "phases": [
+  {
+   "id": "1",
+   "verdict": "NOTE",
+   "evidence": "Django verified, singleton; span row-equality control rewrites/test.rs:124-147 ok (boundary.log:9574-9583)"
+  },
+  {
+   "id": "2",
+   "verdict": "NOTE",
+   "evidence": "330 BLOCKING closed; seed checks pending the tm rebuild; no E0624 probe on evaluate itself"
+  },
+  {
+   "id": "3",
+   "verdict": "NOTE",
+   "evidence": "engine-owned sharing tests ok; ruff_sharing deleted"
+  },
+  {
+   "id": "4",
+   "verdict": "BLOCKING",
+   "evidence": "docs/contracts/review/README.md:86-103 known red, :13-32 branch table and :105- limits are validation319's; docs/contracts/README.md:234-250 has 11 rows reading Unverified at validation328"
+  },
+  {
+   "id": "5",
+   "verdict": "NOTE",
+   "evidence": "untouched apart from the census tautology removal"
+  },
+  {
+   "id": "6",
+   "verdict": "NOTE",
+   "evidence": "330 BLOCKING closed: plan identity in the rule digest, rebuilt/reused controls ok (libraries.log:20510-20516); store and peak attribution and the 330 drop cause lack a census"
+  },
+  {
+   "id": "7",
+   "verdict": "BLOCKING",
+   "evidence": "two new import-fan-in replay reds rest on an unverified claim"
+  }
+ ],
+ "findings": [
+  {
+   "id": "P7.1",
+   "verdict": "BLOCKING",
+   "where": "crates/ryo/cli/tests/fixtures/recordings/import-fan-in/expected.toml; validation.json cli_replay_note",
+   "failure": "behavior::ruff_findings_equal_the_expected_findings and behavior::every_recorded_rule_gives_the_recorded_rows red: import-fan-in 67 rows vs 32 recorded (35 extra, 0 missing); called the new real findings of the cross-crate source-dependency edges with no row checked",
+   "required": "check the 35 rows against the ruff source and rebind expected.toml with that proof, or repair the relation; add a cross-crate source-dependency case fixing the intended count"
+  },
+  {
+   "id": "P4.1",
+   "verdict": "BLOCKING",
+   "where": "crates/ryo/docs/contracts/review/README.md:13-32, :86-103, :105-",
+   "failure": "known-red list, branch table and verification limits are validation319's; process_capture and the two new reds are not listed",
+   "required": "rebind to validation331"
+  },
+  {
+   "id": "P4.2",
+   "verdict": "BLOCKING",
+   "where": "crates/ryo/docs/contracts/README.md:234-250",
+   "failure": "11 rows read Unverified at validation328 though validation331 ran their tests",
+   "required": "each row cites validation331 or states why it stays unverified"
+  },
+  {
+   "id": "P6.1",
+   "verdict": "NOTE",
+   "where": "crates/ryo/docs/contracts/README.md:56",
+   "failure": "store 62,022,326 to 164,712,192 bytes and peak 3.33 to 3.54 GB attributed to the lineage span-key rule from one run; the 330 drop from 1,757,210,648 bytes still has no cause",
+   "required": "frontier-bucket census of 330 and 331 stores or an A/B worker; until then a hypothesis"
+  },
+  {
+   "id": "P2.1",
+   "verdict": "NOTE",
+   "where": "crates/ryo/tastemaker.toml:69",
+   "failure": "shared-walk-owner 0.2.0 held back; planted-violation after-counts pending",
+   "required": "open item: tm rebuild and seed checks of shared-walk-owner, derived-view-acquisition, program-implementation-boundary (leak review)"
+  },
+  {
+   "id": "P7.2",
+   "verdict": "NOTE",
+   "where": "crates/ryo/docs/contracts/evidence/checkpoint/validation.json tm_whole_tree.status",
+   "failure": "says on the validated source; the validated source measured 36, the 18 is after the evidence-only commit and has no raw file",
+   "required": "state the source of the 18 and keep its raw file"
+  },
+  {
+   "id": "P7.3",
+   "verdict": "NOTE",
+   "where": "doctest_values_gate.log and doctest_execution_domain_gate.log in the validation331 raw directory",
+   "failure": "gate doctest logs carry no source sha",
+   "required": "record the source beside each rc"
+  },
+  {
+   "id": "P7.4",
+   "verdict": "NOTE",
+   "where": "validation331",
+   "failure": "standing reds: process_capture, core_allocation 1,698-1,700 blocks, cli_cost x3 (576 MB, 687 ms, 10,257 ms), warm peak 117,547,008; lint group FAIL (fmt 3,370 files, machete) by owner decision",
+   "required": "open item: owned by their rows; fmt-only commit at the end of 332"
+  }
+ ],
  "manual_judgment": [
-  "two-reviewer binding not met (no Astra session)",
-  "Django peak is a singleton (diagnostic)"
+  "two-reviewer binding not met (single reviewer)",
+  "Django run is a singleton (diagnostic)"
  ]
 }

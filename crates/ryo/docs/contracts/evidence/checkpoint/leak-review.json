@@ -1,81 +1,35 @@
 {
- "checkpoint": 330,
- "source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
- "base": "171789169ee342550bab8f76e7563f9e04a8acfd",
+ "checkpoint": 331,
+ "source": "b1e81f724206237fad67a42bfe1557fdb838b9e2",
+ "base": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
  "verdict": "FAIL",
  "reviewer": "leak-review",
- "date": "2026-11-08",
- "checks": {
-  "1": {
-   "verdict": "FAIL",
-   "evidence": "query_language regrouping/narrowing/selection_pushing service_test.rs compare plan shape only (regrouping/service_test.rs:148, narrowing/service_test.rs:145); row equivalence of the perf 5 rewrites is proven only by Django/100-file/admin_views output and the 413 ruff inventory. Perf 4's moved counter proofs (execution_runtime measured_work/test.rs) are in the owning crate."
-  },
-  "2": {
-   "verdict": "FAIL",
-   "evidence": "project-batch-owner 0.1.1 reported 0 on two planted project-entry bypasses in core (application/bypass.rs:4, application/cross_file/ordinary/service.rs:120); its query does not match evaluate_occurrences (real call at cross_file/ordinary/service.rs:59). The cfg(test) seam plant (lease.rs:72) failed to compile with --features fixtures; interface-shape fired 4 on a planted default body (outbound/facts/interface.rs:84)."
-  },
-  "3": {
-   "verdict": "FAIL",
-   "evidence": "Visibility in the diff is sound (pub(crate) additions, index_among pub(crate), FileSession::route_observation deleted, no production dependency enables fixtures), but the project-entry import boundary claimed by project-batch-owner is unenforced (check 2 plants count 0; crates/ryo/tastemaker.toml:68 placement with placeholder description)."
-  },
-  "4": {
-   "verdict": "FAIL",
-   "evidence": "Column file-lineage held twice: execution_domain/src/domain/lineage (Lineage, ColumnAnchor, KeyPairing; File|Node, paired by position) and query_language lineage + planning::stated_by (planning/service.rs:72) + regrouping::states_file (regrouping/service.rs:86-94) + narrowing::origins_state_file; they diverge on Span, which holds no file (relations/src/domain/relations/types.rs:157), so regrouping accepts span-only keys (regrouping/service.rs:237-242)."
-  },
-  "5": {
-   "verdict": "PASS",
-   "evidence": "New query_language items are domain services/types importing only domain siblings; values change stays in domain; core maps execution's error through the public inbound compile_rules interface (core/src/inbound/use_cases/lint/errors.rs:325)."
-  },
-  "6": {
-   "verdict": "PASS",
-   "evidence": "Perf 4 narrows every execution_runtime observation seam to cfg(test) and deletes the pub FileSession::route_observation; the lease.rs:72 plant fails to compile with --features fixtures; observation strings 1 in the 328 worker, 0 in the p4 and 330 workers."
-  }
- },
- "plants": [
-  {
-   "claim": "project-batch-owner 0.1.1",
-   "file": "crates/ryo/crates/core/src/application/bypass.rs:4",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "project-batch-owner 0.1.1",
-   "file": "crates/ryo/crates/core/src/application/cross_file/ordinary/service.rs:120",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "observation chain cfg(test) (compile, --features fixtures)",
-   "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/execution/lease.rs:72",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "interface-shape refuses default bodies calling outside the trait",
-   "file": "crates/ryo/crates/execution_runtime/src/outbound/facts/interface.rs:84",
-   "count": 4,
-   "reverted": true
-  }
+ "date": "2026-11-09",
+ "checks": [
+  {"id": "1", "verdict": "PASS", "evidence": "Integration-touched proofs stay in their owners (core cross_file/fixtures.rs, execution tests/project_phase/*, runtime project_phase/service_test.rs); none rests on benchmarks/, languages/ or a product rule set. Advisories: population_reads/test.rs:232-233 no longer distinguishes intra-call sharing (evaluate_occurrences prepares all occurrences first, runtime project_phase/service.rs:43-52) from reuse of caller-held frontiers; service_test.rs:285-286 names a panicking-facts tripwire that 4dad7e48b2 replaced with an empty FactsFake (:296-298), while the assertion at :318 still fails under Required (deliver/service.rs:97-125)."},
+  {"id": "2", "verdict": "FAIL", "evidence": "Plants: edges-apart cli/Cargo.toml:22 = 1; crate-layers languages/python/Cargo.toml:19 = 1; compile_fail E0603 ProjectTask core/src/lib.rs:20 = 1. The library-surface placement (tastemaker.toml:16) and leak repairs A (35af2e0790) state that a use case forwards only the types a consumer names; the placement excludes crates/execution/**, and whole-tree tm at b1e81f7242 reports 0 library-surface findings while 9 forwards with no outside namer are in the real tree (execution interface.rs:8,37,43,44,57,58,67,74,77). Owner-deferred, not counted: shared-walk-owner 0.2.0 held, cross-crate source-dependency absent from the gate's tm 0.1.0."},
+  {"id": "3", "verdict": "FAIL", "evidence": "Beside 'the one phase call' (runtime project_phase/interface.rs:29-30), ExecutionRequest::prepare_frontiers (request_execution/interface.rs:22), ProjectStage::project_scope (project_phase/interface.rs:52) and ObservationExecution::project_scope (observation_stage/interface.rs:40) stay public on traits forwarded to core and are called outside the runtime only by execution's tests; a core production plant (core/src/lib.rs:20-50) scoping a rule and acquiring a population outside evaluate_occurrences compiles with 0 errors and fires no boundary rule. 9 execution forwards are named by no consumer outside the engine crates; 6 lost their last namer when repairs XIV merged."},
+  {"id": "4", "verdict": "PASS", "evidence": "One lineage anchor (values lineage/service.rs:32 is the only File|Node match outside tests), one rule lookup by place (execution rule_compilation/service.rs:288-292), one store trailer and one plan_identity. Advisory: the refusal map type is spelled at four sites (carried from zo3j)."},
+  {"id": "5", "verdict": "PASS", "evidence": "No changed production file imports application/inbound/outbound from its own domain or inbound from application; new cross-crate imports go through ryo_execution::inbound::use_cases::*::interface; 9e4427791f moves the lookup from inbound to application."},
+  {"id": "6", "verdict": "PASS", "evidence": "Integration seam edits are test-gated: core cross_file/fixtures.rs:2 #![cfg(test)], runtime project_phase/mod.rs:2-3 #[cfg(test)] fixtures, and activation and population_reads are integration test targets. CapturedOrigin is pub again (execution_store route_counts/types.rs:161) for the existing diagnostic-row-progress feature, not a test seam."}
  ],
- "cross_file_leak_into_per_file_entries": {
-  "verdict": "none found",
-  "evidence": "regrouped_on requires per-file other and split.local (regrouping/service.rs:214-219); value_origins returns origins only at per-file steps (lineage/service.rs:124-125); filter_of takes its input's scope (selection_pushing/service.rs:243)."
- },
- "perf_evidence": {
-  "verdict": "FAIL",
-  "unbacked": [
-   "E1 p5/diagnosis.json source 90a0a472b2, but worker 7f578c5e is /tmp/ryo-perf-p4/after/worker (258a65fe3e) per /tmp/ryo-perf-p5/diag.sh:3 and chunk.sh",
-   "E2 p4/diagnosis.json source 90a0a472b2, but /tmp/ryo-perf-p4/before/source_commit is 473d76da81",
-   "E3 p5/after.json after.frontier_mb 8.9 and README frontier bytes (8,519,252 -> 1,013,810 -> 95,240 B; 8,917,995 B): no events.jsonl retained in /tmp/ryo-perf-p5b diag runs",
-   "E4 p5/after.json before.frontier_mb 2053 sits on the 90a0a472b2 plain run; it was measured on the p4-after worker",
-   "E5 p5 h1 '5 of 413 rules': subplans events not retained, only 4 fr-*.txt lists"
-  ]
- },
- "tree": {
-  "reviewed_by_sha": true,
-  "ryo_hooks_head_before": "d51090fb5541231d5f11355090a191003a0fb0f0",
-  "ryo_hooks_head_after": "0778f6e8054739704a986c0b9fa0f42881089a5e",
-  "status_porcelain": "clean before and after",
-  "note": "HEAD moved through PM commits; review inputs were content-addressed (diff 171789169e..1086daee4b, git archive 1086daee4b)"
- }
+ "plants": [
+  {"claim": "edges-apart (layer-order 0.2.0): the command line takes the SDK only for tests", "file": "crates/ryo/cli/Cargo.toml:22", "count": 1, "reverted": true},
+  {"claim": "crate-layers (layer-order 0.2.0): a language takes the benchmark only as a dev-dependency", "file": "crates/ryo/languages/python/Cargo.toml:19", "count": 1, "reverted": true},
+  {"claim": "compile_fail,E0603: ProjectTask is crate-private", "file": "crates/ryo/crates/core/src/lib.rs:20", "count": 1, "reverted": true},
+  {"claim": "library-surface description: a use case forwards only the types a consumer names (real violation present, no plant needed)", "file": "crates/ryo/crates/execution/src/inbound/use_cases/execution/interface.rs:8", "count": 0, "reverted": true},
+  {"claim": "evaluate_occurrences is the one phase call: core production project_scope + prepare_frontiers bypass (compile errors and tm boundary findings)", "file": "crates/ryo/crates/core/src/lib.rs:20-50", "count": 0, "reverted": true}
+ ],
+ "findings": [
+  {"severity": "required", "check": "3", "finding": "open item: phase entry points public beside evaluate_occurrences (request_execution/interface.rs:22, project_phase/interface.rs:52, observation_stage/interface.rs:40)"},
+  {"severity": "required", "check": "3", "finding": "open item: execution forwards named by no outside consumer (execution interface.rs:8,37,43,44,57,58,67,74,77)"},
+  {"severity": "required", "check": "2", "finding": "open item: forwarding rule unenforced; library-surface excludes crates/execution/** (tastemaker.toml:16)"},
+  {"severity": "advisory", "check": "1", "finding": "open item: population_reads proves held-frontier reuse, not intra-call sharing; assert 3 reads with the drop before the call (population_reads/test.rs:232-233)"},
+  {"severity": "advisory", "check": "1", "finding": "open item: stale panicking-facts comment on the NotRequired proof (runtime project_phase/service_test.rs:285-286)"},
+  {"severity": "advisory", "finding": "open item: store and peak rise attributed to the lineage span-key rule without an isolating run (contracts README.md:56)"},
+  {"severity": "advisory", "finding": "open item: the record says p6's heap wording predates 330's edit; it postdates it on an older base, and its verified dump facts are not carried (README.md:42)"},
+  {"severity": "advisory", "finding": "open item: the 331 branch evidence files predate the shared schema (checks as an object, or keyed 'check')"},
+  {"severity": "advisory", "finding": "open item: kept_facts silently skips an undeclared rule (core cross_file/fixtures.rs:249-251)"},
+  {"severity": "carry-forward", "finding": "open item: shared-walk-owner 0.2.0 and cross-crate source-dependency plants after the tm rebuild"}
+ ]
 }
