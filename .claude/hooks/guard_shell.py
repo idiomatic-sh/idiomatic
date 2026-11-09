@@ -313,13 +313,16 @@ def review_shape(review, reviewer):
     """
     import importlib.util
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ci", "contract_review", "service.py")
-    spec = importlib.util.spec_from_file_location("contract_review_service", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
     try:
+        spec = importlib.util.spec_from_file_location("contract_review_service", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
         module.shape(review, reviewer)
     except ValueError as error:
         return str(error)
+    except Exception as error:  # a missing or old service.py must refuse, never pass
+        return "cannot be validated: ci/contract_review/service.py failed to load or lacks shape (" + \
+            type(error).__name__ + ": " + str(error) + ")"
     return None
 
 
@@ -707,6 +710,31 @@ def working_dirs(clean, cwd):
     return found
 
 
+GATES = (bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
+
+
+def gated(inner, here):
+    """The refusal of the push, merge and pull gates for one command, or None.
+
+    A gated command (git push, merge or pull) whose evaluation raises is refused: Claude Code treats a hook crash
+    as non-blocking, so a guard that fails open would let the push or merge run. Other commands are unaffected.
+    """
+    try:
+        is_gated = any(git_verb(inner, verb) is not None for verb in ("push", "merge", "pull"))
+    except Exception:
+        is_gated = False
+    try:
+        for gate in GATES:
+            found = gate(inner, here)
+            if found:
+                return found
+    except Exception as error:
+        if is_gated:
+            return "guard failed closed: " + type(error).__name__ + ": " + str(error)
+        raise
+    return None
+
+
 def reason(command, cwd=None):
     clean = COMMENT.sub("", command)
     if re.search(r"\b(while|until|for)\b", clean) and re.search(r"\b(pgrep|pkill)\b[^;&|\n]*\s-[A-Za-z]*f", clean):
@@ -727,10 +755,9 @@ def reason(command, cwd=None):
             if found:
                 return found
         for inner in unwrapped(words):
-            for found in (bulk_push(inner, here), rust_review(inner, here), previous_reviews(inner, here), perf_gate(inner, here),
-                          branch_review(inner, here)):
-                if found:
-                    return found
+            found = gated(inner, here)
+            if found:
+                return found
         before += segment + " "
     return None
 

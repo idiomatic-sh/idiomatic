@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -271,6 +272,68 @@ class RustReviewPush(unittest.TestCase):
                         "git commit -m 'git push origin HEAD:claude/ryo-consolidation'"]:
             with self.subTest(command=command):
                 self.assertEqual(self.push(command).returncode, 0)
+
+
+class FailsClosed(unittest.TestCase):
+    """A gated command whose guard breaks is refused (exit 2); a crash would be non-blocking and let it run."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.root = os.path.join(self.dir.name, "hooks-tree")
+        os.makedirs(os.path.join(self.root, ".claude", "hooks"))
+        shutil.copy(os.path.join(HERE, "guard_shell.py"), os.path.join(self.root, ".claude", "hooks"))
+        self.tree = repo(self.dir.name, "tree", "claude/checkpoint-9")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "base")
+        base = git(self.tree, "rev-parse", "HEAD")
+        path = os.path.join(self.tree, RustReviewPush.REVIEW)
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"source": base, "verdict": "PASS", "reviewer": "rust-review", "checks": GOOD_CHECKS}, handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "review")
+
+    def run_copy(self, command):
+        hook = os.path.join(self.root, ".claude", "hooks", "guard_shell.py")
+        return subprocess.run(["python3", "-I", hook], input=json.dumps({"tool_input": {"command": command}, "cwd": self.tree}),
+                              capture_output=True, text=True, check=False, cwd=tempfile.gettempdir())
+
+    PUSH = "git push origin HEAD:claude/ryo-consolidation"
+
+    def add_service(self, text):
+        folder = os.path.join(self.root, "ci", "contract_review")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "service.py"), "w", encoding="utf-8") as handle:
+            handle.write(text)
+
+    def test_the_copy_passes_with_the_real_service(self):
+        shutil.copytree(os.path.join(HERE, "..", "..", "ci", "contract_review"), os.path.join(self.root, "ci", "contract_review"))
+        self.assertEqual(self.run_copy(self.PUSH).returncode, 0)
+
+    def test_a_missing_service_refuses_the_push(self):
+        done = self.run_copy(self.PUSH)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("service.py", done.stderr)
+
+    def test_a_service_without_shape_refuses_the_push(self):
+        self.add_service("VERDICTS = ()\n")
+        done = self.run_copy(self.PUSH)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("service.py", done.stderr)
+
+    def test_an_exception_inside_a_gate_refuses_a_push_and_a_merge(self):
+        path = os.path.join(self.root, ".claude", "hooks", "guard_shell.py")
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        text = text.replace("GATES = (", "def broken(inner, here):\n    raise RuntimeError('injected')\n\n\nGATES = (broken, ", 1)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        for command in (self.PUSH, "git merge claude/w1-x"):
+            with self.subTest(command=command):
+                done = self.run_copy(command)
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("guard failed closed: RuntimeError: injected", done.stderr)
+        self.assertNotEqual(self.run_copy("ls").returncode, 2)  # other commands keep today's behaviour
 
 
 class PreviousReviewsPush(unittest.TestCase):
