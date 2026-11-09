@@ -4,7 +4,7 @@
 
 **Order: 2 → 3 → 4 → 5 → 6 → 1 → 7.** Consolidate first; no performance fixes during phases 2–6. The authorized full-Django N999 directional checkpoint is recorded; consolidation continues without performance fixes or further measurement. Engine ownership, required contracts, Rust boundaries and TM remain mandatory. Output-correctness repairs follow consolidation.
 
-**Finish line:** phases 1-7 are complete when the Phase 1 and Phase 7 exits below, the Phase 7 conditions (whole-tree Tastemaker at 0 findings with zero suppressed beyond the reasoned ignores (the 6 suppressions at checkpoint 330 are each a reasoned ignore or must carry a reason), CI wiring through the manual-dispatch workflow, and the 750 ms / 500 MB target tracked as RED, not an exit) and the other phases' rows are met; the consolidation branch is then proposed to main by pull request for the owner's merge.
+**Finish line:** phases 1-7 are complete when every Goal exits box is ticked; the consolidation branch is then proposed to main by pull request for the owner's merge.
 
 ## Goal exits
 
@@ -15,21 +15,22 @@ Phases 1-7 are complete when each box below is ticked.
   - [ ] skip rules that cannot match
   - [ ] the relational hot path (multi-input region overhead, join/antijoin/group/axis kernels, materialised intermediates, relational fusion)
   - [ ] per-file state component, then dense slots and streaming rows
-  - [ ] shared prepared program
+  - [ ] shared prepared program and compile cache
   - [ ] allocation churn
   - [ ] allocator decay
   - [ ] idle cores
   - [ ] store size at most 18.5 MB
-  - [ ] warm and edit 200 ms
+  - [ ] warm and edit runs (target 200 ms, tracked like the speed target)
   - [ ] memory guard
   - [ ] simple-rule speedups last, unless a single path for all rules
 - [ ] runtime per-file state is one typed component inside `execution_runtime` (slots, polls and publication bookkeeping behind a narrow interface, one implementation), with the dense-slot version swapped in. Nothing outside touches it, proven by `compile_fail` probes plus `private_interfaces = deny`: each probe refuses code outside the component that names one member type or calls its internals.
   - Members: the per-file maps in `execution_runtime` `runtime/service.rs`: `slots` (line 160, the one the diagnosis names; the dense-slot swap replaces this map), `dormant` (line 161) and the two retirement maps (lines 127 and 130).
   - Boundary: `ReadyQueue` and `ReadinessCounts` (`execution_domain` readiness), the publication scope and generation types (`execution_store`) and the replay buffer (`execution_domain` replay) stay where they are, as domain values the component holds and uses. The component owns their per-file instances and lifetime, not their definitions. The streaming-rows lever changes how the component feeds the replay buffer and touches the domain type only within its own crate. Readiness does not move, so the ring row is unaffected.
-- [ ] whole-tree Tastemaker 0, with the `execution_domain` concept cycle broken (18 `no-domain-concept-cycles` findings; the 6 suppressions at checkpoint 330 each a reasoned ignore)
-- [ ] CI wiring: `.github/workflows/checkpoint.yml` `workflow_dispatch` only; every workflow manual dispatch (the pull-request trigger of `check.yml` and the cron schedule of `benchmarks.yml` removed); the pre-existing CI test reds fixed
-- [ ] four review agents on every checkpoint, enforced by hooks
+- [ ] whole-tree Tastemaker 0, with the `execution_domain` concept cycle broken (18 `no-domain-concept-cycles` findings; each suppression is a reasoned in-source ignore)
+- [ ] CI wiring: `.github/workflows/checkpoint.yml` `workflow_dispatch` only; every workflow manual dispatch (the pull-request trigger of `check.yml` and the cron schedule of `benchmarks.yml` removed); the pre-existing CI test reds fixed, by test id: `ci/workflows_test.py::test_every_workflow_checks_through_one_asymptote_call[check.yml]`, `ci/workflows_test.py::test_the_full_inventory_is_an_independent_complete_gate`, `ci/workflows_test.py::test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gate`, the cargo publish-order tests (`ci/release/publish/adapters/cargo/adapter_test.py::test_a_dry_run_publishes_every_crate_in_order_without_a_token` and `::test_an_upload_publishes_every_crate_in_order_and_needs_the_token`) and the install test (`ci/scripts/checks/install_test.py::test_the_installed_crates_are_read_from_cargo`)
+- [ ] the rust-review, contract-review, leak-review and tm-steward subagents on every checkpoint, enforced by `.claude/hooks/guard_shell.py`
 - [ ] the speed target (750 ms / 500 MB / 200 ms) recorded RED by owner decision: tracked, not an exit
+- [ ] every phase row's exit in the matrix is ticked from validation results
 - [ ] then the consolidation pull request for the owner's merge
 
 
