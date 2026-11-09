@@ -711,6 +711,12 @@ def working_dirs(clean, cwd):
 
 
 GATED_TEXT = re.compile(r"\bgit\b[\s\S]*\b(push|merge|pull)\b")
+
+
+def gated_text(command):
+    """True when the command, with quotes and backslashes removed, names git push, merge or pull; cannot raise."""
+    plain = str(command).replace("'", "").replace('"', "").replace("\\", "")
+    return GATED_TEXT.search(plain) is not None
 GATES = (bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
 
 
@@ -753,7 +759,7 @@ def main():
     except Exception as error:
         # Claude Code treats a hook crash as non-blocking, so a guard that breaks on a git push, merge or pull
         # must refuse it. The scan is plain text and cannot raise; any other command keeps the crash.
-        if GATED_TEXT.search(str(command)):
+        if gated_text(command):
             print("Blocked: guard failed closed: " + type(error).__name__ + ": " + str(error), file=sys.stderr)
             return 2
         raise

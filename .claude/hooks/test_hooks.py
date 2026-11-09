@@ -344,8 +344,15 @@ class FailsClosed(unittest.TestCase):
                 self.assertEqual(self.run_copy("ls").returncode, 1)
 
     def test_a_nul_byte_in_a_cargo_argument_still_refuses_a_push_in_the_same_command(self):
-        done = self.run_copy("cargo build --target-dir /x\x00y && " + self.PUSH)
-        self.assertNotEqual(done.returncode, 0)
+        done = self.run_copy("cd /tmp/a\x00b && cargo build && " + self.PUSH)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("guard failed closed", done.stderr)
+
+    def test_quoted_or_escaped_spellings_of_the_verb_are_still_refused_when_the_guard_breaks(self):
+        self.inject("def segments(text):", "def segments(text):\n    raise RuntimeError('injected')\n\n\ndef _segments(text):")
+        for command in ("gi''t merge x", 'git mer""ge x', "g\\it merge x", "git m\\erge x", "git 'pu'sh origin"):
+            with self.subTest(command=command):
+                self.assertEqual(self.run_copy(command).returncode, 2)
 
 
 class PreviousReviewsPush(unittest.TestCase):
