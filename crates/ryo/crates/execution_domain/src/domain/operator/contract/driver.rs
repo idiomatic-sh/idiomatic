@@ -154,7 +154,7 @@ pub(crate) fn evaluate(
     if let Some(refusal) = refusal {
         return Err(refusal);
     }
-    super::service::written_result(answer, latched)
+    crate::domain::operating::service::written_result(answer, latched)
 }
 
 /// A named capture the matcher does not have is an invalid regular expression of the operation.

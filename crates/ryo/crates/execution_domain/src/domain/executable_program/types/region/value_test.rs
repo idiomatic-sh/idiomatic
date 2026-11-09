@@ -1,11 +1,12 @@
 //! A region starts on the generic route with no resolved dependencies, and only the compiler's writes change its readers,
 //! route, dependencies and source partitions.
+use crate::domain::operator::types::ReaderMultiplicity;
 
 use super::value::Region;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
-        InputSource, PartitionRequirement, ReaderMultiplicity, RegionId, Route, SourcePartition,
+        InputSource, PartitionRequirement, RegionId, Route, SourcePartition,
     },
     operating::errors::OperatingError,
 };

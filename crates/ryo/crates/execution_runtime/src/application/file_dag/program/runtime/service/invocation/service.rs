@@ -21,8 +21,8 @@ use crate::application::file_dag::program::runtime::types::{
 use ryo_execution_domain::domain::executable_program::types::region::value::Region;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::Emit;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::Emit;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_relations::domain::relations::types::Value;
 
 impl ProgramExecution {

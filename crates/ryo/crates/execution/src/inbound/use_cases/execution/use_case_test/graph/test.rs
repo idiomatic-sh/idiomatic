@@ -84,7 +84,7 @@ fn build(
             &mut BuildWorkspace::default(),
             None,
         )
-        .map_err(ryo_execution_domain::domain::operator::contract::derived::portable_fault)?
+        .map_err(ryo_execution_domain::domain::operating::service::derived_fault)?
     {
         BuildOutcome::Built(payload) => Ok(payload.share_adjacency().map(|graph| graph.0)),
         BuildOutcome::Declined => Ok(None),

@@ -3,9 +3,8 @@ use ryo_execution_domain::domain::derived_views::types::{
     contract::value::DerivedContract, DerivedInputs, DerivedScratch, ViewRequest,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::contract::{
-    derived::portable_fault, failure::FailureLatch, 
-};
+use ryo_execution_domain::domain::operating::service::derived_fault;
+use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use crate::outbound::derived::interface::DerivedPort;
 use std::{cell::RefCell, sync::Arc};
@@ -221,7 +220,7 @@ pub(crate) fn build(
     if let Some(error) = failure.borrow_mut().take() {
         return Err(error);
     }
-    match answer.map_err(portable_fault)? {
+    match answer.map_err(derived_fault)? {
         ryo_derived::domain::contract::types::BuildOutcome::Built(payload) => Ok(Some(DerivedStorage::new(
             port,
             built_plan,

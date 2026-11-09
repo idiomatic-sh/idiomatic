@@ -6,7 +6,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 use super::borrowed::reach_breadth;
 use super::service::reach_all;
 use super::types::{Edges, Walk};
-use crate::domain::operator::contract::views::{IndexedRows};
+use crate::domain::table_reach::borrowed::IndexedRows;
 use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_cells::service_test::prepared_index;
 use crate::domain::table_model::types::Rows;
@@ -52,7 +52,7 @@ fn reached_from_one(breadth: bool) -> Result<Vec<Cell>, RowsError> {
     if breadth {
         let indexed = IndexedRows {
             #[cfg(feature = "diagnostic-row-progress")]
-            progress: &crate::domain::operator::contract::views::IgnoredProgress,
+            progress: &crate::domain::operating::types::IgnoredProgress,
             rows: RepresentationInput::Computed(&table),
             columns: &from,
             index: &order,

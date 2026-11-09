@@ -18,7 +18,7 @@ use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::service::count_of;
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::Rows;
@@ -234,7 +234,7 @@ impl Inputs for SourceInputs<'_, '_> {
         &self,
         input: &AdmittedInput,
         context: &mut OperatorContext<'_>,
-        output: &mut dyn ryo_execution_domain::domain::operating::types::Emit,
+        output: &mut dyn ryo_execution_domain::domain::operator::types::Emit,
     ) -> Result<(), OperatingError> {
         self.replay_source(input, context, output)
     }

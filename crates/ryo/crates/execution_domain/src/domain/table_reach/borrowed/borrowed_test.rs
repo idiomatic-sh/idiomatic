@@ -2,14 +2,12 @@
 use super::*;
 use ryo_relations::domain::relations::types::Value as Cell;
 
-use crate::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::row_cells::types::BulkRows;
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::DerivedView;
-use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
@@ -87,7 +85,7 @@ fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex)) {
 fn view<'a>(table: &'a Table, index: &'a KeyIndex, columns: &'a [ColumnIndex]) -> IndexedRows<'a> {
     IndexedRows {
         #[cfg(feature = "diagnostic-row-progress")]
-        progress: &crate::domain::operator::contract::views::IgnoredProgress,
+        progress: &crate::domain::operating::types::IgnoredProgress,
         rows: RepresentationInput::Computed(table),
         columns,
         index,

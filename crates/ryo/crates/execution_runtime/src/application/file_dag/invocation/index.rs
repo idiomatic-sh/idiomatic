@@ -3,9 +3,9 @@ use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::invocation::prepared_use::service::prepared;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
-use ryo_execution_domain::domain::operator::contract::views::IndexedRows;
+use ryo_execution_domain::domain::table_reach::borrowed::IndexedRows;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_derived::domain::equality::types::KeyIndex;
 /// Owned immutable view handles stay in application; primitives borrow only the index.
@@ -65,7 +65,7 @@ impl<'f> IndexResource<'f> {
     pub(crate) fn view<'s>(
         &'s self,
         #[cfg(feature = "diagnostic-row-progress")]
-        progress: &'s dyn ryo_execution_domain::domain::operator::contract::views::ProgressObserver,
+        progress: &'s dyn ryo_execution_domain::domain::operating::types::ProgressObserver,
     ) -> Option<IndexedRows<'s>> {
         let (rows, columns, index) = match self {
             Self::Derived { rows, columns, view } => {

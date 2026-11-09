@@ -72,8 +72,8 @@ impl LeaseDriver<'_, '_> {
                 self.lease.found(InputNumber(1), FoundRows(1));
                 #[cfg(feature = "diagnostic-row-progress")]
                 self.lease.progress(
-                    super::views::ProgressCounter::JoinCandidatePairs,
-                    super::views::ProgressAmount(1),
+                    crate::domain::operating::types::ProgressCounter::JoinCandidatePairs,
+                    crate::domain::operating::types::ProgressAmount(1),
                 );
                 if self.join.filtered == Filtering::Filtered {
                     let row = std::array::from_fn::<_, 5, _>(|at| {
@@ -100,8 +100,8 @@ impl LeaseDriver<'_, '_> {
             self.lease.found(InputNumber(1), FoundRows(1));
             #[cfg(feature = "diagnostic-row-progress")]
             self.lease.progress(
-                super::views::ProgressCounter::JoinCandidatePairs,
-                super::views::ProgressAmount(1),
+                crate::domain::operating::types::ProgressCounter::JoinCandidatePairs,
+                crate::domain::operating::types::ProgressAmount(1),
             );
         }
         Ok(Advance::from(self.join.current.is_some()))

@@ -130,7 +130,7 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
     )
     .unwrap();
     #[cfg(feature = "diagnostic-row-progress")]
-    let viewed = resource.view(&ryo_execution_domain::domain::operator::contract::views::IgnoredProgress);
+    let viewed = resource.view(&ryo_execution_domain::domain::operating::types::IgnoredProgress);
     #[cfg(not(feature = "diagnostic-row-progress"))]
     let viewed = resource.view();
     let PreparedAxis::Indexed {

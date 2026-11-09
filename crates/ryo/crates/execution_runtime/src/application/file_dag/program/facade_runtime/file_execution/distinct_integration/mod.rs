@@ -7,7 +7,7 @@ use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::{
     file_program::types::RuleSchedule,
-    operating::types::Emit as RowSink,
+    operator::types::Emit as RowSink,
     prepared_request::types::{Compiled, ObservationIdentity},
     table_cells::types::{TreeForm, TreeRows},
 };

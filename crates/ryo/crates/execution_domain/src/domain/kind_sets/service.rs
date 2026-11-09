@@ -14,7 +14,8 @@ use crate::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use crate::domain::comparing::collections::comparisons::equality::item::EqualityItem;
 use crate::domain::comparing::collections::comparisons::glob::item::GlobItem;
 use crate::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
-use crate::domain::operating::types::OperatorContext;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::domain::files::types::SourceView;
 use crate::domain::operating::types::KindNaming;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::{SetMembership, Verdict};
@@ -105,7 +106,10 @@ pub fn satisfies(
 pub(crate) fn kind_tests(
     tree: &TreeRows<'_>,
     comparisons: &[PlanComparison],
-    context: &mut OperatorContext<'_>,
+    prepared_kinds: Option<&PreparedVocabulary>,
+    matcher: PatternMatcher<'_>,
+    symbols: &Symbols,
+    source: SourceView<'_>,
     scratch: &mut KindScratch,
 ) {
     scratch.tests.0.clear();
@@ -139,7 +143,7 @@ pub(crate) fn kind_tests(
                 test: comparison.test,
                 text: named.clone(),
             };
-            let made = if let Some(prepared) = context.prepared_kinds {
+            let made = if let Some(prepared) = prepared_kinds {
                 #[cfg(test)]
                 let _previous = prepared
                     .lookups
@@ -153,12 +157,11 @@ pub(crate) fn kind_tests(
                     let _previous = prepared
                         .builds
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    std::sync::Arc::new(make_set(&prepared.names, comparison.test, named, context.matcher))
+                    std::sync::Arc::new(make_set(&prepared.names, comparison.test, named, matcher))
                 }))
             } else {
-                let names =
-                    vocabulary_names(tree.elements, context.symbols.as_ref(), context.source);
-                std::sync::Arc::new(make_set(&names, comparison.test, named, context.matcher))
+                let names = vocabulary_names(tree.elements, symbols, source);
+                std::sync::Arc::new(make_set(&names, comparison.test, named, matcher))
             };
             scratch.sets.push(made);
             let _: Option<KindSetPlace> = scratch
@@ -211,8 +214,8 @@ pub(crate) fn named_kinds(scratch: &KindScratch) -> Option<&[KindBits]> {
 /// Resolve ordered names once at the file boundary; an absent spelling retains the old nonmatching behavior.
 fn vocabulary_names(
     elements: &ryo_language::domain::elements::types::Elements,
-    symbols: &ryo_language::domain::symbols::types::Symbols,
-    source: ryo_values::domain::files::types::SourceView<'_>,
+    symbols: &Symbols,
+    source: SourceView<'_>,
 ) -> Vec<Option<KindWord>> {
     kind_names(elements)
         .iter()
@@ -231,8 +234,8 @@ fn vocabulary_names(
 pub fn prepare_vocabulary(
     previous: &mut Option<std::sync::Arc<PreparedVocabulary>>,
     elements: &ryo_language::domain::elements::types::Elements,
-    symbols: &ryo_language::domain::symbols::types::Symbols,
-    source: ryo_values::domain::files::types::SourceView<'_>,
+    symbols: &Symbols,
+    source: SourceView<'_>,
 ) -> Option<std::sync::Arc<PreparedVocabulary>> {
     if kind_names(elements).is_empty() {
         return None;

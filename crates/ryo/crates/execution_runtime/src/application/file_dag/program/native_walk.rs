@@ -4,7 +4,7 @@ pub(super) mod project;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use ryo_execution_domain::domain::{coverage::types::RuleIndex, shared_walk::types::WalkCounts};
-use ryo_execution_domain::domain::{operating::{errors::OperatingError, types::OperatorContext}, shared_walk::types::{WalkWork, native_batch::value::NativeBatch}, step_classes::types::ClassPlace, table_model::types::Rows};
+use ryo_execution_domain::domain::{operating::errors::OperatingError, operator::types::OperatorContext, shared_walk::types::{WalkWork, native_batch::value::NativeBatch}, step_classes::types::ClassPlace, table_model::types::Rows};
 use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
 use lease::service::PermittedWalk;
 
@@ -161,7 +161,7 @@ impl FileWalk {
                     return Err(error);
                 }
                 Err(super::super::executor::KernelFault::Portable(error)) => {
-                    return Err(ryo_execution_domain::domain::operator::contract::primitive::portable_fault(
+                    return Err(ryo_execution_domain::domain::operating::service::portable_fault(
                         error,
                     ));
                 }

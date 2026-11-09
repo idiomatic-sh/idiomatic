@@ -29,10 +29,10 @@ pub(crate) struct BoundPredicate<'a> {
 impl PredicateProgram for BoundPredicate<'_> {
     fn holds(&mut self, row: &[Value], symbols: &Symbols) -> Result<Verdict, OperatingError> {
         #[cfg(feature = "diagnostic-row-progress")]
-        ryo_execution_domain::domain::operator::contract::views::ProgressObserver::observe(
+        ryo_execution_domain::domain::operating::types::ProgressObserver::observe(
             self.progress,
-            ryo_execution_domain::domain::operator::contract::views::ProgressCounter::PredicateEvaluations,
-            ryo_execution_domain::domain::operator::contract::views::ProgressAmount(1),
+            ryo_execution_domain::domain::operating::types::ProgressCounter::PredicateEvaluations,
+            ryo_execution_domain::domain::operating::types::ProgressAmount(1),
         );
         if !self.program.comparisons.is_empty() && row.len() != self.program.kinds.len() {
             return Err(OperatingError::ShapeMismatch);

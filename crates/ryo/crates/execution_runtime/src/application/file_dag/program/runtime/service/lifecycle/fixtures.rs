@@ -10,8 +10,8 @@ use ryo_execution_domain::domain::completion::types::completion_policy::value::C
 use ryo_execution_domain::domain::executable_program::types::instruction::value::Instruction;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::Emit;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::Emit;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value};
 use std::{

@@ -160,13 +160,13 @@ pub(crate) trait Inputs {
         &mut self,
         input: InputSource,
         partition: &Partition,
-        context: &mut ryo_execution_domain::domain::operating::types::OperatorContext<'_>,
+        context: &mut ryo_execution_domain::domain::operator::types::OperatorContext<'_>,
     ) -> Result<AvailableInput, OperatingError>;
     fn admit(
         &mut self,
         input: &AvailableInput,
         partition: &Partition,
-        context: &mut ryo_execution_domain::domain::operating::types::OperatorContext<'_>,
+        context: &mut ryo_execution_domain::domain::operator::types::OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError>;
     fn is_empty(
         &self,
@@ -184,8 +184,8 @@ pub(crate) trait Inputs {
     fn replay(
         &self,
         input: &AdmittedInput,
-        context: &mut ryo_execution_domain::domain::operating::types::OperatorContext<'_>,
-        output: &mut dyn ryo_execution_domain::domain::operating::types::Emit,
+        context: &mut ryo_execution_domain::domain::operator::types::OperatorContext<'_>,
+        output: &mut dyn ryo_execution_domain::domain::operator::types::Emit,
     ) -> Result<(), OperatingError>;
 }
 

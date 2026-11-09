@@ -16,8 +16,6 @@ pub mod types;
 pub mod views;
 pub(crate) mod walk;
 
-pub mod derived;
-
 pub mod workspace;
 
 #[cfg(test)]

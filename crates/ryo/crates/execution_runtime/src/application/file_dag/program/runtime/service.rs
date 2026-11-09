@@ -19,8 +19,8 @@ use ryo_execution_domain::domain::executable_program::types::region::value::Regi
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::Emit;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::Emit;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use std::cell::RefCell;
 use std::sync::Arc;
 

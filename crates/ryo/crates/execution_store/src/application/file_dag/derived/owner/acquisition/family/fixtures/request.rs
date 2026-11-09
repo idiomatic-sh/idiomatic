@@ -1,8 +1,8 @@
 //! The request each family is prepared from, and the family a leased view reports.
 use super::super::super::admission::service::AcquiredView;
 use ryo_execution_domain::domain::{
-    derived_views::types::ViewRequest, operating::errors::OperatingError,
-    operator::contract::resources::DfsResources,
+    derived_views::types::{DfsResources, ViewRequest},
+    operating::errors::OperatingError,
 };
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_derived::domain::contract::types::DerivedView;

@@ -1,5 +1,6 @@
 //! The `operating` service: free functions named by verb over what an operator reads, with no IO and no ports.
 
+use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::Family;
 use ryo_values::domain::plan_parts::types::Test;
 
@@ -37,4 +38,66 @@ pub fn minted(
         return ryo_relations::domain::relations::types::Value::Name(name);
     }
     ryo_relations::domain::relations::types::Value::Symbol(symbol)
+}
+
+/// The operating error a portable operator fault stands for.
+pub fn portable_fault(
+    error: ryo_operators::domain::contract::types::PortableOperatorFault,
+) -> OperatingError {
+    use ryo_operators::domain::contract::types::PortableOperatorFault;
+    match error {
+        PortableOperatorFault::Interrupted => OperatingError::WrongOperation,
+        PortableOperatorFault::NoSuchColumn { index } => {
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: index.0 }.into()
+        }
+        PortableOperatorFault::ShapeMismatch => OperatingError::ShapeMismatch,
+        PortableOperatorFault::InvalidSpanBounds => OperatingError::InvalidSpanBounds,
+        PortableOperatorFault::InvalidSpan => OperatingError::InvalidSpan,
+        PortableOperatorFault::InvalidSourceMatchSpan => OperatingError::InvalidSourceMatchSpan,
+        PortableOperatorFault::UnboundKey => OperatingError::WrongBinding,
+        PortableOperatorFault::WrongBinding => OperatingError::WrongBinding,
+        PortableOperatorFault::Unbound => OperatingError::Unbound,
+        PortableOperatorFault::NotRun => OperatingError::NotRun,
+        PortableOperatorFault::MissingCapture
+        | PortableOperatorFault::WrongOperation
+        | PortableOperatorFault::UnsupportedRender => OperatingError::WrongOperation,
+    }
+}
+
+/// The operating error a derived fault stands for.
+pub fn derived_fault(
+    fault: ryo_derived::domain::fault::types::DerivedFault,
+) -> OperatingError {
+    use ryo_derived::domain::fault::types::DerivedFault;
+    match fault {
+        DerivedFault::MissingInput { position } => OperatingError::MissingInput { position: position.0 },
+        DerivedFault::NoSuchColumn { column } => {
+            ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: column.0 }.into()
+        }
+        DerivedFault::DuplicateOrder => OperatingError::DuplicateOrder,
+        DerivedFault::DuplicateDfsOrder => OperatingError::DuplicateDfsOrder,
+        DerivedFault::ShapeMismatch => OperatingError::ShapeMismatch,
+        DerivedFault::NotRun => OperatingError::NotRun,
+        DerivedFault::WrongOperation | DerivedFault::Interrupted => OperatingError::WrongOperation,
+    }
+}
+
+/// Preserve the engine's original downstream error ahead of a portable interruption marker.
+pub(crate) fn written_result(
+    answer: Result<
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    >,
+    error: Option<OperatingError>,
+) -> Result<(), OperatingError> {
+    if let Some(error) = error {
+        return Err(error);
+    }
+    match answer {
+        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
+            Ok(())
+        }
+        Ok(_) => Err(OperatingError::WrongOperation),
+        Err(error) => Err(portable_fault(error)),
+    }
 }

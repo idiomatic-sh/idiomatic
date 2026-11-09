@@ -16,7 +16,7 @@ use crate::application::file_dag::program::runtime::types::StageProgress;
 use ryo_execution_domain::domain::executable_program::types::region::value::Region;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 
 impl<'a> KernelAdmission<'a> {
     pub(crate) fn execution(&self) -> &'a ProgramExecution {

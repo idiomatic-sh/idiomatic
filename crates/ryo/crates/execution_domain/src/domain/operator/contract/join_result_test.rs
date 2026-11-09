@@ -1,5 +1,5 @@
 //! The `join_result` cases: error translation tests the production contract without an execution fixture.
-use super::service::written_result;
+use crate::domain::operating::service::written_result;
 use crate::domain::operating::errors::OperatingError;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;

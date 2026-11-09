@@ -2,7 +2,7 @@
 
 use crate::domain::kind_sets::service::{kind_tests, passes, prepare_vocabulary};
 use crate::domain::kind_sets::types::KindScratch;
-use crate::domain::operating::types::OperatorContext;
+use crate::domain::operator::types::OperatorContext;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::OperatorScratch;
@@ -73,7 +73,7 @@ fn prepared_masks_reuse_exact_vocabulary_without_per_row_setup() {
         };
         let mut scratch = OperatorScratch::default();
         let mut memo = Vec::new();
-        let mut context = OperatorContext {
+        let context = OperatorContext {
             phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: Some(&prepared),
@@ -87,13 +87,13 @@ fn prepared_masks_reuse_exact_vocabulary_without_per_row_setup() {
             memo: &mut memo,
             scratch: &mut scratch,
         };
-        kind_tests(&tree, &comparisons, &mut context, &mut kinds);
+        kind_tests(&tree, &comparisons, context.prepared_kinds, context.matcher, context.symbols.as_ref(), context.source, &mut kinds);
         let lookups = prepared.lookups.load(Ordering::Relaxed);
         for _row in 0..1000 {
             assert_eq!(passes(&kinds, KindBits(1)), Verdict::Holds);
             assert_eq!(passes(&kinds, KindBits(0)), Verdict::Fails);
         }
-        kind_tests(&tree, &comparisons, &mut context, &mut kinds);
+        kind_tests(&tree, &comparisons, context.prepared_kinds, context.matcher, context.symbols.as_ref(), context.source, &mut kinds);
         assert_eq!(prepared.lookups.load(Ordering::Relaxed), lookups);
         assert_eq!(prepared.builds.load(Ordering::Relaxed), 1);
         assert_eq!(prepared.masks.lock().unwrap().len(), 1);
@@ -128,7 +128,7 @@ fn prepared_vocabulary_replacement_preserves_live_old_masks_and_test_identity() 
         };
         let mut scratch = OperatorScratch::default();
         let mut memo = Vec::new();
-        let mut context = OperatorContext {
+        let context = OperatorContext {
             phase: crate::domain::operating::types::AfterTheFiles::Before,
             semantic: None,
             prepared_kinds: Some(&prepared),
@@ -149,7 +149,10 @@ fn prepared_vocabulary_replacement_preserves_live_old_masks_and_test_identity() 
                 form: TreeForm::Elements,
             },
             &comparisons,
-            &mut context,
+            context.prepared_kinds,
+            context.matcher,
+            context.symbols.as_ref(),
+            context.source,
             &mut kinds,
         );
         assert_eq!(prepared.masks.lock().unwrap().len(), 2);
@@ -223,7 +226,7 @@ fn dynamic_kind_patterns_do_not_enter_prepared_metadata() {
     };
     let mut scratch = OperatorScratch::default();
     let mut memo = Vec::new();
-    let mut context = OperatorContext {
+    let context = OperatorContext {
         phase: crate::domain::operating::types::AfterTheFiles::Before,
         semantic: None,
         prepared_kinds: Some(&prepared),
@@ -244,7 +247,10 @@ fn dynamic_kind_patterns_do_not_enter_prepared_metadata() {
             form: TreeForm::Elements,
         },
         &comparisons,
-        &mut context,
+        context.prepared_kinds,
+        context.matcher,
+        context.symbols.as_ref(),
+        context.source,
         &mut kinds,
     );
     assert!(prepared.masks.lock().unwrap().is_empty());

@@ -172,12 +172,12 @@ pub fn matching_stored<'o, 'k>(
     order: &'o KeyIndex,
     key: &'k [Value],
     #[cfg(feature = "diagnostic-row-progress")]
-    observer: &dyn crate::domain::operator::contract::views::ProgressObserver,
+    observer: &dyn crate::domain::operating::types::ProgressObserver,
 ) -> impl Iterator<Item = &'o RowIndex> + Clone {
     #[cfg(feature = "diagnostic-row-progress")]
     observer.observe(
-        crate::domain::operator::contract::views::ProgressCounter::IndexProbes,
-        crate::domain::operator::contract::views::ProgressAmount(1),
+        crate::domain::operating::types::ProgressCounter::IndexProbes,
+        crate::domain::operating::types::ProgressAmount(1),
     );
     let hash = hash_key(key.iter().map(Some));
     let bucket = usize::try_from(hash.0).unwrap_or(0) & order.heads.len().saturating_sub(1);
@@ -186,8 +186,8 @@ pub fn matching_stored<'o, 'k>(
         while at.0 != 0 {
             #[cfg(feature = "diagnostic-row-progress")]
             observer.observe(
-                crate::domain::operator::contract::views::ProgressCounter::IndexRowsExamined,
-                crate::domain::operator::contract::views::ProgressAmount(1),
+                crate::domain::operating::types::ProgressCounter::IndexRowsExamined,
+                crate::domain::operating::types::ProgressAmount(1),
             );
             let place = usize::try_from(at.0 - 1).unwrap_or(usize::MAX);
             at = order.next.get(place).copied().unwrap_or(ChainLink(0));
@@ -200,8 +200,8 @@ pub fn matching_stored<'o, 'k>(
                 #[cfg(feature = "diagnostic-row-progress")]
                 if row.is_some() {
                     observer.observe(
-                        crate::domain::operator::contract::views::ProgressCounter::EqualityMatches,
-                        crate::domain::operator::contract::views::ProgressAmount(1),
+                        crate::domain::operating::types::ProgressCounter::EqualityMatches,
+                        crate::domain::operating::types::ProgressAmount(1),
                     );
                 }
                 return row;

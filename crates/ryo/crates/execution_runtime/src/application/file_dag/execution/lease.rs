@@ -4,13 +4,12 @@ pub(crate) mod capability;
 use super::super::executor::{KernelCall, PrimitiveExecutor};
 use super::super::{invocation::InvocationResources, predicates::BoundPredicate};
 use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
-use ryo_execution_domain::domain::operating::{
-    errors::OperatingError,
-    types::{Emit, OperatorContext},
-};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::operator::contract::{
-    context::with_primitive_context, primitive::{portable_fault, PreparedInputs}, types::*,
+    context::with_primitive_context, primitive::PreparedInputs, types::*,
 };
+use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::table_scratch::types::OperatorScratch;
 use ryo_execution_domain::domain::table_texts::{
     service::datum,
@@ -88,10 +87,10 @@ fn evaluate_once(
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(row) = row {
         routes.row_file(row, context.paths);
-        ryo_execution_domain::domain::operator::contract::views::ProgressObserver::observe(
+        ryo_execution_domain::domain::operating::types::ProgressObserver::observe(
             &routes,
-            ryo_execution_domain::domain::operator::contract::views::ProgressCounter::InputRows,
-            ryo_execution_domain::domain::operator::contract::views::ProgressAmount(1),
+            ryo_execution_domain::domain::operating::types::ProgressCounter::InputRows,
+            ryo_execution_domain::domain::operating::types::ProgressAmount(1),
         );
     }
     let mut validated_source = None;

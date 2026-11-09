@@ -1,9 +1,10 @@
 //! Compile immutable file-intent root obligations once for the whole request.
+use crate::domain::operator::types::ReaderMultiplicity;
 use super::super::types::executable_program::value::ExecutableProgram;
 use super::super::types::region::value::Region;
 use super::super::types::{
     ComputationCount, ConsumerObligation, FileReaderGraph, InputSource, ObservationPlace,
-    ReaderMultiplicity, RegionId, Remaining, RemainingMemo, RemainingTable, RuleProgram,
+    RegionId, Remaining, RemainingMemo, RemainingTable, RuleProgram,
 };
 use super::types::*;
 use crate::domain::rule_intent::types::FrontierPurpose;

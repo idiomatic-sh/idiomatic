@@ -8,7 +8,7 @@ use crate::application::file_dag::program::runtime::types::{
     InvocationFailure, KernelInput, KernelScratch,
 };
 use ryo_execution_domain::domain::executable_program::types::{instruction::value::Instruction, LogicalInstruction};
-use ryo_execution_domain::domain::operating::types::Emit as RowSink;
+use ryo_execution_domain::domain::operator::types::Emit as RowSink;
 use std::cell::Cell as Counter;
 pub(crate) struct ReadyAdapter<'a> {
     pub(crate) actual: &'a dyn KernelInvocation,

@@ -1,10 +1,11 @@
 //! File root activation preserves a reader multiset and independent intent masks.
+use crate::domain::operator::types::ReaderMultiplicity;
 use super::{service::compile, types::*};
 use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
-        InputSource, ObservationPlace, ReaderMultiplicity, RegionId, RuleProgram,
+        InputSource, ObservationPlace, RegionId, RuleProgram,
         executable_program::value::ExecutableProgram, region::value::Region,
     },
     operating::errors::OperatingError,

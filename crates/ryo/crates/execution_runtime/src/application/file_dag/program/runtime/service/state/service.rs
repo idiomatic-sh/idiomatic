@@ -168,7 +168,7 @@ impl ProgramExecution {
             }
             selected
                 .entry(root)
-                .or_insert(ryo_execution_domain::domain::executable_program::types::ReaderMultiplicity(0))
+                .or_insert(ryo_execution_domain::domain::operator::types::ReaderMultiplicity(0))
                 .0 += 1;
         }
         let remaining = ryo_execution_domain::domain::executable_program::file_demand::service::remaining(

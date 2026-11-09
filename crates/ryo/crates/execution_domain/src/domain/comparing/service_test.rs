@@ -1,16 +1,18 @@
 //! The `comparing` service's cases: what is decided for a name or a text is remembered, and a comparison of what is not bound is refused.
 
 use ryo_language::domain::symbols::service::intern;
-use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::symbols::types::Symbols;
+use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{
     CellKind, Name, Offset, PlaceNumber, Relation, TextHash, Value as Cell,
 };
 
-use crate::domain::comparing::service::holds_all;
-use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{AfterTheFiles, Memo, NameCount, OperatorContext};
+use crate::domain::comparing::{service::holds_bound, types::{DecisionWorkspace, RowShape}};
+use crate::domain::matching::types::PatternMatcher;
+use crate::domain::operating::{errors::OperatingError, types::{Memo, NameCount}};
+use crate::domain::table_texts::types::Texts;
+use ryo_language::domain::names::service::name_count;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::OperatorScratch;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -30,27 +32,28 @@ type Failure = OperatingError;
 
 const FROM: PlanInput = PlanInput::Relation(Relation::Function);
 
-/// The context of a run over `symbols` and `source`, before the files were read, with nothing bound.
-fn context<'a>(
-    symbols: &'a mut Symbols,
-    source: &'a [u8],
-    memo: &'a mut Vec<Memo>,
-    scratch: &'a mut OperatorScratch,
-) -> OperatorContext<'a> {
-    OperatorContext {
-        phase: AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        matcher: crate::domain::matching::types::PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl),
-        bindings: &[],
-        symbols: symbols.into(),
+/// Whether every comparison holds for the row of a run over `symbols` and `source`, with nothing bound.
+fn holds_all(
+    comparisons: &[PlanComparison],
+    row: &[Cell],
+    shape: RowShape<'_>,
+    symbols: &Symbols,
+    source: &[u8],
+    scratch: &mut OperatorScratch,
+    memo: &mut Vec<Memo>,
+) -> Result<Verdict, OperatingError> {
+    let texts = Texts {
+        symbols,
         source: SourceView(source),
         paths: &[],
         arenas: &[],
+    };
+    let matcher = PatternMatcher(&MatchingUseCaseImpl);
+    let work = DecisionWorkspace {
+        select: &mut scratch.select_scratch,
         memo,
-        scratch,
-    }
+    };
+    holds_bound(comparisons, row, shape, &texts, &[], None, matcher, work)
 }
 
 fn column(index: u32) -> ColumnIndex {
@@ -79,7 +82,7 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
     for name in names {
         push_row(&mut table, &[name]);
     }
-    let mut count = |test: Test| -> Result<usize, OperatingError> {
+    let count = |test: Test| -> Result<usize, OperatingError> {
         let comparison = PlanComparison {
             test,
             left: Operand::Column(column(0)),
@@ -93,21 +96,20 @@ fn tells_a_name_equal_to_a_text_by_its_hash() -> Result<Value, OperatingError> {
         };
         let mut memo = Vec::new();
         let mut scratch = OperatorScratch::default();
-        let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
         let Operation::Select { comparisons, .. } = operation else {
             panic!("the fixture builds a Select")
         };
-        let names = NameCount(
-            ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0,
-        );
+        let names = NameCount(name_count(&symbols).0);
         let mut answers = Vec::new();
         for row in table.cells.chunks(table.kinds.len()) {
             answers.push(holds_all(
                 &comparisons,
                 row,
-                &table.kinds,
-                names,
-                &mut context,
+                RowShape { kinds: &table.kinds, names },
+                &symbols,
+                source,
+                &mut scratch,
+                &mut memo,
             )?);
         }
         Ok(answers
@@ -149,20 +151,20 @@ fn decides_once_for_each_name() -> Result<Value, OperatingError> {
     };
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
-    let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
     let Operation::Select { comparisons, .. } = operation else {
         panic!("the fixture builds a Select")
     };
-    let names =
-        NameCount(ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0);
+    let names = NameCount(name_count(&symbols).0);
     let mut answers = Vec::new();
     for row in table.cells.chunks(table.kinds.len()) {
         answers.push(holds_all(
             &comparisons,
             row,
-            &table.kinds,
-            names,
-            &mut context,
+            RowShape { kinds: &table.kinds, names },
+            &symbols,
+            source,
+            &mut scratch,
+            &mut memo,
         )?);
     }
     let kept = answers
@@ -212,21 +214,20 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
             push_row(&mut table, &[name]);
         }
         let mut memo = Vec::new();
-        let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
         let Operation::Select { comparisons, .. } = &operation else {
             panic!("the fixture builds a Select")
         };
-        let names = NameCount(
-            ryo_language::domain::names::service::name_count(context.symbols.as_ref()).0,
-        );
+        let names = NameCount(name_count(&symbols).0);
         let mut answers = Vec::new();
         for row in table.cells.chunks(table.kinds.len()) {
             answers.push(holds_all(
                 comparisons,
                 row,
-                &table.kinds,
-                names,
-                &mut context,
+                RowShape { kinds: &table.kinds, names },
+                &symbols,
+                source,
+                &mut scratch,
+                &mut memo,
             )?);
         }
         kept += answers
@@ -257,16 +258,17 @@ fn reads_each_rows_pattern() -> Result<Value, OperatingError> {
     }];
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
-    let mut context = context(&mut symbols, source, &mut memo, &mut scratch);
     let mut kept = 0;
     for pattern in [matches, differs] {
         kept += usize::from(
             holds_all(
                 &comparisons,
                 &[name, pattern],
-                &[CellKind::Symbol, CellKind::Symbol],
-                NameCount(3),
-                &mut context,
+                RowShape { kinds: &[CellKind::Symbol, CellKind::Symbol], names: NameCount(3) },
+                &symbols,
+                source,
+                &mut scratch,
+                &mut memo,
             )? == Verdict::Holds,
         );
     }
@@ -281,16 +283,17 @@ fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
         right: Operand::Parameter(ParameterId(0)),
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
-    let mut symbols = Symbols::default();
+    let symbols = Symbols::default();
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
-    let mut context = context(&mut symbols, &[], &mut memo, &mut scratch);
     holds_all(
         &[comparison],
         &[Cell::Number(Integer(1))],
-        &[CellKind::Number],
-        NameCount(0),
-        &mut context,
+        RowShape { kinds: &[CellKind::Number], names: NameCount(0) },
+        &symbols,
+        &[],
+        &mut scratch,
+        &mut memo,
     )
     .map(|verdict| usize::from(verdict == Verdict::Holds))
 }
@@ -298,14 +301,13 @@ fn refuses_an_unbound_parameter() -> Result<Value, OperatingError> {
 /// A function of a name whose text is not held is not text: it equals no text, and starts and ends with none, as a span with no
 /// place compares as unlocated.
 fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError> {
-    let mut symbols = Symbols::default();
+    let symbols = Symbols::default();
     let unknown = Cell::Name(Name {
         hash: TextHash(7),
         place: PlaceNumber(99),
     });
     let mut memo = Vec::new();
     let mut scratch = OperatorScratch::default();
-    let mut context = context(&mut symbols, &[], &mut memo, &mut scratch);
     let mut held = 0;
     for (place, test) in [
         Test::Equal,
@@ -328,9 +330,11 @@ fn a_function_of_an_unknown_name_is_unlocated() -> Result<Value, OperatingError>
         if holds_all(
             &[comparison],
             &[unknown],
-            &[CellKind::Symbol],
-            NameCount(0),
-            &mut context,
+            RowShape { kinds: &[CellKind::Symbol], names: NameCount(0) },
+            &symbols,
+            &[],
+            &mut scratch,
+            &mut memo,
         )? == Verdict::Holds
         {
             held += 10_usize.pow(u32::try_from(place).unwrap_or(0));

@@ -3,7 +3,7 @@ use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::contract::derived::portable_fault;
+use ryo_execution_domain::domain::operating::service::derived_fault;
 use ryo_execution_domain::domain::stored_graph::types::GraphIdentity;
 use crate::outbound::derived::interface::DerivedPort;
 use ryo_derived::domain::contract::types::derived_payload::value::DerivedPayload;
@@ -40,7 +40,7 @@ impl DerivedStorage {
     ) -> Result<DerivedView<'_>, OperatingError> {
         self.port
             .view(&self.plan, &self.payload)
-            .map_err(portable_fault)
+            .map_err(derived_fault)
     }
     /// The built payload.
     pub fn payload(&self) -> &DerivedPayload {
@@ -58,7 +58,7 @@ impl DerivedStorage {
     {
         use crate::application::file_dag::derived::ledger::types::Backing;
         let facts = ryo_derived::domain::footprint::service::describe(&this.payload)
-            .map_err(portable_fault)?;
+            .map_err(derived_fault)?;
         let mut output: Vec<Backing> = facts
             .shared
             .into_iter()

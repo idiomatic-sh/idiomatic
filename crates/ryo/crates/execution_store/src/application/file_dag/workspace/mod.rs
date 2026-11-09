@@ -2,7 +2,7 @@
 use super::relations::admission::service::BorrowedInput;
 use ryo_execution_domain::domain::{
     derived_views::types::{InputsUsed, contract::value::PreparedViewUse},
-    operating::{errors::OperatingError, types::OperatorContext}};
+    operating::errors::OperatingError, operator::types::OperatorContext};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::sync::Arc;
 use self::constants::EXPECT_DEMANDED_INPUT;

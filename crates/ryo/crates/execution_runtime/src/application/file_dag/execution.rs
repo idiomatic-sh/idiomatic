@@ -2,7 +2,7 @@
 use self::constants::BRIDGE_NAME;
 use super::executor::{KernelCall, PrimitiveExecutor};
 use crate::application::file_dag::executor::{KernelAnswer, KernelFault};
-use ryo_execution_domain::domain::operator::contract::primitive::PrimitiveSemantics;
+use ryo_execution_domain::domain::operating::types::PrimitiveSemantics;
 use crate::outbound::operators::interface::OperatorsPort;
 mod constants;
 pub(crate) mod lease;
@@ -45,7 +45,7 @@ pub(crate) struct PrimitiveSemanticsBridge<'a> {
 }
 impl PrimitiveSemantics for PrimitiveSemanticsBridge<'_> {
     #[cfg(feature = "diagnostic-row-progress")]
-    fn progress(&self) -> &dyn ryo_execution_domain::domain::operator::contract::views::ProgressObserver {
+    fn progress(&self) -> &dyn ryo_execution_domain::domain::operating::types::ProgressObserver {
         self.progress
     }
     fn operators(

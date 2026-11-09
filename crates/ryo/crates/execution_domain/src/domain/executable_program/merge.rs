@@ -1,8 +1,9 @@
 //! One part of the executable-program service: equivalent drafted regions of different rules compute once.
+use crate::domain::operator::types::ReaderMultiplicity;
 use super::fusion::types::RegionSharing;
 use super::types::instruction::value::Instruction;
 use super::types::{
-    ComparisonCount, DraftIndex, DraftRegion, Equivalence, LogicalInstruction, ReaderMultiplicity, RegionBucket,
+    ComparisonCount, DraftIndex, DraftRegion, Equivalence, LogicalInstruction, RegionBucket,
     RegionMerge,
 };
 use crate::domain::file_program::types::{ProgramNodeId, NodeInput};

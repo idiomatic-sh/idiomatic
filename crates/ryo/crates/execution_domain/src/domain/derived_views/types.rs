@@ -10,7 +10,6 @@ use ryo_values::domain::{
 };
 
 use {
-    crate::domain::operator::contract::resources::DfsResources,
     crate::domain::stored_graph::types::GraphSource,
     crate::domain::table_cells::types::TreeRows,
     crate::domain::table_texts::types::Texts, ryo_values::domain::files::types::SourceView,
@@ -160,3 +159,21 @@ pub struct InputsUsed(pub u8);
 
 use ryo_values::domain::rows::types::RowIndex;
 
+/// What an ordered depth-first search reads: its roots, edges, edge order and keys.
+#[derive(Clone, Debug)]
+pub struct DfsResources {
+    /// The column of the roots.
+    pub root: ColumnIndex,
+    /// The column edges start at.
+    pub source: ColumnIndex,
+    /// The column edges end at.
+    pub destination: ColumnIndex,
+    /// The column that orders the edges.
+    pub order: ColumnIndex,
+    /// The column of each edge's identity.
+    pub edge: ColumnIndex,
+    /// The columns the roots are keyed on.
+    pub root_keys: Vec<ColumnIndex>,
+    /// The columns the edges are keyed on.
+    pub edge_keys: Vec<ColumnIndex>,
+}

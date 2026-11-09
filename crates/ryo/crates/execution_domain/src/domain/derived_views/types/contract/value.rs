@@ -53,7 +53,7 @@ impl DerivedContract {
     ) -> Self {
         let metadata = semantic
             .validate()
-            .map_err(crate::domain::operator::contract::derived::portable_fault);
+            .map_err(crate::domain::operating::service::derived_fault);
         Self {
             identity_hash,
             kind: kind_of(&request),

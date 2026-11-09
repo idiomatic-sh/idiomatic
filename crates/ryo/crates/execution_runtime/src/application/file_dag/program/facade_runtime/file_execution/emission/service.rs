@@ -9,7 +9,7 @@ use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 use std::rc::Rc;
@@ -97,7 +97,7 @@ impl FileRun<'_> {
                 &[ryo_relations::domain::relations::types::Value],
             ) -> Result<(), OperatingError>,
         );
-        impl ryo_execution_domain::domain::operating::types::Emit for ForwardRows<'_> {
+        impl ryo_execution_domain::domain::operator::types::Emit for ForwardRows<'_> {
             fn row(
                 &mut self,
                 _context: &mut OperatorContext<'_>,

@@ -2,10 +2,8 @@
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
-    operator::contract::{
-        views::PreparedAxis,
-        views::IndexedRows,
-    },
+    operator::contract::views::PreparedAxis,
+    table_reach::borrowed::IndexedRows,
     table_cells::types::TreeRows,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
@@ -34,7 +32,7 @@ impl AxisResource<'_> {
     pub(crate) fn view<'s>(
         &'s self,
         #[cfg(feature = "diagnostic-row-progress")]
-        progress: &'s dyn ryo_execution_domain::domain::operator::contract::views::ProgressObserver,
+        progress: &'s dyn ryo_execution_domain::domain::operating::types::ProgressObserver,
     ) -> Result<PreparedAxis<'s>, OperatingError> {
         match self {
             Self::Empty => Ok(PreparedAxis::Empty),

@@ -1,4 +1,5 @@
 //! Typed semantic requirements bound during request preparation, without engine policy.
+use crate::domain::derived_views::types::DfsResources;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Direction, JoinColumn, Operand, ParameterId, ReachLookup,
 };
@@ -117,24 +118,6 @@ pub struct AxisResources {
     pub output: Vec<JoinColumn>,
     /// The direction the walk goes in.
     pub direction: Direction,
-}
-/// What an ordered depth-first search reads: its roots, edges, edge order and keys.
-#[derive(Clone, Debug)]
-pub struct DfsResources {
-    /// The column of the roots.
-    pub root: ColumnIndex,
-    /// The column edges start at.
-    pub source: ColumnIndex,
-    /// The column edges end at.
-    pub destination: ColumnIndex,
-    /// The column that orders the edges.
-    pub order: ColumnIndex,
-    /// The column of each edge's identity.
-    pub edge: ColumnIndex,
-    /// The columns the roots are keyed on.
-    pub root_keys: Vec<ColumnIndex>,
-    /// The columns the edges are keyed on.
-    pub edge_keys: Vec<ColumnIndex>,
 }
 
 pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -> ResourceProgram {

@@ -45,7 +45,7 @@ impl DerivedOwner {
             ),
         );
         let semantic_bytes = ryo_derived::domain::footprint::service::working_bytes(&scratch.semantic)
-            .map_err(ryo_execution_domain::domain::operator::contract::derived::portable_fault)?
+            .map_err(ryo_execution_domain::domain::operating::service::derived_fault)?
             .0;
         let scratch_bytes = crate::application::file_dag::derived::ledger::capacity::checked::<
             ryo_relations::domain::relations::types::Value,

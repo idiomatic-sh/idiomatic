@@ -1,10 +1,7 @@
 //! The replay of a selection class result: the accepted prefix first, then the terminal error.
 
 use crate::domain::{
-    operating::{
-        errors::OperatingError,
-        types::{Emit, OperatorContext},
-    },
+    operating::errors::OperatingError,
     step_classes::types::ClassPlace,
     replay::{service::selected, types::SelectionColumns},
     shared_walk::{
@@ -13,6 +10,7 @@ use crate::domain::{
     },
     table_model::types::Rows,
 };
+use crate::domain::operator::types::{Emit, OperatorContext};
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::{
     relations::types::{FileId, NodeId, Offset, Relation, Span, Value as CellValue},

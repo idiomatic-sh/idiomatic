@@ -4,7 +4,7 @@ use super::{
     service::{family_of, minted},
     types::{AfterTheFiles, Family},
 };
-use crate::domain::operator::contract::derived::portable_fault;
+use crate::domain::operating::service::derived_fault;
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
@@ -47,7 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::Fault(fault) => return Err(portable_fault(fault)),
+        Scenario::Fault(fault) => return Err(derived_fault(fault)),
         Scenario::Family => assert_eq!(family_of(Test::NotGlobAny), Family::Glob),
         Scenario::ProjectName => {
             use ryo_language::domain::symbols::{
