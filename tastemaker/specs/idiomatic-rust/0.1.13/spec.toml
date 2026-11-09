@@ -26,7 +26,8 @@ rules = [
   { rule = "idiomatic.arch/client-at-adapter@0.1.0", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/src/languages.rs", "**/schemas.rs", "**/schemas_test.rs", "**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/fixtures.rs", "**/tests/**", "**/benches/**", "**/benchmarks/provider/**", "{apart}/**"], params = { libraries = { param = "libraries" } }, description = "A client or store library is named only in an adapter, in the factory of its port, in an edge composition (and the command line's `languages.rs`, which links the languages it is built with), in an edge's schemas, which hold the wire shapes a client library writes, and in test code and test data, which set a scene up with any library." },
   { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-edge", include = ["**/src/resources/**"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**", "**/composition.rs"], params = { forbidden = ["*::adapters", "*::adapters::*", "{,::}crate::domain::*::service", "{,::}crate::domain::*::service::*", "*::use_case", "*::use_case::*Impl", "{,::}crate::resources", "{,::}crate::resources::*", "super::super", "super::super::*"] }, description = "An edge (a command or an SDK entry) imports use-case interface, types and errors and port types and factory; never an adapter, a domain service or a use_case.rs; never its parent module (`crate::resources`, `super::super`) or a sibling command: what it needs from above is handed down." },
   { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-composition", include = ["**/src/resources/**/composition.rs"], exclude = ["**/*_test.rs", "**/src/inbound/use_cases/*/acceptance.rs", "**/src/inbound/contracts/*/acceptance.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["*::adapters", "*::adapters::*", "{,::}crate::domain::*::service", "{,::}crate::domain::*::service::*", "{,::}crate::resources", "{,::}crate::resources::*", "super::super", "super::super::*"] }, description = "A composition names use_case.rs and the ports' factories; never an adapter itself or a domain service; never its parent module (`crate::resources`, `super::super`) or a sibling command: what it needs from above is handed down." },
-  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-domain", include = ["**/src/domain/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["*::application", "*::application::*", "{,::}crate::inbound", "{,::}crate::inbound::*", "{,::}crate::outbound", "{,::}crate::outbound::*", "*::outbound::*::adapters", "*::outbound::*::adapters::*", "*::outbound::*::factory", "*::outbound::*::factory::*", "*::use_case", "*::use_case::*Impl", "*::output::schemas", "*::output::schemas::*"] }, description = "Domain imports only domain and the kernel crates: never its own crate's inbound or outbound, never an adapter, a factory or a use_case.rs of any crate, and never the command line's `output::schemas`, where a typed value becomes text. Of a kernel crate it names the public surface: the types and errors under its `inbound/` and its ports' interfaces and types." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-domain", include = ["**/src/domain/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["*::application", "*::application::*", "{,::}crate::inbound", "{,::}crate::inbound::*", "{,::}crate::outbound", "{,::}crate::outbound::*", "*::outbound::*::adapters", "*::outbound::*::adapters::*", "*::outbound::*::factory", "*::outbound::*::factory::*", "*::use_case", "*::use_case::*Impl", "*::inbound::use_cases::*::interface::*UseCase", "*UseCase", "languages::Parse", "languages::Project", "*::languages::Parse", "*::languages::Project", "*::languages::\\*", "*::inbound::use_cases::*::interface", "*::inbound::use_cases::*::interface::\\*", "*::output::schemas", "*::output::schemas::*"] }, description = "Domain imports only domain and the kernel crates: never its own crate's inbound or outbound, never an adapter, a factory or a use_case.rs of any crate, never another crate's use-case trait (`<Name>UseCase`, by any path: imported, aliased or reached through its module), nor the SDK's re-exports of the parse and project traits (`languages::Parse`, `languages::Project`) and never a use case's `interface` module itself or a glob of it, so the trait cannot come in unnamed: what the domain needs from one is a port the domain declares and its parent hands down; and never the command line's `output::schemas`, where a typed value becomes text. Of a kernel crate it names the public surface: the types and errors under its `inbound/` and its ports' interfaces and types." },
+  { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-root", include = ["**/src/*.rs"], exclude = ["**/src/main.rs", "**/*_test.rs", "**/test.rs", "**/fixtures.rs", "**/build.rs"], params = { forbidden = ["*UseCase"] }, description = "A crate's root modules name no use-case trait: a domain reaches its own crate's root, so a root re-export under another name would carry the trait into it unseen." },
   { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-use-case", include = ["**/src/inbound/use_cases/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["{,::}crate::outbound::*::adapters", "{,::}crate::outbound::*::adapters::*", "{,::}crate::outbound::*::factory", "{,::}crate::outbound::*::factory::*", "*::use_case", "*::use_case::*Impl", "*::output::schemas", "*::output::schemas::*"] }, description = "A use case imports domain, its own crate's outbound port interface, types and errors and the kernel; never another use case, an adapter, a factory or a use_case.rs." },
   { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-port", include = ["**/src/outbound/*/interface.rs", "**/src/outbound/*/types.rs", "**/src/outbound/*/errors.rs"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["{,::}crate::application", "{,::}crate::application::*", "{,::}crate::inbound", "{,::}crate::inbound::*", "{,::}crate::outbound::*::adapters", "{,::}crate::outbound::*::adapters::*", "*::use_case", "*::use_case::*Impl", "*::output::schemas", "*::output::schemas::*"] }, description = "A port's interface, types and errors import its own outbound vocabulary and external APIs; never another local layer, another port, an adapter or a use_case.rs." },
   { rule = "idiomatic.arch/import-directions@0.1.0", alias = "directions-adapter", include = ["**/src/outbound/*/adapters/**"], exclude = ["**/*_test.rs", "**/acceptance.rs", "**/tests/**", "**/fixtures/**", "**/fixtures.rs", "**/benches/**", "**/benchmarks/provider/**"], params = { forbidden = ["{,::}crate::application", "{,::}crate::application::*", "{,::}crate::inbound", "{,::}crate::inbound::*", "*::use_case", "*::use_case::*Impl", "*::output::schemas", "*::output::schemas::*"] }, description = "An adapter imports its own outbound port, schemas and external client APIs, and when it translates, another crate's use-case interface, types and errors; never another local layer, another adapter, another port or a use_case.rs." },
@@ -482,6 +483,371 @@ then.only = ['idiomatic.arch/import-directions']
 then.findings = [
   { rule = 'idiomatic.arch/import-directions', path = 'demo/src/domain/greeting/service.rs', line = 3 },
 ]
+
+[[scenarios]]
+id = 'domain-imports-the-sdks-parse-trait'
+scenario = "A provider domain file imports the SDK's re-export of the parse trait, `ryo::languages::Parse`: it fails."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+use ryo::languages::Parse;
+
+/// Greets.
+pub fn greet() {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], internal-crates = [], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [
+  { rule = 'idiomatic.arch/import-directions', path = 'demo/src/domain/greeting/service.rs', line = 3 },
+]
+
+
+[[scenarios]]
+id = 'domain-names-the-sdks-project-trait-in-a-signature'
+scenario = "A provider domain file names the SDK's re-export of the project trait by its full path in a signature, `&dyn ryo::languages::Project`: it fails."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+/// Greets.
+pub fn greet(_project: &dyn ryo::languages::Project) {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], internal-crates = [], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [
+  { rule = 'idiomatic.arch/import-directions', path = 'demo/src/domain/greeting/service.rs', line = 4 },
+]
+
+
+[[scenarios]]
+id = 'domain-names-the-parse-trait-through-the-languages-module'
+scenario = "A provider domain file imports the SDK's `languages` module, as the house style does, and names the parse trait through it, `languages::Parse`: it fails."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+use ryo::languages;
+
+/// Greets.
+pub fn greet(_parse: &dyn languages::Parse) {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], internal-crates = [], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [
+  { rule = 'idiomatic.arch/import-directions', path = 'demo/src/domain/greeting/service.rs', line = 6 },
+]
+
+
+[[scenarios]]
+id = 'domain-globs-the-languages-module'
+scenario = "A provider domain file imports every name of the SDK's `languages` module, `use ryo::languages::*;`, so the traits would come in unnamed: it fails."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+use ryo::languages::*;
+
+/// Greets.
+pub fn greet() {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], internal-crates = [], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+then.findings = [
+  { rule = 'idiomatic.arch/import-directions', path = 'demo/src/domain/greeting/service.rs', line = 3 },
+]
+
+
+[[scenarios]]
+id = 'domain-names-the-sdks-requests-through-the-languages-module'
+scenario = "A provider domain file imports the SDK's `languages` module and names `languages::ParseRequest` and `languages::ProjectRequest`, the types beside the traits: it passes."
+given.files.'demo/src/lib.rs' = '''
+//! The demo.
+
+pub mod domain;
+pub mod inbound;
+'''
+given.files.'demo/src/domain.rs' = '''
+//! The concepts.
+
+pub mod greeting;
+pub mod naming;
+'''
+given.files.'demo/src/domain/greeting.rs' = '''
+//! The greeting.
+
+pub mod service;
+'''
+given.files.'demo/src/domain/greeting/service.rs' = '''
+//! Greets.
+
+use ryo::languages;
+
+/// Greets.
+pub fn greet(_parse: languages::ParseRequest, _project: languages::ProjectRequest) {}
+'''
+given.files.'demo/src/domain/naming.rs' = '''
+//! The naming.
+
+pub mod types;
+'''
+given.files.'demo/src/domain/naming/types.rs' = '''
+//! A name.
+
+/// A name.
+pub struct Name;
+'''
+given.files.'demo/src/inbound.rs' = '''
+//! The use cases.
+
+pub mod use_cases;
+'''
+given.files.'demo/src/inbound/use_cases.rs' = '''
+//! The list.
+
+pub mod greet;
+'''
+given.files.'demo/src/inbound/use_cases/greet.rs' = '''
+//! The greet use case.
+
+pub mod types;
+'''
+given.files.'demo/src/inbound/use_cases/greet/types.rs' = '''
+//! The request.
+
+/// The request.
+pub struct GreetRequest;
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], internal-crates = [], libraries = ["rayon::*"] } },
+]
+'''
+then.only = ['idiomatic.arch/import-directions']
+
 
 [[scenarios]]
 id = 'composition-reaches-up-to-resources'

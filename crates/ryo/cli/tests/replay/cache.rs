@@ -236,16 +236,19 @@ fn a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root() {
     );
 }
 
+/// The size of the store over all of ruff is a ratchet, not a contract: that a warm run reads no file and answers the cold run's
+/// rows is proved over owned fixtures by core (`unchanged_reuse_reads_no_file`,
+/// `cold_warm_and_edited_runs_answer_the_same_in_every_store`).
 #[test]
-fn every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store() {
+fn the_store_every_recorded_rule_keeps_over_ruff_stays_within_its_bound() {
     let _beside = crate::beside();
     let copy = ruff::ruff_copy();
     let rules: Vec<Rule> = counting::runnable()
         .into_iter()
         .map(|(_, rule)| rule)
         .collect();
-    let store = || crate::base::store_at(copy.path());
-    let cold = counting::lint_counting(copy.path(), rules.clone(), store()).expect("the rules run");
+    let _cold = counting::lint_counting(copy.path(), rules, crate::base::store_at(copy.path()))
+        .expect("the rules run");
     // The store keeps the findings, a digest of each file and rule, and what each file hands the steps that read across files.
     let size = std::fs::metadata(copy.path().join(".ryo_cache/lint.store"))
         .expect("the store")
@@ -254,24 +257,6 @@ fn every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_sm
         size <= STORE_BYTES_BOUND,
         "the store of ruff stays within {STORE_BYTES_BOUND} bytes: {size} bytes"
     );
-    let warm = counting::lint_counting(copy.path(), rules, store()).expect("the rules run");
-    assert_eq!(warm.reads, 0, "a warm run reads no file");
-    let by_rule = |rows: &[Vec<String>]| {
-        let mut counts: std::collections::BTreeMap<String, usize> =
-            std::collections::BTreeMap::new();
-        for row in rows {
-            *counts
-                .entry(row.first().cloned().unwrap_or_default())
-                .or_default() += 1;
-        }
-        counts
-    };
-    assert_eq!(
-        by_rule(&warm.rows),
-        by_rule(&cold.rows),
-        "each rule gives as many rows warm as cold"
-    );
-    assert_eq!(sorted(warm.rows), sorted(cold.rows));
 }
 
 #[test]

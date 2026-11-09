@@ -36,7 +36,7 @@ use ryo_values::domain::table_words::types::WordSlice;
 /// Whether [`cover`] names a rule that reads as `needs` at a file read in part as `partials`: a relation of the file the rule reads
 /// is read in part there, so the rule's unknown at the file is already given with the relation and why.
 pub(crate) fn names_at_file(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     partials: &[Partial],
     needs: Option<&ryo_execution::inbound::use_cases::metadata::interface::Needs>,
 ) -> Bearing {
@@ -60,7 +60,7 @@ pub(crate) fn names_at_file(
 /// would report the same uncertainty twice; any other partition (another file, the repository) is uncertainty `cover` does not see
 /// from this file, and the rule says so here.
 pub(crate) fn partial_root(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     unknowns: &mut Vec<Unknown>,
     partials: &[Partial],
     setting: &VisitSetting<'_>,
@@ -258,7 +258,7 @@ pub(crate) fn interface_bytes(tables: &Tables) -> InterfaceBytes {
 /// Notes what a file read in part costs the rules: what each could not decide in the file, and the file's coverage for the
 /// cross-file steps that trust the absence of rows of what is partial.
 pub(crate) fn cover(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     tables: &mut Tables,
     setting: &VisitSetting<'_>,
     at: FileId,
@@ -375,4 +375,4 @@ pub(crate) fn finish_file(
     }
 }
 
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use crate::domain::workers::types::RunDecisions;

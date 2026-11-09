@@ -27,7 +27,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         &self,
         plan: &Plan,
         vocabularies: &KindVocabularies,
-        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
+        matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
     ) -> Option<KindRefusal> {
         ryo_execution_domain::domain::kind_check::service::refusal(
             plan,
@@ -43,7 +43,7 @@ impl MetadataUseCase for MetadataUseCaseImpl {
         plans: &[Plan],
         bindings: &[Vec<ParameterBinding>],
         vocabularies: &KindVocabularies,
-        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
+        matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
     ) -> Option<UnknownKind> {
         ryo_execution_domain::domain::kind_check::service::first_unknown(
             plans,

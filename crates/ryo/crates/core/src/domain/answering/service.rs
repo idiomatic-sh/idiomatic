@@ -4,8 +4,8 @@ use super::types::{CrossSteps, Crossed, Todo};
 use crate::domain::ordering::service::append;
 use crate::domain::render::types::Rendered;
 use crate::domain::workers::service::add_fed;
+use crate::domain::workers::types::RunDecisions;
 use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_values::domain::run_metadata::types::{CrossFileSteps, RuleRunMetadata};
 use ryo_values::domain::runs::types::RuleId;
@@ -27,7 +27,7 @@ pub(crate) fn cross_steps(plan: &Plan) -> CrossSteps {
 /// The rules whose cross-file steps are made, in the order of the rules.
 #[must_use]
 pub(crate) fn todo_list(
-    decisions: &impl MetadataUseCase,
+    decisions: &impl RunDecisions,
     metadata: &[RuleRunMetadata],
     ids: &[RuleId],
 ) -> Vec<Todo> {

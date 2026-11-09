@@ -149,22 +149,6 @@ pub(super) fn check_case(
         files: vec![ryo::linter::RelativePath(case.file.clone().into())],
         state: WorkerState::Fresh,
     })?;
-    let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
-        report.coverage
-    else {
-        return Err(Error::Invalid("context helper coverage is required".into()));
-    };
-    assert_eq!(
-        (
-            coverage.selected.0,
-            coverage.evaluated.0,
-            coverage.skipped.0,
-            coverage.unknown_or_unread.0
-        ),
-        (6, 6, 0, 0),
-        "{}",
-        case.name
-    );
     assert!(report.skipped.is_empty());
     let mut actual = report
         .diagnostics

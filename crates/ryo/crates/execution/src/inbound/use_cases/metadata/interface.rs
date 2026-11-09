@@ -51,7 +51,7 @@ pub trait MetadataUseCase {
         &self,
         plan: &Plan,
         vocabularies: &KindVocabularies,
-        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
+        matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
     ) -> Option<KindRefusal>;
     fn kinds_asked(&self, plan: &Plan, bound: &[ParameterBinding]) -> Vec<AskedKind>;
     fn first_unknown(
@@ -59,7 +59,7 @@ pub trait MetadataUseCase {
         plans: &[Plan],
         bindings: &[Vec<ParameterBinding>],
         vocabularies: &KindVocabularies,
-        matching: &dyn ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
+        matching: &impl ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase,
     ) -> Option<UnknownKind>;
     fn unknown_kind_message(&self, word: &KindWord, vocabularies: &KindVocabularies)
     -> KindRefusal;

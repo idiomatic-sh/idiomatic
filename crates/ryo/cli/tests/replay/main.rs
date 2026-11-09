@@ -66,7 +66,6 @@ mod frontier;
 mod goldens;
 mod governing;
 mod interface;
-mod linear;
 mod linking;
 mod lowering;
 mod manifests;

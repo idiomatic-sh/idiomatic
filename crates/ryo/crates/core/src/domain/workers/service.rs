@@ -7,8 +7,8 @@ use super::types::{
     VisitSetting, WorkersMet,
 };
 use crate::domain::render::types::Rendered;
+use crate::domain::workers::types::RunDecisions;
 use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
 use ryo_language::domain::elements::types::Elements;
@@ -75,7 +75,7 @@ pub(crate) fn size_at(files: &[CorpusInput], place: FileOrder) -> FileSize {
 
 /// Decides which rules govern the file, once for it; a file no rule governs is neither read nor parsed.
 pub(crate) fn govern(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     setting: &VisitSetting<'_>,
     tables: &mut Tables,
     path: &FilePath,
@@ -148,7 +148,7 @@ pub(crate) fn order(met: &mut WorkersMet) -> Fresh {
 /// Whether the rule governs the file the worker is visiting.
 #[must_use]
 pub(crate) fn governs_rule(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     tables: &Tables,
     rule: RuleIndex,
 ) -> Governing {

@@ -1,7 +1,7 @@
 //! The `crossing` service: free functions named by verb over the cross-file steps of one rule, with no IO and no ports.
 
 use super::types::{CrossingInput, Placeability};
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use crate::domain::workers::types::RunDecisions;
 use ryo_execution::inbound::use_cases::metadata::interface::{FilePartial, Partials, RuleIndex};
 
 use ryo_execution::inbound::use_cases::metadata::interface::Bearing;
@@ -34,7 +34,7 @@ pub(crate) fn placeable(emit: &Emit, table: &Table) -> Placeability {
 /// The files that govern a rule, in which a relation its cross-file steps trust the absence of rows of is read in part.
 #[must_use]
 pub(crate) fn partials_for(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     crossing: &CrossingInput<'_>,
     rule: RuleIndex,
 ) -> Partials {
@@ -47,7 +47,7 @@ pub(crate) fn partials_for(
 
 /// Publication completeness uses actual root reads, not only absence-sensitive diagnostic Needs.
 pub(crate) fn partials_for_reads(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     crossing: &CrossingInput<'_>,
     rule: RuleIndex,
     trusted: &[ryo_execution::inbound::use_cases::metadata::interface::RelationRead],
@@ -103,7 +103,7 @@ use ryo_values::domain::rows::types::Table;
 /// For each rule, the files of the run it has no frame for: those its scopes do not place it on, and those no language read.
 #[must_use]
 pub(crate) fn inapplicable_files(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     crossing: &CrossingInput<'_>,
 ) -> Vec<ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles> {
     use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;

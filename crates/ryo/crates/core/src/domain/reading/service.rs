@@ -5,7 +5,7 @@ use super::types::{
 };
 use crate::domain::ordering::service::sort_findings;
 use crate::domain::render::types::Answering;
-use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
+use crate::domain::workers::types::RunDecisions;
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_execution::inbound::use_cases::metadata::interface::{Governing, Mask};
 
@@ -70,7 +70,7 @@ pub(crate) fn engine_asked(wanted: &[Relation]) -> EngineAsked {
 /// legacy rule metadata keeps the conservative run-wide demand.
 #[must_use]
 pub(crate) fn read_failure_demanded(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     wanted: &[Relation],
     mask: &Mask,
     needs: &[Needs],
@@ -128,7 +128,7 @@ pub(crate) fn failure_partials(
 
 /// Notes the relations the file is read in part: those a reader said so of, and all of code if what was read is a recovery.
 pub(crate) fn start_partials(
-    metadata: &impl MetadataUseCase,
+    metadata: &impl RunDecisions,
     tables: &mut Tables,
     said: &[ReadInPart],
     everything: Recovery,
