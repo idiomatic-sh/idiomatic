@@ -373,14 +373,18 @@ CARGO_LINE=re.compile(r'^test (\S+) \.\.\. (ok|FAILED)\b')
 NEXTEST_LINE=re.compile(r'^\s*(PASS|FAIL|SIGSEGV|SIGABRT|TIMEOUT)\s+\[[^\]]*\]\s+\S+\s+(\S+)')
 UNITTEST_LINE=re.compile(r'^(\w+) \(([\w.]+)\)\S*.* \.\.\. (ok|FAIL|ERROR)\b')
 UNITTEST_FAILURE=re.compile(r'^(FAIL|ERROR): (\w+) \(([\w.]+)\)')
+# pytest -v: `path::test PASSED` per test, and the short summary's `FAILED path::test` or `ERROR path::test`.
+PYTEST_LINE=re.compile(r'^(\S+::[\w\[\]-]+) (PASSED|FAILED|ERROR)\b')
+PYTEST_SUMMARY=re.compile(r'^(FAILED|ERROR) (\S+::[\w\[\]-]+)')
 # The runner's own frame around its results: a log without it was not written by the runner. A forger can still type
 # these lines; the check catches a hand-written result, not a deliberate fake.
 RUNNER_FRAMES=((re.compile(r'(?m)^running \d+ tests?$'),re.compile(r'(?m)^test result: (ok|FAILED)\. \d+ passed')),
                (re.compile(r'(?m)^\s*Starting \d+ tests? across'),re.compile(r'(?m)^\s*Summary \[')),
-               (re.compile(r'(?m)^Ran \d+ tests? in '),re.compile(r'(?m)^(OK|FAILED \()')))
+               (re.compile(r'(?m)^Ran \d+ tests? in '),re.compile(r'(?m)^(OK|FAILED \()')),
+               (re.compile(r'(?m)^=+ test session starts =+$'),re.compile(r'(?m)^=+ .*\b\d+ (passed|failed|error)\b.* in [\d.]+s')))
 def runner_framed(text): return any(head.search(text) and tail.search(text) for head,tail in RUNNER_FRAMES)
 def log_status(log,test):
- """'failed' when the log shows the test failing, 'passed' when it shows it passing and never failing, else None: cargo test, cargo nextest and unittest -v lines inside the runner's own frame, a test named by its path or a suffix of it."""
+ """'failed' when the log shows the test failing, 'passed' when it shows it passing and never failing, else None: cargo test, cargo nextest, unittest -v and pytest -v lines inside the runner's own frame, a test named by its path or a suffix of it."""
  named=lambda path,sep: path==test or path.endswith(sep+test)
  failed=passed=False; text=Path(log).read_text(errors='replace')
  if not runner_framed(text): return None
@@ -393,6 +397,10 @@ def log_status(log,test):
   if m and (named(m.group(1),'.') or named(m.group(2),'.')): failed|=m.group(3)!='ok'; passed|=m.group(3)=='ok'; continue
   m=UNITTEST_FAILURE.match(line)
   if m and (named(m.group(2),'.') or named(m.group(3),'.')): failed=True
+  m=PYTEST_LINE.match(line)
+  if m and named(m.group(1).split('[')[0],'::'): failed|=m.group(2)!='PASSED'; passed|=m.group(2)=='PASSED'; continue
+  m=PYTEST_SUMMARY.match(line)
+  if m and named(m.group(2).split('[')[0],'::'): failed=True
  return 'failed' if failed else 'passed' if passed else None
 def covered(repo,entry,ranges):
  """The commits the red_green entry's range holds: in its merge sha and not in its base sha (read once per range)."""
@@ -415,12 +423,15 @@ def perf_identical(repo,base,head,sha):
    if isinstance(record,dict) and record.get('identical_output') is True and isinstance(record.get('source'),str) and re.fullmatch('[0-9a-f]{40}',record['source']) and subprocess.run(['git','-C',str(repo),'merge-base','--is-ancestor',sha,record['source']],capture_output=True).returncode==0: return True
  return False
 NO_BASE='no checkpoint base: the merge base of HEAD and '+CONSOLIDATION+' is unknown; fetch it'
-def fix_problems(v,repo=None,base=None,head='HEAD'):
- """Each commit of the checkpoint that changes production code (a merge by its own changes), other than a perf commit (which needs an after.json with identical_output true), names a test in its message that a red_green entry over it (its base_sha excluded, its merge_sha included) proves: the entry names that test, its red log shows it fail and its green log shows it pass."""
+# FIX took effect when the checkpoint-loop branch merged: its merge commit and every commit it reaches are before the rule.
+FIX_BASELINE='f783d87661635edc4fc14c2d28926323830f7164'
+def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
+ """Each commit of the checkpoint not reachable from the baseline that changes production code (a merge by its own changes), other than a perf commit (which needs an after.json with identical_output true), names a test in its message that a red_green entry over it (its base_sha excluded, its merge_sha included) proves: the entry names that test, its red log shows it fail and its green log shows it pass."""
  repo=repo or p; base=base or checkpoint_base(repo)
  if not base: return [NO_BASE]
  bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}
- for sha in (git(repo,'rev-list',base+'..'+head) or '').split():
+ before=['^'+baseline] if baseline and git(repo,'cat-file','-e',baseline+'^{commit}') is not None else []
+ for sha in (git(repo,'rev-list',base+'..'+head,*before) or '').split():
   message=git(repo,'show','-s','--format=%B',sha) or ''
   # A merge's own changes are the files its result changes against every parent (the combined diff).
   own=['diff-tree','--cc','--no-commit-id','--name-only',sha] if len((git(repo,'rev-list','--parents','-n1',sha) or '').split())>2 else ['diff-tree','--root','--no-commit-id','-r','--name-only',sha]

@@ -293,6 +293,18 @@ class Diff(unittest.TestCase):
   (Path(self.repo)/'a/src/lib.rs').write_text('pub fn one() { /* resolved in the merge */ }\n')
   subprocess.run(['git','-C',self.repo,'commit','-q','-am','Merge side again'],check=True)
   self.assertEqual(len(self.fixes([])),1)
+ def test_a_production_commit_the_baseline_reaches_is_ignored_and_one_after_it_is_checked(self):
+  before=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): before the rule')
+  after=commit(self.repo,{'a/src/lib.rs':'pub fn one() {  }\n'},'fix(a): after the rule')
+  found=run.fix_problems({'red_green':[],'raw_identity':str(self.raw)},repo=self.repo,base=self.base,baseline=before)
+  self.assertEqual(len(found),1); self.assertIn(after[:10],found[0]); self.assertNotIn(before[:10],' '.join(found))
+  self.assertEqual(len(run.fix_problems({'red_green':[]},repo=self.repo,base=self.base,baseline=None)),2)
+ def test_a_pytest_log_proves_its_test_red_and_green(self):
+  head='============================= test session starts ==============================\n'
+  self.logs(red=head+'ci/a_test.py::test_one_answers FAILED [100%]\n=========================== short test summary info ============================\nFAILED ci/a_test.py::test_one_answers - assert 1 == 2\n============================== 1 failed in 0.10s ===============================\n',
+            green=head+'ci/a_test.py::test_one_answers PASSED [100%]\n============================== 1 passed in 0.10s ===============================\n',
+            bare='ci/a_test.py::test_one_answers PASSED [100%]\n')
+  self.assertEqual([run.log_status(self.raw/(n+'.log'),'test_one_answers') for n in ('red','green','bare')],['failed','passed',None])
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])
