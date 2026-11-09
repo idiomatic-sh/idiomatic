@@ -1,0 +1,358 @@
+{
+ "iteration": "project-retention",
+ "bead": "ryo-n6vk",
+ "discovered_from": "ryo-2r77",
+ "source": "8a59189be540ce18d7ed9a50e3970f5a1c123345",
+ "source_note": "head of claude/checkpoint-332 when measured (2c94c8e3d5 plus one docs commit)",
+ "worker": "tm 0.1.2, built from source with tikv-jemallocator/profiling and line tables (cargo build --release -p idiomatic-sh-tastemaker, all ten language features)",
+ "worker_sha256": "7484b600bc1183c24bb0a85f03dc3e62a57a69019824ab8a1adab81d287f0ba3",
+ "other_workers": {
+  "tm012c": {
+   "sha256": "fe373b12b9fb91f7cd01f39446454f9f570e2894831688fed5e5091c9265116b",
+   "what": "the tm builder's w14 binary (same engine as source), used for the workload scan"
+  },
+  "tm-0.1.1-published-engine": {
+   "sha256": "95eb772794e70bf90884ad691134dbb447764beb4ad10a73d718cdb0fe63abbf",
+   "what": "the tm of dd7fa03b47 built against the published ryo 0.1.1 crates, the engine the guard used from d22aceaaf9 to 10c561ef6a"
+  }
+ },
+ "staged_digest": null,
+ "staged_digest_note": "not a ruff request: the workload is `git archive <commit> | tar -x`, tastemaker.toml pinned to the worker's version, `git init`, then `tm check` cold in crates/ryo (the memory guard's own recipe)",
+ "workload_digest": {
+  "8a59189be5": "fb07f41adb75090d07d7752d3c48e953dc7c838337bea3b474dabfb34d3086f3",
+  "1cd5de7fea": "a99a47286c56d2c7d98d6a254900b99bad5db895c7a744b646509a1581c6a187"
+ },
+ "heap_profile": "_RJEM_MALLOC_CONF=prof:true,prof_active:true,lg_prof_sample:19,lg_prof_interval:29,prof_final:true; peak dump read with jeprof --text --cum --show_bytes --lines; phase shares with --focus=crossed (ryo_core cross_file/phase/service.rs) and --lines --focus=capture/service.rs:121",
+ "workloads": [
+  {
+   "name": "tm check crates/ryo cold, archive of 8a59189be5, profiled",
+   "wall_s": 196.33,
+   "cpu_s": 397.09,
+   "peak_mb": 4630,
+   "peak_kib": 4521968,
+   "heap_peak_mb": 4295,
+   "load_start": 3.93,
+   "load_end": 10.43,
+   "timing": false
+  },
+  {
+   "name": "same, plain runs (control and repeats)",
+   "peak_kib": [
+    4361924,
+    4518876,
+    4490032
+   ],
+   "timing": false
+  },
+  {
+   "name": "tm check crates/ryo cold, archive of 1cd5de7fea (the tree the guard measured at 1.21 GB), same worker, profiled",
+   "wall_s": 22.48,
+   "peak_kib": 1244520,
+   "heap_peak_mb": 787,
+   "timing": false
+  },
+  {
+   "name": "archive of 7b104be366 (first-parent 1080), published ryo 0.1.1 engine",
+   "wall_s": 17.11,
+   "peak_kib": 3574048,
+   "timing": false
+  },
+  {
+   "name": "archive of 7b104be366, source engine (tm012c)",
+   "peak_kib": 3119196,
+   "timing": false
+  },
+  {
+   "name": "archive of 8a59189be5, published ryo 0.1.1 engine",
+   "peak_kib": 436632,
+   "exit": 2,
+   "note": "refused before checking: definitions in crates/ryo/tastemaker have no current successful proof under that engine",
+   "timing": false
+  }
+ ],
+ "workload_scan": {
+  "what": "fixed worker tm012c (source engine) over first-parent trees of claude/checkpoint-332 since 1cd5de7fea; index = line in `git rev-list --first-parent --reverse 1cd5de7fea..8a59189be5`",
+  "rows": [
+   {
+    "index": 0,
+    "commit": "1cd5de7fea",
+    "date": "2026-10-30",
+    "peak_kib": 1197732,
+    "exit": 1
+   },
+   {
+    "index": 120,
+    "commit": "9dea7460b2",
+    "date": "2026-10-31",
+    "peak_kib": 1239100,
+    "exit": 1
+   },
+   {
+    "index": 600,
+    "commit": "42758afb32",
+    "date": "2026-11-03",
+    "peak_kib": 1749304,
+    "exit": 1
+   },
+   {
+    "index": 720,
+    "commit": "8e1cb83ab9",
+    "date": "2026-11-04",
+    "peak_kib": 2316804,
+    "exit": 1
+   },
+   {
+    "index": 840,
+    "commit": "b56315a792",
+    "date": "2026-11-04",
+    "peak_kib": 2296956,
+    "exit": 1
+   },
+   {
+    "index": 889,
+    "commit": "a01ba127fc",
+    "date": "2026-11-05",
+    "peak_kib": 2146132,
+    "exit": 1
+   },
+   {
+    "index": 890,
+    "commit": "727841662b",
+    "date": "2026-11-05",
+    "peak_kib": 2336896,
+    "exit": 1
+   },
+   {
+    "index": 960,
+    "commit": "26fd410e7e",
+    "date": "2026-11-05",
+    "peak_kib": 3009352,
+    "exit": 1
+   },
+   {
+    "index": 1080,
+    "commit": "7b104be366",
+    "date": "2026-11-05",
+    "peak_kib": 3119196,
+    "exit": 1
+   },
+   {
+    "index": 1630,
+    "commit": "0330d84902",
+    "date": "2026-11-09",
+    "peak_kib": 4361924,
+    "exit": 1
+   }
+  ],
+  "unmeasurable": "indexes 240, 360, 480, 1200, 1260, 1294, 1295, 1365, 1470 and 1575 end with exit 2 at 0.37-0.53 GB: the tree's own definitions fail their proofs under this engine, so no check runs",
+  "project_phase_from_profiles": [
+   {
+    "index": 0,
+    "max_crossed_mb": 210,
+    "max_capture_rows_mb": 2
+   },
+   {
+    "index": 889,
+    "max_crossed_mb": 369,
+    "peak_is": "file phase (heap 2.6 GB)"
+   },
+   {
+    "index": 960,
+    "max_crossed_mb": 393,
+    "max_capture_rows_mb": 51,
+    "peak_is": "file phase (heap 2.8 GB)"
+   },
+   {
+    "index": 1080,
+    "max_crossed_mb": 674,
+    "max_capture_rows_mb": 101,
+    "peak_is": "file phase"
+   },
+   {
+    "index": "head",
+    "max_crossed_mb": 2985,
+    "max_capture_rows_mb": 2169,
+    "peak_is": "project phase"
+   }
+  ]
+ },
+ "head_peak_dump": {
+  "dump": "503 of 512 (lg_prof_interval:29)",
+  "total_mb": 4295,
+  "project_phase_crossed_mb": 2985,
+  "capture_rows_mb": 2169,
+  "capture_stack": "ryo_core cross_file/phase/service.rs:181 -> ordinary/service.rs:63 -> project_phase/service.rs:105 evaluate_occurrences -> project_execution.rs:335 evaluate_roots -> deliver/service.rs:67 prepare_roots -> scheduling/service.rs:47 -> invocation/service.rs:114 poll -> operators evaluation/service.rs:144 -> capture/service.rs:121 driver.emit -> driver.rs:199 -> output.rs:61 -> replay/types.rs:19 -> values rows/service.rs:30 push_row",
+  "frontier_mb": 381,
+  "rows_at_root_invocation_mb": 0,
+  "file_phase_residual_mb": 1310,
+  "file_phase_peak_heap_mb": 2513,
+  "timeline": "the heap is 2.51 GB at the end of the file phase (dump 474), falls to 1.56 GB, then grows in one ramp to 4.29 GB over dumps 475-503 inside one prepare_roots call, and falls to 1.41 GB at dump 504"
+ },
+ "ablations": {
+  "what": "same worker, archive of 8a59189be5, placements removed from crates/ryo/tastemaker.toml, `tm check --fix` (the lock rewritten); control with nothing removed 4518876 KiB",
+  "rows": [
+   {
+    "removed": "every spec placement",
+    "peak_kib": 2122652
+   },
+   {
+    "removed": "every rule placement (51)",
+    "peak_kib": 3771604
+   },
+   {
+    "removed": "every spec except crate and nu-hex",
+    "peak_kib": 2526424,
+    "max_crossed_mb": 1248,
+    "max_capture_rows_mb": 738
+   },
+   {
+    "removed": "nu-hex (14 placements)",
+    "peak_kib": 3415188
+   },
+   {
+    "removed": "crate (16 placements)",
+    "peak_kib": 4594356
+   },
+   {
+    "removed": "idiomatic-rust",
+    "peak_kib": 3609468
+   },
+   {
+    "removed": "idiomatic.ryo/language",
+    "peak_kib": 3784104
+   },
+   {
+    "removed": "idiomatic-project",
+    "peak_kib": 4627832
+   },
+   {
+    "removed": "provider-imports",
+    "peak_kib": 4610680
+   },
+   {
+    "removed": "executable-program-owner",
+    "peak_kib": 4640800
+   },
+   {
+    "removed": "program-implementation-boundary",
+    "peak_kib": 4591560
+   },
+   {
+    "removed": "program-implementation-boundary, shared-walk-owner",
+    "peak_kib": 4189108
+   },
+   {
+    "removed": "program-implementation-boundary, shared-walk-owner, derived-view-acquisition",
+    "peak_kib": 4249904,
+    "max_crossed_mb": 2605,
+    "max_capture_rows_mb": 1435
+   }
+  ]
+ },
+ "row_counts": {
+  "what": "ryo query run (ryo 0.1.2, /workspaces/idiomatic-target/ryo-332/release/ryo) over crates/ryo of 8a59189be5, the query prefix of program-implementation-boundary 0.2.0",
+  "source-dependency": 118446,
+  "callable-dependencies": 118026,
+  "paths = capture(source, \"{*source-root}/{*source-tail}\")": 727134,
+  "local-dependencies = capture(paths, target, \"{*target-root}/{*target-tail}\")": 3480084,
+  "local-trait-files = capture(defines, file, \"{*source-root}/{*source-tail}\")": 1065719
+ },
+ "hypotheses": [
+  {
+   "id": "h1",
+   "claim": "tm's import reading (the w14 branch) causes the 4.3 GB peak.",
+   "verdict": "refuted",
+   "evidence": "the tm builder's pre-branch tm on the same ryo crates gives 4.34 GB; here the profile puts 2.98 GB of the 4.29 GB peak heap in ryo_core cross_file"
+  },
+  {
+   "id": "h2",
+   "claim": "The ryo engine regressed between the published 0.1.1 crates and the source.",
+   "verdict": "refuted",
+   "evidence": "same workload (7b104be366): published 0.1.1 engine 3574048 KiB, source engine 3119196 KiB"
+  },
+  {
+   "id": "h3",
+   "claim": "The growth since 1cd5de7fea follows the workload (crates/ryo and its placed definitions), with the engine held fixed.",
+   "verdict": "confirmed",
+   "evidence": "fixed tm012c: 1.20 GB at 1cd5de7fea, 2.15-2.34 GB at first-parent 889/890, 3.01-3.12 GB at 960/1080, 4.36 GB at 1630"
+  },
+  {
+   "id": "h4",
+   "claim": "Up to 7b104be366 the peak is the file phase; the project-phase spike appears later.",
+   "verdict": "confirmed",
+   "evidence": "profiles: largest project phase 0.37 GB (889), 0.39 GB (960), 0.67 GB (1080) against 2.98 GB at head; capture rows 51 MB / 101 MB against 2169 MB"
+  },
+  {
+   "id": "h5",
+   "claim": "The held rows are capture-operator output, built while preparing project roots, not at root invocation.",
+   "verdict": "confirmed",
+   "evidence": "dump 503: 2169 MB at operators capture/service.rs:121 under deliver/service.rs:67 (prepare_roots); 0 MB under deliver/service.rs:89 (invoke)"
+  },
+  {
+   "id": "h6",
+   "claim": "The number of nu-hex or crate placements multiplies the held rows.",
+   "verdict": "refuted",
+   "evidence": "removing all 16 crate placements: 4594356 KiB (control 4518876); removing all 14 nu-hex placements lowers the peak to 3415188 KiB, which other single specs (language 3784104, idiomatic-rust 3609468) also do: no per-placement multiplication"
+  },
+  {
+   "id": "h7",
+   "claim": "One rule (program-implementation-boundary) owns the spike.",
+   "verdict": "refuted",
+   "evidence": "removing it: 4591560 KiB; removing it with shared-walk-owner and derived-view-acquisition: capture rows 2169 -> 1435 MB, peak 4249904 KiB"
+  },
+  {
+   "id": "h8",
+   "claim": "The capture rows are materialized because fusion stops at the capture: a producer with more than one reader (Barrier::SharedConsumer) or a consumer that keeps columns (Select with kept columns, Ineligible::Reshapes) ends the region, so the capture's whole output is published.",
+   "verdict": "confirmed by code, not by a counter",
+   "evidence": "execution_domain executable_program/fusion/service.rs fusibility_of and shape(); e.g. program-implementation-boundary local-dependencies (3480084 rows) has two readers, shared-walk-owner semantic-targets has two reshaping readers, layer-matrix source-directories feeds a reshaping select"
+  },
+  {
+   "id": "h9",
+   "claim": "The publications of several rules coexist: evaluate_roots (e5cbe5f397, 'Schedule ordinary and named project root sets through one readiness queue') prepares every root of a cohort in the first delivery, so each rule's published inputs wait for that rule's own invocation.",
+   "verdict": "supported, unproven",
+   "evidence": "one monotonic ramp of 2.7 GB inside a single prepare_roots (dumps 475-503); removing three rules that are not the largest contributor lowers the capture rows by 734 MB, which a max-of-rules spike would not show. Not proven: no per-rule counter of live publications was taken"
+  }
+ ],
+ "question_1_commit": {
+  "answer": "no single commit is proven",
+  "established": "with the engine held fixed, the project-phase capture spike is absent through 7b104be366 (first-parent 1080, 2026-11-05) and present at 0330d84902 (first-parent 1630, 2026-11-09)",
+  "remaining_range": "first-parent 1081-1629 of claude/checkpoint-332: 7b104be366..0330d84902. Every tree measured in it ends with exit 2 under the current engine (proof failures), so it cannot be bisected by tm check without per-tree tm builds",
+  "named_candidates_in_range": [
+   "7540749ec5 shared-walk-owner adds semantic-targets = capture(dependencies, target, \"{*target-root}/{*semantic-tail}\") (first-parent 1233)",
+   "3c6f3c3f04 program-implementation-boundary adds local-dependencies (first-parent 1295)"
+  ],
+  "candidates_share": "together with derived-view-acquisition they account for 734 of the 2169 MB of capture rows; the remaining 1435 MB is unattributed (the nu-hex and idiomatic.ryo/language placements each lower the RSS peak by 0.7-1.1 GB)",
+  "why_the_guard_missed_it": "from d22aceaaf9 (2026-11-01) to 10c561ef6a (2026-11-09) tm linked the published ryo 0.1.1 crates; that engine refuses the current tree (exit 2 at 436632 KiB) and the guard accepted exit 0..=2, so it passed without checking. 10c561ef6a ('tastemaker resolves the local ryo crates') made tm check the tree with the local engine, and the 4.4 GB became visible. claude/w14-tm-import-reading 96b5545cb8 makes the guard hold only for a run that checked the tree. Unproven: each guard tree in that window was not run"
+ },
+ "levers": [
+  {
+   "id": "l1",
+   "rank": 1,
+   "lever": "Prepare one rule at a time inside a project cohort: declare every root to the shared walk as now, but evaluate a root's non-walk inputs in that rule's own delivery, right before its invocation, so they are released before the next rule's inputs are built. Shared producers keep their reader counts and are released after their last reader. Scheduling only: same regions, same delivery order, byte-identical findings, no new data structure.",
+   "size": "execution_runtime facade_runtime/project_execution.rs evaluate_roots and runtime/service/scheduling prepare_roots, about 150-300 lines plus project_phase tests",
+   "evidence": "h5, h9: 2169 MB of capture rows built in the first delivery's prepare_roots",
+   "expected": "the project phase is the largest single rule's inputs plus 1.56 GB of residual; unproven until measured"
+  },
+  {
+   "id": "l2",
+   "rank": 2,
+   "lever": "Let a row-local pure consumer continue on a capture's rows when the producer has several readers or the consumer keeps columns: a fan-out continuation, each reader getting the same rows in the same order, and a reshaping Select/Project writing into its scratch row, so the capture's output is never published whole. Changes fusion classification and the region continuation, not representations.",
+   "size": "execution_domain executable_program/fusion/service.rs (shape, fusibility_of), the region compiler and the kernel session continuation, about 600-1000 lines; larger",
+   "evidence": "h8; local-dependencies 3480084 rows, from paths 727134 rows, from 118446 source-dependency rows",
+   "expected": "removes most of the 2169 MB; also lowers file-phase materializations of the same shape"
+  },
+  {
+   "id": "l3",
+   "rank": 3,
+   "lever": "The file phase: 2.51 GB of heap just before the project phase (visit_file 1.94 GB, parse_file 1.08 GB, collected findings 0.35 GB). Needs its own diagnosis.",
+   "evidence": "dump 474",
+   "expected": "needed to reach the 1.33 GB guard"
+  }
+ ],
+ "question_4_expected_peak": {
+  "after_l1_or_l2": "about 2.6-2.8 GB RSS: the file-phase peak (2.51 GB heap x 1.054, the RSS/heap ratio of the head run) becomes the maximum. This is an estimate from the profile, not a measurement",
+  "after_l1_l2_l3": "unknown; the guard is 1.33 GB, and the file phase alone is over it at head"
+ },
+ "reviewer": "perf-diagnosis",
+ "date": "2026-11-09T18:30:00Z"
+}
