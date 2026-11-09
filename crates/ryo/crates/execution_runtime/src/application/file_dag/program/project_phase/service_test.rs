@@ -5,7 +5,10 @@ use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
 use crate::application::file_dag::program::project_phase::types::{PhaseScope, ProjectInput, ProjectPhase, ProjectTask};
+use crate::application::file_dag::frontiers::errors::PreparationError;
+use crate::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use crate::application::file_dag::program::request_execution::service::begin;
 use crate::application::file_dag::program::rule_outcome::types::{ProjectBatch, ProjectOutputOutcome, RuleOutcome};
 use ryo_execution_domain::domain::coverage::types::{Covered, InapplicableFiles, Partials, RefusedFiles, RuleIndex};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -282,8 +285,9 @@ fn a_root_whose_emit_is_not_demanded_answers_no_query() {
     request.finish();
 }
 
-/// A root whose observations are not demanded invokes none of its observation roots: the producer's observation reads the
-/// project relation, which these facts refuse to answer (they panic), and its outcome publishes nothing.
+/// A root whose observations are not demanded invokes none of its observation roots, and its outcome publishes nothing. Preparation
+/// reads the producer's project relation through empty facts, so nothing refuses the observation root's read: the proof is the
+/// outcome's empty observations, which a `Required` demand would fill with one outcome per cross-file observation root.
 #[test]
 fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
     let prepared = producer_program();
@@ -320,4 +324,67 @@ fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
     drop(scope);
     phase.finish().expect("the phase finishes");
     request.finish();
+}
+
+/// Each phase a request opens owns its own publication: a scope one phase still holds, its root evaluated, makes that phase's
+/// finish refuse, and leaves another phase of the same request free to finish.
+#[test]
+fn finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication() {
+    let prepared = program(Entry::Phase, 3);
+    let corpus = corpus();
+    let request = begin(&prepared, &corpus);
+    let (held, other) = (request.project_phase().expect("a phase opens"), request.project_phase().expect("a phase opens"));
+    let scope = held
+        .project_scope(RuleIndex(0), &corpus, &covered(3), &[], &InapplicableFiles::default(), &RefusedFiles::default())
+        .expect("a declared rule has a scope");
+    let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
+    evaluate_one(&held, RuleIndex(0), DIAGNOSTIC, &scope, frontiers).expect("the root is evaluated");
+    assert!(other.finish().is_ok(), "another phase's scope does not hold this phase's publication");
+    assert!(
+        matches!(held.finish(), Err(OperatingError::NotRead)),
+        "an outstanding scope keeps its own phase's publication shared, so finish reports the refusal"
+    );
+    drop(scope);
+    request.finish();
+}
+
+/// A scope is opened only for a rule the program declared, in the request's project phase and in the phase its observation stage
+/// owns; and the phase's frontiers are prepared only for a declared rule.
+#[test]
+fn frontiers_and_scopes_of_an_undeclared_rule_are_refused() {
+    for entry in [Entry::Phase, Entry::Stage] {
+        let prepared = program(entry, 3);
+        let corpus = corpus();
+        let request = begin(&prepared, &corpus);
+        let mut arenas = Vec::new();
+        let check = |phase: &ProjectPhase<'_>| {
+            let scope = |rule| {
+                phase.project_scope(rule, &corpus, &covered(3), &[], &InapplicableFiles::default(), &RefusedFiles::default())
+            };
+            assert!(scope(RuleIndex(2)).is_ok());
+            assert!(matches!(scope(RuleIndex(3)), Err(OperatingError::NotRun)));
+            if matches!(entry, Entry::Stage) {
+                return;
+            }
+            let declared = scope(RuleIndex(0)).expect("a declared rule has a scope");
+            assert!(prepare_for(&request, &declared, RuleIndex(0)).is_ok());
+            assert!(matches!(
+                prepare_for(&request, &declared, RuleIndex(3)),
+                Err(PreparationError::Metadata(OperatingError::NotRead))
+            ));
+        };
+        match entry {
+            Entry::Phase => {
+                let phase = request.project_phase().expect("the phase opens");
+                check(&phase);
+                phase.finish().expect("the phase finishes");
+            }
+            Entry::Stage => {
+                let stage = request.observations(&mut arenas).expect("the stage opens");
+                check(&stage.phase);
+                stage.finish_stage().expect("the stage finishes");
+            }
+        }
+        request.finish();
+    }
 }

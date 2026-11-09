@@ -11,10 +11,8 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecutio
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
-use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
 use ryo_execution_runtime::application::file_dag::frontiers::types::BoundInput;
 use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PreparedFrontiers;
 use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileFinished;
@@ -26,8 +24,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseScope;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::OccurrenceNumber;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop;
@@ -43,7 +39,7 @@ use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution_domain::domain::operator::types::LogicalCounts;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
-use ryo_execution::inbound::use_cases::execution::interface::RuleDemand;
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_language::domain::symbols::types::Symbols;
@@ -55,8 +51,7 @@ use ryo_values::domain::{
 };
 
 /// One variant per method of every entry trait, generated with its inventory so a variant cannot
-/// be missing from `ALL`; `TRAIT_METHODS` counts the methods of each trait in the same list, and
-/// `controls::every_trait_method_has_its_own_variant` compares them to the trait sources. `witness` below maps each trait method here, and the exhaustive `match`
+/// be missing from `ALL`. `witness` below maps each trait method here, and the exhaustive `match`
 /// in `controls::control` refuses to compile for a variant without a control.
 macro_rules! methods {
     ($($method:ident),+ $(,)?) => {
@@ -69,7 +64,6 @@ methods!(
     UseCasePrepare,
     UseCaseExecution,
     RequestObservations,
-    RequestPrepareFrontiers,
     RequestFinish,
     RequestOpenFile,
     RequestRunFile,
@@ -77,14 +71,12 @@ methods!(
     RootsEvaluateOccurrences,
     RootsReadinessCounts,
     StageStateCounts,
-    StageProjectScope,
     StageFinish,
     ObservedReserve,
     ObservedBindings,
     ObservedBindingReadiness,
     ObservedFrontierReadiness,
     ObservedArenas,
-    ObservedProjectScope,
     ObservedFinish,
     ObservedFinishStage,
     PublicationInstall,
@@ -133,13 +125,6 @@ impl ExecutionRequest for Witness {
     ) -> Result<ObservationStage<'a>, OperatingError> {
         witness(Method::RequestObservations)
     }
-    fn prepare_frontiers(
-        &self,
-        _: FrontierRequest<'_>,
-        _: &mut Symbols,
-    ) -> Result<PreparedFrontiers, PreparationError> {
-        witness(Method::RequestPrepareFrontiers)
-    }
     fn finish(self) {
         witness(Method::RequestFinish)
     }
@@ -183,17 +168,6 @@ impl ProjectStage for Witness {
     fn state_counts(&self) -> InvocationStateCounts {
         witness(Method::StageStateCounts)
     }
-    fn project_scope(
-        &self,
-        _: RuleIndex,
-        _: &[CorpusInput],
-        _: &[Covered],
-        _: &[Skipped],
-        _: &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles,
-        _: &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles,
-    ) -> Result<PhaseScope, OperatingError> {
-        witness(Method::StageProjectScope)
-    }
     fn finish(self) -> Result<(), OperatingError> {
         witness(Method::StageFinish)
     }
@@ -216,17 +190,6 @@ impl ObservationExecution for Witness {
     }
     fn arenas(&self) -> &[ArenaBytes] {
         witness(Method::ObservedArenas)
-    }
-    fn project_scope(
-        &self,
-        _: RuleIndex,
-        _: &[CorpusInput],
-        _: &[Covered],
-        _: &[Skipped],
-        _: &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles,
-        _: &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles,
-    ) -> Result<PhaseScope, OperatingError> {
-        witness(Method::ObservedProjectScope)
     }
     fn finish(&mut self, _: RuleIndex) -> Result<(), OperatingError> {
         witness(Method::ObservedFinish)

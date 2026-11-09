@@ -5,7 +5,8 @@ use ryo_execution_runtime::application::file_dag::program::request_execution::in
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use crate::inbound::use_cases::execution::interface::{ExecutionUseCase, CaptureIntent, DiagnosticDelivery, EmitDemand, FileRuleIntent, ObservationDemand, RuleDemand, RuleIndex};
+use crate::inbound::use_cases::execution::interface::{ExecutionUseCase, CaptureIntent, DiagnosticDelivery, FileRuleIntent, ObservationDemand, RuleIndex};
+use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use std::collections::BTreeMap;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;

@@ -8,7 +8,6 @@ use crate::application::file_dag::program::observation_stage::interface::Observa
 use crate::application::file_dag::program::observation_stage::interface::ObservationPublication;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::interface::{ProjectRootExecution, ProjectStage};
-use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
@@ -83,18 +82,6 @@ impl ObservationExecution for ObservationStage<'_> {
     }
     fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes] {
         self.publications.arenas()
-    }
-    fn project_scope(
-        &self,
-        rule: RuleIndex,
-        corpus: &[CorpusInput],
-        covered: &[Covered],
-        skipped: &[Skipped],
-        inapplicable: &InapplicableFiles,
-        refused: &RefusedFiles,
-    ) -> Result<PhaseScope, OperatingError> {
-        self.phase
-            .project_scope(rule, corpus, covered, skipped, inapplicable, refused)
     }
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
         self.publications.finish(rule)

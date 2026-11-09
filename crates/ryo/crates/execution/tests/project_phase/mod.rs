@@ -19,7 +19,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::{PhaseOccurrence, PhaseOccurrences};
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;

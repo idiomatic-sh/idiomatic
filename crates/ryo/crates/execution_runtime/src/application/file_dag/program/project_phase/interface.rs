@@ -1,20 +1,14 @@
 //! What a project phase offers a caller.
-use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::{OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop};
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
-use ryo_execution_domain::domain::coverage::types::Covered;
-use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
-use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
 use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::files::types::CorpusInput;
-use ryo_values::domain::runs::types::Skipped;
 /// Project rules are collected only; no row callback delivery exists on this route.
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
@@ -49,14 +43,5 @@ pub trait ProjectRootExecution {
 }
 pub trait ProjectStage: ProjectRootExecution {
     fn state_counts(&self) -> InvocationStateCounts;
-    fn project_scope(
-        &self,
-        rule: RuleIndex,
-        corpus: &[CorpusInput],
-        covered: &[Covered],
-        skipped: &[Skipped],
-        inapplicable: &InapplicableFiles,
-        refused: &RefusedFiles,
-    ) -> Result<PhaseScope, OperatingError>;
     fn finish(self) -> Result<(), OperatingError>;
 }

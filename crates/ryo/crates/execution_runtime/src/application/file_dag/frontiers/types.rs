@@ -34,7 +34,7 @@ pub(crate) struct FrontierSource {
 /// One acquisition of the frontier sources. The request owner hands the same acquisition to every
 /// root of one population (see `FrontierCache`); a clone shares the rows and never copies them.
 #[derive(Clone)]
-pub struct PreparedFrontiers {
+pub(crate) struct PreparedFrontiers {
     pub(in crate::application::file_dag::frontiers) producer: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub(in crate::application::file_dag::frontiers) sources: std::sync::Arc<[FrontierSource]>,
     pub(in crate::application::file_dag::frontiers) rows: std::sync::Arc<[FrontierInput]>,

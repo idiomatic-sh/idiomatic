@@ -2,6 +2,10 @@
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
@@ -226,58 +230,50 @@ fn exercise(case: Case) {
             _ => Vec::new(),
         }),
     ];
-    let scope = phase
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &[],
-            &skipped,
-            &inapplicable[0],
-            &refused[0],
-        )
-        .unwrap();
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
-    let ordinary = request.prepare_frontiers(
-        FrontierRequest {
-            demand: FrontierDemand::Diagnostic,
-            scope: &scope,
-            rule: RuleIndex(0),
-            first: Bucket(0),
-            facts: &stored,
-            project: &project,
-            project_symbols: &project_symbols,
-        },
-        &mut symbols,
-    );
+    let partials = Partials::default();
+    let occurrences = PhaseOccurrences {
+        occurrences: &[ordinary_occurrence(RuleIndex(0))],
+        first: &[Bucket(0)],
+        corpus: &corpus,
+        covered: &[],
+        skipped: &skipped,
+        inapplicable: &inapplicable,
+        refused: &refused,
+        facts: &stored,
+        project: &project,
+        project_symbols: &project_symbols,
+        arenas: &[],
+    };
     if !matches!(case, Case::RejectedSyntax | Case::UndeterminedSyntax) {
-        assert!(ordinary.is_err(), "invalid transport accepted: {case:?}");
+        // The phase scopes the occurrence and prepares its frontiers itself: invalid transport is its frontiers' refusal.
+        let batch = phase.evaluate_occurrences(
+            occurrences,
+            &mut symbols,
+            |_| Ok::<(), OperatingError>(()),
+            |_| {
+                Ok(PhasePartials {
+                    evaluation: partials.clone(),
+                    publication: partials.clone(),
+                })
+            },
+            |_| Ok(()),
+            |_, outcome, _, _| Ok(outcome),
+        );
+        let ProjectBatch::Complete(done) = batch else {
+            panic!("the guard admits every occurrence")
+        };
+        assert!(
+            matches!(done.as_slice(), [Err(PhaseStop::Frontiers(_))]),
+            "invalid transport accepted: {case:?}"
+        );
         return;
     }
-    drop(ordinary.expect("explicit rejection or refusal accounts for absent transport"));
-    drop(scope);
-    let partials = Partials::default();
-    let RootOutcome::Partial { table, affected } = crate::boundary_fixture::project_root(
-        &phase,
-        PhaseOccurrences {
-            occurrences: &[ordinary_occurrence(RuleIndex(0))],
-            first: &[Bucket(0)],
-            corpus: &corpus,
-            covered: &[],
-            skipped: &skipped,
-            inapplicable: &inapplicable,
-            refused: &refused,
-            facts: &stored,
-            project: &project,
-            project_symbols: &project_symbols,
-            arenas: &[],
-        },
-        &partials,
-        &partials,
-        &mut symbols,
-    )
-    .unwrap()
-    .emit
+    let RootOutcome::Partial { table, affected } =
+        crate::boundary_fixture::project_root(&phase, occurrences, &partials, &partials, &mut symbols)
+            .expect("explicit rejection or refusal accounts for absent transport")
+            .emit
     else {
         panic!("a skipped or refused partition must not become complete empty input: {case:?}")
     };

@@ -15,7 +15,6 @@ use crate::application::file_dag::program::project_phase::types::PhaseStop;
 use crate::application::file_dag::program::project_phase::types::PreparedOccurrence;
 use crate::application::file_dag::program::project_phase::types::ReadyOccurrence;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
@@ -138,7 +137,20 @@ impl ProjectStage for ProjectPhase<'_> {
     fn state_counts(&self) -> InvocationStateCounts {
         self.publication.state_counts()
     }
-    fn project_scope(
+    fn finish(self) -> Result<(), OperatingError> {
+        match std::rc::Rc::try_unwrap(self.publication) {
+            Ok(publication) => publication.finish(),
+            Err(shared) => {
+                drop(shared);
+                Err(OperatingError::NotRead)
+            }
+        }
+    }
+}
+impl ProjectPhase<'_> {
+    /// The files `rule` reads in this phase, sharing the phase's publication. Crate-private: `evaluate_occurrences` scopes each
+    /// occurrence itself, so no caller outside the engine holds a scope.
+    pub(crate) fn project_scope(
         &self,
         rule: RuleIndex,
         corpus: &[CorpusInput],
@@ -162,17 +174,6 @@ impl ProjectStage for ProjectPhase<'_> {
             publication: std::rc::Rc::clone(&self.publication),
         })
     }
-    fn finish(self) -> Result<(), OperatingError> {
-        match std::rc::Rc::try_unwrap(self.publication) {
-            Ok(publication) => publication.finish(),
-            Err(shared) => {
-                drop(shared);
-                Err(OperatingError::NotRead)
-            }
-        }
-    }
-}
-impl ProjectPhase<'_> {
     /// Bind all actual tasks, prepare compatible root cohorts, then deliver in declaration order. Crate-private: a caller hands the
     /// phase its declared occurrences through `evaluate_occurrences`, never tasks of its own.
     pub(crate) fn evaluate<E>(
