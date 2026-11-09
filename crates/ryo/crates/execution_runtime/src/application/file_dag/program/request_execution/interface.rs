@@ -1,6 +1,4 @@
 //! What a request execution offers a caller.
-use crate::application::file_dag::frontiers::errors::PreparationError;
-use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 #[cfg(any(test, feature = "fixtures"))]
 use crate::application::file_dag::program::file_session::types::FileInput;
@@ -10,7 +8,6 @@ use crate::application::file_dag::program::file_session::types::FileRunInput;
 use crate::application::file_dag::program::file_session::types::FileSession;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
-use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::symbols::types::Symbols;
@@ -19,11 +16,6 @@ pub trait ExecutionRequest {
         &'a self,
         arenas: &'a mut Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
     ) -> Result<ObservationStage<'a>, OperatingError>;
-    fn prepare_frontiers(
-        &self,
-        input: FrontierRequest<'_>,
-        symbols: &mut Symbols,
-    ) -> Result<PreparedFrontiers, PreparationError>;
     fn finish(self)
     where
         Self: Sized;

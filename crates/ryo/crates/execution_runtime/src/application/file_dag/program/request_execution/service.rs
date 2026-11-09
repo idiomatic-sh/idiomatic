@@ -63,27 +63,6 @@ impl ExecutionRequest for RequestExecution {
             publications,
         })
     }
-    fn prepare_frontiers(
-        &self,
-        input: FrontierRequest<'_>,
-        symbols: &mut Symbols,
-    ) -> Result<PreparedFrontiers, PreparationError> {
-        let policy = match input.demand {
-            FrontierDemand::Diagnostic => PreparationPolicy::Diagnostic,
-            FrontierDemand::Observations { ready } => PreparationPolicy::Observations { ready: &ready.0 },
-        };
-        self.frontiers.prepared(
-            &self.program,
-            input.rule,
-            input.first,
-            input.facts,
-            input.project,
-            input.project_symbols,
-            symbols,
-            &input.scope.required,
-            policy,
-        )
-    }
     fn finish(self) {
         drop(self);
     }
@@ -117,6 +96,29 @@ impl ExecutionRequest for RequestExecution {
     }
 }
 impl RequestExecution {
+    /// Prepares the frontiers of one occurrence over its scope. Crate-private: the phase's `evaluate_occurrences` is its one
+    /// caller, so no caller outside the engine acquires or holds a project population.
+    pub(crate) fn prepare_frontiers(
+        &self,
+        input: FrontierRequest<'_>,
+        symbols: &mut Symbols,
+    ) -> Result<PreparedFrontiers, PreparationError> {
+        let policy = match input.demand {
+            FrontierDemand::Diagnostic => PreparationPolicy::Diagnostic,
+            FrontierDemand::Observations { ready } => PreparationPolicy::Observations { ready: &ready.0 },
+        };
+        self.frontiers.prepared(
+            &self.program,
+            input.rule,
+            input.first,
+            input.facts,
+            input.project,
+            input.project_symbols,
+            symbols,
+            &input.scope.required,
+            policy,
+        )
+    }
     /// Opens one file's session: the engine's own route under `run_file`, sealed to the crate. It answers the session's crate-private
     /// parts, so widening it to `pub` fails the crate's own build (`private_interfaces`).
     pub(crate) fn open_session<'a, 'facts: 'a>(

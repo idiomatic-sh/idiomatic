@@ -7,7 +7,7 @@ use super::routes::{file_route, run_file_route};
 use super::witness::{ALL, Method, Witness, implements_every_entry_trait};
 use crate::boundary_fixture::{corpus, demand, engine, prepared_rules};
 use crate::file_intents::named_request;
-use crate::project_phase::negative::fixtures::{Entry, Held, NoFacts, prepare_for, with_held};
+use crate::project_phase::negative::fixtures::{Entry, Held, NoFacts, with_held};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
@@ -29,7 +29,6 @@ use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
 use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
@@ -52,13 +51,8 @@ pub(super) fn control(method: Method) -> Control {
         Method::RequestOpenFile => Control::Refuses(file_route),
         Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
-        Method::RequestPrepareFrontiers => Control::Refuses(frontiers_of_an_undeclared_rule),
-        Method::RequestProjectPhase => Control::Refuses(each_phase_owns_its_publication),
+        Method::RequestProjectPhase => Control::Refuses(occurrence_of_an_undeclared_rule),
         Method::RootsEvaluateOccurrences => Control::Refuses(occurrence_of_an_undeclared_rule),
-        Method::StageProjectScope => Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Phase)),
-        Method::ObservedProjectScope => {
-            Control::Refuses(|| scope_of_an_undeclared_rule(Entry::Stage))
-        }
         Method::ObservedReserve
         | Method::ObservedBindings
         | Method::ObservedBindingReadiness
@@ -102,21 +96,6 @@ pub(super) fn observations_need_a_named_program() {
         .finish_stage()
         .unwrap();
     request.finish();
-}
-pub(super) fn frontiers_of_an_undeclared_rule() {
-    with_held(
-        &engine(),
-        Entry::Phase,
-        3,
-        |request, held, corpus, covered| {
-            let scope = held.try_scope(RuleIndex(0), corpus, covered).unwrap();
-            assert!(prepare_for(request, &scope, RuleIndex(0)).is_ok());
-            assert!(matches!(
-                prepare_for(request, &scope, RuleIndex(3)),
-                Err(PreparationError::Metadata(OperatingError::NotRead))
-            ));
-        },
-    );
 }
 /// A phase refuses the occurrence of a rule the program did not declare, and that refusal stays with the occurrence: the declared
 /// occurrences beside it, a repeated rule included, are each evaluated and completed with their slot in declaration order, and the
@@ -183,42 +162,6 @@ pub(super) fn occurrence_of_an_undeclared_rule() {
             phase.finish().is_ok(),
             "the phase is released once its occurrences are completed"
         );
-    });
-}
-/// Each phase a request opens owns its own publication: a scope one phase still holds makes that phase's finish refuse, and leaves
-/// another phase of the same request free to finish.
-pub(super) fn each_phase_owns_its_publication() {
-    with_held(&engine(), Entry::Phase, 3, |request, _, corpus, covered| {
-        let held = request.project_phase().expect("the first phase opens");
-        let other = request.project_phase().expect("the second phase opens");
-        let scope = held
-            .project_scope(
-                RuleIndex(0),
-                corpus,
-                covered,
-                &[],
-                &InapplicableFiles::default(),
-                &RefusedFiles::default(),
-            )
-            .expect("a declared rule has a scope");
-        assert!(
-            other.finish().is_ok(),
-            "another phase's scope does not hold this phase's publication"
-        );
-        assert!(
-            matches!(held.finish(), Err(OperatingError::NotRead)),
-            "an outstanding scope keeps its own phase's publication shared"
-        );
-        drop(scope);
-    });
-}
-pub(super) fn scope_of_an_undeclared_rule(entry: Entry) {
-    with_held(&engine(), entry, 3, |_, held, corpus, covered| {
-        assert!(held.try_scope(RuleIndex(2), corpus, covered).is_ok());
-        assert!(matches!(
-            held.try_scope(RuleIndex(3), corpus, covered),
-            Err(OperatingError::NotRun)
-        ));
     });
 }
 /// Every file-session method that takes a RuleIndex refuses a rule the session did not declare.

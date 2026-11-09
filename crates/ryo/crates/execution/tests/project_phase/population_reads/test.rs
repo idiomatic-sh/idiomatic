@@ -1,5 +1,7 @@
 //! Two declared roots of one population read the provider once.
 use super::super::*;
+use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 
 #[test]
 fn two_declared_roots_of_one_population_read_the_provider_once() {
@@ -161,76 +163,42 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             partial: vec![],
         }];
         let phase = request.project_phase().unwrap();
-        let scope = phase
-            .project_scope(
-                RuleIndex(0),
-                &corpus,
-                &covered,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-            )
-            .unwrap();
         let project_symbols = Symbols::default();
         let mut symbols = Symbols::default();
-        // The production sequence: one prepare call per declared root, as core issues one per rule.
-        // The engine, not the caller, makes the second call reuse the first acquisition.
-        let prepare = |symbols: &mut Symbols, want: FrontierDemand<'_>| {
-            request
-                .prepare_frontiers(
-                    FrontierRequest {
-                        demand: want,
-                        scope: &scope,
-                        rule: RuleIndex(0),
-                        first: Bucket(0),
-                        facts: &stored,
-                        project: &project,
-                        project_symbols: &project_symbols,
-                    },
-                    symbols,
-                )
-                .expect("admit real file frontier and project facts")
-        };
-        let first = prepare(&mut symbols, FrontierDemand::Diagnostic);
-        let second = prepare(&mut symbols, FrontierDemand::Diagnostic);
-        assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
-        assert_eq!(project.reads.load(Ordering::SeqCst), 1);
-        // Negative control: a different population (observed demand) is a separate acquisition.
-        let _other = prepare(
-            &mut symbols,
-            FrontierDemand::Observations {
-                ready: &ReadinessProof::stated(vec![InputReadiness::Ready, InputReadiness::Ready]),
-            },
-        );
-        assert_eq!(
-            stored.reads.load(Ordering::SeqCst),
-            2,
-            "another population reads the provider again"
-        );
-        assert_eq!(project.reads.load(Ordering::SeqCst), 2);
         let partials = Partials::default();
         let root = crate::boundary_fixture::ordinary_occurrence(RuleIndex(0));
+        let ready = ReadinessProof::stated(vec![InputReadiness::Ready, InputReadiness::Ready]);
+        let observed = PhaseOccurrence {
+            demand: FrontierDemand::Observations { ready: &ready },
+            ..root
+        };
+        let inapplicable = [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()];
+        let refused = [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()];
+        let (pair, single) = ([root, root], [observed]);
+        let occurrences = |occurrences| PhaseOccurrences {
+            occurrences,
+            first: &[Bucket(0)],
+            corpus: &corpus,
+            covered: &covered,
+            skipped: &[],
+            inapplicable: &inapplicable,
+            refused: &refused,
+            facts: &stored,
+            project: &project,
+            project_symbols: &project_symbols,
+            arenas: &[],
+        };
+        // The production sequence: one call with two declared occurrences of one population. The phase prepares every occurrence
+        // before it evaluates any, so the second reuses the first's acquisition while nothing outside the engine holds it.
         let mut outcomes = crate::boundary_fixture::project_roots(
             &phase,
-            PhaseOccurrences {
-                occurrences: &[root, root],
-                first: &[Bucket(0)],
-                corpus: &corpus,
-                covered: &covered,
-                skipped: &[],
-                inapplicable: &[ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()],
-                refused: &[ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()],
-                facts: &stored,
-                project: &project,
-                project_symbols: &project_symbols,
-                arenas: &[],
-            },
+            occurrences(&pair),
             &partials,
             &partials,
             &mut symbols,
         );
-        // The held frontiers keep the population acquired, so the occurrences share it.
-        drop((first, second));
+        assert_eq!(stored.reads.load(Ordering::SeqCst), 1);
+        assert_eq!(project.reads.load(Ordering::SeqCst), 1);
         let again = outcomes.pop().unwrap().unwrap();
         let outcome = outcomes
             .pop()
@@ -258,12 +226,40 @@ fn two_declared_roots_of_one_population_read_the_provider_once() {
             counts,
             "one cached project invocation, with no second semantic evaluation"
         );
-        drop(scope);
+        // Negative control: a different population (observed demand) is a separate acquisition.
+        let _other = phase.evaluate_occurrences(
+            occurrences(&single),
+            &mut symbols,
+            |_| Ok::<(), OperatingError>(()),
+            |_| {
+                Ok(PhasePartials {
+                    evaluation: partials.clone(),
+                    publication: partials.clone(),
+                })
+            },
+            |_| Ok(()),
+            |_, _, _, _| Ok(()),
+        );
+        assert_eq!(
+            stored.reads.load(Ordering::SeqCst),
+            2,
+            "another population reads the provider again"
+        );
+        assert_eq!(project.reads.load(Ordering::SeqCst), 2);
+        // A later call holds nothing from the earlier ones: its two occurrences share one new acquisition.
+        let later = crate::boundary_fixture::project_roots(
+            &phase,
+            occurrences(&pair),
+            &partials,
+            &partials,
+            &mut symbols,
+        );
+        assert!(later.iter().all(Result::is_ok));
         phase.finish().expect("release project publications");
         assert_eq!(
             project.reads.load(Ordering::SeqCst),
-            2,
-            "the two roots added no read beyond the two populations' acquisitions"
+            3,
+            "the two occurrences of one call share one acquisition"
         );
         request.finish();
         assert_eq!(

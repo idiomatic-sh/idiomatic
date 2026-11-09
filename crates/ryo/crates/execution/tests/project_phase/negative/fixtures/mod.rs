@@ -14,20 +14,13 @@ use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
-use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PreparedFrontiers;
 use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseScope;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierRequest;
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
     files::types::CorpusInput,
@@ -85,31 +78,6 @@ pub(crate) enum Held<'a> {
     Stage(ObservationStage<'a>),
 }
 impl Held<'_> {
-    pub(crate) fn try_scope(
-        &self,
-        rule: RuleIndex,
-        corpus: &[CorpusInput],
-        covered: &[Covered],
-    ) -> Result<PhaseScope, OperatingError> {
-        match self {
-            Held::Phase(phase) => phase.project_scope(
-                rule,
-                corpus,
-                covered,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-            ),
-            Held::Stage(stage) => stage.project_scope(
-                rule,
-                corpus,
-                covered,
-                &[],
-                &ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(),
-                &ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(),
-            ),
-        }
-    }
     fn finish(self) {
         match self {
             Held::Phase(phase) => phase.finish().unwrap(),
@@ -182,25 +150,6 @@ pub(crate) fn with_held<T>(
     held.finish();
     request.finish();
     found
-}
-/// Prepare the frontiers of `rule` against a scope that declared another rule.
-pub(crate) fn prepare_for(
-    request: &RequestExecution,
-    scope: &PhaseScope,
-    rule: RuleIndex,
-) -> Result<PreparedFrontiers, PreparationError> {
-    request.prepare_frontiers(
-        FrontierRequest {
-            demand: FrontierDemand::Diagnostic,
-            scope,
-            rule,
-            first: Bucket(0),
-            facts: &NoFacts,
-            project: &NoFacts,
-            project_symbols: &Symbols::default(),
-        },
-        &mut Symbols::default(),
-    )
 }
 /// A compiled rule with no file frontier to fetch.
 pub(crate) struct NoFileFrontiers;

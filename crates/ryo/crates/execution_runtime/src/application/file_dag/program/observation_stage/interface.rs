@@ -4,7 +4,6 @@ use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::observations::types::{AdmittedOutput, RuleSelection};
 use crate::application::file_dag::frontiers::types::PublicationSlot;
-use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use ryo_execution_domain::domain::coverage::types::Covered;
 use ryo_execution_domain::domain::coverage::types::FileObservationReadiness;
 use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
@@ -37,15 +36,6 @@ pub trait ObservationExecution {
     /// A rule the stage or the program did not declare.
     fn frontier_readiness(&self, rule: RuleIndex) -> Result<ReadinessProof, OperatingError>;
     fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes];
-    fn project_scope(
-        &self,
-        rule: RuleIndex,
-        corpus: &[CorpusInput],
-        covered: &[Covered],
-        skipped: &[Skipped],
-        inapplicable: &InapplicableFiles,
-        refused: &RefusedFiles,
-    ) -> Result<PhaseScope, OperatingError>;
     fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError>;
     fn finish_stage(self) -> Result<(), OperatingError>;
 }
