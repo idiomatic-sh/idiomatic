@@ -15,7 +15,6 @@ def dumps(v,pad=''):
  if isinstance(v,dict) and len(v)<=4 and all(not isinstance(x,(list,dict)) for x in v.values()) and len(json.dumps(v))<=300: return json.dumps(v)
  if isinstance(v,dict): return '{\n'+',\n'.join(pad+'  '+json.dumps(k)+': '+dumps(x,pad+'  ') for k,x in v.items())+'\n'+pad+'}'
  return json.dumps(v)
-def is_test_path(path): return '/test' in path or '_test.rs' in path
 def tm_target(command,log):
  """Finding count, production/test split and findings per scoped directory of one `tm check` log."""
  report=json.loads(Path(log).read_text())
@@ -26,7 +25,7 @@ def tm_target(command,log):
   if not w.startswith('--') and i not in skip: words.append(w)
  findings=[f['path'] for f in report['findings']]
  directories={d:sum(1 for f in findings if f.startswith(root+'/'+d.rstrip('/')+'/') or f==root+'/'+d) for d in words}
- test=sum(1 for f in findings if is_test_path(f))
+ test=sum(1 for f in findings if is_test_file(f))
  return {'findings':len(findings),'suppressed':len(report.get('suppressed',[])),'production':len(findings)-test,'test':test,'scoped_directories':directories}
 TM_VALIDATE='tm_validate_all'
 def tm_validate_counts(log):
@@ -327,24 +326,33 @@ def checkpoint_base(repo):
  base=git(repo,'merge-base','HEAD',CONSOLIDATION)
  return base.strip() if base else None
 def is_test_file(path):
- """A test, fixture, bench or example file: in such a directory, or named test.rs, tests.rs, fixtures.rs, *_test.rs or *_tests.rs (a Python test is test_*.py or *_test.py)."""
+ """The one test-file classifier (tm finding splits, FIX, DOC and the census): a test, fixture, bench, example or acceptance file, in such a directory (a fixtures* or *acceptance* one included), or named test.rs, tests.rs, fixtures.rs, *_test.rs or *_tests.rs; a Python test is test_*.py, *_test.py or run_test.py."""
  parts=path.split('/'); name=parts[-1]
- return any(x in ('tests','test','fixtures','benches','benchmarks','examples') for x in parts[:-1]) or name in ('test.rs','tests.rs','fixtures.rs') or name.endswith(('_test.rs','_tests.rs','_test.py')) or name.endswith('.py') and name.startswith('test_') or name=='run_test.py'
+ return any(x in ('tests','test','benches','benchmarks','examples') or x.startswith('fixtures') or 'acceptance' in x for x in parts[:-1]) or name in ('test.rs','tests.rs','fixtures.rs','run_test.py') or name.endswith(('_test.rs','_tests.rs','_test.py')) or name.endswith('.py') and name.startswith('test_')
+HARNESS=('.claude/hooks/','ci/','crates/ryo/docs/contracts/evidence/checkpoint/')
 def is_production(path):
- """A Rust source or a harness hook that is not a test, fixture or bench: a change to it can change behaviour."""
- return not is_test_file(path) and (path.endswith('.rs') or path.startswith('.claude/hooks/') and path.endswith('.py'))
-NOT_BEHAVIOUR=re.compile(r'^(perf|refactor)(\([^)]*\))?!?:')
+ """A Rust source, or the Python of the harness (the hooks, ci/ and this validation script), that is no test, fixture or bench: a change to it can change behaviour."""
+ return not is_test_file(path) and (path.endswith('.rs') or path.startswith(HARNESS) and path.endswith('.py'))
+PERF=re.compile(r'^perf(\([^)]*\))?!?:')
+PERF_EVIDENCE='crates/ryo/docs/contracts/evidence/perf/'
 NAMED_TEST=re.compile(r'\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
 def named_tests(message): return [t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
 CARGO_LINE=re.compile(r'^test (\S+) \.\.\. (ok|FAILED)\b')
 NEXTEST_LINE=re.compile(r'^\s*(PASS|FAIL|SIGSEGV|SIGABRT|TIMEOUT)\s+\[[^\]]*\]\s+\S+\s+(\S+)')
 UNITTEST_LINE=re.compile(r'^(\w+) \(([\w.]+)\)\S*.* \.\.\. (ok|FAIL|ERROR)\b')
 UNITTEST_FAILURE=re.compile(r'^(FAIL|ERROR): (\w+) \(([\w.]+)\)')
+# The runner's own frame around its results: a log without it was not written by the runner. A forger can still type
+# these lines; the check catches a hand-written result, not a deliberate fake.
+RUNNER_FRAMES=((re.compile(r'(?m)^running \d+ tests?$'),re.compile(r'(?m)^test result: (ok|FAILED)\. \d+ passed')),
+               (re.compile(r'(?m)^\s*Starting \d+ tests? across'),re.compile(r'(?m)^\s*Summary \[')),
+               (re.compile(r'(?m)^Ran \d+ tests? in '),re.compile(r'(?m)^(OK|FAILED \()')))
+def runner_framed(text): return any(head.search(text) and tail.search(text) for head,tail in RUNNER_FRAMES)
 def log_status(log,test):
- """'failed' when the log shows the test failing, 'passed' when it shows it passing and never failing, else None: cargo test, cargo nextest and unittest -v lines, a test named by its path or a suffix of it."""
+ """'failed' when the log shows the test failing, 'passed' when it shows it passing and never failing, else None: cargo test, cargo nextest and unittest -v lines inside the runner's own frame, a test named by its path or a suffix of it."""
  named=lambda path,sep: path==test or path.endswith(sep+test)
- failed=passed=False
- for line in Path(log).read_text(errors='replace').splitlines():
+ failed=passed=False; text=Path(log).read_text(errors='replace')
+ if not runner_framed(text): return None
+ for line in text.splitlines():
   m=CARGO_LINE.match(line)
   if m and named(m.group(1),'::'): failed|=m.group(2)=='FAILED'; passed|=m.group(2)=='ok'; continue
   m=NEXTEST_LINE.match(line)
@@ -366,17 +374,31 @@ def proves(entry,test,raw):
  red,green=re.search(r'\bred ([\w.-]+\.log)\b',text),re.search(r'\bgreen ([\w.-]+\.log)\b',text)
  if not red or not green or red.group(1)==green.group(1) or not (raw/red.group(1)).is_file() or not (raw/green.group(1)).is_file(): return False
  return log_status(raw/red.group(1),test)=='failed' and log_status(raw/green.group(1),test)=='passed'
+def perf_identical(repo,base,head):
+ """A perf commit's proof: an after.json under evidence/perf/ added or changed in the checkpoint, with identical_output true."""
+ for path in (git(repo,'diff','--name-only','--diff-filter=AM',base,head,'--',':(top)'+PERF_EVIDENCE) or '').split():
+  if path.endswith('/after.json'):
+   try: record=json.loads(git(repo,'show',head+':'+path) or '')
+   except ValueError: continue
+   if isinstance(record,dict) and record.get('identical_output') is True: return True
+ return False
 NO_BASE='no checkpoint base: the merge base of HEAD and '+CONSOLIDATION+' is unknown; fetch it'
 def fix_problems(v,repo=None,base=None,head='HEAD'):
- """Each commit of the checkpoint that changes production code, other than a perf or refactor commit, names a test in its message that a red_green entry over it (its base_sha excluded, its merge_sha included) proves: the entry names that test, its red log shows it fail and its green log shows it pass."""
+ """Each commit of the checkpoint that changes production code (a merge by its own changes), other than a perf commit (which needs an after.json with identical_output true), names a test in its message that a red_green entry over it (its base_sha excluded, its merge_sha included) proves: the entry names that test, its red log shows it fail and its green log shows it pass."""
  repo=repo or p; base=base or checkpoint_base(repo)
  if not base: return [NO_BASE]
  bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}
- for sha in (git(repo,'rev-list','--no-merges',base+'..'+head) or '').split():
+ for sha in (git(repo,'rev-list',base+'..'+head) or '').split():
   message=git(repo,'show','-s','--format=%B',sha) or ''
-  files=(git(repo,'diff-tree','--root','--no-commit-id','-r','--name-only',sha) or '').split()
-  if NOT_BEHAVIOUR.match(message) or not any(is_production(f) for f in files): continue
-  short=sha[:10]+' '+message.splitlines()[0][:70]; tests=named_tests(message)
+  # A merge's own changes are the files its result changes against every parent (the combined diff).
+  own=['diff-tree','--cc','--no-commit-id','--name-only',sha] if len((git(repo,'rev-list','--parents','-n1',sha) or '').split())>2 else ['diff-tree','--root','--no-commit-id','-r','--name-only',sha]
+  files=(git(repo,*own) or '').split()
+  if not any(is_production(f) for f in files): continue
+  short=sha[:10]+' '+message.splitlines()[0][:70]
+  if PERF.match(message):
+   if not perf_identical(repo,base,head): bad.append('perf '+short+': no evidence/perf/*/after.json added or changed in the checkpoint with identical_output true')
+   continue
+  tests=named_tests(message)
   if not tests: bad.append('fix '+short+': its message names no test that fails before it and passes after'); continue
   entries=[x for x in v.get('red_green',[]) if sha in covered(repo,x,ranges)]
   if not entries: bad.append('fix '+short+': no red_green entry has it between its base_sha and merge_sha'); continue
@@ -421,12 +443,21 @@ def doc_above(lines,at):
  doc=[]; i=at-1
  while i>=0 and (lines[i].strip().startswith(('///','#[','#!['))): doc.append(lines[i]); i-=1
  return '\n'.join(doc)
+def module_path(crate,path):
+ """The module path of a source file in its crate: src/a/b.rs, src/a/b/mod.rs -> a::b; src/lib.rs, src/main.rs -> the crate root."""
+ parts=path[len(crate)+1:].removesuffix('.rs').split('/')
+ parts=parts[1:] if parts[:1]==['src'] else parts
+ return '::'.join(x for x in parts if x not in ('lib','main','mod'))
 def base_items(repo,base,crate):
- """(owner, kind, name) of every pub item in the crate's production files at the base."""
+ """(module path, owner, kind, name) of every pub item in the crate's production files at the base."""
  paths=[x for x in (git(repo,'ls-tree','-r','--name-only',base,'--',':(top)'+crate) or '').split() if x.endswith('.rs') and not is_test_file(x)]
- return {i[:3] for x in paths for i in items(git(repo,'show',base+':'+x) or '')}
+ return {(module_path(crate,x),)+i[:3] for x in paths for i in items(git(repo,'show',base+':'+x) or '')}
+def has_example(doc):
+ """The doc comment has an `# Examples` section holding a fenced code block."""
+ lines=[l.strip().removeprefix('///').strip() for l in reversed(doc.splitlines())]
+ return '# Examples' in lines and any(l.startswith('```') for l in lines[lines.index('# Examples')+1:])
 def doc_problems(repo=None,base=None,head='HEAD'):
- """Each pub item a published crate gains in the checkpoint (no item of its owner, kind and name in that crate's production files at the base) has an `# Examples` section, and `# Errors` when it returns a Result."""
+ """Each pub item a published crate gains in the checkpoint (no item of its module path, owner, kind and name in that crate's production files at the base) has an `# Examples` section, and `# Errors` when it returns a Result."""
  repo=repo or p; base=base or checkpoint_base(repo)
  if not base: return [NO_BASE]
  bad=[]; olds={}
@@ -436,9 +467,9 @@ def doc_problems(repo=None,base=None,head='HEAD'):
   if crate not in olds: olds[crate]=base_items(repo,base,crate)
   lines=(git(repo,'show',head+':'+path) or '').splitlines()
   for item in items('\n'.join(lines)):
-   if item[:3] in olds[crate] or item[1:3]==('trait','Sealed'): continue
+   if (module_path(crate,path),)+item[:3] in olds[crate] or item[1:3]==('trait','Sealed'): continue
    n=item[3]; doc=doc_above(lines,n); where=path+':'+str(n+1)+' pub '+item[1]+' '+item[2]
-   if '# Examples' not in doc: bad.append(where+': no `# Examples` section')
+   if not has_example(doc): bad.append(where+': no `# Examples` section with a code block')
    signature=' '.join(lines[n:n+12]).split('{')[0].split(';')[0]
    if item[1]=='fn' and re.search(r'->\s*(?:[\w:]+::)?Result\b',signature) and '# Errors' not in doc: bad.append(where+': returns a Result with no `# Errors` section')
  return bad
@@ -466,21 +497,39 @@ SEAM_PORTS={'DigestPort','DigestBytes','FactsPort','OperatorsPort','FactsError'}
 RUNTIME_INTERNALS=('FileRunInput','FileSession','FileInput','RanRule','RuleFile','SourceRows','FileRules','FileFinished','EmittedRoot','KindSupport','SemanticSupport','CaptureContext','RuleSelection','AdmittedInput','InputAdmissions','RelationOwner','InvocationWorkspace')
 PER_FILE_FACT=re.compile(r'binding_read|binding-read|BindingRead')
 def census_production(path):
- """A production source of the product: under crates/*/src, cli/src or languages/*/src, and no test, fixture, bench, benchmark or acceptance file."""
- parts=path.split('/')
- return bool(re.match(r'(crates/[^/]+/src|cli/src|languages/[^/]+/src)/',path)) and not (is_test_file(path) or any(x.startswith('fixtures') or 'acceptance' in x for x in parts))
+ """A production source of the product: under crates/*/src, cli/src or languages/*/src, and no test file (is_test_file)."""
+ return bool(re.match(r'(crates/[^/]+/src|cli/src|languages/[^/]+/src)/',path)) and not is_test_file(path)
 def census_crate(path): return path.split('/')[0] if path.startswith('cli/') else '/'.join(path.split('/')[:2])
 CFG_TEST=re.compile(r'^\s*#\[cfg\(test\)\]',re.M)
+def item_end(text,start):
+ """The end of the item that starts at start: its closing brace, matched, or its first `;` before any brace."""
+ depth=0
+ for i in range(start,len(text)):
+  c=text[i]
+  if c==';' and depth==0: return i+1
+  if c=='{': depth+=1
+  elif c=='}':
+   depth-=1
+   if depth==0: return i+1
+ return len(text)
 def split_tests(text):
- """A production file's text before its first #[cfg(test)] item, and the test text from there on."""
- m=CFG_TEST.search(text)
- return (text[:m.start()],text[m.start():]) if m else (text,'')
+ """A production file's text without its #[cfg(test)] items, and the text of those items: each item's own extent."""
+ production,tests,at=[],[],0
+ for m in CFG_TEST.finditer(text):
+  if m.start()<at: continue
+  end=item_end(text,m.end()); production.append(text[at:m.start()]); tests.append(text[m.start():end]); at=end
+ return ''.join(production)+text[at:],''.join(tests)
 def operation_variants(text,variants):
- """The distinct Operation variants a text names: through `Operation::`, an alias of Operation (`use ...Operation as X`), or a glob import of its variants."""
- aliases={'Operation'}|set(re.findall(r'\bOperation\s+as\s+([A-Za-z_]\w*)',text))
+ """The distinct Operation variants a text names: through `Operation::`, an alias of Operation (`use ...Operation as X`, `type X = ...Operation;`), or a glob import of its variants."""
+ aliases={'Operation'}|set(re.findall(r'\bOperation\s+as\s+([A-Za-z_]\w*)',text))|set(re.findall(r'\btype\s+([A-Za-z_]\w*)\s*=\s*(?:[\w:]*::)?Operation\s*;',text))
  named=set(re.findall(r'\b(?:'+'|'.join(sorted(aliases))+r')::([A-Z]\w*)',text))
  if re.search(r'\b(?:'+'|'.join(sorted(aliases))+r')::\*|\bOperation::\{[^}]*\*',text): named|={v for v in variants if re.search(r'\b'+v+r'\b',text)}
  return named
+USE=re.compile(r'\buse\s+(?:::)?([A-Za-z_]\w*)[^;]*;',re.S)
+def resolves_to_runtime(text,name):
+ """A name a file uses is the runtime's unless every `use` that brings it in starts at another crate or at this one (crate, self, super); a name no `use` brings in counts."""
+ roots=[m.group(1) for m in USE.finditer(text) if re.search(r'\b'+name+r'\b',m.group(0))]
+ return not roots or any(r in ('ryo_execution_runtime','ryo_execution') for r in roots)
 def census(product):
  """Change-amplification counts over the product's tracked Rust files, read statically: what a change of each kind must touch outside its owner. A #[cfg(test)] part of a production file counts as test."""
  files=(git(product,'ls-files','*.rs') or '').split()
@@ -489,13 +538,16 @@ def census(product):
  test_text={f:(split_tests(text[f])[1] if f in prod_text else text[f]) for f in files}
  test_text={f:t for f,t in test_text.items() if t}
  declared=re.compile(r'\bpub (?:struct|enum|trait|type) ([A-Z]\w*)')
- home={n for f,t in prod_text.items() if f.startswith(EVALUATOR) for n in declared.findall(t)}
- # A name the runtime declares that another crate's production code also declares is ambiguous: a file naming it counts only through ryo_execution_runtime.
- vocabulary=home-{n for f,t in prod_text.items() if not f.startswith(EVALUATOR) for n in declared.findall(t)}-{'Demand'}
+ vocabulary={n for f,t in prod_text.items() if f.startswith(EVALUATOR) for n in declared.findall(t)}-{'Demand'}
+ # A name resolves to the runtime's unless the file's own crate declares it: a declaration elsewhere hides nothing.
+ local={}
+ for f,t in prod_text.items(): local.setdefault(census_crate(f),set()).update(declared.findall(t))
  named=re.compile(r'\b(?:'+'|'.join(map(re.escape,sorted(vocabulary|SEAM_PORTS)))+r')\b')
- names_evaluator=lambda t: bool(set(named.findall(t))-SEAM_PORTS) or 'ryo_execution_runtime' in t
- ev_prod=[f for f,t in prod_text.items() if not f.startswith(EVALUATOR) and names_evaluator(t)]
- ev_test=[f for f,t in test_text.items() if not f.startswith(EVALUATOR) and names_evaluator(t)]
+ # A name after `Type::` is that type's variant or item, not the runtime's type.
+ types_named=lambda t: {m.group(0) for m in named.finditer(t) if not re.search(r'[A-Z]\w*::$',t[max(0,m.start()-80):m.start()])}
+ names_evaluator=lambda f,t: bool({n for n in types_named(t)-SEAM_PORTS-local.get(census_crate(f),set())-set(declared.findall(t)) if resolves_to_runtime(t,n)}) or 'ryo_execution_runtime' in t
+ ev_prod=[f for f,t in prod_text.items() if not f.startswith(EVALUATOR) and names_evaluator(f,t)]
+ ev_test=[f for f,t in test_text.items() if not f.startswith(EVALUATOR) and names_evaluator(f,t)]
  variants=set(re.findall(r'(?m)^\s{4}([A-Z]\w*)\b',''.join(re.findall(r'pub enum Operation\b[^{]*\{(.*?)\n\}',''.join(prod_text.values()),re.S))))
  exhaustive=[f for f,t in prod_text.items() if len(operation_variants(t,variants))>=8]
  fact=[f for f,t in prod_text.items() if PER_FILE_FACT.search(t)]
@@ -517,9 +569,6 @@ def validate():
    for lock in locks: fcntl.flock(lock,fcntl.LOCK_UN)
  assert not subprocess.check_output(['git','status','--porcelain'],text=True).strip(), 'freeze source before validation'
  head=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
- def is_test(path):
-  parts=path.split('/')
-  return any(x in ('tests','test','fixtures') for x in parts[:-1]) or parts[-1] in ('test.rs','tests.rs') or parts[-1].endswith('_test.rs')
  def finding_split(cmd,log):
   # `tm check` prints its findings as one JSON document; the split is per scoped directory, test trees apart from production.
   scoped=cmd[cmd.index('check')+1:cmd.index('--format')]
@@ -527,7 +576,7 @@ def validate():
   by_directory={x:{'production':0,'test':0} for x in scoped}
   for finding in found['findings']:
    owner=[x for x in scoped if finding['path'].startswith('crates/ryo/'+x+'/') or finding['path']=='crates/ryo/'+x]
-   by_directory[owner[0]]['test' if is_test(finding['path']) else 'production']+=1
+   by_directory[owner[0]]['test' if is_test_file(finding['path']) else 'production']+=1
   return {'total':len(found['findings']),'suppressed':len(found['suppressed']),'production':sum(v['production'] for v in by_directory.values()),'test':sum(v['test'] for v in by_directory.values()),'by_directory':by_directory}
  # Each worktree builds into its own target directory, idiomatic-target/<worktree name> in the workspace mount: cargo judges
  # freshness by source mtimes, so a target shared across worktrees served validation327 units another tree built.

@@ -102,8 +102,8 @@ def commit(repo,files,message):
   f.parent.mkdir(parents=True,exist_ok=True); f.write_text(body)
  subprocess.run(['git','-C',repo,'add','-A'],check=True); subprocess.run(['git','-C',repo,'commit','-q','-m',message],check=True)
  return subprocess.run(['git','-C',repo,'rev-parse','HEAD'],capture_output=True,text=True,check=True).stdout.strip()
-RED='test domain::service_test::one_answers ... FAILED\n'
-GREEN='test domain::service_test::one_answers ... ok\n'
+RED='running 1 test\ntest domain::service_test::one_answers ... FAILED\n\ntest result: FAILED. 0 passed; 1 failed\n'
+GREEN='running 1 test\ntest domain::service_test::one_answers ... ok\n\ntest result: ok. 1 passed; 0 failed\n'
 class Diff(unittest.TestCase):
  """The checkpoint-diff checks: a fix carries its red-then-green, and a published crate's new pub item its examples."""
  def setUp(self):
@@ -111,7 +111,7 @@ class Diff(unittest.TestCase):
   subprocess.run(['git','init','-q','-b','claude/checkpoint-9',self.repo],check=True)
   for k,x in (('user.email','t@example.com'),('user.name','t')): subprocess.run(['git','-C',self.repo,'config',k,x],check=True)
   (Path(self.repo)/'.gitignore').write_text('raw/\n')
-  self.base=commit(self.repo,{'a/Cargo.toml':'[package]\nname="a"\n','a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\npub fn one() {}\n','a/src/old.rs':'pub fn kept() {}\n','a/tests/t.rs':'pub fn shadow() {}\n','b/Cargo.toml':'[package]\nname="b"\npublish = false\n','b/src/lib.rs':''},'chore: base')
+  self.base=commit(self.repo,{'a/Cargo.toml':'[package]\nname="a"\n','a/src/lib.rs':'/// One.\n///\n/// # Examples\n/// ```\n/// ```\npub fn one() {}\n','a/src/old.rs':'pub fn kept() {}\n','a/src/x.rs':'pub fn parse() {}\n','a/tests/t.rs':'pub fn shadow() {}\n','b/Cargo.toml':'[package]\nname="b"\npublish = false\n','b/src/lib.rs':''},'chore: base')
  def tearDown(self): self.dir.cleanup()
  def logs(self,**named):
   for name,text in named.items(): (self.raw/(name+'.log')).write_text(text)
@@ -128,39 +128,67 @@ class Diff(unittest.TestCase):
   self.assertTrue(any('between its base_sha and merge_sha' in x and sha[:10] in x for x in self.fixes([{'test':'service_test::one_answers (red red.log, green green.log)','base_sha':sha,'merge_sha':sha}])))
  def test_an_entry_that_does_not_prove_the_named_test_is_refused(self):
   sha=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): one answers, `service_test::one_answers`')
-  self.logs(red=RED,green=GREEN,cli_tests='test other::case ... ok\n',flipped=GREEN)
+  self.logs(red=RED,green=GREEN,cli_tests='test other::case ... ok\n',flipped=GREEN,typed='test domain::service_test::one_answers ... FAILED\n')
   for text in ('a service_test::one_answers',                                          # no logs
                'a service_test::one_answers (red red.log)',                            # one log only
                'a service_test::one_answers (red red.log, green red.log)',             # the same log twice
                'a service_test::one_answers (red cli_tests.log, green green.log)',     # an unrelated red log
                'a service_test::one_answers (red flipped.log, green green.log)',       # a red log where it passed
                'a service_test::one_answers (red red.log, green gone.log)',            # a log not in the directory
+               'a service_test::one_answers (red typed.log, green green.log)',         # a red log without the runner's frame
                'a other::case (red red.log, green green.log)'):                       # another test than the message names
    with self.subTest(text=text): self.assertIn('no red_green entry over it names a test',self.fixes([self.entry(sha,text)])[0])
  def test_a_module_path_in_the_message_is_no_proved_test(self):
   sha=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): guard_shell::builder_check refuses more')
   self.logs(cli_tests='test other::case ... ok\n')
   self.assertEqual(len(self.fixes([self.entry(sha,'guard_shell::builder_check (red cli_tests.log, green cli_tests.log)')])),1)
- def test_a_behaviour_change_of_any_type_but_perf_and_refactor_is_a_fix(self):
-  for n,kind in enumerate(('chore','docs','test','style','build')):
+ def test_a_behaviour_change_of_any_type_but_perf_is_a_fix(self):
+  for n,kind in enumerate(('chore','docs','test','style','build','refactor')):
    with self.subTest(kind=kind):
     commit(self.repo,{'a/src/lib.rs':'pub fn one() {'+' '*(n+1)+'}\n'},kind+'(a): one')
     self.assertEqual(len(self.fixes([])),n+1)
- def test_docs_tests_refactors_and_perf_are_not_fixes(self):
-  for files,message in (({'a/src/lib.rs':'pub fn one() { }\n'},'refactor(a): one'),({'a/src/lib.rs':'pub fn one() {  }\n'},'perf(a): one'),
-                        ({'a/src/lib_test.rs':'x'},'fix(a): a test'),({'a/README.md':'x'},'fix(a): docs')):
-   commit(self.repo,files,message)
+ def test_harness_python_is_production(self):
+  for n,path in enumerate(('ci/contract_review/service.py','crates/ryo/docs/contracts/evidence/checkpoint/run.py','.claude/hooks/guard_shell.py')):
+   with self.subTest(path=path):
+    commit(self.repo,{path:'x = '+str(n)+'\n'},'chore: harness')
+    self.assertEqual(len(self.fixes([])),n+1)
+ def test_test_files_and_docs_are_not_fixes(self):
+  commit(self.repo,{'a/src/lib_test.rs':'x','a/README.md':'x','ci/contract_review/service_test.py':'x','.claude/hooks/test_hooks.py':'x'},'fix(a): tests and docs')
   self.assertEqual(self.fixes([]),[])
+ def test_a_perf_commit_needs_an_after_json_with_identical_output(self):
+  commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'perf(a): one is faster')
+  self.assertIn('identical_output true',self.fixes([])[0])
+  commit(self.repo,{'crates/ryo/docs/contracts/evidence/perf/one/after.json':'{"identical_output": false}'},'docs: perf evidence')
+  self.assertEqual(len(self.fixes([])),1)
+  commit(self.repo,{'crates/ryo/docs/contracts/evidence/perf/one/after.json':'{"identical_output": true}'},'docs: perf evidence')
+  self.assertEqual(self.fixes([]),[])
+ def test_a_merges_own_production_change_is_a_fix_and_a_clean_merge_is_not(self):
+  subprocess.run(['git','-C',self.repo,'checkout','-q','-b','side'],check=True)
+  commit(self.repo,{'a/README.md':'side\n'},'docs: side')
+  subprocess.run(['git','-C',self.repo,'checkout','-q','claude/checkpoint-9'],check=True)
+  subprocess.run(['git','-C',self.repo,'merge','-q','--no-ff','side','-m','Merge side'],check=True)
+  self.assertEqual(self.fixes([]),[])
+  subprocess.run(['git','-C',self.repo,'checkout','-q','side'],check=True)
+  commit(self.repo,{'a/README.md':'side 2\n'},'docs: side 2')
+  subprocess.run(['git','-C',self.repo,'checkout','-q','claude/checkpoint-9'],check=True)
+  subprocess.run(['git','-C',self.repo,'merge','-q','--no-ff','--no-commit','side'],check=True)
+  (Path(self.repo)/'a/src/lib.rs').write_text('pub fn one() { /* resolved in the merge */ }\n')
+  subprocess.run(['git','-C',self.repo,'commit','-q','-am','Merge side again'],check=True)
+  self.assertEqual(len(self.fixes([])),1)
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])
  def test_a_new_pub_item_of_a_published_crate_needs_examples_and_errors(self):
-  commit(self.repo,{'a/src/lib.rs':'pub fn one() {}\n/// Two.\npub fn two() -> Result<(), E> {}\n/// Three.\n///\n/// # Examples\n/// # Errors\npub fn three() -> std::result::Result<(), E> {}\npub(crate) fn four() {}\nmod seal { pub trait Sealed {} }\n',
+  commit(self.repo,{'a/src/lib.rs':'pub fn one() {}\n/// Two.\npub fn two() -> Result<(), E> {}\n/// Three.\n///\n/// # Examples\n/// ```\n/// ```\n/// # Errors\npub fn three() -> std::result::Result<(), E> {}\npub(crate) fn four() {}\nmod seal { pub trait Sealed {} }\n',
                         'a/src/fixtures.rs':'pub fn fixture() {}\n','a/tests/t.rs':'pub fn helper() {}\n','b/src/lib.rs':'pub fn unpublished() {}\n'},'feat(a): two and three')
-  self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),['a/src/lib.rs:3 pub fn two: no `# Examples` section','a/src/lib.rs:3 pub fn two: returns a Result with no `# Errors` section'])
- def test_an_item_moved_within_its_crate_is_not_new(self):
-  commit(self.repo,{'a/src/lib.rs':'','a/src/moved.rs':'pub fn one() {}\n'},'refactor(a): move one')
-  self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),[])
+  self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),['a/src/lib.rs:3 pub fn two: no `# Examples` section with a code block','a/src/lib.rs:3 pub fn two: returns a Result with no `# Errors` section'])
+ def test_an_item_kept_in_its_module_is_not_new_and_one_moved_to_another_module_is(self):
+  commit(self.repo,{'a/src/old.rs':None,'a/src/old/mod.rs':'pub fn kept() {}\n','a/src/x.rs':None,'a/src/y.rs':'pub fn parse() -> Result<(), E> {}\n'},'refactor(a): move')
+  found=run.doc_problems(repo=self.repo,base=self.base)
+  self.assertFalse(any('pub fn kept:' in x for x in found)); self.assertTrue(any('a/src/y.rs:1 pub fn parse:' in x for x in found),found)
+ def test_an_examples_heading_without_a_code_block_is_no_example(self):
+  commit(self.repo,{'a/src/z.rs':'/// Zed.\n///\n/// # Examples\npub fn zed() {}\n'},'feat(a): zed')
+  self.assertEqual(run.doc_problems(repo=self.repo,base=self.base),['a/src/z.rs:4 pub fn zed: no `# Examples` section with a code block'])
  def test_new_items_that_share_a_name_or_hide_in_a_rename_or_a_test_named_file_are_new(self):
   commit(self.repo,{'a/src/kind.rs':'pub struct Kind;\nimpl Kind {\n    pub fn one() -> Result<(), E> {}\n}\n',      # one is pub at the base, on no type
                     'a/src/shadow.rs':'pub fn shadow() {}\n',                                                   # pub at the base only in a test file
@@ -169,9 +197,9 @@ class Diff(unittest.TestCase):
   found=run.doc_problems(repo=self.repo,base=self.base)
   for item in ('pub struct Kind','pub fn one','pub fn shadow','pub fn added','pub fn support'):
    with self.subTest(item=item): self.assertTrue(any(item+':' in x for x in found),found)
-  self.assertFalse(any('pub fn kept:' in x for x in found))
+  self.assertTrue(any('a/src/renamed.rs:1 pub fn kept:' in x for x in found),found)  # a renamed module is a new path
 class Census(unittest.TestCase):
- FILES={'crates/execution_runtime/src/lib.rs':'pub struct FileSession;\npub trait DigestPort {}\n','crates/core/src/a.rs':'use x::FileSession;\n',
+ FILES={'crates/execution_runtime/src/lib.rs':'pub struct FileSession;\npub trait DigestPort {}\n','crates/core/src/a.rs':'use ryo_execution::FileSession;\n',
         'crates/core/src/b.rs':'use x::DigestPort;\n','crates/core/src/c.rs':'ryo_execution_runtime::run();\n','crates/core/tests/t.rs':'FileSession\n',
         'crates/execution_store/tests/s.rs':'RelationOwner\n','crates/values/src/m.rs':' '.join('Operation::V'+str(n) for n in range(8)),'crates/values/src/n.rs':'Operation::V1',
         'crates/values/src/op.rs':'pub enum Operation {\n'+''.join('    V'+str(n)+',\n' for n in range(9))+'}\n',
@@ -192,8 +220,19 @@ class Census(unittest.TestCase):
  def test_an_alias_or_a_glob_of_operation_is_still_an_exhaustive_match(self):
   for body in ('use x::Operation as O;\n'+' '.join('O::V'+str(n) for n in range(8)),'use x::Operation::*;\n'+' '.join('V'+str(n) for n in range(8))):
    with self.subTest(body=body[:24]): self.assertEqual(self.census(crates__values__src__m_DOT_rs=body)['operation_exhaustive_matches']['files'],1)
- def test_a_same_named_type_in_another_crates_test_does_not_hide_the_evaluators(self):
-  self.assertEqual(self.census(crates__other__tests__x_DOT_rs='pub struct FileSession;\n')['replace_the_evaluator']['total_files'],4)
+ def test_a_type_alias_of_operation_is_still_an_exhaustive_match(self):
+  body='type O = x::Operation;\n'+' '.join('O::V'+str(n) for n in range(8))
+  self.assertEqual(self.census(crates__values__src__m_DOT_rs=body)['operation_exhaustive_matches']['files'],1)
+ def test_a_same_named_type_elsewhere_does_not_hide_the_evaluators(self):
+  for path in ('crates__other__tests__x_DOT_rs','crates__other__src__decoy_DOT_rs'):
+   with self.subTest(path=path): self.assertEqual(self.census(**{path:'pub struct FileSession;\n'})['replace_the_evaluator']['total_files'],3)
+ def test_a_name_its_own_crate_declares_or_imports_from_elsewhere_or_a_variant_is_not_the_evaluators(self):
+  for path,body in (('crates__other__src__own_DOT_rs','pub struct FileSession;\nFileSession\n'),('crates__other__src__imp_DOT_rs','use ryo_sdk::FileSession;\nFileSession\n'),
+                    ('crates__other__src__var_DOT_rs','Error::FileSession\n')):
+   with self.subTest(path=path): self.assertEqual(self.census(**{path:body})['replace_the_evaluator']['production']['files'],2)
+ def test_a_cfg_test_item_counts_alone(self):
+  body='#[cfg(test)]\nmod early_tests { }\n'+' '.join('Operation::V'+str(n) for n in range(8))
+  self.assertEqual(self.census(crates__values__src__m_DOT_rs=body)['operation_exhaustive_matches']['files'],1)
  def test_a_test_moved_into_src_tests_rs_or_a_cfg_test_module_is_still_a_test(self):
   for path,body in (('crates__core__src__tests_DOT_rs','RelationOwner\n'),('crates__core__src__d_DOT_rs','fn f() {}\n#[cfg(test)]\nmod tests { RelationOwner }\n')):
    with self.subTest(path=path):
