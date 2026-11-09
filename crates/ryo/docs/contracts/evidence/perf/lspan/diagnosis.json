@@ -34,7 +34,7 @@
    "files": [
     "execution_domain/src/domain/operator/contract/service.rs",
     "execution_domain/src/domain/operator/contract/presence.rs",
-    "execution_domain/src/domain/executable_program/presence/located.rs",
+    "execution_domain/src/domain/executable_program/presence/narrowing.rs",
     "execution_domain/src/domain/executable_program/service.rs",
     "execution_runtime/src/application/file_dag/program/preparation/service.rs"
    ]
@@ -43,7 +43,7 @@
    "lever": "L2",
    "change": "located is its own per-column flag in the presence fold, mapped by output_origins: set at a Span column of a current-file provider relation and at the match and capture spans of a SourceMatches over a located span, kept through Select, Project, Extend, Join and Antijoin, ANDed across both sides of a Union, absent everywhere else; the origin lattice, which resets at a Union, is unchanged",
    "files": [
-    "execution_domain/src/domain/executable_program/presence/located.rs",
+    "execution_domain/src/domain/executable_program/presence/narrowing.rs",
     "execution_domain/src/domain/executable_program/presence/service.rs"
    ]
   },
