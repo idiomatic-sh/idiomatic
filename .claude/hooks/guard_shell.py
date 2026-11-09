@@ -710,29 +710,8 @@ def working_dirs(clean, cwd):
     return found
 
 
+GATED_TEXT = re.compile(r"\bgit\b[\s\S]*\b(push|merge|pull)\b")
 GATES = (bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
-
-
-def gated(inner, here):
-    """The refusal of the push, merge and pull gates for one command, or None.
-
-    A gated command (git push, merge or pull) whose evaluation raises is refused: Claude Code treats a hook crash
-    as non-blocking, so a guard that fails open would let the push or merge run. Other commands are unaffected.
-    """
-    try:
-        is_gated = any(git_verb(inner, verb) is not None for verb in ("push", "merge", "pull"))
-    except Exception:
-        is_gated = False
-    try:
-        for gate in GATES:
-            found = gate(inner, here)
-            if found:
-                return found
-    except Exception as error:
-        if is_gated:
-            return "guard failed closed: " + type(error).__name__ + ": " + str(error)
-        raise
-    return None
 
 
 def reason(command, cwd=None):
@@ -755,9 +734,10 @@ def reason(command, cwd=None):
             if found:
                 return found
         for inner in unwrapped(words):
-            found = gated(inner, here)
-            if found:
-                return found
+            for gate in GATES:
+                found = gate(inner, here)
+                if found:
+                    return found
         before += segment + " "
     return None
 
@@ -768,7 +748,15 @@ def main():
     except ValueError:
         return 0
     command = (data.get("tool_input") or {}).get("command") or ""
-    found = reason(command, data.get("cwd"))
+    try:
+        found = reason(command, data.get("cwd"))
+    except Exception as error:
+        # Claude Code treats a hook crash as non-blocking, so a guard that breaks on a git push, merge or pull
+        # must refuse it. The scan is plain text and cannot raise; any other command keeps the crash.
+        if GATED_TEXT.search(str(command)):
+            print("Blocked: guard failed closed: " + type(error).__name__ + ": " + str(error), file=sys.stderr)
+            return 2
+        raise
     if found:
         print("Blocked: " + found, file=sys.stderr)
         return 2

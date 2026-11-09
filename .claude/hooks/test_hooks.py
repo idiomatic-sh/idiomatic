@@ -321,19 +321,31 @@ class FailsClosed(unittest.TestCase):
         self.assertEqual(done.returncode, 2)
         self.assertIn("service.py", done.stderr)
 
-    def test_an_exception_inside_a_gate_refuses_a_push_and_a_merge(self):
+    def inject(self, old, new):
         path = os.path.join(self.root, ".claude", "hooks", "guard_shell.py")
         with open(path, encoding="utf-8") as handle:
             text = handle.read()
-        text = text.replace("GATES = (", "def broken(inner, here):\n    raise RuntimeError('injected')\n\n\nGATES = (broken, ", 1)
+        self.assertIn(old, text)
         with open(path, "w", encoding="utf-8") as handle:
-            handle.write(text)
-        for command in (self.PUSH, "git merge claude/w1-x"):
-            with self.subTest(command=command):
-                done = self.run_copy(command)
-                self.assertEqual(done.returncode, 2)
-                self.assertIn("guard failed closed: RuntimeError: injected", done.stderr)
-        self.assertNotEqual(self.run_copy("ls").returncode, 2)  # other commands keep today's behaviour
+            handle.write(text.replace(old, new, 1))
+
+    def test_an_exception_in_any_stage_refuses_a_push_and_a_merge_but_not_other_commands(self):
+        stages = {"a gate": ("GATES = (", "def broken(inner, here):\n    raise RuntimeError('injected')\n\n\nGATES = (broken, "),
+                  "stash": ("def stash(words):", "def stash(words):\n    raise RuntimeError('injected')\n\n\ndef _stash(words):"),
+                  "segments": ("def segments(text):", "def segments(text):\n    raise RuntimeError('injected')\n\n\ndef _segments(text):")}
+        for label, (old, new) in stages.items():
+            with self.subTest(label):
+                self.setUp()
+                self.inject(old, new)
+                for command in (self.PUSH, "git merge claude/w1-x", "cd /tmp && git pull"):
+                    done = self.run_copy(command)
+                    self.assertEqual(done.returncode, 2, command)
+                    self.assertIn("guard failed closed: RuntimeError: injected", done.stderr)
+                self.assertEqual(self.run_copy("ls").returncode, 1)
+
+    def test_a_nul_byte_in_a_cargo_argument_still_refuses_a_push_in_the_same_command(self):
+        done = self.run_copy("cargo build --target-dir /x\x00y && " + self.PUSH)
+        self.assertNotEqual(done.returncode, 0)
 
 
 class PreviousReviewsPush(unittest.TestCase):
