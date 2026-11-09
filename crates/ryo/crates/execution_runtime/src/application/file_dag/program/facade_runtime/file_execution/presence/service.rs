@@ -6,11 +6,12 @@ use crate::application::file_dag::program::facade_runtime::types::{
 };
 use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions;
 use ryo_execution_domain::domain::executable_program::presence::types::{
-    FormulaId, PresenceFormula, PresenceTable, RegionPresence, TestId,
+    FormulaId, PresenceFormula, PresenceTable, RegionPresence, SpanCheck, TestId,
 };
 use ryo_execution_domain::domain::executable_program::types::RegionCount;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::views::validate_spans;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::Relation;
 
@@ -21,15 +22,22 @@ struct PresenceRead<'r, 'facts> {
     execution: &'r crate::application::file_dag::program::runtime::service::ProgramExecution,
     texts: &'r ryo_execution_domain::domain::table_texts::types::Texts<'r>,
     matchers: &'r ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers,
+    /// The provider span columns a source search that declares no failure relies on.
+    spans: &'r [SpanCheck],
 }
 
 impl<'facts> PresenceRead<'_, 'facts> {
     /// The file's first read of a source, which is admission's first read: a population it reads is pinned, so admission
-    /// refuses one that changed after it, and a refusal it meets is the file's refusal for the source.
+    /// refuses one that changed after it, and a refusal it meets is the file's refusal for the source. Relied spans a
+    /// search would refuse turn presence off instead, so the rules meet the search's error as their full run would.
     fn source(&self, relation: Relation) -> Result<Rows<'facts>, OperatingError> {
         match (self.read)(relation) {
             Ok(rows) => {
                 let _pinned = self.owner.source(relation, &rows)?;
+                let relied = self.spans.iter().filter(|check| check.relation == relation);
+                for check in relied {
+                    validate_spans(&rows, &check.columns, self.texts.source)?;
+                }
                 Ok(rows)
             }
             Err(error) => {
@@ -76,6 +84,7 @@ impl FileRun<'_> {
             execution: &self.execution,
             texts: &texts,
             matchers: self.program.matchers().as_ref(),
+            spans: &table.spans,
         };
         for &RootCandidate { region: id, .. } in candidates {
             if absent.presence(id) == RegionPresence::Present
@@ -122,6 +131,7 @@ impl FileRun<'_> {
                 execution: &self.execution,
                 texts: &texts,
                 matchers: self.program.matchers().as_ref(),
+                spans: &table.spans,
             };
             for id in self.execution.reached() {
                 let region = program.regions().get(id.0).ok_or(OperatingError::NotRun)?;

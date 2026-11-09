@@ -3,9 +3,9 @@
 //! operator upstream could have rows to fail on. No rows, IO or ports.
 use super::narrowing::{formula, test};
 use super::types::{
-    Certification, ColumnOrigin, Conditionality, FoldedNode, FormulaId, GraphPresence, NodeFacts,
-    OccurrenceId, PresenceFormula, PresenceTable, PresenceTables, PresenceTest, ReadId, RegionNode,
-    RelationScope, RelationTests, SideOccurrence, TestId,
+    Certification, ColumnOrigin, Conditionality, FoldedNode, FormulaId, GraphPresence, LocatedId,
+    NodeFacts, OccurrenceId, PresenceFormula, PresenceTable, PresenceTables, PresenceTest, ReadId,
+    RegionNode, RelationScope, RelationTests, SideOccurrence, SpanCheck, SpanColumn, TestId,
 };
 use crate::domain::file_program::types::{NodeInput, RequestGraph, SchemaValidity};
 use crate::domain::operation_schema::projection::{output_origins, tree_output};
@@ -27,6 +27,9 @@ fn tables() -> PresenceTables {
         reads: Vec::new(),
         occurrences: HashMap::new(),
         next_occurrence: OccurrenceId(0),
+        located: Vec::new(),
+        located_index: HashMap::new(),
+        relied: std::collections::BTreeSet::new(),
     }
 }
 /// Every part holds; `Always` parts drop out.
@@ -93,11 +96,13 @@ fn masked(mask: InputMask, presences: &[FormulaId]) -> Vec<FormulaId> {
         .map(|(_, presence)| *presence)
         .collect()
 }
-/// The presence and skip formulas of every node of the graph, folded once in node order, which is topological.
+/// The presence and skip formulas of every node of the graph, folded once in node order, which is topological. A source
+/// search's pattern is compiled into its prepared slot here, so the run uses the matcher the fold checked.
 pub fn of_graph(
     graph: &RequestGraph,
     scope: &dyn Fn(Relation) -> RelationScope,
     matcher: crate::domain::matching::types::PatternMatcher<'_>,
+    prepared: &crate::domain::matching::types::prepared::value::PreparedMatchers,
 ) -> GraphPresence {
     let mut tables = tables();
     let mut facts: Vec<NodeFacts> = Vec::with_capacity(graph.nodes.len());
@@ -106,6 +111,7 @@ pub fn of_graph(
         let mut presences = Vec::with_capacity(node.inputs.len());
         let mut failures = Vec::new();
         let mut origins: Vec<Vec<Option<ColumnOrigin>>> = Vec::with_capacity(node.inputs.len());
+        let mut located: Vec<Vec<Option<LocatedId>>> = Vec::with_capacity(node.inputs.len());
         let mut trees = Vec::with_capacity(node.inputs.len());
         let mut reads: Vec<Relation> = Vec::new();
         let mut conditionality = if node.schema_valid == SchemaValidity::Invalid
@@ -133,6 +139,16 @@ pub fn of_graph(
                     trees.push(crate::domain::table_cells::service::native_form(*relation));
                     reads.push(*relation);
                     presences.push(test(&mut tables, *relation, Vec::new()));
+                    let kinds = node
+                        .contract
+                        .input_kinds
+                        .get(place)
+                        .map_or(&[][..], Vec::as_slice);
+                    located.push(super::narrowing::located_relation(
+                        &mut tables,
+                        *relation,
+                        kinds,
+                    ));
                     let first = read(&mut tables, *relation);
                     origins.push(
                         (0..width)
@@ -149,6 +165,7 @@ pub fn of_graph(
                     trees.push(crate::domain::table_cells::service::native_form(*relation));
                     presences.push(ALWAYS);
                     origins.push(vec![None; width]);
+                    located.push(vec![None; width]);
                 }
                 (NodeInput::Node(_), Some(upstream)) => {
                     if upstream.conditionality == Conditionality::Unconditional {
@@ -158,12 +175,14 @@ pub fn of_graph(
                     reads.extend_from_slice(&upstream.reads);
                     failures.extend(upstream.failure);
                     origins.push(upstream.origins.clone());
+                    located.push(upstream.located.clone());
                     trees.push(upstream.tree);
                 }
                 (NodeInput::Node(_) | NodeInput::Observation(_), _) => {
                     conditionality = Conditionality::Unconditional;
                     presences.push(ALWAYS);
                     origins.push(vec![None; width]);
+                    located.push(vec![None; width]);
                     trees.push(None);
                 }
             }
@@ -178,10 +197,25 @@ pub fn of_graph(
             .map(|(kinds, tree)| InputShape { kinds, tree })
             .collect();
         let tree = tree_output(&node.operation, shapes.first().copied());
-        if let RowFailure::OnRows(mask) = node.contract.failure {
-            failures.extend(masked(mask, &presences));
+        let mut relied = None;
+        match node.contract.failure {
+            RowFailure::Never => {}
+            RowFailure::OnRows(mask) => failures.extend(masked(mask, &presences)),
+            RowFailure::UnlessLocated(span) => {
+                relied = super::narrowing::relied(
+                    &tables,
+                    &node.operation,
+                    span,
+                    located.first().map_or(&[][..], Vec::as_slice),
+                    prepared,
+                    matcher,
+                );
+                if relied.is_none() {
+                    failures.extend(masked(InputMask(1), &presences));
+                }
+            }
         }
-        if let Some(mask) = super::narrowing::invalid_patterns(&node.operation, matcher) {
+        if let Some(mask) = super::narrowing::invalid_patterns(&node.operation, matcher, prepared) {
             failures.extend(masked(mask, &presences));
         }
         let failure = (!failures.is_empty()).then(|| any(&mut tables, failures));
@@ -190,6 +224,7 @@ pub fn of_graph(
                 presence: ALWAYS,
                 failure: None,
                 origins: Vec::new(),
+                located: Vec::new(),
                 tree,
                 conditionality,
                 reads,
@@ -220,6 +255,15 @@ pub fn of_graph(
                 ..origin
             })
         });
+        // A search that declares no failure relies on its provider spans: each file validates them when it admits them.
+        tables.relied.extend(relied.into_iter().flatten());
+        let located_slices: Vec<&[Option<LocatedId>]> = located.iter().map(Vec::as_slice).collect();
+        let located = super::narrowing::located_output(
+            &mut tables,
+            &node.operation,
+            &shapes,
+            &located_slices,
+        );
         let skip = match failure {
             Some(failure) => any(&mut tables, [presence, failure]),
             None => presence,
@@ -228,6 +272,7 @@ pub fn of_graph(
             presence,
             failure,
             origins: output,
+            located,
             tree,
             conditionality,
             reads,
@@ -235,7 +280,10 @@ pub fn of_graph(
         skips.push(skip);
     }
     let PresenceTables {
-        tests, formulas, ..
+        tests,
+        formulas,
+        relied,
+        ..
     } = tables;
     GraphPresence {
         table: PresenceTable {
@@ -244,6 +292,7 @@ pub fn of_graph(
             formulas: formulas.into_boxed_slice(),
             regions: Box::new([]),
             reads: Box::new([]),
+            spans: span_checks(relied),
         },
         nodes: skips.into_boxed_slice(),
         reads: facts
@@ -251,6 +300,25 @@ pub fn of_graph(
             .map(|node| node.reads.into_boxed_slice())
             .collect(),
     }
+}
+
+/// The relied span columns grouped by relation, both in order.
+fn span_checks(relied: std::collections::BTreeSet<SpanColumn>) -> Box<[SpanCheck]> {
+    let mut checks: Vec<SpanCheck> = Vec::new();
+    for SpanColumn { relation, column } in relied {
+        match checks.last_mut() {
+            Some(check) if check.relation == relation => {
+                let mut columns = std::mem::take(&mut check.columns).into_vec();
+                columns.push(column);
+                check.columns = columns.into_boxed_slice();
+            }
+            _ => checks.push(SpanCheck {
+                relation,
+                columns: Box::new([column]),
+            }),
+        }
+    }
+    checks.into_boxed_slice()
 }
 
 /// The tests of each relation, in the order the relations are first tested.

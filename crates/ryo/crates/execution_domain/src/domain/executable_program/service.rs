@@ -41,6 +41,13 @@ pub fn compile(
         .iter()
         .map(|node| node.contract.schema.as_ref().err().cloned())
         .collect();
+    // The request's literal pattern slots, declared from every operation before the graph is consumed: the fold compiles
+    // the source searches' patterns into them, and the run reads the same slots.
+    let matchers = std::sync::Arc::new(
+        crate::domain::matching::types::prepared::value::PreparedMatchers::from_operations(
+            graph.nodes.iter().map(|node| &node.operation),
+        ),
+    );
     // Each node's presence and skip formula, folded once before the analysis graph is consumed.
     let presence = crate::domain::executable_program::presence::service::of_graph(
         &graph,
@@ -52,6 +59,7 @@ pub fn compile(
             }
         },
         matcher,
+        &matchers,
     );
     for (logical, node) in graph.nodes.into_iter().enumerate() {
         let fuse = match (classification.fusibility[logical], node.inputs.first()) {
@@ -296,7 +304,8 @@ pub fn compile(
         logical_regions.into_boxed_slice(),
         observation_regions.into_boxed_slice(),
     )
-    .with_presence(presence);
+    .with_presence(presence)
+    .with_matchers(matchers);
     #[cfg(any(test, feature = "fixtures"))]
     let program = program.with_fusibility(fusibility.into_boxed_slice());
     Ok(program)

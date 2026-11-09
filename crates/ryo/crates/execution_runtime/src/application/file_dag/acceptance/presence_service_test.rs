@@ -621,6 +621,61 @@ fn row_errors_upstream_keep_the_rule_running() {
     assert_eq!(error(&ran.outcomes[3]), Some(OperatingError::ShapeMismatch));
 }
 
+/// L-span L3: a source search over a provider span declares no failure, so a rule can be absent where its search has
+/// rows. The file validates the relied spans when presence first reads the relation: on a file whose comment span lies
+/// outside the source, presence turns off and the rule reports the search's refusal as its full run does; on a file whose
+/// spans are valid, the rule is absent and answers its full run's empty table.
+#[test]
+fn a_relied_span_outside_the_source_turns_presence_off() {
+    let searched = plan(vec![
+        step(Operation::SourceMatches {
+            from: Input::Relation(Relation::Comment),
+            span: ColumnIndex(3),
+            base_line: None,
+            pattern: LiteralText("a".into()),
+            capture: None,
+            capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
+            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
+        }),
+        select(Input::Relation(Relation::Function), vec![equal(TEXT, "y")]),
+        join_on_file(0, 1, 1),
+    ]);
+    let prepared = prepare(vec![searched]);
+    let spans: Vec<_> = prepared
+        .program()
+        .presence()
+        .spans
+        .iter()
+        .map(|check| (check.relation, check.columns.to_vec()))
+        .collect();
+    assert_eq!(spans, vec![(Relation::Comment, vec![ColumnIndex(3)])]);
+    // The source is empty: the first comment's span is at 0, inside it; the second's at 1, outside it.
+    let valid = run(
+        &prepared,
+        &mut facts(&["x"], &["f"]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
+    assert_eq!(rows(&valid.outcomes[0]).map(|(count, _)| count), Some(0));
+    assert_eq!(
+        valid.presence_absent, 1,
+        "the rule is absent on a valid file"
+    );
+    let outside = run(
+        &prepared,
+        &mut facts(&["x", "x"], &["f"]),
+        &[run_intent()],
+        &[],
+        &[],
+    );
+    assert_eq!(
+        error(&outside.outcomes[0]),
+        Some(OperatingError::InvalidSourceMatchSpan)
+    );
+    assert_eq!(outside.presence_absent, 0, "presence is off on the file");
+}
+
 /// R1.6: a literal pattern that does not compile is refused when a row first reaches it. A Replace over a Symbol column
 /// cannot fail on its rows, but with such a pattern its input is fallible, so the rule runs where the input has rows and
 /// reports the refusal as its full run does, even where its other conjunct cannot match.
@@ -1100,6 +1155,8 @@ fn consumers_of_a_bound_observation_are_never_absent() {
         },
         ryo_execution_domain::domain::matching::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
+        &ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers::default(
         ),
     );
     let consumer = graph.program_nodes[1]

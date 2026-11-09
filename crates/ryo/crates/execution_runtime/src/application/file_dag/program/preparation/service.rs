@@ -284,16 +284,8 @@ pub(crate) fn prepare(
         )?;
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
-    let matchers = Arc::new(
-        ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers::from_operations(
-            program.regions().iter().flat_map(|region| {
-                region
-                    .instructions()
-                    .iter()
-                    .map(|instruction| instruction.operation())
-            }),
-        ),
-    );
+    // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.
+    let matchers = Arc::clone(program.matchers());
     let file_demands = demands::service::file_demands(&program, &metadata)?;
     let file_frontier_outputs = demands::service::frontier_outputs(&metadata, named.as_ref());
     let semantic_needed = if metadata

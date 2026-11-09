@@ -59,7 +59,33 @@ pub struct PresenceTable {
     /// The per-file relations each region's inputs read, at any depth, by region: a region found absent never reads them,
     /// so the file reads them once to meet any refusal its full run would have met.
     pub reads: Box<[Box<[Relation]>]>,
+    /// The provider span columns a source search that declares no failure relies on: a file admits each relation only
+    /// when every one of its listed spans is one the search would accept, and decides no presence otherwise.
+    pub spans: Box<[SpanCheck]>,
 }
+
+/// The span columns of one per-file provider relation that a file's rows must hold valid spans in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpanCheck {
+    /// The relation.
+    pub relation: Relation,
+    /// Its span columns, sorted.
+    pub columns: Box<[ColumnIndex]>,
+}
+
+/// One span column of one per-file provider relation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) struct SpanColumn {
+    /// The relation.
+    pub relation: Relation,
+    /// Its span column.
+    pub column: ColumnIndex,
+}
+
+/// A located span column, by its place in the fold's table of the provider span columns its values come from. A column
+/// with none is not located.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct LocatedId(pub usize);
 
 /// The presence formulas of every node of a request graph, by node.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -157,6 +183,12 @@ pub(crate) struct PresenceTables {
     pub occurrences: std::collections::HashMap<SideOccurrence, OccurrenceId>,
     /// The next occurrence to number.
     pub next_occurrence: OccurrenceId,
+    /// The provider span columns of each located id, sorted, each set kept once.
+    pub located: Vec<Box<[SpanColumn]>>,
+    /// The id of each set of provider span columns.
+    pub located_index: std::collections::HashMap<Box<[SpanColumn]>, LocatedId>,
+    /// The provider span columns a source search that declares no failure relies on.
+    pub relied: std::collections::BTreeSet<SpanColumn>,
 }
 
 /// Whether a node, and so everything downstream of it, may have rows in any file.
@@ -177,6 +209,8 @@ pub(crate) struct NodeFacts {
     pub failure: Option<FormulaId>,
     /// The origin of each of its columns.
     pub origins: Vec<Option<ColumnOrigin>>,
+    /// Whether each of its columns is located, and from which provider span columns.
+    pub located: Vec<Option<LocatedId>>,
     /// The native tree form its output keeps.
     pub tree: Option<crate::domain::table_cells::types::TreeForm>,
     /// Whether it may have rows in any file.
