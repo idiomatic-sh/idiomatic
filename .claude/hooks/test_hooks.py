@@ -31,6 +31,9 @@ def repo(parent, name, branch):
     return path
 
 
+GOOD_CHECKS = [{"id": "1", "verdict": "PASS", "evidence": "x.rs:1"}]
+
+
 class GuardShell(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -202,7 +205,7 @@ class RustReviewPush(unittest.TestCase):
         path = os.path.join(self.tree, self.REVIEW)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as handle:
-            json.dump({"checkpoint": 9, "source": source, "verdict": verdict, "checks": [],
+            json.dump({"checkpoint": 9, "source": source, "verdict": verdict, "checks": GOOD_CHECKS,
                        "reviewer": "rust-review", "date": "2026-11-07"}, handle)
         git(self.tree, "add", self.REVIEW)
         git(self.tree, "commit", "-q", "-m", "review")
@@ -289,7 +292,7 @@ class PreviousReviewsPush(unittest.TestCase):
 
     @staticmethod
     def body(verdict, reviewer, source):
-        return {"source": source, "verdict": verdict, "reviewer": reviewer, "checks": []}
+        return {"source": source, "verdict": verdict, "reviewer": reviewer, "checks": GOOD_CHECKS}
 
     def write(self, name, body):
         path = os.path.join(self.tree, self.EVIDENCE, name)
@@ -332,7 +335,7 @@ class PreviousReviewsPush(unittest.TestCase):
 
     def test_missing_verdict_is_refused(self):
         self.all_reviews()
-        self.write("leak-review.json", {"source": self.previous, "reviewer": "leak-review", "checks": []})
+        self.write("leak-review.json", {"source": self.previous, "reviewer": "leak-review", "checks": GOOD_CHECKS})
         self.assertIn('no "verdict"', self.push().stderr)
 
     def test_malformed_review_evidence_is_refused(self):
@@ -342,6 +345,12 @@ class PreviousReviewsPush(unittest.TestCase):
                "wrong reviewer": dict(good, reviewer="someone"),
                "no reviewer": {k: v for k, v in good.items() if k != "reviewer"},
                "checks not a list": dict(good, checks="none"),
+               "empty checks": dict(good, checks=[]),
+               "check is a string": dict(good, checks=["x"]),
+               "check is a number": dict(good, checks=[1]),
+               "check without evidence": dict(good, checks=[{"id": "1", "verdict": "PASS", "evidence": ""}]),
+               "check with unknown verdict": dict(good, checks=[{"id": "1", "verdict": "OK", "evidence": "e"}]),
+               "FAIL check under PASS": dict(good, checks=[{"id": "1", "verdict": "FAIL", "evidence": "e"}]),
                "no checks": {k: v for k, v in good.items() if k != "checks"}}
         for label, body in bad.items():
             with self.subTest(label):
@@ -592,7 +601,7 @@ class ConsolidationRef(unittest.TestCase):
         path = os.path.join(self.tree, self.REVIEW)
         os.makedirs(os.path.dirname(path))
         with open(path, "w", encoding="utf-8") as handle:
-            json.dump({"verdict": "PASS", "reviewer": "rust-review", "checks": [],
+            json.dump({"verdict": "PASS", "reviewer": "rust-review", "checks": GOOD_CHECKS,
                        "source": git(self.tree, "rev-parse", "HEAD")}, handle)
         git(self.tree, "add", self.REVIEW)
         git(self.tree, "commit", "-q", "-m", "review")
@@ -621,7 +630,7 @@ class BranchMerge(unittest.TestCase):
         git(self.tree, "checkout", "-q", "claude/checkpoint-9")
 
     def evidence(self, **fields):
-        body = {"source": self.head, "verdict": "PASS", "reviewer": "leak-review", "checks": []}
+        body = {"source": self.head, "verdict": "PASS", "reviewer": "leak-review", "checks": GOOD_CHECKS}
         body.update(fields)
         path = os.path.join(self.tree, self.EVIDENCE)
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -690,7 +699,7 @@ class BranchMerge(unittest.TestCase):
         self.assertEqual(self.merge().returncode, 2)
 
     def test_malformed_branch_evidence_is_refused(self):
-        for label, fields in {"no checks": {"checks": "x"}, "unknown verdict": {"verdict": "MAYBE"},
+        for label, fields in {"no checks": {"checks": "x"}, "empty checks": {"checks": []}, "FAIL check under PASS": {"checks": [{"id": "1", "verdict": "FAIL", "evidence": "e"}]}, "unknown verdict": {"verdict": "MAYBE"},
                               "short source": {"source": self.head[:12]}}.items():
             with self.subTest(label):
                 self.evidence(**fields)

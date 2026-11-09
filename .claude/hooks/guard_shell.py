@@ -309,7 +309,7 @@ REVIEW_VERDICTS = ("PASS", "FAIL", "NOTE", "BLOCKING")
 def review_shape(review, reviewer):
     """The problem with a review evidence file against the shared schema, or None.
 
-    The schema is in .agents/agents/review-evidence.md: source (40-hex), verdict, reviewer, checks (a list).
+    The schema is crates/ryo/docs/contracts/review/README.md#review-evidence-schema.
     """
     if not isinstance(review, dict):
         return "is not a JSON object"
@@ -321,8 +321,18 @@ def review_shape(review, reviewer):
         return 'names no "source" as a full 40-character sha'
     if review.get("reviewer") != reviewer:
         return 'has "reviewer" ' + repr(review.get("reviewer")) + ', not "' + reviewer + '"'
-    if not isinstance(review.get("checks"), list):
-        return 'has no "checks" list'
+    checks = review.get("checks")
+    if not isinstance(checks, list) or not checks:
+        return 'has no non-empty "checks" list'
+    for check in checks:
+        if not isinstance(check, dict) or not isinstance(check.get("id"), str) or not check["id"].strip():
+            return 'has a check that is not an object with a string "id"'
+        if check.get("verdict") not in REVIEW_VERDICTS:
+            return "has check " + repr(check["id"]) + " with an unknown verdict"
+        if not isinstance(check.get("evidence"), str) or not check["evidence"].strip():
+            return "has check " + repr(check["id"]) + " with no evidence"
+        if review["verdict"] == "PASS" and check["verdict"] in ("FAIL", "BLOCKING"):
+            return "is PASS though check " + repr(check["id"]) + " is " + check["verdict"]
     return None
 
 

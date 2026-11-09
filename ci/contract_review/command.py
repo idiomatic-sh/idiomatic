@@ -1,4 +1,4 @@
-"""The same paired-review gate for CI and local integration checkpoints."""
+"""The same contract-review gate for CI and local integration checkpoints."""
 from pathlib import Path
 import argparse
 import subprocess

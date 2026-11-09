@@ -15,7 +15,7 @@ The design primitives are the four in [crates/tastemaker/README.md](../../crates
 The PM names: the landed sha, the previous checkpoint sha, the checkpoint number `N`, the three review reports and a scratch directory.
 
 ## Procedure
-1. **Gate.** Read the integrator's recorded `asymptote check --groups lint,check,clippy` results for the landed sha, in the checkpoint record or its evidence (groups in [asymptote.toml](../../crates/ryo/asymptote.toml); [asymptote README](../../crates/asymptote/README.md)). Run only what the hook itself lets you run; never rebuild the workspace. If the record has no result for the landed sha, or any result fails, stop and report. Record the exact commands and results read.
+1. **Gate.** Read only `crates/ryo/docs/contracts/evidence/checkpoint/asymptote.json`, the integrator's recorded `asymptote check --groups lint,check,clippy` results for the landed sha (groups in [asymptote.toml](../../crates/ryo/asymptote.toml); [asymptote README](../../crates/asymptote/README.md)). Run only what the hook itself lets you run; never rebuild the workspace. If that file is missing, its `source` is not the landed sha, or any result fails, stop and report. Record the exact commands and results read.
 2. **Collect** every finding class from the three reviews and from the record's integration fixes.
 3. **Decide** per class, in this order, taking the cheapest mechanism that fully holds:
    - (a) The compiler already enforces it, or can with visibility or types: recommend that; add no Tastemaker asset.

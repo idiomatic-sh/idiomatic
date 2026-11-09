@@ -48,11 +48,11 @@ Raw logs live under `/tmp` per run and are never committed.
 ## How reviews run
 
 The [contract-review agent](../../../../../.agents/agents/contract-review.md)
-runs each review. Astra is unavailable, so Opus is the single independent
-reviewer. Each phase writes a verdict JSON (`contract-review-verdict/v1`) under
+runs each review. Each phase writes its verdict as the
+[review evidence schema](#review-evidence-schema) file under
 `audits/2026-11-06-phase<N>/`. A BLOCKING verdict gates the matrix tick for its
-rows, not the merge. Source changes invalidate a verdict; pin fresh
-base/head/tree each round.
+rows, not the merge. Source changes invalidate a verdict; pin a fresh source
+sha each round.
 
 ## Requesting a review
 

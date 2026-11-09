@@ -60,11 +60,7 @@ Refuse a request that lacks the three receipts of the [review README](../../crat
 Report short numbered blockers with file:line, failure, and required proof.
 Retain findings and dispositions. Only a final PASS verdict approves exact source; author dispositions cannot overrule blockers.
 Bind source, raw results, and proof in an artifact.
-Normal CI must reject missing/stale/invalid/unresolved reviews; prove failures and success.
-CI loads the trusted-base validator or immutable bootstrap 763a846f.
-This file is not enforcement: name `ci/contract_review/command.py` and its proof.
-Workflow edits require trusted governance; this is not server protection.
-Activation binds this Git history; squash needs deliberate receipt migration.
+This file is not enforcement. The `contract-review` CI job (`ci/contract_review/command.py`, which loads its policy from the trusted base) checks only that `crates/ryo/docs/contracts/evidence/checkpoint/contract-review.json` has the shared schema, a PASS verdict, and a source that covers the protected source of the head. It does not judge the review.
 
 ## Matrix upkeep
 Verify the affected contract and crate matrix rows against each reviewed batch and its actual tests. Flag stale owners, paths, claims or missing rows as review failures. Identify the implementer responsible for correcting them; do not approve documentation that outruns the code.
