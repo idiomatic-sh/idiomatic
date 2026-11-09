@@ -18,6 +18,9 @@ fn pin_text(pin: &Pin) -> Value {
 }
 
 /// The raw invocation record file a capture keeps beside its process bytes.
+///
+/// # Panics
+/// When the complete invocation's normalized settings are not JSON.
 pub fn invocation_bytes(invocation: &InvocationDocument) -> Vec<u8> {
     let argument_texts = |values: &[ArgumentText]| {
         values
@@ -77,6 +80,9 @@ pub fn complete_of(invocation: &mut InvocationDocument) -> &mut CompleteInvocati
 }
 
 /// Read a registration the way the offline command does: through the adapter's schema.
+///
+/// # Panics
+/// When the case cannot be written to a registration file, or the adapter refuses it.
 pub fn registration_of(case: &Value) -> Registration {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("registration.json");
@@ -96,6 +102,9 @@ pub fn document_of(case: &Value) -> CaseDocument {
 }
 
 /// Decode the process-failure certificate a test authored as JSON into its contract value.
+///
+/// # Panics
+/// When the certificate is not the JSON shape a process failure is authored in.
 pub fn process_failure(
     value: &Value,
 ) -> ryo_benchmark_contracts::domain::process::types::ProcessFailure {

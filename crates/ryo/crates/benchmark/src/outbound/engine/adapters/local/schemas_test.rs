@@ -302,43 +302,43 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("worker_reads_explicit_module_text_from_the_frozen_profile"),
         word: Word::Succeeds,
-        input: || worker_reads_explicit_module_text_from_the_frozen_profile as Scenario,
+        input: || worker_reads_explicit_module_text_from_the_frozen_profile,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("selected_rules_receive_the_pinned_syntax_applicability"),
         word: Word::Succeeds,
-        input: || selected_rules_receive_the_pinned_syntax_applicability as Scenario,
+        input: || selected_rules_receive_the_pinned_syntax_applicability,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("explicit_applicability_must_match_every_loaded_rule"),
         word: Word::Succeeds,
-        input: || explicit_applicability_must_match_every_loaded_rule as Scenario,
+        input: || explicit_applicability_must_match_every_loaded_rule,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("explicit_applicability_rejects_unknown_policy_values"),
         word: Word::Succeeds,
-        input: || explicit_applicability_rejects_unknown_policy_values as Scenario,
+        input: || explicit_applicability_rejects_unknown_policy_values,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("typed_syntax_skips_require_matching_policy_input_and_projection"),
         word: Word::Succeeds,
-        input: || typed_syntax_skips_require_matching_policy_input_and_projection as Scenario,
+        input: || typed_syntax_skips_require_matching_policy_input_and_projection,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("worker_refuses_module_paths_outside_the_profile"),
         word: Word::Succeeds,
-        input: || worker_refuses_module_paths_outside_the_profile as Scenario,
+        input: || worker_refuses_module_paths_outside_the_profile,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("worker_refuses_symlinked_module_paths"),
         word: Word::Succeeds,
-        input: || worker_refuses_symlinked_module_paths as Scenario,
+        input: || worker_refuses_symlinked_module_paths,
         expect: Expect::Value(()),
     },
     Case {
@@ -348,20 +348,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             named_input_declarations_attach_to_registered_definitions_and_reject_unknown_consumers
-                as Scenario
         },
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("unknowns_without_unread_refuse_the_candidate"),
         word: Word::Succeeds,
-        input: || unknowns_without_unread_refuse_the_candidate as Scenario,
+        input: || unknowns_without_unread_refuse_the_candidate,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("an_undeclared_missing_source_fails_its_read"),
         word: Word::Succeeds,
-        input: || an_undeclared_missing_source_fails_its_read as Scenario,
+        input: || an_undeclared_missing_source_fails_its_read,
         expect: Expect::Value(()),
     },
 ];

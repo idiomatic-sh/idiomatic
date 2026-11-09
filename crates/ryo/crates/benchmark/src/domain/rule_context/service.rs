@@ -54,6 +54,10 @@ pub fn resolve(
 }
 
 /// Validate declarative addresses against the actual request, without doing path-pattern matching.
+///
+/// # Errors
+/// Refuses empty or repeated configuration table names, a configured file that is not a safe relative path or not
+/// requested, and a disabled-rule list that names a rule twice.
 pub fn check(prepared: &PreparedRuleContext, files: &[RelativePath]) -> Result<(), Error> {
     let names = [
         &prepared.tables.selected,

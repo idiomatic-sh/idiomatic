@@ -14,7 +14,7 @@ fn invalid(result: Result<(), SuiteError>) -> bool {
     matches!(result, Err(SuiteError::Invalid(_)))
 }
 fn physical_contract() {
-    check(&local());
+    check(&local()).unwrap();
 }
 fn exact_executable_digest_bytes() {
     let directory = tempfile::tempdir().expect("source artifacts");
@@ -212,13 +212,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("physical_contract"),
         word: Word::Succeeds,
-        input: || physical_contract as fn(),
+        input: || physical_contract,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("exact_executable_digest_bytes"),
         word: Word::Succeeds,
-        input: || exact_executable_digest_bytes as fn(),
+        input: || exact_executable_digest_bytes,
         expect: Expect::Value(()),
     },
     Case {
@@ -226,22 +226,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "optional_source_language_profile_preserves_default_and_validates_exact_names",
         ),
         word: Word::Succeeds,
-        input: || {
-            optional_source_language_profile_preserves_default_and_validates_exact_names as fn()
-        },
+        input: || optional_source_language_profile_preserves_default_and_validates_exact_names,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("source_identity_uses_utf8_name_order_on_every_platform"),
         word: Word::Succeeds,
-        input: || source_identity_uses_utf8_name_order_on_every_platform as fn(),
+        input: || source_identity_uses_utf8_name_order_on_every_platform,
         expect: Expect::Value(()),
     },
     #[cfg(unix)]
     Case {
         name: CaseName("artifact_binding_recomputes_actual_metadata_in_both_directions"),
         word: Word::Succeeds,
-        input: || artifact_binding_recomputes_actual_metadata_in_both_directions as fn(),
+        input: || artifact_binding_recomputes_actual_metadata_in_both_directions,
         expect: Expect::Value(()),
     },
     #[cfg(unix)]
@@ -251,7 +249,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || {
-            optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity as fn()
+            optional_partial_observation_scope_tracks_only_declared_files_without_losing_source_identity
         },
         expect: Expect::Value(()),
     },

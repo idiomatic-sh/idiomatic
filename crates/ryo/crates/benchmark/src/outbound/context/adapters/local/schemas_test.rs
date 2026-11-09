@@ -103,7 +103,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         .map(|text| Cow::Owned(text.0))
         .map_err(|error| match error {
             ReportsError::Invalid(_) => Refusal::Invalid,
-            _ => Refusal::Unexpected,
+            ReportsError::Io(_) | ReportsError::Json(_) | ReportsError::Toml(_) => {
+                Refusal::Unexpected
+            }
         })
 }
 

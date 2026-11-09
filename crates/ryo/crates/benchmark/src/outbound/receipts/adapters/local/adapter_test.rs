@@ -40,7 +40,7 @@ fn observations(receipt: &Path) -> Result<Loaded, String> {
     Ok(Loaded { records, artifacts })
 }
 fn physical_contract() {
-    check(&local(CaseReceipts::Unrecorded), &CaseReceipts::Unrecorded);
+    check(&local(CaseReceipts::Unrecorded), &CaseReceipts::Unrecorded).unwrap();
 }
 /// A capture that could not record its process identity.
 fn failed_invocation() -> InvocationDocument {
@@ -185,37 +185,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("physical_contract"),
         word: Word::Succeeds,
-        input: || physical_contract as fn(),
+        input: || physical_contract,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("raw_bytes_attempts_and_unreferenced_resume_history_are_retained"),
         word: Word::Succeeds,
-        input: || raw_bytes_attempts_and_unreferenced_resume_history_are_retained as fn(),
+        input: || raw_bytes_attempts_and_unreferenced_resume_history_are_retained,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("a_sibling_receipt_cannot_reuse_another_shards_artifact_namespace"),
         word: Word::Succeeds,
-        input: || a_sibling_receipt_cannot_reuse_another_shards_artifact_namespace as fn(),
+        input: || a_sibling_receipt_cannot_reuse_another_shards_artifact_namespace,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("changed_raw_bytes_and_extra_files_in_referenced_attempts_are_refused"),
         word: Word::Succeeds,
-        input: || changed_raw_bytes_and_extra_files_in_referenced_attempts_are_refused as fn(),
+        input: || changed_raw_bytes_and_extra_files_in_referenced_attempts_are_refused,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("an_unsafe_receipt_name_is_an_invalid_receipt"),
         word: Word::Succeeds,
-        input: || an_unsafe_receipt_name_is_an_invalid_receipt as fn(),
+        input: || an_unsafe_receipt_name_is_an_invalid_receipt,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("a_raw_artifact_symlink_cannot_escape_the_receipt_boundary"),
         word: Word::Succeeds,
-        input: || a_raw_artifact_symlink_cannot_escape_the_receipt_boundary as fn(),
+        input: || a_raw_artifact_symlink_cannot_escape_the_receipt_boundary,
         expect: Expect::Value(()),
     },
 ];

@@ -287,7 +287,7 @@ fn subject(stage: Input) -> Result<Value, Failure> {
             retarget: matches!(stage, Stage::Retarget),
         })
     } else {
-        Arc::clone(&engine) as Arc<dyn EnginePort>
+        Arc::<Engine>::clone(&engine)
     };
     let result = RunRyoUseCaseImpl::new(
         port,

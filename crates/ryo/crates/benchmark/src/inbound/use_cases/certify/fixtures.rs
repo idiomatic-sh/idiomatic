@@ -177,7 +177,7 @@ pub fn exercise(
     let request = RunRequest {
         performance: Default::default(),
         selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
-            vec![ryo::linter::RuleId::try_from("A").unwrap()],
+            vec![ryo::linter::RuleId::try_from("A").expect(constants::FIXTURE_PRECONDITION)],
         ),
         rule_observations:
             ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
@@ -246,14 +246,16 @@ pub fn exercise(
         match change {
             Change::InventoryFull => {
                 ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
-                    inventory: vec![ryo::linter::RuleId::try_from("A").unwrap()],
+                    inventory: vec![
+                        ryo::linter::RuleId::try_from("A").expect(constants::FIXTURE_PRECONDITION),
+                    ],
                 }
             }
             Change::InventoryNarrow => {
                 ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
                     inventory: vec![
-                        ryo::linter::RuleId::try_from("A").unwrap(),
-                        ryo::linter::RuleId::try_from("B").unwrap(),
+                        ryo::linter::RuleId::try_from("A").expect(constants::FIXTURE_PRECONDITION),
+                        ryo::linter::RuleId::try_from("B").expect(constants::FIXTURE_PRECONDITION),
                     ],
                 }
             }
@@ -326,8 +328,8 @@ pub fn exercise(
                     publication.expect("complete measured inventory publishes");
                 } else {
                     assert_eq!(
-                        publication.unwrap_err().to_string(),
-                        "diagnostic observations cannot publish benchmark metrics"
+                        publication.err().map(|error| error.to_string()),
+                        Some("diagnostic observations cannot publish benchmark metrics".to_owned())
                     );
                 }
             }

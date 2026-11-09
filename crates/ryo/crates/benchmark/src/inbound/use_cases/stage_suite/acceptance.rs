@@ -21,27 +21,27 @@ fn stage(suite: &dyn SuitePort, directory: &Path, destination: &Path) -> Result<
 }
 
 #[then("stage_suite subset preserves its promised result")]
-fn subset(world: &mut crate::Behavior) {
+fn subset(world: &mut crate::Behavior) -> Result<(), Box<dyn std::error::Error>> {
     let _: &mut crate::Behavior = world;
-    exercise(Scenario::Subset);
+    exercise(Scenario::Subset)
 }
 
 #[then("stage_suite workload preserves its promised result")]
-fn workload(world: &mut crate::Behavior) {
+fn workload(world: &mut crate::Behavior) -> Result<(), Box<dyn std::error::Error>> {
     let _: &mut crate::Behavior = world;
-    exercise(Scenario::Workload);
+    exercise(Scenario::Workload)
 }
 
 #[then("stage_suite supporting preserves its promised result")]
-fn supporting(world: &mut crate::Behavior) {
+fn supporting(world: &mut crate::Behavior) -> Result<(), Box<dyn std::error::Error>> {
     let _: &mut crate::Behavior = world;
-    exercise(Scenario::Supporting);
+    exercise(Scenario::Supporting)
 }
 
 #[then("stage_suite discrepancy preserves its promised result")]
-fn discrepancy(world: &mut crate::Behavior) {
+fn discrepancy(world: &mut crate::Behavior) -> Result<(), Box<dyn std::error::Error>> {
     let _: &mut crate::Behavior = world;
-    exercise(Scenario::Discrepancy);
+    exercise(Scenario::Discrepancy)
 }
 
 #[then("stage_suite missing preserves its promised result")]

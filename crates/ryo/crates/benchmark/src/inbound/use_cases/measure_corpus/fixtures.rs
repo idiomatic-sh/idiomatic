@@ -86,6 +86,9 @@ pub fn use_case() -> MeasureCorpusUseCaseImpl {
 }
 
 /// Hand `operate` a corpus of `projects` under `scope`; each project is pinned to a branch name, which the workspace refuses.
+///
+/// # Panics
+/// Never: the rule identifier is a valid literal.
 pub fn with_corpus<R>(
     scope: BenchmarkCoverage,
     projects: usize,

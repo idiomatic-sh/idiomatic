@@ -93,13 +93,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("negative_only_evidence_is_not_authored_coverage"),
         word: Word::Succeeds,
-        input: || negative_only_evidence_is_not_authored_coverage as fn(),
+        input: || negative_only_evidence_is_not_authored_coverage,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("missing_defaults_remain_missing_and_empty_inventory_is_refused"),
         word: Word::Succeeds,
-        input: || missing_defaults_remain_missing_and_empty_inventory_is_refused as fn(),
+        input: || missing_defaults_remain_missing_and_empty_inventory_is_refused,
         expect: Expect::Value(()),
     },
 ];

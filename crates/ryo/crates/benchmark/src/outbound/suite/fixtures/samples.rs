@@ -67,6 +67,13 @@ pub fn given_file() -> ryo::linter::GivenProjectInventory {
 }
 
 /// The tool a suite adapter is exercised with: one default rule, everything else undeclared.
+///
+/// # Panics
+/// Never: the rule identifier is a valid literal.
+#[expect(
+    clippy::expect_used,
+    reason = "the rule identifier is a valid literal, so its parse cannot fail"
+)]
 pub fn tool() -> ryo_benchmark_contracts::domain::workloads::types::Tool {
     ryo_benchmark_contracts::domain::workloads::types::Tool {
         rule_observation_selection:

@@ -233,13 +233,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("concrete_implementation_answers_the_shared_contract"),
         word: Word::Succeeds,
-        input: || concrete_implementation_answers_the_shared_contract as Scenario,
+        input: || concrete_implementation_answers_the_shared_contract,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("oversized_request_is_staged_as_json_file_instead_of_argv"),
         word: Word::Succeeds,
-        input: || oversized_request_is_staged_as_json_file_instead_of_argv as Scenario,
+        input: || oversized_request_is_staged_as_json_file_instead_of_argv,
         expect: Expect::Value(()),
     },
     Case {
@@ -249,7 +249,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             authored_observations_survive_actual_parent_to_worker_transport_and_explicit_override
-                as Scenario
         },
         expect: Expect::Value(()),
     },

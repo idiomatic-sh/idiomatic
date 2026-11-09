@@ -32,6 +32,9 @@ fn report(diagnostics: Vec<BenchmarkFinding>) -> RunReport {
 }
 
 /// A finding of `rule` over `start..end` bytes of the case file.
+///
+/// # Panics
+/// When `rule` is not a valid rule identifier.
 pub fn finding(rule: &str, start: usize, end: usize) -> BenchmarkFinding {
     BenchmarkFinding {
         rule: ryo::linter::RuleId::try_from(rule).expect("fixture rule identity"),
@@ -42,6 +45,9 @@ pub fn finding(rule: &str, start: usize, end: usize) -> BenchmarkFinding {
 }
 
 /// The authored case `positive` of rule `E722`, which expects `expected`.
+///
+/// # Panics
+/// Never: the rule identifier is a valid literal.
 pub fn case(expected: &BenchmarkFinding) -> PreparedCase {
     PreparedCase {
         reference_discrepancy: PreparedReferenceBehavior::Agrees,
@@ -67,6 +73,9 @@ pub fn case(expected: &BenchmarkFinding) -> PreparedCase {
 }
 
 /// The profile pinning the fixture tool, whose defaults are `E722` and `F901`.
+///
+/// # Panics
+/// Never: the rule identifiers are valid literals.
 pub fn profile() -> Tool {
     Tool {
         rule_observation_selection: ObservationSelectionPolicy::Declared,

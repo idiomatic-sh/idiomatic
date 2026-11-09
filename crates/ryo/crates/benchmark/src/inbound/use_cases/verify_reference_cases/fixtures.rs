@@ -24,6 +24,13 @@ pub enum Refusal {
     Unexpected,
 }
 /// Run one public operation over independently authored source facts.
+///
+/// # Errors
+/// [`Refusal::MissingSource`] when the operation refuses the missing rules directory, and [`Refusal::Unexpected`] for any other
+/// refusal or a fixture write that fails.
+///
+/// # Panics
+/// When the contestants are launched other than the scenario promises, or a fixture source cannot be written.
 pub fn exercise(scenario: Scenario, operate: Operate) -> Result<usize, Refusal> {
     crate::inbound::use_cases::prepare_cases::fixtures::with_verification_sources(
         |suite, reference, _candidate, execution, rules, scratch, launches| {
@@ -35,11 +42,13 @@ pub fn exercise(scenario: Scenario, operate: Operate) -> Result<usize, Refusal> 
             match scenario {
                 Scenario::Complete => {
                     let actual = std::fs::read_to_string(launches);
-                    assert_eq!(actual.unwrap().lines().count(), 2);
+                    assert_eq!(actual.ok().map(|text| text.lines().count()), Some(2));
                 }
                 Scenario::Missing => assert_eq!(
-                    std::fs::symlink_metadata(launches).unwrap_err().kind(),
-                    std::io::ErrorKind::NotFound
+                    std::fs::symlink_metadata(launches)
+                        .err()
+                        .map(|error| error.kind()),
+                    Some(std::io::ErrorKind::NotFound)
                 ),
             }
             result.map_err(|error| match error {
@@ -48,7 +57,12 @@ pub fn exercise(scenario: Scenario, operate: Operate) -> Result<usize, Refusal> 
                 {
                     Refusal::MissingSource
                 }
-                _ => Refusal::Unexpected,
+                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
+                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
+                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
+                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
+                    Refusal::Unexpected
+                }
             })
         },
     )

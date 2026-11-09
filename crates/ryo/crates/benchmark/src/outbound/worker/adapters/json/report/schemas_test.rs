@@ -64,22 +64,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_data",
         ),
         word: Word::Succeeds,
-        input: || {
-            execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_data
-                as fn()
-        },
+        input: || execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_data,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("missing_reason_unknown_capability_and_extra_wire_fields_are_refused"),
         word: Word::Succeeds,
-        input: || missing_reason_unknown_capability_and_extra_wire_fields_are_refused as fn(),
+        input: || missing_reason_unknown_capability_and_extra_wire_fields_are_refused,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("receipts_encode_their_mode_and_unobserved_dependencies"),
         word: Word::Succeeds,
-        input: || receipts_encode_their_mode_and_unobserved_dependencies as fn(),
+        input: || receipts_encode_their_mode_and_unobserved_dependencies,
         expect: Expect::Value(()),
     },
 ];

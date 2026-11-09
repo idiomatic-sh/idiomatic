@@ -14,6 +14,15 @@ pub enum Scenario {
     Artifacts,
 }
 
+/// Validate the shared registration's receipts with one field of it removed, or none.
+///
+/// # Errors
+/// The removed field's name when the use case refuses the registration for it, or what failed: a fixture write, or a
+/// complete registration that is refused.
+///
+/// # Panics
+/// When a complete registration verifies other than its one case, a refusal does not name the missing field, or the
+/// use case fails with an I/O or TOML error.
 pub fn exercise(
     use_case: &dyn ValidateCaseReceiptsUseCase,
     field: Scenario,
@@ -21,7 +30,7 @@ pub fn exercise(
     let mut registration: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../tests/fixtures/registrations/receipt_only/registration.json"
     ))
-    .expect("shared registration fixture");
+    .map_err(|_| "shared registration fixture")?;
     let missing = match field {
         Scenario::Complete => None,
         Scenario::Authority => Some("authority"),
@@ -36,22 +45,22 @@ pub fn exercise(
         };
         object
             .as_object_mut()
-            .expect("registration record")
+            .ok_or("registration record")?
             .remove(key);
     }
-    let temporary = tempfile::tempdir().expect("receipt fixture directory");
+    let temporary = tempfile::tempdir().map_err(|_| "receipt fixture directory")?;
     let registration_path = temporary.path().join("registration.json");
     let receipts = temporary.path().join("observations.jsonl");
     std::fs::write(
         &registration_path,
-        serde_json::to_vec(&registration).expect("wire bytes"),
+        serde_json::to_vec(&registration).map_err(|_| "wire bytes")?,
     )
-    .expect("write registration");
+    .map_err(|_| "write registration")?;
     std::fs::write(
         &receipts,
         include_str!("../../../../tests/fixtures/registrations/receipt_only/observations.jsonl"),
     )
-    .expect("write actual side observations");
+    .map_err(|_| "write actual side observations")?;
     match use_case.validate_case_receipts(&registration_path, &receipts) {
         Ok(audit) => {
             assert!(audit.errors.is_empty(), "{:?}", audit.errors);
@@ -68,7 +77,7 @@ pub fn exercise(
         }
         Err(error @ (ReportsError::Invalid(_) | ReportsError::Json(_))) => {
             let message = error.to_string();
-            let key = missing.expect("complete fixture must decode and verify");
+            let key = missing.ok_or("complete fixture must decode and verify")?;
             assert!(
                 message.contains(&format!("missing field `{key}`")),
                 "{message}"

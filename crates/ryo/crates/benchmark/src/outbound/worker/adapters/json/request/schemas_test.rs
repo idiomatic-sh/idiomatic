@@ -173,7 +173,9 @@ fn subject((text, check): Input) -> Result<Value, Failure> {
         .map(|request| check.is_some_and(|check| check(&request)))
         .map_err(|error| match error {
             ReportsError::Json(_) => Refusal::InvalidJson,
-            _ => Refusal::Unexpected,
+            ReportsError::Invalid(_) | ReportsError::Io(_) | ReportsError::Toml(_) => {
+                Refusal::Unexpected
+            }
         })
 }
 #[test]

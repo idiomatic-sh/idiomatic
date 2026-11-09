@@ -222,25 +222,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("seal_binds_bytes_absences_logical_root_and_observed_dependencies"),
         word: Word::Succeeds,
-        input: || seal_binds_bytes_absences_logical_root_and_observed_dependencies as Scenario,
+        input: || seal_binds_bytes_absences_logical_root_and_observed_dependencies,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("observed_missing_paths_are_sealed_once_per_corpus_state"),
         word: Word::Succeeds,
-        input: || observed_missing_paths_are_sealed_once_per_corpus_state as Scenario,
+        input: || observed_missing_paths_are_sealed_once_per_corpus_state,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("observed_missing_cannot_hide_present_untracked_or_symlinked_paths"),
         word: Word::Succeeds,
-        input: || observed_missing_cannot_hide_present_untracked_or_symlinked_paths as Scenario,
+        input: || observed_missing_cannot_hide_present_untracked_or_symlinked_paths,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("path_roles_and_symlinked_context_are_not_accepted"),
         word: Word::Succeeds,
-        input: || path_roles_and_symlinked_context_are_not_accepted as Scenario,
+        input: || path_roles_and_symlinked_context_are_not_accepted,
         expect: Expect::Value(()),
     },
 ];

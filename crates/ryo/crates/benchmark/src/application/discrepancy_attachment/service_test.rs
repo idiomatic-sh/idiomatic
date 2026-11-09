@@ -174,7 +174,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                         target_configuration,
                         version_rationale: Rationale(" ".into()),
                     },
-                    other => other,
+                    other @ (ClaimedEvidence::IndependentLanguageRun { .. }
+                    | ClaimedEvidence::PublicToolContract { .. }
+                    | ClaimedEvidence::PriorWorkerRun { .. }) => other,
                 }];
             })
         },
@@ -200,7 +202,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                             rationale,
                             source_revision: SourceRevision("abc".into()),
                         },
-                        other => other,
+                        other @ (ClaimedEvidence::LanguageSpec { .. }
+                        | ClaimedEvidence::IndependentLanguageRun { .. }
+                        | ClaimedEvidence::PriorWorkerRun { .. }) => other,
                     },
                     prior_worker(),
                 ];
@@ -235,7 +239,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                             rationale,
                             witness_case: WitnessCase(" ".into()),
                         },
-                        other => other,
+                        other @ (ClaimedEvidence::LanguageSpec { .. }
+                        | ClaimedEvidence::IndependentLanguageRun { .. }
+                        | ClaimedEvidence::PublicToolContract { .. }) => other,
                     },
                 ];
             })
@@ -278,7 +284,19 @@ fn words_dropped(error: Failure) -> Failure {
         DiscrepancyAttachmentError::Refused(_) => {
             DiscrepancyAttachmentError::Refused(RefusalText(String::new()))
         }
-        other => other,
+        other @ (DiscrepancyAttachmentError::MissingCaseProfileBoundary { .. }
+        | DiscrepancyAttachmentError::DuplicateExpectationIdentity { .. }
+        | DiscrepancyAttachmentError::ExpectationOutsideInventory { .. }
+        | DiscrepancyAttachmentError::DuplicateCanonicalExpectation { .. }
+        | DiscrepancyAttachmentError::ProcessAlsoDeclaresDiagnostics { .. }
+        | DiscrepancyAttachmentError::InvalidSourceRange { .. }
+        | DiscrepancyAttachmentError::ToolContractNeedsDiagnostics { .. }
+        | DiscrepancyAttachmentError::LanguageEvidenceNeedsContract { .. }
+        | DiscrepancyAttachmentError::ToolContractEvidenceNeedsSource { .. }
+        | DiscrepancyAttachmentError::PriorWorkerEvidenceNeedsControl { .. }
+        | DiscrepancyAttachmentError::EvidenceDoesNotMatchAuthority { .. }
+        | DiscrepancyAttachmentError::ToolContractNeedsTwoEvidenceRows { .. }
+        | DiscrepancyAttachmentError::Identity { .. }) => other,
     }
 }
 
