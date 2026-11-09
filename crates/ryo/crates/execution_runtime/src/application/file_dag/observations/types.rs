@@ -67,12 +67,6 @@ pub enum RuleSelection {
     Selected,
     Unselected,
 }
-/// One output of a rule with the admitted publication it delivers.
-pub struct AdmittedOutput {
-    pub output: ObservationIndex,
-    pub publication:
-        crate::application::file_dag::program::observed_publication::types::ObservedPublication,
-}
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {
     pub(crate) metadata: &'a ObservationMetadata,

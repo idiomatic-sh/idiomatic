@@ -12,7 +12,7 @@ use ryo_execution::inbound::use_cases::execution::interface::Partial;
 use ryo_execution::inbound::use_cases::execution::interface::{InapplicableFiles, RefusedFiles};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
+use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;

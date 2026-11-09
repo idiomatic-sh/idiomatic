@@ -7,7 +7,9 @@ use crate::application::file_dag::program::project_phase::types::FrontierRequest
 use crate::application::file_dag::program::project_phase::types::OccurrenceNumber;
 use crate::application::file_dag::program::project_phase::types::PhaseOccurrence;
 use crate::application::file_dag::program::project_phase::types::PhaseOccurrences;
+use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::PhasePartials;
+use crate::application::file_dag::program::project_phase::types::PhaseRules;
 use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::PhaseStop;
 use crate::application::file_dag::program::project_phase::types::PreparedOccurrence;
@@ -27,6 +29,8 @@ use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
 use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::WorkerNumber;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
 impl ProjectRootExecution for ProjectPhase<'_> {
@@ -135,8 +139,64 @@ impl ProjectRootExecution for ProjectPhase<'_> {
             None => ProjectBatch::Complete(occurrences),
         }
     }
+    fn evaluate_rules<H, T, E>(
+        &self,
+        phase: PhaseRules<'_>,
+        symbols: &mut Symbols,
+        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+        mut complete: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            &[ArenaBytes],
+            Option<WorkerNumber>,
+            &mut Symbols,
+        ) -> Result<T, E>,
+    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
+        let occurrences = phase
+            .rules
+            .iter()
+            .map(|rule| PhaseOccurrence {
+                rule: *rule,
+                bound: &[],
+                slot: PublicationSlot::Unused,
+                demand: FrontierDemand::Diagnostic,
+            })
+            .collect::<Vec<_>>();
+        let arenas = phase.arenas;
+        self.evaluate_occurrences(
+            PhaseOccurrences {
+                occurrences: &occurrences,
+                first: phase.first,
+                corpus: phase.corpus,
+                covered: phase.covered,
+                skipped: phase.skipped,
+                inapplicable: phase.inapplicable,
+                refused: phase.refused,
+                facts: phase.facts,
+                project: phase.project,
+                project_symbols: phase.project_symbols,
+                arenas,
+            },
+            symbols,
+            before,
+            partials,
+            guard,
+            |occurrence, outcome, slot, symbols: &mut Symbols| {
+                complete(occurrence, outcome, arenas, reserved(slot), symbols)
+            },
+        )
+    }
     fn readiness_counts(&self) -> ReadinessCounts {
         self.publication.readiness_counts()
+    }
+}
+/// The worker a publication slot reserved, when it reserved one.
+pub(crate) fn reserved(slot: PublicationSlot) -> Option<WorkerNumber> {
+    match slot {
+        PublicationSlot::Unused => None,
+        PublicationSlot::Reserved(worker) => Some(worker),
     }
 }
 impl ProjectStage for ProjectPhase<'_> {

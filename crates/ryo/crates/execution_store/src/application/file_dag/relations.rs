@@ -18,6 +18,7 @@ use std::{
 };
 mod accounting;
 pub mod generation;
+pub mod interface;
 pub(crate) mod inspection;
 pub(crate) mod producer;
 pub mod publication;
@@ -166,6 +167,89 @@ impl RelationOwner {
         self.views.set(PinnedViewCount(0));
         self.generation.borrow().invalidate();
         *self.generation.borrow_mut() = Arc::new(GenerationLease::new());
+    }
+}
+
+impl interface::RelationStore for RelationOwner {
+    fn generation(&self) -> types::Generation {
+        types::Generation(self.current_generation())
+    }
+    fn publish(
+        &self,
+        body: publication::types::Body<'_>,
+    ) -> Result<handle::service::Publication, OperatingError> {
+        use handle::service::{Held, Publication};
+        use publication::types::Body;
+        Ok(Publication(match body {
+            Body::Source { relation, rows } => Held::Relation(self.source(relation, rows)?),
+            Body::Compact(table) => Held::Relation(self.source_compact(table)?),
+            Body::Shared(table) => Held::Relation(self.source_shared_computed(table)?),
+            Body::Computed(table) => Held::Relation(self.computed(table)?),
+            Body::Packed { words, arenas } => {
+                Held::Packed {
+                _lease: self.packed_publication(words, arenas)?,
+            }
+            }
+        }))
+    }
+    fn population(&self) -> Result<PopulationId, OperatingError> {
+        self.project_identity()
+    }
+    fn admit<'a>(
+        &self,
+        publication: &handle::service::Publication,
+        rows: RepresentationInput<'a>,
+    ) -> Result<Result<admission::service::BorrowedInput<'a>, OperatingError>, OperatingError>
+    {
+        self.inspect_available(publication.input()?.as_ref(), rows)
+    }
+    fn admit_number<'a>(
+        &self,
+        publication: &'a handle::service::Publication,
+        producer: types::ProducerId,
+        required: &ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement,
+        rows: RepresentationInput<'_>,
+    ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
+        RelationOwner::admit_number(self, publication.input()?, RegionId(producer.0), required, rows)
+    }
+    fn rows<'r, 'f: 'r>(
+        &self,
+        publication: &'r handle::service::Publication,
+        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+    ) -> Result<Rows<'r>, OperatingError> {
+        self.resolve(publication.input()?.as_ref(), read)
+    }
+    fn normalize<'r, 'f: 'r>(
+        &self,
+        publication: &'r handle::service::Publication,
+        rows: Rows<'f>,
+    ) -> Result<Rows<'r>, OperatingError> {
+        RelationOwner::normalize(self, publication.input()?, rows)
+    }
+    fn kinds<'a>(
+        &self,
+        publication: &'a handle::service::Publication,
+    ) -> Result<&'a [CellKind], OperatingError> {
+        self.publication_kinds(publication.input()?)
+    }
+    fn bind_producer(
+        &self,
+        scope: publication::types::ProducerScope,
+        producer: types::ProducerId,
+        publication: &handle::service::Publication,
+    ) -> Result<(), OperatingError> {
+        RelationOwner::bind_producer(self, scope, RegionId(producer.0), publication.input()?.as_ref())
+    }
+    fn pin(&self, publication: &handle::service::Publication) {
+        if let Ok(input) = publication.input() {
+            self.pin_derived(input.as_ref());
+        }
+    }
+    fn retire_producer(&self, scope: publication::types::ProducerScope, producer: types::ProducerId) {
+        self.release_derived_producer(scope, RegionId(producer.0));
+    }
+    fn release(&self) {
+        self.release_population();
     }
 }
 

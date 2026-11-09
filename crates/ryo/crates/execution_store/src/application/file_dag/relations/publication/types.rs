@@ -78,3 +78,24 @@ impl PublishedRelation for RelationResult {
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
+
+/// What one publication publishes: a source's rows, a supplied compact or flat source, a computed table, or packed words with the
+/// arenas they reference.
+pub enum Body<'a> {
+    /// The rows of a source relation.
+    Source {
+        relation: Relation,
+        rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
+    },
+    /// A supplied compact source.
+    Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
+    /// A supplied flat source, its exact geometry kept for first-borrow inspection.
+    Shared(Arc<Table>),
+    /// A computed table.
+    Computed(Table),
+    /// Encoded words and every existing arena they reference.
+    Packed {
+        words: ryo_values::domain::stored_facts::types::KeptWords,
+        arenas: &'a [&'a ryo_values::domain::stored_facts::types::ArenaBytes],
+    },
+}

@@ -6,7 +6,7 @@ pub use ryo_execution_runtime::application::file_dag::frontiers::errors::Prepara
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::BoundInput;
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
 pub use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
-pub use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
+pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 pub use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::EmittedRoot;
@@ -21,6 +21,9 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::typ
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationPublication;
+pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::BatchNumber;
+pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::Install;
+pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationBatches;
 pub use ryo_execution_runtime::application::file_dag::program::observed_publication::types::ObservedPublication;
 pub use ryo_execution_runtime::application::file_dag::program::preparation::types::Demand;
 pub use ryo_execution_runtime::application::file_dag::program::preparation::types::NamedLayout;
@@ -37,6 +40,7 @@ pub use ryo_execution_runtime::application::file_dag::program::project_phase::ty
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrence;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhasePartials;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseRules;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop;
 pub use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
 pub use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;

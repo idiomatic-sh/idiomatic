@@ -1,7 +1,8 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
 use super::constants::PUBLICATION_INCOMPLETE;
+use crate::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use super::types::{
-    AdmittedOutput, ArenaCount, ConsumerCount, CrossPublications, CrossRoot, FinishState,
+    ArenaCount, ConsumerCount, CrossPublications, CrossRoot, FinishState,
     ReferenceCount,
 };
 use crate::application::file_dag::frontiers::types::{

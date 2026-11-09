@@ -69,6 +69,7 @@ methods!(
     RequestRunFile,
     RequestProjectPhase,
     RootsEvaluateOccurrences,
+    RootsEvaluateRules,
     RootsReadinessCounts,
     StageStateCounts,
     StageFinish,
@@ -79,6 +80,7 @@ methods!(
     ObservedArenas,
     ObservedFinish,
     ObservedFinishStage,
+    ObservedRunBatches,
     PublicationInstall,
     PublicationRestoreFrontiers,
     FileReadinessCounts,
@@ -165,6 +167,23 @@ impl ProjectRootExecution for Witness {
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
         witness(Method::RootsEvaluateOccurrences)
     }
+    fn evaluate_rules<H, T, E>(
+        &self,
+        _: ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseRules<'_>,
+        _: &mut Symbols,
+        _: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        _: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        _: impl FnMut(RuleIndex) -> Result<(), E>,
+        _: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            &[ArenaBytes],
+            Option<ryo_relations::domain::relations::types::WorkerNumber>,
+            &mut Symbols,
+        ) -> Result<T, E>,
+    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
+        witness(Method::RootsEvaluateRules)
+    }
     fn readiness_counts(&self) -> ReadinessCounts {
         witness(Method::RootsReadinessCounts)
     }
@@ -207,6 +226,30 @@ impl ObservationExecution for Witness {
     }
     fn finish_stage(self) -> Result<(), OperatingError> {
         witness(Method::ObservedFinishStage)
+    }
+    fn run_batches<H, T, E: From<OperatingError>>(
+        self,
+        _: ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationBatches<'_>,
+        _: &mut Symbols,
+        _: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        _: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        _: impl FnMut(RuleIndex) -> Result<(), E>,
+        _: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            &[ArenaBytes],
+            Option<ryo_relations::domain::relations::types::WorkerNumber>,
+            &mut Symbols,
+        ) -> Result<T, E>,
+        _: impl FnMut(
+            OccurrenceNumber,
+            Result<T, PhaseStop<E>>,
+        ) -> Result<
+            Option<ryo_execution_runtime::application::file_dag::program::observation_stage::types::Install>,
+            E,
+        >,
+    ) -> Result<(), E> {
+        witness(Method::ObservedRunBatches)
     }
 }
 impl FileExecution for Witness {
@@ -259,7 +302,7 @@ impl ObservationPublication for Witness {
         _: RuleIndex,
         _: PublicationSlot,
         _: ryo_values::domain::records::types::CrossPublicationTransfer,
-        _: Vec<ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput>,
+        _: Vec<ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput>,
     ) -> Result<(), OperatingError> {
         witness(Method::PublicationInstall)
     }

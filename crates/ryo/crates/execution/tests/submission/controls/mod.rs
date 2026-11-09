@@ -54,12 +54,15 @@ pub(super) fn control(method: Method) -> Control {
         Method::RequestProjectPhase => Control::AcceptsNoRoot(
             "opens the phase; its roots are declared through evaluate_occurrences",
         ),
-        Method::RootsEvaluateOccurrences => Control::Refuses(occurrence_of_an_undeclared_rule),
+        Method::RootsEvaluateOccurrences | Method::RootsEvaluateRules => {
+            Control::Refuses(occurrence_of_an_undeclared_rule)
+        }
         Method::ObservedReserve
         | Method::ObservedBindings
         | Method::ObservedBindingReadiness
         | Method::ObservedFrontierReadiness
-        | Method::ObservedFinish => Control::Refuses(observed_undeclared_rule),
+        | Method::ObservedFinish
+        | Method::ObservedRunBatches => Control::Refuses(observed_undeclared_rule),
         Method::FileEmitRows
         | Method::FileRule
         | Method::FileCaptureFrontiers

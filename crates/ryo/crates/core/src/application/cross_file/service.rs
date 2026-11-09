@@ -318,5 +318,6 @@ pub(super) fn stopped(todo: &Todo, stop: PhaseStop<CrossFileError>) -> CrossFile
             CrossFileError::from(failed(&todo.id, &MISSING_FRONTIER_BUCKET))
         }
         PhaseStop::Unevaluated => CrossFileError::from(failed(&todo.id, &MISSING_OUTCOME)),
+        PhaseStop::Unbound(error) => CrossFileError::from(error),
     }
 }

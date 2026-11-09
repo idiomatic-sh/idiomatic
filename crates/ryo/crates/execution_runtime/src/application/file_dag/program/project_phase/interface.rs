@@ -1,7 +1,7 @@
 //! What a project phase offers a caller.
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::project_phase::types::{
-    OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseStop,
+    OccurrenceNumber, PhaseOccurrences, PhasePartials, PhaseRules, PhaseStop,
 };
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -11,6 +11,8 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
 use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::WorkerNumber;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// Project rules are collected only; no row callback delivery exists on this route.
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
@@ -43,6 +45,25 @@ pub trait ProjectRootExecution {
             OccurrenceNumber,
             RuleOutcome<ProjectOutputOutcome>,
             PublicationSlot,
+            &mut Symbols,
+        ) -> Result<T, E>,
+    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E>;
+    /// One occurrence of each of `phase.rules`, in one call: each occurrence scoped and its frontiers prepared for its diagnostic
+    /// once `before` admits it, the prepared ones evaluated with the `partials` they see under `guard`, and each outcome handed to
+    /// `complete` with the phase's arenas and no reserved worker, in declaration order. A failure of one occurrence stays with
+    /// it; occurrences after the guard's refusal are absent.
+    fn evaluate_rules<H, T, E>(
+        &self,
+        phase: PhaseRules<'_>,
+        symbols: &mut Symbols,
+        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+        complete: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            &[ArenaBytes],
+            Option<WorkerNumber>,
             &mut Symbols,
         ) -> Result<T, E>,
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E>;

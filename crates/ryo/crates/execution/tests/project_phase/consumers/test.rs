@@ -4,7 +4,7 @@ use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput;
+use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use ryo_values::domain::{
     observations::types::*,
     plan_parts::types::ObservationBindingId,

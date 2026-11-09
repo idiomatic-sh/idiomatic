@@ -71,3 +71,31 @@ impl std::ops::Deref for PublishedInput {
         &self.record
     }
 }
+
+/// What the store published for a holder: a relation's publication, or packed words it leases. The one handle the runtime holds.
+#[derive(Clone, Debug)]
+pub struct Publication(pub(crate) Held);
+
+/// What a publication holds.
+#[derive(Clone, Debug)]
+pub(crate) enum Held {
+    Relation(PublishedInput),
+    /// Packed words; the lease is held, never read.
+    Packed {
+        _lease: crate::application::file_dag::relations::packed::service::PackedPublication,
+    },
+}
+impl Publication {
+    /// The relation's publication.
+    pub(crate) fn input(
+        &self,
+    ) -> Result<&PublishedInput, ryo_execution_domain::domain::operating::errors::OperatingError>
+    {
+        match &self.0 {
+            Held::Relation(input) => Ok(input),
+            Held::Packed { .. } => {
+                Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
+            }
+        }
+    }
+}

@@ -36,3 +36,34 @@ impl GenerationLease {
         }
     }
 }
+impl crate::application::file_dag::relations::types::Generation {
+    /// Whether `other` is this generation.
+    ///
+    /// # Errors
+    ///
+    /// `NotRead` when it is another generation.
+    pub fn same(
+        &self,
+        other: &Self,
+    ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
+        match GenerationLease::same(&self.0, &other.0) {
+            crate::application::file_dag::relations::types::Sameness::Same => Ok(()),
+            crate::application::file_dag::relations::types::Sameness::Different => {
+                Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
+            }
+        }
+    }
+    /// Whether the generation is still live.
+    ///
+    /// # Errors
+    ///
+    /// `NotRead` once the owner released the population.
+    pub fn live(&self) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
+        match self.0.is_live() {
+            crate::application::file_dag::relations::types::Liveness::Live => Ok(()),
+            crate::application::file_dag::relations::types::Liveness::Released => {
+                Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
+            }
+        }
+    }
+}
