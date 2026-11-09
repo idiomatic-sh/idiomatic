@@ -17,7 +17,7 @@ targets, the command line's `cli_tests` (`replay`, `blocks`, `call_count`,
 the core's benches compile), `no_print` (the two print lints over the execution,
 execution domain, execution store, execution runtime and core libraries), the Tastemaker checks (`tm_import_cli`, `tm_cli_source`,
 `tm_source` over the scoped directories, `tm_guards`, and
-`tm_validate_no_heap_accounting`, the `no-heap-accounting@0.2.0` validation), `ownership_edges` and `checkpoint_check` (the fixture cases of `run.py --check` in `run_test.py`).
+`tm_validate_no_heap_accounting`, the `no-heap-accounting@0.2.0` validation), `ownership_edges`, `checkpoint_check` (the fixture cases of `run.py --check` in `run_test.py`) and `census` (`run.py --census`, the change-amplification counts below).
 
 At checkpoint 318 two commands are red by design and the rest are green:
 `core_allocation` (the Phase 7 measurement) and `cli_tests`,
@@ -92,5 +92,21 @@ Both modes print the scope delta against `validation.json` at `HEAD`: each
 newly scoped directory with its finding count, and each directory no longer
 scoped. The checkpoint commit message carries these lines.
 
+## Change-amplification census
+`run.py --census` reads the product's tracked Rust files (no build) and prints four counts, each as files and crates; the `census` command's log is recorded as `census` in `validation.json`, and the numbers block shows it. A production file is under `crates/*/src`, `cli/src` or `languages/*/src` and is no test file by `is_test_file`, the one classifier `run.py` uses for tm splits, `FIX`, `DOC` and the census; each `#[cfg(test)]` item of a production file (its own extent) counts as test.
+- `replace_the_evaluator`: files outside `crates/execution_runtime` that name the evaluator's vocabulary (every `pub` struct, enum, trait or type it declares; a name counts unless the file's own crate or the file declares it, every `use` that brings it in starts at another crate than `ryo_execution_runtime` or `ryo_execution` or at this one, or it follows `Type::` as a variant) or `ryo_execution_runtime`, production and test apart; a file naming only the seam's ports (`DigestPort`, `DigestBytes`, `FactsPort`, `OperatorsPort`, `FactsError`) is not counted.
+- `operation_exhaustive_matches`: production files naming eight or more distinct `Operation` variants, through `Operation::`, an alias (`use ...Operation as X`, `type X = ...Operation;`) or a glob import of its variants.
+- `per_file_fact_touch_points`: production files naming the per-file fact precedent, `binding_read` in any spelling.
+- `cross_crate_tests_naming_runtime_internals`: test files outside the runtime and store crates naming a runtime internal type (`FileRunInput`, `FileSession`, `RelationOwner`, `InvocationWorkspace` and the rest of `RUNTIME_INTERNALS`).
+
+The contract review's isolation grade reads these numbers against the previous validation's.
+
+## Checkpoint diff checks
+Both modes check the checkpoint's own commits, from the merge base of `HEAD` and `origin/claude/ryo-consolidation`, and exit 1 with one line per problem:
+- `FIX`: a commit that changes production code (a Rust source, or the Python of the harness: `.claude/hooks/`, `ci/` and this directory, none of them a test, fixture or bench) is a fix whatever its type; a merge counts by its own changes (its combined diff against every parent). A fix names a test in its message, and a `red_green` entry whose range holds it (its `base_sha` excluded, its `merge_sha` included) proves that test: the entry's `test` names it with `(red <name>.log, green <name>.log)`, two distinct files in the validation directory, each framed by its test runner's own header and summary lines (cargo test `running N tests` and `test result:`, nextest `Starting N tests across` and `Summary [`, unittest `Ran N tests in` and `OK`/`FAILED (`), the red log showing the test fail and the green log showing it pass. The frame catches a typed result, not a forged one. A `perf` commit instead needs an `evidence/perf/*/after.json` added or changed in the checkpoint with `identical_output` true.
+- `DOC`: each `pub` function, struct, enum, trait, type or union a published crate (no `publish = false`) gains has an `# Examples` section holding a fenced code block, and a function returning a `Result` an `# Errors` section. An item is new when no item of the same module path (from its file), owner (its impl type, module or trait), kind and name is `pub` in that crate's production files at the base; renames count as additions. Test files (the one `is_test_file`: `tests/`, `test.rs`, `tests.rs`, `*_test.rs`, `*_tests.rs`, fixtures, benches, examples), `fixtures.rs` and a `Sealed` seal trait are exempt.
+
+Without a base (the consolidation branch is not fetched), both checks refuse.
+
 ## Red-then-green record
-For each fix (a change to production behaviour) the integrator appends to the `red_green` list in [validation.json](validation.json) an entry `{test, base_sha, merge_sha}`: the test id the builder named, the 40-hex base sha where it fails (red) and the 40-hex merge sha where it passes (green). `run.py --check` refuses an entry of any other shape. Docs-only, evidence-only and perf changes are exempt. See the [Builder test rule](../../review/README.md#builder-test-rule).
+For each fix (a change to production behaviour) the integrator appends to the `red_green` list in [validation.json](validation.json) an entry `{test, base_sha, merge_sha}`: the test id the builder named followed by its red and green logs (`(red <name>.log, green <name>.log)`, files in the validation directory), the 40-hex base sha where it fails (red) and the 40-hex merge sha where it passes (green); the fix commit lies between the two shas. `run.py --check` refuses an entry of any other shape. Docs-only, evidence-only and perf changes are exempt. See the [Builder test rule](../../review/README.md#builder-test-rule).

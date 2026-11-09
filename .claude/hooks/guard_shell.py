@@ -11,14 +11,20 @@ LOCK = "/workspaces/.cargo-build.lock"
 TARGET_ROOT = "/workspaces/idiomatic-target"
 CHECK_TARGET = "/workspaces/idiomatic-check-target"
 FIXTURE_FIX = "cli/tests/replay/imports.rs"
-CARGO_BUILDS = {"build", "test", "bench", "clippy", "run", "check", "doc"}
+CARGO_BUILDS = {"build", "test", "nextest", "bench", "clippy", "run", "check", "doc"}
+# cargo verbs that build nothing; every other verb, aliases and plugins included, counts as a build.
+CARGO_READS = {"metadata", "tree", "version", "help", "locate-project", "pkgid", "search", "fmt", "read-manifest",
+               "verify-project"}
 INTEGRATION = re.compile(r"claude/(checkpoint-\d+|ryo-consolidation)")
 MEASUREMENT = "/workspaces/ryo-perf-"
 CHECK_FORM = ("cargo check -p <crate> --target-dir " + CHECK_TARGET + " or --target-dir " + CHECK_TARGET + "/<worktree name>")
+TEST_FORM = ("flock " + LOCK + " cargo nextest run -p <crate> (or cargo test -p <crate>) --target-dir " + TARGET_ROOT +
+             "/<worktree name>")
 BUILDERS_AUTHOR = ("Builders author; the integrator compiles. cargo builds only in an integration worktree "
-                   "(branch claude/checkpoint-N); builders may run " + CHECK_FORM)
+                   "(branch claude/checkpoint-N); builders may run " + CHECK_FORM + ", and " + TEST_FORM)
 COMMENT = re.compile(r"(^|\s)#.*$", re.MULTILINE)
 CONSOLIDATION = "claude/ryo-consolidation"
+PROTECTED = ("main", "master")
 EVIDENCE_ROOT = "crates/ryo/docs/contracts/evidence/"
 EVIDENCE = EVIDENCE_ROOT + "checkpoint/"
 RUST_REVIEW = EVIDENCE + "rust-review.json"
@@ -58,7 +64,7 @@ WRAPPER_VALUES = {"env": {"-u", "-n", "-C", "--unset", "--chdir"}, "nice": {"-n"
                   "timeout": {"-s", "--signal", "-k", "--kill-after"}, "stdbuf": {"-i", "-o", "-e"},
                   "xargs": {"-n", "-I", "-P", "-L", "-s", "-d", "-E", "-a", "--max-args", "--max-procs", "--delimiter",
                             "--max-lines", "--max-chars", "--arg-file", "--eof"},
-                  "flock": {"-w", "-E", "--timeout", "--conflict-exit-code"}, "exec": {"-a"},
+                  "flock": {"-w", "-E", "--timeout", "--wait", "--conflict-exit-code"}, "exec": {"-a"},
                   "ionice": {"-c", "-n", "-p", "-P", "-u"}, "watch": {"-n", "--interval"}, "script": {"-I", "-O", "-B", "-T", "-m"}}
 SHELL_KEYWORDS = {"if", "then", "elif", "else", "do", "while", "until", "for", "!", "{", "(", "time"}
 ASSIGNMENT = r"[A-Za-z_][A-Za-z0-9_]*=.*"
@@ -77,7 +83,10 @@ def after_wrapper(words):
             return tokens(words[1]) + words[2:]
         if wrapper == "script" and flag in ("-c", "--command") and len(words) > 1:
             command = words[1]
-        words = words[2:] if flag in values or (wrapper == "script" and flag in ("-c", "--command")) else words[1:]
+        short = {v[1] for v in values if len(v) == 2}
+        cluster = flag[:1] == "-" and flag[1:2] != "-" and len(flag) > 2 and flag[-1] in short
+        takes = flag in values or cluster or (wrapper == "script" and flag in ("-c", "--command"))
+        words = words[2:] if takes else words[1:]
     if wrapper == "script":
         return ["sh", "-c", command] if command is not None else []
     if wrapper in ("timeout", "flock") and words:
@@ -118,10 +127,73 @@ def runs_cargo_verb(words):
     inner = shell_command(words)
     if inner is not None:
         return has_cargo_command(inner)
-    if words[0] == "cargo":
-        rest = [w for w in words[1:] if not w.startswith("+")]
-        return next((w for w in rest if not w.startswith("-")), "") in CARGO_BUILDS
+    rest = cargo_args(words)
+    if rest is not None:
+        verb = next(iter(cargo_positionals(rest)), "")
+        return verb in CARGO_BUILDS or (verb not in CARGO_READS and not (not verb and any(
+            w in ("--version", "-V", "--list", "--help", "-h") for w in rest)))
     return False
+
+
+def cargo_args(words):
+    """The arguments after cargo (toolchain words dropped) when words run cargo itself, by any path, or a cargo-<verb>
+    binary (its verb first), else None."""
+    if not words:
+        return None
+    name = os.path.basename(words[0])
+    plugin = re.fullmatch(r"cargo-([\w-]+)", name)
+    if name != "cargo" and not plugin:
+        return None
+    rest = [w for w in words[1:] if not w.startswith("+")]
+    if plugin and (not rest or rest[0] != plugin.group(1)):
+        rest = [plugin.group(1)] + rest
+    return rest
+
+
+# cargo options that take the next word as their value, so it is never read as the verb.
+CARGO_VALUE_OPTIONS = {"--config", "-Z", "-C", "--color", "--target-dir", "--manifest-path", "-p", "--package",
+                       "--features", "-F", "-j", "--jobs", "--profile", "--target", "--test", "--bench", "--bin",
+                       "--example", "--exclude", "--message-format", "--lockfile-path", "-E", "--filter-expr",
+                       "--partition", "--test-threads", "--retries", "--explain"}
+
+
+def cargo_positionals(rest):
+    """The words of cargo arguments that are neither options nor option values: the verb first."""
+    found, skip = [], False
+    for w in rest:
+        if skip:
+            skip = False
+        elif w in CARGO_VALUE_OPTIONS:
+            skip = True
+        elif not w.startswith("-"):
+            found.append(w)
+    return found
+
+
+def exclusive_build_lock(before):
+    """True when the words before cargo end in `flock [-w N] <the build lock>`: the exclusive build lock, taken
+    by flock itself directly in front of cargo (no shared lock, no -c command)."""
+    if "flock" not in before:
+        return False
+    options = before[len(before) - before[::-1].index("flock"):]
+    i = 0
+    while i < len(options) and options[i].startswith("-"):
+        o = options[i]
+        if o in ("--timeout", "--wait", "--conflict-exit-code"):
+            i += 1
+        elif o.startswith(("--timeout=", "--wait=", "--conflict-exit-code=")):
+            pass
+        elif o in ("--shared", "--command", "--unlock") or o.startswith(("--shared", "--command")):
+            return False
+        elif not o.startswith("--"):
+            for j, letter in enumerate(o[1:]):
+                if letter in "scu":
+                    return False
+                if letter in "wE":
+                    i += 1 if j == len(o) - 2 else 0
+                    break
+        i += 1
+    return options[i:] == [LOCK]
 
 
 def has_cargo_command(text):
@@ -179,9 +251,9 @@ def removal(words):
 
 
 def cargo_index(words):
-    """Index of `cargo` when the segment runs it directly, behind any wrappers."""
+    """Index of cargo (by any path, or a cargo-<verb> binary) when the segment runs it directly, behind any wrappers."""
     inner = peel(words)
-    return len(words) - len(inner) if inner and inner[0] == "cargo" else None
+    return len(words) - len(inner) if cargo_args(inner) is not None else None
 
 
 def target_dir(rest):
@@ -218,8 +290,8 @@ def cargo_rules(words, before, dirs):
     at = cargo_index(words)
     if at is None:
         return None
-    rest = [w for w in words[at + 1:] if not w.startswith("+")]
-    sub = next((w for w in rest if not w.startswith("-")), "")
+    rest = cargo_args(peel(words))
+    sub = next(iter(cargo_positionals(rest)), "")
     target = target_dir(rest)
     target = os.path.normpath(target) if target else target
     checking = sub == "check" and is_check_target(target)
@@ -242,23 +314,100 @@ def one_crate_manifest(path):
         return False
 
 
+def packages(rest):
+    """The -p/--package values of the cargo arguments, or None when they name the whole workspace."""
+    if any(w in ("--workspace", "--all") for w in rest):
+        return None
+    found = []
+    for i, w in enumerate(rest):
+        if w in ("-p", "--package"):
+            found.append(rest[i + 1] if i + 1 < len(rest) else "")
+        elif w.startswith("--package="):
+            found.append(w.split("=", 1)[1])
+        elif w.startswith("-p") and not w.startswith("--"):
+            found.append(w[2:])
+    return found
+
+
+def manifests(rest):
+    return [rest[i + 1] if w == "--manifest-path" and i + 1 < len(rest) else w.split("=", 1)[1]
+            for i, w in enumerate(rest) if w == "--manifest-path" or w.startswith("--manifest-path=")]
+
+
+def package_scoped(rest, here):
+    """True when the cargo arguments name packages (-p without a pattern, or one-crate manifests) and never the
+    whole workspace."""
+    named = packages(rest)
+    if named is None or any(not n or re.search(r"[*?\[]", n) for n in named):
+        return False
+    paths = manifests(rest)
+    return bool(named) or bool(paths and all(one_crate_manifest(os.path.join(here, m)) for m in paths))
+
+
+def package_name(manifest):
+    try:
+        with open(manifest, "rb") as handle:
+            import tomllib
+            return (tomllib.load(handle).get("package") or {}).get("name")
+    except (OSError, ValueError):
+        return None
+
+
+def branch_packages(here):
+    """The packages whose files this worktree changes against its base (the merge base with the consolidation
+    branch), committed, staged, unstaged or untracked; None when the base is unknown."""
+    top = git_out(here, "rev-parse", "--show-toplevel")[1].strip()
+    code, base = git_out(here, "merge-base", "HEAD", "refs/remotes/origin/" + CONSOLIDATION)
+    if not top or code != 0:
+        return None
+    changed = git_out(top, "diff", "--name-only", "--no-renames", base.strip())[1].split() + \
+        git_out(top, "ls-files", "--others", "--exclude-standard")[1].split()
+    found = set()
+    for path in changed:
+        directory = os.path.dirname(os.path.join(top, path))
+        while directory.startswith(top):
+            name = package_name(os.path.join(directory, "Cargo.toml"))
+            if name:
+                found.add(name)
+                break
+            if directory == top:
+                break
+            directory = os.path.dirname(directory)
+    return found
+
+
 def builder_check(words, here):
-    """Outside an integration tree only a package-scoped cargo check into the check-only target dir runs."""
-    at = cargo_index(words)
-    if at is None:
+    """Outside an integration tree only two cargo forms run: a package-scoped cargo check into the check-only
+    target dir, and the tests of one package this branch changes (cargo test or nextest run) into this worktree's
+    own target, directly behind `flock <the build lock>`. Every other cargo invocation is the integrator's."""
+    inner = peel(words)
+    rest = cargo_args(inner)
+    if rest is None:
         return BUILDERS_AUTHOR
-    rest = [w for w in words[at + 1:] if not w.startswith("+")]
-    if next((w for w in rest if not w.startswith("-")), "") != "check":
+    before = words[:len(words) - len(inner)] if words[len(words) - len(inner):] == inner else None
+    rest = rest[:rest.index("--")] if "--" in rest else rest
+    verbs = cargo_positionals(rest)
+    sub = verbs[0] if verbs else ""
+    if sub == "test" or verbs[:2] == ["nextest", "run"]:
+        if before is None or not exclusive_build_lock(before):
+            return "a builder's tests run directly behind the exclusive build lock: " + TEST_FORM
+        target = target_dir(rest)
+        if target is None or os.path.normpath(target) != TARGET_ROOT + "/" + tree_name(here):
+            return "a builder's tests run as: " + TEST_FORM
+        named = packages(rest)
+        if named is None or len(named) != 1 or not package_scoped(rest, here):
+            return "a builder runs the tests of exactly one package, named without a pattern; run: " + TEST_FORM
+        changed = branch_packages(here)
+        if changed is None or named[0] not in changed:
+            return ("a builder runs the tests of a package this branch changes (" +
+                    (", ".join(sorted(changed)) if changed else "none yet, or no base " + CONSOLIDATION) +
+                    "); workspace and other packages' tests are the integrator's")
+        return None
+    if sub != "check":
         return BUILDERS_AUTHOR
     if not is_check_target(target_dir(rest)):
         return "cargo check outside an integration tree must run as: " + CHECK_FORM
-    if any(w in ("--workspace", "--all") for w in rest):
-        return "a workspace-wide cargo check is the integrator's; run: " + CHECK_FORM
-    packaged = any(w in ("-p", "--package") or w.startswith("--package=") or (w.startswith("-p") and len(w) > 2)
-                   for w in rest)
-    manifests = [rest[i + 1] if w == "--manifest-path" and i + 1 < len(rest) else w.split("=", 1)[1]
-                 for i, w in enumerate(rest) if w == "--manifest-path" or w.startswith("--manifest-path=")]
-    if not packaged and not (manifests and all(one_crate_manifest(os.path.join(here, m)) for m in manifests)):
+    if not package_scoped(rest, here):
         return "a workspace-wide cargo check is the integrator's; run: " + CHECK_FORM
     return None
 
@@ -327,12 +476,31 @@ def push_targets(tree, push):
     for spec in operands[1:]:
         spec = spec.lstrip("+")
         source, colon, destination = spec.partition(":")
-        if not source:
-            continue
         if not colon:
             destination = current if source == "HEAD" else source
-        found.append((remote, source, destination.replace("refs/heads/", "", 1)))
+        found.append((remote, source, re.sub(r"^(refs/)?heads/", "", destination)))
     return found
+
+
+PUSH_CONFIG = re.compile(r"(push\.|remote\.[^=]*\.push|branch\.[^=]*\.(merge|remote|pushremote))", re.I)
+
+
+def implicit_destinations(tree, words, push):
+    """The destinations a push may reach without naming them: the current branch's upstream and any configured
+    remote.<name>.push, for a push that names no refspec; a -c push setting makes the push unreadable (None)."""
+    head = words[:len(words) - len(push[1])]
+    settings = [head[i + 1] for i, w in enumerate(head[:-1]) if w in ("-c", "--config-env")]
+    settings += [w[2:] for w in head if w.startswith("-c") and len(w) > 2]
+    if any(PUSH_CONFIG.match(s) for s in settings):
+        return None
+    operands = [a for a in push[1] if not a.startswith("-")]
+    if len(operands) >= 2:
+        return []
+    remote = operands[0] if operands else "origin"
+    found = git_out(tree, "config", "--get-all", "remote." + remote + ".push")[1].split()
+    found = [re.sub(r"^(refs/)?heads/", "", x.lstrip("+").partition(":")[2] or x.lstrip("+")) for x in found]
+    merge = git_out(tree, "config", "--get-all", "branch." + current_branch(tree) + ".merge")[1].split()
+    return found + [re.sub(r"^(refs/)?heads/", "", m) for m in merge]
 
 
 def consolidation_targets(tree, push):
@@ -455,7 +623,7 @@ def service_ids(review):
 
 
 def bulk_push(words, here):
-    """git push --all / --mirror would push refs no gate has looked at; this repository refuses them."""
+    """git push --all / --mirror would push refs no gate has looked at, and main is the owner's; this repository refuses them."""
     push = git_verb(words, "push")
     if push is not None and any(a in ("--all", "--mirror", "--branches") for a in push[1]):
         return "git push --all/--mirror/--branches pushes refs no gate checked; push each branch by name"
@@ -464,6 +632,13 @@ def bulk_push(words, here):
             if SHELL_EXPANDED.search(operand) or operand.lstrip("+") == ":":
                 return ("git push operand " + operand + " is shell-expanded, a pattern or the matching refspec; "
                         "write the branch name")
+        tree = os.path.join(here, push[0]) if push[0] else here
+        implicit = implicit_destinations(tree, words, push)
+        if implicit is None:
+            return "git -c push settings hide where a push goes; write the refspec (git push origin <src>:claude/<branch>)"
+        for destination in [t[2] for t in push_targets(tree, push)] + implicit:
+            if destination in PROTECTED:
+                return "git push to " + destination + " is refused: agents push claude/* branches only; the owner merges"
     return None
 
 
@@ -527,7 +702,7 @@ def stands_for(tree, source, head, prefix):
         return True
     if git_out(tree, "merge-base", "--is-ancestor", source, head)[0] != 0:
         return False
-    code, out = git_out(tree, "diff", "--name-only", source, head)
+    code, out = git_out(tree, "diff", "--name-only", "--no-renames", source, head)
     return code == 0 and all(line.startswith(prefix) for line in out.split())
 
 
@@ -613,7 +788,7 @@ def branch_range(tree, remote, sha):
     """(commits, added files) of the pushed branch's own range: everything the ref has that consolidation lacks."""
     tail = ["--not", *excluded_refs(tree, remote)] if excluded_refs(tree, remote) else []
     commits = set(git_out(tree, "rev-list", sha, *tail)[1].split())
-    added = set(git_out(tree, "log", "--diff-filter=A", "--name-only", "--format=", sha, *tail)[1].split("\n"))
+    added = set(git_out(tree, "log", "--diff-filter=A", "--no-renames", "--name-only", "--format=", sha, *tail)[1].split("\n"))
     return commits, added
 
 

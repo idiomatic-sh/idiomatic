@@ -12,7 +12,7 @@ You consume the findings of the [Rust gate](rust-principal-review.md), the [cont
 The design primitives are the four in [crates/tastemaker/README.md](../../crates/tastemaker/README.md): rule, template, spec and `tastemaker.toml`. The tree's own primitives are in [crates/ryo/docs/README.md](../../crates/ryo/docs/README.md) (crates only at real boundaries; interface, use_case, service, item, adapter, schemas, composition, ...; a file with no primitive is a finding; no common, utils, shared or helpers). Use the CLI: start with `tm --help` and the subcommand help.
 
 ## Inputs
-The PM names: the landed sha, the previous checkpoint sha, the checkpoint number `N`, the three review reports, a scratch directory for the archive copy and `INTEGRATION_TREE`.
+The PM names: the landed sha, the previous checkpoint sha, the checkpoint number `N`, the three review reports, a scratch directory for the archive copy and `INTEGRATION_TREE`. As tokens: `INTEGRATION_TREE=<checkpoint N+1's tree>` and `SOURCE=<the landed sha of N>`, the previous landed head that the push of N+1 checks. `tm-steward.json`'s `source` is that sha, or an ancestor of it with only evidence changed since; the stop hook and the push hook judge it with the same `stands_for`.
 
 ## Procedure
 1. **Gate.** Run `asymptote check --groups lint,check,clippy` yourself in `crates/ryo` of the archive copy of the landed sha (groups in [asymptote.toml](../../crates/ryo/asymptote.toml); [asymptote README](../../crates/asymptote/README.md)). The committed lock (`.asymptote/`) is the record of its findings, and its input reuse makes the rerun cheap; no integrator file stands in for it. Run only what the hook lets you run; never rebuild the workspace by hand. If any group fails, stop and report. Record the exact command and its results.
@@ -36,3 +36,8 @@ Two artifacts. The PM names `INTEGRATION_TREE` in the prompt. The reviewer write
  "branch": "<branch holding the asset changes, or null>", "date": "<ISO 8601>"}
 ```
 The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). The Markdown report has the gate results, the per-class decision table (class / decision a-d / mechanism / proof count), the asset counts before and after with the justification lines, and the branch. Assets are authored on that branch only; its source, placement and validation receipts go to the three reviewers of the next checkpoint.
+
+## Budget and stop
+- **Time budget: 45 minutes** from the first tool call. At the budget, decide from what is proved: an item or check without evidence is FAIL, as everywhere in this review. Never extend the pass to finish an investigation.
+- **Verdict file first.** Write `tm-steward.json` the moment the verdict is decided, before the write-up; then write the Markdown report. The PM's prompt names `INTEGRATION_TREE=<path>` and `SOURCE=<40-hex sha>`. The SubagentStop hook (`.claude/hooks/acceptance_on_stop.py`) holds every stop until that file is written during this run, passes `shape()` in `ci/contract_review/service.py` (the one validator of review evidence) and reviews `SOURCE`; the only other stop is `BLOCKED: <one question>`.
+- **One attempt at a hard residual.** A question that one probe, plant or reading does not settle is documented, not chased: the finding, what was tried, the evidence it gave, and the probe that would settle it. It is a FAIL when it leaves an item without evidence, and an advisory otherwise.

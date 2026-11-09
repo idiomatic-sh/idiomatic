@@ -58,7 +58,7 @@
   {
    "earlier": 3,
    "status": "honest",
-   "evidence": "README:76 unticked; text states expected()/meaning() run only on the synthetic corpus and the 413 comparison is not built (ryo-vuzf). ruff sharing::test::succeeds asserts a compiled class shared by >=2 rules from the shared_walk_class trace with a single-rule negative control; still compiler self-consistency, correctly not claimed as independent."
+   "evidence": "README:76 unticked; text states expected()/meaning() run only on the synthetic corpus and the 413 comparison is not built. ruff sharing::test::succeeds asserts a compiled class shared by >=2 rules from the shared_walk_class trace with a single-rule negative control; still compiler self-consistency, correctly not claimed as independent."
   },
   {
    "earlier": 4,

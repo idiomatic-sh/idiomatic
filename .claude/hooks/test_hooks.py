@@ -11,6 +11,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOCK = "flock /workspaces/.cargo-build.lock "
 CHECK = " --target-dir /workspaces/idiomatic-check-target"
+OWN = " --target-dir /workspaces/idiomatic-target/builder"
 
 
 def run_hook(name, payload, env=None):
@@ -137,9 +138,116 @@ class GuardShell(unittest.TestCase):
 
     def test_builder_test_build_clippy_with_a_package_are_refused(self):
         for command in ["cargo test -p x" + CHECK, "cargo build -p x" + CHECK, "cargo clippy -p x" + CHECK,
-                        LOCK + "cargo test -p x", "bash -c 'cargo check -p x" + CHECK + "'"]:
+                        LOCK + "cargo test -p x", "bash -c 'cargo check -p x" + CHECK + "'",
+                        LOCK + "cargo build -p x" + OWN, LOCK + "cargo clippy -p x" + OWN]:
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 2)
+
+    def lane(self):
+        """A builder worktree whose branch changes package x (untracked) over a base holding package y."""
+        lane = repo(self.dir.name, "lane-" + str(len(os.listdir(self.dir.name))), "claude/p2-lane")
+        git = ["git", "-C", lane, "-c", "user.email=t@example.com", "-c", "user.name=t"]
+        os.makedirs(os.path.join(lane, "y"))
+        with open(os.path.join(lane, "y", "Cargo.toml"), "w", encoding="utf-8") as handle:
+            handle.write('[package]\nname = "y"\n')
+        subprocess.run(git + ["add", "-A"], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "base"], check=True)
+        subprocess.run(git + ["update-ref", "refs/remotes/origin/claude/ryo-consolidation", "HEAD"], check=True)
+        os.makedirs(os.path.join(lane, "x", "src"))
+        with open(os.path.join(lane, "x", "Cargo.toml"), "w", encoding="utf-8") as handle:
+            handle.write('[package]\nname = "x"\n')
+        with open(os.path.join(lane, "x", "src", "lib.rs"), "w", encoding="utf-8") as handle:
+            handle.write("")
+        return lane, " --target-dir /workspaces/idiomatic-target/" + os.path.basename(lane)
+
+    def test_builder_runs_one_changed_packages_tests_into_its_own_target_directly_behind_the_lock(self):
+        lane, own = self.lane()
+        for command in [LOCK + "cargo nextest run -p x" + own, LOCK + "cargo test -p x" + own,
+                        LOCK + "cargo test -p x --lib some::test" + own, "timeout 600 " + LOCK + "cargo nextest run -p x" + own,
+                        LOCK + "cargo +nightly test --package=x" + own + "/", LOCK + "cargo test -p x" + own + " -- --nocapture",
+                        LOCK + "cargo-nextest nextest run -p x" + own, LOCK + "/usr/local/cargo/bin/cargo test -px" + own,
+                        "flock -w 600 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                        "flock --timeout 600 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                        "flock --wait 600 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                        "flock --wait=600 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                        "flock -xw 600 /workspaces/.cargo-build.lock cargo nextest run -p x" + own,
+                        LOCK + "cargo --config net.offline=true test -p x" + own]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, lane), 0)
+
+    def test_builder_tests_escaping_the_lane_are_refused(self):
+        lane, own = self.lane()
+        for command in [
+                # the lock: missing, a substring elsewhere, another file, shared
+                "cargo nextest run -p x" + own, "echo /workspaces/.cargo-build.lock; cargo test -p x" + own,
+                "env Z=/workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock /workspaces/.cargo-build.lockx cargo test -p x" + own,
+                "flock -s /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock -w 5 -s /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock -sw 5 /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock -sw 5 /workspaces/.cargo-build.lock cargo test --workspace" + own,
+                "flock --shared /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock --wait 5 -s /workspaces/.cargo-build.lock cargo test -p x" + own,
+                "flock --wait 5 /workspaces/.cargo-build.lock sh -c 'cargo test --workspace'" + own,
+                # a --config value read as the verb
+                LOCK + "cargo --config check test --workspace" + CHECK,
+                "cargo --config check test -p x" + CHECK,
+                # the target
+                LOCK + "cargo nextest run -p x", LOCK + "cargo nextest run -p x" + CHECK + "/" + os.path.basename(lane),
+                LOCK + "cargo test -p x --target-dir /workspaces/idiomatic-target/other",
+                # the packages: none, the workspace, a pattern, several, one the branch does not change, after --
+                LOCK + "cargo nextest run" + own, LOCK + "cargo test --workspace" + own, LOCK + "cargo test --all" + own,
+                LOCK + "cargo nextest run --workspace -p x" + own, LOCK + "cargo test -p '*'" + own,
+                LOCK + "cargo nextest run -p 'x*'" + own, LOCK + "cargo test -p x -p y" + own, LOCK + "cargo test -p y" + own,
+                LOCK + "cargo test" + own + " -- -p x", LOCK + "cargo test" + own + " -- --package x",
+                LOCK + "cargo nextest run" + own + " -- -p x",
+                # aliases, plugins and other verbs
+                LOCK + "cargo t --workspace" + own, LOCK + "cargo b --workspace" + own, LOCK + "cargo coverage-all" + own,
+                LOCK + "cargo-nextest nextest run --workspace" + own, LOCK + "cargo build -p x" + own,
+                LOCK + "cargo clippy -p x" + own, LOCK + "cargo nextest list -p x" + own]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, lane), 2)
+
+    def test_a_file_moved_out_of_a_package_still_counts_as_that_packages_change(self):
+        lane, own = self.lane()
+        git = ["git", "-C", lane, "-c", "user.email=t@example.com", "-c", "user.name=t"]
+        os.makedirs(os.path.join(lane, "y", "src"))
+        with open(os.path.join(lane, "y", "src", "lib.rs"), "w", encoding="utf-8") as handle:
+            handle.write("pub fn y() {}\n")
+        subprocess.run(git + ["add", "-A", "y"], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "y source"], check=True)
+        subprocess.run(git + ["update-ref", "refs/remotes/origin/claude/ryo-consolidation", "HEAD"], check=True)
+        subprocess.run(git + ["add", "-A", "x"], check=True)
+        subprocess.run(git + ["mv", "y/src/lib.rs", "x/src/moved.rs"], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "move"], check=True)
+        self.assertEqual(shell(LOCK + "cargo test -p y" + own, lane), 0)
+
+    def test_a_builder_tree_without_a_known_base_runs_no_tests(self):
+        self.assertEqual(shell(LOCK + "cargo test -p x" + OWN, self.builder), 2)
+
+    def test_a_push_to_main_is_refused_in_every_spelling(self):
+        main = repo(self.dir.name, "on-main", "main")
+        tracking = repo(self.dir.name, "tracking-main", "claude/p3-tracking")
+        subprocess.run(["git", "-C", tracking, "config", "branch.claude/p3-tracking.remote", "origin"], check=True)
+        subprocess.run(["git", "-C", tracking, "config", "branch.claude/p3-tracking.merge", "refs/heads/main"], check=True)
+        configured = repo(self.dir.name, "configured-push", "claude/p3-configured")
+        subprocess.run(["git", "-C", configured, "config", "remote.origin.push", "HEAD:refs/heads/main"], check=True)
+        for command, where in [("git push origin main", self.builder), ("git push origin HEAD:refs/heads/main", self.builder),
+                               ("git push -u origin +HEAD:master", self.builder), ("git push", main), ("git push origin HEAD", main),
+                               ("git -C " + main + " push origin", self.builder), ("git push -d origin main", self.builder),
+                               ("git push origin :main", self.builder), ("git push origin +:refs/heads/main", self.builder),
+                               ("git push origin HEAD:heads/main", self.builder),
+                               ("git -c push.default=upstream push", self.builder),
+                               ("git -c remote.origin.push=HEAD:refs/heads/main push origin", self.builder),
+                               ("git push", tracking), ("git push origin", configured)]:
+            with self.subTest(command=command, where=where):
+                self.assertEqual(shell(command, where), 2)
+        self.assertEqual(shell("git push origin claude/p1-coverage-kinds", self.builder), 0)
+        self.assertEqual(shell("git push origin HEAD:claude/p3-configured", configured), 0)
+
+    def test_integration_tree_nextest_needs_the_lock(self):
+        self.assertEqual(shell(LOCK + "cargo nextest run --workspace", self.integration), 0)
+        self.assertEqual(shell("cargo nextest run --workspace", self.integration), 2)
 
     def test_integration_tree_forms_are_unchanged(self):
         for command, code in [(LOCK + "cargo check --workspace --all-features --message-format=json", 0),
@@ -1218,6 +1326,150 @@ class Acceptance(unittest.TestCase):
         self.fake_bd("false")
         codes = [self.stop(self.brief(), "DONE: x").returncode for _ in range(5)]
         self.assertEqual(codes, [2, 2, 2, 2, 0])
+
+
+SHA = "a" * 40
+
+
+class ReviewerStop(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = os.path.join(self.dir.name, "ryo-333")
+        os.makedirs(os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/checkpoint"))
+        os.makedirs(os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches"))
+
+    def review(self, agent, **changes):
+        review = {"source": SHA, "verdict": "FAIL", "reviewer": agent,
+                  "checks": [{"id": "1", "verdict": "FAIL", "evidence": "x.rs:1"}]}
+        review.update(changes)
+        return review
+
+    def write(self, rel, review, age=0):
+        path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence", rel)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(review if isinstance(review, str) else json.dumps(review))
+        if age:
+            stamp = os.path.getmtime(path) - age
+            os.utime(path, (stamp, stamp))
+
+    def stop(self, agent, report="Report.", brief=None, stamped=True):
+        transcript = os.path.join(self.dir.name, "agent.jsonl")
+        clock = __import__("datetime")
+        now = clock.datetime.now(clock.timezone.utc) - clock.timedelta(seconds=60)
+        first = {"type": "user", "message": {"role": "user", "content": brief if brief is not None else
+                 "Review 333. INTEGRATION_TREE=" + self.tree + ": SOURCE=" + SHA + "."}}
+        if stamped:
+            first["timestamp"] = now.isoformat()
+        rows = [first, {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": report}]}}]
+        with open(transcript, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(json.dumps(r) for r in rows))
+        env = dict(os.environ, CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
+        return run_hook("acceptance_on_stop.py", {"agent_type": agent, "agent_id": "a1", "agent_transcript_path": transcript,
+                                                  "transcript_path": "/nonexistent", "stop_hook_active": False}, env)
+
+    def test_each_reviewer_without_its_verdict_file_is_held_every_time(self):
+        for agent in ["rust-review", "contract-review", "leak-review", "tm-steward"]:
+            with self.subTest(agent=agent):
+                codes = [self.stop(agent).returncode for _ in range(6)]
+                self.assertEqual(codes, [2] * 6)
+
+    def test_each_reviewer_with_its_valid_verdict_for_the_source_written_this_run_stops(self):
+        for agent, rel, brief in [
+                ("rust-review", "checkpoint/rust-review.json", None), ("contract-review", "checkpoint/contract-review.json", None),
+                ("leak-review", "checkpoint/leak-review.json", None), ("tm-steward", "checkpoint/tm-steward.json", None),
+                ("leak-review", "branches/claude-w15-loop.json",
+                 "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + " BRANCH=claude/w15-loop.")]:
+            with self.subTest(rel=rel):
+                self.write(rel, self.review(agent))
+                self.assertEqual(self.stop(agent, brief=brief).returncode, 0)
+
+    def test_the_tree_token_drops_trailing_punctuation(self):
+        self.write("checkpoint/rust-review.json", self.review("rust-review"))
+        for brief in ["INTEGRATION_TREE=" + self.tree + ": SOURCE=" + SHA,
+                      "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ", as before: SOURCE=" + SHA + ".", "(INTEGRATION_TREE=" + self.tree + "), SOURCE=" + SHA + ".",
+                      "INTEGRATION_TREE=" + self.tree + "; SOURCE=" + SHA + ";"]:
+            with self.subTest(brief=brief):
+                self.assertEqual(self.stop("rust-review", brief=brief).returncode, 0)
+
+    def test_a_verdict_that_is_not_this_runs_valid_review_of_the_source_is_held(self):
+        branch = "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + " BRANCH=claude/w15-loop"
+        for name, rel, review, age, brief, stamped in [
+                ("stale", "checkpoint/rust-review.json", self.review("rust-review"), 3600, None, True),
+                ("another reviewer", "checkpoint/rust-review.json", self.review("leak-review"), 0, None, True),
+                ("no checks", "checkpoint/rust-review.json", self.review("rust-review", checks=[]), 0, None, True),
+                ("verdict not decided", "checkpoint/rust-review.json", {"reviewer": "rust-review", "verdict": "not decided"}, 0, None, True),
+                ("another source", "checkpoint/rust-review.json", self.review("rust-review", source="b" * 40), 0, None, True),
+                ("the quoted earlier source", "checkpoint/rust-review.json", self.review("rust-review", source="b" * 40), 0,
+                 "The last pass reviewed SOURCE=" + "b" * 40 + ". Now INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ".", True),
+                ("two sources, the verdict for the second", "checkpoint/rust-review.json", self.review("rust-review"), 0,
+                 "The last pass reviewed SOURCE=" + "b" * 40 + ". Now INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ".", True),
+                ("two sources, the verdict for the first", "checkpoint/rust-review.json", self.review("rust-review"), 0,
+                 "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + ". Then SOURCE=" + "b" * 40 + ".", True),
+                ("two trees", "checkpoint/rust-review.json", self.review("rust-review"), 0,
+                 "INTEGRATION_TREE=/elsewhere SOURCE=" + SHA + " INTEGRATION_TREE=" + self.tree, True),
+                ("two branches", "branches/claude-w15-loop.json", self.review("leak-review"), 0,
+                 "INTEGRATION_TREE=" + self.tree + " SOURCE=" + SHA + " BRANCH=claude/old BRANCH=claude/w15-loop", True),
+                ("not json", "checkpoint/rust-review.json", "{x", 0, None, True),
+                ("no timestamp", "checkpoint/rust-review.json", self.review("rust-review"), 0, None, False),
+                ("no SOURCE", "checkpoint/rust-review.json", self.review("rust-review"), 0, "INTEGRATION_TREE=" + self.tree, True),
+                ("colon form", "checkpoint/rust-review.json", self.review("rust-review"), 0, "INTEGRATION_TREE: " + self.tree + " SOURCE=" + SHA, True),
+                ("another branch's file", "branches/claude-other.json", self.review("leak-review"), 0, branch, True)]:
+            with self.subTest(name=name):
+                for rel_old in ("checkpoint/rust-review.json", "branches/claude-other.json", "branches/claude-w15-loop.json"):
+                    path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence", rel_old)
+                    if os.path.exists(path):
+                        os.remove(path)
+                self.write(rel, review, age)
+                agent = "leak-review" if rel.startswith("branches/") else "rust-review"
+                self.assertEqual(self.stop(agent, brief=brief, stamped=stamped).returncode, 2)
+
+    def test_the_tm_steward_decides_the_landed_head_as_the_push_gate_reads_it(self):
+        git = ["git", "-C", self.tree, "-c", "user.email=t@example.com", "-c", "user.name=t"]
+        subprocess.run(git[:3] + ["init", "-q"], check=True)
+
+        def commit(path, text):
+            with open(os.path.join(self.tree, path), "w", encoding="utf-8") as handle:
+                handle.write(text)
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-q", "-m", path], check=True)
+            return subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        landed = commit("code.rs", "fn a() {}")
+        evidence = commit("crates/ryo/docs/contracts/evidence/checkpoint/contract-review.md", "x")
+        code = commit("code.rs", "fn b() {}")
+        subprocess.run(git + ["mv", "code.rs", "crates/ryo/docs/contracts/evidence/checkpoint/code.rs"], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "move"], check=True)
+        moved = subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        brief = lambda sha: "INTEGRATION_TREE=" + self.tree + " SOURCE=" + sha
+        for name, source, decided, code_ in [("the landed head itself", landed, landed, 0),
+                                             ("code renamed into the evidence directory since", moved, code, 2),
+                                             ("an ancestor with only evidence changed since", evidence, landed, 0),
+                                             ("an ancestor with code changed since", code, landed, 2),
+                                             ("a sha that is not an ancestor", landed, code, 2)]:
+            with self.subTest(name=name):
+                self.write("checkpoint/tm-steward.json", self.review("tm-steward", source=decided))
+                self.assertEqual(self.stop("tm-steward", brief=brief(source)).returncode, code_)
+
+    def test_a_guard_that_fails_to_load_holds_the_tm_steward(self):
+        copy = os.path.join(self.dir.name, "copy")
+        os.makedirs(os.path.join(copy, ".claude", "hooks"))
+        shutil.copytree(os.path.join(HERE, "..", "..", "ci", "contract_review"), os.path.join(copy, "ci", "contract_review"))
+        shutil.copy(os.path.join(HERE, "acceptance_on_stop.py"), os.path.join(copy, ".claude", "hooks"))
+        with open(os.path.join(copy, ".claude", "hooks", "guard_shell.py"), "w", encoding="utf-8") as handle:
+            handle.write("import no_such_module_planted\n")
+        self.write("checkpoint/tm-steward.json", self.review("tm-steward"))
+        self.stop("tm-steward")  # writes the transcript
+        transcript = os.path.join(self.dir.name, "agent.jsonl")
+        result = subprocess.run(["python3", "-I", os.path.join(copy, ".claude", "hooks", "acceptance_on_stop.py")],
+                                input=json.dumps({"agent_type": "tm-steward", "agent_id": "a1",
+                                                  "agent_transcript_path": transcript}),
+                                capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("ModuleNotFoundError", result.stderr)
+
+    def test_blocked_and_other_agents_stop(self):
+        self.assertEqual(self.stop("rust-review", report="BLOCKED: which base sha?").returncode, 0)
+        self.assertEqual(self.stop("perf-diagnosis").returncode, 0)
 
 
 class NoSubagentBuilders(unittest.TestCase):

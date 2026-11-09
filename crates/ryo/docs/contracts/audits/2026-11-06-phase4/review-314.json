@@ -56,7 +56,7 @@
    "axis": "ownership_and_flow",
    "location": "crates/ryo/crates/execution/src/outbound/derived/interface.rs:2-13; holders application/file_dag/{scope.rs:21,request.rs:28,relations.rs:95,program/facade_runtime/types.rs:11}",
    "failure": "Direct builder bypass is not impossible: DerivedPort exposes DerivedUseCase::build publicly, and any file_dag holder of Arc<dyn DerivedPort> can call port.build(..) outside derived/owner, skipping admission, ledger and lease. Only call sites in owner/acquisition/semantics/service.rs do so today; nothing prevents a new one.",
-   "owner": "Phase 4 derived agent (ryo-brdm census)",
+   "owner": "Phase 4 derived agent (census)",
    "required_enforcement": "Hold the port only inside DerivedOwner (owner-private newtype) or a TM rule restricting DerivedUseCase::build calls to derived/owner/acquisition/semantics, with bad/good scenarios and a compile-fail probe."
   },
   {
@@ -78,7 +78,7 @@
   "no-heap-accounting 0 findings in derived scope"
  ],
  "known_gaps_confirmed": [
-  "consumer census across 13 kinds (ryo-brdm): 15 file_dag consumer files outside derived/ (axis_resources, closure_partitions, cached_graph, invocation/*, kernel_session/strategies, relations/{accounting,selected_access,selection}, selected.rs, workspace.rs) unreconciled",
+  "consumer census across 13 kinds: 15 file_dag consumer files outside derived/ (axis_resources, closure_partitions, cached_graph, invocation/*, kernel_session/strategies, relations/{accounting,selected_access,selection}, selected.rs, workspace.rs) unreconciled",
   "whole-route lifetime scope",
   "20 no-bare-integers + 1 no-bare-bool deferred to Phase 7",
   "4 application-service#closed in raw_scope/family test modules not mentioned in the Phase 4 TM row"

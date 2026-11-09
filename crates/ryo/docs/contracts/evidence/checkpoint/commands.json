@@ -116,6 +116,10 @@
     ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run_test.py", "-v"]
   ],
   [
+    "census",
+    ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "--census"]
+  ],
+  [
     "python_lib",
     ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--lib"]
   ],
