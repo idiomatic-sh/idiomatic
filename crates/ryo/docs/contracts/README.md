@@ -11,14 +11,15 @@
 Phases 1-7 are complete when each box below is ticked.
 
 - [ ] all-413 parity run against Ruff: every rule identical or each difference named and accepted
+- [ ] whole-tree Tastemaker 0, with the `execution_domain` concept cycle broken (18 `no-domain-concept-cycles` findings; each suppression is a reasoned in-source ignore)
 - [ ] perf levers, each landed from a committed diagnosis with byte-identical receipts, in priority order:
   - [ ] skip rules that cannot match
-  - [ ] the engine port (the runtime per-file state component, a typed interface the runtime takes)
+  - [ ] the runtime execution port: a new port in `execution_runtime` whose operations and types come from its design document, reviewed before any code. It covers how the runtime holds per-file state and evaluates regions, and subsumes the per-file state component below. The port design review must confirm the simple path fits behind this port, and must redesign the port if not. It is distinct from the benchmark's `EnginePort`.
   - [ ] the relational hot path (multi-input region overhead, join/antijoin/group/axis kernels, materialised intermediates, relational fusion)
-  - [ ] dense slots and streaming rows behind the port
-  - [ ] the simple path as a small engine-adapter piece passed into that port, not a second implementation
+  - [ ] dense slots and streaming rows behind the runtime execution port
+  - [ ] the simple path as a small adapter piece passed into the runtime execution port, not a second implementation
     - Owner success criterion (owner, 2026-11-08): "if we're able to implement the simple change through an adapter and the change is very tiny, we've accomplished what i've been driving toward".
-    - Checkable: the landing's diff touches only the engine adapter that implements the port and the composition that injects it, and no other engine file. Its production diff is small and its line count is recorded in the landing record. This is the test that the architecture's isolation works.
+    - Checkable: until the design names the trait and the adapter path, the diff touches only the adapter of the runtime execution port, at the path its reviewed design names, plus the composition that injects it, and no other engine file. Its production diff is recorded as a line count in the landing record, and the landing's Rust review judges it against the port's size. This is the test that the architecture's isolation works.
   - [ ] shared prepared program and compile cache
   - [ ] allocation churn
   - [ ] allocator decay
@@ -29,9 +30,8 @@ Phases 1-7 are complete when each box below is ticked.
 - [ ] runtime per-file state is one typed component inside `execution_runtime` (slots, polls and publication bookkeeping behind a narrow interface, one implementation), with the dense-slot version swapped in. Nothing outside touches it, proven by `compile_fail` probes plus `private_interfaces = deny`: each probe refuses code outside the component that names one member type or calls its internals.
   - Members: the per-file maps in `execution_runtime` `runtime/service.rs`: `slots` (line 160, the one the diagnosis names; the dense-slot swap replaces this map), `dormant` (line 161) and the two retirement maps (lines 127 and 130).
   - Boundary: `ReadyQueue` and `ReadinessCounts` (`execution_domain` readiness), the publication scope and generation types (`execution_store`) and the replay buffer (`execution_domain` replay) stay where they are, as domain values the component holds and uses. The component owns their per-file instances and lifetime, not their definitions. The streaming-rows lever changes how the component feeds the replay buffer and touches the domain type only within its own crate. Readiness does not move, so the ring row is unaffected.
-- [ ] whole-tree Tastemaker 0, with the `execution_domain` concept cycle broken (18 `no-domain-concept-cycles` findings; each suppression is a reasoned in-source ignore)
 - [ ] CI wiring: `.github/workflows/checkpoint.yml` `workflow_dispatch` only; every workflow manual dispatch (the pull-request trigger of `check.yml` and the cron schedule of `benchmarks.yml` removed); the pre-existing CI test reds fixed, the ten failing at the head of this branch (by test id): `ci/release/publish/adapters/cargo/adapter_test.py::test_each_products_real_order_puts_every_dependency_before_its_dependent[ryo-idiomatic-sh-ryo]`, `ci/release/publish/adapters/cargo/adapter_test.py::test_each_products_real_order_holds_every_crate_of_this_checkout_the_command_line_links[ryo-idiomatic-sh-ryo]`, `ci/release/publish/adapters/cargo/adapter_test.py::test_each_product_publishes_only_its_own_crates[ryo-idiomatic-sh-ryo]`, `ci/scripts/checks/build_stage_test.py::test_style_failure_has_its_own_mandatory_quality_group[ryo]`, `ci/scripts/checks/build_stage_test.py::test_style_failure_has_its_own_mandatory_quality_group[tastemaker]`, `ci/scripts/checks/build_stage_test.py::test_style_failure_has_its_own_mandatory_quality_group[asymptote]`, `ci/scripts/checks/install_test.py::test_benchmark_collector_selects_only_one_matching_executable`, `ci/workflows_test.py::test_every_workflow_checks_through_one_asymptote_call[check.yml]`, `ci/workflows_test.py::test_the_full_inventory_is_an_independent_complete_gate`, `ci/workflows_test.py::test_a_pull_request_runs_each_changed_product_s_check_fan_out_behind_one_gate`)
-- [ ] the rust-review, contract-review, leak-review and tm-steward subagents on every checkpoint, enforced by `.claude/hooks/guard_shell.py`
+- [ ] the rust-review (definition file `rust-principal-review.md`), contract-review, leak-review and tm-steward (definition file `tm-specialist.md`) subagents on every checkpoint, enforced by `.claude/hooks/guard_shell.py`
 - [ ] the speed target (750 ms / 500 MB / 200 ms) recorded RED by owner decision: tracked, not an exit
 - [ ] every phase row's exit in the matrix is ticked from validation results
 - [ ] then the consolidation pull request for the owner's merge
