@@ -1,10 +1,6 @@
 //! Finite request descriptors; no executable Plan or mutable worker pool survives.
 use crate::application::file_dag::derived::constants as activation;
-use ryo_execution_domain::domain::{
-    coverage::types::RuleIndex,
-    executable_program::types::{InputSource, executable_program::value::ExecutableProgram},
-    operating::errors::OperatingError,
-};
+use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::Relation;
 
 use crate::application::file_dag::derived::owner::cache::types::GraphAdmission;
@@ -14,62 +10,29 @@ pub struct RequestDerived {
     relations: Box<[Box<[Relation]>]>,
     graph_rules: rustc_hash::FxHashSet<RuleIndex>,
 }
+/// What one rule of a request needs of the derived views: the relations it reads per file, each once in the order first read, and
+/// whether it walks a graph.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleDerivedNeeds {
+    /// The relations the rule reads per file.
+    pub relations: Box<[Relation]>,
+    /// Whether the rule walks a graph.
+    pub walks_graph: bool,
+}
 impl RequestDerived {
-    /// Reads the derived needs of every rule from the compiled program.
-    pub fn compile(program: &ExecutableProgram) -> Result<Self, OperatingError> {
-        let mut relations = Vec::with_capacity(program.rules().len());
-        let mut graph_rules = rustc_hash::FxHashSet::default();
-        for (rule, mapping) in program.rules().iter().enumerate() {
-            let mut reads = Vec::new();
-            let mut graph = false;
-            for origin in mapping.original_steps.iter() {
-                let Ok(origin) = origin else {
-                    continue;
-                };
-                let region_id = *program
-                    .logical_regions()
-                    .get(origin.logical.0)
-                    .ok_or(OperatingError::NotRun)?;
-                let region = program
-                    .regions()
-                    .get(region_id.0)
-                    .ok_or(OperatingError::NotRun)?;
-                if region.phase() != ryo_values::domain::plan_parts::types::StepScope::PerFile {
-                    continue;
-                }
-
-                for source in region.inputs().iter() {
-                    if let InputSource::Relation(relation) = source {
-                        note_read(&mut reads, *relation);
-                    }
-                }
-                let instruction = region
-                    .instructions()
-                    .iter()
-                    .find(|instruction| instruction.logical() == origin.logical)
-                    .ok_or(OperatingError::NotRun)?;
-                for group in instruction.contract().derived.slots.iter().flatten() {
-                    for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
-                        for relation in use_.relations.iter().flatten() {
-                            note_read(&mut reads, *relation);
-                        }
-                    }
-                }
-                graph |= matches!(
-                    instruction.operation(),
-                    ryo_values::domain::plans::types::Operation::Axis { .. }
-                        | ryo_values::domain::plans::types::Operation::Join { reach: Some(_), .. }
-                );
-            }
-            relations.push(reads.into_boxed_slice());
-            if graph {
-                graph_rules.insert(RuleIndex(rule));
-            }
-        }
-        Ok(Self {
-            relations: relations.into_boxed_slice(),
+    /// The derived needs of a request, one per rule in rule order.
+    #[must_use]
+    pub fn new(needs: Box<[RuleDerivedNeeds]>) -> Self {
+        let graph_rules = needs
+            .iter()
+            .enumerate()
+            .filter(|(_, rule)| rule.walks_graph)
+            .map(|(rule, _)| RuleIndex(rule))
+            .collect();
+        Self {
+            relations: needs.into_vec().into_iter().map(|rule| rule.relations).collect(),
             graph_rules,
-        })
+        }
     }
     pub(crate) fn relations_for(&self, rule: RuleIndex) -> Result<&[Relation], OperatingError> {
         tracing::trace!(target: activation::TARGET, event = activation::RELATION_RULE, rule = rule.0);
@@ -92,12 +55,5 @@ impl RequestDerived {
         } else {
             GraphAdmission::Disabled
         })
-    }
-}
-
-/// A relation a rule reads is recorded once, in the order it is first read.
-fn note_read(reads: &mut Vec<Relation>, relation: Relation) {
-    if !reads.contains(&relation) {
-        reads.push(relation);
     }
 }

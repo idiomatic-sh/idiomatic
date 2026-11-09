@@ -86,11 +86,24 @@ fn axis_plan(relation: Relation) -> ryo_values::domain::plans::types::Plan {
 
 /// What `prepare_graph` answers for the axis of `axis_plan` on `owner`.
 fn graph_of(owner: &std::rc::Rc<RelationOwner>) -> Result<bool, OperatingError> {
-    let program = crate::application::file_dag::derived::owner::fixtures::compiled(
-        &[axis_plan(Relation::Function)],
-        owner.derived().semantic.clone(),
-    );
-    let contract = program.regions()[0].instructions()[0].contract();
+    // The axis step's operator contract, its derived views bound through the store's request views.
+    let plan = axis_plan(Relation::Function);
+    let operation = &plan.steps[0].operation;
+    let kinds = ryo_relations::domain::relations::service::kinds(Relation::Function);
+    let shape = ryo_execution_domain::domain::operation_schema::types::InputShape {
+        kinds,
+        tree: ryo_execution_domain::domain::table_cells::service::native_form(Relation::Function),
+    };
+    let mut contract = ryo_execution_domain::domain::operator::service::prepare_operator(
+        ryo_values::domain::plans::service::kind_of(operation),
+        operation,
+        &[shape; 3],
+        &[],
+        ryo_values::domain::plan_parts::types::StepScope::PerFile,
+    )?;
+    crate::application::file_dag::derived::request::RequestViews::new(owner.derived().semantic.clone())
+        .bind(&mut contract)?;
+    let contract = &contract;
     let workspace = crate::application::file_dag::workspace::InvocationWorkspace::new(
         std::rc::Rc::clone(owner),
     );

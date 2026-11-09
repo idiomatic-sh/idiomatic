@@ -38,19 +38,17 @@ impl ResourceFixture {
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::fixtures::program_derived_port(),
         ));
-        let plans = wanted
+        let needs = wanted
             .iter()
             .copied()
-            .map(crate::application::file_dag::derived::owner::fixtures::source_plan)
-            .collect::<Vec<_>>();
+            .map(crate::application::file_dag::derived::owner::fixtures::reads)
+            .collect::<Box<[_]>>();
+        let rules = needs.len();
         owner
             .derived()
             .prepare_program_file(
-                &crate::application::file_dag::derived::owner::fixtures::prepared_sources(
-                    &plans,
-                    owner.derived().semantic.clone(),
-                ),
-                &(0..plans.len())
+                &crate::application::file_dag::derived::prepared::RequestDerived::new(needs),
+                &(0..rules)
                     .map(ryo_execution_domain::domain::coverage::types::RuleIndex)
                     .collect::<Vec<_>>(),
                 partials,

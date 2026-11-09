@@ -82,7 +82,7 @@ impl ProgramExecution {
             .owner
             .producer_view_witness(
                 state.scope,
-                probe.producer,
+                ryo_execution_store::application::file_dag::relations::types::ProducerId(probe.producer.0),
                 ryo_derived::domain::request::types::DerivedKind::Equality,
             )
             .unwrap();

@@ -25,10 +25,11 @@ use ryo_relations::domain::relations::types::{CellKind, Relation};
 /// }
 /// ```
 /// ```compile_fail,E0624
-/// use ryo_execution_store::application::file_dag::relations::{RelationOwner, publication::types::ProducerScope};
-/// use ryo_execution_domain::domain::executable_program::types::RegionId;
+/// use ryo_execution_store::application::file_dag::relations::{
+///     RelationOwner, publication::types::ProducerScope, types::ProducerId,
+/// };
 /// fn retire(owner: &RelationOwner) {
-///     owner.release_derived_producer(ProducerScope::File, RegionId(0));
+///     owner.release_derived_producer(ProducerScope::File, ProducerId(0));
 /// }
 /// ```
 /// nor name the lease a generation is.

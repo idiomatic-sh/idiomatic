@@ -8,9 +8,7 @@ use ryo_execution_domain::domain::table_model::{
     service::{kind, materialize, registered},
     types::{PublishedRelation, Rows},
 };
-use ryo_execution_domain::domain::{
-    executable_program::types::RegionId, operating::errors::OperatingError,
-};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::{
     cell::{Cell, RefCell},
@@ -210,7 +208,7 @@ impl interface::RelationStore for RelationOwner {
         required: &ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement,
         rows: RepresentationInput<'_>,
     ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
-        RelationOwner::admit_number(self, publication.input()?, RegionId(producer.0), required, rows)
+        RelationOwner::admit_number(self, publication.input()?, producer, required, rows)
     }
     fn rows<'r, 'f: 'r>(
         &self,
@@ -238,7 +236,7 @@ impl interface::RelationStore for RelationOwner {
         producer: types::ProducerId,
         publication: &handle::service::Publication,
     ) -> Result<(), OperatingError> {
-        RelationOwner::bind_producer(self, scope, RegionId(producer.0), publication.input()?.as_ref())
+        RelationOwner::bind_producer(self, scope, producer, publication.input()?.as_ref())
     }
     fn pin(&self, publication: &handle::service::Publication) {
         if let Ok(input) = publication.input() {
@@ -246,7 +244,7 @@ impl interface::RelationStore for RelationOwner {
         }
     }
     fn retire_producer(&self, scope: publication::types::ProducerScope, producer: types::ProducerId) {
-        self.release_derived_producer(scope, RegionId(producer.0));
+        self.release_derived_producer(scope, producer);
     }
     fn release(&self) {
         self.release_population();

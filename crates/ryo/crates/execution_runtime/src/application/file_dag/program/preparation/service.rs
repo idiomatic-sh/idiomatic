@@ -186,6 +186,24 @@ impl PreparedProgram {
 }
 /// Identity is mandatory: readiness layout comes from the same digest/producer
 /// preparation used by the warm store, never from an empty or process-local default.
+/// The executable program of a request: the one place outside the domain that compiles one, so a change to the domain's
+/// compilation edits this function alone.
+pub(crate) fn compile_program(
+    plans: &[ryo_values::domain::plans::types::Plan],
+    graph: ryo_execution_domain::domain::file_program::types::RequestGraph,
+    partitions: &dyn ryo_execution_domain::domain::executable_program::types::ProducerPartitions,
+    operators: &ryo_execution_domain::domain::file_program::types::RequestOperators,
+) -> Result<ExecutableProgram, OperatingError> {
+    ryo_execution_domain::domain::executable_program::service::compile(
+        plans,
+        graph,
+        partitions,
+        operators,
+        ryo_execution_domain::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
+    )
+}
 pub(crate) fn prepare(
     compiled: Compiled,
     rules: &[RuleSpec],
@@ -265,23 +283,12 @@ pub(crate) fn prepare(
                 .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
                 .collect()
         });
-    let program = Arc::new(
-        ryo_execution_domain::domain::executable_program::service::compile(
-            &plans,
-            graph,
-            &partitions,
-            &operators,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-            ),
-        )?,
-    );
+    let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
-    let derived =
-        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::compile(
-            &program,
-        )?;
+    let derived = ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::new(
+        demands::service::derived_needs(&program)?,
+    );
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     let matchers = Arc::new(

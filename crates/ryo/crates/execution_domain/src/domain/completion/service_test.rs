@@ -165,19 +165,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_partial_input_contributes_its_files_and_their_lacks"),
         word: Word::Succeeds,
         input: || Scenario::Contributed(Inputs::PartialWithLacks),
-        expect: Expect::Value(0),
+        expect: Expect::Value(221),
     },
     Case {
         name: CaseName("inapplicable_inputs_contribute_each_file_once"),
         word: Word::Succeeds,
         input: || Scenario::Contributed(Inputs::Inapplicable),
-        expect: Expect::Value(0),
+        expect: Expect::Value(103),
     },
     Case {
         name: CaseName("a_partial_input_makes_an_inapplicable_file_lack_any_row"),
         word: Word::Succeeds,
         input: || Scenario::Contributed(Inputs::PartialAndInapplicable),
-        expect: Expect::Value(0),
+        expect: Expect::Value(231),
     },
 ];
 

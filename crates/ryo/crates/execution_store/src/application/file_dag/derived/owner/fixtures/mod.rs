@@ -5,109 +5,23 @@ use ryo_execution_domain::domain::{
     table_model::{service::kinds_of, types::Rows},
 };
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::{plan_parts::types::ColumnIndex, plans::types::Plan};
+
 use std::sync::Arc;
-/// Compile actual plans/declarations before installing the production file descriptors.
-pub fn prepared_sources(
-    plans: &[Plan],
-    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-) -> super::super::prepared::RequestDerived {
-    super::super::prepared::RequestDerived::compile(&compiled(plans, semantic)).unwrap()
-}
-/// The program actual plans and declarations compile to, its operators prepared through the store's request views.
-pub(crate) fn compiled(
-    plans: &[Plan],
-    semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-) -> ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram{
-    use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
-    use ryo_values::domain::{
-        query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
-        rule_requests::types::{RuleParameters, RuleSpec},
-        runs::types::{RuleApplicability, RuleId},
-    };
-    let rules = plans
-        .iter()
-        .enumerate()
-        .map(|(i, _)| RuleSpec {
-            id: RuleId(format!("derived-owner-{i}").into()),
-            query: QueryBundle {
-                root: QueryDocumentSource {
-                    id: QuerySourceId(format!("derived-owner-{i}").into()),
-                    text: "".into(),
-                },
-                modules: Default::default(),
-            },
-            applicability: RuleApplicability::Always,
-            given: vec![],
-            observations: vec![],
-            spelled: RuleParameters("".into()),
-            include: vec![],
-            exclude: vec![],
-        })
-        .collect::<Vec<_>>();
-    let bindings = vec![vec![]; plans.len()];
-    let mut views = crate::application::file_dag::derived::request::RequestViews::new(semantic);
-    let request = ryo_execution_domain::domain::file_program::service::operators::prepare(
-        plans,
-        &bindings,
-        &[],
-        &ryo_relations::domain::relations::service::kinds,
-        &mut |contract| views.bind(contract),
-    )
-    .unwrap();
-    let borrowed = plans.iter().map(Ok).collect::<Vec<_>>();
-    let partitions = SourcePartitions::new(
-        &rules,
-        &borrowed,
-        &bindings,
-        &[],
-        &vec![vec![]; plans.len()],
-    )
-    .unwrap();
-    let graph = ryo_execution_domain::domain::file_program::service::compile_prepared_observations(
-        plans,
-        &request,
-        ryo_execution_domain::domain::file_program::types::ObservationRequest::Independent,
-    );
-    ryo_execution_domain::domain::executable_program::service::compile(
-        plans,
-        graph,
-        &partitions,
-        &request,
-        ryo_execution_domain::domain::matching::types::PatternMatcher(
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-        ),
-    )
-    .unwrap()
-}
-pub(crate) fn source_plan(relation: Relation) -> Plan {
-    use ryo_values::domain::{
-        plan_parts::types::{Input, StepId, StepScope},
-        plans::types::{Emit, Operation, PlanStep},
-    };
-    Plan {
-        parameters: vec![],
-        observation_inputs: vec![],
-        observations: vec![],
-        frontier: vec![],
-        comparison_origins: vec![],
-        steps: vec![PlanStep {
-            scope: StepScope::PerFile,
-            operation: Operation::Select {
-                from: Input::Relation(relation),
-                comparisons: vec![],
-                kept: vec![],
-            },
-        }],
-        emit: Emit {
-            step: StepId(0),
-            subject: ColumnIndex(0),
-            key: vec![],
-            headings: vec![],
-        },
+/// The derived needs of a rule that selects every row of `relation` per file: it reads that relation, as the runtime's
+/// preparation finds of a plan of one select over it, and walks no graph.
+pub(crate) fn reads(relation: Relation) -> super::super::prepared::RuleDerivedNeeds {
+    super::super::prepared::RuleDerivedNeeds {
+        relations: Box::new([relation]),
+        walks_graph: false,
     }
 }
-
+/// The derived needs of a rule that walks the axis of `relation`: it reads that relation and walks a graph.
+pub(crate) fn walks(relation: Relation) -> super::super::prepared::RuleDerivedNeeds {
+    super::super::prepared::RuleDerivedNeeds {
+        relations: Box::new([relation]),
+        walks_graph: true,
+    }
+}
 pub(crate) fn prepare_view(
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     request: ViewRequest,

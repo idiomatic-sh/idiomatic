@@ -66,14 +66,14 @@ impl DerivedOwner {
     ///
     /// ```
     /// use ryo_execution_domain::domain::operating::errors::OperatingError;
-    /// use ryo_execution_store::application::file_dag::derived::owner::fixtures::prepared_sources;
+    /// use ryo_execution_store::application::file_dag::derived::prepared::RequestDerived;
     /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::RelationOwner;
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
     /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-    /// let fresh = RelationOwner::new(ReuseEligibility::Eligible, program_derived_port());
+    /// let fresh = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
     /// assert!(matches!(fresh.derived().serve_project(), Ok(())));
-    /// let file = RelationOwner::new(ReuseEligibility::Eligible, program_derived_port());
-    /// let request = prepared_sources(&[], program_derived_port());
+    /// let file = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+    /// let request = RequestDerived::new(Box::new([]));
     /// file.derived().prepare_program_file(&request, &[], &[])?;
     /// assert!(matches!(file.derived().serve_project(), Err(OperatingError::WrongOperation)));
     /// # Ok::<(), OperatingError>(())

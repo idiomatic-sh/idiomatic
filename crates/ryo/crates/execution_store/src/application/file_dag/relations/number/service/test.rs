@@ -49,19 +49,19 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     owner
         .bind_producer(
             crate::application::file_dag::relations::publication::types::ProducerScope::File,
-            RegionId(7),
+            crate::application::file_dag::relations::types::ProducerId(7),
             publication.as_ref(),
         )
         .unwrap();
     assert!(
         owner
-            .admit_number(&publication, RegionId(7), &required, rows)
+            .admit_number(&publication, crate::application::file_dag::relations::types::ProducerId(7), &required, rows)
             .unwrap()
             .is_some()
     );
     assert!(
         owner
-            .admit_number(&publication, RegionId(8), &required, rows)
+            .admit_number(&publication, crate::application::file_dag::relations::types::ProducerId(8), &required, rows)
             .unwrap()
             .is_none()
     );
@@ -70,19 +70,19 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     owner
         .bind_producer(
             crate::application::file_dag::relations::publication::types::ProducerScope::File,
-            RegionId(7),
+            crate::application::file_dag::relations::types::ProducerId(7),
             next.as_ref(),
         )
         .unwrap();
     assert!(
         owner
-            .admit_number(&next, RegionId(7), &required, rows)
+            .admit_number(&next, crate::application::file_dag::relations::types::ProducerId(7), &required, rows)
             .unwrap()
             .is_some()
     );
     assert!(
         owner
-            .admit_number(&publication, RegionId(7), &required, rows)
+            .admit_number(&publication, crate::application::file_dag::relations::types::ProducerId(7), &required, rows)
             .unwrap()
             .is_none()
     );
@@ -103,14 +103,14 @@ fn producer_scope_rebinding_refuses_before_registering_an_alias() {
         );
     let publication = owner.computed(Table::default()).unwrap();
     owner
-        .bind_producer(first, RegionId(7), publication.as_ref())
+        .bind_producer(first, crate::application::file_dag::relations::types::ProducerId(7), publication.as_ref())
         .unwrap();
     let identity = owner.result_population(publication.as_ref());
     owner
-        .bind_producer(first, RegionId(7), publication.as_ref())
+        .bind_producer(first, crate::application::file_dag::relations::types::ProducerId(7), publication.as_ref())
         .unwrap();
     assert_eq!(
-        owner.bind_producer(foreign, RegionId(8), publication.as_ref()),
+        owner.bind_producer(foreign, crate::application::file_dag::relations::types::ProducerId(8), publication.as_ref()),
         Err(OperatingError::WrongBinding),
     );
     assert_eq!(publication.as_ref().producer_scope.get(), Some(&first));
@@ -118,12 +118,12 @@ fn producer_scope_rebinding_refuses_before_registering_an_alias() {
     assert!(!owner.producer_populations.borrow().contains_key(
         &crate::application::file_dag::relations::publication::types::ProducerKey {
             scope: foreign,
-            region: RegionId(8),
+            producer: crate::application::file_dag::relations::types::ProducerId(8),
         }
     ));
     let independent = owner.computed(Table::default()).unwrap();
     owner
-        .bind_producer(foreign, RegionId(8), independent.as_ref())
+        .bind_producer(foreign, crate::application::file_dag::relations::types::ProducerId(8), independent.as_ref())
         .unwrap();
     assert_ne!(owner.result_population(independent.as_ref()), identity);
 }
@@ -158,10 +158,10 @@ fn qualified_producers_release_only_their_actual_population() {
     let first = owner.computed(table(1)).unwrap();
     let second = owner.computed(table(2)).unwrap();
     owner
-        .bind_producer(first_scope, RegionId(7), first.as_ref())
+        .bind_producer(first_scope, crate::application::file_dag::relations::types::ProducerId(7), first.as_ref())
         .unwrap();
     owner
-        .bind_producer(second_scope, RegionId(7), second.as_ref())
+        .bind_producer(second_scope, crate::application::file_dag::relations::types::ProducerId(7), second.as_ref())
         .unwrap();
     assert_ne!(
         owner.result_population(first.as_ref()),
@@ -216,11 +216,11 @@ fn qualified_producers_release_only_their_actual_population() {
     assert!(weak_b.upgrade().is_some());
     // Bind/reuse B before A's delayed retirement: release must carry A's key.
     let b = acquire(&second);
-    owner.release_derived_producer(first_scope, RegionId(7));
+    owner.release_derived_producer(first_scope, crate::application::file_dag::relations::types::ProducerId(7));
     assert!(weak_a.upgrade().is_none());
     assert!(weak_b.upgrade().is_some());
     drop(b);
-    owner.release_derived_producer(second_scope, RegionId(7));
+    owner.release_derived_producer(second_scope, crate::application::file_dag::relations::types::ProducerId(7));
     assert!(weak_b.upgrade().is_none());
     drop((first, second));
     owner.release_population();

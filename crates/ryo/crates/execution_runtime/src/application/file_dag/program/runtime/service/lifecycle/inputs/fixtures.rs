@@ -100,15 +100,7 @@ pub(crate) fn compiled() -> CompiledCase {
     let graph =
         ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &prepared);
     let program = Arc::new(
-        ryo_execution_domain::domain::executable_program::service::compile(
-            &plans,
-            graph,
-            &FileProducers,
-            &prepared,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-            ),
-        )
+        crate::application::file_dag::program::preparation::service::compile_program(&plans, graph, &FileProducers, &prepared)
         .unwrap(),
     );
     let roots = [

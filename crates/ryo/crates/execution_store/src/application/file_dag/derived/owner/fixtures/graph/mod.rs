@@ -64,58 +64,27 @@ impl GraphFixture {
         fixture.setup();
         fixture
     }
-    fn request(&self) -> Plan {
-        let relation = self.wanted.first().copied().unwrap_or(Relation::Function);
-        // Real request eligibility, rather than directly toggling graph_enabled.
-        Plan {
-            observation_inputs: Vec::new(),
-            observations: Vec::new(),
-            parameters: vec![],
-            steps: vec![PlanStep {
-                scope: StepScope::PerFile,
-                operation: Operation::Axis {
-                    from: Input::Relation(relation),
-                    edges: Input::Relation(relation),
-                    domain: Input::Relation(relation),
-                    direction: Direction::Descendant,
-                    id: ColumnIndex(0),
-                    parent: ColumnIndex(0),
-                    child: ColumnIndex(0),
-                    domain_id: ColumnIndex(0),
-                    domain_filter: vec![],
-                    domain_view: vec![],
-                    output: vec![],
-                },
-            }],
-            emit: Emit {
-                step: StepId(0),
-                subject: ColumnIndex(0),
-                key: vec![],
-                headings: vec![],
-            },
-            frontier: vec![],
-            comparison_origins: vec![],
-        }
-    }
     fn setup(&self) {
-        let mut plans = self
+        let mut needs = self
             .wanted
             .iter()
             .copied()
-            .map(crate::application::file_dag::derived::owner::fixtures::source_plan)
+            .map(crate::application::file_dag::derived::owner::fixtures::reads)
             .collect::<Vec<_>>();
-        if !self.wanted.is_empty() {
-            plans.push(self.request());
+        // Real request eligibility, rather than directly toggling graph_enabled: one more rule walks the axis of the first
+        // relation wanted.
+        if let Some(first) = self.wanted.first() {
+            needs.push(crate::application::file_dag::derived::owner::fixtures::walks(*first));
         }
-        let prepared = crate::application::file_dag::derived::owner::fixtures::prepared_sources(
-            &plans,
-            self.owner.derived().semantic.clone(),
+        let rules = needs.len();
+        let prepared = crate::application::file_dag::derived::prepared::RequestDerived::new(
+            needs.into_boxed_slice(),
         );
         self.owner
             .derived()
             .prepare_program_file(
                 &prepared,
-                &(0..plans.len())
+                &(0..rules)
                     .map(ryo_execution_domain::domain::coverage::types::RuleIndex)
                     .collect::<Vec<_>>(),
                 &self.partials,

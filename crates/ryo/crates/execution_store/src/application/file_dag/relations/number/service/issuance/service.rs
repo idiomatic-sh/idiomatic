@@ -7,7 +7,7 @@ impl RelationOwner {
     pub(crate) fn admit_number<'a>(
         &self,
         publication: &'a PublishedInput,
-        producer: RegionId,
+        producer: crate::application::file_dag::relations::types::ProducerId,
         required: &NumberRequirement,
         rows: RepresentationInput<'_>,
     ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
@@ -21,7 +21,7 @@ impl RelationOwner {
             .borrow()
             .get(&ProducerKey {
                 scope,
-                region: producer,
+                producer,
             })
             .copied();
         let actual = ProducerPopulation {

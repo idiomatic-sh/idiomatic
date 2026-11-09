@@ -148,7 +148,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         return Ok("frontier-scope");
     }
     let owner = open_program_owner(
-        prepared.program(),
+        ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(prepared.program().regions().len()),
         Arc::clone(&derived),
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(),
@@ -199,7 +199,7 @@ fn subject(case: Input) -> Result<Value, Failure> {
         }
     };
     let walk_owner = if matches!(case, SourceCase::ForeignWalkGeneration) {
-        open_program_owner(prepared.program(), Arc::clone(&derived), ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible, ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default())
+        open_program_owner(ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(prepared.program().regions().len()), Arc::clone(&derived), ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible, ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default())
     } else {
         Rc::clone(&owner)
     };

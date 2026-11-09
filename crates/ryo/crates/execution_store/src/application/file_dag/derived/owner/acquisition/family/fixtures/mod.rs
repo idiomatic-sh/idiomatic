@@ -8,7 +8,7 @@ use self::request::{observed, request};
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::application::file_dag::{fixtures::program_derived_port, relations::RelationOwner};
 use ryo_derived::domain::request::types::DerivedKind;
-use ryo_execution_domain::domain::executable_program::types::RegionId;
+use crate::application::file_dag::relations::types::ProducerId;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     derived_views::types::{DerivedInputs, DerivedScratch, ViewRequest},
@@ -272,8 +272,8 @@ fn acquire(
         rows
     };
     let producers = [
-        (ProducerScope::File, RegionId(0)),
-        (ProducerScope::File, RegionId(1)),
+        (ProducerScope::File, ProducerId(0)),
+        (ProducerScope::File, ProducerId(1)),
     ];
     owner.bind_producer(producers[0].0, producers[0].1, publication.as_ref())?;
     owner.bind_producer(producers[1].0, producers[1].1, other.as_ref())?;
@@ -337,7 +337,7 @@ fn acquire(
 /// before the view was acquired; otherwise the exit leaked its lease.
 fn leave(
     owner: &RelationOwner,
-    producers: [(ProducerScope, RegionId); 2],
+    producers: [(ProducerScope, ProducerId); 2],
     baseline: usize,
     release: Release,
 ) -> Result<(), Leaked> {

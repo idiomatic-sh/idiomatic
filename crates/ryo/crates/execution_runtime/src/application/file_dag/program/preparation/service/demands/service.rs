@@ -62,3 +62,78 @@ pub(crate) fn frontier_outputs(
         .collect::<Vec<_>>()
         .into_boxed_slice()
 }
+
+/// What each rule needs of the derived views, in rule order: the relations its per-file regions read, each once in the order
+/// first read, from their inputs and their operators' derived slots, and whether one of its steps walks a graph (an axis or a
+/// reaching join).
+pub(crate) fn derived_needs(
+    program: &ExecutableProgram,
+) -> Result<
+    Box<[ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds]>,
+    OperatingError,
+> {
+    let mut needs = Vec::with_capacity(program.rules().len());
+    for mapping in program.rules() {
+        let mut reads = Vec::new();
+        let mut graph = false;
+        for origin in mapping.original_steps.iter() {
+            let Ok(origin) = origin else {
+                continue;
+            };
+            let region_id = *program
+                .logical_regions()
+                .get(origin.logical.0)
+                .ok_or(OperatingError::NotRun)?;
+            let region = program
+                .regions()
+                .get(region_id.0)
+                .ok_or(OperatingError::NotRun)?;
+            if region.phase() != ryo_values::domain::plan_parts::types::StepScope::PerFile {
+                continue;
+            }
+
+            for source in region.inputs().iter() {
+                if let ryo_execution_domain::domain::executable_program::types::InputSource::Relation(
+                    relation,
+                ) = source
+                {
+                    note_read(&mut reads, *relation);
+                }
+            }
+            let instruction = region
+                .instructions()
+                .iter()
+                .find(|instruction| instruction.logical() == origin.logical)
+                .ok_or(OperatingError::NotRun)?;
+            for group in instruction.contract().derived.slots.iter().flatten() {
+                for use_ in std::iter::once(&group.primary).chain(group.secondary.iter()) {
+                    for relation in use_.relations.iter().flatten() {
+                        note_read(&mut reads, *relation);
+                    }
+                }
+            }
+            graph |= matches!(
+                instruction.operation(),
+                ryo_values::domain::plans::types::Operation::Axis { .. }
+                    | ryo_values::domain::plans::types::Operation::Join { reach: Some(_), .. }
+            );
+        }
+        needs.push(
+            ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds {
+                relations: reads.into_boxed_slice(),
+                walks_graph: graph,
+            },
+        );
+    }
+    Ok(needs.into_boxed_slice())
+}
+
+/// A relation a rule reads is recorded once, in the order it is first read.
+fn note_read(
+    reads: &mut Vec<ryo_relations::domain::relations::types::Relation>,
+    relation: ryo_relations::domain::relations::types::Relation,
+) {
+    if !reads.contains(&relation) {
+        reads.push(relation);
+    }
+}
