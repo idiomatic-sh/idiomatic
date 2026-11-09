@@ -42,6 +42,10 @@ pub(crate) const fn link_kind(kind: LinkKind) -> NameText<'static> {
     }
 }
 
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only the three opening brackets have a closing token; every other token closes nothing"
+)]
 fn closing(open: Token) -> Option<Token> {
     match open {
         Token::Lpar => Some(Token::Rpar),

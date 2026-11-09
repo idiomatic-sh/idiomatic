@@ -2,18 +2,19 @@
 
 /// The `ast.dump` outputs pinned below `standard`, each with the file it was printed for, both by path below `fixtures`, sorted: for the
 /// corpus and the suite at the same path, and for each relation's input beside the page `standard/<relation>.ast`.
+///
+/// # Errors
+///
+/// The error of reading a folder below `standard`, or an entry of one.
 pub(crate) fn pinned(
     standard: &std::path::Path,
     fixtures: &std::path::Path,
-) -> Vec<(std::path::PathBuf, std::path::PathBuf)> {
+) -> std::io::Result<Vec<(std::path::PathBuf, std::path::PathBuf)>> {
     let mut found = Vec::new();
     let mut folders = vec![standard.join("corpus"), standard.join("suite")];
     while let Some(folder) = folders.pop() {
-        for entry in std::fs::read_dir(&folder)
-            .expect("a folder of the fixtures is read")
-            .map(|entry| entry.expect("an entry of a folder of the fixtures is read"))
-        {
-            let path = entry.path();
+        for entry in std::fs::read_dir(&folder)? {
+            let path = entry?.path();
             if path.is_dir() {
                 folders.push(path);
                 continue;
@@ -26,11 +27,8 @@ pub(crate) fn pinned(
             }
         }
     }
-    for entry in std::fs::read_dir(standard)
-        .expect("a folder of the fixtures is read")
-        .map(|entry| entry.expect("an entry of a folder of the fixtures is read"))
-    {
-        let path = entry.path();
+    for entry in std::fs::read_dir(standard)? {
+        let path = entry?.path();
         let input = std::path::Path::new("relations")
             .join(path.file_stem().unwrap_or_default())
             .join("input.py");
@@ -42,5 +40,5 @@ pub(crate) fn pinned(
         }
     }
     found.sort();
-    found
+    Ok(found)
 }

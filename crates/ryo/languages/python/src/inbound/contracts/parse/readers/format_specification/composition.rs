@@ -36,7 +36,7 @@ ryo::reads! {
             given value = match &spec.value { Some(value) => languages::intern_derived(symbols,tree.source,languages::NameText(value)), None => crate::domain::names::service::string_or_unknown(tree,symbols,spec.origin) };
             given label = match spec.outcome { StandardSpecOutcome::Recognized => RECOGNIZED, StandardSpecOutcome::Dynamic => DYNAMIC, StandardSpecOutcome::InvalidType(_) => INVALID_TYPE, StandardSpecOutcome::OtherError => OTHER_ERROR };
             given outcome = languages::intern_derived(symbols,tree.source,languages::NameText(label));
-            given invalid = match spec.outcome { StandardSpecOutcome::InvalidType(character) => character.to_string(), _ => String::new() };
+            given invalid = match spec.outcome { StandardSpecOutcome::InvalidType(character) => character.to_string(), StandardSpecOutcome::Recognized | StandardSpecOutcome::Dynamic | StandardSpecOutcome::OtherError => String::new() };
             given invalid_type = languages::intern_derived(symbols,tree.source,languages::NameText(&invalid));
             given selector = languages::intern_derived(symbols,tree.source,languages::NameText(&spec.selector));
             given conversion = languages::intern_derived(symbols,tree.source,languages::NameText(&spec.conversion));

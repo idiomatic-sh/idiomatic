@@ -268,7 +268,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Pinned => {
             let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
             let mut differing = Vec::new();
-            for (dump, input) in pinned(&fixtures.join("standard"), &fixtures) {
+            for (dump, input) in pinned(&fixtures.join("standard"), &fixtures).unwrap() {
                 let source = fixtures.join(&input);
                 let (Ok(text), Ok(printed)) = (
                     std::fs::read_to_string(&source),
@@ -291,7 +291,11 @@ fn subject(given: Input) -> Result<Value, Failure> {
                     ));
                 }
             }
-            if differing.is_empty() && pinned(&fixtures.join("standard"), &fixtures).is_empty() {
+            if differing.is_empty()
+                && pinned(&fixtures.join("standard"), &fixtures)
+                    .unwrap()
+                    .is_empty()
+            {
                 return Err(());
             }
             Ok(Seen::Pinned(Box::leak(differing.into_boxed_slice())))

@@ -112,19 +112,19 @@ const CASES: &[Case<Scenario, (), Failure>] = &[
     Case {
         name: CaseName("percent_only_demand_never_prepares_brace_grammar"),
         word: Word::Succeeds,
-        input: || percent_only_demand_never_prepares_brace_grammar as fn(),
+        input: || percent_only_demand_never_prepares_brace_grammar,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("brace_parser_is_not_run_during_model_initialization"),
         word: Word::Succeeds,
-        input: || brace_parser_is_not_run_during_model_initialization as fn(),
+        input: || brace_parser_is_not_run_during_model_initialization,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("model_reinitialization_clears_brace_results_for_replacement_sources"),
         word: Word::Succeeds,
-        input: || model_reinitialization_clears_brace_results_for_replacement_sources as fn(),
+        input: || model_reinitialization_clears_brace_results_for_replacement_sources,
         expect: Expect::Value(()),
     },
 ];

@@ -74,6 +74,10 @@ fn source_slice<'a>(
     source.0.get(start..end).map(languages::NameText)
 }
 
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only the six expression kinds with a load or store context can be assigned to; every other expression is not a target"
+)]
 fn target(expr: &Expr) -> Flag {
     let stored = match expr {
         Expr::Name(name) => name.ctx == ExprContext::Store,
@@ -89,6 +93,10 @@ fn target(expr: &Expr) -> Flag {
 
 /// Render only the syntax forms whose embedding can be proven from the AST.
 /// Other valid forms remain explicit Unknown instead of silently losing a row.
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only the forms whose embedding the AST proves are rendered; every other expression renders as nothing"
+)]
 fn render(
     expr: &Expr,
     context: RenderContext,

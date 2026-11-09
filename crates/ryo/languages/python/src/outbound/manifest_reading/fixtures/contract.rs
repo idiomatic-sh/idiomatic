@@ -107,7 +107,9 @@ where
                 crate::domain::manifest_validation::types::MetadataDemand::Projection,
             )
             .declaration
-            .expect("projection was requested")
+            .ok_or_else(|| ManifestReadingError::Unreadable {
+                reason: String::from("a projection read declared nothing"),
+            })?
             .map(|_| Answer::Read)
     };
     let adapter = build(Vec::new());
