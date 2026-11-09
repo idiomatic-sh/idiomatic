@@ -1,6 +1,7 @@
 {
-  "status": "latest 205-rule current-canonical full-report comparison failed; prior corpus and timing evidence remains historical",
+  "status": "historical: this file records the 205-rule current-canonical full-report comparison (failed) and earlier corpus and timing evidence; the active cohort is current-canonical-ready-310-r2 in profiles/prepared.json; the current-canonical profile was removed and is in git history at e4f1d396eb",
   "current_summary": {
+    "historical": true,
     "profile": "current-canonical",
     "target_version": "python-target=3.10",
     "selected_rules": 205,

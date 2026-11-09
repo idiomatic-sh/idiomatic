@@ -128,12 +128,15 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
     profile_rules = {profile.get('rule_id', profile_name) for profile_name, profile in manifest['profiles'].items()}
     if profile_rules - defaults:
         raise ValueError('prepared profile contains a non-default rule')
-    for descriptor in manifest.get('combined_profiles', {}).values():
+    for name, descriptor in manifest.get('combined_profiles', {}).items():
         selected = descriptor['selected_rules']
         if len(selected) != len(set(selected)) or set(selected) - defaults:
             raise ValueError('combined profile contains a non-default rule')
         if descriptor.get('validation_status') not in {'active-current', 'archived-historical'}:
             raise ValueError('combined profile must declare active-current or archived-historical status')
+        dangling = sorted((f'{key}:{rule}' for key in ('query_files', 'case_files') for rule, path in descriptor.get(key, {}).items() if path not in descriptor['input_files']))
+        if dangling:
+            raise ValueError(f'combined profile {name} names unsealed inputs: {dangling}')
     if files.get(helper_path) != profile_config.sha256(Path(profile_config.ENTRYPOINT)):
         raise ValueError('profile helper hash does not match prepared.json')
     for relative, expected in files.items():

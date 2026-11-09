@@ -124,6 +124,16 @@ def guards_1() -> tuple[int, tuple]:
                 raise
         else:
             raise ValueError('default acceptance allowed multiple active combined cohorts')
+        dangling_query = json.loads(json.dumps(prepared))
+        archived_name = next((name for name, item in sorted(dangling_query['combined_profiles'].items()) if item.get('validation_status') == 'archived-historical'))
+        dangling_query['combined_profiles'][archived_name].setdefault('query_files', {})['F401'] = 'crates/ryo/languages/python/benchmarks/linters/ruff/profiles/missing/F401/query.ryoql'
+        try:
+            profile_proofs.verify_files(dangling_query, profile_config.ENTRYPOINT.relative_to(profile_config.REPOSITORY).as_posix())
+        except ValueError as error:
+            if f'combined profile {archived_name} names unsealed inputs' not in str(error):
+                raise
+        else:
+            raise ValueError('prepared manifest admitted a dangling query_files entry in a non-active cohort')
         phase_registry = profile_proofs.verify_rule_phase_registry(prepared)
         base = tomllib.loads((profile_config.RUFF_DIR / 'benchmark.toml').read_text(encoding='utf-8'))
         profile_proofs.check_base_rule_applicability(base, phase_registry)
