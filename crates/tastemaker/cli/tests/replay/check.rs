@@ -1,6 +1,6 @@
 //! `tm check`, over each sample: the rule `tm create` writes reports where its own failing scenario says.
 
-use crate::fixes::{FOUND, tm};
+use crate::fixes::{CLEAN, FOUND, tm};
 use crate::languages::{
     RULE, copied, created, created_rule, ended, initialized, over_samples, ran, reported,
 };
@@ -357,20 +357,21 @@ fn checking_crates_ryo_cold_stays_under_its_memory_guard() {
         .output()
         .expect("tm starts");
     let said = String::from_utf8_lossy(&output.stderr).into_owned();
-    // The peak says something of memory only for a run that checked the tree: crates/ryo has findings, so the check ends
-    // with them (exit 1) and reports them. A run that could not check (exit 2, such as a definition refused for want of a
-    // proof) stops in seconds, and its peak proves nothing.
-    assert_eq!(
-        output.status.code(),
-        Some(FOUND),
-        "tm check did not end with the tree's findings:\n{said}"
+    // The peak says something of memory only for a run that checked the tree. A run that checked it ends clean (exit 0)
+    // or with findings (exit 1), and its report holds every finding and every suppressed one: crates/ryo always has
+    // suppressed findings, so a report with neither checked nothing. A run that could not check (exit 2, such as a
+    // definition refused for want of a proof) stops in seconds, and its peak proves nothing.
+    assert!(
+        matches!(output.status.code(), Some(CLEAN | FOUND)),
+        "tm check did not check the tree (exit {:?}):\n{said}",
+        output.status.code()
     );
     let report: serde_json::Value = serde_json::from_slice(&output.stdout)
         .unwrap_or_else(|error| panic!("tm check answered no report ({error}):\n{said}"));
-    let found = report["findings"].as_array().map_or(0, Vec::len);
+    let reported = |key: &str| report[key].as_array().map_or(0, Vec::len);
     assert!(
-        found > 0,
-        "tm check reported no finding over crates/ryo, so it checked nothing:\n{said}"
+        reported("findings") + reported("suppressed") > 0,
+        "tm check reported no finding and no suppressed finding over crates/ryo, so it checked nothing:\n{said}"
     );
     let peak = said
         .lines()

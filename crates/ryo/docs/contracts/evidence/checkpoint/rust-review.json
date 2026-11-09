@@ -1,28 +1,24 @@
 {
   "checkpoint": 332,
-  "source": "eedb4f1a77317542e3db0ccb5e3fe3ebd4f26cda",
-  "base": "2991a41cd2b10a176f3da435660ef32983aaa8a9",
-  "previous_source": "2991a41cd2b10a176f3da435660ef32983aaa8a9",
+  "source": "110b66de9e9feda9ccd0060ad76824b64767c299",
+  "base": "5e56d8e9182c341a4c594831b0b628970b89a153",
+  "previous_source": "5e56d8e9182c341a4c594831b0b628970b89a153",
   "scope": "332",
-  "verdict": "FAIL",
+  "verdict": "PASS",
   "reviewer": "rust-review",
-  "date": "2026-11-09T10:05:00Z",
+  "date": "2026-11-09T12:30:00Z",
   "checks": [
-    {"id": "1", "verdict": "PASS", "evidence": "C1 is applied: tastemaker cli requires the ryo SDK and the ryo language crates at 0.1.2 (crates/tastemaker/cli/Cargo.toml:35-46,63-66). Name.binding is now Option<ModuleName> and Scope is Copy without its own path (imports/types.rs:77,84-90). Scopes are owned once per file in ImportRows.scopes: BTreeMap<RepoPath, Vec<Scope>> (:139). imports() borrows them per source with no clone (import_rows/service.rs:213-235). t611 threads the file's number by value (core domain/handing/service.rs:155,231,241; recording/service.rs:238,245). sdk/api.txt is unchanged."},
-    {"id": "2", "verdict": "PASS", "evidence": "The memory guard can no longer pass vacuously. checking_crates_ryo_cold_stays_under_its_memory_guard now requires exit 1 and a JSON report with at least one finding before it reads the peak (crates/tastemaker/cli/tests/replay/check.rs:328-376). Before, a run refused at exit 2 (8.6 s, 454 MB, per 96b5545cb8) passed. This repairs the harness rather than adding a parallel test. The t611 numbering is one representation: a file's own part is stored at PartialAt(0) and given the reading run's number on read (handing/service.rs:241-260), the same convention moved_words uses."},
-    {"id": "3", "verdict": "FAIL", "evidence": "F5 (evidence only): the import reading's own cost is now proportionate. SCOPES selects by kind equality and emits only the stmt-list that is the parent of a use, plus the item lists (import_rows/constants.rs:40-47). Scopes are grouped per file without a path per row. Each import's innermost scope is computed once (service.rs:231-235). The innermost module around an edge is found by bisection (innermost, :144-157) over a file's few scopes. The recorded peak went from 4,491,136 to 4,402,760 KiB (tastemaker_workspace_69caa24a4e.log:7591). Landing with the engine's project-phase retention as a named, owned red is acceptable under item 3, because the retention is not in this diff: the guard was vacuous before (exit 2 accepted), so the 331 pass measured nothing. But nothing committed shows the attribution. The 4.34 GB pre-branch peak and the 2.04 GB heap-profile share for project-phase row retention appear in no validation log, record line or evidence file; the record states the attribution without a number behind it (README tastemaker workspace row)."},
-    {"id": "4", "verdict": "PASS", "evidence": "No second representation. Scope lost its duplicated source path, and the t611 fix removes a second numbering of a file's partial: a stored number from another run is no longer read back as this run's (handing/service.rs:241-260, commit bec665436a). The lookups.rs split moves fixture cases into fixtures/stores.rs with no copy."},
-    {"id": "5", "verdict": "PASS", "evidence": "No dependency is added. The only manifest change is version requirements, from 0.1.1 to 0.1.2, in crates/tastemaker/cli/Cargo.toml."},
-    {"id": "6", "verdict": "FAIL", "evidence": "F6 is repaired. keep() keeps every static-import row with a target and makes binding optional (import_rows/service.rs:73-80). an_import_that_binds_no_name_is_kept_and_a_path_is_never_its pins it, and core reporting is green (f8_green_core.log: 4 passed, 0 failed; tastemaker_workspace_69caa24a4e.log: 264/4, the 4 being the guard plus 3 red at 331). F7 is repaired by claude/w14-t611. Its two fixes name their lifecycle rows, and red-then-green is machine-recorded (t611_red_*.log and t611_green_*.log, red_green entries 31-34). F8 is not proven. Of its 9 red_green entries (validation.json entries 35-43), only the reporting red is in an integrator log (gatefix_tastemaker_workspace.log at 0f2fa35a12). The 8 import_rows reds are copied from builder commit 96b5545cb8's message, which says the reds came from 'the case runner made to report every miss', a temporary change. The leak re-review ran none of them, and the validation directory holds f8_green_core.log alone, with no red log."}
+    {"id": "1", "verdict": "PASS", "evidence": "The delta touches no production code and no public surface. Only crates/tastemaker/cli/tests/replay/check.rs and the record change. Pass 5's item 1 stands: D2 get_mut and the Option<ScopeKind> filter (crates/tastemaker/crates/core/src/domain/import_rows/service.rs:107-113, :216)."},
+    {"id": "2", "verdict": "PASS", "evidence": "No structural change. The guard uses the shared exit-code constants CLEAN and FOUND (crates/tastemaker/cli/tests/fixtures/replay/fixes.rs:26) instead of literals (check.rs:3, :364-367)."},
+    {"id": "3", "verdict": "PASS", "evidence": "As at pass 5: the import reading costs +58,344 KiB over the pre-branch tm on the same archive (memory-guard-pre-branch.txt), and 70.1% of live bytes at the peak are project-phase rows (memory-guard-heap.txt). The memory guard is a named, owned red: f9_green_memory_guard.log reads 4,452,912 KiB against 1,331,200, owned by 'Project phase retains 2 GB of rows on a cold tm check of crates/ryo'. That is acceptable, because the retention predates this diff."},
+    {"id": "4", "verdict": "PASS", "evidence": "No change to any representation."},
+    {"id": "5", "verdict": "PASS", "evidence": "No dependency change."},
+    {"id": "6", "verdict": "PASS", "evidence": "F9 is repaired. The guard accepts exit 0 or 1, refuses exit 2 and a report it cannot parse, and requires findings + suppressed > 0 before it reads the peak (check.rs:360-376), so a clean tree, which carries 13 in-source suppressions, is measured and a run that checked nothing is not. Red then green is machine-recorded on 1123506752. Red: f9_red_memory_guard.log:7326-7330 fails at check.rs:363, 'tm check did not end with the tree's findings', left Some(0). Green: f9_green_memory_guard.log:7325-7326 reaches the peak assertion at check.rs:381, 4,452,912 KiB over the 1,331,200 KiB guard. The test stays red only on its subject, as a named, owned red, and is not ignored. E1 is applied: F8 is three red_green entries, each naming the test function domain::import_rows::service_test::succeeds with its own red log and the restored green (validation.json entries 35-37), the granularity the logs prove."},
+    {"id": "7", "verdict": "PASS", "evidence": "The delta adds no unsafe, no allow, and no unwrap or expect in production code. The guard's panics are test assertions with messages that say what to read."}
   ],
-  "findings": [
-    "F5 (check 3): the import reading's cost is fixed; the remaining 4.40 GB is attributed to engine project-phase retention only by numbers no committed log holds (the 4.34 GB pre-branch peak and the 2.04 GB heap share)",
-    "F8 (check 6): 8 of the 9 F8 red sides are copied from a commit message; no red log exists for the import_rows reverts",
-    "open item: innermost() scans back linearly from the bisection point",
-    "open item: a scopes row still moves an owned RepoPath into the map entry"
-  ],
+  "findings": [],
   "repaired": [
-    {"id": "F6", "check": "6", "where": "crates/tastemaker/crates/core/src/domain/import_rows/service.rs:73-80; imports/types.rs:77", "state": "repaired: binding optional, row kept, reporting green"},
-    {"id": "F7", "check": "6", "where": "crates/ryo/crates/core/src/application/file_analysis/streaming/service.rs:290-322; domain/handing/service.rs:155-260", "state": "repaired: go/api samples green, red-then-green in t611 logs"}
+    {"id": "F9", "check": "6", "where": "crates/tastemaker/cli/tests/replay/check.rs:360-376", "state": "repaired: accepts a clean check, requires findings or suppressed, reaches the peak; red f9_red_memory_guard.log, green f9_green_memory_guard.log"},
+    {"id": "E1", "check": "6", "where": "validation.json red_green entries 35-37", "state": "applied: one entry per reversal, naming the test function and its logs"}
   ]
 }
