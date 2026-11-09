@@ -285,15 +285,15 @@
   "validation": 332,
   "raw_identity": "/tmp/ryo-contract-validation332",
   "tm_whole_tree": {
-    "command": "tm --root crates/ryo check --format json with tm 0.1.1 rebuilt from d5ff1b0d2e (sha256 159f9c1a), the version crates/ryo pins at 332 (no --fix; git status unchanged apart from the record being written), run on a4cc608275 (tm_whole_tree.log in the raw directory)",
-    "total": 1500,
-    "suppressed": 6,
+    "command": "tm --root crates/ryo check --format json with tm 0.1.1 rebuilt from d5ff1b0d2e (sha256 159f9c1a), the version crates/ryo pins at 332 (no --fix), run on 7fd2dbf1f5 (the committed tree of the final validation)",
+    "total": 1467,
+    "suppressed": 13,
     "at_checkpoint_318": 3676,
     "at_checkpoint_331": 18,
     "status": "measured whole-tree state at checkpoint 332 on the validated source under tm 0.1.1; not comparable with 331 (tm 0.1.0); not a baseline and not a waiver",
     "per_crate": {
-      "languages/python": 353,
-      "languages/rust": 160,
+      "languages/python": 351,
+      "languages/rust": 159,
       "languages/go": 154,
       "languages/toml": 135,
       "languages/typescript": 123,
@@ -303,21 +303,14 @@
       "languages/css": 97,
       "languages/html": 89,
       "cli/src": 16,
-      "docs/contracts": 9,
-      "crates/execution_runtime": 7,
-      "crates/query_language": 7,
-      "crates/benchmark": 4,
-      "crates/execution_domain": 3,
-      "cli/tests": 1,
-      "crates/language": 1,
-      "crates/operators": 1,
+      "docs/contracts": 3,
       "crates/sdk": 1
     },
-    "module_cycles_findings": 2,
+    "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 0,
     "tm_validate": "crates/ryo: 241 versions hold, 0 do not (tm 0.1.1); repository root: 224 hold, 0 do not (tm 0.1.0)",
     "unknown_findings": 0,
-    "note": "18 at validation331 under tm 0.1.0: the domain-concept ring (18) is 0 (claude/w13-domain-cycle). 1462 are #imports findings the rebuilt tm reads where 0.1.0 read none, each naming a qualified path or variant use (Outcome::Failure, contract::Collect); owned by \"tm 0.1.1 reads qualified uses as imports\". The rest: query_language from claude/w13-span-semantics (crate-readme#template 2, file-length 3, no-bare-integers 2; owned by \"span-semantics left 7 TM findings in query_language\"); application-service#closed 1 (execution_runtime file_session/service_test.rs, claude/w13-tm-rebuild, also the one tm_source finding); module-cycles 2 (python project contract_test and fixtures/module_identity_only); file-length on files cargo fmt pushed past 400 lines (open item: 332 quick-check groups), on validation.json (the red_green list) and on parity/django-413/per-rule.json (claude/w13-bench-parity, 6,081 lines as merged); no-tracker-text-shipped 2 in parity/django-413/summary.json (its \"bead\" key, as merged); review/README.md:111 a machine path (claude/w13-hooks-append-only); and findings in untracked reviewer drafts under evidence/branches/, which are not in the validated source"
+    "note": "18 at validation331 under tm 0.1.0 (the domain-concept ring, now 0). 1,464 are #imports findings, every one a path at a use site and none a use declaration: false positives of tm 0.1.1's import reading (1,455 start at a name the file's own unflagged use brings in, 9 are ryo::link! in provider lib.rs); owned by \"tm 0.1.1 reads qualified uses as imports\", which the tm 0.1.2 branch fixes. The other 3 are in untracked reviewer drafts under evidence/branches/, not in the validated source. The 38 findings 332 had introduced are fixed: files split along their seams (or, for 7 one-operation or one-document files, kept whole with a reasoned file-length ignore), the query_language README and integers, the file_session placement, the parity evidence, the review README path, and the python module cycle (ContextProbe moved into its only fixture)."
   },
   "tm_targets": {
     "tm_cli_source": {

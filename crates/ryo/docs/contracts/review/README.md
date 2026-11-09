@@ -134,9 +134,9 @@ checkpoint 332 integration record in [the records](../records.md).
 Not covered by the latest validation (`validation.json`, validated source `7fd2dbf1f5`, checkpoint 332, validation332; "not full
 product acceptance"):
 
-- Whole-tree TM is measured with the rebuilt tm 0.1.1, which reads qualified uses as imports: 1,500 findings, 6 suppressed, of which
-  1,462 are `#imports` findings tm 0.1.0 did not report (331 under 0.1.0: 18, the domain-concept ring, now 0). The other 38 are
-  named in `validation.json` (`tm_whole_tree`). The scoped `tm_source` run is 8 findings: 7 files the fmt commit pushed past 400 lines and a test file no template places.
+- Whole-tree TM is measured with the rebuilt tm 0.1.1, which reads use-site paths as imports: 1,467 findings, 13 suppressed:
+  1,464 `#imports` false positives of that reading (the tm 0.1.2 branch fixes it) and 3 in untracked reviewer drafts; the
+  findings 332 had introduced are fixed (331 under 0.1.0: 18, the domain-concept ring, now 0). The scoped `tm_source` run is 0.
 - The receipts for the root and Tastemaker workspaces use tm 0.1.0 (their pin); crates/ryo uses 0.1.1, unpublished.
 - No new performance claim: the Django receipt is a store/peak record for the span-semantics attribution, not a speed claim.
 - Language conformance targets print no pass count; exit 0 is the receipt.
