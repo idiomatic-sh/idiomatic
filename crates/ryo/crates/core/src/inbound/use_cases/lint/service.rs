@@ -135,8 +135,8 @@ pub(super) fn reused(
         }
     };
     let alone = match &decided.decision {
-        Decision::Check(_) => {
-            visits.read_alone(setting, &decided.changed, listing.read.as_deref())?
+        Decision::Check(changed) => {
+            visits.read_alone(setting, &listing.files, changed, listing.read.as_deref())?
         }
         Decision::Again | Decision::Whole | Decision::Cross => ReadAlone::default(),
     };

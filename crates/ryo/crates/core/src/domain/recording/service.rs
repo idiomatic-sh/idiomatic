@@ -235,21 +235,21 @@ fn hand_the_rest(ran: &mut Ran, notes: Option<&FileNotes>, covered: Option<&Cove
                 .map(|rule| u32::try_from(rule.0).unwrap_or(u32::MAX))
                 .collect(),
         );
-        handed.partials = stored_of(&covered.partial);
+        handed.partials = stored_of(&covered.partial, covered.file);
     }
 }
 
 /// What a file hands the project, as the bytes its interface is the digest of: the language that noted it and what it noted, then
 /// the relations it is read in part.
 #[must_use]
-pub(crate) fn interface_bytes(tables: &Tables) -> InterfaceBytes {
+pub(crate) fn interface_bytes(tables: &Tables, number: FileId) -> InterfaceBytes {
     let mut bytes = Vec::new();
     let notes = &notes_of(&tables.elements).0;
     if let (Some(language), false) = (tables.language, notes.is_empty()) {
         bytes.extend_from_slice(&language.0.to_le_bytes());
         bytes.extend_from_slice(notes);
     }
-    for each in stored_of(&tables.partials) {
+    for each in stored_of(&tables.partials, number) {
         bytes.extend_from_slice(format!("{each:?}").as_bytes());
     }
     InterfaceBytes(bytes)

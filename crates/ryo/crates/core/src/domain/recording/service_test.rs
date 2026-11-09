@@ -191,10 +191,13 @@ fn cover_scenario(partials: Vec<Partial>, mask: Mask) -> Result<Value, Failure> 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::PartialsOf => {
-            let kept = stored_of(&[Partial {
-                lacking: Lacking::Kind(LackingKind("fn".into())),
-                ..partial()
-            }]);
+            let kept = stored_of(
+                &[Partial {
+                    lacking: Lacking::Kind(LackingKind("fn".into())),
+                    ..partial()
+                }],
+                FileId(3),
+            );
             Ok(count(kept.len()) * 100
                 + u64::from(kept[0].relation_name == RelationName("defines".into())) * 10
                 + count(kept[0].lacking_kind.0.len()))
