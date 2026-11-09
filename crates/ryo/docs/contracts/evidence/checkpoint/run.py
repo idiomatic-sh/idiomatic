@@ -383,10 +383,25 @@ RUNNER_FRAMES=((re.compile(r'(?m)^running \d+ tests?$'),re.compile(r'(?m)^test r
                (re.compile(r'(?m)^Ran \d+ tests? in '),re.compile(r'(?m)^(OK|FAILED \()')),
                (re.compile(r'(?m)^=+ test session starts =+$'),re.compile(r'(?m)^=+ .*\b\d+ (passed|failed|error)\b.* in [\d.]+s')))
 def runner_framed(text): return any(head.search(text) and tail.search(text) for head,tail in RUNNER_FRAMES)
-def log_status(log,test):
- """'failed' when the log shows the test failing, 'passed' when it shows it passing and never failing, else None: cargo test, cargo nextest, unittest -v and pytest -v lines inside the runner's own frame, a test named by its path or a suffix of it."""
+CLIPPY_LINT=re.compile(r'^clippy::[a-z_]+$')
+def clippy_status(text,lint,files):
+ """A clippy lint's status in one `cargo clippy --message-format=json` log: 'failed' when it reports the lint at a primary span in one of
+ the files (repository paths; a span path is relative to its workspace), 'passed' when the run finished without it there, else None."""
+ finished=False; hit=False
+ for line in text.splitlines():
+  if not line.startswith('{'): continue
+  try: m=json.loads(line)
+  except ValueError: continue
+  if m.get('reason')=='build-finished': finished=True
+  if m.get('reason')!='compiler-message' or ((m.get('message') or {}).get('code') or {}).get('code')!=lint: continue
+  spans=[x['file_name'] for x in m['message'].get('spans',[]) if x.get('is_primary')]
+  hit|=any(f==x or f.endswith('/'+x.lstrip('./')) for x in spans for f in files)
+ return 'failed' if hit else 'passed' if finished else None
+def log_status(log,test,files=()):
+ """'failed' when the log shows the test failing, 'passed' when it shows it passing and never failing, else None: cargo test, cargo nextest, unittest -v and pytest -v lines inside the runner's own frame, a test named by its path or a suffix of it; a `clippy::<lint>` test is read from clippy's JSON at the given files (clippy_status)."""
  named=lambda path,sep: path==test or path.endswith(sep+test)
  failed=passed=False; text=Path(log).read_text(errors='replace')
+ if CLIPPY_LINT.match(test): return clippy_status(text,test,files)
  if not runner_framed(text): return None
  for line in text.splitlines():
   m=CARGO_LINE.match(line)
@@ -407,13 +422,13 @@ def covered(repo,entry,ranges):
  key=(entry.get('base_sha',''),entry.get('merge_sha','')) if isinstance(entry,dict) else ('','')
  if key not in ranges: ranges[key]=set((git(repo,'rev-list',key[0]+'..'+key[1]) or '').split()) if all(key) else set()
  return ranges[key]
-def proves(entry,test,raw):
+def proves(entry,test,raw,files=()):
  """The entry names the test and two distinct logs, `red <name>.log` showing it fail and `green <name>.log` showing it pass, both in the validation directory."""
  text=entry.get('test','')
  if not re.search(r'(?<![\w:])'+re.escape(test)+r'(?![\w])',text): return False
  red,green=re.search(r'\bred ([\w.-]+\.log)\b',text),re.search(r'\bgreen ([\w.-]+\.log)\b',text)
  if not red or not green or red.group(1)==green.group(1) or not (raw/red.group(1)).is_file() or not (raw/green.group(1)).is_file(): return False
- return log_status(raw/red.group(1),test)=='failed' and log_status(raw/green.group(1),test)=='passed'
+ return log_status(raw/red.group(1),test,files)=='failed' and log_status(raw/green.group(1),test,files)=='passed'
 def perf_identical(repo,base,head,sha):
  """A perf commit's proof: an after.json under evidence/perf/ added or changed in the checkpoint, with identical_output true and a source that is the perf commit or a commit built on it."""
  for path in (git(repo,'diff','--name-only','--diff-filter=AM',base,head,'--',':(top)'+PERF_EVIDENCE) or '').split():
@@ -445,7 +460,7 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   if not tests: bad.append('fix '+short+': its message names no test that fails before it and passes after'); continue
   entries=[x for x in v.get('red_green',[]) if sha in covered(repo,x,ranges)]
   if not entries: bad.append('fix '+short+': no red_green entry has it between its base_sha and merge_sha'); continue
-  if not any(proves(x,t,raw) for x in entries for t in tests):
+  if not any(proves(x,t,raw,files) for x in entries for t in tests):
    bad.append('fix '+short+': no red_green entry over it names a test its message names ('+', '.join(tests[:4])+') with a red log showing it fail and a green log showing it pass, in '+str(raw))
  return bad
 # The items the Rust API guidelines give an example (C-EXAMPLE); a `Sealed` supertrait is the seal, not API.

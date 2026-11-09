@@ -305,6 +305,16 @@ class Diff(unittest.TestCase):
             green=head+'ci/a_test.py::test_one_answers PASSED [100%]\n============================== 1 passed in 0.10s ===============================\n',
             bare='ci/a_test.py::test_one_answers PASSED [100%]\n')
   self.assertEqual([run.log_status(self.raw/(n+'.log'),'test_one_answers') for n in ('red','green','bare')],['failed','passed',None])
+ def test_a_clippy_lint_is_red_at_the_changed_spans_and_green_when_they_lose_it(self):
+  lint=lambda f,code: json.dumps({'reason':'compiler-message','message':{'code':{'code':code},'spans':[{'file_name':f,'is_primary':True}]}})
+  done=json.dumps({'reason':'build-finished','success':False})
+  changed=['crates/ryo/crates/values/src/a.rs']
+  self.logs(red='\n'.join([lint('crates/values/src/a.rs','clippy::as_conversions'),done]),
+            green='\n'.join([lint('crates/derived/src/b.rs','clippy::as_conversions'),lint('crates/values/src/a.rs','clippy::expect_used'),done]),
+            cut=lint('crates/values/src/a.rs','clippy::expect_used'))
+  status=lambda name,test: run.log_status(self.raw/(name+'.log'),test,changed)
+  self.assertEqual([status('red','clippy::as_conversions'),status('green','clippy::as_conversions')],['failed','passed'])
+  self.assertEqual([status('green','clippy::expect_used'),status('cut','clippy::as_conversions')],['failed',None])
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])
