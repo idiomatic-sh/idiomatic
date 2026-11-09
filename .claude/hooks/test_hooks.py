@@ -56,6 +56,28 @@ class GuardShell(unittest.TestCase):
         self.assertEqual(shell(LOCK + "cargo build -C " + self.integration, self.builder), 2)
         self.assertEqual(shell(LOCK + "cargo build", "/workspaces/ryo-perf-x"), 0)
 
+    def test_a_builders_check_behind_one_unwrapping_is_allowed(self):
+        check = "cargo check -p x --target-dir /workspaces/idiomatic-check-target/ryo-w5"
+        for command in ["timeout 300 " + check, "nice -n 5 " + check, "env RUSTFLAGS=-Dwarnings " + check,
+                        "timeout -s KILL 300 nice -n 5 env A=1 " + check, "FOO=1 " + check]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 0)
+        for command in ["timeout 300 cargo build", "nice -n 5 cargo test -p x", "env A=1 cargo check --workspace"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+
+    def test_a_build_behind_timeout_in_an_integration_tree_still_needs_the_flock(self):
+        self.assertEqual(shell("timeout 300 cargo build", self.integration), 2)
+        self.assertEqual(shell("timeout 300 " + LOCK + "cargo build", self.integration), 0)
+        self.assertEqual(shell("if cargo build; then :; fi", self.integration), 2)
+
+    def test_cargo_behind_keywords_and_remaining_wrappers_is_blocked_in_a_builder_tree(self):
+        for command in ["if cargo build; then :; fi", "! cargo build", "{ cargo build; }", "unbuffer cargo build",
+                        "ionice -c 2 cargo build", "exec -a x cargo build", "env -S 'cargo build'",
+                        "script -c 'cargo build' /dev/null", "watch 'cargo build'", "time cargo build"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+
     def test_hidden_cargo_is_blocked_in_a_builder_tree(self):
         for command in ['bash -c "cargo test"', "echo hi; cargo build", "sh -c 'flock x cargo clippy'"]:
             with self.subTest(command=command):
@@ -733,6 +755,30 @@ class PerfGate(unittest.TestCase):
                 self.assertEqual(done.returncode, 2)
                 self.assertIn("push of claude/p6-speed refused", done.stderr)
 
+    def test_keywords_grouping_and_remaining_wrappers_do_not_hide_a_push(self):
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", self.base)
+        git(self.tree, "branch", "-q", "-m", "claude/ryo-consolidation", "claude/elsewhere")
+        self.perf()
+        rows = {"if": "if git push; then echo ok; fi", "bang": "! git push", "brace group": "{ git push; }",
+                "while": "while git push; do echo; done", "until": "until git push; do :; done",
+                "for": "for i in 1; do git push; done", "elif": "if false; then :; elif git push; then :; fi",
+                "namespace value": "git --namespace ns push", "config-env value": "git --config-env a=B push",
+                "recurse-submodules value": "git push --recurse-submodules check",
+                "exec -a": "exec -a name git push", "env -S": "env -S 'git push'", "ionice": "ionice -c 2 -n 4 git push",
+                "unbuffer": "unbuffer git push", "script -c": "script -c 'git push' /dev/null",
+                "watch quoted": "watch 'git push'", "watch words": "watch -n 5 git push",
+                "flock wrapper": "flock /tmp/x git push", "time": "time git push"}
+        for label, command in rows.items():
+            with self.subTest(label):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("push of claude/p6-speed refused", done.stderr)
+        for command in ("eval 'git push'", "sudo git push"):
+            with self.subTest(command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("hides it from the guards", done.stderr)
+
     def test_remote_consolidation_perf_commits_are_not_pushed(self):
         git(self.tree, "checkout", "-q", "-b", "claude/other", self.base)
         git(self.tree, "commit", "-q", "--allow-empty", "-m", "perf(engine): remote only 3s")
@@ -976,6 +1022,16 @@ class BranchMerge(unittest.TestCase):
     def test_wrapped_merges_are_gated(self):
         for command in ["env git merge claude/w1-x", "command git merge claude/w1-x",
                         "bash -c 'git merge claude/w1-x'", "sh -c \"env FOO=1 git merge claude/w1-x\""]:
+            with self.subTest(command=command):
+                self.assertEqual(self.run_in(command).returncode, 2)
+
+    def test_merges_behind_keywords_wrappers_and_global_option_values_are_gated(self):
+        for command in ["if git merge claude/w1-x; then echo; fi", "! git merge claude/w1-x", "{ git merge claude/w1-x; }",
+                        "while git merge claude/w1-x; do :; done", "for i in 1; do git merge claude/w1-x; done",
+                        "git --namespace ns merge claude/w1-x", "git --config-env a=B merge claude/w1-x",
+                        "timeout 5 git merge claude/w1-x", "ionice -c 2 git merge claude/w1-x",
+                        "script -c 'git merge claude/w1-x' /dev/null", "eval 'git merge claude/w1-x'",
+                        "sudo git merge claude/w1-x"]:
             with self.subTest(command=command):
                 self.assertEqual(self.run_in(command).returncode, 2)
 

@@ -53,22 +53,51 @@ def segments(text):
     return out
 
 
-WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice", "timeout", "stdbuf", "xargs"}
-WRAPPER_VALUES = {"env": {"-u", "-n", "-C", "-S", "--unset", "--chdir"}, "nice": {"-n", "--adjustment"},
+WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice", "timeout", "stdbuf", "xargs", "flock", "ionice",
+            "unbuffer", "script", "watch"}
+WRAPPER_VALUES = {"env": {"-u", "-n", "-C", "--unset", "--chdir"}, "nice": {"-n", "--adjustment"},
                   "timeout": {"-s", "--signal", "-k", "--kill-after"}, "stdbuf": {"-i", "-o", "-e"},
                   "xargs": {"-n", "-I", "-P", "-L", "-s", "-d", "-E", "-a", "--max-args", "--max-procs", "--delimiter",
-                            "--max-lines", "--max-chars", "--arg-file", "--eof"}}
+                            "--max-lines", "--max-chars", "--arg-file", "--eof"},
+                  "flock": {"-w", "-E", "--timeout", "--conflict-exit-code"}, "exec": {"-a"},
+                  "ionice": {"-c", "-n", "-p", "-P", "-u"}, "watch": {"-n", "--interval"}, "script": {"-I", "-O", "-B", "-T", "-m"}}
+SHELL_KEYWORDS = {"if", "then", "elif", "else", "do", "while", "until", "for", "!", "{", "(", "time"}
+ASSIGNMENT = r"[A-Za-z_][A-Za-z0-9_]*=.*"
+GATED_WRAPPERS = {"eval", "sudo"}
 
 
 def after_wrapper(words):
-    """words minus the leading wrapper command word, its options with their values, assignments and, for timeout,
-    its duration."""
+    """words minus the leading wrapper command word and what it consumes: its options and their values, assignments,
+    timeout's duration, flock's lock operand. script -c, watch with one quoted command and env -S become sh -c / words."""
     wrapper, words = words[0], words[1:]
     values = WRAPPER_VALUES.get(wrapper, set())
-    while words and (words[0].startswith("-") or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0])):
-        words = words[2:] if words[0] in values else words[1:]
-    if wrapper == "timeout" and words:
+    command = None
+    while words and (words[0].startswith("-") or re.fullmatch(ASSIGNMENT, words[0])):
+        flag = words[0]
+        if wrapper == "env" and flag in ("-S", "--split-string") and len(words) > 1:
+            return tokens(words[1]) + words[2:]
+        if wrapper == "script" and flag in ("-c", "--command") and len(words) > 1:
+            command = words[1]
+        words = words[2:] if flag in values or (wrapper == "script" and flag in ("-c", "--command")) else words[1:]
+    if wrapper == "script":
+        return ["sh", "-c", command] if command is not None else []
+    if wrapper in ("timeout", "flock") and words:
         words = words[1:]
+    if wrapper == "watch" and len(words) == 1 and " " in words[0]:
+        return ["sh", "-c", words[0]]
+    return words
+
+
+def peel(words):
+    """The command word list behind leading assignments, shell keywords and grouping, and every wrapper (the one
+    unwrapping every caller uses). It is always a suffix of words."""
+    while words:
+        if re.fullmatch(ASSIGNMENT, words[0]) or words[0] in SHELL_KEYWORDS and words[0] != "time":
+            words = words[1:]
+        elif words[0] in WRAPPERS:
+            words = after_wrapper(words)
+        else:
+            break
     return words
 
 
@@ -84,17 +113,9 @@ def shell_command(words):
 
 def runs_cargo_verb(words):
     """True when the word list is a command that runs cargo with a build verb, directly or through a wrapper."""
-    while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
-        words = words[1:]
-    while words and words[0] in WRAPPERS:
-        words = after_wrapper(words)
+    words = peel(words)
     if not words:
         return False
-    if words[0] == "flock":
-        rest = words[1:]
-        while rest and rest[0].startswith("-"):
-            rest = rest[2:] if rest[0] in ("-w", "-E", "--timeout", "--conflict-exit-code") else rest[1:]
-        return runs_cargo_verb(rest[1:])
     inner = shell_command(words)
     if inner is not None:
         return has_cargo_command(inner)
@@ -130,7 +151,7 @@ def tokens(segment):
     except ValueError:
         found = segment.split()
     found = without_redirections(found)
-    while found and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", found[0]):
+    while found and (re.fullmatch(ASSIGNMENT, found[0]) or found[0] in SHELL_KEYWORDS and found[0] != "time"):
         found = found[1:]
     return found
 
@@ -159,15 +180,9 @@ def removal(words):
 
 
 def cargo_index(words):
-    """Index of `cargo` when the segment runs it directly, behind an optional flock."""
-    if not words:
-        return None
-    if words[0] == "flock":
-        for i, w in enumerate(words):
-            if w == "cargo":
-                return i
-        return None
-    return 0 if words[0] == "cargo" else None
+    """Index of `cargo` when the segment runs it directly, behind any wrappers."""
+    inner = peel(words)
+    return len(words) - len(inner) if inner and inner[0] == "cargo" else None
 
 
 def target_dir(rest):
@@ -266,7 +281,7 @@ def git_verb(words, verb):
         if words[i] == "-C" and i + 1 < len(words):
             directory = words[i + 1]
             i += 2
-        elif words[i] in ("-c", "--git-dir", "--work-tree") and i + 1 < len(words):
+        elif words[i] in ("-c", "--git-dir", "--work-tree", "--namespace", "--config-env") and i + 1 < len(words):
             i += 2
         else:
             i += 1
@@ -292,7 +307,7 @@ def current_branch(tree):
     return git_out(tree, "symbolic-ref", "--short", "HEAD")[1].strip()
 
 
-PUSH_OPTION_VALUES = {"-o", "--push-option", "--receive-pack", "--exec", "--repo"}
+PUSH_OPTION_VALUES = {"-o", "--push-option", "--receive-pack", "--exec", "--repo", "--recurse-submodules"}
 
 
 def push_targets(tree, push):
@@ -420,6 +435,15 @@ def bulk_push(words, here):
             if SHELL_EXPANDED.search(operand) or operand.lstrip("+") == ":":
                 return ("git push operand " + operand + " is shell-expanded, a pattern or the matching refspec; "
                         "write the branch name")
+    return None
+
+
+def gated_wrapper(words, here):
+    """eval and sudo are not unwrapped: they refuse in front of a gated git verb rather than hide it from the gates."""
+    words = peel(words)
+    if words and words[0] in GATED_WRAPPERS and gated_text(" ".join(words[1:])):
+        return (words[0] + " in front of a gated git push, merge or pull hides it from the guards; "
+                "run the git command directly")
     return None
 
 
@@ -752,19 +776,8 @@ def branch_review(words, here):
 
 
 def unwrapped(words, depth=0):
-    """The command word lists behind env, command, time, nohup, nice, exec, flock and bash/sh/zsh -c wrappers."""
-    while True:
-        while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
-            words = words[1:]
-        if words and words[0] in WRAPPERS:
-            words = after_wrapper(words)
-        elif words and words[0] == "flock":
-            rest = words[1:]
-            while rest and rest[0].startswith("-"):
-                rest = rest[2:] if rest[0] in ("-w", "-E", "--timeout", "--conflict-exit-code") else rest[1:]
-            words = rest[1:]
-        else:
-            break
+    """The command word lists behind every wrapper (peel) and bash/sh/zsh -c strings."""
+    words = peel(words)
     inner = shell_command(words) if words else None
     if inner is not None and depth < 4:
         found = []
@@ -805,7 +818,7 @@ def gated_text(command):
     """True when the command, with quotes and backslashes removed, names git push, merge or pull; cannot raise."""
     plain = str(command).replace("'", "").replace('"', "").replace("\\", "")
     return GATED_TEXT.search(plain) is not None
-GATES = (bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
+GATES = (gated_wrapper, bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
 
 
 EVIDENCE_NAME = re.compile(r"(rust-review|contract-review|leak-review|tm-steward)[^/]*\.json|asymptote\.json")
