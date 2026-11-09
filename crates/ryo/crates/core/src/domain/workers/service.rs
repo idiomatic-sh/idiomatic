@@ -196,7 +196,7 @@ pub(crate) fn with_fresh(kept: Vec<Record>, fresh: Vec<Record>) -> Vec<Record> {
 
 /// The rows each step of each rule was fed, in the shape of the rules' steps: a step `fed` says nothing of was fed none.
 pub(crate) fn by_step(
-    fed: Vec<Vec<ryo_execution::inbound::use_cases::metadata::interface::RowsFed>>,
+    fed: &[Vec<ryo_execution::inbound::use_cases::metadata::interface::RowsFed>],
     metadata: &[RuleRunMetadata],
 ) -> Vec<Vec<ryo_execution::inbound::use_cases::metadata::interface::RowsFed>> {
     metadata

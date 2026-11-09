@@ -28,7 +28,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName("a_rule_past_the_counted_fed_bound_is_not_kept"),
+        name: CaseName("a_rule_past_the_counted_fed_bound_is_refused_and_not_kept"),
         word: Word::Succeeds,
         input: || Bound::Past,
         expect: Expect::Value(true),
@@ -53,19 +53,26 @@ fn subject(input: Input) -> Value {
         Bound::Fresh | Bound::Within => RuleIndex(1),
         Bound::Past => RuleIndex(COUNTED_FED),
     };
+    let mut refused = Vec::new();
     for _ in 0..2 {
-        observer.fed(
+        let report = observer.fed(
             rule,
             LogicalCounts {
                 fed: vec![RowsFed([1, 2, 3]), RowsFed([4, 0, 0])].into_boxed_slice(),
             },
         );
+        refused.push(report.is_err());
     }
     match input {
         Bound::Fresh | Bound::Within => {
-            observer.totals().0 == vec![vec![], vec![RowsFed([2, 4, 6]), RowsFed([8, 0, 0])]]
+            refused == [false, false]
+                && observer.totals().is_ok_and(|totals| {
+                totals.0 == vec![vec![], vec![RowsFed([2, 4, 6]), RowsFed([8, 0, 0])]]
+            })
         }
-        Bound::Past => observer.totals().0.is_empty(),
+        Bound::Past => {
+            refused == [true, true] && observer.totals().is_ok_and(|totals| totals.0.is_empty())
+        }
     }
 }
 

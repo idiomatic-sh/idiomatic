@@ -19,13 +19,27 @@ use ryo_values::domain::stored_facts::types::Bucket;
 ///     file.skip_rule(RuleIndex(0), ApplicabilityReason::SyntaxRejected).unwrap();
 /// }
 /// ```
-/// The interpreter's counters and the rows its steps were fed are not the seam's: a caller cannot read them.
+/// The interpreter's counters and the rows its steps were fed are not the seam's: a caller cannot read its readiness counters,
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
 /// use ryo_execution_domain::domain::coverage::types::RuleIndex;
-/// fn counters(file: &FileSession<'_, '_>) {
+/// fn readiness(file: &FileSession<'_, '_>) {
 ///     let _ = file.readiness_counts();
+/// }
+/// ```
+/// its walk counters,
+/// ```compile_fail,E0599
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// fn walk(file: &FileSession<'_, '_>) {
 ///     let _ = file.walk_counts();
+/// }
+/// ```
+/// nor the rows a rule's steps were fed.
+/// ```compile_fail,E0599
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// fn fed(file: &FileSession<'_, '_>) {
 ///     let _ = file.counts(RuleIndex(0));
 /// }
 /// ```

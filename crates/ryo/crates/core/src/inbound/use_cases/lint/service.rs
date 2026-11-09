@@ -50,6 +50,7 @@ use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
+use ryo_execution_runtime::outbound::observer::types::FedTotals;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_values::domain::files::types::Glob;
@@ -301,14 +302,20 @@ pub(super) fn answer(
         consulted_absent: &now.consulted_absent,
         project_observations: &now.observed_entries,
     };
+    let fed = observed
+        .map(ObserverPort::totals)
+        .transpose()
+        .map_err(|error| LintError::Execution {
+            reason: error.to_string(),
+        })?;
     kept(keeps, run.listing.read.as_ref(), &keep, keeping)?;
     Ok(LintReport {
         dependencies: project_dependencies(&now),
         unread,
         unknowns,
         skipped,
-        features: features_of(observed, run),
-        work: work_of(observed, run),
+        features: features_of(fed.as_ref(), run),
+        work: work_of(fed.as_ref(), run),
     })
 }
 
@@ -342,10 +349,10 @@ pub(super) fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Res
 }
 
 /// What the report says each feature of the rules was fed, when the run counts the rows.
-fn features_of(observed: Option<&dyn ObserverPort>, run: &LintRun<'_>) -> Vec<FeatureFed> {
-    match observed {
-        Some(observed) => kernel_metadata()
-            .fed_over(run.metadata, &by_step(observed.totals().0, run.metadata))
+fn features_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<FeatureFed> {
+    match fed {
+        Some(fed) => kernel_metadata()
+            .fed_over(run.metadata, &by_step(&fed.0, run.metadata))
             .into_iter()
             .map(FeatureFed::from)
             .collect(),
@@ -354,10 +361,10 @@ fn features_of(observed: Option<&dyn ObserverPort>, run: &LintRun<'_>) -> Vec<Fe
 }
 
 /// What the report says each step of each rule was fed, when the run counts the rows.
-fn work_of(observed: Option<&dyn ObserverPort>, run: &LintRun<'_>) -> Vec<RuleWork> {
-    match observed {
-        Some(observed) => kernel_metadata()
-            .work_over(run.metadata, &by_step(observed.totals().0, run.metadata))
+fn work_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<RuleWork> {
+    match fed {
+        Some(fed) => kernel_metadata()
+            .work_over(run.metadata, &by_step(&fed.0, run.metadata))
             .into_iter()
             .zip(run.rules)
             .map(|(steps, rule)| RuleWork {

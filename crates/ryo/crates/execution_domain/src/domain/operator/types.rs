@@ -28,16 +28,6 @@ pub struct StepPlace(pub usize);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PlanIdentity(pub usize);
 
-/// Whether the rows each step is fed are counted.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Counting {
-    /// The rows each step is fed are counted.
-    Counts,
-    /// They are not.
-    #[default]
-    DoesNotCount,
-}
-
 /// Number of independent readers of the same publication.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ReaderMultiplicity(pub usize);

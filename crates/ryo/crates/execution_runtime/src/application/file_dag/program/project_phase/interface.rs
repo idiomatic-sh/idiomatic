@@ -26,14 +26,23 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// ```compile_fail,E0603
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectTask;
 /// ```
-/// The interpreter's counters are not the seam's: a caller cannot read them.
+/// The interpreter's counters are not the seam's: a caller cannot read its readiness counters,
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::{
 ///     interface::{ProjectRootExecution, ProjectStage},
 ///     types::ProjectPhase,
 /// };
-/// fn counters(project: &ProjectPhase<'_>) {
+/// fn readiness(project: &ProjectPhase<'_>) {
 ///     let _ = project.readiness_counts();
+/// }
+/// ```
+/// nor its state counters.
+/// ```compile_fail,E0599
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::{
+///     interface::{ProjectRootExecution, ProjectStage},
+///     types::ProjectPhase,
+/// };
+/// fn state(project: &ProjectPhase<'_>) {
 ///     let _ = project.state_counts();
 /// }
 /// ```

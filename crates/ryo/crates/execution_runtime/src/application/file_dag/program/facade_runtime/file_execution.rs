@@ -269,7 +269,7 @@ impl FileRun<'_> {
             },
         )?;
         if let Some(observer) = observer {
-            observer.fed(rule, counts);
+            observer.fed(rule, counts)?;
         }
         Ok(())
     }

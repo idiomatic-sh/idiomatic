@@ -47,6 +47,9 @@ pub(super) struct World {
     pub(super) program:
         Arc<ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram>,
     pub(super) request: ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
+    /// Told of the rows each step of the request's rules was fed.
+    pub(super) observer:
+        Arc<ryo_execution_runtime::outbound::observer::fixtures::fake::ObserverFake>,
     pub(super) metadata: Vec<ryo_values::domain::run_metadata::types::RuleRunMetadata>,
     pub(super) ids: Vec<RuleId>,
     pub(super) paths: Vec<ryo_language::domain::files::types::FilePath>,
@@ -203,8 +206,19 @@ pub(super) fn world_with_applicability(
             })
             .expect("prepared cross rule"),
     );
-    let request = ExecutionUseCaseImpl::new().execution(&program, &files, None);
+    let observer = Arc::new(
+        ryo_execution_runtime::outbound::observer::fixtures::fake::ObserverFake::default(),
+    );
+    let request = ExecutionUseCaseImpl::new().execution(
+        &program,
+        &files,
+        Some(Arc::clone(&observer)
+            as Arc<
+                dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort,
+            >),
+    );
     World {
+        observer,
         placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes {
             placement,
             matcher,
@@ -288,6 +302,17 @@ pub(super) fn kept_facts(world: &World, kept: &[(RuleIndex, &[(FileId, Table)])]
         .expect("facts finish");
     let project = facts_port.worker().expect("project facts");
     (facts, project)
+}
+
+/// How many steps the observer was last told `rule` fed: the steps the phase counted for it.
+pub(super) fn fed_steps(world: &World, rule: usize) -> usize {
+    world.observer.reports.lock().map_or(0, |reports| {
+        reports
+            .iter()
+            .rev()
+            .find(|(reported, _)| reported.0 == rule)
+            .map_or(0, |(_, fed)| fed.len())
+    })
 }
 
 pub(super) fn todo(rule: usize) -> Todo {

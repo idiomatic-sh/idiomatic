@@ -3,6 +3,7 @@ use super::batch_test::assert_count_findings;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
+use crate::application::cross_file::fixtures::fed_steps;
 use crate::application::cross_file::fixtures::frontier_rows;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
@@ -45,6 +46,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
                 &phase,
             )
             .unwrap();
+            assert_eq!(fed_steps(&rules, rule), 2);
             let rendered = result.rendered.expect("actual core project rendering");
             let payload = assert_count_findings(
                 &rendered,

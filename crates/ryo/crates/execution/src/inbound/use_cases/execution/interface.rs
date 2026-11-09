@@ -56,7 +56,6 @@ pub use ryo_execution_domain::domain::finish::types::Arena;
 pub use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
 pub use ryo_execution_domain::domain::operating::errors::OperatingError;
 pub use ryo_execution_domain::domain::operating::types::SemanticLookup;
-pub use ryo_execution_domain::domain::operator::types::Counting;
 pub use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
 pub use ryo_execution_domain::domain::rule_intent::types::ApplicabilityReason;
 pub use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
