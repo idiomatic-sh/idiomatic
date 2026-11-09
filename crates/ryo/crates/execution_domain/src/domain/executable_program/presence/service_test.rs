@@ -982,6 +982,56 @@ fn located_proof(raised: Raised<'_>) -> Option<LocatedProof> {
     }
 }
 
+/// Each operating error's place in the catalogue's list, by declaration order: a new variant must take a place here,
+/// and then the list must hold an instance of it.
+fn operating_position(error: &OperatingError) -> usize {
+    match error {
+        OperatingError::Spelling(_) => 0,
+        OperatingError::ObservationConfiguration(_) => 1,
+        OperatingError::ObservationIncomplete { .. } => 2,
+        OperatingError::SemanticRender(_) => 3,
+        OperatingError::SemanticBatchShape => 4,
+        OperatingError::SemanticIncomplete { .. } => 5,
+        OperatingError::DuplicateDfsOrder => 6,
+        OperatingError::DfsOrdinalOverflow => 7,
+        OperatingError::InvalidSpan => 8,
+        OperatingError::InvalidSourceMatchSpan => 9,
+        OperatingError::InvalidSpanBounds => 10,
+        OperatingError::DuplicateOrder => 11,
+        OperatingError::MissingInput { .. } => 12,
+        OperatingError::WrongOperation => 13,
+        OperatingError::NotRun => 14,
+        OperatingError::NotRead => 15,
+        OperatingError::Unbound => 16,
+        OperatingError::WrongBinding => 17,
+        OperatingError::WrongTest => 18,
+        OperatingError::InvalidRegex { .. } => 19,
+        OperatingError::ShapeMismatch => 20,
+        OperatingError::Table(_) => 21,
+    }
+}
+/// Each portable operator fault's place in the catalogue's list, by declaration order.
+fn portable_position(
+    fault: &ryo_operators::domain::contract::types::PortableOperatorFault,
+) -> usize {
+    use ryo_operators::domain::contract::types::PortableOperatorFault::*;
+    match fault {
+        Interrupted => 0,
+        NoSuchColumn { .. } => 1,
+        ShapeMismatch => 2,
+        InvalidSpanBounds => 3,
+        InvalidSpan => 4,
+        InvalidSourceMatchSpan => 5,
+        MissingCapture => 6,
+        WrongOperation => 7,
+        UnboundKey => 8,
+        UnsupportedRender => 9,
+        WrongBinding => 10,
+        Unbound => 11,
+        NotRun => 12,
+    }
+}
+
 /// Whether the raiser declares the input it raises this fault on: the prepared contract's failure mask, or the fold's
 /// check of a literal pattern. `UnlessLocated` declares a fault only when a proof the fold requires before dropping the
 /// term covers it.
@@ -1021,27 +1071,70 @@ fn declared(raiser: Raiser, raised: Raised<'_>) -> bool {
 fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
     use ryo_operators::domain::contract::types::PortableOperatorFault;
     let reason = || String::new();
+    // One instance of every variant, in declaration order: `operating_position` and `portable_position` are exhaustive,
+    // and each list must map onto 0..len, so a new variant cannot be audited by omission.
     let errors = [
+        OperatingError::Spelling(
+            crate::domain::spelling::errors::SpellingError::EntityInTwoSources {
+                first: reason(),
+                second: reason(),
+            },
+        ),
+        OperatingError::ObservationConfiguration(
+            crate::domain::rule_intent::errors::RuleIntentError::TooManyOutputs,
+        ),
+        OperatingError::ObservationIncomplete { reason: reason() },
+        OperatingError::SemanticRender(
+            ryo_language::domain::semantics::errors::SemanticsError::StaleNode {
+                node: ryo_relations::domain::relations::types::NodeId(0),
+            },
+        ),
+        OperatingError::SemanticBatchShape,
+        OperatingError::SemanticIncomplete { reason: reason() },
         OperatingError::DuplicateDfsOrder,
         OperatingError::DfsOrdinalOverflow,
-        OperatingError::DuplicateOrder,
         OperatingError::InvalidSpan,
         OperatingError::InvalidSourceMatchSpan,
         OperatingError::InvalidSpanBounds,
-        OperatingError::SemanticBatchShape,
+        OperatingError::DuplicateOrder,
+        OperatingError::MissingInput { position: 0 },
+        OperatingError::WrongOperation,
+        OperatingError::NotRun,
+        OperatingError::NotRead,
+        OperatingError::Unbound,
+        OperatingError::WrongBinding,
+        OperatingError::WrongTest,
         OperatingError::InvalidRegex { reason: reason() },
         OperatingError::ShapeMismatch,
-        OperatingError::WrongTest,
-        OperatingError::NotRun,
+        OperatingError::Table(ryo_values::domain::rows::errors::RowsError::NoSuchColumn {
+            index: 0,
+        }),
     ];
     let faults = [
+        PortableOperatorFault::Interrupted,
+        PortableOperatorFault::NoSuchColumn {
+            index: ColumnIndex(0),
+        },
         PortableOperatorFault::ShapeMismatch,
         PortableOperatorFault::InvalidSpanBounds,
         PortableOperatorFault::InvalidSpan,
         PortableOperatorFault::InvalidSourceMatchSpan,
-        PortableOperatorFault::UnsupportedRender,
         PortableOperatorFault::MissingCapture,
+        PortableOperatorFault::WrongOperation,
+        PortableOperatorFault::UnboundKey,
+        PortableOperatorFault::UnsupportedRender,
+        PortableOperatorFault::WrongBinding,
+        PortableOperatorFault::Unbound,
+        PortableOperatorFault::NotRun,
     ];
+    assert_eq!(
+        errors.iter().map(operating_position).collect::<Vec<_>>(),
+        (0..errors.len()).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        faults.iter().map(portable_position).collect::<Vec<_>>(),
+        (0..faults.len()).collect::<Vec<_>>()
+    );
     let verdicts = errors
         .iter()
         .map(|error| (Raised::Operating(error), operating(error)))
