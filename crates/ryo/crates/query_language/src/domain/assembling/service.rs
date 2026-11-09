@@ -198,9 +198,7 @@ pub(crate) fn lower_with_observations(
                     name,
                     source: parts::Input::Step(*step),
                     columns,
-                    scope: steps
-                        [usize::try_from(step.0).expect(super::constants::RETAINED_ROOT_INDEX)]
-                    .scope,
+                    scope: crate::domain::resolving::service::step_of(&steps, *step).scope,
                 }
             })
             .collect();

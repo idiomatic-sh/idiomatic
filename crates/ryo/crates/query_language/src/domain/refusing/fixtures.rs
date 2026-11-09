@@ -212,15 +212,13 @@ pub(crate) fn compared_with_file(
             source: file,
             destination: file,
         },
-        Compared::Union | Compared::Intersection | Compared::Difference | Compared::Distinct => {
-            match compared(kind, rows, span, other) {
-                plans::Operation::Project { from, distinct, .. } => plans::Operation::Project {
-                    from,
-                    columns: vec![span, file],
-                    distinct,
-                },
-                whole_rows => whole_rows,
-            }
+        Compared::Union | Compared::Intersection | Compared::Difference => {
+            compared(kind, rows, span, other)
         }
+        Compared::Distinct => plans::Operation::Project {
+            from: rows,
+            columns: vec![span, file],
+            distinct: parts::RepeatedRows::Dropped,
+        },
     }
 }

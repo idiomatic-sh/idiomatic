@@ -267,8 +267,7 @@ pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput 
             fields: relation_fields(relation),
         },
         parts::Input::BoundObservation(id) => {
-            let bound = &builder.observation_inputs
-                [usize::try_from(id.0).expect(super::constants::VALID_BINDING_INDEX)];
+            let bound = &builder.observation_inputs[usize::try_from(id.0).unwrap_or(usize::MAX)];
             ScopedInput {
                 scope: bound.scope,
                 fields: bound

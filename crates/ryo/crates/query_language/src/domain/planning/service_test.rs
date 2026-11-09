@@ -61,7 +61,7 @@ fn projected_file_key_controls_scope() {
             super::service::scope_of(
                 &operation,
                 std::slice::from_ref(&scoped),
-                &[fields[column as usize].clone()]
+                &[fields[usize::try_from(column).unwrap_or(usize::MAX)].clone()]
             ),
             expected
         );
