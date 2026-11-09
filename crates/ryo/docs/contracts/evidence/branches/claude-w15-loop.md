@@ -1,49 +1,51 @@
-# Leak review: claude/w15-loop at 944b21be87 (delta 94a0b93588..944b21be87)
+# Leak re-review: claude/w15-loop
 
-The delta merges claude/w15-hooks 62b71db6cd. `git diff 94a0b93588 944b21be87` is byte-identical to `git diff 94a0b93588 62b71db6cd`. 28e1070bee has an empty tree change, and so does the merge 759fe35207. No other file changed. The delta touches six files: `.claude/hooks/{README.md,acceptance_on_stop.py,guard_shell.py,test_hooks.py}` and `ci/contract_review/{service.py,service_test.py}`. Plants ran in a `git clone --shared` copy of 944b21be87 under the scratch directory, which was deleted after the run. Both reviewed trees are unchanged: /workspaces/ryo-w15-loop at 944b21be87, clean; /workspaces/ryo-334 at afb0dbaa5d, with only these two files written.
+Source `07bc701e6c`, delta since `944b21be87` (merge of claude/w15-hooks `e75e47b059`). Scope: the delta only.
 
-## Check 1: proof where the contract lives: PASS
-No Rust changed. No engine, core or SDK contract is asserted from `benchmarks/` or `languages/`.
+## Check 1: Proof where the contract lives: PASS
 
-## Check 2: every enforcement claim fires: FAIL
-**Fixed, and the plants fire.** On the copy without plants, ReviewerStop passes 7/7 and service_test passes 82/82.
-- `guard_shell.py:706` (`stands_for`): with `--no-renames` removed, the ReviewerStop subtest "code renamed into the evidence directory since" fails (count 1).
-- `service.py:141` (since-review diff): with `--no-renames` removed, `test_a_protected_file_renamed_into_the_receipts_is_a_protected_change` fails (count 1).
-- `acceptance_on_stop.py:111-115`: with the try removed, `test_a_guard_that_fails_to_load_holds_the_tm_steward` fails, 1 != 2 (count 1). That test also asserts `ModuleNotFoundError` in stderr, so it cannot pass through the shape-error hold instead. hook-loader-exception-releases-hold-218b1b33: fixed.
-- tracker-id-definition-split-78f9a5a1 (from the 333 review): fixed. `service.py:56-81` reads the globs that name `ryo-` from the newest idiomatic-project placement (`spec.toml:16`). A missing spec or an unparsable version directory raises, and the shape check turns that into a hold, so it fails closed.
+git diff 944b21be87..07bc701e6c (one merge of claude/w15-hooks e75e47b059) touches 12 files: .claude/hooks/{README.md,test_hooks.py}, ci/contract_review/{command.py,service_test.py}, the idiomatic-project spec 0.3.1->0.3.2 rename, crates/ryo/tastemaker.lock:153, and three docs with ids cleared; no Rust, no benchmarks/ or languages/ proof.
 
-**Still open: name-only-diff-hides-rename-source-25b627f8, one instance my earlier enumeration missed.** `ci/contract_review/command.py:18` runs `git diff --name-only -z HEAD` without `--no-renames`. command.py imports service.py, so it is inside the closure. Plant: a staged `git mv crates/ryo/Cargo.toml crates/ryo/docs/contracts/evidence/Cargo.toml` gives 0 protected paths, and 1 with `--no-renames`. So the gate's "protected working tree changes must be committed before review" passes on an uncommitted move of protected source. Required change: add `--no-renames` there.
+## Check 2: Every enforcement claim fires: PASS
 
-The rest of the class is closed. `run.py:394` uses `diff-tree`, which does no rename detection by default. `run.py:379` filters to `AM`, so a rename is dropped and the check fails closed. Outside the closure, as an advisory: `ci/perf/tree/adapters/git/adapter.py:19` has the same shape and misses the crate a file moved out of.
+Each --no-renames removal fails its own test: command.py:18 -> test_an_uncommitted_rename_of_a_protected_file_is_a_protected_working_tree_change; service.py:125 -> test_a_protected_file_renamed_into_the_receipts_since_activation_needs_a_review; service.py:141 -> test_a_protected_file_renamed_into_the_receipts_is_a_protected_change; guard_shell.py:364 -> test_a_file_moved_out_of_a_package_still_counts_as_that_packages_change. tm 0.1.2 check of crates/ryo with plants in crates/sdk/src/lib.rs:23-36 reported 8: all seven claimed spellings (the id in parentheses, in parentheses before a word, and after bead, bead_, bead-, Bead: and beads, the id being <ryo- and four letters, no digit>) and one false positive (<ryo- and a three-letter name>) at :36; package names at :30 and the bare id at :31 not reported; docs/ reports 0, so the cleared tree is clean. Dropping the five new globs fails service_test variants 49 and 50 (validator reads the same definition). Advisory: beads: <ryo- and four letters, no digit>, a wrapped (<ryo- and four letters, no digit> at line end, [<ryo- and four letters, no digit>] and (see <ryo- and four letters, no digit>) escape; three bare digitless ids remain at audits/2026-11-06-phase3/review-314.json:77, phase4/review-314.json:68, records-326.md:150, the class README.md:29 leaves out on purpose.
 
-Advisory: the `--no-renames` additions at `service.py:125` (activation) and `guard_shell.py:364` (`branch_packages`) have no test. Reverting either one leaves every test green (count 0). They are correct now, but nothing pins them. The fix is one row each in the existing tables, not a new test.
+## Check 3: Boundaries hold across crates: PASS
 
-**New, a regression from this delta: tracker-id-without-digit-unmatched-6c8faa27.** The 94a0b93588 validator refused a parenthesized four-letter id with no digit. `names_tracker` at 944b21be87 accepts it (plant count 0), and it also accepts 5-character ids such as `(ryo-ab1cd)`. The builder recorded this as a non-goal in `.claude/hooks/README.md:29`. Under the threat model it is not acceptable. The README admits a non-goal only when it "is a spelling an agent writes by accident" is false (README:20), and this spelling has been written by accident in the real tree, in the same kind of review evidence the validator guards:
-- `crates/ryo/docs/contracts/audits/2026-11-06-phase3/review-314.json:61`
-- `crates/ryo/docs/contracts/audits/2026-11-06-phase4/review-314.json:81`
-- `crates/ryo/docs/contracts/records-326.md:174`
+Deleting idiomatic-project 0.3.1 breaks no pin: crates/ryo/tastemaker.lock:153 is 0.3.2; crates/asymptote/tastemaker.lock:134 and crates/tastemaker/tastemaker.lock:136 pin 0.1.0 (present); the root tastemaker.lock and crates/tastemaker/examples/*/tastemaker.lock place no idiomatic-project; nothing under tastemaker/ names 0.3.1 of it except the 0.3.2 CHANGELOG history line.
 
-About 10 of the 69 distinct parenthesized ids in commit trailers have no digit. The rule misses all of them in shipped text too, because the validator now shares its gap.
+## Check 4: One implementation and one representation per concept: PASS
 
-Keeping one definition was right. The fix belongs in that definition. Required change: a new idiomatic-project spec version whose no-tracker-text-shipped placement adds a context form for a digitless 3- or 4-letter id: in parentheses (`*(ryo-[a-z][a-z][a-z][a-z])*`, `*(ryo-[a-z][a-z][a-z])*`, the same before `, ` or ` `), and after `bead`. Also update README:29 to list only the residual: a bare digitless id outside those contexts, which cannot be told apart from a package word like `ryo-core`. Then clear the three tree instances. The validator then follows the rule without any change of its own.
+service.py:60-69 still reads the tracker globs from the newest idiomatic-project spec (sorted numerically: 0.3.2), so the rule and the validator share one definition; plant confirms (service_test variants fail when the spec globs are removed).
 
-## Check 3: boundaries hold across crates: PASS
-`service.py:56` reads the spec tree by path, read-only. No visibility, manifest, allowlist or import boundary changed.
+## Check 5: Layer direction: PASS
 
-## Check 4: one implementation and one representation per concept: PASS
-The validator's own regex is gone. The tracker id has one definition, the rule placement (`service.py:60-69`).
+No Rust changed in the delta.
 
-## Check 5: layer direction: PASS
-No Rust changed.
+## Check 6: Test seams stay out of production: PASS
 
-## Check 6: test seams stay out of production: PASS
-The additions are confined to tests: `test_hooks.py:1448`, `service_test.py:74`, and the `None` removal in the fixture at `service_test.py:29`. No production path imports them.
+Only test additions: service_test.py:82-97,181-183 and test_hooks.py:211-223; no production path imports them.
+
+## Plants
+
+| Claim | File | Count |
+| --- | --- | --- |
+| command.py working-tree check --no-renames | `ci/contract_review/command.py:18` | 1 |
+| validate activation --no-renames | `ci/contract_review/service.py:125` | 1 |
+| validate since-review --no-renames | `ci/contract_review/service.py:141` | 1 |
+| branch_packages --no-renames | `.claude/hooks/guard_shell.py:364` | 1 |
+| no-tracker-text-shipped 0.3.2 digitless id in parentheses and after bead (7 spellings) | `crates/ryo/crates/sdk/src/lib.rs:23` | 7 |
+| no-tracker-text-shipped 0.3.2 leaves package names unmatched | `crates/ryo/crates/sdk/src/lib.rs:30` | 0 |
+| validator refuses digitless ids from the spec globs (globs removed) | `tastemaker/specs/idiomatic-project/0.3.2/spec.toml:16` | 2 |
+
+The package-name row is a negative control: 0 is the expected count.
 
 ## Enforcement candidates
-All 35 earlier candidates are carried forward. Changes in this round:
-- hook-loader-exception-releases-hold-218b1b33: fixed.
-- name-only-diff-hides-rename-source-25b627f8: still open. `command.py:18` is added to its scope and plants.
-- tracker-id-definition-split-78f9a5a1: carried from the 333 review, fixed.
-- tracker-id-without-digit-unmatched-6c8faa27: new, open.
 
-VERDICT: FAIL: 2
+- `name-only-diff-hides-rename-source-25b627f8`: fixed (all four sites carry `--no-renames`, each with a test that fails without it).
+- `tracker-id-without-digit-unmatched-6c8faa27`: fixed (parenthesized and after-bead spellings reported; docs report 0).
+- `tracker-id-spelling-unmatched-8d65fb3b` (advisory, open): `beads: <ryo- and four letters, no digit>`, `(<ryo- and four letters, no digit>` at line end, `[<ryo- and four letters, no digit>]`, `(see <ryo- and four letters, no digit>)` are not reported.
+- `short-name-in-parentheses-reported-as-tracker-id-f026c12e` (advisory, open): `(<ryo- and a three-letter name>)` is reported as a tracker id; no instance in the tree.
+- Every earlier candidate is carried forward with its status.
+
+VERDICT: PASS

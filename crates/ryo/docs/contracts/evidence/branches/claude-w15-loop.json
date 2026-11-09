@@ -1,81 +1,81 @@
 {
  "branch": "claude/w15-loop",
- "source": "944b21be87ed7c28e8aa9f972dc169bc7cae5ff3",
- "base": "94a0b93588b94ddfb0cfbc36325d11138dbd1854",
- "verdict": "FAIL",
+ "source": "07bc701e6ca66ae4e70d550bf92ba5fdf7fea8e8",
+ "base": "944b21be87ed7c28e8aa9f972dc169bc7cae5ff3",
+ "verdict": "PASS",
  "checks": [
   {
    "id": "1",
    "verdict": "PASS",
-   "evidence": "git diff 94a0b93588..944b21be87 touches only .claude/hooks/{README.md,acceptance_on_stop.py,guard_shell.py,test_hooks.py} and ci/contract_review/{service.py,service_test.py}; no Rust, no benchmarks/ or languages/ proof."
+   "evidence": "git diff 944b21be87..07bc701e6c (one merge of claude/w15-hooks e75e47b059) touches 12 files: .claude/hooks/{README.md,test_hooks.py}, ci/contract_review/{command.py,service_test.py}, the idiomatic-project spec 0.3.1->0.3.2 rename, crates/ryo/tastemaker.lock:153, and three docs with ids cleared; no Rust, no benchmarks/ or languages/ proof."
   },
   {
    "id": "2",
-   "verdict": "FAIL",
-   "evidence": "Both earlier fixes fire: reverting guard_shell.py:706 --no-renames fails ReviewerStop 'code renamed into the evidence directory since'; reverting service.py:141 fails test_a_protected_file_renamed_into_the_receipts_is_a_protected_change; unwrapping acceptance_on_stop.py:111-115 fails test_a_guard_that_fails_to_load_holds_the_tm_steward (1 != 2). Still open: ci/contract_review/command.py:18 'git diff --name-only -z HEAD' without --no-renames, a staged git mv of crates/ryo/Cargo.toml into evidence/ shows 0 protected changes. New regression: service.py:56-81 names_tracker now accepts a parenthesized id of four letters and no digit, which the 94a0b93588 validator refused; the same spelling is in the real tree at audits/2026-11-06-phase3/review-314.json:61, phase4/review-314.json:81, records-326.md:174."
+   "verdict": "PASS",
+   "evidence": "Each --no-renames removal fails its own test: command.py:18 -> test_an_uncommitted_rename_of_a_protected_file_is_a_protected_working_tree_change; service.py:125 -> test_a_protected_file_renamed_into_the_receipts_since_activation_needs_a_review; service.py:141 -> test_a_protected_file_renamed_into_the_receipts_is_a_protected_change; guard_shell.py:364 -> test_a_file_moved_out_of_a_package_still_counts_as_that_packages_change. tm 0.1.2 check of crates/ryo with plants in crates/sdk/src/lib.rs:23-36 reported 8: all seven claimed spellings (the id in parentheses, in parentheses before a word, and after bead, bead_, bead-, Bead: and beads, the id being <ryo- and four letters, no digit>) and one false positive (<ryo- and a three-letter name>) at :36; package names at :30 and the bare id at :31 not reported; docs/ reports 0, so the cleared tree is clean. Dropping the five new globs fails service_test variants 49 and 50 (validator reads the same definition). Advisory: beads: <ryo- and four letters, no digit>, a wrapped (<ryo- and four letters, no digit> at line end, [<ryo- and four letters, no digit>] and (see <ryo- and four letters, no digit>) escape; three bare digitless ids remain at audits/2026-11-06-phase3/review-314.json:77, phase4/review-314.json:68, records-326.md:150, the class README.md:29 leaves out on purpose."
   },
   {
    "id": "3",
    "verdict": "PASS",
-   "evidence": "service.py:56 reads tastemaker/specs/idiomatic-project/*/spec.toml by path, read-only; no visibility, manifest, allowlist or import boundary changed."
+   "evidence": "Deleting idiomatic-project 0.3.1 breaks no pin: crates/ryo/tastemaker.lock:153 is 0.3.2; crates/asymptote/tastemaker.lock:134 and crates/tastemaker/tastemaker.lock:136 pin 0.1.0 (present); the root tastemaker.lock and crates/tastemaker/examples/*/tastemaker.lock place no idiomatic-project; nothing under tastemaker/ names 0.3.1 of it except the 0.3.2 CHANGELOG history line."
   },
   {
    "id": "4",
    "verdict": "PASS",
-   "evidence": "service.py:60-69 reads the tracker globs from the no-tracker-text-shipped placement (spec.toml:16) instead of its own regex; tracker-id-definition-split-78f9a5a1 is fixed: one definition."
+   "evidence": "service.py:60-69 still reads the tracker globs from the newest idiomatic-project spec (sorted numerically: 0.3.2), so the rule and the validator share one definition; plant confirms (service_test variants fail when the spec globs are removed)."
   },
   {
    "id": "5",
    "verdict": "PASS",
-   "evidence": "No Rust changed."
+   "evidence": "No Rust changed in the delta."
   },
   {
    "id": "6",
    "verdict": "PASS",
-   "evidence": "Only additions under test: test_hooks.py:1448 and service_test.py:74 and the None-removal in service_test.py:29; no production path imports them."
+   "evidence": "Only test additions: service_test.py:82-97,181-183 and test_hooks.py:211-223; no production path imports them."
   }
  ],
  "plants": [
   {
-   "claim": "stands_for --no-renames (ReviewerStop rename subtest)",
-   "file": ".claude/hooks/guard_shell.py:706",
+   "claim": "command.py working-tree check --no-renames",
+   "file": "ci/contract_review/command.py:18",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "validate since-review --no-renames (service_test rename case)",
+   "claim": "validate activation --no-renames",
+   "file": "ci/contract_review/service.py:125",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "validate since-review --no-renames",
    "file": "ci/contract_review/service.py:141",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "loader exception holds the tm-steward stop",
-   "file": ".claude/hooks/acceptance_on_stop.py:111",
+   "claim": "branch_packages --no-renames",
+   "file": ".claude/hooks/guard_shell.py:364",
    "count": 1,
    "reverted": true
   },
   {
-   "claim": "validate activation --no-renames (no test covers it)",
-   "file": "ci/contract_review/service.py:125",
+   "claim": "no-tracker-text-shipped 0.3.2 digitless id in parentheses and after bead (7 spellings)",
+   "file": "crates/ryo/crates/sdk/src/lib.rs:23",
+   "count": 7,
+   "reverted": true
+  },
+  {
+   "claim": "no-tracker-text-shipped 0.3.2 leaves package names unmatched",
+   "file": "crates/ryo/crates/sdk/src/lib.rs:30",
    "count": 0,
    "reverted": true
   },
   {
-   "claim": "branch_packages --no-renames (no test covers it)",
-   "file": ".claude/hooks/guard_shell.py:364",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "command.py working-tree protected-change check sees a staged rename",
-   "file": "ci/contract_review/command.py:18",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "candidate validator refuses a digitless four-letter tracker id in parentheses",
-   "file": "ci/contract_review/service.py:73",
-   "count": 0,
+   "claim": "validator refuses digitless ids from the spec globs (globs removed)",
+   "file": "tastemaker/specs/idiomatic-project/0.3.2/spec.toml:16",
+   "count": 2,
    "reverted": true
   }
  ],
@@ -729,7 +729,7 @@
      "text": "git mv crates/ryo/Cargo.toml crates/ryo/docs/contracts/evidence/Cargo.toml  # staged: protected changes seen 0, with --no-renames 1"
     }
    ],
-   "instance_status": "open"
+   "instance_status": "fixed"
   },
   {
    "id": "hook-loader-exception-releases-hold-218b1b33",
@@ -775,7 +775,7 @@
     "ci/contract_review/service.py"
    ],
    "suggested_mechanism": "strengthen idiomatic.arch/no-tracker-text-shipped",
-   "instance_status": "open",
+   "instance_status": "fixed",
    "plants": [
     {
      "file": "crates/ryo/docs/contracts/audits/2026-11-06-phase3/review-314.json",
@@ -793,8 +793,58 @@
      "text": "the Rust gate whitespace and `ok_or` notes (<ryo- and four letters, no digit>)"
     }
    ]
+  },
+  {
+   "id": "tracker-id-spelling-unmatched-8d65fb3b",
+   "class": "tracker-id-spelling-unmatched",
+   "signature": "beads: <ryo- and four letters, no digit> | (<ryo- and four letters, no digit> at line end | [<ryo- and four letters, no digit>] | (see <ryo- and four letters, no digit>)",
+   "scope": [
+    "tastemaker/specs/idiomatic-project/0.3.2/spec.toml",
+    "ci/contract_review/service.py"
+   ],
+   "suggested_mechanism": "strengthen idiomatic.arch/no-tracker-text-shipped",
+   "instance_status": "open",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/sdk/src/lib.rs",
+     "line": 32,
+     "text": "// V1 beads: <ryo- and four letters, no digit>"
+    },
+    {
+     "file": "crates/ryo/crates/sdk/src/lib.rs",
+     "line": 35,
+     "text": "// V4 wrapped (<ryo- and four letters, no digit>"
+    },
+    {
+     "file": "crates/ryo/crates/sdk/src/lib.rs",
+     "line": 33,
+     "text": "// V2 see [<ryo- and four letters, no digit>]"
+    },
+    {
+     "file": "crates/ryo/crates/sdk/src/lib.rs",
+     "line": 34,
+     "text": "// V3 (see <ryo- and four letters, no digit>)"
+    }
+   ]
+  },
+  {
+   "id": "short-name-in-parentheses-reported-as-tracker-id-f026c12e",
+   "class": "short-name-in-parentheses-reported-as-tracker-id",
+   "signature": "*(ryo-[a-z][a-z][a-z][!a-z0-9-]*",
+   "scope": [
+    "tastemaker/specs/idiomatic-project/0.3.2/spec.toml"
+   ],
+   "suggested_mechanism": "strengthen idiomatic.arch/no-tracker-text-shipped",
+   "instance_status": "open",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/sdk/src/lib.rs",
+     "line": 36,
+     "text": "// V5 short name in parentheses (<ryo- and a three-letter name>)"
+    }
+   ]
   }
  ],
  "reviewer": "leak-review",
- "date": "2026-11-09T19:38:28+00:00"
+ "date": "2026-11-09T20:10:19+00:00"
 }
