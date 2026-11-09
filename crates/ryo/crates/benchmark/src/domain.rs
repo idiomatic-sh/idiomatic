@@ -2,6 +2,7 @@
 pub mod candidate_rules;
 pub(crate) mod canonical_text;
 pub mod diagnostics;
+pub(crate) mod corpus_discrepancy;
 pub(crate) mod discrepancy;
 pub(crate) mod invocation_identity;
 pub mod measurements;

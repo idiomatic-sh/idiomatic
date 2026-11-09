@@ -11,6 +11,9 @@ mod audit;
 #[path = "../src/inbound/use_cases/compare/acceptance.rs"]
 mod compare;
 
+#[path = "../src/inbound/use_cases/compare_corpus/acceptance.rs"]
+mod compare_corpus;
+
 #[path = "../src/inbound/use_cases/measure/acceptance.rs"]
 mod measure;
 

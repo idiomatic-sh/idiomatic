@@ -150,3 +150,144 @@ pub struct AuthoredInventory {
     /// Declared default IDs whose query is absent.
     pub missing: Vec<RuleId>,
 }
+
+/// A one-based source line, lines split on `\r\n`, `\r` or `\n`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SourceLine(
+    /// The one-based line number.
+    pub usize,
+);
+
+/// A one-based column counted in Unicode characters.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SourceColumn(
+    /// The one-based character column.
+    pub usize,
+);
+
+/// A place in a source as a person reads it: a line and a character column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FindingPosition {
+    /// The line.
+    pub line: SourceLine,
+    /// The column within the line.
+    pub column: SourceColumn,
+}
+
+/// One finding placed by line and column rather than bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LocatedFinding {
+    /// Relative path of the source containing the finding.
+    pub file: RelativePath,
+    /// Where the finding starts.
+    pub start: FindingPosition,
+    /// Where the finding ends.
+    pub end: FindingPosition,
+}
+
+/// A candidate and a reference finding paired at one file and start whose ends differ.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EndPair<Finding> {
+    /// The candidate's finding.
+    pub candidate: Finding,
+    /// The reference's finding.
+    pub reference: Finding,
+}
+
+/// How many findings paired on file and start.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FindingCount(
+    /// The number of pairs.
+    pub usize,
+);
+
+/// One selected rule's findings compared as a multiset on file and start; findings at one site pair in
+/// report order. The candidate reported `matched` plus its extra findings, the reference `matched` plus
+/// its missing ones.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleComparison<Finding> {
+    /// The selected rule.
+    pub rule: RuleId,
+    /// How many findings paired.
+    pub matched: FindingCount,
+    /// The reference findings with no candidate pair, in file and start order.
+    pub missing: Vec<Finding>,
+    /// The candidate findings with no reference pair, in file and start order.
+    pub extra: Vec<Finding>,
+    /// The pairs whose ends differ, in file and start order.
+    pub end_differences: Vec<EndPair<Finding>>,
+}
+
+/// The name a contestant's counts carry in parity evidence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ContestantName<'a>(
+    /// The name.
+    pub &'a str,
+);
+
+/// One difference of a corpus comparison that no acceptance covers, as a person reads it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ParityProblem(
+    /// The problem, naming the rule and the finding.
+    pub String,
+);
+
+/// Why a rule's differences on a corpus are accepted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AcceptanceReason(
+    /// The explanation, with its evidence.
+    pub String,
+);
+
+/// Two contestants compared rule by rule over one corpus, with the differences no acceptance covers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ParityReport<'a> {
+    /// The pinned reference's name.
+    pub reference: ContestantName<'a>,
+    /// The candidate's name.
+    pub candidate: ContestantName<'a>,
+    /// Each selected rule, in selection order.
+    pub rules: Vec<RuleComparison<LocatedFinding>>,
+    /// Each difference the accepted differences do not cover.
+    pub problems: Vec<ParityProblem>,
+}
+
+/// The side of an unmatched finding in a corpus comparison.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DifferenceSide {
+    /// Only the candidate reports it.
+    Extra,
+    /// Only the reference reports it.
+    Missing,
+}
+
+/// One unmatched finding of a rule, pinned by its side, file and start.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct LocatedDifference {
+    /// Which contestant alone reports it.
+    pub side: DifferenceSide,
+    /// Relative path of the source containing it.
+    pub file: RelativePath,
+    /// Where it starts.
+    pub start: FindingPosition,
+}
+
+/// The differences of one rule a corpus comparison accepts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AcceptedRule {
+    /// The rule.
+    pub rule: RuleId,
+    /// Why these differences are accepted.
+    pub reason: AcceptanceReason,
+    /// The accepted unmatched findings.
+    pub findings: Vec<LocatedDifference>,
+}
+
+/// The differences a corpus comparison accepts, written for one corpus digest.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AcceptedDifferences {
+    /// The digest of the corpus the differences were observed on.
+    pub corpus: crate::domain::artifacts::types::digest::value::ArtifactDigest,
+    /// The accepted differences of each rule.
+    pub rules: Vec<AcceptedRule>,
+}

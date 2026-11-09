@@ -36,6 +36,8 @@ pub enum Operation {
     EnsureDirectory,
     WriteAndSelect,
     SelectMissing,
+    CreateAndRead,
+    AcceptedMissing,
     TotalSize,
     QueryModules,
     MaterializeIsolated,
@@ -176,6 +178,18 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a missing selection is refused"),
         word: Word::Refuses,
         input: || Operation::SelectMissing,
+        expect: Expect::Error(Failure::MissingArtifact),
+    },
+    Case {
+        name: CaseName("text streamed into a created file reads back as source text"),
+        word: Word::Succeeds,
+        input: || Operation::CreateAndRead,
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("missing accepted differences are refused"),
+        word: Word::Refuses,
+        input: || Operation::AcceptedMissing,
         expect: Expect::Error(Failure::MissingArtifact),
     },
     Case {
@@ -345,6 +359,12 @@ pub fn check(adapter: &impl SuitePort) {
                 .selection(ArtifactPath(&missing))
                 .map(|names| names.len())
                 .map_err(classify),
+            Operation::CreateAndRead => {
+                let file = temporary.path().join("source.py");
+                adapter.create_text(ArtifactPath(&file)).and_then(|mut stream| Ok(std::io::Write::write_all(&mut stream, b"abc")?))
+                    .and_then(|()| adapter.source_text(ArtifactPath(&file))).map(|source| source.0.len()).map_err(classify)
+            }
+            Operation::AcceptedMissing => adapter.accepted_differences(ArtifactPath(&missing)).map(|accepted| accepted.rules.len()).map_err(classify),
             Operation::TotalSize => {
                 let file = temporary.path().join("size.bin");
                 std::fs::write(&file, b"abc").expect("size fixture");

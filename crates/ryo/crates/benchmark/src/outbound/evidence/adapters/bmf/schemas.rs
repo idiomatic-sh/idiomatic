@@ -8,6 +8,9 @@ use ryo_benchmark_contracts::domain::reports::types::{
 };
 use serde::Serialize;
 use std::collections::BTreeMap;
+use ryo_benchmark_contracts::domain::reports::types::{
+    EndPair, FindingPosition, LocatedFinding, ParityReport, RuleComparison,
+};
 
 /// Median and observed extrema for one BMF metric.
 #[derive(Serialize)]
@@ -197,4 +200,160 @@ pub(super) fn comparison(
         candidate_execution_metadata: ExecutionMetadataSchema::from(&candidate.execution_metadata),
     })
     .map_err(|error| Error::Json(Box::new(error)))
+}
+
+/// One count metric of a parity report.
+#[derive(Serialize)]
+struct CountSchema {
+    /// The count.
+    value: f64,
+}
+
+/// A count as an exact BMF number.
+fn count(value: usize) -> Result<CountSchema, Error> {
+    u32::try_from(value)
+        .map(|value| CountSchema {
+            value: f64::from(value),
+        })
+        .map_err(|_too_many| Error::Invalid(constants::EMPTY_METRIC.into()))
+}
+
+/// The parity counts as one BMF document under the reference's name: its differing rules and unaccepted differences.
+pub(super) fn parity_metrics(parity: &ParityReport<'_>) -> Result<Vec<u8>, Error> {
+    let differing = parity
+        .rules
+        .iter()
+        .filter(|rule| !rule.missing.is_empty() || !rule.extra.is_empty())
+        .count();
+    let document = BTreeMap::from([(
+        parity.reference.0,
+        BTreeMap::from([
+            (constants::DIFFERING_RULES, count(differing)?),
+            (constants::UNACCEPTED_DIFFERENCES, count(parity.problems.len())?),
+        ]),
+    )]);
+    serde_json::to_vec(&document).map_err(|error| Error::Json(Box::new(error)))
+}
+
+/// A position as the per-rule document spells an end: `[line, column]`.
+const fn end(position: FindingPosition) -> [usize; 2] {
+    [position.line.0, position.column.0]
+}
+
+/// A located finding as a sample: file, line, column and end.
+struct FindingSampleSchema<'a>(&'a LocatedFinding);
+
+impl Serialize for FindingSampleSchema<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap as _;
+        let mut map = serializer.serialize_map(Some(4))?;
+        map.serialize_entry("file", self.0.file.0.as_ref())?;
+        map.serialize_entry("line", &self.0.start.line.0)?;
+        map.serialize_entry("column", &self.0.start.column.0)?;
+        map.serialize_entry("end", &end(self.0.end))?;
+        map.end()
+    }
+}
+
+/// A pair of findings whose ends differ, as a sample: file, line, column and each contestant's end under its name.
+struct EndSampleSchema<'a> {
+    /// The candidate's end key.
+    candidate: &'a EndKeySchema,
+    /// The reference's end key.
+    reference: &'a EndKeySchema,
+    /// The paired findings.
+    pair: &'a EndPair<LocatedFinding>,
+}
+
+/// A contestant's end key in an end-difference sample: its name followed by `_end`.
+struct EndKeySchema(String);
+
+impl Serialize for EndSampleSchema<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap as _;
+        let mut map = serializer.serialize_map(Some(5))?;
+        map.serialize_entry("file", self.pair.candidate.file.0.as_ref())?;
+        map.serialize_entry("line", &self.pair.candidate.start.line.0)?;
+        map.serialize_entry("column", &self.pair.candidate.start.column.0)?;
+        map.serialize_entry(&self.candidate.0, &end(self.pair.candidate.end))?;
+        map.serialize_entry(&self.reference.0, &end(self.pair.reference.end))?;
+        map.end()
+    }
+}
+
+/// The first located findings of a kind, as samples.
+fn finding_samples(located: &[LocatedFinding]) -> Vec<FindingSampleSchema<'_>> {
+    located
+        .iter()
+        .take(constants::SAMPLES)
+        .map(FindingSampleSchema)
+        .collect()
+}
+
+/// One per-rule row, its keys in document order and the contestants' counts under their names.
+struct RuleRowSchema<'a> {
+    /// The report the row belongs to.
+    parity: &'a ParityReport<'a>,
+    /// The rule's comparison.
+    rule: &'a RuleComparison<LocatedFinding>,
+}
+
+impl Serialize for RuleRowSchema<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap as _;
+        let rule = self.rule;
+        let candidate = self.parity.candidate.0;
+        let reference = self.parity.reference.0;
+        let candidate_end = EndKeySchema(format!("{candidate}{}", constants::END_KEY));
+        let reference_end = EndKeySchema(format!("{reference}{}", constants::END_KEY));
+        let class = match (rule.missing.is_empty(), rule.extra.is_empty()) {
+            (true, true) => constants::IDENTICAL.to_owned(),
+            (false, false) => constants::BOTH.to_owned(),
+            (false, true) => format!("{candidate}{}", constants::MISSING_CLASS),
+            (true, false) => format!("{candidate}{}", constants::EXTRA_CLASS),
+        };
+        let mut map = serializer.serialize_map(Some(12))?;
+        map.serialize_entry("rule", rule.rule.as_ref())?;
+        map.serialize_entry(candidate, &(rule.matched.0 + rule.extra.len()))?;
+        map.serialize_entry(reference, &(rule.matched.0 + rule.missing.len()))?;
+        map.serialize_entry("matched", &rule.matched.0)?;
+        map.serialize_entry("missing", &rule.missing.len())?;
+        map.serialize_entry("extra", &rule.extra.len())?;
+        map.serialize_entry("end_differs", &rule.end_differences.len())?;
+        map.serialize_entry("missing_samples", &finding_samples(&rule.missing))?;
+        map.serialize_entry("extra_samples", &finding_samples(&rule.extra))?;
+        map.serialize_entry(
+            "end_differs_samples",
+            &rule
+                .end_differences
+                .iter()
+                .take(constants::SAMPLES)
+                .map(|pair| EndSampleSchema {
+                    candidate: &candidate_end,
+                    reference: &reference_end,
+                    pair,
+                })
+                .collect::<Vec<_>>(),
+        )?;
+        map.serialize_entry("class", &class)?;
+        map.serialize_entry("differences", &(rule.missing.len() + rule.extra.len()))?;
+        map.end()
+    }
+}
+
+/// The per-rule document: every selected rule's row in selection order, indented by one space.
+pub(super) fn parity_rules(parity: &ParityReport<'_>) -> Result<Vec<u8>, Error> {
+    let rows: Vec<_> = parity
+        .rules
+        .iter()
+        .map(|rule| RuleRowSchema { parity, rule })
+        .collect();
+    let mut bytes = Vec::new();
+    let mut serializer = serde_json::Serializer::with_formatter(
+        &mut bytes,
+        serde_json::ser::PrettyFormatter::with_indent(constants::PER_RULE_INDENT),
+    );
+    rows.serialize(&mut serializer)
+        .map_err(|error| Error::Json(Box::new(error)))?;
+    Ok(bytes)
 }

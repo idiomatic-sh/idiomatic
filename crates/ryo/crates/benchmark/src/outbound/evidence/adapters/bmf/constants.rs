@@ -27,3 +27,22 @@ pub(super) const EXACT: &str = "exact";
 pub(super) const DIFFERENT: &str = "different";
 /// A dimension cannot be compared.
 pub(super) const INCOMPARABLE: &str = "incomparable";
+
+/// The measure counting selected rules whose findings differ.
+pub(super) const DIFFERING_RULES: &str = "differing-rules";
+/// The measure counting differences the accepted differences do not cover.
+pub(super) const UNACCEPTED_DIFFERENCES: &str = "unaccepted-differences";
+/// How many located findings of each kind a per-rule row keeps.
+pub(super) const SAMPLES: usize = 3;
+/// The indent of the per-rule document.
+pub(super) const PER_RULE_INDENT: &[u8] = b" ";
+/// The class of a rule whose findings agree.
+pub(super) const IDENTICAL: &str = "identical";
+/// The class of a rule with both missing and extra findings.
+pub(super) const BOTH: &str = "both";
+/// The class suffix of a rule with only missing findings, after the candidate's name.
+pub(super) const MISSING_CLASS: &str = "-missing";
+/// The class suffix of a rule with only extra findings, after the candidate's name.
+pub(super) const EXTRA_CLASS: &str = "-extra";
+/// The suffix of a contestant's end key in an end-difference sample, after its name.
+pub(super) const END_KEY: &str = "_end";

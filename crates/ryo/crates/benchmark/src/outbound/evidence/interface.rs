@@ -24,4 +24,13 @@ pub trait EvidencePort {
         comparison: ReportComparison,
         contract: ComparisonContract,
     ) -> Result<(), Error>;
+    /// Publish the differing-rule and unaccepted-difference counts of a corpus parity as metrics, and its
+    /// per-rule document on the comparison stream.
+    ///
+    /// # Errors
+    /// Returns encoding, stream-write or flush failures.
+    fn parity(
+        &self,
+        parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,
+    ) -> Result<(), Error>;
 }

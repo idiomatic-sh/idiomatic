@@ -13,8 +13,6 @@ pub(super) const EMPTY_CACHE_CONDITION: &str = "empty-tool-cache";
 pub(super) const RETAINED_CACHE_CONDITION: &str = "retained-tool-cache";
 /// The observation condition of a retained tool cache after the sources were edited.
 pub(super) const EDITED_CACHE_CONDITION: &str = "edited-tool-cache";
-/// The name the candidate's samples carry.
-pub(super) const CANDIDATE_NAME: &str = "ryo";
 /// Separator in human-readable excluded-path observations.
 pub(super) const PATH_SEPARATOR: &str = ", ";
 /// Separator between explicit per-rule finding counts.

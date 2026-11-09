@@ -3,6 +3,7 @@ pub mod account_defaults;
 pub mod admit_measurement;
 pub mod audit;
 pub mod compare;
+pub mod compare_corpus;
 pub mod measure;
 pub mod measure_corpus;
 pub mod run_ryo;

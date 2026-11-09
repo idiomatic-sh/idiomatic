@@ -12,6 +12,10 @@ Pure selection, dependency retention and declared rule configuration.
 
 The compact sorted-key document every pinned digest is taken over.
 
+### corpus_discrepancy
+
+A corpus comparison's differences are accepted only by finding, in accepted differences written for that corpus's digest.
+
 ### diagnostics
 
 Canonical finding multisets retain duplicate occurrences, exact paths and byte locations.

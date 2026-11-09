@@ -1,6 +1,6 @@
 //! Every project is measured in both orders and compared cold, retained and edited.
 use super::constants::{
-    CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_NAME, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY,
+    CANDIDATE_EDITED, CANDIDATE_FIRST, CANDIDATE_RETAINED, CLEAN_EDITED_DIRECTORY,
     EDITED_CACHE_CONDITION, EMPTY_CACHE_CONDITION, FINDING_SEPARATOR, ONE_FINDING, PATH_SEPARATOR,
     PREFLIGHT_DIRECTORY, REFERENCE_EDITED, REFERENCE_FIRST, REFERENCE_RETAINED,
     RETAINED_CACHE_CONDITION, RETAINED_DIRECTORY, TRIAL_PREFIX, TRIALS,
@@ -231,7 +231,10 @@ fn measure_project(
             (RETAINED_CACHE_CONDITION, retained),
             (EDITED_CACHE_CONDITION, edited),
         ] {
-            let contestants = [language.reference_name.0, CANDIDATE_NAME];
+            let contestants = [
+                language.reference_name.0,
+                ryo_benchmark_contracts::domain::reports::constants::CANDIDATE_NAME,
+            ];
             let named = measured_pair.samples(contestants.map(|contestant| {
                 SampleName(format!("{}/{contestant}/{condition}", project.name))
             }));

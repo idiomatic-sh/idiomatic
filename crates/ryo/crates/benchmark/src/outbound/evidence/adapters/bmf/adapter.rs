@@ -51,4 +51,28 @@ impl EvidencePort for EvidenceBmfAdapter {
         output.flush()?;
         Ok(())
     }
+    fn parity(
+        &self,
+        parity: &ryo_benchmark_contracts::domain::reports::types::ParityReport<'_>,
+    ) -> Result<(), Error> {
+        let metrics = schemas::parity_metrics(parity)?;
+        let rules = schemas::parity_rules(parity)?;
+        let mut output = self
+            .connection
+            .output
+            .lock()
+            .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
+        output.write_all(&metrics)?;
+        output.write_all(constants::NEWLINE)?;
+        output.flush()?;
+        let mut comparison = self
+            .connection
+            .comparison
+            .lock()
+            .map_err(|_poisoned| Error::Invalid(constants::POISONED.into()))?;
+        comparison.write_all(&rules)?;
+        comparison.write_all(constants::NEWLINE)?;
+        comparison.flush()?;
+        Ok(())
+    }
 }
