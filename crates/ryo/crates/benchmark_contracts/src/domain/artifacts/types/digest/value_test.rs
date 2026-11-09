@@ -79,9 +79,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::Unordered | Scenario::Duplicate => {
             let first = RelativePath("a".into());
             let second = RelativePath("b".into());
-            let paths = match input {
-                Scenario::Unordered => [&second, &first],
-                _ => [&first, &first],
+            let paths = if matches!(input, Scenario::Unordered) {
+                [&second, &first]
+            } else {
+                [&first, &first]
             };
             return ArtifactDigest::file_metadata(Some(paths.map(|path| FileMetadataEntry {
                 path,
