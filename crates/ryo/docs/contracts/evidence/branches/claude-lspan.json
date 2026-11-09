@@ -1,0 +1,44 @@
+{
+ "checkpoint": 334,
+ "source": "0371fefcf817e9b45ccf60d258bdc4e91dd6a3a6",
+ "base": "b537645529f840159a35305190bab662c5e35bcf",
+ "branch": "claude/lspan",
+ "bead": "ryo-fpg4.21",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "date": "2026-11-09T20:34:27Z",
+ "checks": [
+  {"id": "1", "verdict": "PASS", "evidence": "The fix diff (b537645529..0371fefcf8, one commit) touches only execution_domain presence/service_test.rs (+98/-5). The R6 proof stays in the engine crate and uses only engine error and fault types, with no product rule set or corpus."},
+  {"id": "2", "verdict": "PASS", "evidence": "R6 now holds one instance of every variant: errors has all 22 OperatingError variants (operating/errors.rs:8) and faults all 13 PortableOperatorFault variants (operators contract/types.rs:9), both in declaration order. The exhaustive operating_position (service_test.rs:987) and portable_position (:1014) are asserted to map each list onto 0..len (:1130, :1134). Plant p3, which made SemanticRender a SourceMatches row fault with no proof and was green last round, is now red at the declaration assert (:1151 in the planted file). Dropping WrongTest from errors is red at the errors assert (:1130), and dropping UnboundKey from faults is red at the faults assert (:1134). The harness turns no failure into a pass: run() asserts that failed is empty (values/src/cases.rs:136). The named residual is reproduced and left as an advisory under the PM ruling: in plant p7, a new PortableOperatorFault::Planted was given an honest arm in all four forced matches (operating/service.rs:48 and service_test.rs:791, :940, :1018), mapped as a SourceMatches row fault with no proof and position 13, and no instance was added; the test stayed green."},
+  {"id": "3", "verdict": "PASS", "evidence": "The fix changes no production visibility. operating_position and portable_position are private fns in the cfg(test) module service_test.rs."},
+  {"id": "4", "verdict": "PASS", "evidence": "The position functions number the variants and copy no production logic. No production code changed."},
+  {"id": "5", "verdict": "PASS", "evidence": "No production code changed (git diff --stat b537645529 0371fefcf8: the test file only), so the earlier direction evidence stands."},
+  {"id": "6", "verdict": "PASS", "evidence": "There is no new seam. The added items are in the cfg(test) module service_test.rs (presence/mod.rs:8), and the fixture instances use only public error constructors."}
+ ],
+ "scope_of_change": "One commit, one file: presence/service_test.rs. It adds the two position fns, completes the instance lists in declaration order and adds the two asserts. Nothing else changed.",
+ "advisories": [
+  "Residual (PM ruling: advisory under the hooks threat model). A new variant whose position is the next free number, with no instance added, passes R6 (plant p7, green). The position functions cannot know the variant count, so the list's length is not tied to it. The compiler forces the position arm, and the doc comment above it (service_test.rs:985) says to add the instance. The plausible honest miss is a batch compile repair that fills the four non-exhaustive arms straight from the cargo JSON without reading that comment. A variant count derived on the enum would close it, at the cost of a new derive in production.",
+  "Carried from the last round: located_proof (service_test.rs:938) is a hand-written declaration of what validate_spans and relied cover. R6 cannot detect a fault placed in the wrong proof arm; the L1 keeps-failure cases are the evidence for those arms."
+ ],
+ "plants": [
+  {"claim": "R6 catalogue: SemanticRender made a SourceMatches row fault without proof (green last round)", "file": "crates/ryo/crates/execution_domain/src/domain/executable_program/presence/service_test.rs:769", "count": 1, "reverted": true},
+  {"claim": "R6 catalogue: WrongTest instance dropped from errors", "file": "crates/ryo/crates/execution_domain/src/domain/executable_program/presence/service_test.rs:1106", "count": 1, "reverted": true},
+  {"claim": "R6 catalogue: UnboundKey instance dropped from faults", "file": "crates/ryo/crates/execution_domain/src/domain/executable_program/presence/service_test.rs:1124", "count": 1, "reverted": true}
+ ],
+ "enforcement_candidates": [
+  {"id": "conditional-failure-declaration-counted-as-unconditional-a9f03941",
+   "class": "conditional failure declaration counted as unconditional",
+   "signature": "|| matches!(failure, Ok(RowFailure::UnlessLocated(_)))",
+   "scope": ["crates/ryo/crates/execution_domain/src/domain/executable_program/presence/service_test.rs"],
+   "suggested_mechanism": "compiler",
+   "instance_status": "fixed",
+   "plants": [{"file": "crates/ryo/crates/execution_domain/src/domain/executable_program/presence/service_test.rs", "line": 935, "text": "        || matches!(failure, Ok(RowFailure::UnlessLocated(_)));"}]},
+  {"id": "fault-catalogue-audits-a-hand-listed-subset-of-variants-abc4eeee",
+   "class": "fault catalogue audits a hand-listed subset of variants",
+   "signature": "let errors = [ OperatingError::... ]; errors.iter().map(|error| (Raised::Operating(error), operating(error)))",
+   "scope": ["crates/ryo/crates/execution_domain/src/domain/executable_program/presence/service_test.rs"],
+   "suggested_mechanism": "compiler",
+   "instance_status": "fixed",
+   "plants": [{"file": "crates/ryo/crates/execution_domain/src/domain/executable_program/presence/service_test.rs", "line": 769, "text": "        OperatingError::SemanticRender(_) => Fault::RowFallible(SOURCE_SPAN),"}]}
+ ]
+}
