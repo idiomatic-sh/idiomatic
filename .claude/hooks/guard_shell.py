@@ -53,7 +53,52 @@ def segments(text):
     return out
 
 
-WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice"}
+WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice", "timeout", "stdbuf", "xargs", "flock", "ionice",
+            "unbuffer", "script", "watch"}
+WRAPPER_VALUES = {"env": {"-u", "-n", "-C", "--unset", "--chdir"}, "nice": {"-n", "--adjustment"},
+                  "timeout": {"-s", "--signal", "-k", "--kill-after"}, "stdbuf": {"-i", "-o", "-e"},
+                  "xargs": {"-n", "-I", "-P", "-L", "-s", "-d", "-E", "-a", "--max-args", "--max-procs", "--delimiter",
+                            "--max-lines", "--max-chars", "--arg-file", "--eof"},
+                  "flock": {"-w", "-E", "--timeout", "--conflict-exit-code"}, "exec": {"-a"},
+                  "ionice": {"-c", "-n", "-p", "-P", "-u"}, "watch": {"-n", "--interval"}, "script": {"-I", "-O", "-B", "-T", "-m"}}
+SHELL_KEYWORDS = {"if", "then", "elif", "else", "do", "while", "until", "for", "!", "{", "(", "time"}
+ASSIGNMENT = r"[A-Za-z_][A-Za-z0-9_]*=.*"
+GATED_WRAPPERS = {"eval", "sudo"}
+
+
+def after_wrapper(words):
+    """words minus the leading wrapper command word and what it consumes: its options and their values, assignments,
+    timeout's duration, flock's lock operand. script -c, watch with one quoted command and env -S become sh -c / words."""
+    wrapper, words = words[0], words[1:]
+    values = WRAPPER_VALUES.get(wrapper, set())
+    command = None
+    while words and (words[0].startswith("-") or re.fullmatch(ASSIGNMENT, words[0])):
+        flag = words[0]
+        if wrapper == "env" and flag in ("-S", "--split-string") and len(words) > 1:
+            return tokens(words[1]) + words[2:]
+        if wrapper == "script" and flag in ("-c", "--command") and len(words) > 1:
+            command = words[1]
+        words = words[2:] if flag in values or (wrapper == "script" and flag in ("-c", "--command")) else words[1:]
+    if wrapper == "script":
+        return ["sh", "-c", command] if command is not None else []
+    if wrapper in ("timeout", "flock") and words:
+        words = words[1:]
+    if wrapper == "watch" and len(words) == 1 and " " in words[0]:
+        return ["sh", "-c", words[0]]
+    return words
+
+
+def peel(words):
+    """The command word list behind leading assignments, shell keywords and grouping, and every wrapper (the one
+    unwrapping every caller uses). It is always a suffix of words."""
+    while words:
+        if re.fullmatch(ASSIGNMENT, words[0]) or words[0] in SHELL_KEYWORDS and words[0] != "time":
+            words = words[1:]
+        elif words[0] in WRAPPERS:
+            words = after_wrapper(words)
+        else:
+            break
+    return words
 
 
 def shell_command(words):
@@ -68,17 +113,9 @@ def shell_command(words):
 
 def runs_cargo_verb(words):
     """True when the word list is a command that runs cargo with a build verb, directly or through a wrapper."""
-    while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
-        words = words[1:]
-    while words and words[0] in WRAPPERS:
-        words = words[1:]
+    words = peel(words)
     if not words:
         return False
-    if words[0] == "flock":
-        rest = words[1:]
-        while rest and rest[0].startswith("-"):
-            rest = rest[2:] if rest[0] in ("-w", "-E", "--timeout", "--conflict-exit-code") else rest[1:]
-        return runs_cargo_verb(rest[1:])
     inner = shell_command(words)
     if inner is not None:
         return has_cargo_command(inner)
@@ -92,7 +129,7 @@ def has_cargo_command(text):
     return any(runs_cargo_verb(tokens(segment)) for segment in segments(text))
 
 
-REDIRECT = re.compile(r"^\d*[<>]")
+REDIRECT = re.compile(r"^(\d*|&)[<>]")
 
 
 def without_redirections(words):
@@ -100,7 +137,7 @@ def without_redirections(words):
     out, i = [], 0
     while i < len(words):
         if REDIRECT.match(words[i]):
-            bare = re.fullmatch(r"\d*(>>|>|<)", words[i]) is not None
+            bare = re.fullmatch(r"(\d*|&)(>>|>|<<<|<<-|<<|<)", words[i]) is not None
             i += 2 if bare else 1
         else:
             out.append(words[i])
@@ -114,7 +151,7 @@ def tokens(segment):
     except ValueError:
         found = segment.split()
     found = without_redirections(found)
-    while found and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", found[0]):
+    while found and (re.fullmatch(ASSIGNMENT, found[0]) or found[0] in SHELL_KEYWORDS and found[0] != "time"):
         found = found[1:]
     return found
 
@@ -143,15 +180,9 @@ def removal(words):
 
 
 def cargo_index(words):
-    """Index of `cargo` when the segment runs it directly, behind an optional flock."""
-    if not words:
-        return None
-    if words[0] == "flock":
-        for i, w in enumerate(words):
-            if w == "cargo":
-                return i
-        return None
-    return 0 if words[0] == "cargo" else None
+    """Index of `cargo` when the segment runs it directly, behind any wrappers."""
+    inner = peel(words)
+    return len(words) - len(inner) if inner and inner[0] == "cargo" else None
 
 
 def target_dir(rest):
@@ -250,7 +281,7 @@ def git_verb(words, verb):
         if words[i] == "-C" and i + 1 < len(words):
             directory = words[i + 1]
             i += 2
-        elif words[i] in ("-c", "--git-dir", "--work-tree") and i + 1 < len(words):
+        elif words[i] in ("-c", "--git-dir", "--work-tree", "--namespace", "--config-env") and i + 1 < len(words):
             i += 2
         else:
             i += 1
@@ -276,9 +307,19 @@ def current_branch(tree):
     return git_out(tree, "symbolic-ref", "--short", "HEAD")[1].strip()
 
 
+PUSH_OPTION_VALUES = {"-o", "--push-option", "--receive-pack", "--exec", "--repo", "--recurse-submodules"}
+
+
 def push_targets(tree, push):
     """(remote, source, destination) for each refspec a push names; no refspec pushes HEAD to the current branch."""
-    operands = [a for a in push[1] if not a.startswith("-")]
+    operands, skip = [], False
+    for a in push[1]:
+        if skip:
+            skip = False
+        elif a in PUSH_OPTION_VALUES:
+            skip = True
+        elif not a.startswith("-"):
+            operands.append(a)
     remote = operands[0] if operands else "origin"
     current = current_branch(tree)
     if len(operands) < 2:
@@ -304,6 +345,28 @@ def full_sha(value):
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
 
 
+def service_module():
+    """ci/contract_review/service.py, loaded by path (stdlib only): the one validator of review evidence."""
+    import importlib.util
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ci", "contract_review", "service.py")
+    spec = importlib.util.spec_from_file_location("contract_review_service", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def validated(call):
+    """None when call(service module) passes, else the problem text; a missing or old service.py refuses."""
+    try:
+        call(service_module())
+    except ValueError as error:
+        return str(error)
+    except Exception as error:  # a missing or old service.py must refuse, never pass
+        return "cannot be validated: ci/contract_review/service.py failed to load or lacks the validator (" + \
+            type(error).__name__ + ": " + str(error) + ")"
+    return None
+
+
 def review_shape(review, reviewer):
     """The problem with a review evidence file against the shared schema, or None.
 
@@ -311,19 +374,85 @@ def review_shape(review, reviewer):
     run with python3 -I, and the contract-review CI job cannot drift. The schema is
     crates/ryo/docs/contracts/review/README.md#review-evidence-schema.
     """
-    import importlib.util
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ci", "contract_review", "service.py")
-    try:
-        spec = importlib.util.spec_from_file_location("contract_review_service", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        module.shape(review, reviewer)
-    except ValueError as error:
-        return str(error)
-    except Exception as error:  # a missing or old service.py must refuse, never pass
-        return "cannot be validated: ci/contract_review/service.py failed to load or lacks shape (" + \
-            type(error).__name__ + ": " + str(error) + ")"
+    return validated(lambda module: module.shape(review, reviewer))
+
+
+def dropped_candidates(tree, head, sha, name):
+    """The candidate ids some version of name (at head, then every commit touching it up to sha) had that a later
+    version lacks; a version where the file is absent has none."""
+    versions = [head] + git_out(tree, "log", "--full-history", "--reverse", "--format=%H", head + ".." + sha,
+                                "--", name)[1].split()
+    seen, dropped = set(), []
+    for version in versions:
+        code, text = git_out(tree, "show", version + ":" + name)
+        try:
+            ids = set(service_ids(json.loads(text))) if code == 0 else set()
+        except ValueError:
+            ids = set()
+        dropped += [i for i in sorted(seen - ids) if i not in dropped]
+        seen |= ids
+    return dropped
+
+
+def candidate_problem(tree, sha, head, leak):
+    """The refusal text when the leak-review.json (parsed) or a branch result carries candidates the previous
+    checkpoint's tm-steward.json did not decide, else None. Candidates come from that checkpoint's leak-review.json
+    and the evidence/branches/*.json files added or modified since the previous landed head; decisions never carry forward."""
+    reviews = [(EVIDENCE + "leak-review.json", leak)]
+    code, listing = git_out(tree, "diff", "--name-status", "--no-renames", head + ".." + sha, "--", MERGE_BRANCHES)
+    changed = {}
+    for line in (listing.split("\n") if code == 0 else []):
+        status, _, name = line.partition("\t")
+        changed[name] = status
+    # every path touched in the range, so a file added and deleted inside the checkpoint still counts its candidates
+    code, touched = git_out(tree, "log", "--full-history", "--no-renames", "--name-only", "--format=", head + ".." + sha,
+                            "--", MERGE_BRANCHES)
+    for name in sorted(set(touched.split("\n")) | set(changed)):
+        if not name.endswith(".json"):
+            continue
+        dropped = dropped_candidates(tree, head, sha, name)
+        if dropped:
+            return (name + " drops enforcement candidate " + ", ".join(dropped) + " of an earlier version in this "
+                    "checkpoint (a deleted or renamed branch file drops them all); candidates are append-only: "
+                    "carry each forward with instance_status fixed or open")
+        if changed.get(name) not in ("A", "M"):
+            continue
+        code, text = git_out(tree, "show", sha + ":" + name)
+        try:
+            reviews.append((name, json.loads(text)))
+        except ValueError:
+            return name + " at " + sha[:10] + " is not JSON"
+    ids, plants = [], {}
+    for name, review in reviews:
+        if isinstance(review, dict) and "enforcement_candidates" in review:
+            problem = validated(lambda module: module.candidates(review["enforcement_candidates"]))
+            if problem:
+                return name + " " + problem
+            ids += [(name, i) for i in service_ids(review)]
+            plants.update(service_ids(review))
+    code, text = git_out(tree, "show", sha + ":" + EVIDENCE + "tm-steward.json")
+    steward = json.loads(text) if code == 0 else {}
+    left = []
+    problem = validated(lambda module: left.extend(module.undecided(steward, [i for _, i in ids])))
+    if problem:
+        return problem
+    wrong = []
+    problem = validated(lambda module: wrong.extend(module.plant_mismatch(steward, plants)))
+    if problem:
+        return problem
+    if wrong:
+        return "tm-steward.json plant_counts do not number the plants of " + ", ".join(wrong) + " one for one"
+    if left:
+        where = {i: n for n, i in ids}
+        return ("tm-steward.json decides no candidate_decisions entry for " +
+                ", ".join(i + " (from " + where[i] + ")" for i in left))
     return None
+
+
+def service_ids(review):
+    out = {}
+    validated(lambda module: out.update(module.candidate_ids(review)))
+    return out
 
 
 def bulk_push(words, here):
@@ -336,6 +465,15 @@ def bulk_push(words, here):
             if SHELL_EXPANDED.search(operand) or operand.lstrip("+") == ":":
                 return ("git push operand " + operand + " is shell-expanded, a pattern or the matching refspec; "
                         "write the branch name")
+    return None
+
+
+def gated_wrapper(words, here):
+    """eval and sudo are not unwrapped: they refuse in front of a gated git verb rather than hide it from the gates."""
+    words = peel(words)
+    if words and words[0] in GATED_WRAPPERS and gated_text(" ".join(words[1:])):
+        return (words[0] + " in front of a gated git push, merge or pull hides it from the guards; "
+                "run the git command directly")
     return None
 
 
@@ -431,6 +569,13 @@ def previous_reviews(words, here):
                 return (refused + "the source " + repr(reviewed) + " in " + EVIDENCE + name +
                         " is not the previous landed head " + head +
                         " (or an ancestor with only evidence changed since); " + run)
+            if name == "leak-review.json":
+                leak = review
+        if len(needed) == len(PREVIOUS_REVIEWS):
+            problem = candidate_problem(tree, sha, head, leak)
+            if problem:
+                return (refused + problem + "; the tm-steward must decide every enforcement candidate of " + head +
+                        " (decision compiler|strengthen|new with plant counts of at least 1, or none with a reason)")
         code, text = git_out(tree, "show", sha + ":" + ASYMPTOTE)
         if code == 0:
             run = "rerun the integrator's quick checks on " + head
@@ -658,25 +803,11 @@ def branch_review(words, here):
     return None
 
 
-OPTION_VALUES = {"-u", "-n", "-C", "-S", "--unset", "--chdir"}
 
 
 def unwrapped(words, depth=0):
-    """The command word lists behind env, command, time, nohup, nice, exec, flock and bash/sh/zsh -c wrappers."""
-    while True:
-        while words and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0]):
-            words = words[1:]
-        if words and words[0] in WRAPPERS:
-            words = words[1:]
-            while words and (words[0].startswith("-") or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", words[0])):
-                words = words[2:] if words[0] in OPTION_VALUES else words[1:]
-        elif words and words[0] == "flock":
-            rest = words[1:]
-            while rest and rest[0].startswith("-"):
-                rest = rest[2:] if rest[0] in ("-w", "-E", "--timeout", "--conflict-exit-code") else rest[1:]
-            words = rest[1:]
-        else:
-            break
+    """The command word lists behind every wrapper (peel) and bash/sh/zsh -c strings."""
+    words = peel(words)
     inner = shell_command(words) if words else None
     if inner is not None and depth < 4:
         found = []
@@ -717,7 +848,86 @@ def gated_text(command):
     """True when the command, with quotes and backslashes removed, names git push, merge or pull; cannot raise."""
     plain = str(command).replace("'", "").replace('"', "").replace("\\", "")
     return GATED_TEXT.search(plain) is not None
-GATES = (bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
+GATES = (gated_wrapper, bulk_push, rust_review, previous_reviews, perf_gate, branch_review)
+
+
+EVIDENCE_NAME = re.compile(r"(rust-review|contract-review|leak-review|tm-steward)[^/]*\.json|asymptote\.json")
+EVIDENCE_TAIL = "/crates/ryo/docs/contracts/evidence/"
+CHECKPOINT_BRANCH = re.compile(r"claude/checkpoint-\d+")
+WRITE_REDIRECT = re.compile(r"(?<![<&0-9])\d?>>?\s*(?!&)(\"[^\"]+\"|'[^']+'|[^\s;&|<>()]+)")
+
+
+def evidence_write_problem(path, here):
+    """The refusal when path is a review-evidence file outside a claude/checkpoint-N worktree's evidence directory.
+
+    Evidence files are the reviewers' committed record, so they are written straight into the open checkpoint
+    integration worktree; a scratchpad copy is never read by the push hooks. Shared by the Write/Edit hook.
+    """
+    expanded = os.path.expandvars(os.path.expanduser(path))
+    unresolved = re.search(r"\$[A-Za-z_{]", expanded) is not None
+    full = os.path.normpath(os.path.join(here, expanded))
+    parts = full.split("/")
+    in_branches = any(a == "evidence" and b == "branches" for a, b in zip(parts, parts[1:-1]))
+    if parts[-1].endswith("-committed-copy.json") and not in_branches:
+        return None  # a reviewer's read-only copy of committed evidence
+    if not (EVIDENCE_NAME.fullmatch(parts[-1]) or in_branches):
+        return None
+    if unresolved and re.match(r"\$\{?[A-Za-z_]\w*\}?/", expanded) and EVIDENCE_TAIL in full:
+        return None  # a variable-rooted path into an evidence directory; the root cannot be checked here
+    at = full.find(EVIDENCE_TAIL)
+    if at >= 0:
+        root = full[:at] or "/"
+        done = subprocess.run(["git", "-C", root, "symbolic-ref", "--short", "HEAD"],
+                              capture_output=True, text=True, check=False)
+        if done.returncode == 0 and CHECKPOINT_BRANCH.fullmatch(done.stdout.strip()):
+            return None
+    return (full + " is review evidence outside a claude/checkpoint-N worktree's crates/ryo/docs/contracts/evidence/; "
+            "write it into <INTEGRATION_TREE>/crates/ryo/docs/contracts/evidence/, never a scratchpad")
+
+
+def written_paths(segment, words):
+    """The files a shell segment writes by > , >>, tee, cp, mv or install (a copy into a directory counts the
+    source's file name under that directory)."""
+    found = [m.group(1).strip("'\"") for m in WRITE_REDIRECT.finditer(segment)]
+    if len(words) > 2 and words[0] == "git" and "show" in words[1:3] and any(re.match(r"[^\s:]+:\S", w) for w in words[2:]):
+        found = []  # git show <rev>:<committed path> > file is a read copy of committed content
+    for inner in unwrapped(words):
+        if not inner:
+            continue
+        operands = [a for a in inner[1:] if not a.startswith("-")]
+        if inner[0] == "tee":
+            found += operands
+        elif inner[0] in ("sed", "perl") and any(re.fullmatch(r"-[A-Za-z]*i\S*", a) for a in inner[1:]) or "--in-place" in inner:
+            found += operands
+        elif inner[0] == "sponge":
+            found += operands
+        elif inner[0] == "dd":
+            found += [a[3:] for a in inner[1:] if a.startswith("of=")]
+        elif inner[0] in ("python", "python3") and "-c" in inner:
+            code = inner[inner.index("-c") + 1] if inner.index("-c") + 1 < len(inner) else ""
+            if re.search(r"open\([^)]*['\"][wa]b?\+?['\"]|json\.dump|write_text|write_bytes", code):
+                found += [m.group(2) for m in re.finditer(r"(['\"])([^'\"]+)\1", code)]
+        elif inner[0] in ("cp", "mv", "install", "rsync", "ln") and operands:
+            target = operands[-1]
+            if "-t" in inner or any(a.startswith("--target-directory") for a in inner):
+                for i, a in enumerate(inner):
+                    if a == "-t" and i + 1 < len(inner):
+                        target = inner[i + 1]
+                    elif a.startswith("--target-directory="):
+                        target = a.split("=", 1)[1]
+                sources = operands
+            else:
+                sources = operands[:-1]
+            found += [target] + [os.path.join(target, os.path.basename(src)) for src in sources]
+    return found
+
+
+def evidence_writes(segment, words, here):
+    for path in written_paths(segment, words):
+        found = evidence_write_problem(path, here)
+        if found:
+            return found
+    return None
 
 
 def reason(command, cwd=None):
@@ -736,7 +946,7 @@ def reason(command, cwd=None):
         words = tokens(segment)
         if len(words) > 1 and words[0] == "cd":
             here = os.path.join(here, os.path.expanduser(words[1]))
-        for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean)):
+        for found in (stash(words), removal(words), cargo_rules(words, before, dirs), tm_fix(words, clean), evidence_writes(segment, words, here)):
             if found:
                 return found
         for inner in unwrapped(words):

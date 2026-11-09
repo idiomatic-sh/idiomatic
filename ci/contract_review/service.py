@@ -1,6 +1,7 @@
 """Exact-source contract review: the committed review evidence must cover the protected source of the head."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -46,6 +47,51 @@ def shape(review: object, reviewer: str = "contract-review") -> None:
             raise ValueError(f"check {check['id']} has no evidence")
         if review["verdict"] == "PASS" and check["verdict"] in ("FAIL", "BLOCKING"):
             raise ValueError(f"review is PASS though check {check['id']} is {check['verdict']}")
+    if "enforcement_candidates" in review:
+        candidates(review["enforcement_candidates"])
+    if "candidate_decisions" in review:
+        decided(review["candidate_decisions"])
+
+
+TRACKER = re.compile(r"\bryo-[a-z0-9]{3,}(\.[0-9]+)*\b")
+MECHANISMS = re.compile(r"compiler|new rule|strengthen \S.*")
+
+
+def candidate_id(klass: str, signature: str) -> str:
+    """The stable id of a candidate: the class as a slug, then the first 8 hex of the sha256 of the signature with whitespace normalised."""
+    slug = re.sub(r"[^a-z0-9]+", "-", klass.lower()).strip("-")
+    return slug + "-" + hashlib.sha256(" ".join(signature.split()).encode()).hexdigest()[:8]
+
+
+def candidates(listing: object) -> None:
+    """Raise unless listing is a valid enforcement_candidates list (review README, review evidence schema)."""
+    if not isinstance(listing, list):
+        raise ValueError("enforcement_candidates is not a list")
+    for entry in listing:
+        if not isinstance(entry, dict):
+            raise ValueError("an enforcement candidate is not an object")
+        for key in ("class", "signature", "suggested_mechanism"):
+            if not isinstance(entry.get(key), str) or not entry[key].strip():
+                raise ValueError(f"an enforcement candidate has no string {key}")
+        if not MECHANISMS.fullmatch(entry["suggested_mechanism"]):
+            raise ValueError("suggested_mechanism is not compiler, strengthen <rule id> or new rule")
+        if entry.get("id") != candidate_id(entry["class"], entry["signature"]):
+            raise ValueError("an enforcement candidate id is not candidate_id(class, signature)")
+        if "instance_status" in entry and entry["instance_status"] not in ("fixed", "open"):
+            raise ValueError("an enforcement candidate instance_status is not fixed or open")
+        scope = entry.get("scope")
+        if not isinstance(scope, list) or not scope or not all(isinstance(p, str) and p.strip() for p in scope):
+            raise ValueError("an enforcement candidate scope is not a non-empty list of paths")
+        plants = entry.get("plants")
+        if not isinstance(plants, list) or not plants:
+            raise ValueError("an enforcement candidate plants is not a non-empty list")
+        for plant in plants:
+            if not (isinstance(plant, dict) and isinstance(plant.get("file"), str) and plant["file"].strip()
+                    and isinstance(plant.get("line"), int) and not isinstance(plant["line"], bool)
+                    and isinstance(plant.get("text"), str)):
+                raise ValueError("a plant is not {file, line, text}")
+        if TRACKER.search(json.dumps(entry)):
+            raise ValueError("an enforcement candidate carries a tracker id")
 
 
 def validate(root: Path, head: str = "HEAD") -> str:
@@ -73,3 +119,53 @@ def validate(root: Path, head: str = "HEAD") -> str:
     except (KeyError, ValueError, subprocess.CalledProcessError) as error:
         raise ValueError(f"No valid exact-source contract review. {REVIEW}: {error}") from error
     return f"Contract review passed: {REVIEW} covers {head}"
+
+
+DECISIONS = ("compiler", "strengthen", "new", "none")
+
+
+def decided(listing: object) -> None:
+    """Raise unless listing is a valid candidate_decisions list (review README, review evidence schema)."""
+    if not isinstance(listing, list):
+        raise ValueError("candidate_decisions is not a list")
+    for entry in listing:
+        if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) or not entry["id"].strip():
+            raise ValueError("a candidate decision is not an object with a string id")
+        if entry.get("decision") not in DECISIONS:
+            raise ValueError(f"candidate {entry['id']} has an unknown decision")
+        counts = entry.get("plant_counts")
+        if not isinstance(counts, list) or not all(isinstance(c, int) and not isinstance(c, bool) for c in counts):
+            raise ValueError(f"candidate {entry['id']} plant_counts is not a list of integers")
+        if entry["decision"] == "none":
+            reason = entry.get("reason")
+            if not isinstance(reason, str) or len(reason.strip()) < 20 or len(reason.split()) < 3:
+                raise ValueError(f"candidate {entry['id']} is decided none without a real reason "
+                                 "(a sentence of at least 20 characters and 3 words)")
+            continue
+        if not isinstance(entry.get("mechanism"), str) or not entry["mechanism"].strip():
+            raise ValueError(f"candidate {entry['id']} has no mechanism")
+        if not counts or any(c < 1 for c in counts):
+            raise ValueError(f"candidate {entry['id']} needs plant counts of at least 1 for decision {entry['decision']}")
+
+
+def candidate_ids(review: object) -> dict:
+    """The enforcement candidates a leak-review evidence file carries (shape already validated): id -> plant count."""
+    listing = review.get("enforcement_candidates") if isinstance(review, dict) else None
+    return {entry["id"]: len(entry["plants"]) for entry in listing} if isinstance(listing, list) else {}
+
+
+def undecided(steward: object, ids: list) -> list:
+    """The candidate ids with no decision in the tm-steward evidence."""
+    listing = steward.get("candidate_decisions") if isinstance(steward, dict) else None
+    have = {entry.get("id") for entry in listing} if isinstance(listing, list) else set()
+    return [i for i in ids if i not in have]
+
+
+def plant_mismatch(steward: object, plants: dict) -> list:
+    """The ids decided other than none whose plant_counts do not number the candidate's plants one for one."""
+    listing = steward.get("candidate_decisions") if isinstance(steward, dict) else None
+    out = []
+    for entry in listing if isinstance(listing, list) else []:
+        if entry.get("id") in plants and entry.get("decision") != "none" and len(entry.get("plant_counts")) != plants[entry["id"]]:
+            out.append(entry["id"])
+    return out

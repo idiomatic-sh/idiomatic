@@ -1,6 +1,7 @@
 """Tests for the guard_shell, acceptance_on_stop, no_subagent_builders and check_in_on_stop hooks, run with `python3 -I -m unittest`."""
 
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -54,6 +55,28 @@ class GuardShell(unittest.TestCase):
         self.assertEqual(shell(LOCK + "cargo build --manifest-path " + self.builder + "/Cargo.toml", self.integration), 2)
         self.assertEqual(shell(LOCK + "cargo build -C " + self.integration, self.builder), 2)
         self.assertEqual(shell(LOCK + "cargo build", "/workspaces/ryo-perf-x"), 0)
+
+    def test_a_builders_check_behind_one_unwrapping_is_allowed(self):
+        check = "cargo check -p x --target-dir /workspaces/idiomatic-check-target/ryo-w5"
+        for command in ["timeout 300 " + check, "nice -n 5 " + check, "env RUSTFLAGS=-Dwarnings " + check,
+                        "timeout -s KILL 300 nice -n 5 env A=1 " + check, "FOO=1 " + check]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 0)
+        for command in ["timeout 300 cargo build", "nice -n 5 cargo test -p x", "env A=1 cargo check --workspace"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+
+    def test_a_build_behind_timeout_in_an_integration_tree_still_needs_the_flock(self):
+        self.assertEqual(shell("timeout 300 cargo build", self.integration), 2)
+        self.assertEqual(shell("timeout 300 " + LOCK + "cargo build", self.integration), 0)
+        self.assertEqual(shell("if cargo build; then :; fi", self.integration), 2)
+
+    def test_cargo_behind_keywords_and_remaining_wrappers_is_blocked_in_a_builder_tree(self):
+        for command in ["if cargo build; then :; fi", "! cargo build", "{ cargo build; }", "unbuffer cargo build",
+                        "ionice -c 2 cargo build", "exec -a x cargo build", "env -S 'cargo build'",
+                        "script -c 'cargo build' /dev/null", "watch 'cargo build'", "time cargo build"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
 
     def test_hidden_cargo_is_blocked_in_a_builder_tree(self):
         for command in ['bash -c "cargo test"', "echo hi; cargo build", "sh -c 'flock x cargo clippy'"]:
@@ -464,6 +487,268 @@ class PreviousReviewsPush(unittest.TestCase):
         self.write("contract-review.json", self.body("PASS", "contract-review", self.previous))
         self.assertIsNone(module.previous_reviews(words, self.tree))
 
+    def candidate(self, klass="pub leak", signature="pub fn"):
+        import hashlib
+        slug = re.sub(r"[^a-z0-9]+", "-", klass.lower()).strip("-")
+        return {"id": slug + "-" + hashlib.sha256(signature.encode()).hexdigest()[:8], "class": klass,
+                "signature": signature, "scope": ["crates/a"], "suggested_mechanism": "new rule",
+                "plants": [{"file": "a.rs", "line": 1, "text": "pub fn x() {}"}]}
+
+    def with_candidates(self, leak=(), branch=(), decisions=()):
+        self.all_reviews(skip=("leak-review.json", "tm-steward.json"))
+        self.write("leak-review.json", dict(self.body("PASS", "leak-review", self.previous),
+                                            enforcement_candidates=list(leak)))
+        if branch:
+            path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches/claude-w1-x.json")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=list(branch)), handle)
+            git(self.tree, "add", path)
+            git(self.tree, "commit", "-q", "-m", "branch evidence")
+        self.write("tm-steward.json", dict(self.body("PASS", "tm-steward", self.previous),
+                                           candidate_decisions=list(decisions)))
+
+    @staticmethod
+    def decision(candidate, **fields):
+        return dict({"id": candidate["id"], "decision": "new", "mechanism": "rule@1", "plant_counts": [1], "reason": "x"},
+                    **fields)
+
+    def test_no_candidates_is_allowed(self):
+        self.with_candidates()
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_every_candidate_decided_is_allowed(self):
+        one, two = self.candidate(), self.candidate("other", "let x")
+        self.with_candidates(leak=[one], branch=[two], decisions=[
+            self.decision(one), self.decision(two, decision="none", plant_counts=[], reason="a one-off class that costs more to enforce")])
+        self.assertEqual(self.push().returncode, 0)
+
+    def test_a_missing_decision_is_refused(self):
+        one, two = self.candidate(), self.candidate("other", "let x")
+        self.with_candidates(leak=[one], branch=[two], decisions=[self.decision(one)])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(two["id"], result.stderr)
+        self.assertIn("claude-w1-x.json", result.stderr)
+
+    def test_a_strengthen_decision_with_a_zero_plant_is_refused(self):
+        one = self.candidate()
+        self.with_candidates(leak=[one], decisions=[self.decision(one, decision="strengthen", plant_counts=[1, 0])])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("plant counts of at least 1", result.stderr)
+
+    def test_a_none_decision_without_a_reason_is_refused(self):
+        one = self.candidate()
+        self.with_candidates(leak=[one], decisions=[self.decision(one, decision="none", plant_counts=[], reason="too short")])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("without a real reason", result.stderr)
+
+    def test_a_decision_whose_plant_counts_do_not_match_the_plants_is_refused(self):
+        one = self.candidate()
+        self.with_candidates(leak=[one], decisions=[self.decision(one, plant_counts=[1, 1])])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("one for one", result.stderr)
+
+    def test_a_branch_file_modified_in_the_checkpoint_with_a_new_candidate_is_refused(self):
+        old, new = self.candidate(), self.candidate("later", "let y")
+        path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches/claude-old.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=[old]), handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "old branch evidence")
+        git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+        self.setUp_after_landing()
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=[old, new]), handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "re-reviewed branch evidence")
+        self.with_candidates(decisions=[self.decision(old)])
+        result = self.push()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(new["id"], result.stderr)
+
+    BRANCH = "crates/ryo/docs/contracts/evidence/branches/claude-old.json"
+
+    def branch_history(self, at_head, steps):
+        """Push with a branch file holding at_head at the previous landed head, then the steps in the checkpoint
+        (a candidate list writes the file, "delete" removes it, "rename" moves it); every candidate is decided."""
+        path = os.path.join(self.tree, self.BRANCH)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        def put(candidates, where=path):
+            with open(where, "w", encoding="utf-8") as handle:
+                json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=candidates), handle)
+            git(self.tree, "add", where)
+            git(self.tree, "commit", "-q", "-m", "branch evidence")
+        if at_head is not None:
+            put(at_head)
+            git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+            self.setUp_after_landing()
+        everyone = [self.candidate(), self.candidate("other", "let z")]
+        for step in steps:
+            if step == "delete":
+                git(self.tree, "rm", "-q", self.BRANCH)
+                git(self.tree, "commit", "-q", "-m", "delete branch evidence")
+            elif step == "rename":
+                git(self.tree, "mv", self.BRANCH, self.BRANCH.replace("old", "renamed"))
+                git(self.tree, "commit", "-q", "-m", "rename branch evidence")
+            else:
+                put(step)
+        self.with_candidates(decisions=[self.decision(c) for c in everyone])
+        return self.push()
+
+    def assert_dropped(self, result):
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("append-only", result.stderr)
+
+    def test_dropping_a_candidate_when_a_branch_file_is_modified_is_refused(self):
+        self.assert_dropped(self.branch_history([self.candidate()], [[]]))
+
+    def test_dropping_a_candidate_within_the_checkpoint_is_refused(self):
+        self.assert_dropped(self.branch_history(None, [[self.candidate()], []]))
+
+    def test_replacing_the_candidates_with_new_ones_only_is_refused(self):
+        self.assert_dropped(self.branch_history([self.candidate()], [[self.candidate("other", "let z")]]))
+
+    def test_deleting_a_branch_file_with_candidates_is_refused(self):
+        self.assert_dropped(self.branch_history([self.candidate()], ["delete"]))
+
+    def test_renaming_a_branch_file_with_candidates_is_refused(self):
+        self.assert_dropped(self.branch_history([self.candidate()], ["rename"]))
+
+    def test_adding_then_deleting_a_branch_file_inside_the_checkpoint_is_refused(self):
+        self.assert_dropped(self.branch_history(None, [[self.candidate()], "delete"]))
+
+    def test_adding_candidates_across_versions_is_allowed(self):
+        old = self.candidate()
+        result = self.branch_history([old], [[old, self.candidate("other", "let z")]])
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_carrying_a_candidate_forward_as_fixed_is_allowed(self):
+        old = self.candidate()
+        result = self.branch_history([old], [[dict(old, instance_status="fixed")]])
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_a_candidate_without_plants_is_refused(self):
+        one = dict(self.candidate(), plants=[])
+        self.with_candidates(leak=[one], decisions=[self.decision(one)])
+        self.assertEqual(self.push().returncode, 2)
+
+    def test_a_branch_file_older_than_the_previous_landed_head_needs_no_decision(self):
+        # a branch result already present at the previous landed head was decided then; decisions never carry forward
+        one = self.candidate()
+        path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches/claude-old.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=[one]), handle)
+        git(self.tree, "add", path)
+        git(self.tree, "commit", "-q", "-m", "old branch evidence")
+        git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+        self.setUp_after_landing()
+        self.with_candidates()
+        self.assertEqual(self.push().returncode, 0)
+
+    def setUp_after_landing(self):
+        self.previous = git(self.tree, "rev-parse", "HEAD")
+        git(self.tree, "commit", "-q", "--allow-empty", "-m", "next checkpoint work")
+        self.write("rust-review.json", self.body("PASS", "rust-review", git(self.tree, "rev-parse", "HEAD")))
+
+    def test_a_candidate_whose_id_does_not_match_its_signature_is_refused(self):
+        one = dict(self.candidate(), id="pub-leak-00000000")
+        self.with_candidates(leak=[one], decisions=[self.decision(one)])
+        self.assertEqual(self.push().returncode, 2)
+
+
+class EvidenceWrites(unittest.TestCase):
+    """Review evidence is written only into a claude/checkpoint-N worktree's evidence directory."""
+    SCRATCH = "/tmp/claude-scratch/leak-review.json"
+    TAIL = "crates/ryo/docs/contracts/evidence/"
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "ryo-332", "claude/checkpoint-332")
+        self.other = repo(self.dir.name, "ryo-w1", "claude/w1-x")
+
+    def write(self, path):
+        return run_hook("guard_write.py", {"tool_name": "Write", "tool_input": {"file_path": path}}).returncode
+
+    def test_a_bash_heredoc_to_the_scratchpad_is_refused(self):
+        self.assertEqual(shell("cat > " + self.SCRATCH + " <<'EOF'\n{}\nEOF"), 2)
+        self.assertEqual(shell("echo {} | tee /tmp/claude-scratch/tm-steward-9.json"), 2)
+
+    def test_a_bash_cp_to_the_scratchpad_is_refused(self):
+        self.assertEqual(shell("cp leak-review.json /tmp/claude-scratch/"), 2)
+        self.assertEqual(shell("mv x.json " + self.SCRATCH), 2)
+        self.assertEqual(shell("cp x.json " + self.other + "/" + self.TAIL + "branches/x.json"), 2)
+
+    def test_a_write_to_the_scratchpad_is_refused(self):
+        self.assertEqual(self.write(self.SCRATCH), 2)
+        self.assertEqual(self.write("/tmp/claude-scratch/evidence/branches/x.json"), 2)
+        self.assertEqual(self.write(self.other + "/" + self.TAIL + "checkpoint/rust-review.json"), 2)
+
+    def test_a_write_into_a_checkpoint_worktrees_evidence_directory_is_allowed(self):
+        self.assertEqual(self.write(self.tree + "/" + self.TAIL + "branches/x.json"), 0)
+        self.assertEqual(self.write(self.tree + "/" + self.TAIL + "checkpoint/leak-review.json"), 0)
+        self.assertEqual(shell("cat > " + self.tree + "/" + self.TAIL + "checkpoint/leak-review.json <<EOF\n{}\nEOF"), 0)
+        self.assertEqual(shell("cp x.json " + self.tree + "/" + self.TAIL + "branches/x.json"), 0)
+
+    def test_in_place_editors_dd_rsync_ln_sponge_and_python_to_the_scratchpad_are_refused(self):
+        for command in ("sed -i s/a/b/ /tmp/claude-scratch/leak-review.json",
+                        "perl -pi -e 's/a/b/' /tmp/claude-scratch/rust-review.json",
+                        "echo {} | sponge /tmp/claude-scratch/tm-steward.json",
+                        "dd if=x of=/tmp/claude-scratch/contract-review.json",
+                        "rsync x.json /tmp/claude-scratch/leak-review.json",
+                        "ln -s x.json /tmp/claude-scratch/leak-review.json",
+                        "python3 -c \"open('/tmp/claude-scratch/leak-review.json', 'w').write('{}')\"",
+                        "python3 -c \"import json; json.dump({}, open('/tmp/claude-scratch/asymptote.json'))\""):
+            with self.subTest(command=command):
+                self.assertEqual(shell(command), 2)
+
+    def test_a_variable_rooted_path_into_an_evidence_directory_is_allowed_but_an_outside_one_is_refused(self):
+        tail = "crates/ryo/docs/contracts/evidence/checkpoint/leak-review.json"
+        self.assertEqual(shell('cat > "$INTEGRATION_TREE_UNSET/' + tail + '" <<EOF\n{}\nEOF'), 0)
+        self.assertEqual(shell('cat > "$UNSET_SCRATCH/leak-review.json" <<EOF\n{}\nEOF'), 2)
+        env = dict(os.environ, INTEGRATION_TREE=self.tree)
+        done = run_hook("guard_shell.py", {"tool_name": "Bash", "tool_input": {"command": 'cp x.json "$INTEGRATION_TREE/' + tail + '"'}}, env=env)
+        self.assertEqual(done.returncode, 0)
+        env = dict(os.environ, INTEGRATION_TREE=self.other)
+        done = run_hook("guard_shell.py", {"tool_name": "Bash", "tool_input": {"command": 'cp x.json "$INTEGRATION_TREE/' + tail + '"'}}, env=env)
+        self.assertEqual(done.returncode, 2)
+
+    def test_a_committed_copy_of_evidence_may_be_written_to_the_scratchpad(self):
+        self.assertEqual(shell("git show HEAD:x > /tmp/claude-scratch/leak-review-committed-copy.json"), 0)
+        self.assertEqual(self.write("/tmp/claude-scratch/leak-review-committed-copy.json"), 0)
+
+    def test_a_git_show_of_a_committed_path_redirected_to_the_scratchpad_is_allowed(self):
+        self.assertEqual(shell("git show abc123:" + self.TAIL + "checkpoint/rust-review.json > /tmp/claude-scratch/rust-review.json"), 0)
+        self.assertEqual(shell("cat x > /tmp/claude-scratch/rust-review.json"), 2)
+
+    def test_the_committed_settings_run_the_write_hook_for_every_editing_tool(self):
+        with open(os.path.join(HERE, "..", "settings.json"), encoding="utf-8") as handle:
+            entries = json.load(handle)["hooks"]["PreToolUse"]
+        found = [e for e in entries if "guard_write.py" in json.dumps(e)]
+        self.assertEqual([e["matcher"] for e in found], ["Write|Edit|MultiEdit|NotebookEdit"])
+
+    def test_an_unrelated_scratchpad_file_is_allowed(self):
+        self.assertEqual(self.write("/tmp/claude-scratch/notes.json"), 0)
+        self.assertEqual(shell("echo hi > /tmp/claude-scratch/notes.md"), 0)
+        self.assertEqual(shell("cp a b 2>&1 > /dev/null"), 0)
+
+    def test_the_write_hook_fails_closed_on_its_own_error_for_evidence_paths_only(self):
+        copy = os.path.join(self.dir.name, "hooks")
+        shutil.copytree(HERE, copy, ignore=shutil.ignore_patterns("__pycache__", "test_*"))
+        with open(os.path.join(copy, "guard_shell.py"), "a", encoding="utf-8") as handle:
+            handle.write("\nraise RuntimeError('injected')\n")
+        def run(path):
+            return subprocess.run(["python3", "-I", os.path.join(copy, "guard_write.py")], capture_output=True, text=True,
+                                  input=json.dumps({"tool_input": {"file_path": path}}), check=False)
+        self.assertEqual(run(self.SCRATCH).returncode, 2)
+        self.assertEqual(run("/tmp/claude-scratch/notes.json").returncode, 0)
+
 
 class PerfGate(unittest.TestCase):
     DIR = "crates/ryo/docs/contracts/evidence/perf/p6/"
@@ -502,6 +787,58 @@ class PerfGate(unittest.TestCase):
                                                    "cwd": self.tree})
                 self.assertEqual(done.returncode, 2)
                 self.assertIn("push of claude/p6-speed refused", done.stderr)
+
+    def test_redirections_with_no_remote_or_branch_named_still_hit_the_perf_gate(self):
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", self.base)
+        git(self.tree, "branch", "-q", "-m", "claude/ryo-consolidation", "claude/elsewhere")  # no local consolidation ref
+        self.perf()
+        for command in ("git push", "git push -q 2>&1", "git push &>log", "git push >log 2>&1", "git push -q >log 2>&1"):
+            with self.subTest(command=command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("push of claude/p6-speed refused", done.stderr)
+
+    def test_stray_tokens_do_not_become_push_operands(self):
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", self.base)
+        git(self.tree, "branch", "-q", "-m", "claude/ryo-consolidation", "claude/elsewhere")
+        self.perf()
+        rows = {"here-string": "git push <<< word", "here-string unspaced": "git push <<<word",
+                "heredoc spaced": "git push << EOF\nEOF", "heredoc unspaced": "git push <<EOF\nEOF",
+                "-o value": "git push -o ci.skip", "--push-option value": "git push --push-option ci.skip",
+                "--receive-pack value": "git push --receive-pack /bin/x", "--exec value": "git push --exec /bin/x",
+                "--repo value": "git push --repo origin2", "timeout": "timeout 5 git push",
+                "timeout with options": "timeout -s KILL 5 git push", "stdbuf": "stdbuf -oL git push",
+                "stdbuf separate": "stdbuf -o L -e0 git push", "xargs": "xargs git push",
+                "xargs with options": "xargs -n 1 git push"}
+        for label, command in rows.items():
+            with self.subTest(label):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("push of claude/p6-speed refused", done.stderr)
+
+    def test_keywords_grouping_and_remaining_wrappers_do_not_hide_a_push(self):
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", self.base)
+        git(self.tree, "branch", "-q", "-m", "claude/ryo-consolidation", "claude/elsewhere")
+        self.perf()
+        rows = {"if": "if git push; then echo ok; fi", "bang": "! git push", "brace group": "{ git push; }",
+                "while": "while git push; do echo; done", "until": "until git push; do :; done",
+                "for": "for i in 1; do git push; done", "elif": "if false; then :; elif git push; then :; fi",
+                "namespace value": "git --namespace ns push", "config-env value": "git --config-env a=B push",
+                "recurse-submodules value": "git push --recurse-submodules check",
+                "exec -a": "exec -a name git push", "env -S": "env -S 'git push'", "ionice": "ionice -c 2 -n 4 git push",
+                "unbuffer": "unbuffer git push", "script -c": "script -c 'git push' /dev/null",
+                "watch quoted": "watch 'git push'", "watch words": "watch -n 5 git push",
+                "flock wrapper": "flock /tmp/x git push", "time": "time git push"}
+        for label, command in rows.items():
+            with self.subTest(label):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("push of claude/p6-speed refused", done.stderr)
+        for command in ("eval 'git push'", "sudo git push"):
+            with self.subTest(command):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertIn("hides it from the guards", done.stderr)
 
     def test_remote_consolidation_perf_commits_are_not_pushed(self):
         git(self.tree, "checkout", "-q", "-b", "claude/other", self.base)
@@ -746,6 +1083,16 @@ class BranchMerge(unittest.TestCase):
     def test_wrapped_merges_are_gated(self):
         for command in ["env git merge claude/w1-x", "command git merge claude/w1-x",
                         "bash -c 'git merge claude/w1-x'", "sh -c \"env FOO=1 git merge claude/w1-x\""]:
+            with self.subTest(command=command):
+                self.assertEqual(self.run_in(command).returncode, 2)
+
+    def test_merges_behind_keywords_wrappers_and_global_option_values_are_gated(self):
+        for command in ["if git merge claude/w1-x; then echo; fi", "! git merge claude/w1-x", "{ git merge claude/w1-x; }",
+                        "while git merge claude/w1-x; do :; done", "for i in 1; do git merge claude/w1-x; done",
+                        "git --namespace ns merge claude/w1-x", "git --config-env a=B merge claude/w1-x",
+                        "timeout 5 git merge claude/w1-x", "ionice -c 2 git merge claude/w1-x",
+                        "script -c 'git merge claude/w1-x' /dev/null", "eval 'git merge claude/w1-x'",
+                        "sudo git merge claude/w1-x"]:
             with self.subTest(command=command):
                 self.assertEqual(self.run_in(command).returncode, 2)
 

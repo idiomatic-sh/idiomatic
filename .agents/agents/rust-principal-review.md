@@ -36,14 +36,14 @@ The PM launches this agent as a subagent on the integration tree. The review is 
 
 ## Output
 Two artifacts:
-1. `crates/ryo/docs/contracts/evidence/checkpoint/rust-review.json`, which the PM commits in the reviewed tree:
+1. `evidence/checkpoint/rust-review.json`, written into the reviewed checkpoint N's own tree. The PM names `INTEGRATION_TREE` in the prompt. The reviewer writes the files only, directly into `<INTEGRATION_TREE>/crates/ryo/docs/contracts/evidence/`, never to a scratchpad; it never commits, and it stays read-only on the code it reviews (an archive copy or another sha). The integrator commits the files with its next commit, and the hooks validate the committed copies. The human-readable report goes beside the JSON as `<name>.md` in the same directory.
    ```json
    {"checkpoint": 320, "source": "<sha reviewed>", "verdict": "PASS",
     "checks": [{"id": "1", "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
     "reviewer": "rust-review", "date": "<ISO 8601>"}
    ```
    The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `checks` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
-2. A Markdown report beside the contract review's in the session scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
+2. `rust-review.md` beside the JSON, never a scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
 
 ## Public SDK contracts
 Item 1 carries these, and they can FAIL it. A public SDK surface is the SDK crate (lib `ryo`, `crates/ryo/crates/sdk`), each crate's `api.txt` public-API snapshot, and any published crate's public items. A diff that touches one FAILS item 1 when its public contract is weaker than the Rust API Guidelines and our rules, by any of:
