@@ -345,3 +345,141 @@ given.files.'demo/src/shared/contract.rs' = 'pub struct Collect;'
 given.files.'demo/src/outbound.rs' = 'pub fn open() {}'
 given.files.'demo/src/domain/model.rs' = "pub fn work() { crate::outbound::open(); }"
 then.findings = [{ rule = "idiomatic.ryo/provider-imports#imports", path = "demo/src/domain/model.rs", line = 1 }]
+
+[[scenarios]]
+id = "import-outside-an-inline-module-binds-nothing-within-it"
+scenario = "A path in an inline module that starts at a name only an import outside the module binds is judged as written."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src/domain"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::shared::*", "ryo_language::*"] } }]
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["demo", "engine", "ryo_language"]
+resolver = "3"
+'''
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine = { path = "../engine" }
+ryo_language = { path = "../ryo_language" }
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine/src/lib.rs' = 'pub fn run() {}'
+given.files.'ryo_language/Cargo.toml' = '''
+[package]
+name = "ryo_language"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'ryo_language/src/lib.rs' = 'pub mod files;'
+given.files.'ryo_language/src/files.rs' = 'pub struct FilePath;'
+given.files.'demo/tastemaker.toml' = 'closed = false'
+given.files.'demo/src/lib.rs' = "pub mod domain;\npub mod outbound;\npub mod shared;"
+given.files.'demo/src/domain.rs' = 'pub mod model;'
+given.files.'demo/src/shared.rs' = 'pub mod contract;'
+given.files.'demo/src/shared/contract.rs' = 'pub struct Collect;'
+given.files.'demo/src/outbound.rs' = 'pub fn open() {}'
+given.files.'demo/src/domain/model.rs' = "use crate::shared::contract as engine;\npub mod inner { pub fn work() { engine::run(); } }"
+then.findings = [{ rule = "idiomatic.ryo/provider-imports#imports", path = "demo/src/domain/model.rs", line = 2 }]
+
+[[scenarios]]
+id = "import-in-one-function-binds-nothing-in-another"
+scenario = "A path in one function that starts at a name only an import in another function binds is judged as written."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src/domain"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::shared::*", "ryo_language::*"] } }]
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["demo", "engine", "ryo_language"]
+resolver = "3"
+'''
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine = { path = "../engine" }
+ryo_language = { path = "../ryo_language" }
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine/src/lib.rs' = 'pub fn run() {}'
+given.files.'ryo_language/Cargo.toml' = '''
+[package]
+name = "ryo_language"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'ryo_language/src/lib.rs' = 'pub mod files;'
+given.files.'ryo_language/src/files.rs' = 'pub struct FilePath;'
+given.files.'demo/tastemaker.toml' = 'closed = false'
+given.files.'demo/src/lib.rs' = "pub mod domain;\npub mod outbound;\npub mod shared;"
+given.files.'demo/src/domain.rs' = 'pub mod model;'
+given.files.'demo/src/shared.rs' = 'pub mod contract;'
+given.files.'demo/src/shared/contract.rs' = 'pub struct Collect;'
+given.files.'demo/src/outbound.rs' = 'pub fn open() {}'
+given.files.'demo/src/domain/model.rs' = "pub fn a() { use crate::shared::contract as engine; let _ = engine::Collect; }\npub fn b() { engine::run(); }"
+then.findings = [{ rule = "idiomatic.ryo/provider-imports#imports", path = "demo/src/domain/model.rs", line = 2 }]
+
+[[scenarios]]
+id = "import-in-a-test-module-binds-nothing-outside-it"
+scenario = "A path outside a test module that starts at a name only an import in the test module binds is judged as written."
+given.files.'tastemaker.toml' = '''
+workspace = { name = "provider-policy", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "../../.." }, { package = "idiomatic.arch", path = "../../../../../../tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src/domain"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::shared::*", "ryo_language::*"] } }]
+'''
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["demo", "engine", "ryo_language"]
+resolver = "3"
+'''
+given.files.'demo/Cargo.toml' = '''
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+engine = { path = "../engine" }
+ryo_language = { path = "../ryo_language" }
+'''
+given.files.'engine/Cargo.toml' = '''
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'engine/src/lib.rs' = 'pub fn run() {}'
+given.files.'ryo_language/Cargo.toml' = '''
+[package]
+name = "ryo_language"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'ryo_language/src/lib.rs' = 'pub mod files;'
+given.files.'ryo_language/src/files.rs' = 'pub struct FilePath;'
+given.files.'demo/tastemaker.toml' = 'closed = false'
+given.files.'demo/src/lib.rs' = "pub mod domain;\npub mod outbound;\npub mod shared;"
+given.files.'demo/src/domain.rs' = 'pub mod model;'
+given.files.'demo/src/shared.rs' = 'pub mod contract;'
+given.files.'demo/src/shared/contract.rs' = 'pub struct Collect;'
+given.files.'demo/src/outbound.rs' = 'pub fn open() {}'
+given.files.'demo/src/domain/model.rs' = "pub fn b() { engine::run(); }\n#[cfg(test)]\nmod tests { use crate::shared::contract as engine; }"
+then.findings = [{ rule = "idiomatic.ryo/provider-imports#imports", path = "demo/src/domain/model.rs", line = 1 }]
