@@ -1,10 +1,11 @@
 //! A compiled program answers the declared partition and phase of its sources, and refuses a source it does not hold.
+use crate::domain::operator::types::ReaderMultiplicity;
 
 use super::value::ExecutableProgram;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
-        FileReaderGraph, InputSource, ObservationPlace, PartitionRequirement, ReaderMultiplicity,
+        FileReaderGraph, InputSource, ObservationPlace, PartitionRequirement,
         RegionId, RemainingMemo, SourcePartition, region::value::Region,
     },
     operating::errors::OperatingError,

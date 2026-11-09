@@ -14,7 +14,7 @@ use crate::application::file_dag::program::facade_runtime::types::ObservationKey
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::handle::service::PublishedInput;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {

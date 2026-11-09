@@ -11,13 +11,13 @@ use index::IndexResource;
 use prepared_use::service::prepared;
 #[cfg(test)]
 mod observation;
-use ryo_execution_domain::domain::operating::{errors::OperatingError, types::OperatorContext};
+use ryo_execution_domain::domain::{operating::errors::OperatingError, operator::types::OperatorContext};
 use ryo_execution_domain::domain::operator::contract::{
     views::NativeJoin,
     resources::ResourceProgram,
     types::OperatorContract,
-    views::IndexedRows,
 };
+use ryo_execution_domain::domain::table_reach::borrowed::IndexedRows;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_groups::types::Group;
 use ryo_derived::domain::equality::types::KeyIndex;
@@ -99,7 +99,7 @@ impl<'f> InvocationResources<'f> {
                 }
             };
             if ryo_derived::domain::dispatch::service::native_finding(&native.plan.semantic, form)
-                .map_err(ryo_execution_domain::domain::operator::contract::derived::portable_fault)?
+                .map_err(ryo_execution_domain::domain::operating::service::derived_fault)?
                 .is_some()
             {
                 return Ok(());

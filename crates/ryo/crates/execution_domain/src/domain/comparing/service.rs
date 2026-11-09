@@ -18,10 +18,10 @@ use crate::domain::matching::types::prepared::value::PreparedMatchers;
 use crate::domain::operands::service::resolve;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::service::family_of;
-use crate::domain::operating::types::{ComparisonNumber, Family, Memo, NameCount, OperatorContext};
+use crate::domain::operating::types::{ComparisonNumber, Family, Memo, NameCount};
 use crate::domain::table_model::types::Verdict;
 use crate::domain::table_scratch::types::{
-    ComparisonNumbers, ComparisonSlot, GlobSubject, MemoPlace, MemoSlot, SubjectHash, SubjectTag, VerdictKey,
+    ComparisonNumbers, ComparisonSlot, SelectScratch, GlobSubject, MemoPlace, MemoSlot, SubjectHash, SubjectTag, VerdictKey,
 };
 use crate::domain::table_texts::types::Texts;
 use ryo_matching::inbound::use_cases::matching::compiled::CompiledTextGlobs;
@@ -187,6 +187,8 @@ fn holds_one_bound(
         return Ok(verdict);
     }
     let DecisionWorkspace { select, memo } = work;
+    // The select's scratch is made here, past the equality fast path.
+    let select: &mut SelectScratch = select;
     // A glob of a name that left its file is decided once for each name of the run, as the hash of its text tells: a name
     // is the same text in every file. A glob of a file's path is decided once for each file of the run: the path of a file is
     // the same text in every row that names it (the key of a file is the comparison's address with its low bit set, which
@@ -301,64 +303,6 @@ pub fn holds_bound(
                 select: &mut *select,
                 memo: &mut *memo,
             },
-        )? == Verdict::Fails
-        {
-            return Ok(Verdict::Fails);
-        }
-    }
-    Ok(Verdict::Holds)
-}
-
-/// Evaluate one comparison with the operator context's own texts, bindings and scratch.
-fn holds_one(
-    number: ComparisonNumber,
-    comparison: &PlanComparison,
-    row: &[Value],
-    kinds: &[CellKind],
-    names: NameCount,
-    context: &mut OperatorContext<'_>,
-) -> Result<Verdict, OperatingError> {
-    let texts = Texts {
-        symbols: context.symbols.as_ref(),
-        source: context.source,
-        paths: context.paths,
-        arenas: context.arenas,
-    };
-    // The equality fast path stays free of lazy scratch initialization.
-    if let Some(verdict) = equal_to_text(comparison, row, &texts) {
-        return Ok(verdict);
-    }
-    holds_one_bound(
-        NumberedComparison { number, comparison },
-        row,
-        RowShape { kinds, names },
-        &texts,
-        context.bindings,
-        context.prepared_matchers,
-        context.matcher,
-        DecisionWorkspace {
-            select: &mut *context.scratch.select_scratch,
-            memo: &mut *context.memo,
-        },
-    )
-}
-
-/// Whether every comparison holds for the row.
-pub(crate) fn holds_all(
-    comparisons: &[PlanComparison],
-    row: &[Value],
-    kinds: &[CellKind],
-    names: NameCount,
-    context: &mut OperatorContext<'_>,
-) -> Result<Verdict, OperatingError> {
-    for (number, comparison) in comparisons.iter().enumerate() {
-        if holds_one(
-            ComparisonNumber(number),
-            comparison,
-            row,
-            kinds,
-            names,
-            context,
         )? == Verdict::Fails
         {
             return Ok(Verdict::Fails);

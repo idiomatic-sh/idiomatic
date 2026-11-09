@@ -12,7 +12,7 @@ use ryo_execution_domain::domain::{
     completion::types::CoverageState,
     coverage::types::RuleIndex,
     executable_program::types::InputSource,
-    operating::{errors::OperatingError, types::OperatorContext}};
+    operating::errors::OperatingError, operator::types::OperatorContext};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::{
     plan_parts::types::InputNumber,

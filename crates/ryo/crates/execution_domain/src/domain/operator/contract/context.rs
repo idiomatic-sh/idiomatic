@@ -2,7 +2,7 @@
 use super::types::{
     PrimitiveLease, PrimitiveViews, PrimitiveWorkspace, WorkCounters,
 };
-use super::primitive::PrimitiveSemantics;
+use crate::domain::operating::types::PrimitiveSemantics;
 use super::views::PredicateProgram;
 use ryo_language::domain::symbols::types::QuerySymbols;
 

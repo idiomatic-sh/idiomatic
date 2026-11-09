@@ -3,7 +3,7 @@
 use ryo_relations::domain::relations::types::Value;
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{Emit, OperatorContext};
+use crate::domain::operator::types::{Emit, OperatorContext};
 use crate::domain::table_model::service::{count_of, read_row};
 use crate::domain::table_model::types::Rows;
 use ryo_values::domain::rows::service::positions;

@@ -58,7 +58,7 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() -> Resul
                     &stored,
                     &key,
                     #[cfg(feature = "diagnostic-row-progress")]
-                    &crate::domain::operator::contract::views::IgnoredProgress,
+                    &crate::domain::operating::types::IgnoredProgress,
                 )
                 .copied()
                 .collect::<Vec<_>>(),
@@ -76,7 +76,7 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() -> Resul
             &stored,
             &[Cell::Flag(Flag::Raised)],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &crate::domain::operating::types::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -89,7 +89,7 @@ fn stored_keys_preserve_order_duplicates_and_typed_flag_normalization() -> Resul
             &stored,
             &[Cell::Number(Integer(1))],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &crate::domain::operating::types::IgnoredProgress,
         )
         .next()
         .is_none(),
@@ -129,7 +129,7 @@ fn stored_keys_check_exact_composite_equality_after_a_real_hash_collision() -> R
             &index,
             &[Cell::Number(Integer(0)), Cell::Number(Integer(0))],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &crate::domain::operating::types::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),
@@ -165,7 +165,7 @@ fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() -> Result<
             &order,
             &[Cell::Number(Integer(7))],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &crate::domain::operating::types::IgnoredProgress,
         )
         .next()
         .is_none()
@@ -182,7 +182,7 @@ fn stored_keys_reuse_empty_indexes_and_validate_columns_before_rows() -> Result<
             &order,
             &[],
             #[cfg(feature = "diagnostic-row-progress")]
-            &crate::domain::operator::contract::views::IgnoredProgress,
+            &crate::domain::operating::types::IgnoredProgress,
         )
         .copied()
         .collect::<Vec<_>>(),

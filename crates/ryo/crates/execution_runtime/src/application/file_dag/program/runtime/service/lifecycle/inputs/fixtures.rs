@@ -7,8 +7,8 @@ use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::Emit;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::Emit;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},

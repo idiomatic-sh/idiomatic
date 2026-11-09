@@ -1,7 +1,7 @@
 //! Existing grouping semantic accumulator; input driving remains in the common engine.
 use crate::application::file_dag::invocation::prepared_use::service::prepared;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
 
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;

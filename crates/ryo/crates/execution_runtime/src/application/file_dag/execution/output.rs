@@ -2,10 +2,11 @@
 use ryo_execution_domain::domain::{
     operating::{
         errors::OperatingError,
-        types::{Emit, Memo, OperatorContext},
+        types::Memo,
     },
     table_scratch::types::OperatorScratch,
 };
+use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_language::domain::symbols::{service::query_reborrow, types::QuerySymbols};
 use ryo_relations::domain::relations::types::Value;
 

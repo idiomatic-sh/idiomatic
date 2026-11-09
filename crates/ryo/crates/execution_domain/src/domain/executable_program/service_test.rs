@@ -1,12 +1,13 @@
 //! A region the recogniser did not resolve keeps its registered operators, equivalent drafted regions merge as the linear scan
 //! would in linear cost, and demand compilation preserves declared order.
+use crate::domain::operator::types::ReaderMultiplicity;
 use super::{
     fusion::types::RegionSharing,
     merge::merge_equivalent,
     service::ordered_existence,
     types::{
         DemandAction, DraftIndex, DraftRegion, LogicalInstruction,
-        PartitionRequirement, ReaderMultiplicity, RegionMerge, Route, demand_program::value::DemandProgram,
+        PartitionRequirement, RegionMerge, Route, demand_program::value::DemandProgram,
         instruction::value::Instruction,
     },
 };

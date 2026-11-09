@@ -1,4 +1,5 @@
 //! Dense executable instructions and their real publication boundaries.
+use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{StepId, StepScope};
@@ -192,9 +193,6 @@ pub(crate) struct Fusibilities {
     pub held: Vec<Option<super::fusion::types::Barrier>>,
 }
 
-/// Number of independent readers of the same publication.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ReaderMultiplicity(pub usize);
 /// One direct consumer and the number of its repeated dependency edges.
 #[derive(Debug, Clone, Copy)]
 pub struct ConsumerObligation {

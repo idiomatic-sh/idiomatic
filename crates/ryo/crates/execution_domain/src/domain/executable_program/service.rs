@@ -1,4 +1,5 @@
 //! Lower the temporary canonical analysis graph; erase internal continuation cuts.
+use crate::domain::operator::types::ReaderMultiplicity;
 #[cfg(any(test, feature = "fixtures"))]
 use super::fusion::types::Ineligible;
 use super::fusion::types::{Fusibility, RegionSharing};

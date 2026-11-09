@@ -1,5 +1,8 @@
 //! Engine-owned acquisition at declared invocation boundaries.
-use ryo_execution_domain::domain::operating::{errors::OperatingError, service::minted, types::OperatorContext};
+use ryo_execution_domain::domain::{
+    operating::{errors::OperatingError, service::minted},
+    operator::types::OperatorContext,
+};
 use ryo_language::domain::symbols::{service::query_intern_derived, types::ByteSlice};
 use ryo_relations::domain::relations::types::{Flag, Integer, Value};
 use ryo_relations::domain::terms::types::NameText;

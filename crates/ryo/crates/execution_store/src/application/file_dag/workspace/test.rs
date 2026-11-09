@@ -3,7 +3,7 @@ use super::*;
 use crate::application::file_dag::derived::owner::ViewContext;
 use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::PreparedViewUse, *},
-    operating::{errors::OperatingError, types::OperatorContext},
+    operating::errors::OperatingError, operator::types::OperatorContext,
     operation_schema::types::InputShape,
     table_model::types::Rows,
 };

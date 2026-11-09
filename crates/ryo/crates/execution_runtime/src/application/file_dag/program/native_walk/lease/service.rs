@@ -3,7 +3,7 @@ use crate::application::file_dag::program::{
     preparation::types::PreparedProgram, runtime::service::KernelPermit,
 };
 use ryo_execution_domain::domain::{
-    operating::{errors::OperatingError, types::OperatorContext},
+    operating::errors::OperatingError, operator::types::OperatorContext,
     step_classes::types::ClassPlace,
     shared_walk::types::{WalkWork, native_batch::value::NativeBatch},
 };

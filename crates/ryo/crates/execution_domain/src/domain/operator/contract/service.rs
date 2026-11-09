@@ -1,7 +1,5 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
-use super::primitive::portable_fault;
 use super::types::*;
-use crate::domain::operating::errors::OperatingError;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// One semantic input and dependency contract, independent of output delivery.
@@ -294,22 +292,3 @@ fn reuse_scope(effects: Effects, bindings: super::resources::BindingUse) -> Reus
     }
 }
 
-/// Preserve the engine's original downstream error ahead of a portable interruption marker.
-pub(crate) fn written_result(
-    answer: Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    >,
-    error: Option<OperatingError>,
-) -> Result<(), OperatingError> {
-    if let Some(error) = error {
-        return Err(error);
-    }
-    match answer {
-        Ok(ryo_operators::inbound::use_cases::operators::types::OperatorAnswer::Written) => {
-            Ok(())
-        }
-        Ok(_) => Err(OperatingError::WrongOperation),
-        Err(error) => Err(portable_fault(error)),
-    }
-}

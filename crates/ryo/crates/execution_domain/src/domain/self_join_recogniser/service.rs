@@ -1,6 +1,6 @@
 //! Recognize only the reviewed Join/Select/Project right subtree, never rewrite the antijoin.
 use super::types::*;
-use crate::domain::executable_program::types::ReaderMultiplicity;
+use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::operator::types::{PlanIdentity, StepPlace};
 use ryo_relations::domain::relations::{service::kinds, types::CellKind};
 use ryo_values::domain::plan_parts::types::StepScope;

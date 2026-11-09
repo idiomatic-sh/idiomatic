@@ -5,7 +5,7 @@ use super::prepared_use::service::prepared;
 use super::{InvocationInputs, InvocationResources, input, partitioned};
 use crate::application::file_dag::axis_resources::prepare_axis;
 use crate::application::file_dag::resources::appended_values;
-use ryo_execution_domain::domain::operating::{errors::OperatingError, types::OperatorContext};
+use ryo_execution_domain::domain::{operating::errors::OperatingError, operator::types::OperatorContext};
 use ryo_execution_domain::domain::operator::contract::{
     views::NativeJoin,
     resources::{IndexColumns, JoinResources, ResourceProgram},

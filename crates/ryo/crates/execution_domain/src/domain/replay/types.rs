@@ -3,7 +3,7 @@
 use ryo_relations::domain::relations::types::Value;
 
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operating::types::{Emit, OperatorContext};
+use crate::domain::operator::types::{Emit, OperatorContext};
 use ryo_values::domain::rows::service::push_row;
 
 /// A table that takes the rows as they come.

@@ -52,7 +52,7 @@ use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 #[cfg(test)]
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 #[cfg(test)]
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 
 mod emission;
 mod frontier;

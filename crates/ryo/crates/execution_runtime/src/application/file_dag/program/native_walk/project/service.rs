@@ -16,7 +16,7 @@ use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::{KernelPermit, ReadySelection};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    operating::{errors::OperatingError, types::OperatorContext},
+    operating::errors::OperatingError, operator::types::OperatorContext,
     step_classes::types::ClassPlace,
     shared_walk::types::{WalkCounts, WalkWork, native_batch::value::NativeBatch},
     table_model::types::Rows,
@@ -227,7 +227,7 @@ impl ProjectWalk {
                 Ok(KernelAnswer::Walk(batch)) => batch,
                 Err(KernelFault::Refused(error)) => return Err(error),
                 Err(KernelFault::Portable(error)) => {
-                    return Err(ryo_execution_domain::domain::operator::contract::primitive::portable_fault(
+                    return Err(ryo_execution_domain::domain::operating::service::portable_fault(
                         error,
                     ));
                 }

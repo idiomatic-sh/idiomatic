@@ -6,12 +6,15 @@ use super::types::{
     native_batch::value::NativeBatch, prepared_walk::value::PreparedWalk,
 };
 use crate::domain::{
-    comparing::service::holds_all,
+    comparing::{
+        service::holds_bound,
+        types::{DecisionWorkspace, RowShape},
+    },
     kind_sets::{
         service::{kind_tests, named_kinds, names_a_kind, passes},
         types::KindScratch,
     },
-    operating::types::{KindNaming, Memo, NameCount, OperatorContext},
+    operating::types::{KindNaming, NameCount},
     step_classes::types::ClassPlace,
     shared_walk::types::Slots,
     step_classes::types::StepClass,
@@ -24,32 +27,13 @@ use crate::domain::{
         types::{Rows, Verdict},
     },
 };
-use ryo_language::domain::{elements::service::{kind_at, kind_names}, symbols::service::query_reborrow};
+use crate::domain::operator::types::OperatorContext;
+use crate::domain::table_texts::types::Texts;
+use ryo_language::domain::elements::service::{kind_at, kind_names};
 use ryo_language::domain::names::service::name_count;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Position, Relation, Value};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::types::RowIndex;
-
-fn class_context<'a>(
-    base: &'a mut OperatorContext<'_>,
-    bound: &'a [ParameterBinding],
-    memo: &'a mut Vec<Memo>,
-) -> OperatorContext<'a> {
-    OperatorContext {
-        phase: base.phase,
-        semantic: base.semantic,
-        prepared_kinds: base.prepared_kinds,
-        prepared_matchers: base.prepared_matchers,
-        matcher: base.matcher,
-        bindings: bound,
-        symbols: query_reborrow(&mut base.symbols),
-        source: base.source,
-        paths: base.paths,
-        arenas: base.arenas,
-        memo,
-        scratch: &mut *base.scratch,
-    }
-}
 
 /// The columns looked up for all eligible classes in one kind group.
 fn needed_together(union: &mut ColumnPlaces, work: &[ClassWork], places: &[CohortPlace]) {
@@ -109,19 +93,33 @@ fn consider(
         return;
     };
     each.visits.0 = each.visits.0.saturating_add(1);
-    let mut class_context = class_context(context, bound, &mut each.memo);
+    let texts = Texts {
+        symbols: context.symbols.as_ref(),
+        source: context.source,
+        paths: context.paths,
+        arenas: context.arenas,
+    };
     let mut verdict = Ok(Verdict::Holds);
     for &predicate in program.prefixes(place) {
         let mut tested = false;
         let decision = memo_slot(predicates, predicate).get_or_insert_with(|| {
             tested = true;
             batch.record_predicate_test();
-            holds_all(
+            holds_bound(
                 std::slice::from_ref(program.comparison(predicate)),
                 row,
-                source_kinds,
-                names,
-                &mut class_context,
+                RowShape {
+                    kinds: source_kinds,
+                    names,
+                },
+                &texts,
+                bound,
+                context.prepared_matchers,
+                context.matcher,
+                DecisionWorkspace {
+                    select: &mut context.scratch.select_scratch,
+                    memo: &mut each.memo,
+                },
             )
         });
         if !tested {
@@ -242,11 +240,10 @@ pub fn evaluate(
     for (at, place) in active.iter().enumerate() {
         // Dense scratch is cohort-local; compiled class identities remain immutable.
         let class = &program.classes()[place.0];
-        let (Some(bound), Some(each)) = (bindings.get(class.first.rule.0), work.get_mut(at)) else {
+        let (Some(_), Some(each)) = (bindings.get(class.first.rule.0), work.get_mut(at)) else {
             continue;
         };
         let comparisons = class.comparisons.as_slice();
-        let mut prepared = class_context(context, bound, &mut each.memo);
         // Only an initial sequence of total kind equalities may narrow dispatch.
         // Every predicate is still evaluated in authored order for admitted rows.
         let prefix = comparisons
@@ -261,7 +258,15 @@ pub fn evaluate(
             })
             .count();
         if let Some(tree) = tree {
-            kind_tests(tree, &comparisons[..prefix], &mut prepared, &mut kinds);
+            kind_tests(
+                tree,
+                &comparisons[..prefix],
+                context.prepared_kinds,
+                context.matcher,
+                context.symbols.as_ref(),
+                context.source,
+                &mut kinds,
+            );
         }
         each.needed.0.extend_from_slice(&program.needed(*place).0);
         if each
@@ -272,7 +277,7 @@ pub fn evaluate(
         {
             continue;
         }
-        prepared.memo.clear();
+        each.memo.clear();
         // Do not allocate a comparisons-by-symbols matrix for every class.
         // Matcher compilation and keyed verdict reuse already live in shared scratch.
         if let Some(named) = tree.and_then(|_| named_kinds(&kinds)) {

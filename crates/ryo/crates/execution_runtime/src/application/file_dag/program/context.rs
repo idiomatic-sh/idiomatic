@@ -11,7 +11,7 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::sync::Arc;
 use {
     ryo_execution_domain::domain::coverage::types::RuleIndex, ryo_execution_domain::domain::operating::errors::OperatingError,
-    ryo_execution_domain::domain::operating::types::Memo, ryo_execution_domain::domain::operating::types::OperatorContext,
+    ryo_execution_domain::domain::operating::types::Memo, ryo_execution_domain::domain::operator::types::OperatorContext,
     ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
     ryo_values::domain::files::types::SourceView,
 };

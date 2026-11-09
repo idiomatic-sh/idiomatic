@@ -1,18 +1,9 @@
 //! The types of the `operating` concept: what an operator reads, writes and fails with. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::operating::errors::OperatingError;
-
-use crate::domain::table_model::types::Rows;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-
-use crate::domain::table_scratch::types::OperatorScratch;
-use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
-use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 /// An application-owned, file-scoped semantic demand port. Operators borrow it;
 /// they never own a provider session or its cache.
@@ -46,39 +37,6 @@ pub(crate) enum Family {
     Regex,
 }
 
-/// What an operator reads besides its inputs and may write: what the host bound, the names and
-/// bytes of the file the rows are of, and the paths of the files. An operator may add only derived
-/// names; language fact readers alone own source-name interning.
-#[derive(Debug)]
-pub struct OperatorContext<'a> {
-    /// Execution phase supplied by the owner, independent of available text arenas.
-    pub phase: AfterTheFiles,
-    /// The current file's application-owned semantic session, when available.
-    pub semantic: Option<&'a dyn SemanticLookup>,
-    /// The matching semantics the parent supplies for regular expressions and globs.
-    pub matcher: crate::domain::matching::types::PatternMatcher<'a>,
-    /// Finite authored literal matchers owned by this worker's prepared request.
-    pub prepared_matchers:
-        Option<&'a crate::domain::matching::types::prepared::value::PreparedMatchers>,
-    /// Finite prepared literal-kind metadata for the current exact vocabulary.
-    pub prepared_kinds: Option<&'a crate::domain::kind_sets::types::vocabulary::value::PreparedVocabulary>,
-
-    /// What each parameter is bound to, by the parameter's place.
-    pub bindings: &'a [ParameterBinding],
-    /// Readable file names and a derived-only query interning capability.
-    pub symbols: QuerySymbols<'a>,
-    /// The bytes of the file.
-    pub source: SourceView<'a>,
-    /// The path of each file of the run, by file number.
-    pub paths: &'a [FilePath],
-    /// The text each worker made, by worker number, when the steps run after the files were read.
-    pub arenas: &'a [ArenaBytes],
-    /// What a `select` has already decided about a name, for each comparison and each name of the
-    /// file: kept between steps and files so it allocates once.
-    pub memo: &'a mut Vec<Memo>,
-    /// The room the operators read and sort rows in.
-    pub scratch: &'a mut OperatorScratch,
-}
 
 /// What a comparison decided about a name of the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,20 +49,6 @@ pub enum Memo {
     Holds,
 }
 
-/// Where the rows of a step go as they are made, one at a time. The context is the one of the step that makes them; the
-/// step that takes them makes its own from it.
-pub trait Emit {
-    /// Takes one row.
-    ///
-    /// # Errors
-    ///
-    /// Whatever the step that takes it refuses.
-    fn row(
-        &mut self,
-        context: &mut OperatorContext<'_>,
-        row: &[Value],
-    ) -> Result<(), OperatingError>;
-}
 
 /// How many names a file has: the length of a comparison's run of the memo.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -137,3 +81,58 @@ pub enum AfterTheFiles {
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
+
+/// Profile-only semantic observations. No execution or ownership policy is reachable.
+#[cfg(feature = "diagnostic-row-progress")]
+#[derive(Clone, Copy, Debug)]
+pub enum ProgressCounter {
+    /// Rows read from an input.
+    InputRows,
+    /// Predicate evaluations.
+    PredicateEvaluations,
+    /// Probes of a key index.
+    IndexProbes,
+    /// Rows an index probe examined.
+    IndexRowsExamined,
+    /// Rows an equality matched.
+    EqualityMatches,
+    /// Candidate pairs a join considered.
+    JoinCandidatePairs,
+}
+/// How much one profile observation adds to its counter: the bare count inside is named here.
+#[cfg(feature = "diagnostic-row-progress")]
+#[derive(Clone, Copy, Debug)]
+pub struct ProgressAmount(pub u64);
+/// Receives the counts a profiled run observes.
+#[cfg(feature = "diagnostic-row-progress")]
+pub trait ProgressObserver: Sync {
+    /// Adds `amount` to what `counter` has counted.
+    fn observe(&self, counter: ProgressCounter, amount: ProgressAmount);
+}
+/// The observer of a run that profiles nothing.
+#[cfg(feature = "diagnostic-row-progress")]
+#[derive(Debug, Clone, Copy)]
+pub struct IgnoredProgress;
+#[cfg(feature = "diagnostic-row-progress")]
+impl ProgressObserver for IgnoredProgress {
+    fn observe(&self, _counter: ProgressCounter, _amount: ProgressAmount) {}
+}
+
+/// Borrowed portable primitive meanings; the application supplies the implementation.
+/// No outbound adapter, cache owner or scheduler is reachable from a primitive.
+pub trait PrimitiveSemantics: Sync {
+    /// The observer the evaluation reports its row progress to.
+    #[cfg(feature = "diagnostic-row-progress")]
+    fn progress(&self) -> &dyn ProgressObserver {
+        &IgnoredProgress
+    }
+
+    /// The injected operators the primitive evaluates through.
+    fn operators(
+        &self,
+        call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
+    ) -> Result<
+        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
+        ryo_operators::domain::contract::types::PortableOperatorFault,
+    >;
+}

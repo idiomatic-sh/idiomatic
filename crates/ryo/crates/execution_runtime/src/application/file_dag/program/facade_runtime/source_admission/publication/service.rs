@@ -6,7 +6,7 @@ use crate::application::file_dag::program::admission::Partition;
 use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::Representation;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::OperatorContext;
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
@@ -146,7 +146,7 @@ impl SourceInputs<'_, '_> {
         &self,
         input: &AdmittedInput,
         context: &mut OperatorContext<'_>,
-        output: &mut dyn ryo_execution_domain::domain::operating::types::Emit,
+        output: &mut dyn ryo_execution_domain::domain::operator::types::Emit,
     ) -> Result<(), OperatingError> {
         let rows = input.rows(&self.owner, self.read)?;
         crate::application::file_dag::execution::output::replay(&rows, context, output)

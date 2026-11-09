@@ -1,5 +1,5 @@
 //! The prepared native pass keeps independent class results and never publishes.
-use crate::domain::operating::types::OperatorContext;
+use crate::domain::operator::types::OperatorContext;
 use crate::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
 use crate::domain::step_classes::types::ClassPlace;
 use crate::domain::shared_walk::service::evaluate;

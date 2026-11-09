@@ -2,7 +2,8 @@
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelScratch;
-use ryo_execution_domain::domain::operating::{errors::OperatingError, types::{Emit, OperatorContext}};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::rc::Rc;

@@ -1,8 +1,7 @@
 //! Engine-owned grouping storage and text resolution; primitive reduction runs through the injected inbound capability.
 use super::types::{CountRoom, GroupTarget, Hashes, ResolvedValues};
 use crate::domain::{
-    operating::errors::OperatingError,
-    operator::contract::{primitive::PrimitiveSemantics, service::written_result},
+    operating::{errors::OperatingError, service::written_result, types::PrimitiveSemantics},
     table_texts::types::Texts,
 };
 use ryo_derived::domain::key::types::On;

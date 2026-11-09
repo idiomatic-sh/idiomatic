@@ -3,7 +3,7 @@ use super::types::*;
 use crate::domain::executable_program::types::Fusibilities;
 use crate::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::ReaderMultiplicity,
+    operator::types::ReaderMultiplicity,
     file_program::types::{
         FileProgramNode, GraphObservationRoot, NodeInput, ProgramNodeId, RequestGraph,
         SchemaValidity,
