@@ -1419,6 +1419,28 @@ class ReviewerStop(unittest.TestCase):
                 agent = "leak-review" if rel.startswith("branches/") else "rust-review"
                 self.assertEqual(self.stop(agent, brief=brief, stamped=stamped).returncode, 2)
 
+    def test_the_tm_steward_decides_the_landed_head_as_the_push_gate_reads_it(self):
+        git = ["git", "-C", self.tree, "-c", "user.email=t@example.com", "-c", "user.name=t"]
+        subprocess.run(git[:3] + ["init", "-q"], check=True)
+
+        def commit(path, text):
+            with open(os.path.join(self.tree, path), "w", encoding="utf-8") as handle:
+                handle.write(text)
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-q", "-m", path], check=True)
+            return subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        landed = commit("code.rs", "fn a() {}")
+        evidence = commit("crates/ryo/docs/contracts/evidence/checkpoint/contract-review.md", "x")
+        code = commit("code.rs", "fn b() {}")
+        brief = lambda sha: "INTEGRATION_TREE=" + self.tree + " SOURCE=" + sha
+        for name, source, decided, code_ in [("the landed head itself", landed, landed, 0),
+                                             ("an ancestor with only evidence changed since", evidence, landed, 0),
+                                             ("an ancestor with code changed since", code, landed, 2),
+                                             ("a sha that is not an ancestor", landed, code, 2)]:
+            with self.subTest(name=name):
+                self.write("checkpoint/tm-steward.json", self.review("tm-steward", source=decided))
+                self.assertEqual(self.stop("tm-steward", brief=brief(source)).returncode, code_)
+
     def test_blocked_and_other_agents_stop(self):
         self.assertEqual(self.stop("rust-review", report="BLOCKED: which base sha?").returncode, 0)
         self.assertEqual(self.stop("perf-diagnosis").returncode, 0)

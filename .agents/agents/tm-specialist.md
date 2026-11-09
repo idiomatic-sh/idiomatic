@@ -12,7 +12,7 @@ You consume the findings of the [Rust gate](rust-principal-review.md), the [cont
 The design primitives are the four in [crates/tastemaker/README.md](../../crates/tastemaker/README.md): rule, template, spec and `tastemaker.toml`. The tree's own primitives are in [crates/ryo/docs/README.md](../../crates/ryo/docs/README.md) (crates only at real boundaries; interface, use_case, service, item, adapter, schemas, composition, ...; a file with no primitive is a finding; no common, utils, shared or helpers). Use the CLI: start with `tm --help` and the subcommand help.
 
 ## Inputs
-The PM names: the landed sha, the previous checkpoint sha, the checkpoint number `N`, the three review reports, a scratch directory for the archive copy and `INTEGRATION_TREE`.
+The PM names: the landed sha, the previous checkpoint sha, the checkpoint number `N`, the three review reports, a scratch directory for the archive copy and `INTEGRATION_TREE`. As tokens: `INTEGRATION_TREE=<checkpoint N+1's tree>` and `SOURCE=<the landed sha of N>`, the previous landed head that the push of N+1 checks. `tm-steward.json`'s `source` is that sha, or an ancestor of it with only evidence changed since; the stop hook and the push hook judge it with the same `stands_for`.
 
 ## Procedure
 1. **Gate.** Read only `crates/ryo/docs/contracts/evidence/checkpoint/asymptote.json`, the integrator's recorded `asymptote check --groups lint,check,clippy` results for the landed sha (groups in [asymptote.toml](../../crates/ryo/asymptote.toml); [asymptote README](../../crates/asymptote/README.md)). Run only what the hook itself lets you run; never rebuild the workspace. If that file is missing, its `source` is not the landed sha, or any result fails, stop and report. Record the exact commands and results read.
