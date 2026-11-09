@@ -5,9 +5,6 @@ use super::super::super::*;
 /// step of each rule was fed: the head fed every source row, its continuation only the rows the head kept.
 #[test]
 fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
-    use ryo_execution::inbound::use_cases::execution::interface::{
-        CaptureContext, EmittedRoot, FileRunInput, RuleAfter,
-    };
     use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
     let engine = engine();
     let mut input = authored_request(1);
@@ -46,48 +43,20 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
         let worker = super::super::fixtures::function_rows(&facts, FileId(0), &[1, 2, 3]);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut symbols = Symbols::default();
-        let (mut arena, mut places, mut words) = (
-            Vec::new(),
-            Vec::new(),
-            ryo_relations::domain::relations::types::Words::default(),
-        );
-        let rules = request.run_file(
-            FileRunInput {
-                language: SourceLanguage::Recognized,
-                file: FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::DiagnosticAndObservations,
-                }],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
-                first: &[ryo_values::domain::stored_facts::types::Bucket(0)],
-            },
-            &mut symbols,
-            CaptureContext {
-                worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
+        let (ran, _) = crate::file_intents::ran_file(
+            &request,
+            FileId(0),
+            &[FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::DiagnosticAndObservations,
+            }],
+            (&elements, &mut symbols),
             worker.as_ref(),
         );
         request.finish();
-        rules
-            .rules
-            .into_iter()
-            .map(|ran| {
-                let table = match ran.emit {
-                    EmittedRoot::Delivered(RootOutcome::Complete(table)) => Some(table),
-                    _ => None,
-                };
-                (table, matches!(ran.after, RuleAfter::Ran { .. }))
-            })
+        ran.into_iter()
+            .map(|ran| (ran.complete, ran.after.starts_with("ran")))
             .collect::<Vec<_>>()
     };
     let unobserved = run(None);
@@ -98,6 +67,7 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
     assert!(matches!(observed.as_slice(), [(Some(_), true)]));
     let totals = counting
         .totals()
+        .expect("the counting observer's totals")
         .0
         .iter()
         .map(|steps| steps.iter().map(|fed| fed.0).collect::<Vec<_>>())
@@ -109,3 +79,71 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
     );
 }
 
+
+/// S17: a rule's steps fused into one region are each counted for the rows they were fed: the head every row of the tree, its
+/// fused continuation only the rows the head kept, as the counting observer is told through the one-call file route.
+#[test]
+fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
+    use crate::shared_walk::fixtures::{compared, text, tree};
+    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
+    use ryo_execution_runtime::outbound::observer::interface::ObserverPort as _;
+    use ryo_values::domain::plan_parts::types::Test;
+    let (engine, _) = crate::shared_walk::fixtures::engine();
+    let mut input = authored_request(1);
+    let plan = &mut crate::boundary_fixture::plans(&mut input)[0];
+    plan.steps = vec![
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: vec![compared(Test::Matches, 2, text("a"))],
+                kept: vec![],
+            },
+        },
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Step(StepId(0)),
+                comparisons: vec![compared(Test::Equal, 1, text("word"))],
+                kept: vec![],
+            },
+        },
+    ];
+    plan.emit.step = StepId(1);
+    let program = engine.prepare(input).expect("prepare a fused head and child");
+    let corpus = corpus();
+    let counting = Arc::new(ryo_execution_runtime::outbound::observer::factory::counting());
+    let request =
+        ExecutionUseCaseImpl::new().execution(&program, &corpus, Some(Arc::clone(&counting) as _));
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
+    let facts = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
+    let worker = facts.worker().expect("a fake worker");
+    let (ran, _) = crate::file_intents::ran_file(
+        &request,
+        FileId(0),
+        &[FileRuleIntent::Run {
+            diagnostic: DiagnosticDelivery::Collected,
+            observations: ObservationDemand::NotRequired,
+            capture: CaptureIntent::DiagnosticAndObservations,
+        }],
+        (&elements, &mut symbols),
+        worker.as_ref(),
+    );
+    request.finish();
+    assert!(
+        matches!(ran.as_slice(), [only] if only.after.starts_with("ran")),
+        "the rule runs past its root"
+    );
+    let totals = counting
+        .totals()
+        .expect("the counting observer's totals")
+        .0
+        .iter()
+        .map(|steps| steps.iter().map(|fed| fed.0).collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        totals,
+        [[[4, 0, 0], [1, 0, 0]]],
+        "the head was fed the tree's four rows; its fused continuation, the one row the head kept"
+    );
+}

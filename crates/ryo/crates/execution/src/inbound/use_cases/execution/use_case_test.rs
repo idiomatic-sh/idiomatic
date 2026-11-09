@@ -182,8 +182,6 @@ mod conformance_emptied;
 
 #[cfg(test)]
 mod conformance_boundary;
-#[cfg(test)]
-mod conformance_scale;
 
 #[cfg(test)]
 mod dispatch;

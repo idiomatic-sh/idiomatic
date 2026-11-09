@@ -10,6 +10,9 @@ use ryo_execution::inbound::use_cases::execution::interface::Demand;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    Partial, PreparedExecutionProgram, RequestExecution,
+};
 
 pub(crate) fn input<'a, 'facts>(
     intents: &'a [FileRuleIntent],
@@ -29,6 +32,150 @@ pub(crate) fn input<'a, 'facts>(
         semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
         kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
     }
+}
+
+/// `relation`, read in part in file 0 with any of its rows possibly missing.
+pub(crate) fn partial(relation: Relation) -> Partial {
+    Partial {
+        relation,
+        cause: ryo_values::domain::stored_facts::types::PartialCause("a reader stopped".into()),
+        lacking: ryo_execution::inbound::use_cases::metadata::interface::Lacking::Any,
+        at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(0)),
+    }
+}
+
+/// What rule 0 of `program` answered in file 0, run alone with its diagnostic collected, whose `read` gives each relation its
+/// table in `rows`, with the partial reads `evaluation` (what the rule's evaluation sees) and `publication` (what its answer is
+/// published under); and how many reads the file made.
+pub(crate) fn answered(
+    program: &PreparedExecutionProgram,
+    rows: &[(Relation, Table)],
+    evaluation: &[Partial],
+    publication: &[Partial],
+) -> (Result<RootOutcome, OperatingError>, usize) {
+    let intents = [FileRuleIntent::Run {
+        diagnostic: DiagnosticDelivery::Collected,
+        observations: ObservationDemand::NotRequired,
+        capture: CaptureIntent::Disabled,
+    }];
+    answered_rule(program, rows, (evaluation, publication), &intents, RuleIndex(0))
+}
+
+/// What `rule` of `program` answered in file 0 opened with `intents`, as [`answered`] says it.
+pub(crate) fn answered_rule(
+    program: &PreparedExecutionProgram,
+    rows: &[(Relation, Table)],
+    (evaluation, publication): (&[Partial], &[Partial]),
+    intents: &[FileRuleIntent],
+    rule: RuleIndex,
+) -> (Result<RootOutcome, OperatingError>, usize) {
+    let corpus = crate::boundary_fixture::corpus();
+    let request = ExecutionUseCaseImpl::new().execution(program, &corpus, None);
+    let reads = Cell::new(0);
+    let read = |relation| {
+        reads.set(reads.get() + 1);
+        rows.iter()
+            .find(|(each, _)| *each == relation)
+            .map(|(_, table)| SourceRows::Computed(table))
+            .ok_or(OperatingError::NotRead)
+    };
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let mut symbols = Symbols::default();
+    let mut file = request
+        .open_file(
+            FileInput {
+                evaluation,
+                publication,
+                ..input(intents, &elements, &read)
+            },
+            &mut symbols,
+        )
+        .expect("open file 0");
+    let outcome = file.rule(rule, demand(), &mut symbols).map(|outcome| outcome.emit);
+    let _finished = file.finish();
+    request.finish();
+    (outcome, reads.get())
+}
+
+/// One rule's run through the one-call file route: its emitted root when it completed, the root as text, and how its run went on.
+pub(crate) struct Ran {
+    pub(crate) complete: Option<Table>,
+    pub(crate) emitted: String,
+    pub(crate) after: String,
+}
+
+/// File `file` run through `request`'s one-call route with `intents`, over `worker`'s facts and the tree `elements`: each rule's
+/// run, then how the file ended.
+pub(crate) fn ran_file(
+    request: &RequestExecution,
+    file: FileId,
+    intents: &[FileRuleIntent],
+    (elements, symbols): (&ryo_language::domain::elements::types::Elements, &mut Symbols),
+    worker: &dyn ryo_execution_runtime::outbound::facts::interface::FactsWorker,
+) -> (Vec<Ran>, String) {
+    use ryo_execution::inbound::use_cases::execution::interface::{
+        EmittedRoot, FileEnd, FileRunInput, RuleAfter,
+    };
+    let first = vec![ryo_values::domain::stored_facts::types::Bucket(0); intents.len()];
+    let (mut arena, mut places, mut words) = (Vec::new(), Vec::new(), Words::default());
+    let rules = request.run_file(
+        FileRunInput {
+            language: SourceLanguage::Recognized,
+            file,
+            evaluation: &[],
+            publication: &[],
+            intents,
+            source: ryo_values::domain::files::types::SourceView(b"abc"),
+            elements,
+            semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+            kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+            first: &first,
+        },
+        symbols,
+        CaptureContext {
+            worker: WorkerNumber(0),
+            arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+            places: &mut places,
+            words: &mut words,
+        },
+        worker,
+    );
+    let ran = rules
+        .rules
+        .into_iter()
+        .map(|ran| {
+            let (complete, emitted) = match ran.emit {
+                EmittedRoot::Delivered(RootOutcome::Complete(table)) => {
+                    (Some(table.clone()), format!("complete {table:?}"))
+                }
+                EmittedRoot::Delivered(RootOutcome::Partial { table, affected }) => {
+                    (None, format!("partial {table:?} {affected:?}"))
+                }
+                EmittedRoot::Delivered(RootOutcome::Failed(error)) => (None, format!("failed {error:?}")),
+                EmittedRoot::Delivered(RootOutcome::Unknown(error)) => (None, format!("unknown {error:?}")),
+                EmittedRoot::Delivered(RootOutcome::Deferred { phase }) => (None, format!("deferred {phase:?}")),
+                EmittedRoot::Delivered(RootOutcome::Skipped(_)) => (None, "skipped".into()),
+                EmittedRoot::Delivered(RootOutcome::NoQuery) => (None, "no query".into()),
+                EmittedRoot::Withheld => (None, "withheld".into()),
+            };
+            let after = match ran.after {
+                RuleAfter::Ran { captures } => format!("ran, {} captures", captures.len()),
+                RuleAfter::Unreached => "unreached".into(),
+                RuleAfter::Stopped(stop) => format!("stopped {stop:?}"),
+            };
+            Ran {
+                complete,
+                emitted,
+                after,
+            }
+        })
+        .collect();
+    let end = match rules.end {
+        FileEnd::Finished(_) => "finished".to_owned(),
+        FileEnd::Unfinished => "unfinished".to_owned(),
+        FileEnd::Refused(stop) => format!("refused {stop:?}"),
+    };
+    (ran, end)
 }
 
 #[test]

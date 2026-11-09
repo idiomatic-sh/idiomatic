@@ -39,7 +39,6 @@ pub(crate) struct ObservedDelivery {
     pub(crate) collected: Result<Table, OperatingError>,
     pub(crate) rows: Vec<Vec<Cell>>,
     pub(crate) stream_error: Option<OperatingError>,
-    pub(crate) visits: Vec<u64>,
 }
 /// Delivers an authored plan through the real prepare, open_file, collect and forward protocol.
 #[allow(
@@ -49,7 +48,6 @@ pub(crate) struct ObservedDelivery {
 pub(crate) fn deliver(
     authored: inputs::AuthoredRows,
     schema: Result<Vec<CellKind>, OperatingError>,
-    width: usize,
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
     source: &[u8],
     symbols: &mut Symbols,
@@ -65,7 +63,6 @@ pub(crate) fn deliver(
         runs::types::{RuleApplicability, RuleId},
         stored_facts::types::Digest,
     };
-    let emit = authored.plan.emit.step;
     let engine = Preparation::new(port, Arc::new(owner_fixtures::derived()));
     let preparation = engine.prepare(Authored {
         plans: vec![authored.plan],
@@ -103,7 +100,6 @@ pub(crate) fn deliver(
                 collected: Err(error.clone()),
                 rows: vec![],
                 stream_error: Some(error),
-                visits: vec![0; width],
             });
         }
     };
@@ -172,7 +168,6 @@ pub(crate) fn deliver(
         }
         _ => panic!("declared per-file operation must settle"),
     };
-    let visits = collected_file.fixture_counts(RuleIndex(0))?.fed[emit.0 as usize].0[..width].to_vec();
     collected_file.finish()?;
     let forward_intent = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Forwarded,
@@ -197,6 +192,5 @@ pub(crate) fn deliver(
         collected,
         rows,
         stream_error,
-        visits,
     })
 }

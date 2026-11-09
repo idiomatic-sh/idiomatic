@@ -3,4 +3,6 @@
 #[cfg(test)]
 mod axis_graph;
 #[cfg(test)]
+mod conformance_scale;
+#[cfg(test)]
 mod owner_lifetime;

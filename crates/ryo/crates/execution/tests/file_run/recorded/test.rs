@@ -6,9 +6,6 @@ use super::super::super::*;
 /// any answer changes this text.
 #[test]
 fn three_rules_over_three_files_answer_the_recorded_file_rules() {
-    use ryo_execution::inbound::use_cases::execution::interface::{
-        CaptureContext, EmittedRoot, FileEnd, FileRunInput, RuleAfter,
-    };
     use std::fmt::Write as _;
     let engine = engine();
     let mut input = authored_request(3);
@@ -43,63 +40,21 @@ fn three_rules_over_three_files_answer_the_recorded_file_rules() {
         let worker = super::super::fixtures::function_rows(&facts, FileId(file), &ids);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut symbols = Symbols::default();
-        let (mut arena, mut places, mut words) = (
-            Vec::new(),
-            Vec::new(),
-            ryo_relations::domain::relations::types::Words::default(),
-        );
         let run = FileRuleIntent::Run {
             diagnostic: DiagnosticDelivery::Collected,
             observations: ObservationDemand::NotRequired,
             capture: CaptureIntent::DiagnosticAndObservations,
         };
-        let rules = request.run_file(
-            FileRunInput {
-                language: SourceLanguage::Recognized,
-                file: FileId(file),
-                evaluation: &[],
-                publication: &[],
-                intents: &[run, run, run],
-                source: ryo_values::domain::files::types::SourceView(b"abc"),
-                elements: &elements,
-                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
-                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
-                first: &[ryo_values::domain::stored_facts::types::Bucket(0); 3],
-            },
-            &mut symbols,
-            CaptureContext {
-                worker: ryo_relations::domain::relations::types::WorkerNumber(0),
-                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
-                places: &mut places,
-                words: &mut words,
-            },
+        let (ran, end) = crate::file_intents::ran_file(
+            &request,
+            FileId(file),
+            &[run, run, run],
+            (&elements, &mut symbols),
             worker.as_ref(),
         );
-        for ran in rules.rules {
-            let emitted = match ran.emit {
-                EmittedRoot::Delivered(RootOutcome::Complete(table)) => format!("complete {table:?}"),
-                EmittedRoot::Delivered(RootOutcome::Partial { table, affected }) => {
-                    format!("partial {table:?} {affected:?}")
-                }
-                EmittedRoot::Delivered(RootOutcome::Failed(error)) => format!("failed {error:?}"),
-                EmittedRoot::Delivered(RootOutcome::Unknown(error)) => format!("unknown {error:?}"),
-                EmittedRoot::Delivered(RootOutcome::Deferred { phase }) => format!("deferred {phase:?}"),
-                EmittedRoot::Delivered(RootOutcome::Skipped(_)) => "skipped".into(),
-                EmittedRoot::Delivered(RootOutcome::NoQuery) => "no query".into(),
-                EmittedRoot::Withheld => "withheld".into(),
-            };
-            let after = match ran.after {
-                RuleAfter::Ran { captures } => format!("ran, {} captures", captures.len()),
-                RuleAfter::Unreached => "unreached".into(),
-                RuleAfter::Stopped(stop) => format!("stopped {stop:?}"),
-            };
-            writeln!(answered, "file {file} rule {}: {emitted}; {after}", ran.rule.0).unwrap();
+        for (rule, ran) in ran.iter().enumerate() {
+            writeln!(answered, "file {file} rule {rule}: {}; {}", ran.emitted, ran.after).unwrap();
         }
-        let end = match rules.end {
-            FileEnd::Finished(_) => "finished".to_owned(),
-            FileEnd::Unfinished => "unfinished".to_owned(),
-            FileEnd::Refused(stop) => format!("refused {stop:?}"),
-        };
         writeln!(answered, "file {file}: {end}").unwrap();
     }
     request.finish();

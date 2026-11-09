@@ -102,6 +102,64 @@ pub(crate) fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> 
         .expect("compile actual mixed-phase request")
 }
 
+/// The kept frontier of each input of rule 0, captured in file 0 opened with its diagnostic collected and its frontiers captured,
+/// whose `read` gives each relation its table in `rows`, with `publication` read in part.
+pub(crate) fn captured_in_file_0(
+    request: &ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
+    rows: &[(Relation, ryo_values::domain::rows::types::Table)],
+    publication: &[ryo_execution::inbound::use_cases::execution::interface::Partial],
+    symbols: &mut Symbols,
+) -> Vec<ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier> {
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let read = |relation| {
+        rows.iter()
+            .find(|(each, _)| *each == relation)
+            .map(|(_, table)| SourceRows::Computed(table))
+            .ok_or(OperatingError::NotRead)
+    };
+    let mut file = request
+        .open_file(
+            FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: ResidentStability::Stable,
+                file: FileId(0),
+                evaluation: &[],
+                publication,
+                intents: &[FileRuleIntent::Run {
+                    diagnostic: DiagnosticDelivery::Collected,
+                    observations: ObservationDemand::NotRequired,
+                    capture: CaptureIntent::DiagnosticAndObservations,
+                }],
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
+                elements: &elements,
+                read: &read,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+            },
+            symbols,
+        )
+        .expect("open file 0");
+    let (mut arena, mut places, mut words) = (vec![], vec![], Words::default());
+    let captures = file
+        .capture_frontiers(
+            RuleIndex(0),
+            Bucket(0),
+            symbols,
+            CaptureContext {
+                worker: WorkerNumber(0),
+                arena: ryo_execution::inbound::use_cases::execution::interface::Arena(&mut arena),
+                places: &mut places,
+                words: &mut words,
+            },
+        )
+        .expect("capture the frontiers of rule 0");
+    let _finished = file.finish();
+    captures
+        .into_iter()
+        .map(|capture| capture.outcome.expect("a kept frontier"))
+        .collect()
+}
+
 pub(crate) mod negative;
 
 mod population_reads;
@@ -115,5 +173,9 @@ mod text_identity;
 mod union;
 
 mod rewrites;
+
+mod members;
+
+mod merged;
 
 mod axis;

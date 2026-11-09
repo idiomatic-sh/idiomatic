@@ -85,7 +85,6 @@ pub(crate) fn compare_delivery_with_port(
     deliver(
         authored,
         schema,
-        inputs.len(),
         bindings,
         source,
         symbols,

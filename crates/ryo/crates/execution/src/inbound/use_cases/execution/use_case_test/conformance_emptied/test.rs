@@ -70,7 +70,6 @@ fn compare_emptied(
     super::super::conformance::fixtures::deliver(
         authored,
         schema,
-        inputs.len(),
         bindings,
         source,
         symbols,
