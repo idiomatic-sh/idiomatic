@@ -306,7 +306,7 @@ class Diff(unittest.TestCase):
   self.assertFalse(any('pub fn kept:' in x for x in found)); self.assertTrue(any('a/src/y.rs:1 pub fn parse:' in x for x in found),found)
  def test_an_item_kept_in_its_module_is_not_new_when_the_checks_run_from_a_subdirectory(self):
   # run.py passes its own directory as the repository, deep inside the tree: base paths must be read from the root.
-  commit(self.repo,{'a/src/old.rs':'pub fn kept() {}\n','d/e/note.md':'deep\n'},'docs: a deep directory')
+  commit(self.repo,{'a/src/old.rs':'// Kept.\npub fn kept() {}\n','d/e/note.md':'deep\n'},'docs: a deep directory')
   self.assertEqual(run.doc_problems(repo=Path(self.repo)/'d'/'e',base=self.base),[])
  def test_an_examples_heading_without_a_code_block_is_no_example(self):
   commit(self.repo,{'a/src/z.rs':'/// Zed.\n///\n/// # Examples\npub fn zed() {}\n','a/src/w.rs':'/// Wye.\n///\n/// # Examples\n///\n/// # Panics\n/// ```\n/// ```\npub fn wye() {}\n'},'feat(a): zed')
