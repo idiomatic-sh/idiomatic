@@ -327,39 +327,82 @@ def checkpoint_base(repo):
  base=git(repo,'merge-base','HEAD',CONSOLIDATION)
  return base.strip() if base else None
 def is_test_file(path):
+ """A test, fixture, bench or example file: in such a directory, or named test.rs, tests.rs, fixtures.rs, *_test.rs or *_tests.rs (a Python test is test_*.py or *_test.py)."""
  parts=path.split('/'); name=parts[-1]
- return any(x in ('tests','test','fixtures','benches','benchmarks','examples') for x in parts[:-1]) or name in ('test.rs','tests.rs','fixtures.rs','test_hooks.py','run_test.py') or name.endswith(('_test.rs','_test.py')) or name.startswith('test_')
+ return any(x in ('tests','test','fixtures','benches','benchmarks','examples') for x in parts[:-1]) or name in ('test.rs','tests.rs','fixtures.rs') or name.endswith(('_test.rs','_tests.rs','_test.py')) or name.endswith('.py') and name.startswith('test_') or name=='run_test.py'
 def is_production(path):
  """A Rust source or a harness hook that is not a test, fixture or bench: a change to it can change behaviour."""
  return not is_test_file(path) and (path.endswith('.rs') or path.startswith('.claude/hooks/') and path.endswith('.py'))
-BEHAVIOUR=re.compile(r'^(fix|feat)(\([^)]*\))?!?:')
+NOT_BEHAVIOUR=re.compile(r'^(perf|refactor)(\([^)]*\))?!?:')
 NAMED_TEST=re.compile(r'\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
 def named_tests(message): return [t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
-def entry_logs(entry): return re.findall(r'[\w.-]+\.log\b',entry.get('test',''))
+CARGO_LINE=re.compile(r'^test (\S+) \.\.\. (ok|FAILED)\b')
+NEXTEST_LINE=re.compile(r'^\s*(PASS|FAIL|SIGSEGV|SIGABRT|TIMEOUT)\s+\[[^\]]*\]\s+\S+\s+(\S+)')
+UNITTEST_LINE=re.compile(r'^(\w+) \(([\w.]+)\)\S*.* \.\.\. (ok|FAIL|ERROR)\b')
+UNITTEST_FAILURE=re.compile(r'^(FAIL|ERROR): (\w+) \(([\w.]+)\)')
+def log_status(log,test):
+ """'failed' when the log shows the test failing, 'passed' when it shows it passing and never failing, else None: cargo test, cargo nextest and unittest -v lines, a test named by its path or a suffix of it."""
+ named=lambda path,sep: path==test or path.endswith(sep+test)
+ failed=passed=False
+ for line in Path(log).read_text(errors='replace').splitlines():
+  m=CARGO_LINE.match(line)
+  if m and named(m.group(1),'::'): failed|=m.group(2)=='FAILED'; passed|=m.group(2)=='ok'; continue
+  m=NEXTEST_LINE.match(line)
+  if m and named(m.group(2),'::'): failed|=m.group(1)!='PASS'; passed|=m.group(1)=='PASS'; continue
+  m=UNITTEST_LINE.match(line)
+  if m and (named(m.group(1),'.') or named(m.group(2),'.')): failed|=m.group(3)!='ok'; passed|=m.group(3)=='ok'; continue
+  m=UNITTEST_FAILURE.match(line)
+  if m and (named(m.group(2),'.') or named(m.group(3),'.')): failed=True
+ return 'failed' if failed else 'passed' if passed else None
 def covered(repo,entry,ranges):
  """The commits the red_green entry's range holds: in its merge sha and not in its base sha (read once per range)."""
  key=(entry.get('base_sha',''),entry.get('merge_sha','')) if isinstance(entry,dict) else ('','')
  if key not in ranges: ranges[key]=set((git(repo,'rev-list',key[0]+'..'+key[1]) or '').split()) if all(key) else set()
  return ranges[key]
+def proves(entry,test,raw):
+ """The entry names the test and two distinct logs, `red <name>.log` showing it fail and `green <name>.log` showing it pass, both in the validation directory."""
+ text=entry.get('test','')
+ if not re.search(r'(?<![\w:])'+re.escape(test)+r'(?![\w])',text): return False
+ red,green=re.search(r'\bred ([\w.-]+\.log)\b',text),re.search(r'\bgreen ([\w.-]+\.log)\b',text)
+ if not red or not green or red.group(1)==green.group(1) or not (raw/red.group(1)).is_file() or not (raw/green.group(1)).is_file(): return False
+ return log_status(raw/red.group(1),test)=='failed' and log_status(raw/green.group(1),test)=='passed'
+NO_BASE='no checkpoint base: the merge base of HEAD and '+CONSOLIDATION+' is unknown; fetch it'
 def fix_problems(v,repo=None,base=None,head='HEAD'):
- """Each fix or feat commit of the checkpoint that changes production code names a test in its message and lies in the range (base_sha, merge_sha] of a red_green entry whose `test` names its red and green logs, each present in the validation directory."""
+ """Each commit of the checkpoint that changes production code, other than a perf or refactor commit, names a test in its message that a red_green entry over it (its base_sha excluded, its merge_sha included) proves: the entry names that test, its red log shows it fail and its green log shows it pass."""
  repo=repo or p; base=base or checkpoint_base(repo)
- if not base: return []
+ if not base: return [NO_BASE]
  bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}
  for sha in (git(repo,'rev-list','--no-merges',base+'..'+head) or '').split():
   message=git(repo,'show','-s','--format=%B',sha) or ''
-  if not BEHAVIOUR.match(message): continue
-  files=(git(repo,'diff-tree','--no-commit-id','-r','--name-only',sha) or '').split()
-  if not any(is_production(f) for f in files): continue
-  short=sha[:10]+' '+message.splitlines()[0][:70]
-  if not named_tests(message): bad.append('fix '+short+': its message names no test that fails before it and passes after')
+  files=(git(repo,'diff-tree','--root','--no-commit-id','-r','--name-only',sha) or '').split()
+  if NOT_BEHAVIOUR.match(message) or not any(is_production(f) for f in files): continue
+  short=sha[:10]+' '+message.splitlines()[0][:70]; tests=named_tests(message)
+  if not tests: bad.append('fix '+short+': its message names no test that fails before it and passes after'); continue
   entries=[x for x in v.get('red_green',[]) if sha in covered(repo,x,ranges)]
   if not entries: bad.append('fix '+short+': no red_green entry has it between its base_sha and merge_sha'); continue
-  if not any(entry_logs(x) and all((raw/l).is_file() for l in entry_logs(x)) for x in entries):
-   bad.append('fix '+short+': no red_green entry over it names its red and green logs present in '+str(raw))
+  if not any(proves(x,t,raw) for x in entries for t in tests):
+   bad.append('fix '+short+': no red_green entry over it names a test its message names ('+', '.join(tests[:4])+') with a red log showing it fail and a green log showing it pass, in '+str(raw))
  return bad
 # The items the Rust API guidelines give an example (C-EXAMPLE); a `Sealed` supertrait is the seal, not API.
-ITEM=re.compile(r'^\s*pub\s+(?:const\s+|async\s+|unsafe\s+)*(fn|struct|enum|trait|type|union)\s+([A-Za-z_]\w*)')
+ITEM=re.compile(r'^(\s*)pub\s+(?:const\s+|async\s+|unsafe\s+)*(fn|struct|enum|trait|type|union)\s+([A-Za-z_]\w*)')
+HEADER=re.compile(r'^(\s*)(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?(impl|mod|trait)\b(.*)')
+def owner(lines,at,indent):
+ """The impl type, module or trait that holds an indented item: the nearest header line above it with less indent, else None."""
+ for i in range(at-1,-1,-1):
+  m=HEADER.match(lines[i])
+  if m and len(m.group(1))<indent:
+   rest=re.sub(r'<[^<>]*(?:<[^<>]*>[^<>]*)*>','',m.group(3)); rest=rest.split(' for ',1)[1] if ' for ' in rest else rest
+   name=re.findall(r'[A-Za-z_]\w*',rest.split('{')[0].split(' where ')[0])
+   return m.group(2)+' '+(name[-1] if name else '')
+  if lines[i].strip() and not lines[i].startswith((' ','\t')) and not lines[i].lstrip().startswith(('//','#','}')): return None
+ return None
+def items(text):
+ """(owner, kind, name, line index) of each pub item in a Rust source."""
+ lines=text.splitlines(); found=[]
+ for n,line in enumerate(lines):
+  m=ITEM.match(line)
+  if m: found.append((owner(lines,n,len(m.group(1))) if m.group(1) else None,m.group(2),m.group(3),n))
+ return found
 def published(repo,path,rev):
  """The file's crate is published: its nearest Cargo.toml with a [package] does not say publish = false."""
  crate=crate_dir(repo,path,rev)
@@ -378,24 +421,26 @@ def doc_above(lines,at):
  doc=[]; i=at-1
  while i>=0 and (lines[i].strip().startswith(('///','#[','#!['))): doc.append(lines[i]); i-=1
  return '\n'.join(doc)
+def base_items(repo,base,crate):
+ """(owner, kind, name) of every pub item in the crate's production files at the base."""
+ paths=[x for x in (git(repo,'ls-tree','-r','--name-only',base,'--',':(top)'+crate) or '').split() if x.endswith('.rs') and not is_test_file(x)]
+ return {i[:3] for x in paths for i in items(git(repo,'show',base+':'+x) or '')}
 def doc_problems(repo=None,base=None,head='HEAD'):
- """Each pub item a published crate gains in the checkpoint (declared pub nowhere in that crate at the base) has an `# Examples` section, and `# Errors` when it returns a Result."""
+ """Each pub item a published crate gains in the checkpoint (no item of its owner, kind and name in that crate's production files at the base) has an `# Examples` section, and `# Errors` when it returns a Result."""
  repo=repo or p; base=base or checkpoint_base(repo)
- if not base: return []
+ if not base: return [NO_BASE]
  bad=[]; olds={}
- for path in (git(repo,'diff','--name-only','--diff-filter=AM',base,head,'--',':(top,glob)**/*.rs') or '').split():
+ for path in (git(repo,'diff','--name-only','--no-renames','--diff-filter=AM',base,head,'--',':(top,glob)**/*.rs') or '').split():
   if is_test_file(path) or '/src/' not in '/'+path or not published(repo,path,head): continue
   crate=crate_dir(repo,path,head)
-  if crate not in olds: olds[crate]={m.groups() for m in map(ITEM.match,(git(repo,'grep','-h','-E',r'^\s*pub\s',base,'--',':(top)'+crate) or '').splitlines()) if m}
-  old=olds[crate]
+  if crate not in olds: olds[crate]=base_items(repo,base,crate)
   lines=(git(repo,'show',head+':'+path) or '').splitlines()
-  for n,line in enumerate(lines):
-   m=ITEM.match(line)
-   if not m or m.groups() in old or m.groups()==('trait','Sealed'): continue
-   doc=doc_above(lines,n); where=path+':'+str(n+1)+' pub '+m.group(1)+' '+m.group(2)
+  for item in items('\n'.join(lines)):
+   if item[:3] in olds[crate] or item[1:3]==('trait','Sealed'): continue
+   n=item[3]; doc=doc_above(lines,n); where=path+':'+str(n+1)+' pub '+item[1]+' '+item[2]
    if '# Examples' not in doc: bad.append(where+': no `# Examples` section')
    signature=' '.join(lines[n:n+12]).split('{')[0].split(';')[0]
-   if m.group(1)=='fn' and re.search(r'->\s*(?:[\w:]+::)?Result\b',signature) and '# Errors' not in doc: bad.append(where+': returns a Result with no `# Errors` section')
+   if item[1]=='fn' and re.search(r'->\s*(?:[\w:]+::)?Result\b',signature) and '# Errors' not in doc: bad.append(where+': returns a Result with no `# Errors` section')
  return bad
 def finish(v):
  """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row that cites no test or a test the recorded logs do not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code."""
@@ -423,27 +468,41 @@ PER_FILE_FACT=re.compile(r'binding_read|binding-read|BindingRead')
 def census_production(path):
  """A production source of the product: under crates/*/src, cli/src or languages/*/src, and no test, fixture, bench, benchmark or acceptance file."""
  parts=path.split('/')
- return bool(re.match(r'(crates/[^/]+/src|cli/src|languages/[^/]+/src)/',path)) and not (path.endswith('_test.rs') or parts[-1]=='test.rs' or any(x.startswith('fixtures') or x in ('tests','benches','benchmarks') or 'acceptance' in x for x in parts))
+ return bool(re.match(r'(crates/[^/]+/src|cli/src|languages/[^/]+/src)/',path)) and not (is_test_file(path) or any(x.startswith('fixtures') or 'acceptance' in x for x in parts))
 def census_crate(path): return path.split('/')[0] if path.startswith('cli/') else '/'.join(path.split('/')[:2])
+CFG_TEST=re.compile(r'^\s*#\[cfg\(test\)\]',re.M)
+def split_tests(text):
+ """A production file's text before its first #[cfg(test)] item, and the test text from there on."""
+ m=CFG_TEST.search(text)
+ return (text[:m.start()],text[m.start():]) if m else (text,'')
+def operation_variants(text,variants):
+ """The distinct Operation variants a text names: through `Operation::`, an alias of Operation (`use ...Operation as X`), or a glob import of its variants."""
+ aliases={'Operation'}|set(re.findall(r'\bOperation\s+as\s+([A-Za-z_]\w*)',text))
+ named=set(re.findall(r'\b(?:'+'|'.join(sorted(aliases))+r')::([A-Z]\w*)',text))
+ if re.search(r'\b(?:'+'|'.join(sorted(aliases))+r')::\*|\bOperation::\{[^}]*\*',text): named|={v for v in variants if re.search(r'\b'+v+r'\b',text)}
+ return named
 def census(product):
- """Change-amplification counts over the product's tracked Rust files, read statically: what a change of each kind must touch outside its owner."""
+ """Change-amplification counts over the product's tracked Rust files, read statically: what a change of each kind must touch outside its owner. A #[cfg(test)] part of a production file counts as test."""
  files=(git(product,'ls-files','*.rs') or '').split()
  text={f:(Path(product)/f).read_text(errors='replace') for f in files}
- prod=[f for f in files if census_production(f)]
+ prod_text={f:split_tests(text[f])[0] for f in files if census_production(f)}
+ test_text={f:(split_tests(text[f])[1] if f in prod_text else text[f]) for f in files}
+ test_text={f:t for f,t in test_text.items() if t}
  declared=re.compile(r'\bpub (?:struct|enum|trait|type) ([A-Z]\w*)')
- home={n for f in prod if f.startswith(EVALUATOR) for n in declared.findall(text[f])}
- vocabulary=home-{n for f in files if not f.startswith(EVALUATOR) for n in declared.findall(text[f])}-{'Demand'}
+ home={n for f,t in prod_text.items() if f.startswith(EVALUATOR) for n in declared.findall(t)}
+ # A name the runtime declares that another crate's production code also declares is ambiguous: a file naming it counts only through ryo_execution_runtime.
+ vocabulary=home-{n for f,t in prod_text.items() if not f.startswith(EVALUATOR) for n in declared.findall(t)}-{'Demand'}
  named=re.compile(r'\b(?:'+'|'.join(map(re.escape,sorted(vocabulary|SEAM_PORTS)))+r')\b')
- evaluator=[f for f in files if not f.startswith(EVALUATOR) and (set(named.findall(text[f]))-SEAM_PORTS or 'ryo_execution_runtime' in text[f])]
- ev_prod=[f for f in evaluator if f in prod]; ev_test=[f for f in evaluator if f not in prod]
- operation=re.compile(r'\bOperation::([A-Z]\w*)')
- exhaustive=[f for f in prod if len(set(operation.findall(text[f])))>=8]
- fact=[f for f in prod if PER_FILE_FACT.search(text[f])]
+ names_evaluator=lambda t: bool(set(named.findall(t))-SEAM_PORTS) or 'ryo_execution_runtime' in t
+ ev_prod=[f for f,t in prod_text.items() if not f.startswith(EVALUATOR) and names_evaluator(t)]
+ ev_test=[f for f,t in test_text.items() if not f.startswith(EVALUATOR) and names_evaluator(t)]
+ variants=set(re.findall(r'(?m)^\s{4}([A-Z]\w*)\b',''.join(re.findall(r'pub enum Operation\b[^{]*\{(.*?)\n\}',''.join(prod_text.values()),re.S))))
+ exhaustive=[f for f,t in prod_text.items() if len(operation_variants(t,variants))>=8]
+ fact=[f for f,t in prod_text.items() if PER_FILE_FACT.search(t)]
  internals=re.compile(r'\b(?:'+'|'.join(RUNTIME_INTERNALS)+r')\b')
- tests=[f for f in files if not census_production(f) and ('/tests/' in f or f.endswith(('_test.rs','/test.rs')))]
- leaking=[f for f in tests if not f.startswith((EVALUATOR,STORE)) and internals.search(text[f])]
+ leaking=[f for f,t in test_text.items() if not f.startswith((EVALUATOR,STORE)) and internals.search(t)]
  count=lambda fs:{'files':len(fs),'crates':len({census_crate(f) for f in fs})}
- return {'replace_the_evaluator':{'production':count(ev_prod),'test':count(ev_test),'total_files':len(evaluator),'vocabulary':len(vocabulary)},
+ return {'replace_the_evaluator':{'production':count(ev_prod),'test':count(ev_test),'total_files':len(set(ev_prod)|set(ev_test)),'vocabulary':len(vocabulary)},
   'operation_exhaustive_matches':count(exhaustive),'per_file_fact_touch_points':count(fact),'cross_crate_tests_naming_runtime_internals':count(leaking)}
 if __name__=='__main__' and sys.argv[1:]==['--census']: print(json.dumps(census(p.parents[3]),indent=1)); sys.exit(0)
 if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {})))
