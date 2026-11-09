@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function from function_fields as l join calls as r on l.parent = r.id;
 let logger_functions = select id from "qualified-name" where path = "logging.exception" or path = "logging.Logger.exception";
@@ -41,7 +43,7 @@ let inside_handler_calls = antijoin(left=handler_call_ids, right=reset_call_ids,
 let reportable_calls = select id, function, keyword from inside_handler_calls;
 let keyword_locations = select l.keyword as id, r.file as file, r.span as span from call_keywords as l join "semantic-syntax" as r on l.keyword = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from keyword_locations as l join reportable_calls as r on l.id = r.keyword;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:G202)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

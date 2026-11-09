@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import assigned_values from "python/ruff/assigned-values";
+import line_located from "python/ruff/candidate-locations";
 let p_binops = select id, file, span from "semantic-syntax" where kind = "bin-op";
 let p_left_fields = select parent, child from "semantic-child" where field = "left";
 let p_right_fields = select parent, child from "semantic-child" where field = "right";
@@ -72,7 +73,7 @@ let brace_reports = antijoin(left=brace_reports0, right=custom_fields, left-on=[
 let records = union(left=percent_reports, right=brace_reports);
 let unique_candidates = group-count(from=records, keys=["id", "file", "span"], count="specs");
 let candidates = select id, file, span from unique_candidates;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE1300)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

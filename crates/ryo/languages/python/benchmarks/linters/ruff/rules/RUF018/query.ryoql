@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let assertions = select id, file, span from "semantic-syntax" where kind = "assert";
 let named_expressions = select id, file, span from "semantic-syntax" where kind = "named-expr";
 let assert_walrus_axes = axis(from=assertions,relation="semantic-child",direction=descendant,domain=named_expressions);
@@ -17,7 +18,7 @@ let assert_uses = select id as reference, file from use_assert_axes;
 let outside_uses = antijoin(left=binding_uses,right=assert_uses,left-on=["reference","file"],right-on=["reference","file"]);
 let outside_bindings = select named_expr from outside_uses;
 let reportable = select l.named_expr as id, l.file as file, r.span as span from outside_uses as l join named_expressions as r on l.named_expr = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:RUF018)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

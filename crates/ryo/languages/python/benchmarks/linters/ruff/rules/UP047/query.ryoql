@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let classes = select id, file from nodes where kind = "class-def";
 let functions = select id, file from nodes where kind = "function-def" or kind = "async-function-def";
@@ -10,7 +11,8 @@ let parameter_lists = select parent as id, file from "semantic-child" where fiel
 let ordinary_declarations = antijoin(left=outer_declarations, right=parameter_lists, left-on=["id","file"], right-on=["id","file"]);
 let target_files = select file from "language-target" where major = 3 and minor >= 12;
 let eligible_declarations = select l.id as id, l.file as file from ordinary_declarations as l join target_files as r on l.file = r.file;
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let callees = select l.id as call, r.child as callee, l.file as file from calls as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "func";
 let factories = select id, file from "qualified-name" where path = "typing.TypeVar" or path = "typing_extensions.TypeVar" or path = "typing.ParamSpec" or path = "typing_extensions.ParamSpec" or path = "typing.TypeVarTuple" or path = "typing_extensions.TypeVarTuple";
 let factory_calls = select l.call as call, l.file as file from callees as l join factories as r on l.callee = r.id and l.file = r.file;

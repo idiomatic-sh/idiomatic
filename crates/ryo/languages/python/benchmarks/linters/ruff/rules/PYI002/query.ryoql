@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let stubs = select id, file, span from "semantic-syntax" where kind = "if" and glob_any(file, "**/*.pyi");
 let test_edges = select parent, child, file from "semantic-child" where field = "test";
 let raw_tests = select l.parent as owner, l.child as test, l.file as file from test_edges as l join stubs as r on l.parent = r.id and l.file = r.file;
@@ -27,7 +28,7 @@ let multi_operator_tests = select l.test as test, l.file as file from tests as l
 let non_simple_tests = union(left=bad_compare_tests, right=multi_operator_tests);
 let invalid_tests = union(left=non_simple_tests, right=non_compare_tests);
 let reportable = select l.test as id, r.file as file, r.span as span from invalid_tests as l join "semantic-syntax" as r on l.test = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PYI002)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

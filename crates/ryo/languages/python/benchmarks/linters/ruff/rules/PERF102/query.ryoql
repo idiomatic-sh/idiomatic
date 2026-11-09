@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
 let loops = select id, file from nodes where kind = "for" or kind = "async-for";
 let targets = select parent, child, file from "semantic-child" where field = "target";
@@ -41,7 +42,8 @@ let eligible_pairs = select loop, file from unused_counts where unused_count = 1
 let identifiers = select id, name, file from "identifier";
 let loop_iter_fields = select parent, child, file from "semantic-child" where field = "iter";
 let iterators = select l.loop as loop, l.file as file, r.child as iterator from eligible_pairs as l join loop_iter_fields as r on l.loop = r.parent and l.file = r.file;
-let calls = select id, file from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let iterator_calls = select l.loop as loop, l.file as file, r.id as call from iterators as l join calls as r on l.iterator = r.id and l.file = r.file;
 let functions = select parent, child, file from "semantic-child" where field = "func";
 let call_functions = select l.call as call, l.file as file, r.child as function from iterator_calls as l join functions as r on l.call = r.parent and l.file = r.file;

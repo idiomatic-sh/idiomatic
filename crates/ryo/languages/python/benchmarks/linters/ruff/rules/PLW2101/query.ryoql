@@ -1,9 +1,11 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
 let with_nodes = select id, file from nodes where kind = "with" or kind = "async-with";
 let items = select l.id as owner, r.child as item, l.file as file from with_nodes as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "items";
 let contexts = select r.child as id, l.file as file from items as l join "semantic-child" as r on l.item = r.parent and l.file = r.file where r.field = "context-expr";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let context_calls = select l.id as call, l.file as file from contexts as l join calls as r on l.id = r.id and l.file = r.file;
 let functions = select l.call as call, r.child as id, l.file as file from context_calls as l join "semantic-child" as r on l.call = r.parent and l.file = r.file where r.field = "func";
 let attributes = select id, file from nodes where kind = "attribute";

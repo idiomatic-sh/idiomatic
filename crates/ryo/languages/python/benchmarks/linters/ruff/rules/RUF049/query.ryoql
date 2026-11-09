@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let classes = select id, file from nodes where kind = "class-def";
 let class_definitions = select id, owner, name, file from "defines" where kind = "class";
@@ -143,7 +144,7 @@ let indirect_enum_classes = select l.context as context, l.origin as id, l.file 
 let direct_context_enum_classes = select l.context as context, r.id as id, l.file as file from contexts as l join direct_enum_classes as r on l.file = r.file;
 let enum_classes = union(left=direct_context_enum_classes,right=indirect_enum_classes);
 let candidates = select l.decorator as id, l.file as file, l.span as span from dataclass_decorators as l join enum_classes as r on l.declaration = r.context and l.declaration = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:RUF049)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

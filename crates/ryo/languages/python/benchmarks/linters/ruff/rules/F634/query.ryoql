@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let statements = select id from "semantic-syntax" where kind = "if" or kind = "elif-else-clause";
 let tests = select parent, child from "semantic-child" where field = "test";
 let tuples = select * from "semantic-syntax" where kind = "tuple";
@@ -6,7 +7,7 @@ let elements = select parent from "semantic-child" where field = "elts";
 let nonempty = select l.id as id, l.file as file, l.span as span from tuples as l join elements as r on l.id = r.parent;
 let branch_tests = select r.child as child from statements as l join tests as r on l.id = r.parent;
 let reportable = select r.id as id, r.file as file, r.span as span from branch_tests as l join nonempty as r on l.child = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F634)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import qualified_origins from "python/ruff/qualified-origins";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
 let functions = select id, file from nodes where kind = "function-def" or kind = "async-function-def";
 let lambdas = select id, file from nodes where kind = "lambda";
@@ -22,7 +23,8 @@ let generator_functions = select l.function as function, l.file as file from mem
 let function_raises = select l.function as function, l.member as raise, l.file as file from members as l join raises as r on l.member = r.id and l.file = r.file;
 let generator_raises = select l.function as function, l.raise as raise, l.file as file from function_raises as l join generator_functions as r on l.function = r.function and l.file = r.file;
 let raise_exceptions = select l.function as function, l.raise as raise, r.child as exception, l.file as file from generator_raises as l join "semantic-child" as r on l.raise = r.parent and l.file = r.file where r.field = "exc";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let bare_exceptions = antijoin(left=raise_exceptions, right=calls, left-on=["exception", "file"], right-on=["id", "file"]);
 let bare_values = select function, raise, exception as value, file from bare_exceptions;
 let called_values = select l.function as function, l.raise as raise, r.child as value, l.file as file from raise_exceptions as l join "semantic-child" as r on l.exception = r.parent and l.file = r.file where r.field = "func";

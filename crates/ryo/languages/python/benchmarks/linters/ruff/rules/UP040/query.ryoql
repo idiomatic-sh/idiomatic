@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let plain_assignments = select id, file from nodes where kind = "assign";
 let annotated_assignments = select id, file from nodes where kind = "ann-assign";
@@ -16,7 +17,8 @@ let annotation_fields = select parent, child, file from "semantic-child" where f
 let annotated_aliases0_join_1 = select l.assignment as l_assignment, l.file as l_file, e.parent as e_parent, e.file as e_file, e.child as e_child from annotated_targets as l join annotation_fields as e on l.assignment = e.parent and l.file = e.file;
 let annotated_aliases0 = select l.l_assignment as id, l.l_file as file from annotated_aliases0_join_1 as l join type_alias_annotations as r on l.e_child = r.id and l.e_file = r.file;
 let annotated_aliases = select l.id as id, l.file as file from annotated_aliases0 as l join values as r on l.id = r.parent and l.file = r.file;
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let functions = select parent, child, file from "semantic-child" where field = "func";
 let callee_origins_join_1 = select l.id as l_id, l.file as l_file, e.parent as e_parent, e.file as e_file, e.child as e_child from calls as l join functions as e on l.id = e.parent and l.file = e.file;
 let callee_origins = select l.l_id as call, r.path as path, l.l_file as file from callee_origins_join_1 as l join "qualified-name" as r on l.e_child = r.id and l.e_file = r.file;

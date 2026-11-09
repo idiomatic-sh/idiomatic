@@ -2,6 +2,7 @@ import observation_matches from "python/ruff/suppress-matches";
 import annotation_origins from "python/ruff/annotation-origins";
 import dataclass_decorators from "python/ruff/dataclass-decorators";
 import immutable_annotation from "python/ruff/immutable-annotation";
+import call_syntax from "python/ruff/calls";
 let dataclasses = dataclass_decorators();
 let nodes = select id, kind, file, span from "semantic-syntax";
 let annotated = select id, file from nodes where kind = "ann-assign";
@@ -26,7 +27,8 @@ let class_variables = select statement, file from origins where path = "typing.C
 let exemptions = union(left=immutable_assignments, right=class_variables);
 let eligible = antijoin(left=defaults, right=exemptions, left-on=["statement","file"], right-on=["statement","file"]);
 let mutable_literals = select id, file from nodes where kind = "list" or kind = "dict" or kind = "set" or kind = "list-comp" or kind = "dict-comp" or kind = "set-comp";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let functions = select parent, child, file from "semantic-child" where field = "func";
 let callees = select l.id as call, l.file as file, r.child as callee from calls as l join functions as r on l.id = r.parent and l.file = r.file;
 let direct_functions = select call, file, callee as function from callees;

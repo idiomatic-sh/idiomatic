@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let handlers = select * from "semantic-syntax" where kind = "except-handler";
 let types = select parent from "semantic-child" where field = "type";
 let bare = antijoin(left=handlers, right=types, left-on=["id"], right-on=["parent"]);
@@ -8,7 +9,7 @@ let invalid = select l.id as id from bare as l join later as r on l.id = r.child
 let children = select r.child as child from invalid as l join "semantic-child" as r on l.id = r.parent;
 let keywords = select * from "semantic-syntax" where kind = "name-token" and text = "except";
 let reportable = select r.id as id, r.file as file, r.span as span from children as l join keywords as r on l.child = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F707)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

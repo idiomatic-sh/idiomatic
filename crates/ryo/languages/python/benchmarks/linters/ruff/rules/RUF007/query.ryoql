@@ -1,6 +1,8 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let function_edges = select l.id as call, r.child as function, l.file as file from calls as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "func";
 let zip_origins = select id, file from "qualified-name" where (provenance = "builtin" or provenance = "import") and path = "builtins.zip";
 let zip_calls = select l.call as call, l.function as function, l.file as file from function_edges as l join zip_origins as r on l.function = r.id and l.file = r.file;

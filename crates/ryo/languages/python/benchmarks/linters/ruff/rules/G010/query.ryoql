@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function from function_fields as l join calls as r on l.parent = r.id;
 let warn_functions = select id, file from "qualified-name" where path = "logging.warn";

@@ -1,12 +1,14 @@
 import observation_matches from "python/ruff/suppress-matches";
 import assigned_values from "python/ruff/assigned-values";
 import qualified_origins from "python/ruff/qualified-origins";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file from "semantic-syntax";
 let loops = select id, file from nodes where kind = "for" or kind = "async-for";
 let iteration_edges = select l.id as loop, r.child as iter, l.file as file from loops as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "iter";
 let names = select id, file from nodes where kind = "name";
 let direct_iterations = select l.loop as loop, l.iter as iter, l.iter as dict_name, l.file as file from iteration_edges as l join names as r on l.iter = r.id and l.file = r.file;
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let call_iterations = select l.loop as loop, l.iter as iter, l.file as file from iteration_edges as l join calls as r on l.iter = r.id and l.file = r.file;
 let iter_call_functions = select l.loop as loop, l.iter as iter, r.child as attribute, l.file as file from call_iterations as l join "semantic-child" as r on l.iter = r.parent and l.file = r.file where r.field = "func";
 let attributes = select id, file from nodes where kind = "attribute";

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let bool_ops = select id, file, span from "semantic-syntax" where kind = "bool-op";
 let op_fields = select parent, child from "semantic-child" where field = "op";
 let or_tokens = select id from "semantic-syntax" where text = "or";
@@ -6,7 +7,8 @@ let or_ops = select l.parent as id from op_fields as l join or_tokens as r on l.
 let owners = select l.id as id, l.file as file, l.span as span from bool_ops as l join or_ops as r on l.id = r.id;
 let value_fields = select parent, child, ordinal from "semantic-child" where field = "values";
 let values = select l.id as owner, l.file as file, l.span as span, r.child as value, r.ordinal as ordinal from owners as l join value_fields as r on l.id = r.parent;
-let calls = select id, file from "semantic-syntax" where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let call_values = select l.owner as owner, l.file as file, l.span as span, l.value as call, l.ordinal as ordinal from values as l join calls as r on l.value = r.id and l.file = r.file;
 let argument_wrappers = select l.parent as call, l.child as wrapper, l.file as file from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id and l.file = r.file where r.kind = "call-arguments";
 let positional_fields = select parent, child from "semantic-child" where field = "args";

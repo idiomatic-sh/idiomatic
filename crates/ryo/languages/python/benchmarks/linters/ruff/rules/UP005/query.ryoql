@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let semantic_token_nodes = select id from "semantic-syntax" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
@@ -17,7 +18,7 @@ let self_deprecated = select l.id as id from on_self as l join old_attributes as
 let candidates = select l.id as id, l.file as file, l.span as span from attributes as l join self_deprecated as r on l.id = r.id;
 let called = select child from "semantic-child" where field = "func";
 let reportable = select l.id as id, l.file as file, l.span as span from candidates as l join called as r on l.id = r.child;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let suppression_candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let suppression_found = observation_matches(candidates=suppression_candidates, codes="^(?:U005|UP005)$");
 let candidate_rows = select id, file, span from candidate_locations;

@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import immutable_annotations from "python/ruff/immutable-annotations";
+import call_syntax from "python/ruff/calls";
 let default_roots = select parent as function, child as value, file from "semantic-child" where field = "defaults" or field = "kw-defaults";
 let default_wrappers = select id, file from "semantic-syntax" where kind = "parameter-with-default";
 let wrapper_defaults = select l.id as wrapper, l.file as file, r.child as value from default_wrappers as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "defaults" or r.field = "kw-defaults";
@@ -30,7 +31,7 @@ let second_factory_arguments0 = select call, value, file from factory_ranks wher
 let second_factory_arguments = antijoin(left=second_factory_arguments0, right=tp_values, left-on=["call", "file"], right-on=["call", "file"]);
 let original_type_arguments = union(left=tp_values, right=second_factory_arguments);
 let newtype_annotations = select l.call as wrapper, l.file as file, r.value as annotation from two_argument_factories as l join original_type_arguments as r on l.call = r.call and l.file = r.file;
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+let calls = call_syntax();
 let subscript_nodes = select id, file from "semantic-syntax" where kind = "subscript";
 let call_function_nodes = select l.id as call, r.child as function, l.file as file from calls as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "func";
 let mutable_function_names = select id, file from "qualified-name" where (provenance = "builtin" or provenance = "import") and (path = "builtins.dict" or path = "builtins.list" or path = "builtins.set" or path = "collections.Counter" or path = "collections.OrderedDict" or path = "collections.defaultdict" or path = "collections.deque");

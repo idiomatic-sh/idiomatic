@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let comparisons = select id, file from "semantic-syntax" where kind = "compare";
 let comparator_fields = select parent, child from "semantic-child" where field = "comparators";
 let comparator_counts = group-count(from=comparator_fields, keys=["parent"], count="count", distinct="child");
@@ -21,7 +22,7 @@ let relational_comparisons = select l.comparison as comparison, l.left as left, 
 let short_strings = select occurrence as id, file from "string-literal" where matches(value, "(?s)^[\x00-\x7f]$");
 let matches = select l.comparison as comparison, l.left as left, l.file as file from relational_comparisons as l join short_strings as r on l.comparator = r.id and l.file = r.file;
 let reportable = select l.left as id, l.file as file, r.span as span from matches as l join "semantic-syntax" as r on l.left = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:YTT302)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

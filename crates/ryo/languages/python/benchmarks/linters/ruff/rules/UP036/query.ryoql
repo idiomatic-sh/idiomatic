@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let nodes = select id, file, kind, span, text from "semantic-syntax";
 let children = select parent, child, field, ordinal, file from "semantic-child";
 let if_nodes = select id, file from nodes where kind = "if" or kind = "elif-else-clause";
@@ -93,7 +94,7 @@ let reports_6 = union(left=reports_5, right=zero_micro_reports);
 let reports_7 = union(left=reports_6, right=scalar_reports);
 let reports_8 = union(left=reports_7, right=scalar_invalid);
 let reportable = select l.id as id, l.file as file, r.span as span from reports_8 as l join nodes as r on l.id = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:UP036)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

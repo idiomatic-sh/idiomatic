@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let dictionaries = select id, file from "semantic-syntax" where kind = "dict";
 let dictionary_keys = select l.parent as dictionary, l.child as id, r.file as file from "semantic-child" as l join dictionaries as r on l.parent = r.id where l.field = "keys";
 let constant_keys = select id, key, file from "constant-key";
@@ -27,7 +28,7 @@ let dynamic_locations = select l.dictionary as dictionary, l.id as id, l.file as
 let dynamic_duplicates = ordered-match(left=dynamic_locations, right=dynamic_locations, left-on=[dictionary,file,shape], right-on=[dictionary,file,shape], left-order="begin", right-order="begin", output={id:[right,id]});
 let duplicate_keys = union(left=constant_duplicates, right=dynamic_duplicates);
 let reportable = select l.id as id, r.file as file, r.span as span from duplicate_keys as l join "semantic-syntax" as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F601)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

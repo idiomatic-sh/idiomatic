@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let shapes = select id, shape, file from "expression-shape";
 let body_fields = select parent, child from "semantic-child" where field = "body";
 let else_fields = select parent, child from "semantic-child" where field = "orelse";
@@ -8,7 +9,7 @@ let branches = select l.id as id, l.file as file, l.body as body, r.other as oth
 let conditionals = select id, file, span from "semantic-syntax" where kind = "if-exp";
 let matching = select id from branches where body = other;
 let reportable = select l.id as id, l.file as file, l.span as span from conditionals as l join matching as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let suppression_candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let suppression_found = observation_matches(candidates=suppression_candidates, codes="^(?:RUF034)$");
 let candidate_rows = select id, file, span from candidate_locations;

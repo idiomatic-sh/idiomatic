@@ -1,7 +1,9 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let edges = select parent, child, field, file from "semantic-child";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let funcs = select l.id as call, r.child as func, l.file as file from calls as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "func";
 let origins = select l.call as call, l.func as func, r.path as path, l.file as file from funcs as l join "qualified-name" as r on l.func = r.id and l.file = r.file;
 let direct = select call, func, file from origins where path = "builtins.open" or path = "bz2.open" or path = "codecs.open" or path = "dbm.open" or path = "gzip.open" or path = "tarfile.open" or path = "shelve.open" or path = "tokenize.open" or path = "wave.open" or path = "dbm.gnu.open" or path = "dbm.ndbm.open" or path = "dbm.dumb.open" or path = "dbm.sqlite3.open" or path = "io.open" or path = "lzma.open" or path = "fileinput.FileInput" or path = "fileinput.input" or path = "io.open_code" or path = "lzma.LZMAFile" or path = "tarfile.TarFile.taropen" or path = "tempfile.TemporaryFile" or path = "tempfile.NamedTemporaryFile" or path = "tempfile.SpooledTemporaryFile";

@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let events = select occurrence, name, scope, phase, kind, file from "binding-event";
 let annotations = select occurrence as id, name, scope, phase, file from events where kind = "annotation";
 let value_bindings = select name, scope, file from events where kind = "bind" or kind = "delete";
@@ -27,7 +28,7 @@ let dummy_annotations = select id, file from unused_annotations where matches(na
 let non_dummy = antijoin(left=unused_annotations, right=dummy_annotations, left-on=["id","file"], right-on=["id","file"]);
 let nodes = select id, file, span from "semantic-syntax";
 let reportable = select l.id as id, l.file as file, r.span as span from non_dummy as l join nodes as r on l.id = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F842)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

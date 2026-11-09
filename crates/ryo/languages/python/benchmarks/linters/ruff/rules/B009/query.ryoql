@@ -1,5 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
 let functions = select parent, child from "semantic-child" where field = "func";
 let qualified_names = select id, path, provenance, "since-major" as since_major, "since-minor" as since_minor from "qualified-name";
 let qualified = select id, path from qualified_names where path = "builtins.getattr" and (provenance != "builtin" or since_major < 3 or since_major = 3 and since_minor <= 10);
@@ -37,7 +39,7 @@ let mangled_names = antijoin(left=mangled_starts, right=nonmangled_ends, left-on
 let valid_names = antijoin(left=nonkeywords, right=mangled_names, left-on=["call", "argument"], right-on=["call", "argument"]);
 let matching_names = select l.call as id from valid_names as l join unstarred_calls as r on l.call = r.id;
 let reportable = select l.id as id, r.file as file, r.span as span from matching_names as l join calls as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:B009)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

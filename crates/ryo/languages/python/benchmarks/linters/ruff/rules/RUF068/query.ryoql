@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, text, file, span from "semantic-syntax";
 let assignments = select id, kind, file from nodes where kind = "assign" or kind = "ann-assign" or kind = "aug-assign";
 let plain_assignments = select id, file from assignments where kind = "assign";
@@ -20,7 +21,8 @@ let scope_nodes = select id, kind, file from nodes where kind = "module" or kind
 let assignment_scopes = axis(from=eligible_targets, relation="semantic-child", direction=nearest-ancestor, domain=scope_nodes);
 let module_assignments = select l.id as id, l.file as file from assignment_scopes as l join scope_nodes as r on l.related = r.id and l.file = r.file where r.kind = "module";
 let assignment_values = select l.id as owner, r.child as value, l.file as file from module_assignments as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "value";
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let func_edges = select parent, child, file from "semantic-child" where field = "func";
 let call_funcs = select l.id as call, r.child as func, l.file as file from calls as l join func_edges as r on l.id = r.parent and l.file = r.file;
 let attributes = select id, file from nodes where kind = "attribute";

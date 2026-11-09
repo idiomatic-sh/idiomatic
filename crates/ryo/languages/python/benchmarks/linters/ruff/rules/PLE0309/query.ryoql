@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let scope_edges = select child, parent from "scope";
 let class_nodes = select id, file from "semantic-syntax" where kind = "class-def";
@@ -49,7 +50,7 @@ let implicit_candidates_pre_stub = select r.name_id as id, r.file as file, r.nam
 let implicit_non_stub = antijoin(left=implicit_candidates_pre_stub, right=all_stub_functions, left-on=["function"], right-on=["function"]);
 let implicit_candidates = select id, file, span from implicit_non_stub;
 let candidates = union(left=explicit_candidates, right=implicit_candidates);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE0309)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

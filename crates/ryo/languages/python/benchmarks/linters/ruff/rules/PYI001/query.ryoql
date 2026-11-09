@@ -1,4 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let semantic_token_nodes = select id from "semantic-syntax" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
@@ -12,7 +14,7 @@ let id_fields = select parent, child from "semantic-child" where field = "id";
 let identifiers = select id, text from semantic_identifiers;
 let names = select l.parent as id, r.text as name from id_fields as l join identifiers as r on l.child = r.id;
 let values = select parent, child from "semantic-child" where field = "value";
-let calls = select id, file, span from "semantic-syntax" where kind = "call";
+let calls = call_syntax();
 let functions = select parent, child from "semantic-child" where field = "func";
 let private_names = select id from names where matches(name, "^_");
 let private_targets = select l.assignment as assignment from single_targets as l join private_names as r on l.target = r.id;
@@ -28,7 +30,7 @@ let type_calls = select l.parent as id from functions as l join factories as r o
 let assignment_values = select l.parent as assignment, l.child as id from values as l join type_calls as r on l.child = r.id;
 let invalid = select l.id as id from assignment_values as l join eligible_assignments as r on l.assignment = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from calls as l join invalid as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PYI001)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

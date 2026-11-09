@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-unmapped-matches";
+import line_located from "python/ruff/candidate-locations";
 let imports = select occurrence as alias, target, file from "static-import";
 let aliases = select parent as statement, child as alias from "semantic-child" where field = "names";
 let import_statements = select id, kind, file, span from "semantic-syntax" where kind = "import" or kind = "import-from";
@@ -25,7 +26,7 @@ let reportable_mock_attributes = select l.id as id, l.file as file from mock_moc
 let attribute_reports = select l.id as id, l.file as file, r.span as span from reportable_mock_attributes as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let import_reports = union(left=direct_imports,right=absolute_from_imports);
 let reportable = union(left=import_reports,right=attribute_reports);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:UP026)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

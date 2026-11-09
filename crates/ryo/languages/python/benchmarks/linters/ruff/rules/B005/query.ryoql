@@ -1,6 +1,8 @@
 import observation_matches from "python/ruff/suppress-matches";
 import repeated_characters from "python/ruff/repeated-characters";
-let calls = select id, file from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let func_edges = select l.id as call, r.child as attribute, l.file as file from calls as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "func";
 let attributes = select id, file from "semantic-syntax" where kind = "attribute";
 let attr_nodes = select l.call as call, l.attribute as attribute, l.file as file from func_edges as l join attributes as r on l.attribute = r.id and l.file = r.file;

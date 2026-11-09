@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let attributes = select id, file from nodes where kind = "attribute";
 let attr_edges = select parent, child, file from "semantic-child" where field = "attr";
@@ -9,7 +10,8 @@ let gets = select id, file from named_attributes where name = "get";
 let value_edges = select parent, child, file from "semantic-child" where field = "value";
 let get_receivers = select l.id as id, r.child as receiver, l.file as file from gets as l join value_edges as r on l.id = r.parent and l.file = r.file;
 let dictionary_gets = select l.id as id, l.file as file from get_receivers as l join dictionaries as r on l.receiver = r.id and l.file = r.file;
-let calls = select id, file from nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let func_edges = select parent, child, file from "semantic-child" where field = "func";
 let get_calls_join_1 = select l.id as l_id, l.file as l_file, e.parent as e_parent, e.file as e_file, e.child as e_child from calls as l join func_edges as e on l.id = e.parent and l.file = e.file;
 let get_calls = select l.l_id as id, l.l_file as file from get_calls_join_1 as l join dictionary_gets as r on l.e_child = r.id and l.e_file = r.file;

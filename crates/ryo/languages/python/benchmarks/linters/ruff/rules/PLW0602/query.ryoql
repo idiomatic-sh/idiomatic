@@ -1,6 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
 import nonlocal_bindings from "python/ruff/nonlocal-bindings";
 import namespace_events from "python/ruff/checker-namespace-events";
+import line_located from "python/ruff/candidate-locations";
 let events = namespace_events();
 let syntax = select id, kind, file from "semantic-syntax";
 let functions = select id, file from syntax where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
@@ -15,7 +16,7 @@ let replaced = select l.id as id, l.file as file from globals as l join endings 
 let candidates = antijoin(left=globals, right=replaced, left-on=["id", "file"], right-on=["id", "file"]);
 let nodes = select id, file, span from "semantic-syntax";
 let reportable = select l.id as id, l.file as file, r.span as span from candidates as l join nodes as r on l.id = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLW0602)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

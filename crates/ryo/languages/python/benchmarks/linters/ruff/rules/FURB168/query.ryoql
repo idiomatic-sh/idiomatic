@@ -1,6 +1,8 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let nodes = select id, kind, text, file, span from "semantic-syntax";
-let calls = select id, file, span from nodes where kind = "call";
+let calls = call_syntax();
 let value_edges = select parent, child, file from "semantic-child" where field = "value";
 let func_edges = select parent, child, file from "semantic-child" where field = "func";
 let callee_nodes = select l.id as call, l.file as file, r.child as callee from calls as l join func_edges as r on l.id = r.parent and l.file = r.file;
@@ -72,7 +74,7 @@ let binary_instance_calls = select l.call as call, l.file as file from instance_
 let instance_types = select l.call as call, l.file as file, r.value as types from binary_instance_calls as l join second_arguments as r on l.call = r.call and l.file = r.file;
 let none_instance_calls = select l.call as call, l.file as file from instance_types as l join valid_none_roots as r on l.types = r.id and l.file = r.file;
 let candidates = select l.call as id, l.file as file, r.span as span from none_instance_calls as l join calls as r on l.call = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:FURB168)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

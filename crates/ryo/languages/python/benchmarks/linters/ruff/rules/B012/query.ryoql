@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let jumps = select id, kind, file, span from "semantic-syntax" where kind = "break" or kind = "continue" or kind = "return";
 let final_roots = select child as id from "semantic-child" where field = "finalbody";
 let ordinary = select id from "semantic-syntax" where kind = "if" or kind = "try" or kind = "try-star" or kind = "with" or kind = "async-with" or kind = "match-case";
@@ -18,7 +19,7 @@ let return_descendants = select r.child as id from final_roots as l join return_
 let returns = select id, file, span from jumps where kind = "return";
 let nested_returns = select l.id as id, l.file as file, l.span as span from returns as l join return_descendants as r on l.id = r.id;
 let reportable = union(left=direct_jumps, right=nested_returns);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:B012)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

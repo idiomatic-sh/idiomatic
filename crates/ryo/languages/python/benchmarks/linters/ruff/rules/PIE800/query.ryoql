@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let dictionaries = select id, file, span from "semantic-syntax" where kind = "dict";
 let children = select parent, child, ordinal from "semantic-child";
 let members = select parent, child, ordinal from "semantic-child" where field = "keys" or field = "values";
@@ -10,7 +11,7 @@ let between = select l.id as id, l.beginning as beginning from pairs as l join m
 let adjacent = antijoin(left=pairs, right=between, left-on=["id", "beginning"], right-on=["id", "beginning"]);
 let dict_spreads = select l.id as id from adjacent as l join dictionaries as r on l.parent = r.id;
 let reportable = select r.id as id, r.file as file, r.span as span from dict_spreads as l join dictionaries as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PIE800)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

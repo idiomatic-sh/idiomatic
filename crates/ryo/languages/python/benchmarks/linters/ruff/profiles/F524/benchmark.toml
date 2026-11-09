@@ -36,3 +36,4 @@ defaults = ["F524"]
 "python/ruff/noqa-blankets" = "fragments/noqa-blankets.ryoql"
 "python/ruff/noqa-ranges" = "fragments/noqa-ranges.ryoql"
 "python/ruff/noqa-heads" = "fragments/noqa-heads.ryoql"
+"python/ruff/calls" = "fragments/calls.ryoql"

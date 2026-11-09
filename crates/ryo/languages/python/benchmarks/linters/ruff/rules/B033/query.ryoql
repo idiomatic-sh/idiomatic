@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let sets = select id, file from "semantic-syntax" where kind = "set";
 let elements = select l.parent as set_id, l.child as id, r.file as file from "semantic-child" as l join sets as r on l.parent = r.id where l.field = "elts";
 let literal_properties = select id, file, kind from "literal-properties";
@@ -8,7 +9,7 @@ let keyed_elements = select l.set_id as set_id, l.id as id, r.key as key, l.file
 let ordered = select l.set_id as set_id, l.id as id, l.key as key, l.file as file, r."start-byte" as begin from keyed_elements as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let repeated = ordered-match(left=ordered, right=ordered, left-on=[set_id,file,key], right-on=[set_id,file,key], left-order="begin", right-order="begin", output={id:[right,id]});
 let reportable = select l.id as id, r.file as file, r.span as span from repeated as l join "semantic-syntax" as r on l.id = r.id;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:B033|PLW0130)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

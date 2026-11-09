@@ -1,5 +1,8 @@
 import observation_matches from "python/ruff/suppress-matches";
-let calls = select id, file from "semantic-syntax" where kind = "call";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let argument_nodes = select id from "semantic-syntax" where kind = "call-arguments";
 let argument_owners0 = select l.parent as call, l.child as wrapper, l.file as file from "semantic-child" as l join argument_nodes as r on l.child = r.id;
 let argument_owners = select l.call as call, l.wrapper as wrapper, l.file as file from argument_owners0 as l join calls as r on l.call = r.id and l.file = r.file;
@@ -37,7 +40,7 @@ let valid_key_dictionaries = antijoin(left=not_spread_dictionaries, right=dictio
 let candidate_dicts = union(left=valid_key_dictionaries, right=exact_nested_spread);
 let candidate_keywords = select l.keyword as keyword, l.file as file from keyword_values as l join candidate_dicts as r on l.value = r.id and l.file = r.file;
 let candidates = select l.keyword as id, l.file as file, r.span as span from candidate_keywords as l join keyword_nodes as r on l.keyword = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PIE804)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

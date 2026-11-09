@@ -1,4 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
 let expression_statements = select id, file from "semantic-syntax" where kind = "expr" and not glob_any(file, "**/*.ipynb");
 let values = select parent, child, file from "semantic-child" where field = "value";
 let expression_values = select l.id as statement, r.child as value, l.file as file from expression_statements as l join values as r on l.id = r.parent and l.file = r.file;
@@ -11,7 +13,8 @@ let primitive_roots = select l.id as id, l.file as file, r.span as span from pri
 let safe_roots_a = union(left=direct_names, right=safe_expression_nodes);
 let safe_roots_b = union(left=safe_roots_a, right=primitive_roots);
 let all_nodes = select id, kind, file, span from "semantic-syntax";
-let calls = select id, file from all_nodes where kind = "call";
+let call_syntax_rows = call_syntax();
+let calls = select id, file from call_syntax_rows;
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
 let function_name_nodes = select id from "semantic-syntax" where kind = "name";
@@ -92,7 +95,7 @@ let pure_roots = antijoin(left=without_excluded, right=roots_with_effect, left-o
 let pure_attributes = select id, file, span from direct_attributes;
 let candidates_before_effect_filter = union(left=pure_roots, right=pure_attributes);
 let candidates = select l.id as id, l.file as file, l.span as span from candidates_before_effect_filter as l join value_nodes as r on l.id = r.id and l.file = r.file;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:B018)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

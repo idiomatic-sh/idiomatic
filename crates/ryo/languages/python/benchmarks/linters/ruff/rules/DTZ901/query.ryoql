@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
 let qualified = select id, file, span, path from "qualified-name" where path = "datetime.datetime.max" or path = "datetime.datetime.min";
 let attributes = select id, file from "semantic-syntax" where kind = "attribute";
 let attribute_values = select parent, child from "semantic-child" where field = "value";
@@ -31,7 +32,7 @@ let replace_value_uses = select l.expression as id from candidate_values as l jo
 let safe_uses = union(left=time_value_uses, right=replace_value_uses);
 let unconverted = antijoin(left=qualified, right=safe_uses, left-on=["id"], right-on=["id"]);
 let reportable = select id, file, span from unconverted;
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:DTZ901)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
