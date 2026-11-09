@@ -315,6 +315,16 @@ class Diff(unittest.TestCase):
   status=lambda name,test: run.log_status(self.raw/(name+'.log'),test,changed)
   self.assertEqual([status('red','clippy::as_conversions'),status('green','clippy::as_conversions')],['failed','passed'])
   self.assertEqual([status('green','clippy::expect_used'),status('cut','clippy::as_conversions')],['failed',None])
+ def test_a_reworded_twin_of_a_proven_commit_is_proven_and_a_different_patch_is_not(self):
+  proven=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): one answers, `service_test::one_answers`')
+  subprocess.run(['git','-C',self.repo,'reset','-q','--hard',self.base],check=True)
+  twin=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): the same change, reworded')
+  subprocess.run(['git','-C',self.repo,'merge','-q','--no-ff','-m','merge the proven one',proven],check=True)
+  other=commit(self.repo,{'a/src/lib.rs':'pub fn one() {  }\n'},'fix(a): another change')
+  self.logs(red=RED,green=GREEN)
+  found=self.fixes([{'test':'service_test::one_answers (red red.log, green green.log)','base_sha':self.base,'merge_sha':proven}])
+  self.assertNotIn(twin[:10],' '.join(found)); self.assertNotIn(proven[:10],' '.join(found))
+  self.assertEqual(len([x for x in found if other[:10] in x]),1)
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])

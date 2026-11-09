@@ -444,7 +444,7 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
  """Each commit of the checkpoint not reachable from the baseline that changes production code (a merge by its own changes), other than a perf commit (which needs an after.json with identical_output true), names a test in its message that a red_green entry over it (its base_sha excluded, its merge_sha included) proves: the entry names that test, its red log shows it fail and its green log shows it pass."""
  repo=repo or p; base=base or checkpoint_base(repo)
  if not base: return [NO_BASE]
- bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}
+ bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}; proven=set(); unproven={}
  before=['^'+baseline] if baseline and git(repo,'cat-file','-e',baseline+'^{commit}') is not None else []
  for sha in (git(repo,'rev-list',base+'..'+head,*before) or '').split():
   message=git(repo,'show','-s','--format=%B',sha) or ''
@@ -457,12 +457,20 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
    if not perf_identical(repo,base,head,sha): bad.append('perf '+short+': no evidence/perf/*/after.json added or changed in the checkpoint with identical_output true and a source built on it')
    continue
   tests=named_tests(message)
-  if not tests: bad.append('fix '+short+': its message names no test that fails before it and passes after'); continue
   entries=[x for x in v.get('red_green',[]) if sha in covered(repo,x,ranges)]
-  if not entries: bad.append('fix '+short+': no red_green entry has it between its base_sha and merge_sha'); continue
-  if not any(proves(x,t,raw,files) for x in entries for t in tests):
-   bad.append('fix '+short+': no red_green entry over it names a test its message names ('+', '.join(tests[:4])+') with a red log showing it fail and a green log showing it pass, in '+str(raw))
- return bad
+  if not tests: unproven[sha]='fix '+short+': its message names no test that fails before it and passes after'
+  elif not entries: unproven[sha]='fix '+short+': no red_green entry has it between its base_sha and merge_sha'
+  elif not any(proves(x,t,raw,files) for x in entries for t in tests):
+   unproven[sha]='fix '+short+': no red_green entry over it names a test its message names ('+', '.join(tests[:4])+') with a red log showing it fail and a green log showing it pass, in '+str(raw)
+  else: proven.add(sha)
+ # Identical change, identical proof: a commit whose stable patch-id is that of a proven commit (a reworded or re-applied twin) is proven.
+ twins={patch_id(repo,sha) for sha in proven}-{None}
+ return bad+[why for sha,why in unproven.items() if patch_id(repo,sha) not in twins]
+def patch_id(repo,sha):
+ """The commit's `git patch-id --stable`, or None for a commit with no diff against its first parent."""
+ diff=subprocess.run(['git','-C',str(repo),'show','--format=','--no-color',sha],capture_output=True)
+ found=subprocess.run(['git','-C',str(repo),'patch-id','--stable'],input=diff.stdout,capture_output=True).stdout.decode().split()
+ return found[0] if found else None
 # The items the Rust API guidelines give an example (C-EXAMPLE); a `Sealed` supertrait is the seal, not API.
 ITEM=re.compile(r'^(\s*)pub\s+(?:const\s+|async\s+|unsafe\s+)*(fn|struct|enum|trait|type|union)\s+([A-Za-z_]\w*)')
 HEADER=re.compile(r'^(\s*)(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?(impl|mod|trait)\b(.*)')
