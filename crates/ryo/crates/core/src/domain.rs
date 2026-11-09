@@ -7,7 +7,7 @@ pub(crate) mod answering;
 pub(crate) mod budget;
 pub(crate) mod choosing;
 #[cfg(any(test, feature = "fixtures"))]
-pub mod corpus_copies;
+pub(crate) mod corpus_copies;
 pub(crate) mod crossing;
 pub(crate) mod finish;
 pub(crate) mod handing;

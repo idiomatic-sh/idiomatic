@@ -76,4 +76,4 @@ pub struct HostIdentity(pub Vec<u8>);
 
 /// Text bytes written into an identity, length first.
 #[derive(Clone, Copy, Debug)]
-pub struct HostIdentityText<'a>(pub &'a [u8]);
+pub(crate) struct HostIdentityText<'a>(pub &'a [u8]);

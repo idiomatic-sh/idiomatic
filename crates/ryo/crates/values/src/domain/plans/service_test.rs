@@ -1,14 +1,13 @@
 //! The `plans` service's cases, on values alone.
 
-use super::service::{inputs_of, named, step_scope};
-use super::types::{Emit, Operation, Plan, PlanStep};
+use super::service::{inputs_of, named};
+use super::types::Operation;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::plan_parts::types::ColumnIndex;
 use crate::domain::plan_parts::types::HostedNumber;
 use crate::domain::plan_parts::types::Input as PlanInput;
 use crate::domain::plan_parts::types::RepeatedRows;
 use crate::domain::plan_parts::types::StepId;
-use crate::domain::plan_parts::types::StepScope;
 use ryo_relations::domain::relations::types::Relation;
 
 /// What a row of the cases asks of the service.
@@ -20,10 +19,6 @@ enum Scenario {
     ProjectReads,
     /// What the host's rows read.
     HostedReads,
-    /// Where a step of the plan runs.
-    StepRuns,
-    /// Where a step the plan lacks runs.
-    NoSuchStep,
 }
 
 /// What a row of the cases asks of the service.
@@ -52,39 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::HostedReads,
         expect: Expect::Value(0),
     },
-    Case {
-        name: CaseName("a_step_of_the_plan_has_its_scope"),
-        word: Word::Succeeds,
-        input: || Scenario::StepRuns,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("a_step_the_plan_lacks_has_none"),
-        word: Word::Succeeds,
-        input: || Scenario::NoSuchStep,
-        expect: Expect::Value(1),
-    },
 ];
-
-fn plan_of(operation: Operation) -> Plan {
-    Plan {
-        observation_inputs: Vec::new(),
-        observations: Vec::new(),
-        parameters: Vec::new(),
-        steps: vec![PlanStep {
-            operation,
-            scope: StepScope::CrossFile,
-        }],
-        emit: Emit {
-            step: StepId(0),
-            subject: ColumnIndex(0),
-            key: Vec::new(),
-            headings: Vec::new(),
-        },
-        frontier: Vec::new(),
-        comparison_origins: Vec::new(),
-    }
-}
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let relation = PlanInput::Relation(Relation::Function);
@@ -104,20 +67,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             relation: HostedNumber(0),
         }))
         .len()),
-        Scenario::StepRuns => {
-            let plan = plan_of(Operation::Hosted {
-                relation: HostedNumber(0),
-            });
-            Ok(usize::from(
-                step_scope(&plan, StepId(0)) == Some(StepScope::CrossFile),
-            ))
-        }
-        Scenario::NoSuchStep => {
-            let plan = plan_of(Operation::Hosted {
-                relation: HostedNumber(0),
-            });
-            Ok(usize::from(step_scope(&plan, StepId(5)).is_none()))
-        }
     }
 }
 

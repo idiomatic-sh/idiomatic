@@ -54,7 +54,7 @@ macro_rules! syntax_slots {
         /// Why the language does not read `relation` from a tree, or nothing when it does or when the
         /// relation is not one of the trees'.
         #[must_use]
-        pub fn absence_in<L>(language: &L, relation: Relation) -> Option<AbsenceCause> where L: ParseUseCase + ?Sized {
+        pub(crate) fn absence_in<L>(language: &L, relation: Relation) -> Option<AbsenceCause> where L: ParseUseCase + ?Sized {
             if optional_capability(relation)
                 .is_some_and(|capability| !language.capabilities().contains(&capability)) {
                 return Some(AbsenceCause::NotYetRead);

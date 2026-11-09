@@ -16,7 +16,7 @@ pub enum DecodeMode {
 
 /// The point of a decode at which its buffers are reported.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DecodePhase {
+pub(crate) enum DecodePhase {
     /// Before the cells are reserved.
     BeforeReserve,
     /// After the cells are reserved.
@@ -29,7 +29,7 @@ pub enum DecodePhase {
 
 /// Whether a decode read every word of its input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Completeness {
+pub(crate) enum Completeness {
     /// Every table was read to its end.
     Complete,
     /// A table was cut, malformed or refused.
@@ -38,7 +38,7 @@ pub enum Completeness {
 
 /// Whether the words are spelled as `pack()` writes them: minimal varints.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WordSpelling {
+pub(crate) enum WordSpelling {
     /// Each word is minimal and the last is whole.
     Canonical,
     /// A word is cut, overflows or is spelled another way.
@@ -87,7 +87,7 @@ pub struct CompactFrame {
 }
 
 /// One byte cursor supplies exact immutable frame offsets; no second packed copy.
-pub struct CompactCursor<'a> {
+pub(crate) struct CompactCursor<'a> {
     pub bytes: PackedSlice<'a>,
     pub offset: PackedOffset,
 }
@@ -125,11 +125,11 @@ pub struct ColumnCount(pub usize);
 
 /// Exact packed size of words, in bytes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct EncodedSize(pub usize);
+pub(crate) struct EncodedSize(pub usize);
 
 /// The tables read from packed words, and whether every table was read to its end.
 #[derive(Clone, Debug)]
-pub struct DecodedTables {
+pub(crate) struct DecodedTables {
     /// The rows of every table read.
     pub table: crate::domain::rows::types::Table,
     /// Whether the input was read to its end.

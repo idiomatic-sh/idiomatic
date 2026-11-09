@@ -6,19 +6,19 @@ use ryo_relations::domain::relations::types::Count;
 
 /// The set of no relation.
 #[must_use]
-pub const fn none() -> RelationSet {
+pub(crate) const fn none() -> RelationSet {
     RelationSet([0; WORDS])
 }
 
 /// Sets the bit of the relation numbered `place`.
-pub fn add(mask: &mut RelationSet, place: Count) {
+pub(crate) fn add(mask: &mut RelationSet, place: Count) {
     if let Some(word) = mask.0.get_mut(place.0 / 64) {
         *word |= 1 << (place.0 % 64);
     }
 }
 
 /// The numbers of the relations in the set, in ascending order.
-pub fn places(mask: &RelationSet) -> impl Iterator<Item = Count> + '_ {
+pub(crate) fn places(mask: &RelationSet) -> impl Iterator<Item = Count> + '_ {
     mask.0.iter().enumerate().flat_map(|(word, bits)| {
         let mut bits = *bits;
         std::iter::from_fn(move || {

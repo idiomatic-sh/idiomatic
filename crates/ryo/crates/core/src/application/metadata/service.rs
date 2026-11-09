@@ -17,7 +17,7 @@ use ryo_values::domain::stored_facts::types::ReadInPart;
 
 /// The kernel's decisions over request metadata, for a use case to call.
 #[must_use]
-pub fn kernel_metadata() -> impl MetadataUseCase {
+pub(crate) fn kernel_metadata() -> impl MetadataUseCase {
     MetadataUseCaseImpl
 }
 

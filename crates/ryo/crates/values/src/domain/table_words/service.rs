@@ -153,7 +153,7 @@ fn observed_decode(at: DecodePhase, packed: &PackedWords, table: &Table, places:
 }
 
 /// Frame-local names move by `base`; global cross-file symbol indices retain their owner.
-pub fn rebased(value: Value, base: PlaceNumber) -> Value {
+pub(crate) fn rebased(value: Value, base: PlaceNumber) -> Value {
     match value {
         Value::Name(name) if base.0 != 0 && name.place.0 & CROSS_PLACE == 0 => Value::Name(Name {
             hash: name.hash,
@@ -182,7 +182,7 @@ pub fn pack(words: WordSlice<'_>) -> PackedWords {
 
 /// Exact encoded payload size, checked before any allocation.
 #[must_use]
-pub fn encoded_size(words: WordSlice<'_>) -> Option<EncodedSize> {
+pub(crate) fn encoded_size(words: WordSlice<'_>) -> Option<EncodedSize> {
     words.0.iter().try_fold(EncodedSize(0), |total, word| {
         with_encoded_word(total, Bits(*word))
     })
@@ -190,7 +190,7 @@ pub fn encoded_size(words: WordSlice<'_>) -> Option<EncodedSize> {
 
 /// Add one varint's exact width without permitting the total to wrap.
 #[must_use]
-pub fn with_encoded_word(total: EncodedSize, Bits(mut word): Bits) -> Option<EncodedSize> {
+pub(crate) fn with_encoded_word(total: EncodedSize, Bits(mut word): Bits) -> Option<EncodedSize> {
     let mut width = 1_usize;
     while word >= 0x80 {
         width += 1;
@@ -222,7 +222,7 @@ pub fn unpacked(packed: &PackedWords) -> impl Iterator<Item = Bits> + '_ {
 
 /// Existing pack() emits minimal u64 varints. A required frame refuses a cut word,
 /// overflow or alternate spelling rather than letting unpacked() silently shorten it.
-pub fn canonical_words(packed: &PackedWords) -> WordSpelling {
+pub(crate) fn canonical_words(packed: &PackedWords) -> WordSpelling {
     canonical_bytes(PackedSlice(&packed.0))
 }
 

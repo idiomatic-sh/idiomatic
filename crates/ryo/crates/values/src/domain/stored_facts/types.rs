@@ -98,12 +98,3 @@ pub struct FileNotes {
 /// The text a file's names made that is in no file, as bytes.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ArenaBytes(pub Vec<u8>);
-
-/// Whether a digest is the blank one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DigestBlankness {
-    /// The blank digest, which a record keeps for what was never digested.
-    Blank,
-    /// A digest that came from bytes.
-    Filled,
-}

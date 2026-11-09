@@ -79,7 +79,7 @@ impl<T> std::ops::Deref for Numbers<T> {
 
 /// An open node while the table is built: where it is and how many children it has so far.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct OpenNode {
+pub(crate) struct OpenNode {
     /// The node.
     pub position: Position,
     /// The place the next child takes among its children.
@@ -359,7 +359,7 @@ pub struct Tree<'a> {
 
 /// Whether a builder writes what it is given into the table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TableWriting {
+pub(crate) enum TableWriting {
     /// It writes the elements, the names and the diagnostics.
     Writes,
     /// It writes nothing: reading a file through it does what the library does and no more.
@@ -368,7 +368,7 @@ pub enum TableWriting {
 
 /// The text a token stands for, decoded by the language's library.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct DecodedProperty {
+pub(crate) struct DecodedProperty {
     /// The element.
     pub element: Position,
     /// The scalar property, or zero for the decoded element value.

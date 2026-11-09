@@ -32,7 +32,11 @@ pub fn completion<'a>(
 }
 
 /// Interns the decoded value of each node, after every token of the file's bytes, and gives the node that text.
-pub fn intern_decoded(elements: &mut Elements, symbols: &mut Symbols, source: ByteSlice<'_>) {
+pub(crate) fn intern_decoded(
+    elements: &mut Elements,
+    symbols: &mut Symbols,
+    source: ByteSlice<'_>,
+) {
     intern_decoded_from(elements, symbols, source, Count(0));
 }
 

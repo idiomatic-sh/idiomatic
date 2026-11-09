@@ -1,8 +1,8 @@
 //! The `symbols` service's cases, on values alone.
 
 use super::service::{
-    bytes_of, find_hashed, find_or_add_hashed, hash_of, intern, intern_derived, name_made_across,
-    place_of, query_intern_derived, text_of,
+    bytes_of, find_hashed_in, find_or_add_hashed, hash_of, intern, intern_derived,
+    name_made_across, place_of, query_intern_derived, text_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::names::service::{derived_of, name_count, name_of};
@@ -202,9 +202,9 @@ fn two_texts_of_one_hash_in_one_file_are_two_symbols() -> usize {
     let symbols = Symbols::from(symbols);
     usize::from(
         unchanged
-            && find_hashed(&symbols, source, ByteSlice(b"left"), hash) == Some(left)
-            && find_hashed(&symbols, source, ByteSlice(b"right"), hash) == Some(right)
-            && find_hashed(&symbols, source, ByteSlice(b"other"), hash).is_none()
+            && find_hashed_in(symbols.as_ref(), source, ByteSlice(b"left"), hash) == Some(left)
+            && find_hashed_in(symbols.as_ref(), source, ByteSlice(b"right"), hash) == Some(right)
+            && find_hashed_in(symbols.as_ref(), source, ByteSlice(b"other"), hash).is_none()
             && name_count(&symbols) == Count(2),
     )
 }
@@ -216,20 +216,20 @@ fn lookup_of_source_and_derived_names_does_not_add_a_name() -> usize {
     let derived_name = intern_derived(&mut symbols, SOURCE, NameText("src/lib"));
     let before_names = name_count(&symbols);
     let before_derived_bytes = derived_of(&symbols).0.len();
-    let found_source = find_hashed(
-        &symbols,
+    let found_source = find_hashed_in(
+        symbols.as_ref(),
         SOURCE,
         ByteSlice(b"main"),
         hash_of(ByteSlice(b"main")),
     );
-    let found_derived = find_hashed(
-        &symbols,
+    let found_derived = find_hashed_in(
+        symbols.as_ref(),
         SOURCE,
         ByteSlice(b"src/lib"),
         hash_of(ByteSlice(b"src/lib")),
     );
-    let missing = find_hashed(
-        &symbols,
+    let missing = find_hashed_in(
+        symbols.as_ref(),
         SOURCE,
         ByteSlice(b"missing"),
         hash_of(ByteSlice(b"missing")),
@@ -249,8 +249,8 @@ fn lookup_of_term_text_returns_only_the_file_symbol() -> usize {
     let dynamic = intern_derived(&mut symbols, ByteSlice(b""), NameText("class"));
     let closed = term_symbol(DeclarationKind::Class);
     let before_names = name_count(&symbols);
-    let found = find_hashed(
-        &symbols,
+    let found = find_hashed_in(
+        symbols.as_ref(),
         ByteSlice(b""),
         ByteSlice(b"class"),
         hash_of(ByteSlice(b"class")),

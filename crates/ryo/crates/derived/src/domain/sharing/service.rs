@@ -5,12 +5,12 @@ use std::sync::Arc;
 
 /// The identity of the allocation the marks share.
 #[must_use]
-pub fn marks_key(marks: &SharedMarks) -> AllocationKey {
+pub(crate) fn marks_key(marks: &SharedMarks) -> AllocationKey {
     AllocationKey(Arc::as_ptr(&marks.0) as usize)
 }
 
 /// The capacity of the allocation the marks share.
 #[must_use]
-pub fn marks_capacity(marks: &SharedMarks) -> ElementCapacity {
+pub(crate) fn marks_capacity(marks: &SharedMarks) -> ElementCapacity {
     ElementCapacity(marks.0.capacity())
 }

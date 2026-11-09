@@ -4,4 +4,4 @@ use super::constants::WORDS;
 
 /// A set of relations, a bit for each, by the relation's number.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RelationSet(pub [u64; WORDS]);
+pub(crate) struct RelationSet(pub [u64; WORDS]);

@@ -1,11 +1,9 @@
 //! The `plans` service: free functions named by verb over a compiled plan, with no IO and no ports.
 
-use super::types::{Operation, Plan};
-use crate::domain::plan_parts::service::step_in;
+use super::types::Operation;
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::StepId;
-use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plan_parts::types::{InputCount, Inputs};
 use crate::domain::query_operators::types::OperationKind;
 
@@ -59,12 +57,6 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
 #[must_use]
 pub fn named(inputs: &Inputs) -> &[Input] {
     inputs.list.get(..inputs.used.0).unwrap_or(&inputs.list)
-}
-
-/// Where the step `id` runs, when the plan has it.
-#[must_use]
-pub fn step_scope(plan: &Plan, id: StepId) -> Option<StepScope> {
-    step_in(&plan.steps, id).map(|step| step.scope)
 }
 
 /// Gives `visit` each input the operation reads.

@@ -23,11 +23,11 @@ pub struct PartitionList(pub Vec<u32>);
 
 /// The parent of each vertex, the storage sentinel for a root: the bare vertex numbers inside are named here.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ParentList(pub Vec<u32>);
+pub(crate) struct ParentList(pub Vec<u32>);
 
 /// Borrowed parents: the bare vertex numbers inside are named here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ParentSlice<'a>(pub &'a [u32]);
+pub(crate) struct ParentSlice<'a>(pub &'a [u32]);
 
 /// Which end of an edge a list is ordered by.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

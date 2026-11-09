@@ -3,8 +3,8 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::names::service::{derived_of, name_count, name_of};
 use crate::domain::symbols::service::{
-    bytes_of, find_hashed, find_or_add_hashed, hash_of, intern, intern_derived, name_made_across,
-    place_of, query_intern_derived, text_of,
+    bytes_of, find_hashed_in, find_or_add_hashed, hash_of, intern, intern_derived,
+    name_made_across, place_of, query_intern_derived, text_of,
 };
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::{
@@ -32,8 +32,8 @@ fn interleaved_source_and_derived_names_keep_text_and_retention() -> usize {
     assert_eq!(text_of(&symbols, source, derived), Some(NameText("x.A")));
     assert_eq!(text_of(&symbols, source, original), Some(NameText("x.Z")));
     assert_eq!(
-        find_hashed(
-            &symbols,
+        find_hashed_in(
+            symbols.as_ref(),
             source,
             ByteSlice(b"x.A"),
             hash_of(ByteSlice(b"x.A"))
@@ -41,8 +41,8 @@ fn interleaved_source_and_derived_names_keep_text_and_retention() -> usize {
         Some(derived)
     );
     assert_eq!(
-        find_hashed(
-            &symbols,
+        find_hashed_in(
+            symbols.as_ref(),
             source,
             ByteSlice(b"x.Z"),
             hash_of(ByteSlice(b"x.Z"))
