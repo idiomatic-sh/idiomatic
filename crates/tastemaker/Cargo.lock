@@ -1445,7 +1445,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-tastemaker"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anstream 1.0.0",
  "clap",
@@ -1486,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "idiomatic-sh-tastemaker-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "blake3",
  "cargo_metadata",

@@ -12,7 +12,7 @@ templates = [
   { template = "idiomatic.arch/unchecked", file = "crates/core/LICENSE", description = "A link to the repository's LICENSE, the license text the crate ships: a path, never followed." },
   { template = "idiomatic.arch/unchecked", file = "distribution/registries/pypi/LICENSE", description = "A link to the repository's LICENSE, the license text the PyPI package ships: a path, never followed." },
   { template = "idiomatic.arch/clippy-config", file = "clippy.toml", description = "The product's clippy configuration: the in-tests allowances that go with the restriction lints at deny." },
-  { template = "idiomatic.arch/cargo-workspace", file = "Cargo.toml", params = { version = "0.1.1" }, description = "The product's Cargo workspace: its two crates as members, the shared dependencies and the lints every crate inherits." },
+  { template = "idiomatic.arch/cargo-workspace", file = "Cargo.toml", params = { version = "0.1.2" }, description = "The product's Cargo workspace: its two crates as members, the shared dependencies and the lints every crate inherits." },
   { template = "idiomatic.arch/cargo-lock", file = "Cargo.lock", description = "The product's Cargo.lock, committed so every build resolves the same dependencies." },
   { template = "idiomatic.arch/unchecked", file = "release-plz.toml", description = "The release pull request's configuration: release-plz opens it, every crate at the workspace's new version and the changelog, and nothing else." },
   { template = "idiomatic.arch/unchecked", file = "CHANGELOG.md", count = { min = 0 }, description = "The product's changelog, which each release pull request writes: absent until the first." },

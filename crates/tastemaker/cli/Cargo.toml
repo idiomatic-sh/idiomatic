@@ -31,7 +31,7 @@ thiserror.workspace = true
 tracing.workspace = true
 tracing-chrome.workspace = true
 tracing-subscriber.workspace = true
-tastemaker_core = { package = "idiomatic-sh-tastemaker-core", path = "../crates/core", version = "0.1.1" }
+tastemaker_core = { package = "idiomatic-sh-tastemaker-core", path = "../crates/core", version = "0.1.2" }
 ryo = { package = "idiomatic-sh-ryo-sdk", version = "0.1.1" }
 tempfile = { workspace = true, optional = true }
 ryo_javascript = { package = "idiomatic-sh-ryo-javascript", optional = true, version = "0.1.1" }
