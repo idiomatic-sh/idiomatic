@@ -1,23 +1,18 @@
-//! An observation stage: its reservations, installs and restored frontiers.
+//! An observation stage: its declared batches run behind one call, with its reservations, installs and restored frontiers.
 use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::observations::types::RuleSelection;
 use crate::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use crate::application::file_dag::program::observation_stage::interface::ObservationPublication;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
-use crate::application::file_dag::program::project_phase::interface::{
-    ProjectRootExecution, ProjectStage,
-};
 use crate::application::file_dag::program::observation_stage::types::{
-    AdmittedOutput,
-    Install, ObservationBatches,
+    AdmittedOutput, Install, ObservationBatches,
 };
+use crate::application::file_dag::program::project_phase::interface::ProjectStage;
 use crate::application::file_dag::program::project_phase::service::reserved;
 use crate::application::file_dag::program::project_phase::types::{
-    FrontierDemand, OccurrenceNumber, PhaseOccurrence, PhaseOccurrences, PhasePartials, PhaseRules,
-    PhaseStop,
+    FrontierDemand, OccurrenceNumber, PhaseOccurrence, PhaseOccurrences, PhasePartials, PhaseStop,
 };
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -29,102 +24,14 @@ use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
 use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::WorkerNumber;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::records::types::CrossPublicationTransfer;
 use ryo_values::domain::runs::types::Skipped;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::Bucket;
-impl ProjectRootExecution for ObservationStage<'_> {
-    fn evaluate_occurrences<H, T, E>(
-        &self,
-        phase: PhaseOccurrences<'_>,
-        symbols: &mut Symbols,
-        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
-        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
-        guard: impl FnMut(RuleIndex) -> Result<(), E>,
-        complete: impl FnMut(
-            OccurrenceNumber,
-            RuleOutcome<ProjectOutputOutcome>,
-            PublicationSlot,
-            &mut Symbols,
-        ) -> Result<T, E>,
-    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
-        self.phase
-            .evaluate_occurrences(phase, symbols, before, partials, guard, complete)
-    }
-    fn evaluate_rules<H, T, E>(
-        &self,
-        phase: PhaseRules<'_>,
-        symbols: &mut Symbols,
-        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
-        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
-        guard: impl FnMut(RuleIndex) -> Result<(), E>,
-        complete: impl FnMut(
-            OccurrenceNumber,
-            RuleOutcome<ProjectOutputOutcome>,
-            &[ArenaBytes],
-            Option<WorkerNumber>,
-            &mut Symbols,
-        ) -> Result<T, E>,
-    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
-        self.phase
-            .evaluate_rules(phase, symbols, before, partials, guard, complete)
-    }
-    fn readiness_counts(&self) -> ReadinessCounts {
-        self.phase.readiness_counts()
-    }
-}
 impl ObservationExecution for ObservationStage<'_> {
-    fn reserve(&mut self, rule: RuleIndex) -> Result<PublicationSlot, OperatingError> {
-        self.publications.reserve(rule)
-    }
-    fn bindings(&self, rule: RuleIndex) -> Result<Vec<BoundInput>, OperatingError> {
-        self.publications.bindings(rule)
-    }
-    fn binding_readiness(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<
-        std::collections::BTreeMap<
-            ryo_values::domain::plan_parts::types::ObservationBindingId,
-            InputReadiness,
-        >,
-        OperatingError,
-    > {
-        self.publications.binding_readiness(rule)
-    }
-    fn frontier_readiness(&self, rule: RuleIndex) -> Result<ReadinessProof, OperatingError> {
-        let readiness = self.publications.binding_readiness(rule)?;
-        let dependencies = self.phase.request.program.frontier_dependencies(rule)?;
-        Ok(ReadinessProof(
-            dependencies
-                .iter()
-                .map(|inputs| {
-                    if inputs
-                        .iter()
-                        .all(|input| readiness.get(input).copied() == Some(InputReadiness::Ready))
-                    {
-                        InputReadiness::Ready
-                    } else {
-                        InputReadiness::Unavailable
-                    }
-                })
-                .collect(),
-        ))
-    }
-    fn arenas(&self) -> &[ryo_values::domain::stored_facts::types::ArenaBytes] {
-        self.publications.arenas()
-    }
-    fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
-        self.publications.finish(rule)
-    }
-    fn finish_stage(self) -> Result<(), OperatingError> {
-        drop(self.publications);
-        self.phase.finish()
-    }
     fn run_batches<H, T, E: From<OperatingError>>(
         mut self,
         batches: ObservationBatches<'_>,
@@ -149,7 +56,7 @@ impl ObservationExecution for ObservationStage<'_> {
         }
         for (rule, selected) in selected.iter().enumerate() {
             if *selected == RuleSelection::Unselected {
-                self.publications.finish(RuleIndex(rule))?;
+                self.finish(RuleIndex(rule))?;
             }
         }
         self.restore(&batches, &selected)?;
@@ -194,7 +101,7 @@ impl ObservationExecution for ObservationStage<'_> {
                         .map(|(number, _, _)| *number)
                         .ok_or(OperatingError::NotRun)
                 };
-                let arenas = self.publications.arenas();
+                let arenas = self.arenas();
                 let ran = self.phase.evaluate_occurrences(
                     PhaseOccurrences {
                         occurrences: &occurrences,
@@ -240,9 +147,7 @@ impl ObservationExecution for ObservationStage<'_> {
                     let delivered = deliver(OccurrenceNumber(number), outcome).and_then(|install| {
                         match (install, slot) {
                             (None, _) => Ok(()),
-                            (Some(install), Some(slot)) => self
-                                .publications
-                                .install(*rule, slot, install.transfer, install.publications)
+                            (Some(install), Some(slot)) => self.install(*rule, slot, install.transfer, install.publications)
                                 .map_err(E::from),
                             // An occurrence whose binding was refused reserved no slot to install in.
                             (Some(_), None) => Err(E::from(OperatingError::NotRun)),
@@ -252,7 +157,7 @@ impl ObservationExecution for ObservationStage<'_> {
                         first_error.get_or_insert(error);
                     }
                 }
-                if let Err(error) = self.publications.finish(*rule) {
+                if let Err(error) = self.finish(*rule) {
                     first_error.get_or_insert(E::from(error));
                 }
             }
@@ -270,45 +175,44 @@ impl ObservationExecution for ObservationStage<'_> {
     }
 }
 impl ObservationStage<'_> {
-    /// What binds one declared occurrence: the readiness of its frontiers, the publication slot it reserves and its bound inputs,
-    /// in that order.
-    pub(crate) fn bind(&mut self, rule: RuleIndex) -> Result<Binding, OperatingError> {
-        let ready = self.frontier_readiness(rule)?;
-        let slot = self.publications.reserve(rule)?;
-        let bound = self.publications.bindings(rule)?;
-        Ok(Binding { ready, slot, bound })
+    pub(crate) fn reserve(&mut self, rule: RuleIndex) -> Result<PublicationSlot, OperatingError> {
+        self.publications.reserve(rule)
     }
-    /// The frontiers of the selected rules restored over what the batches read.
-    fn restore(
-        &mut self,
-        batches: &ObservationBatches<'_>,
-        selected: &[RuleSelection],
-    ) -> Result<(), OperatingError> {
-        crate::application::file_dag::observations::restore::service::restore_frontiers(
-            &mut self.publications,
-            &self.phase.request.program,
-            &self.phase.request.services,
-            &self.phase.publication,
-            batches.facts,
-            batches.corpus,
-            batches.covered,
-            batches.skipped,
-            batches.inapplicable,
-            batches.refused,
-            batches.readiness,
-            batches.first,
-            selected,
-        )
+    pub(crate) fn bindings(&self, rule: RuleIndex) -> Result<Vec<BoundInput>, OperatingError> {
+        self.publications.bindings(rule)
     }
-}
-/// What one declared occurrence was bound with before it reaches the phase.
-pub(crate) struct Binding {
-    ready: ReadinessProof,
-    slot: PublicationSlot,
-    bound: Vec<BoundInput>,
-}
-impl ObservationPublication for ObservationStage<'_> {
-    fn install(
+    /// The readiness of each retained frontier of `rule`, from the bindings each frontier depends on: a frontier is ready only when
+    /// every one of them is published in this stage.
+    pub(crate) fn frontier_readiness(&self, rule: RuleIndex) -> Result<ReadinessProof, OperatingError> {
+        let readiness = self.publications.binding_readiness(rule)?;
+        let dependencies = self.phase.request.program.frontier_dependencies(rule)?;
+        Ok(ReadinessProof(
+            dependencies
+                .iter()
+                .map(|inputs| {
+                    if inputs
+                        .iter()
+                        .all(|input| readiness.get(input).copied() == Some(InputReadiness::Ready))
+                    {
+                        InputReadiness::Ready
+                    } else {
+                        InputReadiness::Unavailable
+                    }
+                })
+                .collect(),
+        ))
+    }
+    pub(crate) fn arenas(&self) -> &[ArenaBytes] {
+        self.publications.arenas()
+    }
+    pub(crate) fn finish(&mut self, rule: RuleIndex) -> Result<(), OperatingError> {
+        self.publications.finish(rule)
+    }
+    pub(crate) fn finish_stage(self) -> Result<(), OperatingError> {
+        drop(self.publications);
+        self.phase.finish()
+    }
+    pub(crate) fn install(
         &mut self,
         rule: RuleIndex,
         slot: PublicationSlot,
@@ -318,7 +222,11 @@ impl ObservationPublication for ObservationStage<'_> {
         self.publications
             .install(rule, slot, transfer, publications)
     }
-    fn restore_frontiers(
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the restoration reads each of the phase's scoping inputs, as the frontiers' restoration does"
+    )]
+    pub(crate) fn restore_frontiers(
         &mut self,
         facts: &dyn FactsFinish,
         corpus: &[CorpusInput],
@@ -346,4 +254,36 @@ impl ObservationPublication for ObservationStage<'_> {
             selected,
         )
     }
+    /// What binds one declared occurrence: the readiness of its frontiers, the publication slot it reserves and its bound inputs,
+    /// in that order.
+    pub(crate) fn bind(&mut self, rule: RuleIndex) -> Result<Binding, OperatingError> {
+        let ready = self.frontier_readiness(rule)?;
+        let slot = self.reserve(rule)?;
+        let bound = self.bindings(rule)?;
+        Ok(Binding { ready, slot, bound })
+    }
+    /// The frontiers of the selected rules restored over what the batches read.
+    fn restore(
+        &mut self,
+        batches: &ObservationBatches<'_>,
+        selected: &[RuleSelection],
+    ) -> Result<(), OperatingError> {
+        self.restore_frontiers(
+            batches.facts,
+            batches.corpus,
+            batches.covered,
+            batches.skipped,
+            batches.inapplicable,
+            batches.refused,
+            batches.readiness,
+            batches.first,
+            selected,
+        )
+    }
+}
+/// What one declared occurrence was bound with before it reaches the phase.
+pub(crate) struct Binding {
+    ready: ReadinessProof,
+    slot: PublicationSlot,
+    bound: Vec<BoundInput>,
 }

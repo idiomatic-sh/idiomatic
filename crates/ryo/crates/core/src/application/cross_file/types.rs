@@ -2,10 +2,7 @@
 use super::completion::types::CrossedWithPublications;
 use super::errors::CrossFileError;
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::interface::BoundInput;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
-use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
-use ryo_execution::inbound::use_cases::execution::interface::ReadinessProof;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
@@ -53,17 +50,6 @@ pub(crate) struct ObservationRun<'a> {
     pub project_symbols: &'a Symbols,
     /// The occurrences of the declared rules to run.
     pub todo: &'a [Todo],
-}
-
-/// What one declared occurrence of an observation batch is bound with before it reaches the phase: the readiness of its frontiers,
-/// the publication slot it reserved and its bound inputs.
-pub(crate) struct BatchOccurrenceBinding {
-    /// The readiness of each retained frontier of the occurrence's rule, as the stage proved it.
-    pub ready: ReadinessProof,
-    /// The publication slot the occurrence reserved.
-    pub slot: PublicationSlot,
-    /// The inputs bound to the occurrence.
-    pub bound: Vec<BoundInput>,
 }
 
 /// Each delivered occurrence retains the immutable declaration it accounts for.

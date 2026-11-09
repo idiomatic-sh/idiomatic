@@ -25,7 +25,9 @@ use ryo_execution_domain::domain::coverage::types::InapplicableFiles;
 use ryo_execution_domain::domain::coverage::types::RefusedFiles;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(any(test, feature = "fixtures"))]
 use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
+#[cfg(any(test, feature = "fixtures"))]
 use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::symbols::types::Symbols;
@@ -34,7 +36,80 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
 impl ProjectRootExecution for ProjectPhase<'_> {
-    fn evaluate_occurrences<H, T, E>(
+    fn evaluate_rules<H, T, E>(
+        &self,
+        phase: PhaseRules<'_>,
+        symbols: &mut Symbols,
+        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        guard: impl FnMut(RuleIndex) -> Result<(), E>,
+        mut complete: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            &[ArenaBytes],
+            Option<WorkerNumber>,
+            &mut Symbols,
+        ) -> Result<T, E>,
+    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
+        let occurrences = phase
+            .rules
+            .iter()
+            .map(|rule| PhaseOccurrence {
+                rule: *rule,
+                bound: &[],
+                slot: PublicationSlot::Unused,
+                demand: FrontierDemand::Diagnostic,
+            })
+            .collect::<Vec<_>>();
+        let arenas = phase.arenas;
+        self.evaluate_occurrences(
+            PhaseOccurrences {
+                occurrences: &occurrences,
+                first: phase.first,
+                corpus: phase.corpus,
+                covered: phase.covered,
+                skipped: phase.skipped,
+                inapplicable: phase.inapplicable,
+                refused: phase.refused,
+                facts: phase.facts,
+                project: phase.project,
+                project_symbols: phase.project_symbols,
+                arenas,
+            },
+            symbols,
+            before,
+            partials,
+            guard,
+            |occurrence, outcome, slot, symbols: &mut Symbols| {
+                complete(occurrence, outcome, arenas, reserved(slot), symbols)
+            },
+        )
+    }
+}
+/// The worker a publication slot reserved, when it reserved one.
+pub(crate) fn reserved(slot: PublicationSlot) -> Option<WorkerNumber> {
+    match slot {
+        PublicationSlot::Unused => None,
+        PublicationSlot::Reserved(worker) => Some(worker),
+    }
+}
+impl ProjectStage for ProjectPhase<'_> {
+    fn finish(self) -> Result<(), OperatingError> {
+        match std::rc::Rc::try_unwrap(self.publication) {
+            Ok(publication) => publication.finish(),
+            Err(shared) => {
+                drop(shared);
+                Err(OperatingError::NotRead)
+            }
+        }
+    }
+}
+impl ProjectPhase<'_> {
+    /// One batch of declared occurrences in one call, the ordinary phase's and each observation batch's: each occurrence scoped
+    /// and its frontiers prepared for its demand once `before` admits it, the prepared ones evaluated with their bound inputs and
+    /// the `partials` they see under `guard`, and each outcome handed to `complete` with its publication slot, in declaration
+    /// order. A failure of one occurrence stays with it; occurrences after the guard's refusal are absent.
+    pub(crate) fn evaluate_occurrences<H, T, E>(
         &self,
         phase: PhaseOccurrences<'_>,
         symbols: &mut Symbols,
@@ -139,81 +214,16 @@ impl ProjectRootExecution for ProjectPhase<'_> {
             None => ProjectBatch::Complete(occurrences),
         }
     }
-    fn evaluate_rules<H, T, E>(
-        &self,
-        phase: PhaseRules<'_>,
-        symbols: &mut Symbols,
-        before: impl FnMut(OccurrenceNumber) -> Result<H, E>,
-        partials: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
-        guard: impl FnMut(RuleIndex) -> Result<(), E>,
-        mut complete: impl FnMut(
-            OccurrenceNumber,
-            RuleOutcome<ProjectOutputOutcome>,
-            &[ArenaBytes],
-            Option<WorkerNumber>,
-            &mut Symbols,
-        ) -> Result<T, E>,
-    ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
-        let occurrences = phase
-            .rules
-            .iter()
-            .map(|rule| PhaseOccurrence {
-                rule: *rule,
-                bound: &[],
-                slot: PublicationSlot::Unused,
-                demand: FrontierDemand::Diagnostic,
-            })
-            .collect::<Vec<_>>();
-        let arenas = phase.arenas;
-        self.evaluate_occurrences(
-            PhaseOccurrences {
-                occurrences: &occurrences,
-                first: phase.first,
-                corpus: phase.corpus,
-                covered: phase.covered,
-                skipped: phase.skipped,
-                inapplicable: phase.inapplicable,
-                refused: phase.refused,
-                facts: phase.facts,
-                project: phase.project,
-                project_symbols: phase.project_symbols,
-                arenas,
-            },
-            symbols,
-            before,
-            partials,
-            guard,
-            |occurrence, outcome, slot, symbols: &mut Symbols| {
-                complete(occurrence, outcome, arenas, reserved(slot), symbols)
-            },
-        )
-    }
-    fn readiness_counts(&self) -> ReadinessCounts {
+    /// The interpreter's readiness counters, for its own tests.
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn fixture_readiness_counts(&self) -> ReadinessCounts {
         self.publication.readiness_counts()
     }
-}
-/// The worker a publication slot reserved, when it reserved one.
-pub(crate) fn reserved(slot: PublicationSlot) -> Option<WorkerNumber> {
-    match slot {
-        PublicationSlot::Unused => None,
-        PublicationSlot::Reserved(worker) => Some(worker),
-    }
-}
-impl ProjectStage for ProjectPhase<'_> {
-    fn state_counts(&self) -> InvocationStateCounts {
+    /// The interpreter's state counters, for its own tests.
+    #[cfg(any(test, feature = "fixtures"))]
+    pub fn fixture_state_counts(&self) -> InvocationStateCounts {
         self.publication.state_counts()
     }
-    fn finish(self) -> Result<(), OperatingError> {
-        match std::rc::Rc::try_unwrap(self.publication) {
-            Ok(publication) => publication.finish(),
-            Err(shared) => {
-                drop(shared);
-                Err(OperatingError::NotRead)
-            }
-        }
-    }
-}
-impl ProjectPhase<'_> {
     /// The files `rule` reads in this phase, sharing the phase's publication. Crate-private: `evaluate_occurrences` scopes each
     /// occurrence itself, so no caller outside the engine holds a scope.
     pub(crate) fn project_scope(

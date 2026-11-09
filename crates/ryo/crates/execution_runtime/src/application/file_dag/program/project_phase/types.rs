@@ -47,7 +47,7 @@ pub(crate) struct ProjectTask<'a> {
     pub(crate) input: ProjectInput<'a>,
 }
 #[derive(Clone, Copy)]
-pub enum FrontierDemand<'a> {
+pub(crate) enum FrontierDemand<'a> {
     Diagnostic,
     Observations { ready: &'a ReadinessProof },
 }
@@ -67,7 +67,7 @@ pub struct OccurrenceNumber(pub usize);
 /// One declared occurrence of a project phase: its rule, the inputs bound to it, the publication slot it reserved and what its
 /// frontiers are prepared for. An ordinary occurrence binds nothing, reserves no slot and prepares its frontiers for the diagnostic.
 #[derive(Clone, Copy)]
-pub struct PhaseOccurrence<'a> {
+pub(crate) struct PhaseOccurrence<'a> {
     /// The occurrence's rule; a rule may occur more than once.
     pub rule: RuleIndex,
     /// The inputs bound to the occurrence.
@@ -85,7 +85,7 @@ impl std::fmt::Debug for PhaseOccurrence<'_> {
 }
 /// What one project phase reads: its declared occurrences, the corpus they are scoped over and the facts their frontiers are read
 /// from.
-pub struct PhaseOccurrences<'a> {
+pub(crate) struct PhaseOccurrences<'a> {
     /// Each declared occurrence, in declaration order.
     pub occurrences: &'a [PhaseOccurrence<'a>],
     /// The first bucket of each rule's frontier, by rule.

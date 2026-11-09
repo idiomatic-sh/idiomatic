@@ -2,7 +2,6 @@
 use crate::domain::answering::types::Crossed;
 use crate::domain::crossing::types::PhaseRoots;
 use ryo_execution::inbound::use_cases::execution::interface::ObservedPublication;
-use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_values::domain::records::types::ObservationIndex;
 
@@ -26,8 +25,6 @@ pub(crate) struct ProgramEvaluated {
 
 /// Diagnostic result plus the actual admitted identities of its complete and partial named roots.
 pub(crate) struct CrossedWithPublications {
-    /// The publication slot the phase reserved.
-    pub slot: PublicationSlot,
     /// What the phase answered.
     pub crossed: Crossed,
     /// The publication of each named root that was published.

@@ -63,7 +63,7 @@ pub(crate) enum FrontierCompatibility {
 }
 /// Whether a rule is among those the current run selected.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RuleSelection {
+pub(crate) enum RuleSelection {
     Selected,
     Unselected,
 }

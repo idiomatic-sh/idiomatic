@@ -1,7 +1,7 @@
 // ignore: idiomatic.arch/file-length - the frontier part's own types: the cache, decodes, readiness proof and providers are the values its one preparation operation builds and hands on, and the application-service spec places one types.rs per part
 //! Whether this phase owns a coordinator-reserved publication arena.
 #[derive(Clone, Copy, Debug)]
-pub enum PublicationSlot {
+pub(crate) enum PublicationSlot {
     /// No named roots are demanded from this phase.
     Unused,
     /// An ordinary, unique index reserved by the existing request owner.
@@ -20,7 +20,7 @@ pub(crate) enum BoundMember {
 /// Application-only named binding. The producer schema remains pure metadata;
 /// the member list retains the matching owner evidence in the same payload.
 #[derive(Clone)]
-pub struct BoundInput {
+pub(crate) struct BoundInput {
     pub(crate) input: ryo_values::domain::plan_parts::types::ObservationBindingId,
     pub(crate) members:
         Result<Vec<BoundMember>, ryo_execution_domain::domain::operating::errors::OperatingError>,
@@ -377,7 +377,7 @@ pub(crate) fn validate_consumer_sources(
 
 /// Whether the producer feeding one retained frontier is available to this phase.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum InputReadiness {
+pub(crate) enum InputReadiness {
     /// The producer published; the frontier is read.
     Ready,
     /// The producer is unavailable; the frontier is refused.
@@ -387,16 +387,7 @@ pub enum InputReadiness {
 /// The readiness of each retained frontier of one rule, in frontier order, as the observation stage's publications prove it: only
 /// the stage mints one, so no caller chooses which producers count as published.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ReadinessProof(pub(crate) Vec<InputReadiness>);
-
-#[cfg(any(test, feature = "fixtures"))]
-impl ReadinessProof {
-    /// Readiness stated outright, for the engine's own proofs of a refused or a ready producer.
-    #[must_use]
-    pub fn stated(ready: Vec<InputReadiness>) -> Self {
-        Self(ready)
-    }
-}
+pub(crate) struct ReadinessProof(pub(crate) Vec<InputReadiness>);
 
 /// The address of one provider, the identity of what a population was read from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
