@@ -1,0 +1,26 @@
+{
+  "checkpoint": "332",
+  "source": "63d8872b18af53f53d829cc96306f9c2f8e90623",
+  "verdict": "FAIL",
+  "reviewer": "integrator",
+  "date": "2026-11-09",
+  "command": "asymptote check --groups lint,check,clippy in crates/ryo, tm on PATH at each root's pin (crates/ryo 0.1.1 rebuilt from d5ff1b0d2e, sha256 159f9c1a; other roots 0.1.0) and python 3 on PATH as python; the lint group rerun at the source after the fmt-only commit 5b076f48ab and the machete triage 63d8872b18; the check and clippy groups ran at 850fe0f7ac, the validated code of 95319943b3 before formatting",
+  "checks": [
+    {
+      "id": "lint",
+      "verdict": "FAIL",
+      "evidence": "cargo-fmt pass (cargo fmt --all, one fmt-only commit); cargo-machete pass (19 unused dependencies removed, benchmark_contracts serde_json ignored as its doctest dependency); cargo-deny pass; tastemaker 1,502 new and 174 resolved against the lock: 1,462 #imports findings tm 0.1.1 reads where 0.1.0 read none (open item: tm 0.1.1 reads qualified uses as imports); 21 file-length findings on files cargo fmt pushed past 400 lines (open item: 332 quick-check groups); span-semantics' 7 in query_language (open item: span-semantics left 7 TM findings in query_language); the unplaced execution_runtime file_session/service_test.rs; 2 python module cycles; validation.json and parity per-rule.json length; the parity summary's bead key and a machine path in the review README as merged; and findings in untracked reviewer drafts under evidence/branches/, which are not committed. The 174 resolved entries are not recorded: asymptote down refuses while a tool fails."
+    },
+    {
+      "id": "check",
+      "verdict": "FAIL",
+      "evidence": "test-doc and cargo-doc pass. test-core: listing fails because core allocation panics (a file allocates 1,699 to 1,701 blocks beyond the parser library), as core_allocation. test-cli: listing fails because the blocks target panics at fixtures/replay/base.rs:251 (crate-dependency-cycles pending.txt names package-dependency, which the Rust language now provides). test-bdd: compare_corpus \"An accepted difference passes\" fails (operational failure over the fakes, bench-parity). test-language: javascript and typescript manifest_diagnostic item_test answers line 0 where 1 is expected for a manifest that is not JSON; python listing fails because tests allocation panics (40 blocks beyond the library's 1,500). correctness-python-ruff: verify_profiles.py refuses: prepared input paths do not match the candidate acceptance cohorts. Each is an open item: 332 quick-check groups, or the replay and benchmark items named in validation.json."
+    },
+    {
+      "id": "clippy",
+      "verdict": "FAIL",
+      "evidence": "cargo clippy --workspace --all-targets --all-features stops on 3 clippy::expect_used denials in crates/language parse fixtures (row_checks.rs:189 and samples.rs), present before 332 (bbc7869f6c, f2dc7afa81) and reported now that the pipe runs with python on PATH (at 331 it exited 127 on a missing python); open item: 332 quick-check groups."
+    }
+  ],
+  "findings": []
+}
