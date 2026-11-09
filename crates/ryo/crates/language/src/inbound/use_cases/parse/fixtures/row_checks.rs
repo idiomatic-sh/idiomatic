@@ -152,13 +152,13 @@ pub(super) fn rows(subject: &dyn ParseEngine, samples: &[SourceFile]) {
 }
 
 /// Reads every sample, each as the file numbered as it says, in the order given, on `workers` threads that each own a table and a
-/// writer; the rows of every file, sorted.
+/// writer; the rows of every file, sorted, or the first refusal of a sample. A worker that panics panics the caller with its payload.
 pub(super) fn rows_on(
     subject: &dyn ParseEngine,
     samples: &[(usize, SourceFile)],
     workers: usize,
-) -> Vec<(Relation, Vec<u64>)> {
-    let mut rows: Vec<(Relation, Vec<u64>)> = std::thread::scope(|scope| {
+) -> Result<Vec<(Relation, Vec<u64>)>, ParseError> {
+    let read: Result<Vec<Vec<(Relation, Vec<u64>)>>, ParseError> = std::thread::scope(|scope| {
         let threads: Vec<_> = (0..workers)
             .map(|worker| {
                 scope.spawn(move || {
@@ -177,20 +177,24 @@ pub(super) fn rows_on(
                             notes: NoteRequest::Unwanted,
                             fields: FieldRequest::Unwanted,
                         };
-                        read_file(subject, request, &mut table, &mut symbols, all(), &mut out)
-                            .expect("a sample is a file the language reads");
+                        read_file(subject, request, &mut table, &mut symbols, all(), &mut out)?;
                     }
-                    out.rows()
+                    Ok(out.rows())
                 })
             })
             .collect();
         threads
             .into_iter()
-            .flat_map(|thread| thread.join().expect("a worker finishes"))
+            .map(|thread| {
+                thread
+                    .join()
+                    .unwrap_or_else(|payload| std::panic::resume_unwind(payload))
+            })
             .collect()
     });
+    let mut rows: Vec<(Relation, Vec<u64>)> = read?.into_iter().flatten().collect();
     rows.sort();
-    rows
+    Ok(rows)
 }
 
 /// Reads `bytes` as the file `sample` names, asking for `wanted`, and answers what was written.

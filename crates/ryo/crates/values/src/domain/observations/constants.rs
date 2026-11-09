@@ -13,5 +13,3 @@ pub(crate) const DEMANDED_ROOTS_TAG: &[u8] = b"ryo-demanded-observation-roots-v1
 pub(crate) const REQUEST_LAYOUT_TAG: &[u8] = b"ryo-named-request-layout-v2";
 /// The reason a producer root left no readiness in a file generation.
 pub(crate) const UNPUBLISHED_REASON: &str = "producer root did not publish in this file generation";
-/// What a declaration count that does not fit in 64 bits says.
-pub(crate) const COUNT_FITS_MESSAGE: &str = "a declaration count fits in u64";

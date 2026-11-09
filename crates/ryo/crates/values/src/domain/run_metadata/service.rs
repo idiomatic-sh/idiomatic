@@ -36,7 +36,7 @@ fn from_plan(plan: &Plan) -> RuleRunMetadata {
         },
         frontier_capture: plan.frontier.iter().map(|input| {
             if matches!(input, Input::BoundObservation(id) if plan.observation_inputs
-                .get(id.0 as usize)
+                .get(usize::try_from(id.0).unwrap_or(usize::MAX))
                 .is_some_and(|schema| schema.scope == StepScope::CrossFile))
             {
                 FrontierFeed::CrossFile

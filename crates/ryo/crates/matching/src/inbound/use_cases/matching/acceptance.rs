@@ -17,30 +17,32 @@ fn given_input(world: &mut Behavior, input: String) {
 fn runs(world: &mut Behavior) {
     let matching = MatchingUseCaseImpl::new();
     world.answer = match world.input.as_str() {
-        "regex-positive" | "regex-negative" => {
-            let regex = matching
-                .compile_regex(RegexSource("^ok$"))
-                .expect("valid regex");
-            let text = if world.input == "regex-positive" {
-                "ok"
-            } else {
-                "prefix ok"
-            };
-            if matching.matches_regex(&regex, SearchText(text)) == MatchOutcome::Matches {
-                "match"
-            } else {
-                "no match"
+        "regex-positive" | "regex-negative" => match matching.compile_regex(RegexSource("^ok$")) {
+            Ok(regex) => {
+                let text = if world.input == "regex-positive" {
+                    "ok"
+                } else {
+                    "prefix ok"
+                };
+                if matching.matches_regex(&regex, SearchText(text)) == MatchOutcome::Matches {
+                    "match"
+                } else {
+                    "no match"
+                }
+                .to_owned()
             }
-            .to_owned()
-        }
+            Err(refusal) => refusal.to_string(),
+        },
         "glob-separator" => {
-            let globs = matching
-                .compile_globs(&[GlobPattern("*.rs"), GlobPattern("**/*.rs")])
-                .expect("valid globs");
-            let mut hits = GlobHits(vec![999]);
-            matching.match_globs(&globs, std::path::Path::new("src/lib.rs"), &mut hits);
-            assert_eq!(hits.0, [1]);
-            hits.0.len().to_string()
+            match matching.compile_globs(&[GlobPattern("*.rs"), GlobPattern("**/*.rs")]) {
+                Ok(globs) => {
+                    let mut hits = GlobHits(vec![999]);
+                    matching.match_globs(&globs, std::path::Path::new("src/lib.rs"), &mut hits);
+                    assert_eq!(hits.0, [1], "only the separator-crossing glob matches");
+                    hits.0.len().to_string()
+                }
+                Err(refusal) => refusal.to_string(),
+            }
         }
         "text-star-crosses-separator"
         | "text-question-negative"

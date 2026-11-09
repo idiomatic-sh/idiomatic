@@ -110,7 +110,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Broken => ProjectError::Manifest {
             reason: ToolMessage("the tool could not run".into()),
         },
-        _ => ProjectError::Context {
+        Scenario::Nothing | Scenario::Unlocated => ProjectError::Context {
             reason: ToolMessage("the repository was not found".into()),
         },
     });

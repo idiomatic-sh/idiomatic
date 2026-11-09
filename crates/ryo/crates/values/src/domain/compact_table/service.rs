@@ -17,6 +17,11 @@ use ryo_relations::domain::relations::types::{Bits, Name, NamePlace, PlaceNumber
 /// The same byte/value walk as the existing decoder preserves permissive frame
 /// rollback and Complete's all-or-error name rollback. WordSpelling is checked by
 /// the caller in its existing preparation order, before query execution.
+///
+/// # Errors
+///
+/// [`TableWordsError::Incomplete`](crate::domain::table_words::errors::TableWordsError::Incomplete) in `DecodeMode::Complete`
+/// when the words are truncated, noncanonical or hold incompatible frame schemas; this call's name places are rolled back.
 pub fn admit_compact(
     backing: CompactBacking,
     places: &mut Vec<NamePlace>,
@@ -49,7 +54,9 @@ pub fn admit_compact(
             match decode_kind(&mut cursor) {
                 Some(kind) if !had_kinds => kinds.push(kind),
                 Some(kind) => {
-                    if mode == DecodeMode::Complete && kinds.get(column as usize) != Some(&kind) {
+                    if mode == DecodeMode::Complete
+                        && usize::try_from(column).ok().and_then(|at| kinds.get(at)) != Some(&kind)
+                    {
                         complete = false;
                     }
                 }
@@ -59,7 +66,7 @@ pub fn admit_compact(
                 }
             }
         }
-        if mode == DecodeMode::Complete && kinds.len() != columns as usize {
+        if mode == DecodeMode::Complete && u64::try_from(kinds.len()).ok() != Some(columns) {
             complete = false;
         }
         if readable && decode_places(&mut cursor, places).is_none() {
@@ -214,21 +221,28 @@ pub fn compact_read<'a>(
         input,
         row,
         ColumnCount(input.kinds.len()),
-        |column, value| scratch[column.0 as usize] = value,
+        |column, value| {
+            if let Some(cell) = usize::try_from(column.0)
+                .ok()
+                .and_then(|at| scratch.get_mut(at))
+            {
+                *cell = value;
+            }
+        },
     )?;
     Some(&scratch[..input.kinds.len()])
 }
 pub fn compact_cell(input: &CompactTable, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    if column.0 as usize >= input.kinds.len() {
+    let Some(at) = usize::try_from(column.0)
+        .ok()
+        .filter(|at| *at < input.kinds.len())
+    else {
         return None;
-    }
+    };
     let mut found = None;
-    compact_values(
-        input,
-        row,
-        ColumnCount(column.0 as usize + 1),
-        |_, value| found = Some(value),
-    )?;
+    compact_values(input, row, ColumnCount(at + 1), |_, value| {
+        found = Some(value)
+    })?;
     found
 }
 /// Admission validated every encoded cell once; this is a metadata-only shape check.
@@ -256,11 +270,11 @@ pub fn compact_backing(input: &CompactTable) -> CompactBacking {
 pub fn compact_storage(input: &CompactTable) -> CompactStorage {
     CompactStorage {
         words: StoragePart {
-            address: StorageAddress(input.words.0.0.as_ptr() as usize),
+            address: StorageAddress(input.words.0.0.as_ptr().addr()),
             length: StorageLength(input.words.0.0.len()),
         },
         offsets: StoragePart {
-            address: StorageAddress(input.row_offsets.as_ptr() as usize),
+            address: StorageAddress(input.row_offsets.as_ptr().addr()),
             length: StorageLength(input.row_offsets.len()),
         },
     }

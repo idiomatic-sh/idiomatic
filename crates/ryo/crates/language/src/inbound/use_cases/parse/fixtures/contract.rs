@@ -100,7 +100,7 @@ ryo_relations::each_relation!(discarders);
 ///
 /// # Panics
 ///
-/// When the implementation breaks the contract.
+/// When the implementation breaks the contract, refuses a sample or a worker panics.
 pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
     for sample in samples {
         let (mut table, mut symbols) = (Elements::default(), Symbols::default());
@@ -167,21 +167,29 @@ pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
     reversed.reverse();
     let mut rotated = numbered.clone();
     rotated.rotate_left(numbered.len() / 2);
-    let alone = rows_on(subject, &numbered, 1);
+    let on = |files: &[(usize, SourceFile)], workers: usize| {
+        let read = rows_on(subject, files, workers);
+        assert!(
+            read.is_ok(),
+            "a sample is a file the language reads: {read:?}"
+        );
+        read.unwrap_or_default()
+    };
+    let alone = on(&numbered, 1);
     assert!(!alone.is_empty(), "the samples give no rows to compare");
     assert_eq!(
         alone,
-        rows_on(subject, &numbered, 10),
+        on(&numbered, 10),
         "one worker and ten give different rows"
     );
     assert_eq!(
         alone,
-        rows_on(subject, &reversed, 3),
+        on(&reversed, 3),
         "the files read in reverse by three workers give different rows"
     );
     assert_eq!(
         alone,
-        rows_on(subject, &rotated, 10),
+        on(&rotated, 10),
         "the files read in another order by ten workers give different rows"
     );
 }

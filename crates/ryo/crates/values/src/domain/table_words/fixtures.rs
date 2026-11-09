@@ -19,6 +19,10 @@ pub fn encode_table(table: &Table, places: &[NamePlace], out: &mut Words) {
 }
 
 /// Decodes a whole table from packed words.
+///
+/// # Errors
+///
+/// [`TableWordsError::Incomplete`] when the words are truncated, noncanonical or hold incompatible frame schemas.
 pub fn decode_complete(
     packed: &PackedWords,
     places: &mut Vec<NamePlace>,

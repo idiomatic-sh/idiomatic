@@ -31,6 +31,15 @@ pub enum MatchingValue {
     Captures(Cow<'static, [(std::ops::Range<usize>, std::ops::Range<usize>)]>),
 }
 
+/// The value `input` answers through `matching`'s public trait, each call checked against its repeat.
+///
+/// # Errors
+///
+/// The [`MatchingError`] the trait refuses `input` with.
+///
+/// # Panics
+///
+/// When a repeated call answers differently, or a visitor runs after the caller broke or on a refused capture name.
 pub fn answer(
     matching: &impl MatchingUseCase,
     input: MatchingInput,
