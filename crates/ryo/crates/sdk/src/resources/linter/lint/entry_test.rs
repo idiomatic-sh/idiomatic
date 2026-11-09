@@ -7,6 +7,8 @@ use std::num::{NonZeroU64, NonZeroUsize};
 use super::entry::lint;
 use super::errors::LintError;
 use super::fixtures::capability_cache::capability_cache;
+use super::fixtures::configured_scope::configured_scope;
+use super::fixtures::excluded_producer::excluded_producer;
 use super::fixtures::hosted_text_identity::hosted_text_identity;
 use super::fixtures::outcome::Outcome;
 use super::fixtures::permission::{permission_bytes, permission_unavailable};
@@ -236,10 +238,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 0, true, 1)),
     },
     Case {
+        name: CaseName("a_changed_exclusion_and_changed_hosted_rows_change_what_a_retained_store_answers"),
+        word: Word::Succeeds,
+        input: || Given {
+            linter: Linting::Scenario(configured_scope),
+            ..LINTED
+        },
+        expect: Expect::Value((2, 0, true, 1)),
+    },
+    Case {
         name: CaseName("a_later_rule_publishes_a_nonempty_observation_despite_zero_findings"),
         word: Word::Succeeds,
         input: || Given {
             linter: Linting::Scenario(zero_finding_producer),
+            ..LINTED
+        },
+        expect: Expect::Value((1, 0, true, 1)),
+    },
+    Case {
+        name: CaseName("an_excluded_producer_publishes_to_its_consumer_without_its_findings"),
+        word: Word::Succeeds,
+        input: || Given {
+            linter: Linting::Scenario(excluded_producer),
             ..LINTED
         },
         expect: Expect::Value((1, 0, true, 1)),

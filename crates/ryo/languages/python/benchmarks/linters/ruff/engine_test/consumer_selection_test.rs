@@ -1,103 +1,6 @@
-//! Selected consumers and the I001 namespace observation across cold and warm replay.
-use super::prepared_engine_test::PreparedEngine as _;
+//! The I001 namespace observation across cold and warm replay.
 use super::prepared_engine_test::python_310;
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
-
-pub(super) fn selected_consumer_keeps_unselected_producer_without_its_diagnostics()
--> Result<(), Error> {
-    use ryo::linter::{
-        ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
-        ObservationKind, ObservationName, ObservationProducer, RuleId,
-    };
-    let root = tempfile::tempdir()?;
-    let rules = root.path().join("rules");
-    for (id, query) in [
-        (
-            "CONSUMER",
-            "let found = select path, span from published; emit found subject path key(path);",
-        ),
-        (
-            "PRODUCER",
-            "let files = select file as path, span from \"semantic-syntax\" where kind = \"module\"; observe files as used; emit files subject path key(path);",
-        ),
-    ] {
-        std::fs::create_dir_all(rules.join(id))?;
-        std::fs::write(rules.join(id).join("query.ryoql"), query)?;
-    }
-    std::fs::write(root.path().join("case.py"), "value = 1\n")?;
-    let consumer = RuleId::try_from("CONSUMER").unwrap();
-    let producer = RuleId::try_from("PRODUCER").unwrap();
-    let request = WorkerRequest {
-        performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
-            vec![consumer.clone()],
-        ),
-        rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
-                BTreeMap::from([(
-                    consumer.clone(),
-                    vec![ObservationBinding {
-                        name: ObservationBindingName("published".into()),
-                        columns: vec![
-                            ObservationColumn {
-                                name: ObservationColumnName("path".into()),
-                                kind: ObservationKind::File,
-                            },
-                            ObservationColumn {
-                                name: ObservationColumnName("span".into()),
-                                kind: ObservationKind::Span,
-                            },
-                        ],
-                        producers: vec![ObservationProducer::Output {
-                            rule: producer,
-                            output: ObservationName("used".into()),
-                        }],
-                    }],
-                )])
-                .into(),
-            ),
-        rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
-        given_project_inventory: Default::default(),
-        project_context_mode: Default::default(),
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
-        root: root.path().into(),
-        rules,
-        query_modules: BTreeMap::new(),
-        rule_applicability: BTreeMap::new(),
-        parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(
-                ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
-                    "python-target=3.10".into(),
-                ),
-            ),
-        source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        files: vec![ryo::linter::RelativePath("case.py".into())],
-        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
-            root.path().join("cache"),
-        ),
-    };
-    let engine = factory::local(python_310(), None);
-    for _ in 0..2 {
-        let report = engine.run_prepared(request.clone())?;
-        assert_eq!(report.diagnostics.len(), 1);
-        assert_eq!(report.diagnostics[0].rule, consumer);
-    }
-    let mut missing = request;
-    std::fs::remove_file(missing.rules.join("PRODUCER/query.ryoql"))?;
-    missing.state = ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh;
-    assert!(
-        matches!(engine.run_prepared(missing), Err(Error::Io(_))),
-        "missing bound producer cannot become empty"
-    );
-    Ok(())
-}
 
 pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_warm_replay() {
     use ryo::linter::{
@@ -112,7 +15,7 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
     let store = tempfile::tempdir().unwrap();
     let authored = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("benchmarks/linters/ruff/rules/I001/query.ryoql"),
+            .join("rules/I001/query.ryoql"),
     )
     .unwrap();
     let emission = authored.rfind("emit ").expect("actual I001 emission");
@@ -124,7 +27,7 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
     let profile: toml::Value = toml::from_str(
         &std::fs::read_to_string(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("benchmarks/linters/ruff/benchmark.toml"),
+                .join("benchmark.toml"),
         )
         .unwrap(),
     )
@@ -138,7 +41,6 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
                 name,
                 &std::fs::read_to_string(
                     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .join("benchmarks/linters/ruff")
                         .join(path.as_str().unwrap()),
                 )
                 .unwrap(),

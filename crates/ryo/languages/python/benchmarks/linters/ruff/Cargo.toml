@@ -1,0 +1,49 @@
+[package]
+name = "idiomatic-sh-ryo-python-ruff-benchmark"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "The Ruff linter benchmark of the Ryo Python provider: its rules, fragments, profiles, worker and parity tests"
+autobenches = false
+autotests = false
+
+[dependencies]
+
+[dev-dependencies]
+ryo_python = { package = "idiomatic-sh-ryo-python", path = "../../..", features = ["fixtures"] }
+ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../../../../crates/benchmark_contracts" }
+ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../../../../crates/sdk", features = ["fixtures"] }
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+toml.workspace = true
+dunce.workspace = true
+
+# The worker binary runs on the allocator the command line ships (ruff and uv ship the same): jemalloc where it builds,
+# mimalloc on Windows.
+[target.'cfg(all(not(target_os = "windows"), not(target_os = "openbsd"), not(target_os = "aix"), not(target_os = "android"), any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "powerpc64", target_arch = "riscv64")))'.dev-dependencies]
+tikv-jemallocator.workspace = true
+
+[target.'cfg(target_os = "windows")'.dev-dependencies]
+mimalloc.workspace = true
+
+[features]
+# jemalloc built with its heap profiler (`--enable-prof`), for the benchmark worker's heap profile (method.md "Heap profile"); it
+# names only this package's dev-dependency allocator, so no release build takes it, and it samples nothing until `_RJEM_MALLOC_CONF` turns it on.
+heap-profile = ["tikv-jemallocator/profiling"]
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "ruff"
+path = "bench.rs"
+harness = false
+
+[[test]]
+name = "ruff"
+path = "tests.rs"

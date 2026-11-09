@@ -6,7 +6,11 @@ pub(crate) mod capability_cache;
 #[cfg(test)]
 pub(crate) mod capability_provider;
 #[cfg(test)]
+pub(crate) mod configured_scope;
+#[cfg(test)]
 pub(crate) mod directory;
+#[cfg(test)]
+pub(crate) mod excluded_producer;
 #[cfg(test)]
 pub(crate) mod hosted_text_identity;
 #[cfg(test)]

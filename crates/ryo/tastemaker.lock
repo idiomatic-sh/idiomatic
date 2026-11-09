@@ -212,7 +212,7 @@ dependencies = ["idiomatic.arch"]
 [packages."idiomatic.ryo".rules]
 absence-cites-the-standard = "0.1.0"
 benchmark-outside-runtime = "0.1.0"
-benchmark-targets = "0.1.0"
+benchmark-targets = "0.2.0"
 derived-view-acquisition = "0.2.0"
 extras-iff-variant = "0.1.0"
 language-depends-on-ryo-only = "0.2.0"
@@ -225,13 +225,13 @@ shared-walk-owner = "0.2.0"
 source-import-allowlist = "0.1.0"
 
 [packages."idiomatic.ryo".specs]
-benchmark = "0.2.1"
+benchmark = "0.2.2"
 benchmark-collector = "0.1.0"
-benchmark-linter = "0.2.1"
+benchmark-linter = "0.2.2"
 collector-execution = "0.1.0"
 contract = "0.3.0"
 executable-program-owner = "0.1.1"
-language = "0.4.2"
+language = "0.4.3"
 provider-imports = "0.1.0"
 
 [packages."idiomatic.ryo".templates]

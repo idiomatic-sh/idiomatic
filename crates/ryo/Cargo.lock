@@ -1607,13 +1607,9 @@ version = "0.1.3"
 dependencies = [
  "dhat",
  "divan",
- "dunce",
- "idiomatic-sh-ryo-benchmark",
- "idiomatic-sh-ryo-benchmark-contracts",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
  "indexmap",
- "mimalloc",
  "pep508_rs",
  "postcard",
  "pyproject-toml",
@@ -1623,11 +1619,26 @@ dependencies = [
  "serde",
  "serde_json",
  "strum",
- "tempfile",
  "thiserror 2.0.20",
- "tikv-jemallocator",
  "toml 1.1.4+spec-1.1.0",
  "unicode-properties",
+]
+
+[[package]]
+name = "idiomatic-sh-ryo-python-ruff-benchmark"
+version = "0.1.3"
+dependencies = [
+ "dunce",
+ "idiomatic-sh-ryo-benchmark",
+ "idiomatic-sh-ryo-benchmark-contracts",
+ "idiomatic-sh-ryo-python",
+ "idiomatic-sh-ryo-sdk",
+ "mimalloc",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tikv-jemallocator",
+ "toml 1.1.4+spec-1.1.0",
 ]
 
 [[package]]

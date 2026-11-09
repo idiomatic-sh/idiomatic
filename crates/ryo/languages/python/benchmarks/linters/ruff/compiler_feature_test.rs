@@ -1,18 +1,16 @@
-//! Actual local-adapter checks of canonical module features and annotation evaluation positions.
+//! The Ruff annotation fragments (`future-annotation-context`, `annotation-evaluation-context`) against the language's annotation
+//! context fixture. The provider's own `compiler-feature` rows are proved in the Python crate's `compiler_feature` item test.
 use super::boundary_failure_test::{BoundaryFailure, failure};
 use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 use super::context_case_test::{ContextCase, check_case, stage_modules};
-use super::scope_test::{
-    authored_suppression_cohort_queries_validate_through_public_sdk_contracts,
-    declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source,
-};
+use super::authored_queries_test::authored_suppression_cohort_queries_validate_through_public_sdk_contracts;
 
 fn compiler_features_and_annotation_contexts_follow_the_language_contract() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/compiler-features/annotation-contexts.json");
+        .join("../../../tests/fixtures/compiler-features/annotation-contexts.json");
     let cases: Vec<ContextCase> = serde_json::from_slice(&std::fs::read(source)?)
         .map_err(|error| Error::Json(Box::new(error)))?;
     assert!(
@@ -30,7 +28,6 @@ fn compiler_features_and_annotation_contexts_follow_the_language_contract() -> R
 #[derive(Clone, Copy)]
 enum CompilerFeatureScenario {
     CompilerFeaturesAndAnnotationContextsFollowTheLanguageContract,
-    DeclaredConfigurationUsesRealSdkScopeAndHostedInputsOnUnchangedSource,
     AuthoredSuppressionCohortQueriesValidateThroughPublicSdkContracts,
 }
 type Input = CompilerFeatureScenario;
@@ -47,16 +44,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(true),
     },
     Case {
-        name: CaseName(
-            "declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            CompilerFeatureScenario::DeclaredConfigurationUsesRealSdkScopeAndHostedInputsOnUnchangedSource
-        },
-        expect: Expect::Value(true),
-    },
-    Case {
         name: CaseName("authored_suppression_cohort_queries_validate_through_public_sdk_contracts"),
         word: Word::Succeeds,
         input: || {
@@ -69,7 +56,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn exercise(input: Input) -> Result<Value, Error> {
     match input {
         CompilerFeatureScenario::CompilerFeaturesAndAnnotationContextsFollowTheLanguageContract => compiler_features_and_annotation_contexts_follow_the_language_contract().map(|()| true),
-        CompilerFeatureScenario::DeclaredConfigurationUsesRealSdkScopeAndHostedInputsOnUnchangedSource => declared_configuration_uses_real_sdk_scope_and_hosted_inputs_on_unchanged_source().map(|()| true),
         CompilerFeatureScenario::AuthoredSuppressionCohortQueriesValidateThroughPublicSdkContracts => {
             authored_suppression_cohort_queries_validate_through_public_sdk_contracts();
             Ok(true)

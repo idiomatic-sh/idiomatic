@@ -42,6 +42,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || a_fused_fragment_comparison_keeps_its_original_source_span,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("an_imported_identity_fragment_plans_what_its_inline_text_plans"),
+        word: Word::Succeeds,
+        input: || an_imported_identity_fragment_plans_what_its_inline_text_plans,
+        expect: Expect::Value(()),
+    },
 ];
 
 fn subject(check: Input) -> Result<Value, Failure> {
@@ -322,4 +328,52 @@ fn a_fused_fragment_comparison_keeps_its_original_source_span() {
         module.get(origin.span.start.0..origin.span.end.0),
         Some("kind = \"totally-unknown\"")
     );
+}
+
+fn an_imported_identity_fragment_plans_what_its_inline_text_plans() {
+    let use_case = compiler_over(vec![Relation::SyntaxTree]);
+    let compile = |text| {
+        use_case
+            .compile(QueryRequest {
+                observations: Vec::new(),
+                text,
+                hosted: Vec::new(),
+                modules: ryo_values::domain::program::types::ParsedModules::default(),
+            })
+            .expect("both spellings compile")
+            .plan
+    };
+    let source = |name, text| {
+        ryo_values::domain::program::service::document_source(
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::query_tokens::types::QuerySpelling(name),
+            )
+            .unwrap(),
+            text,
+        )
+    };
+    let inline = compile(
+        ryo_values::domain::program::service::query_bundle(
+            source(
+                "root",
+                "let nodes = select id, file, span from \"syntax-tree\";\nemit nodes subject file key(span);\n",
+            ),
+            [],
+        )
+        .unwrap(),
+    );
+    let imported = compile(
+        ryo_values::domain::program::service::query_bundle(
+            source(
+                "root",
+                "import identity from \"test/identity\";\nlet nodes = select id, file, span from \"syntax-tree\";\nlet rows = identity(source=nodes);\nemit rows subject file key(span);\n",
+            ),
+            [source(
+                "test/identity",
+                "input source: relation<id: node, file: file, span: span>;\noutput relation<id: node, file: file, span: span>;\nlet rows = select id, file, span from source;\nreturn rows;\n",
+            )],
+        )
+        .unwrap(),
+    );
+    assert_eq!(imported, inline);
 }

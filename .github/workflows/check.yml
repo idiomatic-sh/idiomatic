@@ -492,7 +492,7 @@ jobs:
         run: |
           mkdir -p target/checks/ruff-all-defaults
           cd crates/ryo
-          CARGO_BUILD_JOBS=6 cargo bench --no-run --locked -p idiomatic-sh-ryo-python --bench ruff --message-format=json \
+          CARGO_BUILD_JOBS=6 cargo bench --no-run --locked -p idiomatic-sh-ryo-python-ruff-benchmark --bench ruff --message-format=json \
             > ../../target/checks/ruff-all-defaults/worker-build.jsonl \
             2> ../../target/checks/ruff-all-defaults/worker-build.stderr
           python3 ../../.github/scripts/seal_cargo_artifact.py \

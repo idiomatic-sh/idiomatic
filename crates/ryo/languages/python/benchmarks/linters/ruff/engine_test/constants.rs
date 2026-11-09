@@ -30,8 +30,6 @@ pub(crate) const LIVE_SELECTED_RULE_POSITIVE: &str = "live selected-rule positiv
 pub(crate) const TRUE: &str = "True";
 /// Text `invalid-syntax`.
 pub(crate) const INVALID_SYNTAX: &str = "invalid-syntax";
-/// Text `benchmarks/linters/ruff`.
-pub(crate) const BENCHMARKS_LINTERS_RUFF: &str = "benchmarks/linters/ruff";
 /// Text `benchmark.toml`.
 pub(crate) const BENCHMARK_TOML: &str = "benchmark.toml";
 /// Text `query-modules`.

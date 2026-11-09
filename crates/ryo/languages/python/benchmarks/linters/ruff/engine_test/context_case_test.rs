@@ -32,7 +32,7 @@ pub(super) struct ContextCase {
 
 /// Read the actual source assets, not a second implementation or a historical helper snapshot.
 pub(super) fn stage_modules(root: &Path) -> Result<BTreeMap<String, PathBuf>, Error> {
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks/linters/ruff/fragments");
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fragments");
     std::fs::create_dir_all(root.join("fragments"))?;
     let mut modules = BTreeMap::new();
     for name in ["future-annotation-context", "annotation-evaluation-context"] {

@@ -67,11 +67,9 @@ pub(crate) const PARITY_SCRATCH: &str = "parity-";
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
 pub(crate) const USAGE: &str = "usage: ruff benchmark: audit | verify-tool <executable> | verify-cases <ruff> [profile] | verify-reference-cases <ruff> [profile] | measure <ruff> <fresh-cache> | parity <ruff> <ryo-worker> <staged-request> <accepted-differences> <per-rule-output> | run-ryo (<json>|--request-file <path>) <python-target=3.MINOR> | diagnostic-ryo (<json>|--request-file <path>) <python-target=3.MINOR> <events.jsonl> (MINOR:7..15)";
-/// Stable command, artifact or observation identity for ruff directory.
-pub(crate) const RUFF_DIRECTORY: &str = "benchmarks/linters/ruff";
 /// Accounted measurement command with explicitly audited invalid-source exclusions.
 pub(crate) const MEASURE_ACCOUNTED_VALID: &str = "measure-valid";
-/// Cargo-provided language crate root.
+/// This benchmark package's root, where its rules, fragments and profiles are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
 /// Accounted-profile coverage label.
 pub(crate) const ACCOUNTED: &str = "Accounted";
