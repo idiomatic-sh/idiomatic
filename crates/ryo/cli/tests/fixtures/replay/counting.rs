@@ -174,9 +174,11 @@ pub(crate) fn lint_observing<T>(
                 corpus::types::SkippedDirectories(vec![".ryo_cache".into()]),
             ));
         let analysis_language: Arc<dyn language::interface::LanguagePort> = Arc::new(Counting {
-            language: Arc::new(language::factory::use_case(vec![LanguageConnection::from(
-                rust,
-            )])),
+            // The recorded rules that read a Cargo manifest's tree need the TOML language beside the Rust language.
+            language: Arc::new(language::factory::use_case(vec![
+                LanguageConnection::from(rust),
+                LanguageConnection::from(ryo_toml::linked()),
+            ])),
             reads: Arc::clone(&reads),
             projects: Arc::clone(&projects),
         });

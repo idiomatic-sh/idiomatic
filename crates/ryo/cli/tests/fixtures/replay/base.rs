@@ -398,7 +398,8 @@ pub(crate) fn lint_report(
     ),
     String,
 > {
-    lint_report_hosted(root, rules, store, lint_store, Vec::new(), false)
+    // The command line links the TOML language beside the Rust language; a rule that reads a manifest's tree needs it.
+    lint_report_hosted(root, rules, store, lint_store, Vec::new(), true)
 }
 
 /// Lints `root` with `rules`, the facts kept by `store`, over the relations a host declares beside ryo's own: the rows the rules gave and
