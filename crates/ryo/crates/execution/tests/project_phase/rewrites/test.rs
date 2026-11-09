@@ -1,6 +1,7 @@
-//! Regrouping, narrowing and selection pushing each leave the rows a plan answers over several files as they were. A join on spans
-//! alone pairs functions of two files whose spans are equal, so regrouping leaves it after the files; a join on the file is made in
-//! each file. Narrowing cuts a per-file input by the nodes or files the other input holds, never by a span.
+//! Regrouping, narrowing and selection pushing each leave the rows a plan answers over several files as they were. A span is a place
+//! in its file, so a join on spans pairs functions of one file only, never two functions of two files whose spans are equal: such a
+//! join is made in each file, as a join on the file is. Narrowing cuts a per-file input by the nodes or files the other input holds,
+//! never by a span.
 use super::super::*;
 use super::fixtures::{FILE, ID, NAME, SPAN, files, functions_kept, rows};
 use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{narrowed, regrouped, selections_pushed};
@@ -122,17 +123,26 @@ fn pairs_two_files(rows: &[String]) -> bool {
 }
 
 #[test]
-fn regrouping_a_join_on_spans_alone_leaves_it_after_the_files_and_keeps_the_pairs_of_two_files() {
+fn regrouping_a_join_on_spans_makes_it_in_each_file_and_pairs_no_two_files() {
     let files = files();
     let (steps, emitted) = chained(ColumnIndex(2));
     let before = rows(steps.clone(), emitted, &files);
+    assert!(!before.is_empty());
     assert!(
-        pairs_two_files(&before),
-        "equal spans of two files meet after the files: {before:?}"
+        !pairs_two_files(&before),
+        "equal spans of two files do not meet after the files: {before:?}"
     );
     let (after, after_emitted) = regrouped(steps.clone(), emitted);
-    assert_eq!(after, steps, "a span states no file, so the join stays after the files");
-    assert_eq!(rows(after, after_emitted, &files), before);
+    assert_ne!(
+        after, steps,
+        "a span states its row's file, so the join of the per-file inputs moves into each file"
+    );
+    let after = rows(after, after_emitted, &files);
+    assert!(
+        !pairs_two_files(&after),
+        "equal spans of two files do not meet in each file: {after:?}"
+    );
+    assert_eq!(after, before);
 }
 
 #[test]
@@ -183,17 +193,48 @@ fn narrowing_by_the_nodes_or_files_the_other_input_holds_keeps_the_rows() {
     }
 }
 
+/// `Join(gathered, functions on the span)`: the spans of the functions named `main`, each beside its file, gathered after the files,
+/// met with every function (id, file, span) on the span alone.
+fn looked_up_by_span() -> (Vec<PlanStep>, StepId) {
+    (
+        vec![
+            named_main(&[SPAN, FILE]),
+            after_the_files(Operation::Project {
+                from: Input::Step(StepId(0)),
+                columns: vec![ColumnIndex(0), ColumnIndex(1)],
+                distinct: RepeatedRows::Dropped,
+            }),
+            functions_kept(&[ID, FILE, SPAN]),
+            after_the_files(join(
+                StepId(1),
+                StepId(2),
+                (ColumnIndex(0), ColumnIndex(2)),
+                vec![
+                    column(Side::Right, ColumnIndex(0)),
+                    column(Side::Right, ColumnIndex(1)),
+                    column(Side::Right, ColumnIndex(2)),
+                ],
+            )),
+        ],
+        StepId(3),
+    )
+}
+
 #[test]
-fn narrowing_leaves_a_join_on_spans_as_it_is() {
+fn narrowing_leaves_a_join_on_spans_as_it_is_and_pairs_no_two_files() {
     let files = files();
-    let (steps, emitted) = looked_up(SPAN, ColumnIndex(2));
+    let (steps, emitted) = looked_up_by_span();
     let before = rows(steps.clone(), emitted, &files);
     assert!(
-        holds(&before, 2, 0),
-        "the spans of `main` functions of two files meet the function of a third file that has none: {before:?}"
+        holds(&before, 0, 0) && holds(&before, 1, 1),
+        "each `main` function meets its own span: {before:?}"
+    );
+    assert!(
+        !holds(&before, 2, 0) && !holds(&before, 1, 0) && !holds(&before, 0, 1),
+        "the spans of `main` functions meet no function of another file with an equal span: {before:?}"
     );
     let (after, after_emitted) = narrowed(steps.clone(), emitted);
-    assert_eq!(after, steps, "a span states no file, so nothing is cut in each file");
+    assert_eq!(after, steps, "a span names no file, so nothing is cut in each file");
     assert_eq!(rows(after, after_emitted, &files), before);
 }
 

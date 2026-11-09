@@ -63,10 +63,11 @@ fn file_of(value: Value) -> Option<FileId> {
     }
 }
 
-/// Whether a column holds the files or the nodes of files: the one lineage rule of when a column states its row's file.
+/// Whether a column holds the files or the nodes of files, whose file the value names (`file_of` reads it): a span lies in its
+/// row's file but names none.
 fn is_file_kind(kind: CellKind) -> Keying {
-    if ryo_values::domain::lineage::service::anchor_of(kind)
-        == ryo_values::domain::lineage::types::ColumnAnchor::InFile
+    if ryo_values::domain::lineage::service::naming_of(kind)
+        == ryo_values::domain::lineage::types::FileNaming::Named
     {
         Keying::ByFile
     } else {

@@ -1,8 +1,14 @@
 //! The engine chooses the physical probe; this kernel owns ordered Join row semantics.
+//!
+//! A span is a place in its file, so equal spans of two files do not meet: a join whose key holds a span pairs a left row and a
+//! right row only when they are of one file. A row is of the file its first file or node cell names, a node holding its file in
+//! its number; a row with neither names no file, and its spans meet the equal spans of every file. A per-file step runs inside one
+//! file, so every row it reads is of that file.
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{
-    Advance, JoinDriver, JoinRow, JoinShape, PositionSlots, PositionTarget,
+    Advance, JoinDriver, JoinRow, JoinShape, PositionSlots, PositionTarget, RowFile,
 };
+use ryo_relations::domain::relations::service::node_file;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
@@ -29,11 +35,27 @@ pub(crate) fn join_row(
     for column in left_on {
         key.push(read_left(*column).ok_or(PortableOperatorFault::NoSuchColumn { index: *column })?);
     }
+    // Only a key that holds a span reads the files of the rows it meets.
+    let left_file = if key.iter().any(|value| matches!(value, Value::Span(_))) {
+        Some(row_file((0..).map_while(|at| read_left(ColumnIndex(at)))))
+    } else {
+        None
+    };
     while driver
         .next(key)
         .map_err(|_| PortableOperatorFault::Interrupted)?
         == Advance::Admitted
     {
+        if let Some(left_file) = left_file {
+            let width = u32::try_from(driver.right_kinds().len()).unwrap_or(u32::MAX);
+            let right_file =
+                row_file((0..width).map_while(|at| driver.right_cell(ColumnIndex(at))));
+            if same_file(left_file, right_file)
+                == crate::domain::contract::types::PredicateOutcome::Fails
+            {
+                continue;
+            }
+        }
         target.clear();
         for column in output {
             let value = match column.side {
@@ -55,6 +77,31 @@ pub(crate) fn join_row(
             .map_err(|_| PortableOperatorFault::Interrupted)?;
     }
     Ok(())
+}
+
+/// The file of a row whose cells are `cells`, in order: the file its first file or node cell names, if any.
+fn row_file(cells: impl IntoIterator<Item = Value>) -> RowFile {
+    cells
+        .into_iter()
+        .find_map(|cell| match cell {
+            Value::File(file) => Some(RowFile::Named(file)),
+            Value::Node(node) => Some(RowFile::Named(node_file(node))),
+            Value::Symbol(_)
+            | Value::Name(_)
+            | Value::Span(_)
+            | Value::Number(_)
+            | Value::Flag(_) => None,
+        })
+        .unwrap_or(RowFile::Unnamed)
+}
+
+/// Whether two rows a span key matched may meet: unless both name a file and the files differ.
+fn same_file(left: RowFile, right: RowFile) -> crate::domain::contract::types::PredicateOutcome {
+    use crate::domain::contract::types::PredicateOutcome::{Fails, Holds};
+    match (left, right) {
+        (RowFile::Named(one), RowFile::Named(other)) if one != other => Fails,
+        (RowFile::Named(_) | RowFile::Unnamed, _) => Holds,
+    }
 }
 
 /// A lowered row's schema already maps logical columns onto these slots. Keep

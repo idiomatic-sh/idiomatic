@@ -1,9 +1,12 @@
-//! Ordered Join meaning: bag order, view mapping, refusal order and the prefix a downstream refusal keeps.
+//! Ordered Join meaning: bag order, view mapping, refusal order, the prefix a downstream refusal keeps, and spans that meet only
+//! in their own file.
 use super::service::join_row;
 use super::types::{Advance, JoinCells, JoinDriver, JoinRow};
 use super::errors::EqualityJoinError;
 use crate::domain::contract::types::PortableOperatorFault;
-use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{
+    CellKind, FileId, Integer, NodeId, Offset, Span, Value as Cell,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
@@ -15,6 +18,7 @@ enum Scenario {
     FirstOutputFault,
     DownstreamInterruption,
     ColumnarLeft,
+    SpanKeyAcrossFiles,
 }
 type Input = Scenario;
 type Value = std::borrow::Cow<'static, [Cell]>;
@@ -53,6 +57,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ])),
     },
     Case {
+        name: CaseName("a_span_key_pairs_no_rows_of_two_files"),
+        word: Word::Succeeds,
+        input: || Scenario::SpanKeyAcrossFiles,
+        // Node 5 of file 0: the right row of the left row's file. The right row of file 1 has the same span and meets nothing.
+        expect: Expect::Value(std::borrow::Cow::Borrowed(&[Cell::Node(NodeId(5))])),
+    },
+    Case {
         name: CaseName("missing_left_key_is_refused_before_candidate_access"),
         word: Word::Refuses,
         input: || Scenario::MissingLeftKey,
@@ -74,7 +85,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn number(value: i64) -> Cell {
     Cell::Number(Integer(value))
 }
+/// The one span the rows of two files share.
+fn span() -> Cell {
+    Cell::Span(Span {
+        start: Offset(0),
+        end: Offset(4),
+    })
+}
 struct Driver {
+    key: Vec<Cell>,
+    kinds: Vec<CellKind>,
     rows: Vec<Vec<Cell>>,
     at: usize,
     next_calls: usize,
@@ -88,7 +108,7 @@ impl JoinDriver for Driver {
         if self.stopped {
             return Err(EqualityJoinError::Interrupted);
         }
-        assert_eq!(key, &[number(7)]);
+        assert_eq!(key, self.key.as_slice());
         self.next_calls += 1;
         self.at += 1;
         Ok(Advance::from(self.at <= self.rows.len()))
@@ -99,6 +119,9 @@ impl JoinDriver for Driver {
             .get(self.at - 1)?
             .get(usize::try_from(column.0).unwrap_or(usize::MAX))
             .copied()
+    }
+    fn right_kinds(&self) -> &[CellKind] {
+        &self.kinds
     }
     fn emit(&mut self, row: &[Cell]) -> Result<(), EqualityJoinError> {
         if self.stopped {
@@ -114,6 +137,8 @@ impl JoinDriver for Driver {
 }
 fn driver() -> Driver {
     Driver {
+        key: vec![number(7)],
+        kinds: vec![CellKind::Number, CellKind::Number],
         rows: vec![
             vec![number(7), number(1)],
             vec![number(7), number(2)],
@@ -231,6 +256,21 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 &mut vec![],
             )?;
             assert_eq!(*columns.reads.borrow(), vec![0, 999, 999, 999]);
+        }
+        Scenario::SpanKeyAcrossFiles => {
+            d.key = vec![span()];
+            d.kinds = vec![CellKind::Span, CellKind::File, CellKind::Node];
+            d.rows = vec![
+                vec![span(), Cell::File(FileId(1)), Cell::Node(NodeId(1 << 32))],
+                vec![span(), Cell::File(FileId(0)), Cell::Node(NodeId(5))],
+            ];
+            join(
+                &[span(), Cell::File(FileId(0))],
+                &[ColumnIndex(0)],
+                &[right(2)],
+                &[],
+                &mut d,
+            )?;
         }
     }
     Ok(flattened(d))

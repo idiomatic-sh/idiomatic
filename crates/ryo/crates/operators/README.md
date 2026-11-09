@@ -34,7 +34,7 @@ Marks the nodes that lie on a cycle of engine-prepared adjacency, where a compon
 
 ### equality_join
 
-Combines admitted matching rows while preserving bag order, projections, and deferred physical positions.
+Combines admitted matching rows while preserving bag order, projections, and deferred physical positions. A key holding a span pairs rows of one file only.
 
 ### evaluation
 

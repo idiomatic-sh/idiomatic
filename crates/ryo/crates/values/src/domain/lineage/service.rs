@@ -1,22 +1,24 @@
 //! The `lineage` service: free functions named by verb over where the rows of a step come from, with no IO and no ports.
 //!
 //! A relation's rows are partitioned by their file column and its nodes lie in that file, and a per-file step reads only the rows
-//! of one file, so each of their file and node columns lies in the file its row comes from. A cross-file step keeps that only
+//! of one file, so each of their file, node and span columns lies in the file its row comes from. A cross-file step keeps that only
 //! through what it does: a row it passes on keeps its columns, and a join keeps it when a key pairs a column of each operand
 //! that lies in its row's file, so the two rows it combines come from one file, or when every file or node column of its answer
 //! comes from one operand, so the answer holds the files and nodes of that operand's row alone.
 //!
 //! The one rule of when a column states the file of its row: its value carries a file, so it is a file, or a node, whose number
-//! holds its file. A span holds only a start and an end, so it states no file: equal spans of two files are equal, and a key of
-//! spans alone never proves that the rows it matches come from one file. Two rows that meet on keys come from one file only when
-//! the keys pair, at one position, a column of each operand that states its row's file.
-use super::types::{ColumnAnchor, KeyPairing, Lineage};
+//! holds its file; or it is a span, a place in its row's file. Equal spans of two files are not the same place, so a join keyed on
+//! spans pairs rows of one file only (the operators' join drops a pair of rows of two files), and a key of spans proves the rows it
+//! matches come from one file. Two rows that meet on keys come from one file when the keys pair, at one position, a column of each
+//! operand that states its row's file.
+use super::types::{ColumnAnchor, FileNaming, KeyPairing, Lineage};
 use ryo_relations::domain::relations::types::CellKind;
-use crate::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
+use crate::domain::plan_parts::types::{ColumnIndex, JoinColumn, RepeatedRows, Side};
 use crate::domain::plans::types::Operation;
 
 /// Whether a column of this kind, of rows that each come from one file, lies in its row's file: a file or a node does, since its
-/// value carries its file; a span does not, since it holds only a start and an end; no other value names a file.
+/// value carries its file; a span does, since it is a place in its row's file and a join on spans pairs rows of one file only; no
+/// other value names a file.
 ///
 /// # Examples
 ///
@@ -25,14 +27,36 @@ use crate::domain::plans::types::Operation;
 /// use ryo_values::domain::lineage::service::anchor_of;
 /// use ryo_values::domain::lineage::types::ColumnAnchor;
 /// assert_eq!(anchor_of(CellKind::Node), ColumnAnchor::InFile);
-/// assert_eq!(anchor_of(CellKind::Span), ColumnAnchor::Elsewhere);
+/// assert_eq!(anchor_of(CellKind::Span), ColumnAnchor::InFile);
+/// assert_eq!(anchor_of(CellKind::Number), ColumnAnchor::Elsewhere);
 /// ```
 #[must_use]
 pub fn anchor_of(kind: CellKind) -> ColumnAnchor {
-    if matches!(kind, CellKind::File | CellKind::Node) {
+    if matches!(kind, CellKind::File | CellKind::Node | CellKind::Span) {
         ColumnAnchor::InFile
     } else {
         ColumnAnchor::Elsewhere
+    }
+}
+
+/// Whether a value of this kind names its file: a file or a node does; a span lies in its row's file (`anchor_of`) but holds only
+/// a start and an end, so the file cannot be read from it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::types::CellKind;
+/// use ryo_values::domain::lineage::service::naming_of;
+/// use ryo_values::domain::lineage::types::FileNaming;
+/// assert_eq!(naming_of(CellKind::File), FileNaming::Named);
+/// assert_eq!(naming_of(CellKind::Span), FileNaming::Unnamed);
+/// ```
+#[must_use]
+pub fn naming_of(kind: CellKind) -> FileNaming {
+    if matches!(kind, CellKind::File | CellKind::Node) {
+        FileNaming::Named
+    } else {
+        FileNaming::Unnamed
     }
 }
 
@@ -82,7 +106,7 @@ fn hosted(kinds: &[CellKind]) -> Lineage {
 /// use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// use ryo_values::domain::lineage::service::{anchor_at, one_file};
 /// use ryo_values::domain::lineage::types::{ColumnAnchor, Lineage};
-/// let lineage = one_file(&[CellKind::File, CellKind::Span]);
+/// let lineage = one_file(&[CellKind::File, CellKind::Number]);
 /// assert_eq!(anchor_at(&lineage, ColumnIndex(0)), ColumnAnchor::InFile);
 /// assert_eq!(anchor_at(&lineage, ColumnIndex(1)), ColumnAnchor::Elsewhere);
 /// assert_eq!(anchor_at(&Lineage::Mixed, ColumnIndex(0)), ColumnAnchor::Elsewhere);
@@ -109,7 +133,7 @@ pub fn anchor_at(lineage: &Lineage, column: ColumnIndex) -> ColumnAnchor {
 /// use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// use ryo_values::domain::lineage::service::{anchor_through, one_file};
 /// use ryo_values::domain::lineage::types::ColumnAnchor;
-/// let lineage = one_file(&[CellKind::Span, CellKind::Node]);
+/// let lineage = one_file(&[CellKind::Number, CellKind::Node]);
 /// // Through a view, column 0 of the join is the operand's column 1.
 /// assert_eq!(anchor_through(&lineage, &[ColumnIndex(1)], ColumnIndex(0)), ColumnAnchor::InFile);
 /// assert_eq!(anchor_through(&lineage, &[], ColumnIndex(0)), ColumnAnchor::Elsewhere);
@@ -129,7 +153,8 @@ pub fn anchor_through(
     }
 }
 
-/// Whether the keys of two operands pair a column of each that lies in its row's file, the right keys read through `view`.
+/// Whether the keys of two operands pair a column of each that lies in its row's file, the right keys read through `view`. A key of
+/// spans does: a join on spans pairs rows of one file only.
 ///
 /// # Examples
 ///
@@ -138,10 +163,12 @@ pub fn anchor_through(
 /// use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// use ryo_values::domain::lineage::service::{one_file, pairing};
 /// use ryo_values::domain::lineage::types::KeyPairing;
-/// let rows = one_file(&[CellKind::File, CellKind::Span]);
+/// let rows = one_file(&[CellKind::File, CellKind::Span, CellKind::Number]);
 /// assert_eq!(pairing(&rows, &[ColumnIndex(0)], &rows, &[ColumnIndex(0)], &[]), KeyPairing::SameFile);
-/// // A key of spans alone proves nothing about the files.
-/// assert_eq!(pairing(&rows, &[ColumnIndex(1)], &rows, &[ColumnIndex(1)], &[]), KeyPairing::Unproven);
+/// // A key of spans pairs rows of one file only.
+/// assert_eq!(pairing(&rows, &[ColumnIndex(1)], &rows, &[ColumnIndex(1)], &[]), KeyPairing::SameFile);
+/// // A key of numbers alone proves nothing about the files.
+/// assert_eq!(pairing(&rows, &[ColumnIndex(2)], &rows, &[ColumnIndex(2)], &[]), KeyPairing::Unproven);
 /// ```
 #[must_use]
 pub fn pairing(
@@ -186,12 +213,40 @@ fn widened(lineage: Lineage, kinds: &[CellKind]) -> Lineage {
     }
 }
 
+/// Whether a step that merges the rows of `lineage` that hold equal `keys` (a group, a closure's partitions) keeps rows of two files
+/// apart: a key lies in its row's file and names it, so the key of the answer, at the same place among its first columns `kinds`,
+/// differs between files. A key of spans alone does not: equal spans of two files would merge, as the merge compares values.
+fn keyed_by_file(lineage: &Lineage, keys: &[ColumnIndex], kinds: &[CellKind]) -> ColumnAnchor {
+    if keys.iter().zip(kinds).any(|(key, kind)| {
+        anchor_at(lineage, *key) == ColumnAnchor::InFile && naming_of(*kind) == FileNaming::Named
+    }) {
+        ColumnAnchor::InFile
+    } else {
+        ColumnAnchor::Elsewhere
+    }
+}
+
+/// The lineage of the rows of `lineage`, of the kinds `kinds`, once rows that repeat are kept once: a repeated row stays of one file
+/// when a column of it lies in its row's file and names it. Otherwise equal rows of two files merge, and only spans can lie in their
+/// row's file, which the merged row no longer has.
+fn kept_apart(lineage: Lineage, kinds: &[CellKind]) -> Lineage {
+    let Lineage::OneFile(anchors) = lineage else {
+        return Lineage::Mixed;
+    };
+    if anchors.iter().zip(kinds).any(|(anchor, kind)| {
+        *anchor == ColumnAnchor::InFile && naming_of(*kind) == FileNaming::Named
+    }) {
+        return Lineage::OneFile(anchors);
+    }
+    Lineage::OneFile(anchors.iter().map(|_| ColumnAnchor::Elsewhere).collect())
+}
+
 /// The one operand every file or node column of a join's answer comes from, when there is one: its rows' files are the answer's.
 fn file_side(output: &[JoinColumn], kinds: &[CellKind]) -> Option<Side> {
     let mut sides = output
         .iter()
         .zip(kinds)
-        .filter(|(_, kind)| anchor_of(**kind) == ColumnAnchor::InFile)
+        .filter(|(_, kind)| naming_of(**kind) == FileNaming::Named)
         .map(|(column, _)| column.side);
     let first = sides.next()?;
     sides.all(|side| side == first).then_some(first)
@@ -273,7 +328,7 @@ fn either(left: &Lineage, right: &Lineage) -> Lineage {
 /// use ryo_values::domain::plans::types::Operation;
 /// use ryo_values::domain::lineage::service::{of_step, one_file};
 /// use ryo_values::domain::lineage::types::{ColumnAnchor, Lineage};
-/// let operand = one_file(&[CellKind::Span, CellKind::File]);
+/// let operand = one_file(&[CellKind::Number, CellKind::File]);
 /// let select = Operation::Select {
 ///     from: Input::Relation(Relation::Function),
 ///     comparisons: vec![],
@@ -294,7 +349,16 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
                 picked(&first, kept)
             }
         }
-        Operation::Project { columns, .. } => picked(&first, columns),
+        Operation::Project {
+            columns,
+            distinct: RepeatedRows::Dropped,
+            ..
+        } => kept_apart(picked(&first, columns), kinds),
+        Operation::Project {
+            columns,
+            distinct: RepeatedRows::Kept,
+            ..
+        } => picked(&first, columns),
         Operation::Extend { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
@@ -324,10 +388,7 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
             ..
         } => joined(&first, left_on, &second, right_on, output, &[], kinds),
         Operation::GroupCount { keys, .. } | Operation::GroupDigest { keys, .. } => {
-            if keys
-                .iter()
-                .any(|key| anchor_at(&first, *key) == ColumnAnchor::InFile)
-            {
+            if keyed_by_file(&first, keys, kinds) == ColumnAnchor::InFile {
                 widened(picked(&first, keys), kinds)
             } else {
                 Lineage::Mixed
@@ -339,10 +400,7 @@ pub fn of_step(operation: &Operation, operands: &[Lineage], kinds: &[CellKind]) 
             destination,
             ..
         } => {
-            if keys
-                .iter()
-                .any(|key| anchor_at(&first, *key) == ColumnAnchor::InFile)
-            {
+            if keyed_by_file(&first, keys, kinds) == ColumnAnchor::InFile {
                 let mut columns = keys.clone();
                 columns.extend([*source, *destination]);
                 picked(&first, &columns)
