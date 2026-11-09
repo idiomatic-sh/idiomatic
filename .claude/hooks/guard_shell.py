@@ -76,9 +76,12 @@ def after_wrapper(words):
         flag = words[0]
         if wrapper == "env" and flag in ("-S", "--split-string") and len(words) > 1:
             return tokens(words[1]) + words[2:]
-        if wrapper == "script" and flag in ("-c", "--command") and len(words) > 1:
+        if wrapper == "env" and (flag.startswith("--split-string=") or re.fullmatch(r"-S.+", flag)):
+            return tokens(flag.split("=", 1)[1] if flag.startswith("--") else flag[2:]) + words[1:]
+        scripted = wrapper == "script" and (flag in ("-c", "--command") or re.fullmatch(r"-[A-Za-z]*c", flag))
+        if scripted and len(words) > 1:
             command = words[1]
-        words = words[2:] if flag in values or (wrapper == "script" and flag in ("-c", "--command")) else words[1:]
+        words = words[2:] if flag in values or scripted else words[1:]
     if wrapper == "script":
         return ["sh", "-c", command] if command is not None else []
     if wrapper in ("timeout", "flock") and words:
@@ -88,10 +91,16 @@ def after_wrapper(words):
     return words
 
 
+def basename(word):
+    """An absolute command path by its last component (/usr/bin/git is git); anything else unchanged."""
+    return word.rsplit("/", 1)[-1] if word.startswith("/") and len(word) > 1 else word
+
+
 def peel(words):
     """The command word list behind leading assignments, shell keywords and grouping, and every wrapper (the one
     unwrapping every caller uses). It is always a suffix of words."""
     while words:
+        words = [basename(words[0])] + words[1:]
         if re.fullmatch(ASSIGNMENT, words[0]) or words[0] in SHELL_KEYWORDS and words[0] != "time":
             words = words[1:]
         elif words[0] in WRAPPERS:
@@ -103,7 +112,12 @@ def peel(words):
 
 def shell_command(words):
     """The command string of `bash|sh|zsh -c` (also -lc, -ec ...), or None."""
-    if not words or words[0] not in ("bash", "sh", "zsh"):
+    if words and words[0] == "su":
+        for i, w in enumerate(words[1:], 1):
+            if w in ("-c", "--command") or re.fullmatch(r"-[A-Za-z]*c", w):
+                return words[i + 1] if i + 1 < len(words) else None
+        return None
+    if not words or words[0] not in ("bash", "sh", "zsh", "dash", "ksh", "ash"):
         return None
     for i, w in enumerate(words[1:], 1):
         if re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", w):
@@ -153,7 +167,7 @@ def tokens(segment):
     found = without_redirections(found)
     while found and (re.fullmatch(ASSIGNMENT, found[0]) or found[0] in SHELL_KEYWORDS and found[0] != "time"):
         found = found[1:]
-    return found
+    return [basename(found[0])] + found[1:] if found else found
 
 
 def stash(words):
@@ -377,6 +391,23 @@ def review_shape(review, reviewer):
     return validated(lambda module: module.shape(review, reviewer))
 
 
+def dropped_candidates(tree, head, sha, name):
+    """The candidate ids some version of name (at head, then every commit touching it up to sha) had that a later
+    version lacks; a version where the file is absent has none."""
+    versions = [head] + git_out(tree, "log", "--full-history", "--reverse", "--format=%H", head + ".." + sha,
+                                "--", name)[1].split()
+    seen, dropped = set(), []
+    for version in versions:
+        code, text = git_out(tree, "show", version + ":" + name)
+        try:
+            ids = set(service_ids(json.loads(text))) if code == 0 else set()
+        except ValueError:
+            ids = set()
+        dropped += [i for i in sorted(seen - ids) if i not in dropped]
+        seen |= ids
+    return dropped
+
+
 def candidate_problem(tree, sha, head, leak):
     """The refusal text when the leak-review.json (parsed) or a branch result carries candidates the previous
     checkpoint's tm-steward.json did not decide, else None. Candidates come from that checkpoint's leak-review.json
@@ -385,24 +416,20 @@ def candidate_problem(tree, sha, head, leak):
     code, listing = git_out(tree, "diff", "--name-status", "--no-renames", head + ".." + sha, "--", MERGE_BRANCHES)
     for line in (listing.split("\n") if code == 0 else []):
         status, _, name = line.partition("\t")
-        if status not in ("A", "M") or not name.endswith(".json"):
+        if status not in ("A", "M", "D") or not name.endswith(".json"):
+            continue
+        dropped = dropped_candidates(tree, head, sha, name)
+        if dropped:
+            return (name + " drops enforcement candidate " + ", ".join(dropped) + " of an earlier version in this "
+                    "checkpoint (a deleted or renamed branch file drops them all); candidates are append-only: "
+                    "carry each forward with instance_status fixed or open")
+        if status == "D":
             continue
         code, text = git_out(tree, "show", sha + ":" + name)
         try:
             reviews.append((name, json.loads(text)))
         except ValueError:
             return name + " at " + sha[:10] + " is not JSON"
-        if status == "M":
-            code, before = git_out(tree, "show", head + ":" + name)
-            try:
-                earlier = service_ids(json.loads(before)) if code == 0 else {}
-            except ValueError:
-                earlier = {}
-            now = service_ids(reviews[-1][1])
-            dropped = [i for i in earlier if i not in now]
-            if dropped:
-                return (name + " drops enforcement candidate " + ", ".join(dropped) + " of its earlier version; "
-                        "candidates are append-only: carry each forward with instance_status fixed or open")
     ids, plants = [], {}
     for name, review in reviews:
         if isinstance(review, dict) and "enforcement_candidates" in review:
@@ -449,12 +476,32 @@ def bulk_push(words, here):
     return None
 
 
+PRINTERS = {"echo", "printf", "grep", "egrep", "fgrep", "rg", "cat"}
+GATED_VERBS = ("push", "merge", "pull")
+INLINE_ALIAS = re.compile(r"alias\.[^=]+=(push|merge|pull)\b")
+
+
 def gated_wrapper(words, here):
-    """eval and sudo are not unwrapped: they refuse in front of a gated git verb rather than hide it from the gates."""
+    """Close by default: a `git` word followed by push, merge or pull, or an inline alias for one, in a command
+    that is neither git nor a printer, hides the verb from the gates (setsid, doas, sudo, eval, parallel, find -exec
+    and any other command that is not a recognised unwrapping). A git command with an inline alias for a gated
+    verb is refused too: the verb it runs is not the word it names."""
     words = peel(words)
-    if words and words[0] in GATED_WRAPPERS and gated_text(" ".join(words[1:])):
-        return (words[0] + " in front of a gated git push, merge or pull hides it from the guards; "
-                "run the git command directly")
+    if not words:
+        return None
+    if words[0] == "eval":  # eval runs its arguments as shell code; every other command's quoted arguments are data
+        words = ["eval"] + [x for w in words[1:] for x in tokens(w)]
+    at = next((i for i, w in enumerate(words) if basename(w) == "git"), None)
+    if at is None:
+        return None
+    rest = words[at + 1:]
+    named = any(w in GATED_VERBS for w in rest) or (
+        any(INLINE_ALIAS.fullmatch(w) for w in rest) and any("alias." in w for w in rest))
+    if words[0] == "git":
+        return ("git with an inline alias for push, merge or pull hides the verb from the guards; "
+                "write the verb") if any(INLINE_ALIAS.fullmatch(w) for w in rest) else None
+    if named and words[0] not in PRINTERS:
+        return "a gated git verb hidden behind " + words[0] + "; run git directly"
     return None
 
 

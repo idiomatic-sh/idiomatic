@@ -571,31 +571,63 @@ class PreviousReviewsPush(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn(new["id"], result.stderr)
 
-    def branch_rewrite(self, rewritten):
-        old = self.candidate()
-        path = os.path.join(self.tree, "crates/ryo/docs/contracts/evidence/branches/claude-old.json")
+    BRANCH = "crates/ryo/docs/contracts/evidence/branches/claude-old.json"
+
+    def branch_history(self, at_head, steps):
+        """Push with a branch file holding at_head at the previous landed head, then the steps in the checkpoint
+        (a candidate list writes the file, "delete" removes it, "rename" moves it); every candidate is decided."""
+        path = os.path.join(self.tree, self.BRANCH)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        def put(candidates):
-            with open(path, "w", encoding="utf-8") as handle:
+        def put(candidates, where=path):
+            with open(where, "w", encoding="utf-8") as handle:
                 json.dump(dict(self.body("PASS", "leak-review", self.previous), enforcement_candidates=candidates), handle)
-            git(self.tree, "add", path)
+            git(self.tree, "add", where)
             git(self.tree, "commit", "-q", "-m", "branch evidence")
-        put([old])
-        git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
-        self.setUp_after_landing()
-        put(rewritten(old))
-        self.with_candidates(decisions=[self.decision(old)])
+        if at_head is not None:
+            put(at_head)
+            git(self.tree, "push", "-q", "origin", "HEAD:claude/ryo-consolidation")
+            self.setUp_after_landing()
+        everyone = [self.candidate(), self.candidate("other", "let z")]
+        for step in steps:
+            if step == "delete":
+                git(self.tree, "rm", "-q", self.BRANCH)
+                git(self.tree, "commit", "-q", "-m", "delete branch evidence")
+            elif step == "rename":
+                git(self.tree, "mv", self.BRANCH, self.BRANCH.replace("old", "renamed"))
+                git(self.tree, "commit", "-q", "-m", "rename branch evidence")
+            else:
+                put(step)
+        self.with_candidates(decisions=[self.decision(c) for c in everyone])
         return self.push()
 
-    def test_dropping_a_candidate_when_a_branch_file_is_modified_is_refused(self):
-        result = self.branch_rewrite(lambda old: [self.candidate("other", "let z")])
-        self.assertEqual(result.returncode, 2)
+    def assert_dropped(self, result):
+        self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn("append-only", result.stderr)
 
+    def test_dropping_a_candidate_when_a_branch_file_is_modified_is_refused(self):
+        self.assert_dropped(self.branch_history([self.candidate()], [[]]))
+
+    def test_dropping_a_candidate_within_the_checkpoint_is_refused(self):
+        self.assert_dropped(self.branch_history(None, [[self.candidate()], []]))
+
+    def test_replacing_the_candidates_with_new_ones_only_is_refused(self):
+        self.assert_dropped(self.branch_history([self.candidate()], [[self.candidate("other", "let z")]]))
+
+    def test_deleting_a_branch_file_with_candidates_is_refused(self):
+        self.assert_dropped(self.branch_history([self.candidate()], ["delete"]))
+
+    def test_renaming_a_branch_file_with_candidates_is_refused(self):
+        self.assert_dropped(self.branch_history([self.candidate()], ["rename"]))
+
+    def test_adding_candidates_across_versions_is_allowed(self):
+        old = self.candidate()
+        result = self.branch_history([old], [[old, self.candidate("other", "let z")]])
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_carrying_a_candidate_forward_as_fixed_is_allowed(self):
-        result = self.branch_rewrite(lambda old: [dict(old, instance_status="fixed")])
-        self.assertEqual(result.returncode, 2 if "append-only" in result.stderr else 0, result.stderr)
-        self.assertEqual(result.returncode, 0)
+        old = self.candidate()
+        result = self.branch_history([old], [[dict(old, instance_status="fixed")]])
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_a_candidate_without_plants_is_refused(self):
         one = dict(self.candidate(), plants=[])
@@ -803,7 +835,29 @@ class PerfGate(unittest.TestCase):
             with self.subTest(command):
                 done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
                 self.assertEqual(done.returncode, 2)
-                self.assertIn("hides it from the guards", done.stderr)
+                self.assertIn("a gated git verb hidden behind", done.stderr)
+
+    def test_a_gated_git_verb_behind_any_other_command_is_refused_and_printers_pass(self):
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", self.base)
+        git(self.tree, "branch", "-q", "-m", "claude/ryo-consolidation", "claude/elsewhere")
+        self.perf()
+        rows = {"setsid": "setsid git push", "chrt": "chrt -f 10 git push", "taskset": "taskset 1 git push",
+                "doas": "doas git push", "parallel": "parallel git push ::: x", "find -exec": "find . -exec git push \\;",
+                "builtin": "builtin git push", "dash -c": "dash -c 'git push'", "su -c": "su -c 'git push' root",
+                "script -qc": "script -qc 'git push' /dev/null", "env -S attached": "env -S'git push'",
+                "absolute git": "/usr/bin/git push", "absolute bash": "/bin/bash -c 'git push'",
+                "absolute wrapper": "/usr/bin/env /usr/bin/git push", "absolute timeout": "/usr/bin/timeout 5 git push",
+                "inline alias": "git -c alias.p=push p", "inline alias merge": "git -c alias.m=merge m x",
+                "eval": "eval 'git push'", "sudo": "sudo git push"}
+        for label, command in rows.items():
+            with self.subTest(label):
+                done = run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree})
+                self.assertEqual(done.returncode, 2)
+                self.assertTrue("push of claude/p6-speed refused" in done.stderr or "hidden behind" in done.stderr
+                                or "inline alias" in done.stderr, done.stderr)
+        for command in ("echo git push", "printf '%s' git push", "grep -n git push log", "rg git merge docs"):
+            with self.subTest(command):
+                self.assertEqual(run_hook("guard_shell.py", {"tool_input": {"command": command}, "cwd": self.tree}).returncode, 0)
 
     def test_remote_consolidation_perf_commits_are_not_pushed(self):
         git(self.tree, "checkout", "-q", "-b", "claude/other", self.base)
