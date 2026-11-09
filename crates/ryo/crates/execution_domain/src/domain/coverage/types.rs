@@ -140,6 +140,16 @@ pub struct InapplicableFiles(pub Vec<FileId>);
 /// The files of the corpus that one rule was refused on because a language left their syntax acceptance undetermined or the
 /// rule's applicability metadata is unavailable, by file number. The rule has no frame for them and its answer lacks their input:
 /// the engine discharges a missing source for these and answers the rule partial over them, never complete.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RefusedFiles;
+/// use ryo_relations::domain::relations::types::FileId;
+/// let refused = RefusedFiles(vec![FileId(1)]);
+/// assert!(refused.0.contains(&FileId(1)));
+/// assert!(RefusedFiles::default().0.is_empty());
+/// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct RefusedFiles(pub Vec<FileId>);
 

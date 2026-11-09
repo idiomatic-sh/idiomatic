@@ -1,6 +1,15 @@
 //! The types of the `lineage` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 /// Where the rows of a step come from.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::lineage::types::{ColumnAnchor, Lineage};
+/// let one = Lineage::OneFile([ColumnAnchor::InFile].into());
+/// assert_ne!(one, Lineage::Mixed);
+/// assert_eq!(Lineage::default(), Lineage::Mixed);
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum Lineage {
     /// A row may be made of the rows of more than one file, so no column says which file it comes from.
@@ -11,6 +20,14 @@ pub enum Lineage {
 }
 
 /// Whether a column's file or node lies in the file its row comes from.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::types::CellKind;
+/// use ryo_values::domain::lineage::{service::anchor_of, types::ColumnAnchor};
+/// assert_eq!(anchor_of(CellKind::File), ColumnAnchor::InFile);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColumnAnchor {
     /// The column holds the file the row comes from, or a node of it.
@@ -20,6 +37,17 @@ pub enum ColumnAnchor {
 }
 
 /// Whether the keys of two operands pair a column of each that lies in its row's file.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::types::CellKind;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// use ryo_values::domain::lineage::service::{one_file, pairing};
+/// use ryo_values::domain::lineage::types::KeyPairing;
+/// let rows = one_file(&[CellKind::Node]);
+/// assert_eq!(pairing(&rows, &[ColumnIndex(0)], &rows, &[ColumnIndex(0)], &[]), KeyPairing::SameFile);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KeyPairing {
     /// Some key pairs a column of each operand that lies in its row's file: the rows the keys match come from one file.

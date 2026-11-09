@@ -57,6 +57,14 @@ pub enum SkipReason {
 }
 
 /// Why it could not be decided whether a rule applies to a file.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::runs::types::{ApplicabilityRefusal, UnknownCause};
+/// let cause = UnknownCause::Refused(ApplicabilityRefusal::SyntaxUndetermined);
+/// assert_ne!(cause, UnknownCause::Refused(ApplicabilityRefusal::MetadataUnavailable));
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ApplicabilityRefusal {
     /// The file's syntax could not be determined.
@@ -66,6 +74,14 @@ pub enum ApplicabilityRefusal {
 }
 
 /// Why a rule could not decide on a file.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::runs::types::{ApplicabilityRefusal, UnknownCause};
+/// // A refusal before the run is a typed cause, never a ran-and-undecided answer.
+/// assert_ne!(UnknownCause::Refused(ApplicabilityRefusal::SyntaxUndetermined), UnknownCause::Undecided);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UnknownCause {
     /// It ran, and what it read did not decide it.
