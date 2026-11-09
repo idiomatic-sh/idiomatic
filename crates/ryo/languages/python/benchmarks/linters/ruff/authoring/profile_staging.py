@@ -73,6 +73,8 @@ def stage_binding(manifest: dict[str, object], selected: list[str], stack: conte
     return staged
 
 def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: dict[str, object], stack: contextlib.ExitStack, output_directory: Path | None=None) -> tuple[str, Path]:
+    if 'expectations_file' not in descriptor or 'oracle_file' not in descriptor:
+        raise ValueError(f'{profile_name} is a case-preservation baseline only: it seals no expectations or oracle, so it cannot be staged')
     native_standalone.verify_ready_assets(profile_name, descriptor, manifest)
     profile_path = profile_config.REPOSITORY / descriptor['profile_file']
     profile_data = tomllib.loads(profile_path.read_text(encoding='utf-8'))
