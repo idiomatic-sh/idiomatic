@@ -57,10 +57,6 @@ fn stopped() -> std::process::ExitStatus {
     use std::os::windows::process::ExitStatusExt as _;
     std::process::ExitStatus::from_raw(0)
 }
-#[expect(
-    clippy::expect_used,
-    reason = "a shell fixture that cannot start must fail the test"
-)]
 fn subject(child: Input) -> Result<Value, Failure> {
     match child {
         Child::Shell(script) => decode(

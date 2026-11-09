@@ -58,10 +58,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Historical oracle for the retired nearest-cache slot contract.
 const SLOT_OF_ELEMENT: &str = "a slot for each element of the tree the walk reads";
-#[expect(
-    clippy::expect_used,
-    reason = "the remembered answers hold one slot per element; a missing slot must crash"
-)]
 fn nearest_at(nearest: &[u32], element: Position) -> Position {
     nearest
         .get(usize::try_from(element.0).unwrap_or(usize::MAX))

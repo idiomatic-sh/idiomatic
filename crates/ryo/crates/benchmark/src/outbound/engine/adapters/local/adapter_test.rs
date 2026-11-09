@@ -312,7 +312,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
 ];
-#[expect(clippy::expect_used, reason = "a failed scenario must fail the test")]
 fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario().expect("the scenario holds");
     Ok(())

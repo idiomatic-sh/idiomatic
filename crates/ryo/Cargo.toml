@@ -94,6 +94,8 @@ unnameable_types = "deny"
 unused = { level = "warn", priority = -1 }
 # A dropped Result or other must_use value hides a failure (a fixture check that returns its setup error passes with no cases).
 unused_must_use = "deny"
+# A suppression that suppresses nothing is a loose ignore: an #[expect] whose lint never fires fails the build.
+unfulfilled_lint_expectations = "deny"
 nonstandard_style = { level = "warn", priority = -1 }
 let_underscore = { level = "warn", priority = -1 }
 rust_2018_idioms = { level = "warn", priority = -1 }

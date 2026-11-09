@@ -33,10 +33,6 @@ use ryo_values::domain::query_tokens::types::QuerySpelling;
 /// # Errors
 ///
 /// The first name that resolves to nothing, or comparison of unlike types, with its place.
-#[expect(
-    clippy::too_many_lines,
-    reason = "lowering keeps the ordered whole-plan optimization pipeline explicit"
-)]
 #[cfg(test)]
 pub(crate) fn lower(
     program: &syntax::WrittenProgram,

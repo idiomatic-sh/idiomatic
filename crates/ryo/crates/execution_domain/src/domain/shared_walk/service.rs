@@ -149,10 +149,6 @@ fn consider(
 /// Evaluate independent active classes in one pass. `None` declines before any
 /// semantic comparison; an error after reaching a class is retained as that
 /// class's result and never asks the caller to run it again.
-#[expect(
-    clippy::too_many_arguments,
-    reason = "The prepared request and one borrowed typed source population"
-)]
 pub fn evaluate(
     program: &PreparedWalk,
     relation: Relation,
