@@ -89,10 +89,19 @@ TEST=re.compile(r'^test (.+?) \.\.\. (ok|FAILED|ignored)')
 FAILURE=re.compile(r'^---- (.+?) stdout ----$')
 RED_ROW=re.compile(r'^(.+?): (?:expected |a \w+ row expects the wrong kind|the subject panicked)')
 NOT_AVAILABLE=re.compile(r'^not available\b')
+SUMMARY=re.compile(r'^test result: ')
+# Cargo's line after a test binary that failed, crashed or was killed; a binary it follows with no `test result:` line, or with no
+# failed test, did not finish, and is recorded red under CRASHED, which no row owns.
+CARGO_FAILED=re.compile(r'^error: test failed, to rerun pass ')
+CRASHED='(the binary did not finish: no `test result:` line, or cargo failed it with no failed test)'
 def test_results(log):
- """Per test binary of one cargo test log: its passed, ignored and not-run tests, and each failed test with the case rows its runner names; `collected` when the runner ran every row and named every red one. A test that prints before its status has the status on a line of its own; one that prints `not available` there measured nothing, so its `ok` is recorded as not run, never as passed."""
- out={}; binary=None; failing=None; pending=[]
+ """Per test binary of one cargo test log: its passed, ignored and not-run tests, and each failed test with the case rows its runner names; `collected` when the runner ran every row and named every red one. A binary cargo failed that printed no `test result:` line, or no failed test, crashed: its failure is CRASHED. A test that prints before its status has the status on a line of its own; one that prints `not available` there measured nothing, so its `ok` is recorded as not run, never as passed."""
+ out={}; binary=None; failing=None; pending=[]; summarized=set()
  for line in Path(log).read_text(errors='replace').splitlines():
+  if binary and SUMMARY.match(line): summarized.add(binary)
+  if binary and CARGO_FAILED.match(line):
+   if binary not in summarized or not out[binary]['failed']: out[binary]['failed'].setdefault(CRASHED,{'rows':[],'collected':False})
+   continue
   m=RAN.match(line)
   if m: binary=m.group(2) or m.group(3); out.setdefault(binary,{'passed':[],'ignored':[],'not_run':[],'failed':{}}); failing=None; continue
   m=TEST.match(line) or (pending and re.match(r'^()(ok|FAILED|ignored)$',line))

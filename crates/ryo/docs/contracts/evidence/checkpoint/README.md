@@ -71,7 +71,8 @@ it exits on the validation's results alone.
 
 Both modes exit 1 for a red command no open README row owns, and print every red command with its owning rows. A red is owned
 only by its exact recorded test id, `(command, test binary, test)` in `RED_OWNERS`; a red command that recorded no failed test
-(a build failure, a crashed binary, a `harness = false` target such as `core_allocation`) is unowned. A command that cannot run on
+(a build failure, a `harness = false` target that prints no case) is unowned, and so is a binary that crashed: one cargo failed
+(`error: test failed, to rerun pass ...`) that printed no `test result:` line or no failed test is recorded red under `CRASHED`. A command that cannot run on
 the machine prints `not available: <why>` as its first line and exits non-zero (`ruff_parity`, whose pinned Django request stays
 outside the repository); `run.py` records the reason in its check, prints it as `NOT RUN ruff_parity: parity not run: <why>`, and
 only that refusal is owned, by its `UNAVAILABLE_OWNERS` row. An owning row must be open: `own()` and the exit refuse a ticked one. Both modes also exit 1 when a ticked row (`☑`,

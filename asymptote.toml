@@ -78,7 +78,8 @@ id = "commitizen"
 group = "lint"
 # The branch's commit messages since a pinned baseline are conventional commits (cz.toml), through cz's own --rev-range.
 # The baseline is the landed consolidation head (dcea2ee7df, 2026-11-09): the 901 non-conventional commits before it are history, not rewritten.
-run = ["bash", "-c", "set -e; base=dcea2ee7df7c02711f42c332cbc403ff7b84a034; [ -z \"$(git rev-list \"$base..HEAD\")\" ] || cz check --rev-range \"$base..HEAD\""]
+# A shallow clone, or one without the baseline, stops the tool: a range it cannot resolve is no range it checked.
+run = ["bash", "-c", "set -e; [ \"$(git rev-parse --is-shallow-repository)\" = false ] || { echo 'commitizen: a shallow clone cannot resolve the range' >&2; exit 2; }; base=$(git rev-parse --verify \"dcea2ee7df7c02711f42c332cbc403ff7b84a034^{commit}\"); ahead=$(git rev-list \"$base..HEAD\"); [ -z \"$ahead\" ] || cz check --rev-range \"$base..HEAD\""]
 timeout-seconds = 300
 
 [[tools]]
@@ -96,7 +97,8 @@ group = "check"
 # Every commit of the branch since its merge-base with origin/main, so a secret committed and then deleted still fails, and a
 # checkout of a pushed branch (CI's) scans the branch's own commits; secrets matter for the whole history, which was scanned once,
 # on 2026-11-09. In the check group, which the CI checks job and the checkpoint workflow run and the pre-commit hook does not.
-run = ["bash", "-c", "set -e; [ -z \"$(git rev-list origin/main..HEAD)\" ] || gitleaks git --redact --no-banner --log-opts=origin/main..HEAD ."]
+# A shallow clone, or one without origin/main (a --single-branch clone), stops the tool: a range it cannot resolve is no range it scanned.
+run = ["bash", "-c", "set -e; [ \"$(git rev-parse --is-shallow-repository)\" = false ] || { echo 'gitleaks-history: a shallow clone cannot resolve the range' >&2; exit 2; }; base=$(git rev-parse --verify origin/main^{commit}); ahead=$(git rev-list \"$base..HEAD\"); [ -z \"$ahead\" ] || gitleaks git --redact --no-banner \"--log-opts=$base..HEAD\" ."]
 timeout-seconds = 600
 
 [[tools]]

@@ -17,7 +17,17 @@ ROOT = Path(__file__).resolve().parents[3]
 DIGEST = hashlib.sha256(b"planted").hexdigest()
 RECORD = "crates/ryo/languages/python/benchmarks/linters/ruff/results/run/summary.json"
 # The leak review's five planted keys: a secret's own name with a dot or a slash, each holding 64 hex digits.
-PLANTED = ["jwt.secret", "api.token", "aws/secret_access_key", "stripe/api_key", "wallet.key"]
+PLANTED = [
+    "jwt.secret",
+    "api.token",
+    "aws/secret_access_key",
+    "stripe/api_key",
+    "wallet.key",
+    # The re-check's three-part names, shaped as a relation id with an underscore in its last part.
+    "vault/prod/jwt_secret",
+    "stripe/live/api_key",
+    "aws/prod/secret_access_key",
+]
 
 
 def tool(identity: str) -> dict:
@@ -29,7 +39,7 @@ def git(path: Path, *arguments: str) -> None:
     subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *arguments], cwd=path, check=True, capture_output=True)
 
 
-def pushed_branch(tmp_path: Path, files: dict[str, str]) -> Path:
+def pushed_branch(tmp_path: Path, files: dict[str, str], *clone_options: str) -> Path:
     """A clone, with its whole history, of a branch pushed to an origin whose main holds the scanner's settings, the branch
     adding `files` in a commit of its own: the checkout CI makes of a dispatched ref."""
     tmp_path.mkdir(parents=True, exist_ok=True)
@@ -48,7 +58,7 @@ def pushed_branch(tmp_path: Path, files: dict[str, str]) -> Path:
     git(work, "add", "-A")
     git(work, "commit", "-q", "-m", "feat: plant")
     git(work, "push", "-q", "origin", "claude/plant")
-    git(tmp_path, "clone", "-q", "--branch", "claude/plant", str(origin), str(clone))
+    git(tmp_path, "clone", "-q", *clone_options, "--branch", "claude/plant", f"file://{origin}", str(clone))
     return clone
 
 
@@ -85,3 +95,8 @@ def test_a_staged_secret_fails_the_pre_commit_scan(tmp_path) -> None:
     (clone / "config.json").write_text(f'{{\n  "jwt.secret": "{DIGEST}"\n}}\n')
     git(clone, "add", "config.json")
     assert exit_of(clone, "gitleaks") == 1
+
+
+@pytest.mark.parametrize("options", [("--depth", "1"), ("--single-branch",)], ids=["depth-1", "single-branch"])
+def test_a_clone_that_cannot_resolve_the_range_stops_the_history_scan(tmp_path, options) -> None:
+    assert exit_of(pushed_branch(tmp_path, {"notes.txt": "fine\n"}, *options)) != 0

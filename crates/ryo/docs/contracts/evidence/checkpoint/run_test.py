@@ -109,6 +109,22 @@ class Check(unittest.TestCase):
   tests={'core_allocation':run.test_results(log)}
   self.assertEqual(list(tests['core_allocation']['allocation']['failed']),[case])
   self.assertEqual(run.command_owners('core_allocation',{'exit':101},tests),[run.OWNERS['core_allocation']])
+ def test_a_binary_cargo_failed_without_a_test_result_line_crashed_and_its_red_is_unowned(self):
+  benchmark='inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds'
+  log=Path(self.raw.name)/'libraries.log'
+  log.write_text('     Running unittests src/lib.rs (/t/debug/deps/ryo_benchmark-e4783985ddbec807)\n'
+   'test '+benchmark+' ... FAILED\n\ntest result: FAILED. 227 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n\n'
+   'error: test failed, to rerun pass `-p idiomatic-sh-ryo-benchmark --lib`\n'
+   '     Running unittests src/lib.rs (/t/debug/deps/ryo_core-90ad667b7be178a2)\n\nrunning 120 tests\n'
+   "thread 'main' has overflowed its stack\nfatal runtime error: stack overflow\n"
+   'error: test failed, to rerun pass `-p idiomatic-sh-ryo-core --lib`\n'
+   '     Running unittests src/lib.rs (/t/debug/deps/ryo_values-0bf301fa394de9a3)\n'
+   'test domain::rows::service_test::succeeds ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n')
+  tests={'libraries':run.test_results(log)}
+  self.assertEqual(list(tests['libraries']['ryo_core']['failed']),[run.CRASHED])
+  self.assertEqual(list(tests['libraries']['ryo_benchmark']['failed']),[benchmark])
+  self.assertEqual(tests['libraries']['ryo_values']['failed'],{})
+  self.assertEqual(run.command_owners('libraries',{'exit':101},tests),[])
  def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
   v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
   self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])
@@ -150,6 +166,17 @@ class Check(unittest.TestCase):
    run_tests=run.loaded(json.loads((Path(run.__file__).parent/'tests.json').read_text()))
    run_tests['libraries'].setdefault('ryo_core',{'passed':[],'ignored':[],'not_run':[],'failed':{}})['failed']['brand_new::regression']={'rows':[],'collected':False}
    planted=dict(committed,tm_import_cli={'exit':101},**refused)
+   # The re-check's plant: a ryo_core crash beside the owned reds of the same command.
+   alone=dict(committed,**refused)
+   crashed=run.loaded(json.loads((Path(run.__file__).parent/'tests.json').read_text()))
+   crashed['libraries']['ryo_core']={'passed':[],'ignored':[],'not_run':[],'failed':{run.CRASHED:{'rows':[],'collected':False}}}
+   crashed['core_allocation']={'allocation':{'passed':[],'ignored':[],'not_run':[],'failed':{'per_file_path::allocates_as_the_parser_library_does':{'rows':[],'collected':False}}}}
+   run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
+   v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':{},'checks':alone,'tests':crashed,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
+   with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(v),1)
+   del crashed['libraries']['ryo_core']
+   run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
+   with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(dict(v,tests=crashed)),0)
    run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
    v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':{},'checks':planted,'tests':run_tests,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
    with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(v),1)
