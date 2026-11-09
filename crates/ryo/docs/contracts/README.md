@@ -23,12 +23,17 @@ Phases 1-7 are complete when each box below is ticked.
   - [ ] warm and edit 200 ms
   - [ ] memory guard
   - [ ] simple-rule speedups last, unless a single path for all rules
-- [ ] runtime per-file state is one typed component inside `execution_runtime` (slots, polls and publication bookkeeping behind a narrow interface, one implementation; nothing outside touches it, proven by a compile seed), with the dense-slot version swapped in
+- [ ] runtime per-file state is one typed component inside `execution_runtime` (slots, polls and publication bookkeeping behind a narrow interface, one implementation), with the dense-slot version swapped in. Nothing outside touches it, proven by `compile_fail` probes plus `private_interfaces = deny`: each probe refuses code outside the component that names one member type or calls its internals.
+  - Members: the per-file maps in `execution_runtime` `runtime/service.rs`: `slots` (line 160, the one the diagnosis names; the dense-slot swap replaces this map), `dormant` (line 161) and the two retirement maps (lines 127 and 130).
+  - Boundary: `ReadyQueue` and `ReadinessCounts` (`execution_domain` readiness), the publication scope and generation types (`execution_store`) and the replay buffer (`execution_domain` replay) stay where they are, as domain values the component holds and uses. The component owns their per-file instances and lifetime, not their definitions. The streaming-rows lever changes how the component feeds the replay buffer and touches the domain type only within its own crate. Readiness does not move, so the ring row is unaffected.
 - [ ] whole-tree Tastemaker 0, with the `execution_domain` concept cycle broken (18 `no-domain-concept-cycles` findings; the 6 suppressions at checkpoint 330 each a reasoned ignore)
 - [ ] CI wiring: `.github/workflows/checkpoint.yml` `workflow_dispatch` only; every workflow manual dispatch (the pull-request trigger of `check.yml` and the cron schedule of `benchmarks.yml` removed); the pre-existing CI test reds fixed
 - [ ] four review agents on every checkpoint, enforced by hooks
 - [ ] the speed target (750 ms / 500 MB / 200 ms) recorded RED by owner decision: tracked, not an exit
 - [ ] then the consolidation pull request for the owner's merge
+
+
+Owner decision on perf priority (owner, 2026-11-08): "while this might get us better speed for ruff rules it's not going to solve the relational speeds that make ryo special. we should prioritize those while they are the hot path now, and then do the other changes after, unless we can figure a way that there is only a single path for all".
 
 ### Why the target stays red
 
