@@ -28,10 +28,10 @@ use ryo_values::domain::plan_parts::types::{
 };
 
 /// A scenario: what a row observes of the comparisons, as a number.
-pub(super) type Input = fn() -> Result<Value, OperatingError>;
+type Input = fn() -> Result<Value, OperatingError>;
 /// The number a scenario observes: rows kept and decisions remembered, written as digits.
-pub(super) type Value = usize;
-pub(super) type Failure = OperatingError;
+type Value = usize;
+type Failure = OperatingError;
 
 pub(super) const FROM: PlanInput = PlanInput::Relation(Relation::Function);
 
@@ -199,7 +199,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }
 

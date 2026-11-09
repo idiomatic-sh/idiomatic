@@ -1,5 +1,5 @@
 //! How a comparison decides a name against a text: by the text's hash, once for each name, and across the files of a run.
-use super::{FROM, Failure, Input, Value, column, holds_all, subject};
+use super::{FROM, column, holds_all};
 use crate::domain::comparing::types::RowShape;
 use crate::domain::operating::{errors::OperatingError, types::NameCount};
 use crate::domain::table_model::types::Verdict;
@@ -201,6 +201,14 @@ fn remembers_what_a_text_was_decided_in_another_file() -> Result<Value, Operatin
             .count();
     }
     Ok(kept * 10 + scratch.select_scratch.verdicts.len())
+}
+
+type Input = fn() -> Result<Value, OperatingError>;
+type Value = usize;
+type Failure = OperatingError;
+
+fn subject(scenario: Input) -> Result<Value, Failure> {
+    scenario()
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[

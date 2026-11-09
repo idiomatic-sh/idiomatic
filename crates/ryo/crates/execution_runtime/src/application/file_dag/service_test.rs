@@ -294,11 +294,11 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results()
 }
 
 /// A scenario: what a row asks of the generation owner.
-pub(super) type Scenario = fn() -> Result<Answer, Failure>;
+type Scenario = fn() -> Result<Answer, Failure>;
 /// What a scenario answers: a yes as one.
-pub(super) type Answer = usize;
+type Answer = usize;
 /// This part has no failure of its own.
-pub(super) type Failure = ();
+type Failure = ();
 
 /// The rows of this part's cases.
 const CASES: &[Case<Scenario, Answer, Failure>] = &[Case {
@@ -308,7 +308,7 @@ const CASES: &[Case<Scenario, Answer, Failure>] = &[Case {
     expect: Expect::Value(1),
 }];
 
-pub(super) fn subject(scenario: Scenario) -> Result<Answer, Failure> {
+fn subject(scenario: Scenario) -> Result<Answer, Failure> {
     scenario()
 }
 

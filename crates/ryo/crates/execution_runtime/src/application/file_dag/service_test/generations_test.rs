@@ -1,7 +1,7 @@
 //! Two file generation owners cannot reuse each other's results: each file's generation consults its own provider and keeps its output.
 use super::{
-    Answer, FRESH_GENERATION_READS, Failure, Prepared, RuleRun, Scenario, TRANSFERRED_INDEPENDENT,
-    language_columns, prepare, run_rule, subject,
+    FRESH_GENERATION_READS, Prepared, RuleRun, TRANSFERRED_INDEPENDENT, language_columns, prepare,
+    run_rule,
 };
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -91,6 +91,17 @@ fn two_file_generation_owners_cannot_reuse_the_other_files_results() -> Result<A
         "{TRANSFERRED_INDEPENDENT}"
     );
     Ok(1)
+}
+
+/// A scenario of this group: it answers how many times it held.
+type Scenario = fn() -> Result<Answer, Failure>;
+/// What a scenario answers: a yes as one.
+type Answer = usize;
+/// This part has no failure of its own.
+type Failure = ();
+
+fn subject(scenario: Scenario) -> Result<Answer, Failure> {
+    scenario()
 }
 
 const CASES: &[Case<Scenario, Answer, Failure>] = &[Case {

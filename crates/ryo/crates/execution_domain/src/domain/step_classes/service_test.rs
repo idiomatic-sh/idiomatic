@@ -11,10 +11,10 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 /// The kinds the one step of each rule selects, an empty one for the elements with no text.
-pub(super) type Input = Scenario;
+type Input = Scenario;
 /// How many classes the merge made, and the class of each rule's step.
-pub(super) type Value = &'static str;
-pub(super) type Failure = ();
+type Value = &'static str;
+type Failure = ();
 
 fn text_is(text: &str) -> PlanComparison {
     PlanComparison {
@@ -64,11 +64,11 @@ pub(super) fn plan(name: &str) -> Plan {
 }
 
 #[derive(Clone, Copy)]
-pub(super) enum Scenario {
+enum Scenario {
     Kinds(&'static [&'static str]),
     Check(fn()),
 }
-pub(super) fn subject(scenario: Input) -> Value {
+fn subject(scenario: Input) -> Value {
     let kinds = match scenario {
         Scenario::Kinds(kinds) => kinds,
         Scenario::Check(check) => {

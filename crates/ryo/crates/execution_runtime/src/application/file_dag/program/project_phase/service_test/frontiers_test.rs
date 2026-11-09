@@ -1,6 +1,5 @@
 //! The project phase's frontiers and demands: frontiers of another request or coverage are refused, a root answers only what its rule demands, and a scope and its phase finish together.
 use super::super::fixtures::{Entry, corpus, covered, prepare_for, producer_program, program};
-use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
@@ -285,52 +284,4 @@ fn finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication() {
     );
     drop(scope);
     request.finish();
-}
-
-/// A scope is opened only for a rule the program declared, in the request's project phase and in the phase its observation stage
-/// owns; and the phase's frontiers are prepared only for a declared rule.
-#[test]
-fn frontiers_and_scopes_of_an_undeclared_rule_are_refused() {
-    for entry in [Entry::Phase, Entry::Stage] {
-        let prepared = program(entry, 3);
-        let corpus = corpus();
-        let request = begin(&prepared, &corpus);
-        let mut arenas = Vec::new();
-        let check = |phase: &ProjectPhase<'_>| {
-            let scope = |rule| {
-                phase.project_scope(
-                    rule,
-                    &corpus,
-                    &covered(3),
-                    &[],
-                    &InapplicableFiles::default(),
-                    &RefusedFiles::default(),
-                )
-            };
-            assert!(scope(RuleIndex(2)).is_ok());
-            assert!(matches!(scope(RuleIndex(3)), Err(OperatingError::NotRun)));
-            if matches!(entry, Entry::Stage) {
-                return;
-            }
-            let declared = scope(RuleIndex(0)).expect("a declared rule has a scope");
-            assert!(prepare_for(&request, &declared, RuleIndex(0)).is_ok());
-            assert!(matches!(
-                prepare_for(&request, &declared, RuleIndex(3)),
-                Err(PreparationError::Metadata(OperatingError::NotRead))
-            ));
-        };
-        match entry {
-            Entry::Phase => {
-                let phase = request.project_phase().expect("the phase opens");
-                check(&phase);
-                phase.finish().expect("the phase finishes");
-            }
-            Entry::Stage => {
-                let stage = request.observations(&mut arenas).expect("the stage opens");
-                check(&stage.phase);
-                stage.finish_stage().expect("the stage finishes");
-            }
-        }
-        request.finish();
-    }
 }

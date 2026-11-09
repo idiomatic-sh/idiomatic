@@ -1,6 +1,6 @@
 //! How step classes treat parameter bindings: parameter-free predicates share a class, only referenced slots must match, and a missing vector or slot never equals a value.
 use super::super::service::merge;
-use super::{Failure, Input, Scenario, Value, plan, subject};
+use super::plan;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, PlanComparison,
@@ -133,13 +133,20 @@ fn missing_vectors_or_referenced_slots_never_become_equal_values() {
     }
 }
 
+type Input = fn();
+type Value = &'static str;
+type Failure = ();
+
+fn subject(check: Input) -> Value {
+    check();
+    "held"
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("parameter_free_predicates_share_across_unrelated_typed_binding_vectors"),
         word: Word::Succeeds,
-        input: || {
-            Scenario::Check(parameter_free_predicates_share_across_unrelated_typed_binding_vectors)
-        },
+        input: || parameter_free_predicates_share_across_unrelated_typed_binding_vectors,
         expect: Expect::Value("held"),
     },
     Case {
@@ -147,25 +154,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "only_referenced_slots_must_match_including_left_operands_and_duplicate_reads",
         ),
         word: Word::Succeeds,
-        input: || {
-            Scenario::Check(
-                only_referenced_slots_must_match_including_left_operands_and_duplicate_reads,
-            )
-        },
+        input: || only_referenced_slots_must_match_including_left_operands_and_duplicate_reads,
         expect: Expect::Value("held"),
     },
     Case {
         name: CaseName("nested_function_parameters_are_referenced_but_unread_slots_are_not"),
         word: Word::Succeeds,
-        input: || {
-            Scenario::Check(nested_function_parameters_are_referenced_but_unread_slots_are_not)
-        },
+        input: || nested_function_parameters_are_referenced_but_unread_slots_are_not,
         expect: Expect::Value("held"),
     },
     Case {
         name: CaseName("missing_vectors_or_referenced_slots_never_become_equal_values"),
         word: Word::Succeeds,
-        input: || Scenario::Check(missing_vectors_or_referenced_slots_never_become_equal_values),
+        input: || missing_vectors_or_referenced_slots_never_become_equal_values,
         expect: Expect::Value("held"),
     },
 ];
