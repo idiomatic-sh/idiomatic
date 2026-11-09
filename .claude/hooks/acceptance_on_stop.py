@@ -58,9 +58,10 @@ def started_at(path):
 
 
 def token(text, name):
-    """The value of the one `NAME=<value>` token in text, trailing punctuation stripped, or None."""
-    found = re.search(r"(?<![A-Za-z0-9_])" + name + r"=(\S+)", text)
-    return found.group(1).rstrip(TRAILING) if found else None
+    """The value of the last `NAME=<value>` token in text (a prompt may quote an earlier review's first), trailing
+    punctuation stripped, or None."""
+    found = re.findall(r"(?<![A-Za-z0-9_])" + name + r"=(\S+)", text)
+    return found[-1].rstrip(TRAILING) if found else None
 
 
 def shape_problem(review, agent):
