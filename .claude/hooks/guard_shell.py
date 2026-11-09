@@ -361,7 +361,7 @@ def branch_packages(here):
     code, base = git_out(here, "merge-base", "HEAD", "refs/remotes/origin/" + CONSOLIDATION)
     if not top or code != 0:
         return None
-    changed = git_out(top, "diff", "--name-only", base.strip())[1].split() + \
+    changed = git_out(top, "diff", "--name-only", "--no-renames", base.strip())[1].split() + \
         git_out(top, "ls-files", "--others", "--exclude-standard")[1].split()
     found = set()
     for path in changed:
@@ -703,7 +703,7 @@ def stands_for(tree, source, head, prefix):
         return True
     if git_out(tree, "merge-base", "--is-ancestor", source, head)[0] != 0:
         return False
-    code, out = git_out(tree, "diff", "--name-only", source, head)
+    code, out = git_out(tree, "diff", "--name-only", "--no-renames", source, head)
     return code == 0 and all(line.startswith(prefix) for line in out.split())
 
 
@@ -798,7 +798,7 @@ def branch_range(tree, remote, sha):
     """(commits, added files) of the pushed branch's own range: everything the ref has that consolidation lacks."""
     tail = ["--not", *excluded_refs(tree, remote)] if excluded_refs(tree, remote) else []
     commits = set(git_out(tree, "rev-list", sha, *tail)[1].split())
-    added = set(git_out(tree, "log", "--diff-filter=A", "--name-only", "--format=", sha, *tail)[1].split("\n"))
+    added = set(git_out(tree, "log", "--diff-filter=A", "--no-renames", "--name-only", "--format=", sha, *tail)[1].split("\n"))
     return commits, added
 
 

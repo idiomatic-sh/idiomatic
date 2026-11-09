@@ -108,8 +108,12 @@ def verdict_problem(path, agent, source, since, tree):
     if problem:
         return path + " " + problem
     if agent == "tm-steward":
-        guard = guard_module()
-        if not guard.stands_for(tree, review["source"], source, guard.EVIDENCE):
+        try:
+            guard = guard_module()
+            stands = guard.stands_for(tree, review["source"], source, guard.EVIDENCE)
+        except Exception as error:  # a missing or broken guard_shell.py holds the stop, never releases it
+            return path + " cannot be judged: guard_shell.py failed (" + type(error).__name__ + ": " + str(error) + ")"
+        if not stands:
             return path + " decides " + repr(review["source"]) + ", which does not stand for SOURCE=" + source + \
                 " (the landed head, or an ancestor with only evidence changed since)"
     elif review.get("source") != source:

@@ -1432,14 +1432,35 @@ class ReviewerStop(unittest.TestCase):
         landed = commit("code.rs", "fn a() {}")
         evidence = commit("crates/ryo/docs/contracts/evidence/checkpoint/contract-review.md", "x")
         code = commit("code.rs", "fn b() {}")
+        subprocess.run(git + ["mv", "code.rs", "crates/ryo/docs/contracts/evidence/checkpoint/code.rs"], check=True)
+        subprocess.run(git + ["commit", "-q", "-m", "move"], check=True)
+        moved = subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
         brief = lambda sha: "INTEGRATION_TREE=" + self.tree + " SOURCE=" + sha
         for name, source, decided, code_ in [("the landed head itself", landed, landed, 0),
+                                             ("code renamed into the evidence directory since", moved, code, 2),
                                              ("an ancestor with only evidence changed since", evidence, landed, 0),
                                              ("an ancestor with code changed since", code, landed, 2),
                                              ("a sha that is not an ancestor", landed, code, 2)]:
             with self.subTest(name=name):
                 self.write("checkpoint/tm-steward.json", self.review("tm-steward", source=decided))
                 self.assertEqual(self.stop("tm-steward", brief=brief(source)).returncode, code_)
+
+    def test_a_guard_that_fails_to_load_holds_the_tm_steward(self):
+        copy = os.path.join(self.dir.name, "copy")
+        os.makedirs(os.path.join(copy, ".claude", "hooks"))
+        shutil.copytree(os.path.join(HERE, "..", "..", "ci", "contract_review"), os.path.join(copy, "ci", "contract_review"))
+        shutil.copy(os.path.join(HERE, "acceptance_on_stop.py"), os.path.join(copy, ".claude", "hooks"))
+        with open(os.path.join(copy, ".claude", "hooks", "guard_shell.py"), "w", encoding="utf-8") as handle:
+            handle.write("import no_such_module_planted\n")
+        self.write("checkpoint/tm-steward.json", self.review("tm-steward"))
+        self.stop("tm-steward")  # writes the transcript
+        transcript = os.path.join(self.dir.name, "agent.jsonl")
+        result = subprocess.run(["python3", "-I", os.path.join(copy, ".claude", "hooks", "acceptance_on_stop.py")],
+                                input=json.dumps({"agent_type": "tm-steward", "agent_id": "a1",
+                                                  "agent_transcript_path": transcript}),
+                                capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("ModuleNotFoundError", result.stderr)
 
     def test_blocked_and_other_agents_stop(self):
         self.assertEqual(self.stop("rust-review", report="BLOCKED: which base sha?").returncode, 0)
