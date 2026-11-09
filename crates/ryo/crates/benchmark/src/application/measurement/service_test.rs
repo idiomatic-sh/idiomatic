@@ -193,7 +193,11 @@ fn adapter_pin(pinning: Pinning) -> Result<Value, Error> {
         &request,
         pinning,
     );
-    let names = last_environment(&execution).unwrap_or_default();
+    if history_len(&execution) != Some(1) {
+        return Err(Error::Invalid("the adapter was not launched exactly once".into()));
+    }
+    let names = last_environment(&execution)
+        .ok_or_else(|| Error::Invalid("no launch was recorded".into()))?;
     Ok(usize::from(names.split(',').any(|name| {
         name == ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN
     })))
