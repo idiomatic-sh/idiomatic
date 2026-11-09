@@ -1,155 +1,155 @@
 {
-  "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+  "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
   "scope": "Ownership consolidation checkpoint 330 (perf iterations 4 and 5: the Django peak 6.78 to 3.33 GB; the engine edits after 329: unknown rule index refused, project-batch-owner 0.1.1, the two-reviewer charter; validated once on the tree's own target)",
   "checks": {
     "libraries": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "-p", "idiomatic-sh-ryo-core", "-p", "idiomatic-sh-ryo-sdk", "-p", "idiomatic-sh-ryo-values", "-p", "idiomatic-sh-ryo-query_language", "-p", "idiomatic-sh-ryo-operators", "-p", "idiomatic-sh-ryo-matching", "-p", "idiomatic-sh-ryo-derived", "--lib", "--no-fail-fast", "-p", "idiomatic-sh-ryo-benchmark", "--", "--test-threads=6"],
       "exit": 101,
-      "elapsed_seconds": 83.83877611160278
+      "elapsed_seconds": 75.641028881073
     },
     "boundary": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "boundary_contract", "--", "--test-threads=6"],
       "exit": 0,
-      "elapsed_seconds": 18.21967601776123
+      "elapsed_seconds": 17.26446795463562
     },
     "activation": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "activation"],
       "exit": 0,
-      "elapsed_seconds": 1.817223072052002
+      "elapsed_seconds": 1.7214610576629639
     },
     "bdd": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "--test", "bdd"],
       "exit": 0,
-      "elapsed_seconds": 3.4221725463867188
+      "elapsed_seconds": 3.2714684009552
     },
     "doctest": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 2.448460102081299
+      "elapsed_seconds": 1.0669879913330078
     },
     "ruff": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--test", "ruff", "--no-fail-fast", "--", "--test-threads=6"],
       "exit": 0,
-      "elapsed_seconds": 54.036070346832275
+      "elapsed_seconds": 49.04834866523743
     },
     "ruff_rule_phases": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["python3", "-I", "crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py", "--self-test"],
       "exit": 0,
-      "elapsed_seconds": 67.66807436943054
+      "elapsed_seconds": 63.0917911529541
     },
     "ruff_parity": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["sh", "-c", "set -e; o=/tmp/ryo-ruff-parity-{worktree}; rm -rf \"$o\"; mkdir -p \"$o\"; w=$(cargo bench --no-run --manifest-path crates/ryo/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 -p idiomatic-sh-ryo-python --bench ruff --message-format=json | python3 -I -c 'import sys; sys.path.insert(0, \"crates/ryo/languages/python/benchmarks/linters/ruff\"); from authoring.profile_worker import parse_worker_artifact; print(parse_worker_artifact(sys.stdin.buffer.read()))'); python3 -I crates/ryo/languages/python/benchmarks/linters/ruff/verify_profiles.py --stage-request /tmp/ryo-event-ready-django213-20261105/cold-request.json --output-dir \"$o/stage\"; \"$w\" parity \"$(command -v ruff)\" \"$w\" \"$o/stage/request.json\" crates/ryo/docs/contracts/evidence/parity/django-413/accepted-differences.json \"$o/per-rule.json\""],
       "exit": 0,
-      "elapsed_seconds": 485.7477526664734
+      "elapsed_seconds": 399.78514885902405
     },
     "core_bdd": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "bdd"],
       "exit": 0,
-      "elapsed_seconds": 36.450011253356934
+      "elapsed_seconds": 18.922348022460938
     },
     "core_allocation": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--test", "allocation"],
       "exit": 101,
-      "elapsed_seconds": 1.773383617401123
+      "elapsed_seconds": 1.8317458629608154
     },
     "doctest_values": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-values", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 2.2631282806396484
+      "elapsed_seconds": 1.6892125606536865
     },
     "doctest_core": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-core", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 0.39866137504577637
+      "elapsed_seconds": 0.38396620750427246
     },
     "doctest_sdk": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-sdk", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 19.821901082992554
+      "elapsed_seconds": 19.286710262298584
     },
     "doctest_derived": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-derived", "--doc"],
       "exit": 0,
-      "elapsed_seconds": 2.5871896743774414
+      "elapsed_seconds": 1.999051809310913
     },
     "tm_import_cli": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/tastemaker/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "-p", "idiomatic-sh-tastemaker", "--no-default-features", "--features", "rust,toml", "--test", "replay", "imports::visibility_scopes_do_not_authorize_real_imports_types_or_calls", "--", "--exact"],
       "exit": 101,
-      "elapsed_seconds": 2.8361172676086426
+      "elapsed_seconds": 2.768886089324951
     },
     "tm_cli_source": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["tm", "--root", "crates/tastemaker", "check", "--fix", "cli/tests/replay/imports.rs", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 0.4589962959289551
+      "elapsed_seconds": 0.7967386245727539
     },
     "conformance": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-css", "-p", "idiomatic-sh-ryo-go", "-p", "idiomatic-sh-ryo-html", "-p", "idiomatic-sh-ryo-javascript", "-p", "idiomatic-sh-ryo-json", "-p", "idiomatic-sh-ryo-markdown", "-p", "idiomatic-sh-ryo-python", "-p", "idiomatic-sh-ryo-rust", "-p", "idiomatic-sh-ryo-toml", "-p", "idiomatic-sh-ryo-typescript", "--test", "conformance", "--no-fail-fast"],
       "exit": 0,
-      "elapsed_seconds": 215.8395516872406
+      "elapsed_seconds": 195.50247311592102
     },
     "cli_tests": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "--test", "blocks", "--test", "call_count", "--test", "command_line", "--test", "command_tree", "--test", "readme", "--no-fail-fast", "--", "--skip", "cost::"],
       "exit": 101,
-      "elapsed_seconds": 45.49668478965759
+      "elapsed_seconds": 1019.8529224395752
     },
     "cli_cost": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--test", "replay", "cost::", "--", "--test-threads=1", "--nocapture"],
       "exit": 101,
-      "elapsed_seconds": 9.92123556137085
+      "elapsed_seconds": 34.882015228271484
     },
     "bench_build": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "bench", "--no-run", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo", "--bench", "lint", "-p", "idiomatic-sh-ryo-core", "--benches"],
       "exit": 0,
-      "elapsed_seconds": 112.92402839660645
+      "elapsed_seconds": 109.49751091003418
     },
     "no_print": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "clippy", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "-p", "idiomatic-sh-ryo-core", "--lib", "--no-deps", "--", "-A", "clippy::all", "-A", "clippy::pedantic", "-A", "clippy::nursery", "-A", "clippy::restriction", "-A", "clippy::cargo", "-A", "dead_code", "-A", "unused", "-D", "clippy::print_stderr", "-D", "clippy::print_stdout"],
       "exit": 0,
-      "elapsed_seconds": 7.763320207595825
+      "elapsed_seconds": 5.642693996429443
     },
     "tm_source": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["tm", "--root", "crates/ryo", "check", "crates/execution_runtime/src/application/file_dag/program", "crates/execution_runtime/src/application/file_dag/invocation", "crates/execution_store/src/application/file_dag/derived", "crates/execution_domain/src/domain/shared_walk", "crates/execution/tests/shared_walk", "crates/execution_domain/src/domain/executable_program", "crates/execution_domain/src/domain/step_classes", "crates/execution_domain/src/domain/completion", "crates/execution_domain/src/domain/coverage", "crates/execution_domain/src/domain/frontiers", "crates/execution_runtime/src/application/file_dag/frontiers", "crates/core/src/application/file_analysis", "crates/core/src/inbound/use_cases/lint", "crates/core/src/domain/storing", "crates/core/src/outbound/lint_store", "crates/execution_domain/src/domain/trust", "--format", "json"],
-      "exit": 1,
-      "elapsed_seconds": 174.400297164917,
+      "exit": 0,
+      "elapsed_seconds": 65.7990894317627,
       "findings": {
-        "total": 8,
-        "suppressed": 2,
-        "production": 3,
-        "test": 5,
+        "total": 0,
+        "suppressed": 4,
+        "production": 0,
+        "test": 0,
         "by_directory": {
-          "crates/execution_runtime/src/application/file_dag/program": {"production": 1, "test": 3},
+          "crates/execution_runtime/src/application/file_dag/program": {"production": 0, "test": 0},
           "crates/execution_runtime/src/application/file_dag/invocation": {"production": 0, "test": 0},
           "crates/execution_store/src/application/file_dag/derived": {"production": 0, "test": 0},
-          "crates/execution_domain/src/domain/shared_walk": {"production": 0, "test": 1},
+          "crates/execution_domain/src/domain/shared_walk": {"production": 0, "test": 0},
           "crates/execution/tests/shared_walk": {"production": 0, "test": 0},
           "crates/execution_domain/src/domain/executable_program": {"production": 0, "test": 0},
-          "crates/execution_domain/src/domain/step_classes": {"production": 0, "test": 1},
+          "crates/execution_domain/src/domain/step_classes": {"production": 0, "test": 0},
           "crates/execution_domain/src/domain/completion": {"production": 0, "test": 0},
           "crates/execution_domain/src/domain/coverage": {"production": 0, "test": 0},
           "crates/execution_domain/src/domain/frontiers": {"production": 0, "test": 0},
-          "crates/execution_runtime/src/application/file_dag/frontiers": {"production": 2, "test": 0},
+          "crates/execution_runtime/src/application/file_dag/frontiers": {"production": 0, "test": 0},
           "crates/core/src/application/file_analysis": {"production": 0, "test": 0},
           "crates/core/src/inbound/use_cases/lint": {"production": 0, "test": 0},
           "crates/core/src/domain/storing": {"production": 0, "test": 0},
@@ -159,57 +159,57 @@
       }
     },
     "tm_guards": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["tm", "--root", "crates/ryo", "validate", "rule/program-implementation-boundary", "rule/shared-walk-owner", "rule/collection-members", "rule/runtime-authority", "template/value", "template/value-module", "template/value-test", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 11.987879991531372
+      "elapsed_seconds": 0.04852700233459473
     },
     "tm_validate_all": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["sh", "-c", "echo workspace crates_ryo; tm --root crates/ryo validate --format json; a=$?; echo workspace repository_root; tm validate --format json; b=$?; exit $((a|b))"],
       "exit": 0,
-      "elapsed_seconds": 0.09379291534423828
+      "elapsed_seconds": 0.3523423671722412
     },
     "ownership_edges": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["ryo", "query", "run", "--root", "crates/ryo", "--text", "let nodes = select id, kind, file, span from \"syntax-tree\" where text = \"\" and glob_any(file, \"crates/{execution,execution_domain,execution_runtime,execution_store}/src/**\");\nlet paths = select * from nodes where kind = \"path\";\nlet visibility = select * from nodes where kind = \"visibility\";\nlet nested = axis(from=visibility, relation=\"syntax-child\", direction=descendant, domain=paths);\nlet restricted = select r.file as source, r.span as span from nested as l join paths as r on l.related = r.id;\nlet declared = select source, target, written, span from \"source-dependency\" where glob_any(source, \"crates/{execution,execution_domain,execution_runtime,execution_store}/src/**\");\nlet dependencies = antijoin(left=declared, right=restricted, left-on=[\"source\",\"span\"], right-on=[\"source\",\"span\"]);\nemit dependencies subject source key(source,target,written,span);\n", "--limit", "100000", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 1.076747179031372
+      "elapsed_seconds": 0.9589700698852539
     },
     "harness_hooks": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["sh", "-c", "cd .claude/hooks && python3 -I -m unittest -v"],
       "exit": 0,
-      "elapsed_seconds": 12.870811700820923
+      "elapsed_seconds": 12.967565774917603
     },
     "tm_validate_no_heap_accounting": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["tm", "validate", "rule/no-heap-accounting@0.2.0", "spec/idiomatic-rust@0.1.2", "--format", "json"],
       "exit": 0,
-      "elapsed_seconds": 20.221781730651855
+      "elapsed_seconds": 0.041934967041015625
     },
     "checkpoint_check": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run_test.py", "-v"],
       "exit": 0,
-      "elapsed_seconds": 0.04656553268432617
+      "elapsed_seconds": 0.05048727989196777
     },
     "python_lib": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-python", "--lib"],
       "exit": 0,
-      "elapsed_seconds": 13.157449960708618
+      "elapsed_seconds": 11.716113328933716
     },
     "language_lib": {
-      "source": "a4cc608275ada8b3fef840ef7c36729cf122b06a",
+      "source": "7fd2dbf1f5b313ca157c384916fb962f0d8444f6",
       "command": ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-language", "--lib"],
       "exit": 0,
-      "elapsed_seconds": 6.649410247802734
+      "elapsed_seconds": 5.596934080123901
     }
   },
   "results": {
     "execution_library": {"passed": 73, "failed": 0, "note": "execution 73 + runtime 216 = 289 (286 at validation331)"},
-    "execution_domain_library": {"passed": 135, "failed": 0, "note": "as at validation331"},
+    "execution_domain_library": {"passed": 140, "failed": 0, "note": "135 at validation331; the comparing, shared_walk and step_classes test groups and the lineage cases"},
     "execution_store_library": {"passed": 83, "failed": 0, "note": "81 at validation331; tm-rebuild added the project owner graph-cache cases"},
     "core_library": {"passed": 120, "failed": 0, "note": "as at validation331"},
     "benchmark_library": {
@@ -219,13 +219,13 @@
     },
     "sdk_passed": 29,
     "other_libraries_passed": 191,
-    "libraries_total": {"passed": 1110, "failed": 3, "note": "1099/1 at validation331; counted from libraries.log (tests.json): benchmark 227/3, core 120, derived 35, execution 73, domain 135, runtime 216, store 83, matching 5, operators 61, query_language 97, sdk 29, values 29"},
+    "libraries_total": {"passed": 1123, "failed": 3, "note": "1099/1 at validation331; counted from libraries.log (tests.json): benchmark 227/3, core 120, derived 35, execution 73, domain 140, runtime 218, store 83, matching 5, operators 63, query_language 101, sdk 29, values 29"},
     "execution_boundary": {"passed": 99, "failed": 0, "note": "97 at validation331; tm-rebuild added the two project_phase::axis engine contracts (a walk after the files, a join with reach after the files)"},
     "activation": {"passed": 11, "failed": 0, "note": "11 actual cases, the facts-finish dhat control among them"},
     "bdd": {"scenarios": 9, "failed": 0},
     "core_bdd": {"scenarios": 18, "failed": 0},
     "ruff_canary": {"passed": 1, "failed": 0, "note": "112 = 110 N999 + 2 invalid-syntax, the split asserted, the answer of validation323; now on the benchmark worker pool at rayon default size (10 threads here; one worker at validation325): the same answer"},
-    "ruff": {"passed": 13, "failed": 0, "note": "as at validation326 (13/0), on rayon default size (10 threads here)"},
+    "ruff": {"passed": 12, "failed": 0, "note": "13 at validation331: claude/w13-leak-repairs-b moved engine_test's engine, core and SDK assertions to their owning crates, so engine_test has no fails row"},
     "ruff_rule_phases": {"exit": 0, "note": "the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X"},
     "doctests": {
       "execution": 0,
@@ -245,30 +245,30 @@
     "tm_cli_source_findings": 0,
     "tm_guards": "pass",
     "core_allocation": {"exit": 101, "phase": 7, "note": "the 327 erratum's owed run, on the tree's own target: a file allocates 1,698 to 1,700 blocks beyond the parser library; owned by \"Measure full-Django cold/warm/edit and Rust regressions; meet final objective.\""},
-    "cli_replay": {"passed": 78, "failed": 23, "note": "rerun at 4b9580619f (cli_tests_4b9580619f.log), after the harness fixes for causes (B) and (C); 69 / 32 in the batch at a4cc608275 (cli_tests.log)"},
-    "cli_replay_reds": ["behavior::every_recorded_rule_gives_the_recorded_rows", "behavior::recorded_recognition_gives_the_recorded_unread_files", "behavior::row_that_differs_is_reported_with_its_plan_id", "behavior::ruff_findings_equal_the_expected_findings", "behavior::ruff_rules_feed_every_catalog_feature_a_thousand_rows", "behavior::the_files_that_say_why_something_differs_name_only_recorded_rules_and_real_features", "behavior::what_ryo_could_not_decide_over_ruff_is_the_golden_or_a_recorded_difference", "cache::a_run_whose_store_keeps_nothing_answers_what_one_that_keeps_does", "cache::a_store_is_not_used_for_other_rules_and_is_kept_apart_by_root", "cache::a_warm_run_leaves_the_store_as_it_was_and_a_removed_file_does_not", "cache::a_warm_run_reads_nothing_and_an_edit_reads_what_it_must", "cache::an_edit_hands_the_store_the_words_of_the_file_read_alone", "cache::every_recorded_rule_gives_over_ruff_the_rows_a_warm_run_gives_again_from_a_small_store", "cache::files_added_and_removed_before_others_move_what_the_others_handed_with_them", "damage::a_store_cut_short_damaged_or_removed_is_empty_and_the_run_answers_as_with_none", "damage::a_store_whose_table_of_contents_gives_a_section_longer_than_the_file_is_no_store", "damage::a_store_with_one_section_damaged_gives_the_findings_of_a_run_that_keeps_nothing", "finish::an_edit_that_leaves_what_a_file_shows_the_others_as_it_was_keeps_the_cross_file_findings", "frontier::no_rule_is_handed_words_in_proportion_to_the_elements_of_a_file", "frontier::the_finish_is_handed_a_row_for_each_function_and_none_for_a_token", "interface::an_edit_inside_a_body_reads_one_file_and_an_edit_of_what_a_file_declares_or_imports_makes_the_cross_file_steps_again", "lowering::every_rule_gives_the_same_rows_on_two_runs_over_ruff", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
-    "cli_replay_note": "23 reds of one cause, (A): the replay harness of claude/w13-span-semantics (H1) fails a pending.txt naming a relation the Rust language provides; crate-dependency-cycles, crate-dependency-depth and layer-order wait for package-dependency, now provided, but also filter syntax-tree on kind \"toml\", a TOML kind the replay (Rust only) cannot run, so they stay pending and the harness has no form for it; regression introduced in 332, a harness design choice, not fixed here. (B) 8 manifests tests and (C) the recordings pending test, also introduced by the 332 harness, are fixed in 4b9580619f. import-fan-in: 34 of the 35 rows repairs XIV added are real and recorded (66); the false derive_message_formats.rs row .; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Consolidate the kernels: run the all-413 parity run against Ruff with and without each of the five join/select kernels and delete every kernel the evidence shows superseded.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; cache owned by \"Close full TM, contracts, independent review and normal CI.\"; damage owned by \"Close full TM, contracts, independent review and normal CI.\"; damage owned by \"Close full TM, contracts, independent review and normal CI.\"; damage owned by \"Close full TM, contracts, independent review and normal CI.\"; finish owned by \"Close full TM, contracts, independent review and normal CI.\"; frontier owned by \"Close full TM, contracts, independent review and normal CI.\"; frontier owned by \"Close full TM, contracts, independent review and normal CI.\"; interface owned by \"Close full TM, contracts, independent review and normal CI.\"; lowering owned by \"Close full TM, contracts, independent review and normal CI.\"; peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
+    "cli_replay": {"passed": 96, "failed": 3},
+    "cli_replay_reds": ["behavior::every_recorded_rule_gives_the_recorded_rows", "behavior::ruff_findings_equal_the_expected_findings", "peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound"],
+    "cli_replay_note": "the three causes of the first validation332 runs are repaired (owner decision: fix the harness, never hide): the replay links the TOML language beside the Rust language, so crate-dependency-cycles, crate-dependency-depth and layer-order run and give their recorded rows (layer-order's parameter in today's syntax; crate-dependency-depth reads the listed files, as analyzed-source now holds source files only; the harness binds a list of sets); the manifests tests write a tool's missing value as absent; a located compile refusal is matched by its innermost refusal. Left: ruff_findings_equal_the_expected_findings, import-fan-in 67 against 66, the false derive_message_formats.rs edge, ; every_recorded_rule_gives_the_recorded_rows, error-variant-never-constructed gives a FormatModuleError::PrintError row that ? constructs through #[from], ; and the warm peak, 115 MB against 100 MB (117 MB at validation331).; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; behavior owned by \"Close full TM, contracts, independent review and normal CI.\"; peak owned by \"Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass.\"",
     "cli_cost": {
       "passed": 4,
       "failed": 3,
       "not_run": 0,
-      "note": "the three ruff ratchet rows panic at base.rs:251 (cause (A) of cli_replay_note) before measuring; without RYO_PREFLIGHT_WORKER the three Django and one-file rows answer not available (passed, a typed reason); owned by \"Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, Rust regression guards within bounds.\""
+      "note": "the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,331 ms, peak 579 MB, warm 629 ms measured, cli_cost.log); without RYO_PREFLIGHT_WORKER the three Django and one-file rows answer not available (passed, a typed reason); owned by \"Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, Rust regression guards within bounds.\""
     },
-    "cli_other_targets": "blocks red (cause (A)), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
+    "cli_other_targets": "blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1",
     "conformance": {"targets": 10, "exit": 0},
     "harness_hooks": {"passed": 136, "failed": 0, "note": "48 at validation331; claude/w13-test-practices and claude/w13-hooks-append-only added the evidence-shape, fail-closed and append-only cases"},
     "checkpoint_check": {"passed": 16, "failed": 0},
     "derived_library": {"passed": 35, "failed": 0},
-    "python_and_language_libraries": {"passed": 183, "failed": 0, "note": "python 140/0 (138 at the earlier runs; claude/w13-visibility added the comparisons and nested cases) and language 43/0"},
+    "python_and_language_libraries": {"passed": 183, "failed": 0, "note": "python 140/0 and language 43/0"},
     "tm_validate_all": {
       "crates_ryo": {"passed": 241, "failed": 0},
       "repository_root": {"passed": 224, "failed": 0}
     },
-    "execution_runtime_library": {"passed": 216, "failed": 0, "note": "213 at validation331; tm-rebuild added the file_session catalog agreement and self-join recogniser cases"},
+    "execution_runtime_library": {"passed": 218, "failed": 0, "note": "213 at validation331; tm-rebuild's cases and the split test groups"},
     "values_library": {"passed": 29, "failed": 0},
     "ruff_parity": {
       "exit": 0,
-      "note": "new at 332 (claude/w13-bench-parity): full Django, all 413 rules, ryo against ruff 0.16.5: 412 identical of 413, 0 unaccepted (FURB122: 3 extra findings, accepted); staged digest 1a9cf788; per-rule.json and summary.json under evidence/parity/django-413 are this run's output (equal to the committed file at the final source)"
+      "note": "new at 332 (claude/w13-bench-parity): full Django, all 413 rules, ryo against ruff 0.16.5: 412 identical of 413, 0 unaccepted (FURB122: 3 extra findings, accepted); staged digest 1a9cf788; evidence/parity/django-413/per-rule.json is this run's output, in the tool's form (each agreeing rule as its count under identical)"
     }
   },
   "ownership_graph": {
@@ -328,22 +328,22 @@
       "scoped_directories": {"cli/tests/replay/imports.rs": 0}
     },
     "tm_source": {
-      "findings": 8,
-      "suppressed": 2,
-      "production": 3,
-      "test": 5,
+      "findings": 0,
+      "suppressed": 4,
+      "production": 0,
+      "test": 0,
       "scoped_directories": {
-        "crates/execution_runtime/src/application/file_dag/program": 4,
+        "crates/execution_runtime/src/application/file_dag/program": 0,
         "crates/execution_runtime/src/application/file_dag/invocation": 0,
         "crates/execution_store/src/application/file_dag/derived": 0,
-        "crates/execution_domain/src/domain/shared_walk": 1,
+        "crates/execution_domain/src/domain/shared_walk": 0,
         "crates/execution/tests/shared_walk": 0,
         "crates/execution_domain/src/domain/executable_program": 0,
-        "crates/execution_domain/src/domain/step_classes": 1,
+        "crates/execution_domain/src/domain/step_classes": 0,
         "crates/execution_domain/src/domain/completion": 0,
         "crates/execution_domain/src/domain/coverage": 0,
         "crates/execution_domain/src/domain/frontiers": 0,
-        "crates/execution_runtime/src/application/file_dag/frontiers": 2,
+        "crates/execution_runtime/src/application/file_dag/frontiers": 0,
         "crates/core/src/application/file_analysis": 0,
         "crates/core/src/inbound/use_cases/lint": 0,
         "crates/core/src/domain/storing": 0,
