@@ -1,4 +1,5 @@
 //! Named distinct-set combinations are ordinary prepared program instructions.
+use crate::domain::source_partitions::types::ProducerPartitions;
 use super::types::demand_program::value::DemandProgram;
 use super::types::instruction::value::Instruction;
 use super::types::region::value::Region;

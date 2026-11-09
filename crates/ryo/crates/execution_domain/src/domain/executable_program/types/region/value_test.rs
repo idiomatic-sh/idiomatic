@@ -5,9 +5,8 @@ use crate::domain::operator::types::ReaderMultiplicity;
 use super::value::Region;
 use crate::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{
-        InputSource, PartitionRequirement, RegionId, Route, SourcePartition,
-    },
+    executable_program::types::{InputSource, RegionId, Route, SourcePartition},
+    source_partitions::types::{PartitionRequirement},
     operating::errors::OperatingError,
 };
 use ryo_relations::domain::relations::types::Relation;

@@ -1,7 +1,5 @@
 //! Frontier coordinates must use the same request-qualified slots as instruction inputs.
-use ryo_execution_domain::domain::executable_program::types::{
-    PartitionRequirement, ProducerPartitions,
-};
+use ryo_execution_domain::domain::source_partitions::types::{PartitionRequirement, ProducerPartitions};
 use ryo_execution_domain::domain::file_program::types::RequestGraph;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::{

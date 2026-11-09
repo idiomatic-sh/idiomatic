@@ -1,7 +1,7 @@
 use super::value::{SourcePartitions, relation_partition};
 use crate::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{PartitionRequirement, ProducerPartitions},
+    source_partitions::types::{PartitionRequirement, ProducerPartitions},
     observation_schedule::types::{ResolvedObservationBinding, ResolvedObservationProducer},
     operating::errors::OperatingError,
 };

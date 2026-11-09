@@ -1,10 +1,11 @@
 //! The drafted regions the merge cases compare: an axis region per rule and node, its contract, and the linear scan the
 //! merge replaced.
+use crate::domain::source_partitions::types::PartitionRequirement;
 use super::{
     fusion::types::RegionSharing,
     merge::merge_equivalent,
     types::{
-        DraftIndex, DraftRegion, LogicalInstruction, PartitionRequirement, RegionMerge,
+        DraftIndex, DraftRegion, LogicalInstruction, RegionMerge,
         demand_program::value::DemandProgram, instruction::value::Instruction,
     },
 };

@@ -3,10 +3,8 @@
 use super::value::Instruction;
 use crate::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{
-        DemandAction, InputId, LogicalInstruction, PartitionRequirement,
-        demand_program::value::DemandProgram,
-    },
+    executable_program::types::{DemandAction, InputId, LogicalInstruction, demand_program::value::DemandProgram},
+    source_partitions::types::{PartitionRequirement},
     operation_schema::types::InputShape,
     operator::contract::service::prepare_for,
 };

@@ -1,8 +1,7 @@
 //! The relation-catalog corpus: every catalog relation under every head shape.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::{
-    PartitionRequirement, ProducerPartitions, executable_program::value::ExecutableProgram,
-};
+use ryo_execution_domain::domain::executable_program::types::{executable_program::value::ExecutableProgram};
+use ryo_execution_domain::domain::source_partitions::types::{PartitionRequirement, ProducerPartitions};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::service::ALL;
 use ryo_relations::domain::relations::types::Relation;

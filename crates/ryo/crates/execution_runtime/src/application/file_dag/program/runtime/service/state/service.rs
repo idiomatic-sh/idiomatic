@@ -293,9 +293,8 @@ impl ProgramExecution {
         &self,
         root: crate::application::file_dag::program::admission::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
-        use ryo_execution_domain::domain::executable_program::types::{
-            InputSource, PartitionRequirement,
-        };
+        use ryo_execution_domain::domain::executable_program::types::{InputSource};
+use ryo_execution_domain::domain::source_partitions::types::{PartitionRequirement};
         if self.owner.generation().same(&self.generation).is_err()
             || self.generation.live().is_err()
         {

@@ -12,7 +12,8 @@ use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},
+    executable_program::types::{InputSource},
+    source_partitions::types::{PartitionRequirement, ProducerPartitions},
     table_model::types::Rows,
 };
 use ryo_execution_store::application::file_dag::relations::RelationOwner;

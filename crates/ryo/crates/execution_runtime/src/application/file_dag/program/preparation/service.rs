@@ -191,7 +191,7 @@ impl PreparedProgram {
 pub(crate) fn compile_program(
     plans: &[ryo_values::domain::plans::types::Plan],
     graph: ryo_execution_domain::domain::file_program::types::RequestGraph,
-    partitions: &dyn ryo_execution_domain::domain::executable_program::types::ProducerPartitions,
+    partitions: &dyn ryo_execution_domain::domain::source_partitions::types::ProducerPartitions,
     operators: &ryo_execution_domain::domain::file_program::types::RequestOperators,
 ) -> Result<ExecutableProgram, OperatingError> {
     ryo_execution_domain::domain::executable_program::service::compile(

@@ -4,10 +4,8 @@ use crate::domain::operator::types::ReaderMultiplicity;
 use super::value::ExecutableProgram;
 use crate::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{
-        FileReaderGraph, InputSource, ObservationPlace, PartitionRequirement, RegionId,
-        SourcePartition, region::value::Region,
-    },
+    executable_program::types::{FileReaderGraph, InputSource, ObservationPlace, RegionId, SourcePartition, region::value::Region},
+    source_partitions::types::{PartitionRequirement},
     operating::errors::OperatingError,
 };
 use ryo_relations::domain::relations::types::Relation;
