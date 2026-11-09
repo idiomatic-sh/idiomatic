@@ -706,6 +706,8 @@ class PerfGate(unittest.TestCase):
                 self.assertIn("push of claude/p6-speed refused", done.stderr)
 
     def test_redirections_with_no_remote_or_branch_named_still_hit_the_perf_gate(self):
+        git(self.tree, "update-ref", "refs/remotes/origin/claude/ryo-consolidation", self.base)
+        git(self.tree, "branch", "-q", "-m", "claude/ryo-consolidation", "claude/elsewhere")  # no local consolidation ref
         self.perf()
         for command in ("git push", "git push -q 2>&1", "git push &>log", "git push >log 2>&1", "git push -q >log 2>&1"):
             with self.subTest(command=command):

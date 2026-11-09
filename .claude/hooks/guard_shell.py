@@ -92,7 +92,7 @@ def has_cargo_command(text):
     return any(runs_cargo_verb(tokens(segment)) for segment in segments(text))
 
 
-REDIRECT = re.compile(r"^\d*[<>]")
+REDIRECT = re.compile(r"^(\d*|&)[<>]")
 
 
 def without_redirections(words):
@@ -100,7 +100,7 @@ def without_redirections(words):
     out, i = [], 0
     while i < len(words):
         if REDIRECT.match(words[i]):
-            bare = re.fullmatch(r"\d*(>>|>|<)", words[i]) is not None
+            bare = re.fullmatch(r"(\d*|&)(>>|>|<)", words[i]) is not None
             i += 2 if bare else 1
         else:
             out.append(words[i])
