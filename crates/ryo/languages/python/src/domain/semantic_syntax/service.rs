@@ -24,38 +24,55 @@ pub(crate) fn positions(tree: &Tree<'_>) -> impl Iterator<Item = Position> {
 }
 
 /// Whether an occurrence belongs to native syntax or an enabled embedded expression.
+/// The file's embedded expressions are classified once; each occurrence is then a carrier lookup
+/// and a bisection of the hidden roots.
 pub(crate) fn visibility(
     tree: &Tree<'_>,
     model: &Declarations,
     at: Position,
     symbols: &mut Symbols,
 ) -> Visibility {
-    let Some(embedding) = languages::embedded_expressions(tree.elements)
-        .find(|embedding| embedding.root <= at && at < embedding.end)
-    else {
+    let Some(embedding) = languages::embedded_source_at(tree.elements, at) else {
         return Visibility::Visible;
     };
     if model.semantic.borrow().state == QualificationState::Fresh {
+        let mut hidden = std::mem::take(&mut model.semantic.borrow_mut().hidden);
+        hidden.clear();
         let provenance = prepare(tree, model);
-        let mut semantic = model.semantic.borrow_mut();
-        semantic.roots.clear();
         for expression in languages::embedded_expressions(tree.elements) {
-            let parent_enabled = languages::embedded_expressions(tree.elements)
-                .find(|outer| outer.root <= expression.host && expression.host < outer.end)
-                .is_none_or(|outer| semantic.roots.contains(&outer.root));
-            if parent_enabled
-                && type_position(tree, model, &provenance, expression.host, symbols)
-                    == TypeContext::Type
+            // A holder is appended before the expressions nested in it, so it is already decided.
+            if hidden_at(tree, &hidden, expression.host) == Visibility::Hidden
+                || type_position(tree, model, &provenance, expression.host, symbols)
+                    != TypeContext::Type
             {
-                semantic.roots.push(expression.root);
+                hidden.push(expression.root);
             }
         }
+        let mut semantic = model.semantic.borrow_mut();
+        semantic.hidden = hidden;
         semantic.state = QualificationState::Ready;
     }
-    if model.semantic.borrow().roots.contains(&embedding.root) {
-        Visibility::Visible
-    } else {
+    if model
+        .semantic
+        .borrow()
+        .hidden
+        .binary_search(&embedding.root)
+        .is_ok()
+    {
         Visibility::Hidden
+    } else {
+        Visibility::Visible
+    }
+}
+
+/// Hidden when the embedded expression holding `at` has its root among the ascending `hidden`.
+fn hidden_at(tree: &Tree<'_>, hidden: &[Position], at: Position) -> Visibility {
+    if languages::embedded_source_at(tree.elements, at)
+        .is_some_and(|holder| hidden.binary_search(&holder.root).is_ok())
+    {
+        Visibility::Hidden
+    } else {
+        Visibility::Visible
     }
 }
 
@@ -102,8 +119,7 @@ pub(crate) fn type_position(
         .is_some_and(|context| context.0 == ANNOTATION_SEED);
     let mut established = false;
     let mut below = host;
-    let mut ancestor = parent(tree, below);
-    while ancestor != below {
+    for ancestor in ancestors(tree, host) {
         // Slice bounds are runtime values even when their receiver is a known generic class.
         if kind(tree, ancestor) == Kind::Node(Node::Slice) {
             return TypeContext::Value;
@@ -156,13 +172,29 @@ pub(crate) fn type_position(
             }
         }
         below = ancestor;
-        ancestor = parent(tree, ancestor);
     }
     if allowed {
         TypeContext::Type
     } else {
         TypeContext::Value
     }
+}
+
+/// The ancestors that can change a host's type context, nearest first, through its statement:
+/// no slice, subscription, call or annotated assignment holds a statement.
+pub(crate) fn ancestors<'a>(
+    tree: &'a Tree<'_>,
+    host: Position,
+) -> impl Iterator<Item = Position> + 'a {
+    let mut below = host;
+    std::iter::from_fn(move || {
+        let ancestor = parent(tree, below);
+        if ancestor == below || category(tree, below) == Category::Statement {
+            return None;
+        }
+        below = ancestor;
+        Some(ancestor)
+    })
 }
 
 /// Classify positional and keyword type operands after resolving the callable.
@@ -186,14 +218,26 @@ fn type_argument(
             TypeContext::Value
         };
     }
-    let source_position = nodes(tree, arguments).position(|at| at == argument);
-    let positional = nodes(tree, arguments)
-        .filter(|at| category(tree, *at) == Category::Expression)
-        .position(|at| at == argument);
+    operand_place(nodes(tree, arguments), argument, form, |at| {
+        category(tree, at)
+    })
+}
+
+/// Whether a non-keyword `argument` among the call's `operands` is a type operand of `form`.
+/// Reads up to the second operand, or to the first expression for `TypeVar`; never the whole list.
+pub(crate) fn operand_place(
+    mut operands: impl Iterator<Item = Position>,
+    argument: Position,
+    form: TypingForm,
+    mut category: impl FnMut(Position) -> Category,
+) -> TypeContext {
     let is_type = match form {
-        TypingForm::Cast => source_position == Some(0),
-        TypingForm::NewType => source_position == Some(1),
-        TypingForm::TypeVar => positional.is_some_and(|position| position > 0),
+        TypingForm::Cast => operands.next() == Some(argument),
+        TypingForm::NewType => operands.nth(1) == Some(argument),
+        TypingForm::TypeVar => {
+            category(argument) == Category::Expression
+                && operands.find(|at| category(*at) == Category::Expression) != Some(argument)
+        }
         TypingForm::Literal
         | TypingForm::Annotated
         | TypingForm::TypeAlias
@@ -218,8 +262,9 @@ fn annotated_operand(tree: &Tree<'_>, subscription: Position, host: Position) ->
     let Some(first) = nth(tree, slice, Category::Expression, CategoryIndex(0)) else {
         return TypeContext::Value;
     };
+    // The host lies under the subscription, so the walk ends there at the latest.
     let mut owner = host;
-    while parent(tree, owner) != slice && parent(tree, owner) != owner {
+    while parent(tree, owner) != slice && owner != subscription {
         owner = parent(tree, owner);
     }
     if owner == first {

@@ -344,11 +344,24 @@ pub fn embedded_source_at(
     elements: &Elements,
     at: Position,
 ) -> Option<ryo_relations::domain::elements::types::EmbeddedSource> {
-    let sources = &engine(elements).embedded;
-    let next = sources.partition_point(|source| source.root <= at);
+    holding(&engine(elements).embedded, at, |source| {
+        source.root..source.end
+    })
+}
+
+/// The carrier holding `at` among disjoint carriers ascending by root, found by bisection;
+/// `bounds` reads one carrier's appended interval per comparison.
+pub(crate) fn holding(
+    sources: &[ryo_relations::domain::elements::types::EmbeddedSource],
+    at: Position,
+    mut bounds: impl FnMut(
+        &ryo_relations::domain::elements::types::EmbeddedSource,
+    ) -> core::ops::Range<Position>,
+) -> Option<ryo_relations::domain::elements::types::EmbeddedSource> {
+    let next = sources.partition_point(|source| bounds(source).start <= at);
     next.checked_sub(1)
         .and_then(|index| sources.get(index))
-        .filter(|source| at < source.end)
+        .filter(|source| at < bounds(source).end)
         .copied()
 }
 

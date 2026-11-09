@@ -45,7 +45,7 @@ pub(super) fn reparse(
             file: languages::FileId(0),
         };
         parser.file_model(&tree, &mut model);
-        if !model.semantic.borrow().roots.is_empty() {
+        if !model.semantic.borrow().hidden.is_empty() {
             return Err(());
         }
         let count = languages::embedded_expressions(&elements)

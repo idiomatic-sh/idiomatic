@@ -132,9 +132,9 @@ pub(crate) struct QualificationIndex {
 /// Retained selection of annotation expressions after lexical context classification.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SemanticIndex {
-    /// The known enabled roots, in parser append order.
-    pub roots: Vec<Position>,
-    /// Whether these roots belong to the current parse.
+    /// The roots of the disabled embedded expressions, ascending.
+    pub hidden: Vec<Position>,
+    /// Whether this projection belongs to the current parse.
     pub state: QualificationState,
 }
 

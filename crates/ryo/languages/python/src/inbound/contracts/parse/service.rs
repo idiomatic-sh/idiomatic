@@ -40,7 +40,7 @@ pub(super) fn prepare_model(settings: &PythonParserSettings, model: &mut Declara
     crate::domain::indentation::service::clear(model.indentation.get_mut());
     crate::domain::qualification::service::clear(model.qualification.get_mut());
     crate::domain::binding_analysis::service::clear(model.binding_analysis.get_mut());
-    model.semantic.get_mut().roots.clear();
+    model.semantic.get_mut().hidden.clear();
     model.semantic.get_mut().state = crate::domain::model::types::QualificationState::Fresh;
     // The declarations and the binding index are built on a reader's first lookup, not for every file.
     model.declared.get_mut().clear();
