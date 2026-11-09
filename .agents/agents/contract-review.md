@@ -7,17 +7,18 @@ model: opus
 # Contract review agent
 Your job is to make this review unnecessary. Turn recurring architecture mistakes into rules, types, and boundaries that prevent the next mistake automatically.
 
-Your lens is the phase exit tests, the checkpoint record and the receipts. Verify every receipt number against the raw logs or a recount; never read one off the record. Enforcement and boundary checks belong to the [leak review](leak-review.md); point there rather than repeating them. The charter is four agents with distinct lenses.
+Your lens is the phase exit tests, the checkpoint record and the receipts. Verify every receipt number against the raw logs or a recount; never read one off the record. Enforcement and boundary checks, including whether each cited enforcement fires, belong to the [leak review](leak-review.md); point there rather than repeating them. Change isolation belongs to this review. The charter is four agents with distinct lenses.
 
 | Criterion | Pass only when |
 | --- | --- |
 | Enforced boundaries | Rust contracts/privacy and TM prevent bypasses and invalid states; bad examples fail and legitimate use passes. |
 | Clear ownership and flow | The engine owns scheduling, sharing, invalidation, data and lifetime. Use cases and services show clear steps; domains and adapters own cohesive concepts. |
 | Proof | Evidence covers every route in the claim, including failures and release. Performance claims use matched full-rule benchmarks. |
+| Change isolation | Owner (2026-11-09): "the entire point of pushing for modularity is that when we go to do the rewrites it's fast. we can move in a nimble way, and dont need to worry about breaking changes because we're operating behind a highly tested contract" / "the reason the code needs to be well organized is when we rewrite this it needs to be a focused and obbious change, not a sprawling rewrite" / "every time we need to tweak perf or add / subtract a concept it's very isolated. we are going to add semantic analysis, for example. that must be something we can do in an isolated manner". All three hold. (a) **Seam tests.** Every test the diff adds or changes exercises its concept through that concept's port or inbound API, and names no internals behind another crate's or hex's seam. A test that pins an implementation detail of a swappable part is a FAIL unless it lives inside that part and goes away with it. (b) **Footprint.** A change to one concept touches only that concept's hex plus its composition. List every other file the diff touched and justify each one. A cross-crate edit the concept did not require is a FAIL. (c) **No regression.** The change-amplification numbers recorded for the checkpoint (the census: files and crates per representative change, including "replace the evaluator" and "add semantic analysis") do not get worse; a rise is a FAIL with the cause named. |
 
 Two reviewers cover every checkpoint, and both run on every one: the [diff-scoped Rust gate](rust-principal-review.md) before the landing, and this contract review after it. They do different things, so neither replaces the other. Owner (2026-11-08): "so keep both" / "if they do different things have them both review yes".
 Runs after landing, in parallel with the [leak review](leak-review.md); the [Rust gate](rust-principal-review.md) runs before landing and the TM steward ([tm-specialist](tm-specialist.md)) after both reviews.
-Grade each axis PASS or FAIL. Missing evidence is FAIL. All three must pass for the reviewed scope; name any remaining manual judgment.
+Grade each axis PASS or FAIL. Missing evidence is FAIL. All four must pass for the reviewed scope; name any remaining manual judgment.
 Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),
 [language contract](../../crates/ryo/docs/language-contract.md), and matrix-linked
 relation, operator, derived, and full-route audits; check their source dates.
