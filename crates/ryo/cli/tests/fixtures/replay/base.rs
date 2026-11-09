@@ -152,6 +152,19 @@ pub(crate) fn compiled(
     .map(|report| report.plan)
 }
 
+/// The refusal under every module origin a compile refusal is located at: a query reading through a module is refused `Located`.
+fn innermost(
+    error: &ryo_query_language::inbound::use_cases::compile::errors::CompileError,
+) -> &ryo_query_language::inbound::use_cases::compile::errors::CompileError {
+    match error {
+        ryo_query_language::inbound::use_cases::compile::errors::CompileError::Located {
+            error,
+            ..
+        } => innermost(error),
+        other => other,
+    }
+}
+
 /// The names of the relations of ryo a plan reads, each once, in order.
 pub(crate) fn relations_read(plan: &ryo_values::domain::plans::types::Plan) -> Vec<String> {
     let mut read = std::collections::BTreeSet::new();
@@ -238,7 +251,7 @@ pub(crate) fn recording_at(at: &Path) -> Recording {
     };
     let name = recording.name.clone();
     let named = pending.as_deref().map(unprovided);
-    match (&plan, &named) {
+    match (plan.as_ref().map_err(innermost), &named) {
         (
             Err(ryo_query_language::inbound::use_cases::compile::errors::CompileError::UnknownRelation { name: unknown, .. }),
             Some(named),

@@ -47,7 +47,7 @@ fn pnpm_lines(root: &Path) -> BTreeSet<String> {
                 // A project of the workspace is listed at its own directory; any other package within the store's.
                 let target = relative(root, Path::new(text_at(dependency, "path")))
                     .map(|linked| manifest_in(&linked, "package.json"))
-                    .unwrap_or_default();
+                    .unwrap_or_else(|| crate::base::ABSENT.to_owned());
                 lines.extend([format!("dependencies {source},{name},{kind},{target}")]);
             }
         }

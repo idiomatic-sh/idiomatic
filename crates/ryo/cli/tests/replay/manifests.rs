@@ -79,8 +79,8 @@ fn a_package_the_scope_does_not_list_is_found_by_the_recorded_workspace_complete
             "workspace-completeness".to_owned(),
             "Cargo.toml".to_owned(),
             "Cargo.toml,outside/Cargo.toml".to_owned(),
-            String::new(),
-            String::new()
+            crate::base::ABSENT.to_owned(),
+            crate::base::ABSENT.to_owned()
         ]]
     );
 }
@@ -111,8 +111,8 @@ fn a_member_the_listing_does_not_hold_is_found_as_a_file_after_the_listed_ones()
             "workspace-completeness".to_owned(),
             "Cargo.toml".to_owned(),
             "Cargo.toml,outside/Cargo.toml".to_owned(),
-            String::new(),
-            String::new()
+            crate::base::ABSENT.to_owned(),
+            crate::base::ABSENT.to_owned()
         ]]
     );
 }

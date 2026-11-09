@@ -82,7 +82,8 @@ fn uv_lines(root: &Path) -> BTreeSet<String> {
             let depended = resolution
                 .get(text_at(dependency, "id"))
                 .unwrap_or(&Value::Null);
-            let target = member_of(root, depended).unwrap_or_default();
+            let target =
+                member_of(root, depended).unwrap_or_else(|| crate::base::ABSENT.to_owned());
             // An extra depends on its own package, which is no dependency the manifest writes.
             if target == source {
                 continue;

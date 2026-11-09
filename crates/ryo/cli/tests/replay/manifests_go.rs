@@ -103,7 +103,9 @@ fn go_lines(root: &Path) -> BTreeSet<String> {
             lines.extend([format!(
                 "dependencies {source},{path},{version},{},{}",
                 replacement_of(&edited, path, version),
-                modules.get(path).map(String::as_str).unwrap_or_default(),
+                modules
+                    .get(path)
+                    .map_or(crate::base::ABSENT, String::as_str),
             )]);
         }
     }

@@ -76,7 +76,7 @@ fn ryo_says_what_bun_says_of_the_manifests_of_a_workspace() {
                 let target = resolved
                     .split_once(WORKSPACE)
                     .map(|(_, linked)| manifest_in(linked, "package.json"))
-                    .unwrap_or_default();
+                    .unwrap_or_else(|| crate::base::ABSENT.to_owned());
                 theirs.extend([format!(
                     "dependencies {source},{name},{kind},{},{target}",
                     requirement.as_str().unwrap_or_default()
