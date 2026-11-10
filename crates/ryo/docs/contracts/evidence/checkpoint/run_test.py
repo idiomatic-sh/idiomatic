@@ -166,6 +166,17 @@ class Check(unittest.TestCase):
   listed=tomllib.loads((here/'seam-mutants.toml').read_text())['mutants']
   self.assertEqual(sorted(listed),sorted(x.stem for x in (here/'seam-mutants').iterdir()))
   self.assertTrue(all((here/'seam-mutants'/(x+'.patch')).read_text().startswith('--- a/crates/ryo/') for x in listed))
+ def test_a_crash_of_a_binary_named_as_a_sibling_that_failed_is_never_absorbed_by_its_red(self):
+  log=Path(self.raw.name)/'default_features.log'
+  log.write_text('     Running tests/allocation.rs (/t/debug/deps/allocation-dbad9cc50945775a)\n\nrunning 1 test\n'
+   'test per_file_path::allocates_as_the_parser_library_does ... FAILED\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n\n'
+   'error: test failed, to rerun pass `-p idiomatic-sh-ryo-core --test allocation`\n'
+   '     Running tests/allocation.rs (/t/debug/deps/allocation-c55105ba40b13c97)\n\n'
+   "thread 'main' panicked at samples.rs:68:5:\nreading allocated 40 blocks\n"
+   'error: test failed, to rerun pass `-p idiomatic-sh-ryo-python --test allocation`\n')
+  tests={'default_features':run.test_results(log)}
+  self.assertEqual(list(tests['default_features']['allocation']['failed']),['per_file_path::allocates_as_the_parser_library_does',run.CRASHED])
+  self.assertEqual(run.command_owners('default_features',{'exit':101},tests),[])
  def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
   v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
   self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])

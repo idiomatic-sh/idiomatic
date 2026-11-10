@@ -101,24 +101,24 @@ CRASHED='(the binary did not finish: no `test result:` line, or cargo failed it 
 SEMVER_RAN=re.compile(r'^\s+Checking \S+ v\S+ -> v\S+ ')
 SEMVER_FAILURE=re.compile(r'^--- failure (\w+): ')
 def test_results(log):
- """Per test binary of one cargo test log: its passed, ignored and not-run tests, and each failed test with the case rows its runner names; `collected` when the runner ran every row and named every red one. A binary cargo failed that printed no `test result:` line, or no failed test, crashed: its failure is CRASHED. A test that prints before its status has the status on a line of its own; one that prints `not available` there measured nothing, so its `ok` is recorded as not run, never as passed."""
- out={}; binary=None; failing=None; pending=[]; summarized=set()
+ """Per test binary of one cargo test log: its passed, ignored and not-run tests, and each failed test with the case rows its runner names; `collected` when the runner ran every row and named every red one. A binary cargo failed that printed no `test result:` line, or no failed test, in its own run crashed: its failure is CRASHED. Binaries of one name in several packages (each crate's `allocation` or `bdd`) share a key, and each run is judged on its own, so a crash after a sibling's red is never absorbed by it. A test that prints before its status has the status on a line of its own; one that prints `not available` there measured nothing, so its `ok` is recorded as not run, never as passed."""
+ out={}; binary=None; failing=None; pending=[]; summarized=False; failed_here=0
  for line in Path(log).read_text(errors='replace').splitlines():
-  if binary and SUMMARY.match(line): summarized.add(binary)
+  if binary and SUMMARY.match(line): summarized=True
   if binary and CARGO_FAILED.match(line):
-   if binary not in summarized or not out[binary]['failed']: out[binary]['failed'].setdefault(CRASHED,{'rows':[],'collected':False})
+   if not summarized or not failed_here: out[binary]['failed'].setdefault(CRASHED,{'rows':[],'collected':False})
    continue
-  if SEMVER_RAN.match(line): binary='semver-checks'; out.setdefault(binary,{'passed':[],'ignored':[],'not_run':[],'failed':{}}); failing=None; continue
+  if SEMVER_RAN.match(line): binary='semver-checks'; out.setdefault(binary,{'passed':[],'ignored':[],'not_run':[],'failed':{}}); failing=None; summarized=False; failed_here=0; continue
   m=SEMVER_FAILURE.match(line)
   if m and binary=='semver-checks': out[binary]['failed'].setdefault(m.group(1),{'rows':[],'collected':False}); continue
   m=RAN.match(line)
-  if m: binary=m.group(2) or m.group(3); out.setdefault(binary,{'passed':[],'ignored':[],'not_run':[],'failed':{}}); failing=None; continue
+  if m: binary=m.group(2) or m.group(3); out.setdefault(binary,{'passed':[],'ignored':[],'not_run':[],'failed':{}}); failing=None; summarized=False; failed_here=0; continue
   m=TEST.match(line) or (pending and re.match(r'^()(ok|FAILED|ignored)$',line))
   if not m and binary and line.startswith('test ') and ' ... ' in line: pending.append((line[5:line.index(' ... ')],bool(NOT_AVAILABLE.match(line[line.index(' ... ')+5:])))); continue
   if m and binary:
    name,status=m.groups(); unavailable=False
    if not name: name,unavailable=pending.pop(0)
-   if status=='FAILED': out[binary]['failed'].setdefault(name,{'rows':[],'collected':False})
+   if status=='FAILED': out[binary]['failed'].setdefault(name,{'rows':[],'collected':False}); failed_here+=1
    else: out[binary]['not_run' if unavailable and status=='ok' else 'passed' if status=='ok' else 'ignored'].append(name)
    continue
   m=FAILURE.match(line)
@@ -275,7 +275,7 @@ OWNERS={
 }
 # The exit's owners: each red test a command recorded, by its exact (command, test binary, test) id, and the open README row that
 # owns it. A red no entry names, and a red command that recorded no failed test, are unowned and fail the run.
-RED_OWNERS={
+RED_OWNERS_ALL_FEATURES={
  ('libraries','ryo_benchmark','inbound::use_cases::compare_corpus::use_case_test::refuses'):CLOSE,
  ('libraries','ryo_benchmark','inbound::use_cases::compare_corpus::use_case_test::succeeds'):CLOSE,
  ('libraries','ryo_benchmark','inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds'):CLOSE,
@@ -286,6 +286,10 @@ RED_OWNERS={
  ('cli_cost','replay','cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets'):OWNERS['cli_cost'],
  ('cli_cost','replay','cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff'):OWNERS['cli_cost'],
  ('core_allocation','allocation','per_file_path::allocates_as_the_parser_library_does'):OWNERS['core_allocation'],
+}
+RED_OWNERS={**RED_OWNERS_ALL_FEATURES,
+ # default_features runs the same tests without --all-features: each red it shares with a command above has that command's owner.
+ **{('default_features',binary,test):RED_OWNERS_ALL_FEATURES[(command,binary,test)] for command,binary,test in RED_OWNERS_ALL_FEATURES if command in ('libraries','cli_tests','cli_cost','core_allocation')},
  **{('sdk_api','semver-checks',lint):SDK_RELEASE for lint in ('constructible_struct_adds_field','enum_missing','enum_no_repr_variant_discriminant_changed','struct_missing')},
 }
 # A command that cannot run on this machine says so on its first output line (`not available: <why>`) and exits non-zero; the row
