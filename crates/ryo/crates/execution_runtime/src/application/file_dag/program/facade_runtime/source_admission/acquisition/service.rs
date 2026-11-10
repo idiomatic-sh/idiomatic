@@ -14,7 +14,8 @@ use crate::application::file_dag::program::facade_runtime::types::ObservationKey
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::relations::handle::service::PublishedInput;
+use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
@@ -49,7 +50,10 @@ impl SourceInputs<'_, '_> {
                     return Err(error);
                 }
                 let rows = (self.read)(relation)?;
-                let publication = self.owner.source(relation, &rows)?;
+                let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Source {
+                    relation,
+                    rows: &rows,
+                })?;
                 return AvailableInput::source(
                     Rc::clone(&self.owner),
                     publication,
@@ -78,7 +82,7 @@ impl SourceInputs<'_, '_> {
                     &mut context.symbols,
                     context.phase,
                 );
-                let publication = self.owner.computed(table)?;
+                let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table))?;
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
             InputSource::Region(id) => self
@@ -141,7 +145,7 @@ impl SourceInputs<'_, '_> {
                 actual_partition.require_supply(partition)?;
                 let publication = self
                     .owner
-                    .computed(ryo_values::domain::rows::types::Table {
+                    .publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(ryo_values::domain::rows::types::Table {
                         kinds: binding
                             .schema
                             .columns
@@ -150,7 +154,7 @@ impl SourceInputs<'_, '_> {
                             .collect(),
                         count: ryo_values::domain::rows::types::RowCount(0),
                         cells: vec![],
-                    })?;
+                    }))?;
                 admit_published(&self.owner, publication, source, &actual_partition)
             }
             InputSource::ObservationMember {
@@ -181,7 +185,7 @@ impl SourceInputs<'_, '_> {
                     .and_then(|bindings| bindings.get(declaration.input.0 as usize))
                     .and_then(|binding| binding.producers.get(member))
                     .ok_or_else(|| OperatingError::NotRun)?;
-                let ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output {
+                let ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer::Output {
                     rule,
                     output,
                 } = producer
@@ -250,16 +254,16 @@ impl SourceInputs<'_, '_> {
 }
 pub(crate) fn admit_published(
     owner: &Rc<RelationOwner>,
-    publication: PublishedInput,
+    publication: Publication,
     source: ryo_execution_domain::domain::executable_program::types::InputSource,
     partition: &Partition,
 ) -> Result<AdmittedInput, OperatingError> {
     let unavailable = |_| Err(OperatingError::NotRead);
-    let rows = owner.resolve(publication.as_ref(), &unavailable)?;
+    let rows = owner.rows(&publication, &unavailable)?;
     let checked = owner.admit(
-        publication.as_ref(),
+        &publication,
         ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&rows),
-    )?;
+    )??;
     AdmittedInput::from_publication(
         Rc::clone(owner),
         publication.clone(),

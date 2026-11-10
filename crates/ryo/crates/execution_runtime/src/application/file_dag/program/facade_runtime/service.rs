@@ -16,7 +16,9 @@ pub(crate) fn publication_owner(
 ) -> Result<PublicationScope, OperatingError> {
     // The project phase opens no route scope: its owner records into an empty profile.
     let owner = open_program_owner(
-        program.program(),
+        ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(
+            program.program().regions().len(),
+        ),
         services.derived().clone(),
         ReuseEligibility::Eligible,
         ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(),

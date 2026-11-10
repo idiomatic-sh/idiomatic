@@ -1,27 +1,19 @@
 //! The witness that implements every method of each entry trait.
-use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
-use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
+use ryo_execution::inbound::use_cases::execution::interface::Install;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
-use ryo_execution_domain::domain::operator::types::LogicalCounts;
-use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
-use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
-use ryo_execution_runtime::application::file_dag::frontiers::types::BoundInput;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution_runtime::application::file_dag::frontiers::types::ReadinessProof;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileFinished;
@@ -32,7 +24,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::OccurrenceNumber;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseOccurrences;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhasePartials;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
@@ -40,13 +31,13 @@ use ryo_execution_runtime::application::file_dag::program::request_execution::ty
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
-use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::{
     files::types::CorpusInput,
-    plan_parts::types::{InputNumber, ObservationBindingId},
-    runs::types::Skipped,
+    plan_parts::types::InputNumber,
     stored_facts::types::{ArenaBytes, Bucket},
 };
 
@@ -68,27 +59,14 @@ methods!(
     RequestOpenFile,
     RequestRunFile,
     RequestProjectPhase,
-    RootsEvaluateOccurrences,
-    RootsReadinessCounts,
-    StageStateCounts,
+    RootsEvaluateRules,
     StageFinish,
-    ObservedReserve,
-    ObservedBindings,
-    ObservedBindingReadiness,
-    ObservedFrontierReadiness,
-    ObservedArenas,
-    ObservedFinish,
-    ObservedFinishStage,
-    PublicationInstall,
-    PublicationRestoreFrontiers,
-    FileReadinessCounts,
-    FileWalkCounts,
+    ObservedRunBatches,
     FileEmitRows,
     FileFinish,
     FileRule,
     FileCaptureFrontiers,
     FileCommitFrontier,
-    FileCounts,
 );
 /// Its methods never run: implementing every method of each entry trait is what the compiler checks.
 pub(super) struct Witness;
@@ -99,8 +77,7 @@ pub(super) fn implements_every_entry_trait<
         + FileExecution
         + ProjectRootExecution
         + ProjectStage
-        + ObservationExecution
-        + ObservationPublication,
+        + ObservationExecution,
 >(
     _: &W,
 ) {
@@ -114,7 +91,12 @@ impl PrepareUseCase for Witness {
     }
 }
 impl ExecutionUseCase for Witness {
-    fn execution(&self, _: &PreparedExecutionProgram, _: &[CorpusInput]) -> RequestExecution {
+    fn execution(
+        &self,
+        _: &PreparedExecutionProgram,
+        _: &[CorpusInput],
+        _: Option<std::sync::Arc<dyn ObserverPort>>,
+    ) -> RequestExecution {
         witness(Method::UseCaseExecution)
     }
 }
@@ -149,9 +131,9 @@ impl ExecutionRequest for Witness {
     }
 }
 impl ProjectRootExecution for Witness {
-    fn evaluate_occurrences<H, T, E>(
+    fn evaluate_rules<H, T, E>(
         &self,
-        _: PhaseOccurrences<'_>,
+        _: PhaseRules<'_>,
         _: &mut Symbols,
         _: impl FnMut(OccurrenceNumber) -> Result<H, E>,
         _: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
@@ -159,63 +141,40 @@ impl ProjectRootExecution for Witness {
         _: impl FnMut(
             OccurrenceNumber,
             RuleOutcome<ProjectOutputOutcome>,
-            PublicationSlot,
+            &[ArenaBytes],
+            Option<WorkerNumber>,
             &mut Symbols,
         ) -> Result<T, E>,
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E> {
-        witness(Method::RootsEvaluateOccurrences)
-    }
-    fn readiness_counts(&self) -> ReadinessCounts {
-        witness(Method::RootsReadinessCounts)
+        witness(Method::RootsEvaluateRules)
     }
 }
 impl ProjectStage for Witness {
-    fn state_counts(&self) -> InvocationStateCounts {
-        witness(Method::StageStateCounts)
-    }
     fn finish(self) -> Result<(), OperatingError> {
         witness(Method::StageFinish)
     }
 }
 impl ObservationExecution for Witness {
-    fn reserve(&mut self, _: RuleIndex) -> Result<PublicationSlot, OperatingError> {
-        witness(Method::ObservedReserve)
-    }
-    fn bindings(&self, _: RuleIndex) -> Result<Vec<BoundInput>, OperatingError> {
-        witness(Method::ObservedBindings)
-    }
-    fn binding_readiness(
-        &self,
-        _: RuleIndex,
-    ) -> Result<
-        std::collections::BTreeMap<
-            ObservationBindingId,
-            ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness,
-        >,
-        OperatingError,
-    > {
-        witness(Method::ObservedBindingReadiness)
-    }
-    fn frontier_readiness(&self, _: RuleIndex) -> Result<ReadinessProof, OperatingError> {
-        witness(Method::ObservedFrontierReadiness)
-    }
-    fn arenas(&self) -> &[ArenaBytes] {
-        witness(Method::ObservedArenas)
-    }
-    fn finish(&mut self, _: RuleIndex) -> Result<(), OperatingError> {
-        witness(Method::ObservedFinish)
-    }
-    fn finish_stage(self) -> Result<(), OperatingError> {
-        witness(Method::ObservedFinishStage)
+    fn run_batches<H, T, E: From<OperatingError>>(
+        self,
+        _: ObservationBatches<'_>,
+        _: &mut Symbols,
+        _: impl FnMut(OccurrenceNumber) -> Result<H, E>,
+        _: impl FnMut(OccurrenceNumber) -> Result<PhasePartials, E>,
+        _: impl FnMut(RuleIndex) -> Result<(), E>,
+        _: impl FnMut(
+            OccurrenceNumber,
+            RuleOutcome<ProjectOutputOutcome>,
+            &[ArenaBytes],
+            Option<WorkerNumber>,
+            &mut Symbols,
+        ) -> Result<T, E>,
+        _: impl FnMut(OccurrenceNumber, Result<T, PhaseStop<E>>) -> Result<Option<Install>, E>,
+    ) -> Result<(), E> {
+        witness(Method::ObservedRunBatches)
     }
 }
 impl FileExecution for Witness {
-    fn readiness_counts(&self) -> ReadinessCounts {
-        witness(Method::FileReadinessCounts)
-    }
-    fn walk_counts(&self) -> WalkCounts {
-        witness(Method::FileWalkCounts)
-    }
     fn emit_rows(
         &mut self,
         _: RuleIndex,
@@ -248,33 +207,5 @@ impl FileExecution for Witness {
     }
     fn commit_frontier(&mut self, _: RuleIndex, _: InputNumber) -> Result<(), OperatingError> {
         witness(Method::FileCommitFrontier)
-    }
-    fn counts(&self, _: RuleIndex) -> Result<LogicalCounts, OperatingError> {
-        witness(Method::FileCounts)
-    }
-}
-impl ObservationPublication for Witness {
-    fn install(
-        &mut self,
-        _: RuleIndex,
-        _: PublicationSlot,
-        _: ryo_values::domain::records::types::CrossPublicationTransfer,
-        _: Vec<ryo_execution_runtime::application::file_dag::observations::types::AdmittedOutput>,
-    ) -> Result<(), OperatingError> {
-        witness(Method::PublicationInstall)
-    }
-    fn restore_frontiers(
-        &mut self,
-        _: &dyn FactsFinish,
-        _: &[CorpusInput],
-        _: &[Covered],
-        _: &[Skipped],
-        _: &[InapplicableFiles],
-        _: &[ryo_execution::inbound::use_cases::execution::interface::RefusedFiles],
-        _: &[FileObservationReadiness],
-        _: &[Bucket],
-        _: &[ryo_execution_runtime::application::file_dag::observations::types::RuleSelection],
-    ) -> Result<(), OperatingError> {
-        witness(Method::PublicationRestoreFrontiers)
     }
 }

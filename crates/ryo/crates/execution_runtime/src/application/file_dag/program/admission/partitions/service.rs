@@ -7,6 +7,7 @@ use ryo_execution_domain::domain::{
     rule_intent::types::ApplicabilityReason,
 };
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::FileId;
 use std::sync::Arc;
 
@@ -14,11 +15,11 @@ impl FileGeneration {
     pub(crate) fn matches(
         &self,
         expected: &Self,
-        generation: &Arc<ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease>,
+        generation: &ryo_execution_store::application::file_dag::relations::generation::service::ResidentGeneration,
     ) -> Agreement {
         if self.file == expected.file
-            && ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&self.generation, &expected.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same
-            && ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(generation, &expected.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same
+            && self.generation.same(&expected.generation).is_ok()
+            && generation.same(&expected.generation).is_ok()
         {
             Agreement::Same
         } else {
@@ -31,7 +32,7 @@ impl FileGeneration {
     pub(crate) fn from_owner(file: FileId, owner: &RelationOwner) -> Self {
         Self {
             file,
-            generation: owner.current_generation(),
+            generation: owner.generation(),
         }
     }
 }
@@ -132,8 +133,7 @@ impl Partition {
         let supplied = match (self, required) {
             (Self::RequestInvariant, _) => true,
             (Self::File(actual), Self::File(required)) => {
-                actual.file == required.file
-                    && ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease::same(&actual.generation, &required.generation) == ryo_execution_store::application::file_dag::relations::types::Sameness::Same
+                actual.file == required.file && actual.generation.same(&required.generation).is_ok()
             }
             (Self::Project(actual), Self::Project(required)) => actual == required,
             _ => false,

@@ -1,8 +1,8 @@
 //! Request-local demand closure over immutable cached plans; no source names are resolved here.
 use crate::domain::coverage::types::RuleIndex;
-use crate::domain::file_program::types::{
-    BindingCount, EscapingOutputs, ExportedOutputs, PendingStep, ResolvedObservationBinding,
-    ResolvedObservationProducer, UsedInputs, WantedSteps,
+use crate::domain::observation_schedule::types::{
+    BindingCount, EscapingOutputs, ExportedOutputs, LinkedObservationPlans, PendingStep,
+    ResolvedObservationBinding, ResolvedObservationProducer, UsedInputs, WantedSteps,
 };
 use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -15,15 +15,6 @@ use ryo_values::domain::{
     records::types::ObservationIndex,
 };
 use std::collections::BTreeSet;
-
-/// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.
-#[derive(Debug)]
-pub struct LinkedObservationPlans {
-    /// The plans, with their observation references remapped.
-    pub plans: Vec<Plan>,
-    /// The resolved producer bindings of each rule.
-    pub bindings: Vec<Vec<ResolvedObservationBinding>>,
-}
 
 /// Follow only roots reachable from Emit or from actually read bound inputs, then remap once.
 pub fn link(
@@ -380,7 +371,6 @@ fn bound_input_dependencies(
     steps: &[BTreeSet<ryo_values::domain::plan_parts::types::ObservationBindingId>],
     count: BindingCount,
 ) -> Result<BTreeSet<ObservationBindingId>, RuleIntentError> {
-    use ryo_values::domain::plan_parts::types::Input;
     match input {
         Input::Relation(_) => Ok(BTreeSet::new()),
         Input::Step(step) => steps

@@ -4,6 +4,7 @@ use super::*;
 use ryo_execution_domain::domain::derived_views::types::{
     DerivedInputs, DerivedScratch, MembershipSpace,
 };
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::table_words::types::ColumnCount;
 use std::sync::Arc;
@@ -66,7 +67,7 @@ fn acquired(
         )
         .unwrap(),
     );
-    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::new(
+    let owner = ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible,
         (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
             as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
@@ -74,12 +75,15 @@ fn acquired(
     let RepresentationInput::Computed(table) = rows else {
         panic!("computed fixture")
     };
-    let publication = owner.computed(table.clone()).unwrap();
+    let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table.clone())).unwrap();
     let held = owner
-        .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
+        .rows(&publication, &|_| Err(OperatingError::NotRead))
         .unwrap();
     let rows = RepresentationInput::from(&held);
-    let proof = owner.admit(publication.as_ref(), rows).unwrap();
+    let proof = owner
+        .admit(&publication, rows)
+        .and_then(|admitted| admitted)
+        .unwrap();
     let inputs = [rows];
     let data = if kind == ryo_derived::domain::request::types::DerivedKind::Membership {
         DerivedInputs::Membership {

@@ -11,9 +11,7 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
-use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
@@ -41,7 +39,6 @@ pub(crate) struct ObservedDelivery {
     pub(crate) collected: Result<Table, OperatingError>,
     pub(crate) rows: Vec<Vec<Cell>>,
     pub(crate) stream_error: Option<OperatingError>,
-    pub(crate) visits: Vec<u64>,
 }
 /// Delivers an authored plan through the real prepare, open_file, collect and forward protocol.
 #[allow(
@@ -51,7 +48,6 @@ pub(crate) struct ObservedDelivery {
 pub(crate) fn deliver(
     authored: inputs::AuthoredRows,
     schema: Result<Vec<CellKind>, OperatingError>,
-    width: usize,
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
     source: &[u8],
     symbols: &mut Symbols,
@@ -67,7 +63,6 @@ pub(crate) fn deliver(
         runs::types::{RuleApplicability, RuleId},
         stored_facts::types::Digest,
     };
-    let emit = authored.plan.emit.step;
     let engine = Preparation::new(port, Arc::new(owner_fixtures::derived()));
     let preparation = engine.prepare(Authored {
         plans: vec![authored.plan],
@@ -105,7 +100,6 @@ pub(crate) fn deliver(
                 collected: Err(error.clone()),
                 rows: vec![],
                 stream_error: Some(error),
-                visits: vec![0; width],
             });
         }
     };
@@ -123,7 +117,7 @@ pub(crate) fn deliver(
             .map(|(_, table)| SourceRows::Computed(table))
             .ok_or(OperatingError::NotRead)
     };
-    let request = owner_fixtures::requests::execution().execution(&program, &corpus);
+    let request = owner_fixtures::requests::execution().execution(&program, &corpus, None);
     let elements = Elements::default();
     let input = |diagnostic| {
         FileInput {
@@ -151,10 +145,7 @@ pub(crate) fn deliver(
     let mut collected_file = request.open_file(input(&collected_intent), symbols)?;
     let outcome = collected_file.rule(
         RuleIndex(0),
-        RuleDemand {
-            emit: EmitDemand::Enabled,
-            observations: ObservationDemand::NotRequired,
-        },
+        crate::inbound::use_cases::execution::fixtures::requests::emitted(),
         symbols,
     )?;
     let collected = match outcome.emit {
@@ -177,7 +168,6 @@ pub(crate) fn deliver(
         }
         _ => panic!("declared per-file operation must settle"),
     };
-    let visits = collected_file.counts(RuleIndex(0))?.fed[emit.0 as usize].0[..width].to_vec();
     collected_file.finish()?;
     let forward_intent = [FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Forwarded,
@@ -202,6 +192,5 @@ pub(crate) fn deliver(
         collected,
         rows,
         stream_error,
-        visits,
     })
 }

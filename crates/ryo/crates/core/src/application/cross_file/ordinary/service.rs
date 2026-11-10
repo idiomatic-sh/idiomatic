@@ -9,15 +9,12 @@ use crate::domain::crossing::service::inapplicable_files;
 use crate::domain::crossing::service::refused_files;
 use crate::outbound::memory::interface::MemoryPort;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage as _;
-use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
@@ -44,25 +41,16 @@ impl CrossFile {
         let crossing = &run.crossing;
         let inapplicable = inapplicable_files(&MetadataUseCaseImpl, &crossing.domain);
         let refused = refused_files(&crossing.domain);
-        let occurrences = run
-            .todo
-            .iter()
-            .map(|todo| PhaseOccurrence {
-                rule: todo.rule,
-                bound: &[],
-                slot: PublicationSlot::Unused,
-                demand: FrontierDemand::Diagnostic,
-            })
-            .collect::<Vec<_>>();
+        let rules = run.todo.iter().map(|todo| todo.rule).collect::<Vec<_>>();
         let declared =
             |occurrence: OccurrenceNumber| run.todo.get(occurrence.0).ok_or(OperatingError::NotRun);
         let stage = run
             .services
             .project_phase()
             .map_err(|error| failed(&first_rule.id, &error))?;
-        let ran = stage.evaluate_occurrences(
-            PhaseOccurrences {
-                occurrences: &occurrences,
+        let ran = stage.evaluate_rules(
+            PhaseRules {
+                rules: &rules,
                 first: run.first_bucket,
                 corpus: crossing.domain.files,
                 covered: crossing.domain.covered,
@@ -87,13 +75,13 @@ impl CrossFile {
                         .entered()
                 }))
             },
-            |occurrence| phase_partials(crossing, declared(occurrence)?),
+            |occurrence| phase_partials(&crossing.program, &crossing.domain, declared(occurrence)?),
             |rule: RuleIndex| -> Result<(), CrossFileError> {
                 let id = run.ids.get(rule.0).ok_or(OperatingError::NotRun)?;
                 Ok(within(memory.resident_bytes()?, run.budget, || vec![id.clone()])?)
             },
-            |occurrence, outcome, slot, symbols: &mut Symbols| {
-                self.complete_occurrence(crossing, declared(occurrence)?, outcome, slot, symbols)
+            |occurrence, outcome, _, worker, symbols: &mut Symbols| {
+                self.complete_occurrence(crossing, declared(occurrence)?, outcome, worker, symbols)
             },
         );
         let (occurrences, refused) = match ran {
@@ -105,7 +93,6 @@ impl CrossFile {
             .zip(run.todo)
             .map(|(result, todo)| ProjectOutcome {
                 result: result.map_err(|stop| stopped(todo, stop)),
-                todo: todo.clone(),
             })
             .collect();
         // Every scope and outcome of the phase is released above, so the phase owns its publication alone again.

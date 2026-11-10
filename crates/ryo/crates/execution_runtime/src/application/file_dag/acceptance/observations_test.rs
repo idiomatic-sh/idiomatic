@@ -9,7 +9,7 @@ use ryo_execution_domain::domain::{
         service::compile,
         types::{InputSource, ObservationPlace},
     },
-    file_program::types::ResolvedObservationProducer,
+    observation_schedule::types::ResolvedObservationProducer,
     operating::errors::OperatingError,
 };
 use ryo_values::domain::observations::types::{ObservationBindingName, ObservationColumnName};

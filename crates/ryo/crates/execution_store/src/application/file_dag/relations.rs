@@ -2,14 +2,12 @@
 use super::derived::population::types::PopulationId;
 
 use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_execution_domain::domain::table_model::{
     service::{kind, materialize, registered},
     types::{PublishedRelation, Rows},
-};
-use ryo_execution_domain::domain::{
-    executable_program::types::RegionId, operating::errors::OperatingError,
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use std::{
@@ -19,6 +17,7 @@ use std::{
 mod accounting;
 pub mod generation;
 pub(crate) mod inspection;
+pub mod interface;
 pub(crate) mod producer;
 pub mod publication;
 pub(crate) mod source;
@@ -81,11 +80,11 @@ impl RelationOwner {
     }
     /// The generation of the resident population, for a proof to keep and present back.
     /// The resident population's generation: the lease the owner issued for it.
-    pub fn current_generation(&self) -> Arc<GenerationLease> {
+    pub(crate) fn current_generation(&self) -> Arc<GenerationLease> {
         Arc::clone(&self.generation.borrow())
     }
     /// Whether `generation` is the resident population's generation.
-    pub fn matches_generation(&self, generation: &Arc<GenerationLease>) -> Sameness {
+    pub(crate) fn matches_generation(&self, generation: &Arc<GenerationLease>) -> Sameness {
         GenerationLease::same(generation, &self.generation.borrow())
     }
 
@@ -99,7 +98,7 @@ impl RelationOwner {
     }
     /// An owner over `semantic` with the default pin limit and no route recording, for the proofs of the store and the engine.
     #[cfg(any(test, feature = "fixtures"))]
-    pub fn new(
+    pub(crate) fn new(
         stable: ReuseEligibility,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     ) -> Self {
@@ -159,13 +158,110 @@ impl RelationOwner {
         self.stable
     }
     /// Explicitly ends the immutable resident-population lease before release or refill.
-    pub fn release_population(&self) {
+    pub(crate) fn release_population(&self) {
         self.derived.clear();
         self.producer_populations.borrow_mut().clear();
         self.sources.borrow_mut().clear();
         self.views.set(PinnedViewCount(0));
         self.generation.borrow().invalidate();
         *self.generation.borrow_mut() = Arc::new(GenerationLease::new());
+    }
+}
+
+impl interface::RelationStore for RelationOwner {
+    fn generation(&self) -> generation::service::ResidentGeneration {
+        generation::service::ResidentGeneration(self.current_generation())
+    }
+    fn publish(
+        &self,
+        body: publication::types::PublicationBody<'_>,
+    ) -> Result<handle::service::Publication, OperatingError> {
+        use handle::service::{Publication, PublicationHold};
+        use publication::types::PublicationBody;
+        Ok(Publication(match body {
+            PublicationBody::Source { relation, rows } => {
+                PublicationHold::Relation(self.source(relation, rows)?)
+            }
+            PublicationBody::Compact(table) => {
+                PublicationHold::Relation(self.source_compact(table)?)
+            }
+            PublicationBody::Shared(table) => {
+                PublicationHold::Relation(self.source_shared_computed(table)?)
+            }
+            PublicationBody::Computed(table) => PublicationHold::Relation(self.computed(table)?),
+            PublicationBody::Packed { words, arenas } => PublicationHold::Packed {
+                _lease: self.packed_publication(words, arenas)?,
+            },
+        }))
+    }
+    fn population(&self) -> Result<PopulationId, OperatingError> {
+        self.project_identity()
+    }
+    fn admit<'a>(
+        &self,
+        publication: &handle::service::Publication,
+        rows: RepresentationInput<'a>,
+    ) -> Result<Result<admission::service::BorrowedInput<'a>, OperatingError>, OperatingError> {
+        self.inspect_available(publication.input()?.as_ref(), rows)
+    }
+    fn admit_number<'a>(
+        &self,
+        publication: &'a handle::service::Publication,
+        producer: types::ProducerId,
+        required: &ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement,
+        rows: RepresentationInput<'_>,
+    ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
+        RelationOwner::admit_number(self, publication.input()?, producer, required, rows)
+    }
+    fn rows<'r, 'f: 'r>(
+        &self,
+        publication: &'r handle::service::Publication,
+        read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+    ) -> Result<Rows<'r>, OperatingError> {
+        self.resolve(publication.input()?.as_ref(), read)
+    }
+    fn normalize<'r, 'f: 'r>(
+        &self,
+        publication: &'r handle::service::Publication,
+        rows: Rows<'f>,
+    ) -> Result<Rows<'r>, OperatingError> {
+        RelationOwner::normalize(self, publication.input()?, rows)
+    }
+    fn kinds<'a>(
+        &self,
+        publication: &'a handle::service::Publication,
+    ) -> Result<&'a [CellKind], OperatingError> {
+        self.publication_kinds(publication.input()?)
+    }
+    fn bind_producer(
+        &self,
+        scope: publication::types::ProducerScope,
+        producer: types::ProducerId,
+        publication: &handle::service::Publication,
+    ) -> Result<(), OperatingError> {
+        RelationOwner::bind_producer(self, scope, producer, publication.input()?.as_ref())
+    }
+    fn pin(&self, publication: &handle::service::Publication) {
+        if let Ok(input) = publication.input() {
+            self.pin_derived(input.as_ref());
+        }
+    }
+    fn retire_producer(
+        &self,
+        scope: publication::types::ProducerScope,
+        producer: types::ProducerId,
+    ) {
+        self.release_derived_producer(scope, producer);
+    }
+    fn release(&self) {
+        self.release_population();
+    }
+    #[cfg(any(test, feature = "fixtures"))]
+    fn fixture(
+        reuse: ReuseEligibility,
+        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    ) -> Self {
+        Self::with_limits(reuse, PinnedViewCount(1024), derived, Default::default())
     }
 }
 

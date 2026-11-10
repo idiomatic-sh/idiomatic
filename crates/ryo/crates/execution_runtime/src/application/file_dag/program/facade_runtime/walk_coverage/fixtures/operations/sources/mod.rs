@@ -1,9 +1,9 @@
 //! The partition requirements every operation corpus plan is compiled against.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::{
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::source_partitions::types::{
     PartitionRequirement, ProducerPartitions,
 };
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{HostedNumber, ParameterId};
 pub(crate) struct Sources;

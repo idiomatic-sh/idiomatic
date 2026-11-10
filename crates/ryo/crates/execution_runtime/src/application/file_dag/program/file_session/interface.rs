@@ -5,11 +5,8 @@ use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::frontier_capture::types::FrontierCapture;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::types::LogicalCounts;
-use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
-use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
 /// The intent supplied at file start is immutable throughout this session.
@@ -22,11 +19,31 @@ use ryo_values::domain::stored_facts::types::Bucket;
 ///     file.skip_rule(RuleIndex(0), ApplicabilityReason::SyntaxRejected).unwrap();
 /// }
 /// ```
+/// The interpreter's counters and the rows its steps were fed are not the seam's: a caller cannot read its readiness counters,
+/// ```compile_fail,E0599
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// fn readiness(file: &FileSession<'_, '_>) {
+///     let _ = file.readiness_counts();
+/// }
+/// ```
+/// its walk counters,
+/// ```compile_fail,E0599
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// fn walk(file: &FileSession<'_, '_>) {
+///     let _ = file.walk_counts();
+/// }
+/// ```
+/// nor the rows a rule's steps were fed.
+/// ```compile_fail,E0599
+/// use ryo_execution_runtime::application::file_dag::program::file_session::{interface::FileExecution, types::FileSession};
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// fn fed(file: &FileSession<'_, '_>) {
+///     let _ = file.counts(RuleIndex(0));
+/// }
+/// ```
 pub trait FileExecution {
-    /// Actual bound-root readiness polling and dependency wakeups in this owner.
-    fn readiness_counts(&self) -> ReadinessCounts;
-    /// Actual shared native pass work already performed by this file owner.
-    fn walk_counts(&self) -> WalkCounts;
     /// Deliver the already committed canonical publication to the callback.
     /// Sink refusal does not repeat admission or semantic evaluation.
     /// A different file-start delivery declaration is refused before source admission.
@@ -60,5 +77,4 @@ pub trait FileExecution {
         rule: RuleIndex,
         input: ryo_values::domain::plan_parts::types::InputNumber,
     ) -> Result<(), OperatingError>;
-    fn counts(&self, rule: RuleIndex) -> Result<LogicalCounts, OperatingError>;
 }

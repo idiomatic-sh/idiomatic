@@ -4,12 +4,13 @@ use super::{
     fusion::types::RegionSharing,
     merge::merge_equivalent,
     types::{
-        DraftIndex, DraftRegion, LogicalInstruction, PartitionRequirement, RegionMerge,
+        DraftIndex, DraftRegion, LogicalInstruction, RegionMerge,
         demand_program::value::DemandProgram, instruction::value::Instruction,
     },
 };
 use crate::domain::file_program::types::{NodeInput, ProgramNodeId};
 use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::source_partitions::types::PartitionRequirement;
 use crate::domain::{
     operation_schema::types::InputShape, operator::contract::service::prepare_for,
 };

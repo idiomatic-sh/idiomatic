@@ -121,14 +121,14 @@ impl ProjectRun<'_> {
                     ),
                     outcome: match result {
                         Ok(input) => match table_of(&self.owner, &input, &unavailable)
-                            .and_then(|table| Ok((table, input.coverage()?)))
+                            .map(|table| (table, input.coverage().clone()))
                         {
                             Ok((
                                 table,
                                 ryo_execution_domain::domain::completion::types::CoverageState::Complete,
                             )) => ProjectObservation::Complete {
                                 table,
-                                publication: ObservedPublication::from_admitted(input),
+                                publication: ObservedPublication::from_parts(input),
                             },
                             Ok((
                                 table,
@@ -138,7 +138,7 @@ impl ProjectRun<'_> {
                                 },
                             )) => ProjectObservation::Partial {
                                 table,
-                                publication: ObservedPublication::from_admitted(input),
+                                publication: ObservedPublication::from_parts(input),
                             },
                             Err(error) => ProjectObservation::Other(classify(error)),
                         },
@@ -147,10 +147,19 @@ impl ProjectRun<'_> {
                 });
             }
         }
-        Ok(RuleOutcome {
-            emit,
-            observations,
-            counts: self.execution.logical_counts(state, rule)?,
-        })
+        let observer = self.services.observer();
+        let counts = self.execution.logical_counts(
+            state,
+            rule,
+            if observer.is_some() {
+                crate::application::file_dag::program::runtime::types::FedRead::Collect
+            } else {
+                crate::application::file_dag::program::runtime::types::FedRead::CheckOnly
+            },
+        )?;
+        if let Some(observer) = observer {
+            observer.fed(rule, counts)?;
+        }
+        Ok(RuleOutcome { emit, observations })
     }
 }

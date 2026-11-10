@@ -12,7 +12,7 @@ use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    file_program::types::RuleSchedule,
+    observation_schedule::types::RuleSchedule,
     operating::errors::OperatingError,
     prepared_request::types::{Compiled, ObservationIdentity},
     table_model::types::Rows,

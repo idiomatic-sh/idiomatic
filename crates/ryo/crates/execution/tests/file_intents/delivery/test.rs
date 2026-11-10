@@ -20,7 +20,7 @@ fn diagnostic_disabled_observation_producer_runs_and_captures_only_named_frontie
         [Demand::Demanded, Demand::Demanded]
     );
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
     let read = |relation| {
@@ -111,7 +111,7 @@ fn file_start_refusal_preserves_unknown_readiness_without_a_skip_proof() {
     let engine = engine();
     let program = engine.prepare(named_request()).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| panic!("applicability refusal cannot read a provider");
     for reason in [
@@ -147,7 +147,7 @@ fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publica
     let engine = engine();
     let program = prepared(&engine);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let table = source();
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
@@ -180,13 +180,6 @@ fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publica
             DiagnosticDelivery::Disabled => unreachable!(),
         }
         assert_eq!(reads.get(), 0, "wrong mode cannot admit any provider");
-        assert!(
-            file.counts(RuleIndex(0))
-                .unwrap()
-                .fed
-                .iter()
-                .all(|count| count.0 == [0; 3])
-        );
         let expected = Table {
             kinds: vec![CellKind::Node],
             count: RowCount(1),

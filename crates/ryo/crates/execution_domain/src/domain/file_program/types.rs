@@ -59,68 +59,6 @@ pub struct RequestGraph {
     pub nodes: Vec<FileProgramNode>,
 }
 
-/// Ordinary requests need no named-root traversal allocation.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum RuleSchedule {
-    /// Preserve the existing independent original-index traversal.
-    Independent,
-    /// Original indices traversed once in dependency order and ready batches.
-    Dependencies {
-        /// The rules in dependency order.
-        order: Vec<crate::domain::coverage::types::RuleIndex>,
-        /// The rules of each ready batch, in order.
-        batches: Vec<Vec<crate::domain::coverage::types::RuleIndex>>,
-    },
-}
-/// A producer identity resolved once during request compilation.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ResolvedObservationProducer {
-    /// An actual named root in a compiled producer plan.
-    Output {
-        /// The producing rule.
-        rule: crate::domain::coverage::types::RuleIndex,
-        /// The named output of the producer.
-        output: ryo_values::domain::records::types::ObservationIndex,
-    },
-    /// Explicit unavailable selected query, never a fake empty root.
-    NoQuery {
-        /// The rule the selected query names.
-        rule: ryo_values::domain::runs::types::RuleId,
-    },
-}
-/// A resolved consumer input in its stable local slot.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ResolvedObservationBinding {
-    /// Local compiled input identity.
-    pub input: ryo_values::domain::plan_parts::types::ObservationBindingId,
-    /// The actual inferred schema and phase.
-    pub schema: ryo_values::domain::observations::types::BoundObservationInput,
-    /// Actual typed producers; no runtime name lookup remains.
-    pub producers: Vec<ResolvedObservationProducer>,
-}
-/// Compile-time descriptors and their resolved graph references travel together.
-#[derive(Debug)]
-pub struct PreparedObservationInputs {
-    /// Compiler declarations in original local input order.
-    pub schemas: Vec<ryo_values::domain::observations::types::BoundObservationInput>,
-    /// Corresponding resolved graph roots.
-    pub bindings: Vec<ResolvedObservationBinding>,
-}
-
-/// The resolved request dependency contract borrowed by the existing file/cross graph owners.
-#[derive(Clone, Copy, Debug)]
-pub enum ObservationRequest<'a> {
-    /// No bound named roots: keep independent scheduling and no observation state.
-    Independent,
-    /// Actual resolved bindings and original-index topology, never a second executor.
-    Bound {
-        /// Where each rule's observations are made ready.
-        layout: ryo_values::domain::records::types::ObservationReadinessLayout,
-        /// The resolved bindings of each rule.
-        bindings: &'a [Vec<ResolvedObservationBinding>],
-    },
-}
-
 /// Stable local bound input qualified by its original consumer index.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ObservationSlot {
@@ -157,7 +95,7 @@ pub struct GraphObservations {
     /// Frontier buckets actually needed by authored observations, prepared once.
     pub observation_frontiers: Vec<Vec<crate::domain::rule_intent::types::FrontierPurpose>>,
     /// Logical output status slots in stable rule/output order; aliases may share a physical bucket.
-    pub frontiers: Vec<ObservedFrontierRoot>,
+    pub frontiers: Vec<crate::domain::observation_schedule::types::ObservedFrontierRoot>,
     /// Prepared outgoing retirement edges, indexed by original consumer rule.
     pub retire: Vec<Vec<ObservationRetirement>>,
     /// The resolved input bindings of each rule, by rule.
@@ -170,7 +108,7 @@ pub struct GraphObservations {
 #[derive(Debug)]
 pub struct GraphObservationBinding {
     /// The resolved input.
-    pub input: ResolvedObservationBinding,
+    pub input: crate::domain::observation_schedule::types::ResolvedObservationBinding,
     /// The contract that combines the input's producers into one distinct set, or why it could not be prepared.
     pub union: Result<
         Arc<crate::domain::operator::contract::types::OperatorContract>,
@@ -185,17 +123,6 @@ pub struct ObservationRetirement {
     pub producer: crate::domain::coverage::types::RuleIndex,
     /// The producer's named output.
     pub output: ryo_values::domain::records::types::ObservationIndex,
-}
-
-/// A persisted named root uses an existing frontier bucket, not another row store.
-#[derive(Clone, Copy, Debug)]
-pub struct ObservedFrontierRoot {
-    /// The producing rule.
-    pub producer: crate::domain::coverage::types::RuleIndex,
-    /// The producer's named output.
-    pub output: ryo_values::domain::records::types::ObservationIndex,
-    /// The frontier the root is persisted in.
-    pub frontier: ryo_values::domain::plan_parts::types::InputNumber,
 }
 
 /// One request-wide binding slot; its payload is the same width as an ordinary ProgramNodeId edge.
@@ -229,35 +156,6 @@ pub enum ResolvedAlternative {
 /// Where the binding slots of one rule start among the binding slots of the request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct BindingOffset(pub usize);
-
-/// How many bound inputs a plan declares.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct BindingCount(pub usize);
-
-/// The steps of one plan that linking keeps, by the step's place.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct WantedSteps(pub Vec<bool>);
-
-/// The named outputs of one plan that a consumer reads, by the output's place.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ExportedOutputs(pub Vec<bool>);
-
-/// The named outputs of one plan that a cross-file step reads, by the output's place.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct EscapingOutputs(pub Vec<bool>);
-
-/// The bound inputs of one rule that a kept step reads, by the input's place.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct UsedInputs(pub Vec<bool>);
-
-/// A step of one rule that linking has still to follow.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PendingStep {
-    /// The rule the step belongs to.
-    pub rule: crate::domain::coverage::types::RuleIndex,
-    /// The step to follow.
-    pub step: ryo_values::domain::plan_parts::types::StepId,
-}
 
 /// The nodes of a request graph that a derived view reads, by the node's place.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

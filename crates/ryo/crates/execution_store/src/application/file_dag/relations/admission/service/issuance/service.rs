@@ -9,10 +9,10 @@ impl<'a> BorrowedInput<'a> {
     pub fn require_publication(
         &self,
         owner: &RelationOwner,
-        publication: &dyn PublishedRelation,
+        publication: &crate::application::file_dag::relations::handle::service::Publication,
     ) -> Result<(), OperatingError> {
         let population = self.identity(owner)?.population;
-        let actual = owner.private(publication)?;
+        let actual = owner.private(publication.input()?.as_ref())?;
         if self.publication_population != actual.population
             || population != owner.result_population(actual)
             || GenerationLease::same(&self.origin.generation, &actual.generation)
@@ -50,8 +50,12 @@ impl<'a> BorrowedInput<'a> {
         self.shape
     }
     /// The generation this input was admitted under.
-    pub fn generation(&self) -> Arc<GenerationLease> {
-        Arc::clone(&self.origin.generation)
+    pub fn generation(
+        &self,
+    ) -> crate::application::file_dag::relations::generation::service::ResidentGeneration {
+        crate::application::file_dag::relations::generation::service::ResidentGeneration(
+            Arc::clone(&self.origin.generation),
+        )
     }
     /// The admitted rows.
     pub fn rows(&self) -> RepresentationInput<'a> {
@@ -82,7 +86,7 @@ impl<'a> BorrowedInput<'a> {
 
 impl RelationOwner {
     /// Admits the rows of a publication as a borrowed input of the current generation.
-    pub fn admit<'a>(
+    pub(crate) fn admit<'a>(
         &self,
         result: &dyn PublishedRelation,
         input: RepresentationInput<'a>,
@@ -91,7 +95,7 @@ impl RelationOwner {
     }
 
     /// Admits the rows of a publication when they are available, answering the refusal otherwise.
-    pub fn inspect_available<'a>(
+    pub(crate) fn inspect_available<'a>(
         &self,
         result: &dyn PublishedRelation,
         input: RepresentationInput<'a>,

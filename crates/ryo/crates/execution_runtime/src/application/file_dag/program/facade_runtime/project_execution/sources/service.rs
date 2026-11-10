@@ -16,6 +16,7 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -33,14 +34,14 @@ impl ProjectFrontierPopulation<AvailableInput> {
                 let source = self.source.clone()?;
                 let publication = match &self.payload {
                     ProjectFrontierPayload::Flat(table) => {
-                        owner.source_shared_computed(Arc::clone(table))
+                        owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Shared(Arc::clone(table)))
                     }
                     ProjectFrontierPayload::Compact(table) => {
-                        owner.source_compact(Arc::clone(table))
+                        owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Compact(Arc::clone(table)))
                     }
                 }?;
                 let unavailable = |_| Err(OperatingError::NotRead);
-                let rows = owner.resolve(publication.as_ref(), &unavailable)?;
+                let rows = owner.rows(&publication, &unavailable)?;
                 AvailableInput::source(
                     Rc::clone(owner),
                     publication.clone(),
@@ -105,7 +106,7 @@ impl PublicationScope {
                     },
                     || {
                         Ok(ProjectFrontierPopulation {
-                            id: owner.project_identity()?,
+                            id: owner.population()?,
                             source: source.clone(),
                             coverage: coverage.clone(),
                             payload: payload.clone(),
@@ -140,7 +141,7 @@ impl PublicationScope {
                 Ok(members) => {
                     for member in members {
                         bindings.push(match member {
-                        crate::application::file_dag::frontiers::types::BoundMember::Current(publication) => BoundKey::Current(publication.admitted().population(owner)?, publication.admitted().coverage()?),
+                        crate::application::file_dag::frontiers::types::BoundMember::Current(publication) => BoundKey::Current(publication.population(), publication.coverage().clone()),
                         crate::application::file_dag::frontiers::types::BoundMember::Restored(token) => BoundKey::Restored(token.clone()),
                     });
                     }
@@ -165,6 +166,6 @@ impl PublicationScope {
         };
         self.populations
             .borrow_mut()
-            .invocation(key, || owner.project_identity())
+            .invocation(key, || owner.population())
     }
 }

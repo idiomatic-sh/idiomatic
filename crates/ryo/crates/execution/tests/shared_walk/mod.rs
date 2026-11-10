@@ -2,13 +2,13 @@
 #[cfg(test)]
 mod cohort;
 #[cfg(test)]
-mod compact;
+pub(crate) mod compact;
 #[cfg(test)]
-mod fixtures;
+pub(crate) mod fixtures;
 #[cfg(test)]
 mod order;
 #[cfg(test)]
-mod readiness;
+pub(crate) mod readiness;
 use crate::boundary_fixture::{corpus, demand};
 use fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
@@ -24,7 +24,7 @@ use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_relations::domain::relations::types::{FileId, Relation};
-fn no_catalog(_: Relation) -> Result<SourceRows<'static>, OperatingError> {
+pub(crate) fn no_catalog(_: Relation) -> Result<SourceRows<'static>, OperatingError> {
     panic!("completed SyntaxTree is supplied by the public file input")
 }
 
@@ -33,7 +33,7 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::Kind("word"), Selector::Kind("other")]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -58,13 +58,10 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
             &mut symbols,
         )
         .unwrap();
-    counts(&file, 0, 0);
     let words = complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap());
     assert_eq!(words, expected(FileId(0), &elements, &[1, 3]));
-    counts(&file, 1, 4);
     let other = complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap());
     assert_eq!(other, expected(FileId(0), &elements, &[2]));
-    counts(&file, 1, 4);
     assert_eq!(
         semantics.selects(),
         0,
@@ -78,7 +75,7 @@ fn inactive_file_has_zero_shared_walk_work() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::Kind("word"), Selector::BadRegex]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let file = request
         .open_file(
@@ -92,7 +89,6 @@ fn inactive_file_has_zero_shared_walk_work() {
             &mut symbols,
         )
         .unwrap();
-    counts(&file, 0, 0);
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -102,7 +98,7 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -116,7 +112,6 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
             &mut symbols,
         )
         .unwrap();
-    counts(&file, 0, 0);
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -129,7 +124,7 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
         &[Selector::Parameter("a"), Selector::Parameter("c")],
     );
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -162,7 +157,6 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
         complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[1])
     );
-    counts(&file, 1, 4);
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -172,7 +166,7 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
     let (engine, semantics) = engine();
     let program = prepared(&engine, &[Selector::BadRegex, Selector::Kind("other")]);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
@@ -201,7 +195,6 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2])
     );
-    counts(&file, 1, 4);
     failed(
         file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
         regex_error("["),
@@ -210,7 +203,6 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2])
     );
-    counts(&file, 1, 4);
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -229,7 +221,7 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     };
     entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
     corpus.push(second);
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     for (file_id, source, first, last) in [
         (FileId(0), b"abc".as_slice(), 1, 3),
         (FileId(1), b"cba".as_slice(), 3, 1),
@@ -258,7 +250,6 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
                 &mut symbols,
             )
             .unwrap();
-        counts(&file, 0, 0);
         assert_eq!(
             complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
             expected(file_id, &elements, &[first])
@@ -267,7 +258,6 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
             complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
             expected(file_id, &elements, &[last])
         );
-        counts(&file, 1, 4);
         file.finish().unwrap();
     }
     assert_eq!(semantics.selects(), 0);

@@ -9,6 +9,7 @@ use crate::application::file_dag::program::preparation::types::ObservationMetada
 use crate::application::file_dag::program::preparation::types::OutputRoot;
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::CROSS_FILE;
 use ryo_values::domain::records::types::ProducerReadiness;
 
@@ -49,7 +50,12 @@ impl CrossPublications<'_> {
             .map(|worker| self.arenas.get(worker.0 as usize).ok_or_else(incomplete))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(PreparedFrontier {
-            publication: self.owner.packed_publication(words, &backings)?,
+            publication: self.owner.publish(
+                ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Packed {
+                    words,
+                    arenas: &backings,
+                },
+            )?,
             token,
             arenas,
         })

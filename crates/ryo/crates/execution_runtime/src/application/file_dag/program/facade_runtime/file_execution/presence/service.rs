@@ -13,6 +13,7 @@ use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::views::validate_spans;
 use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::Relation;
 
 /// What a presence test reads: the file's rows, the texts its comparisons resolve, and the request's prepared matchers.
@@ -33,7 +34,10 @@ impl<'facts> PresenceRead<'_, 'facts> {
     fn source(&self, relation: Relation) -> Result<Rows<'facts>, OperatingError> {
         match (self.read)(relation) {
             Ok(rows) => {
-                let _pinned = self.owner.source(relation, &rows)?;
+                let _pinned = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Source {
+                    relation,
+                    rows: &rows,
+                })?;
                 let relied = self.spans.iter().filter(|check| check.relation == relation);
                 for check in relied {
                     validate_spans(&rows, &check.columns, self.texts.source)?;

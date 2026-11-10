@@ -4,8 +4,9 @@ use crate::boundary_fixture::Observed as _;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::frontiers::types::InputReadiness;
-use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
+use ryo_execution_runtime::outbound::facts::errors::FactsError;
+use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::types::KeptBucket;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::{
@@ -15,9 +16,9 @@ use ryo_values::domain::{
 
 #[test]
 fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_readiness() {
-    use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
-    use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
-    use ryo_values::domain::plan_parts::types::ObservationBindingId;
+    use ryo_execution::inbound::use_cases::execution::interface::{
+        BatchNumber, BatchOccurrence, ObservationBatches,
+    };
     for rejected in [false, true] {
         let engine = engine();
         let mut authored = crate::file_intents::named_request();
@@ -31,9 +32,10 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
         };
         entry.path = FilePath("second.py".into());
         corpus.push(second);
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut captures = vec![];
+        let mut consumer_captures = vec![];
         let mut readiness = vec![];
         for file_id in [FileId(0), FileId(1)] {
             let mut table = source();
@@ -65,7 +67,11 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                                 observations: ObservationDemand::Required,
                                 capture: CaptureIntent::Observations,
                             },
-                            FileRuleIntent::Undemanded,
+                            FileRuleIntent::Run {
+                                diagnostic: DiagnosticDelivery::Disabled,
+                                observations: ObservationDemand::NotRequired,
+                                capture: CaptureIntent::DiagnosticAndObservations,
+                            },
                         ],
                         source: ryo_values::domain::files::types::SourceView(b"abc"),
                         elements: &elements,
@@ -98,6 +104,26 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                 .unwrap();
             file.commit_frontier(RuleIndex(0), capture.input).unwrap();
             captures.push((file_id, capture.outcome.unwrap()));
+            // The consumer's own file frontier, kept in its own bucket.
+            for consumer in file
+                .capture_frontiers(
+                    RuleIndex(1),
+                    Bucket(10),
+                    &mut symbols,
+                    CaptureContext {
+                        worker: WorkerNumber(0),
+                        arena: ryo_execution::inbound::use_cases::execution::interface::Arena(
+                            &mut arena,
+                        ),
+                        places: &mut places,
+                        words: &mut words,
+                    },
+                )
+                .unwrap()
+            {
+                file.commit_frontier(RuleIndex(1), consumer.input).unwrap();
+                consumer_captures.push((file_id, consumer.outcome.unwrap()));
+            }
             let root = file
                 .finish()
                 .unwrap()
@@ -125,31 +151,84 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
             reads: AtomicUsize::new(0),
         };
         let mut arenas = vec![];
-        let mut stage = request.observations(&mut arenas).unwrap();
-        stage
-            .restore_frontiers(
-                &stored,
-                &corpus,
-                &[],
-                &skipped,
-                &[],
-                &[],
-                &readiness,
-                &[Bucket(0), Bucket(10)],
-                &[RuleSelection::Unselected, RuleSelection::Selected],
-            )
-            .unwrap();
+        let stage = request.observations(&mut arenas).unwrap();
+        let covered = [Covered {
+            file: FileId(0),
+            rules: vec![RuleIndex(1)],
+            partial: vec![],
+        }];
+        let project = ProjectFacts::new(Relation::ModuleIdentity);
+        let project_symbols = Symbols::default();
+        let mut symbols = Symbols::default();
+        // The producer is not selected: the consumer reads it only from the restored frontier.
+        let (ran, delivered) = crate::project_phase::source_facts::fixtures::run_observations(
+            stage,
+            ObservationBatches {
+                occurrences: &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(1) }],
+                readiness: &readiness,
+                rules: &[RuleIndex(0), RuleIndex(1)],
+                first: &[Bucket(0), Bucket(10)],
+                corpus: &corpus,
+                covered: &covered,
+                skipped: &skipped,
+                inapplicable: &[Default::default(), Default::default()],
+                refused: &[Default::default(), Default::default()],
+                facts: &ConsumerFrontier {
+                    producer: &stored,
+                    consumer: &CapturedFacts {
+                        captures: consumer_captures,
+                        reads: AtomicUsize::new(0),
+                    },
+                },
+                project: &project,
+                project_symbols: &project_symbols,
+            },
+            &Partials::default(),
+            &mut symbols,
+        );
         assert_eq!(
             stored.reads.load(Ordering::SeqCst),
             1,
             "actual restoration validates the packed frontier"
         );
+        ran.unwrap();
+        let [(_, consumer)] = delivered.as_slice() else {
+            panic!("one declared occurrence")
+        };
+        // The restored frontier is ready to the consumer, so a skipped producer partition with stale Complete bits still answers
+        // the consumer's rows from both files: what is uncertain stays in the restored publication, not in this readiness.
+        let Ok(consumer) = consumer else {
+            panic!("the restored frontier binds its consumer")
+        };
+        let RootOutcome::Complete(table) = &consumer.emit else {
+            panic!("the consumer of a ready restored frontier completes")
+        };
         assert_eq!(
-            stage
-                .binding_readiness(RuleIndex(1))
-                .unwrap()
-                .get(&ObservationBindingId(0)),
-            Some(&InputReadiness::Ready)
+            table.cells,
+            [
+                Value::Node(ryo_relations::domain::relations::fixtures::node_id(
+                    FileId(0),
+                    ryo_relations::domain::relations::types::Position(2)
+                )),
+                Value::Node(ryo_relations::domain::relations::fixtures::node_id(
+                    FileId(1),
+                    ryo_relations::domain::relations::types::Position(2)
+                )),
+            ]
         );
+    }
+}
+
+/// The restored producer frontier and, in its own bucket, the consumer's file frontier.
+struct ConsumerFrontier<'a> {
+    producer: &'a CapturedFacts,
+    consumer: &'a CapturedFacts,
+}
+impl FactsFinish for ConsumerFrontier<'_> {
+    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
+        if bucket == Bucket(10) {
+            return self.consumer.kept(bucket);
+        }
+        self.producer.kept(bucket)
     }
 }

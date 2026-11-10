@@ -1,10 +1,11 @@
 //! The read-only views of a prepared program.
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::application::file_dag::program::preparation::types::{
-    Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
-};
+use crate::application::file_dag::program::preparation::types::RuleTotal;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+use crate::application::file_dag::program::prepared_execution::types::{
+    Demand, NamedLayout, ObservationContract, ReplayClosure,
+};
 use crate::application::file_dag::program::prepared_execution::types::{
     PreparedExecutionProgram, ProgramParts,
 };
@@ -13,6 +14,7 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::{Compiled, ObservationIdentity};
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess;
 use ryo_values::domain::stored_facts::types::Bucket;

@@ -1,6 +1,5 @@
 //! Typed request graph construction and bounded file-local successful result reuse.
 
-pub mod link;
 pub mod observations;
 pub mod operators;
 
@@ -8,11 +7,12 @@ use super::constants::{EXPECT_BINDING_SLOTS, ORDERED_EXISTENCE_DECLINED, PREPARA
 use super::types::canonical_operation::value::CanonicalOperation;
 use super::types::fingerprint::value::Fingerprint;
 use super::types::{
-    BindingOffset, DerivedSources, FileProgramNode, NodeInput, ObservationRequest, ProgramNodeId,
-    RequestGraph, ResolvedAlternative, ResolvedShape, SchemaValidity,
+    BindingOffset, DerivedSources, FileProgramNode, NodeInput, ProgramNodeId, RequestGraph,
+    ResolvedAlternative, ResolvedShape, SchemaValidity,
 };
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::file_program::types::RequestOperators;
+use crate::domain::observation_schedule::types::ObservationRequest;
 use crate::domain::self_join_recogniser::types::Decline;
 
 use ryo_values::domain::plan_parts::types::StepScope;

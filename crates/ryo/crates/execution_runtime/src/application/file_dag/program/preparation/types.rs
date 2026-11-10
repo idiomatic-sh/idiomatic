@@ -4,11 +4,12 @@ use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::file_program::types::ObservationSlot;
-use ryo_execution_domain::domain::file_program::types::ObservedFrontierRoot;
-use ryo_execution_domain::domain::file_program::types::ResolvedObservationBinding;
-use ryo_execution_domain::domain::file_program::types::RuleSchedule;
+use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
+use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationBinding;
+use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
@@ -17,43 +18,11 @@ use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::Reuse;
 use std::sync::Arc;
 
-/// Whether a rule renders syntax and so needs the semantic session.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SemanticNeed {
-    Required,
-    NotRequired,
-}
-/// Whether a rule is wanted by the request, directly or through a named observation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Demand {
-    Demanded,
-    Undemanded,
-}
-/// Whether a rule declares or consumes named observations.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ObservationContract {
-    Declared,
-    Absent,
-}
 /// How many rules the request holds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleTotal(pub usize);
-/// The readiness layout of the named observations and the frontiers that feed them.
-pub struct NamedLayout<'a> {
-    pub layout: ObservationReadinessLayout,
-    pub frontiers: &'a [ObservedFrontierRoot],
-}
-/// The rules a changed selection reaches and the producer frontiers they read.
-#[derive(Debug, PartialEq)]
-pub struct ReplayClosure {
-    pub reuse: Reuse,
-    pub buckets: Vec<Bucket>,
-}
-
 pub(crate) struct RootMetadata {
     pub source: Result<InputSource, OperatingError>,
     pub phase: StepScope,

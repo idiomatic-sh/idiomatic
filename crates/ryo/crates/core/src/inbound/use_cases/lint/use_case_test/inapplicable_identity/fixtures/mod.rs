@@ -217,7 +217,12 @@ fn lint_once(
         language,
         ..
     } = made;
-    let report = use_case.counting().lint(asked).expect("the lint answers");
+    let report = use_case
+        .counting(std::sync::Arc::new(
+            ryo_execution_runtime::outbound::observer::factory::counting(),
+        ))
+        .lint(asked)
+        .expect("the lint answers");
     Observed {
         rows: std::mem::take(
             &mut *collected

@@ -7,6 +7,7 @@ use crate::application::file_dag::program::runtime::types::ConsumerReleasePoint;
 use crate::application::file_dag::program::runtime::types::{Dependencies, ReaderCount};
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 
 impl RetirementWork {
     pub(crate) fn reset(&mut self) {
@@ -125,7 +126,12 @@ impl ProgramExecution {
                 slot.admission = AdmissionProgress::default();
                 let old = std::mem::replace(&mut slot.state, State::Retired);
                 if matches!(old, State::Published(_)) {
-                    self.owner.release_derived_producer(state.scope, id);
+                    self.owner.retire_producer(
+                        state.scope,
+                        ryo_execution_store::application::file_dag::relations::types::ProducerId(
+                            id.0,
+                        ),
+                    );
                 }
                 work.retired_states.push(old);
                 work.retired_scratch.push(std::mem::take(&mut slot.scratch));

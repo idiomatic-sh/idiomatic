@@ -23,7 +23,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},
@@ -107,7 +106,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
     let program = engine.prepare(input).expect("prepare real count");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let table = source();
     let read = |relation| {
         if relation == Relation::Function {
@@ -165,6 +164,84 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     request.finish();
 }
 
+/// S14: a forwarded root is evaluated once: a sink that refuses its rows leaves the committed publication, and the retry delivers
+/// it again without another reduction.
+#[test]
+fn a_refused_sink_is_retried_from_the_publication_without_another_evaluation() {
+    let semantics = Arc::new(ReductionAudit::default());
+    let engine = PrepareUseCaseImpl::new(
+        semantics.clone(),
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
+        Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
+    );
+    let mut input = authored_request(1);
+    crate::boundary_fixture::plans(&mut input)[0]
+        .steps
+        .push(PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::GroupCount {
+                from: Input::Step(StepId(0)),
+                keys: vec![],
+                distinct: None,
+            },
+        });
+    crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
+    let program = engine.prepare(input).expect("prepare a count");
+    let corpus = corpus();
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
+    let table = source();
+    let read = |relation| {
+        if relation == Relation::Function {
+            Ok(SourceRows::Computed(&table))
+        } else {
+            Err(OperatingError::NotRead)
+        }
+    };
+    let elements = ryo_language::domain::elements::types::Elements::default();
+    let mut symbols = Symbols::default();
+    let mut file = request
+        .open_file(
+            FileInput {
+                language: SourceLanguage::Recognized,
+                resident_stability: ResidentStability::Stable,
+                file: FileId(0),
+                evaluation: &[],
+                publication: &[],
+                intents: &[FileRuleIntent::Run {
+                    diagnostic: DiagnosticDelivery::Forwarded,
+                    observations: ObservationDemand::NotRequired,
+                    capture: CaptureIntent::Disabled,
+                }],
+                source: ryo_values::domain::files::types::SourceView(b"abc"),
+                elements: &elements,
+                read: &read,
+                semantic: ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport::Absent,
+                kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
+            },
+            &mut symbols,
+        )
+        .expect("open the count file");
+    let refused = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| Err(OperatingError::NotRead));
+    assert!(matches!(refused, Err(OperatingError::NotRead)), "the sink refused");
+    let mut rows = vec![];
+    let _emission = file
+        .emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
+            rows.push(row.to_vec());
+            Ok(())
+        })
+        .expect("the retry delivers");
+    assert_eq!(rows, [vec![Value::Number(Integer(1))]]);
+    assert_eq!(
+        semantics
+            .reductions
+            .load(std::sync::atomic::Ordering::Relaxed),
+        1,
+        "the count was reduced once; the retry replayed its publication"
+    );
+    let _finished = file.finish();
+    request.finish();
+}
+
 mod union_rows;
 
 mod mode_order;
@@ -179,10 +256,17 @@ mod shared_walk;
 mod file_intents;
 
 #[cfg(test)]
-mod scheduler;
+pub(crate) mod scheduler;
 
 mod submission;
+
+mod completion;
+
+mod preflight;
+
+mod resources;
 
 mod file_run;
 
 mod compiled_rules;
+mod interpreter;

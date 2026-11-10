@@ -1,14 +1,14 @@
-//! Generation checks, identity matches, resolution and physical inspection of publications.
+//! ResidentGeneration checks, identity matches, resolution and physical inspection of publications.
 use crate::application::file_dag::relations::types::NormalizationCharge;
 use crate::application::file_dag::relations::*;
 impl RelationOwner {
     /// The cell kinds of a publication.
-    pub fn publication_kinds<'a>(
+    pub(crate) fn publication_kinds<'a>(
         &self,
         publication: &'a PublishedInput,
     ) -> Result<&'a [CellKind], OperatingError> {
         let record = publication.as_ref();
-        self.generation(record)?;
+        self.check_generation(record)?;
         Ok(match &record.body {
             RelationBody::Source(source) => &source.kinds,
             RelationBody::Computed(table) => &table.kinds,
@@ -25,11 +25,11 @@ impl RelationOwner {
             .as_any()
             .downcast_ref::<RelationResult>()
             .ok_or_else(|| OperatingError::NotRead)?;
-        self.generation(record)?;
+        self.check_generation(record)?;
         Ok(record)
     }
 
-    pub(crate) fn generation(&self, result: &RelationResult) -> Result<(), OperatingError> {
+    pub(crate) fn check_generation(&self, result: &RelationResult) -> Result<(), OperatingError> {
         if self.matches_generation(&result.generation) == Sameness::Same {
             Ok(())
         } else {
@@ -72,7 +72,7 @@ impl RelationOwner {
         }
     }
     /// The rows of a published result, read through `read` when they are a source's.
-    pub fn resolve<'r, 'f>(
+    pub(crate) fn resolve<'r, 'f>(
         &self,
         result: &'r dyn PublishedRelation,
         read: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
@@ -96,7 +96,7 @@ impl RelationOwner {
         }
     }
     /// The caller invokes this only at its already declared physical demand gate.
-    pub fn inspect(
+    pub(crate) fn inspect(
         &self,
         result: &dyn PublishedRelation,
         input: RepresentationInput<'_>,
@@ -150,7 +150,7 @@ impl RelationOwner {
         outcome
     }
     /// The rows of a publication in their normalized form.
-    pub fn normalize<'r, 'f>(
+    pub(crate) fn normalize<'r, 'f>(
         &self,
         publication: &'r PublishedInput,
         rows: Rows<'f>,

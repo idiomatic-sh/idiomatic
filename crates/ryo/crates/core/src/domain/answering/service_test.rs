@@ -5,12 +5,10 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, Ste
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 use super::service::{cross_steps, settle, todo_list};
-use super::types::{CrossSteps, Crossed, Todo};
+use super::types::{CrossSteps, Crossed};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::render::service::{end_row, lent_row, row_cells};
 use crate::domain::render::types::{Rendered, RowNumber};
-use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
-use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::row_texts::types::{Cell, CellText, RowsTextView};
@@ -23,8 +21,6 @@ enum Scenario {
     CrossSteps,
     /// `todo_list` on three plans of which the second has no cross-file step: the places of the rules to make.
     TodoMixed,
-    /// `settle` adds the rows each step was fed.
-    SettleFed,
     /// `settle` puts the findings after those already there.
     SettleLater,
 }
@@ -76,22 +72,15 @@ fn rows_of(texts: &[&str]) -> Rendered {
     rendered
 }
 
-/// Settles a rule whose steps found the rows `found` and were fed `rows` rows, over findings that already hold the rows `before`: the
-/// rows fed, and the text of the rows after, one after the other.
-fn settled(rows: u64, before: &[&str], found: &[&str]) -> (u64, String) {
-    let todo = Todo {
-        rule: RuleIndex(0),
-        id: RuleId("r0".into()),
-    };
+/// Settles a rule whose steps found the rows `found`, over findings that already hold the rows `before`: the text of the rows after.
+fn settled(before: &[&str], found: &[&str]) -> String {
     let mut later = rows_of(before);
-    let mut fed = vec![vec![RowsFed::default()]];
     let crossed = Crossed {
         unknowns: Vec::new(),
         rendered: Some(rows_of(found)),
         observations: None,
-        fed: vec![RowsFed([rows, 0, 0])],
     };
-    assert!(settle(&todo, crossed, &mut later, &mut fed, &mut Vec::new()).is_none());
+    assert!(settle(crossed, &mut later, &mut Vec::new()).is_none());
     let texts: String = (0..later.ends.0.len())
         .flat_map(|row| {
             lent_row(
@@ -108,12 +97,7 @@ fn settled(rows: u64, before: &[&str], found: &[&str]) -> (u64, String) {
             Some(Cell::File(_) | Cell::Number(_) | Cell::Span(_)) | None => "",
         })
         .collect();
-    (
-        fed.first()
-            .and_then(|each| each.first())
-            .map_or(0, |each| each.0[0]),
-        texts,
-    )
+    texts
 }
 
 fn subject(scenario: Input) -> Value {
@@ -138,8 +122,7 @@ fn subject(scenario: Input) -> Value {
             .iter()
             .fold(0, |packed, each| packed * 10 + each.rule.0 + 1)
         }
-        Scenario::SettleFed => usize::try_from(settled(7, &[], &[]).0).unwrap_or(0),
-        Scenario::SettleLater => usize::from(settled(0, &["a"], &["b"]).1 == "ab"),
+        Scenario::SettleLater => usize::from(settled(&["a"], &["b"]) == "ab"),
     }
 }
 
@@ -155,12 +138,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::TodoMixed,
         expect: Expect::Value(13),
-    },
-    Case {
-        name: CaseName("settling_adds_the_rows_each_step_was_fed"),
-        word: Word::Succeeds,
-        input: || Scenario::SettleFed,
-        expect: Expect::Value(7),
     },
     Case {
         name: CaseName("settling_puts_the_findings_after_those_already_there"),

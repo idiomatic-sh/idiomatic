@@ -1,7 +1,7 @@
 // the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
 //! The `cross_file` service's cases, on values alone.
 
-use super::fixtures::{counting_plan, frontier_rows, todo, world};
+use super::fixtures::{counting_plan, fed_steps, frontier_rows, todo, world};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use ryo_language::domain::symbols::types::Symbols;
@@ -13,6 +13,8 @@ mod batch_test;
 mod budget_test;
 #[cfg(test)]
 mod generation_test;
+#[cfg(test)]
+mod interpreter;
 #[cfg(test)]
 mod partials_test;
 #[cfg(test)]
@@ -94,7 +96,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.order.len()),
-                done.fed.len(),
+                fed_steps(&rules, 0),
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.cells.len()),
@@ -109,7 +111,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 done.rendered
                     .as_ref()
                     .map_or(0, |rendered| rendered.order.len()),
-                done.fed.len(),
+                fed_steps(&rules, 3),
                 0,
             ])
         }

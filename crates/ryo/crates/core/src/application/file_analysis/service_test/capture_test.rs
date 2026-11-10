@@ -132,7 +132,7 @@ pub(super) fn a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule
         Arc::new(MemoryFake::default()),
     );
     let mut worker = Worker {
-        tables: tables_for(WorkerNumber(0), &metadata),
+        tables: tables_for(WorkerNumber(0)),
         facts: FactsFake::default().worker().expect("facts worker"),
         old_rows: None,
         failure: None,

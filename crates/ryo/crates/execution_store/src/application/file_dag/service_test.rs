@@ -4,22 +4,14 @@ use super::relations::types::ReuseEligibility;
 use super::service::open_program_owner;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_relations::domain::relations::types::Relation;
-use std::sync::Arc;
 
 type Failure = OperatingError;
 
 /// The reuse eligibility of the owner a scope opens over a compiled one-rule program with `reuse`.
 fn opened(reuse: ReuseEligibility) -> Result<ReuseEligibility, Failure> {
-    let plans = [super::derived::owner::fixtures::source_plan(
-        Relation::Function,
-    )];
-    let program = Arc::new(super::derived::owner::fixtures::compiled(
-        &plans,
-        super::fixtures::program_derived_port(),
-    ));
+    // A one-rule program of one region.
     let owner = open_program_owner(
-        &program,
+        super::relations::types::ProducerCapacity(1),
         super::fixtures::program_derived_port(),
         reuse,
         super::route_counts::types::RouteProfile::default(),

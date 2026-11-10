@@ -18,7 +18,7 @@ use super::types::CoverageFileCount;
 use super::use_case::MetadataUseCaseImpl;
 use crate::inbound::use_cases::metadata::interface::MetadataUseCase as _;
 use ryo_execution_domain::domain::kind_check::types::KindRefusal;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::files::types::FilePath;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_relations::domain::relations::types::FileId;
@@ -32,7 +32,6 @@ use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::files::types::GlobsMatcher;
 use ryo_values::domain::files::types::Hits;
 use ryo_values::domain::files::types::MatchCandidate;
-use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::run_metadata::types::Feature;
 use ryo_values::domain::runs::types::RuleId;
@@ -127,7 +126,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::UnknownKind,
         expect: Expect::Refusal(|failure| {
             selects!(
-                matches!(failure, Refusal::Kind(KindRefusal { message, origin: ryo_execution_domain::domain::kind_check::types::KindOrigin::Unrecorded }) if message.0.contains("ghost") && message.0.contains("rust")),
+                matches!(failure, Refusal::Kind(KindRefusal { message, origin: crate::inbound::use_cases::metadata::interface::KindOrigin::Unrecorded }) if message.0.contains("ghost") && message.0.contains("rust")),
             )
         }),
     },
@@ -312,7 +311,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 relation: Relation::Function,
                 cause: PartialCause("failed read".into()),
                 lacking: Lacking::Any,
-                at: ryo_execution_domain::domain::coverage::types::PartialPlace::File(FileId(0)),
+                at: crate::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(0)),
             };
             assert_eq!(
                 metadata.matters(&needs.reads[0], &partial),

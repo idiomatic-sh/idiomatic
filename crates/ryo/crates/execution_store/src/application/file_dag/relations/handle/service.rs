@@ -32,12 +32,12 @@ impl PublishedInput {
         }
     }
     /// The published record this input leases, borrowed for reading.
-    pub fn as_ref(&self) -> &RelationResult {
+    pub(crate) fn as_ref(&self) -> &RelationResult {
         &self.record
     }
     /// The published record.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn record(&self) -> &Arc<RelationResult> {
+    #[cfg(test)]
+    pub(crate) fn record(&self) -> &Arc<RelationResult> {
         &self.record
     }
     pub(crate) fn normalization_charged(&self) -> NormalizationCharge {
@@ -53,8 +53,8 @@ impl PublishedInput {
         *self.leases.normalized.borrow_mut() = Some(lease);
     }
     /// Whether `other` leases the same record.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn same_record(
+    #[cfg(test)]
+    pub(crate) fn same_record(
         &self,
         other: &Self,
     ) -> crate::application::file_dag::relations::types::Sameness {
@@ -65,9 +65,55 @@ impl PublishedInput {
         }
     }
 }
-impl std::ops::Deref for PublishedInput {
-    type Target = RelationResult;
-    fn deref(&self) -> &Self::Target {
-        &self.record
+
+/// What the store published for a holder: a relation's publication, or packed words it leases. The one handle the runtime holds.
+#[derive(Clone, Debug)]
+pub struct Publication(pub(crate) PublicationHold);
+
+/// What a publication holds.
+#[derive(Clone, Debug)]
+pub(crate) enum PublicationHold {
+    Relation(PublishedInput),
+    /// Packed words; the lease is held, never read.
+    Packed {
+        _lease: crate::application::file_dag::relations::packed::service::PackedPublication,
+    },
+}
+impl Publication {
+    /// Whether `other` holds the same published record, for the engine's own proofs.
+    #[cfg(any(test, feature = "fixtures"))]
+    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// `NotRead` when it holds another record, or either holds packed words.
+    pub fn same_record(
+        &self,
+        other: &Self,
+    ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
+        match (&self.0, &other.0) {
+            (PublicationHold::Relation(this), PublicationHold::Relation(that))
+                if Arc::ptr_eq(&this.record, &that.record) =>
+            {
+                Ok(())
+            }
+            _ => Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead),
+        }
+    }
+    /// The publication of a relation.
+    pub(crate) fn of(input: PublishedInput) -> Self {
+        Self(PublicationHold::Relation(input))
+    }
+    /// The relation's publication.
+    pub(crate) fn input(
+        &self,
+    ) -> Result<&PublishedInput, ryo_execution_domain::domain::operating::errors::OperatingError>
+    {
+        match &self.0 {
+            PublicationHold::Relation(input) => Ok(input),
+            PublicationHold::Packed { .. } => {
+                Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
+            }
+        }
     }
 }

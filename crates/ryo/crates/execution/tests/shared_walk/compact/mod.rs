@@ -4,4 +4,4 @@ mod dependency_positions;
 #[cfg(test)]
 mod index_visits;
 #[cfg(test)]
-mod selected_frontiers;
+pub(crate) mod selected_frontiers;

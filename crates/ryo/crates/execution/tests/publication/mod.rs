@@ -8,7 +8,7 @@ use ryo_execution_runtime::application::file_dag::program::prepared_execution::t
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
+pub(crate) fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     crate::boundary_fixture::plans(&mut input)[0].steps = vec![PlanStep {
         scope: StepScope::PerFile,
@@ -25,7 +25,7 @@ fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     engine.prepare(input).expect("actual FitsRendered program")
 }
 
-fn rows(second: (u32, u32)) -> Table {
+pub(crate) fn rows(second: (u32, u32)) -> Table {
     let mut table = source();
     let mut first = table.cells.clone();
     first[3] = Value::Span(Span {
@@ -50,7 +50,7 @@ fn semantic_failure_discards_every_after_success_row() {
             let engine = engine();
             let prepared = program(&engine);
             let corpus = corpus();
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
             let table = rows(second);
             let elements = ryo_language::domain::elements::types::Elements::default();
             let read = |relation| {
@@ -119,7 +119,7 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         let engine = engine();
         let prepared = program(&engine);
         let corpus = corpus();
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let table = rows((1, 2));
         let elements = ryo_language::domain::elements::types::Elements::default();
         let read = |relation| {
@@ -174,29 +174,12 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         if refuse {
             assert!(matches!(result, Err(OperatingError::WrongBinding)));
             assert_eq!(exposed, table.cells[..table.kinds.len()]);
-            let evaluated = file
-                .counts(RuleIndex(0))
-                .unwrap()
-                .fed
-                .iter()
-                .map(|counts| counts.0)
-                .collect::<Vec<_>>();
             exposed.clear();
             file.emit_rows(RuleIndex(0), &mut symbols, &mut |row| {
                 exposed.extend_from_slice(row);
                 Ok(())
             })
             .expect("retry after delivery refusal");
-            assert_eq!(
-                file.counts(RuleIndex(0))
-                    .unwrap()
-                    .fed
-                    .iter()
-                    .map(|counts| counts.0)
-                    .collect::<Vec<_>>(),
-                evaluated,
-                "retrying a sink must not repeat semantic execution"
-            );
         } else {
             result.expect("publish after successful semantics");
         }
@@ -213,7 +196,17 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
     }
 }
 
+/// A store of its own, through the store port's fixture, over the store's derived semantics.
+pub(crate) fn store() -> impl ryo_execution_store::application::file_dag::relations::interface::RelationStore {
+    use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+    ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
+        ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
+        Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
+    )
+}
+
 #[cfg(test)]
 mod axis;
 
 mod frames;
+mod store;

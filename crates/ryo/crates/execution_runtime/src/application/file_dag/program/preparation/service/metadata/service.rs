@@ -1,6 +1,6 @@
 //! Per-rule root, read and frontier metadata taken from the compiled plans.
 use crate::application::file_dag::program::preparation::types::{
-    ObservationMetadata, RootMetadata, RuleMetadata, SemanticNeed,
+    ObservationMetadata, RootMetadata, RuleMetadata,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::{
@@ -8,6 +8,7 @@ use ryo_execution_domain::domain::executable_program::types::{
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::{Operation, Plan};
@@ -82,7 +83,7 @@ pub(crate) fn rules(
                 .clone()
                 .into_boxed_slice(),
             frontier_dependencies:
-                ryo_execution_domain::domain::file_program::service::link::frontier_dependencies(
+                ryo_execution_domain::domain::observation_schedule::service::link::frontier_dependencies(
                     plan,
                 )
                 .map_err(|error| OperatingError::ObservationIncomplete {

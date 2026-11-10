@@ -4,10 +4,10 @@ use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::*;
 impl RelationOwner {
     /// Admits a numeric source for the producer that requires it, the one way to mint the witness.
-    pub fn admit_number<'a>(
+    pub(crate) fn admit_number<'a>(
         &self,
         publication: &'a PublishedInput,
-        producer: RegionId,
+        producer: crate::application::file_dag::relations::types::ProducerId,
         required: &NumberRequirement,
         rows: RepresentationInput<'_>,
     ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> {
@@ -19,10 +19,7 @@ impl RelationOwner {
         let expected = self
             .producer_populations
             .borrow()
-            .get(&ProducerKey {
-                scope,
-                region: producer,
-            })
+            .get(&ProducerKey { scope, producer })
             .copied();
         let actual = ProducerPopulation {
             population: self.result_population(record),
@@ -34,8 +31,9 @@ impl RelationOwner {
             return Ok(None);
         }
         // Original-plan lineage permits only copying operators. Every leaf must
-        // already have been read and admitted by THIS owner, with total Stored
-        // Number decoding and rectangular backing. No additional source read.
+        // already have been read and admitted by THIS owner with a Number column
+        // and rectangular backing: stored columns of equal length, or a computed
+        // table whose cells fill its rows. No additional source read.
         let sources = self.sources.borrow();
         if required.origins.is_empty()
             || required.origins.iter().any(|origin| {
@@ -43,13 +41,21 @@ impl RelationOwner {
                     return true;
                 };
                 let source = &source.population;
-                source.kind != RepresentationKind::Stored
-                    || source.kinds.get(origin.column.0 as usize) != Some(&CellKind::Number)
-                    || source.storage.len() != source.kinds.len()
-                    || source
-                        .storage
-                        .iter()
-                        .any(|span| span.length.0 != source.rows.0)
+                source.kinds.get(origin.column.0 as usize) != Some(&CellKind::Number)
+                    || match source.kind {
+                        RepresentationKind::Stored => {
+                            source.storage.len() != source.kinds.len()
+                                || source
+                                    .storage
+                                    .iter()
+                                    .any(|span| span.length.0 != source.rows.0)
+                        }
+                        RepresentationKind::Computed => {
+                            let cells = source.rows.0.checked_mul(source.kinds.len());
+                            source.storage.get(1).map(|span| Some(span.length.0)) != Some(cells)
+                        }
+                        _ => true,
+                    }
             })
         {
             return Ok(None);

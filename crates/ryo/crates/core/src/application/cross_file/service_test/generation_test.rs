@@ -3,6 +3,7 @@ use super::batch_test::assert_count_findings;
 use super::batch_test::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
+use crate::application::cross_file::fixtures::fed_steps;
 use crate::application::cross_file::fixtures::frontier_rows;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
@@ -45,8 +46,8 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
                 &phase,
             )
             .unwrap();
+            assert_eq!(fed_steps(&rules, rule), 2);
             let rendered = result.rendered.expect("actual core project rendering");
-            assert_eq!(result.fed.len(), 2);
             let payload = assert_count_findings(
                 &rendered,
                 RuleIndex(rule),
@@ -108,7 +109,7 @@ pub(super) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
             ryo_execution::derived(),
             Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
         );
-        rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files);
+        rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files, None);
         let phase = rules.request.project_phase().unwrap();
         let result = evaluate_fixture(
             &rules,

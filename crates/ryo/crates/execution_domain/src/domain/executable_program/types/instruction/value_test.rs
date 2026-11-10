@@ -4,11 +4,11 @@ use super::value::Instruction;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
-        DemandAction, InputId, LogicalInstruction, PartitionRequirement,
-        demand_program::value::DemandProgram,
+        DemandAction, InputId, LogicalInstruction, demand_program::value::DemandProgram,
     },
     operation_schema::types::InputShape,
     operator::contract::service::prepare_for,
+    source_partitions::types::PartitionRequirement,
 };
 use ryo_relations::domain::relations::{service::kinds, types::Relation};
 use ryo_values::domain::{

@@ -1,9 +1,10 @@
 //! Which rules and producer frontiers a changed selection reaches through named observations.
 use crate::application::file_dag::program::preparation::types::{
-    ObservationMetadata, PreparedProgram, ReplayClosure,
+    ObservationMetadata, PreparedProgram,
 };
+use crate::application::file_dag::program::prepared_execution::types::ReplayClosure;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer;
+use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::stores::types::{MadeAgain, Reuse};

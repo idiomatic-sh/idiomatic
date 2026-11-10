@@ -14,7 +14,7 @@ use crate::domain::render::types::{Answering, Rendered, RowLimit};
 use crate::domain::reporting::service::{room_left, totals};
 use crate::domain::reporting::types::RowCounts;
 use crate::domain::storing::types::ReadAlone;
-use crate::domain::workers::service::{absorb, gathering, size_at, tables_for};
+use crate::domain::workers::service::{absorb, size_at, tables_for};
 use crate::domain::workers::types::{FileOrder, Visited};
 use crate::outbound::row_sink::interface::RowSinkPort;
 use crate::outbound::row_sink::types::{AnswerCounts, LentCell};
@@ -89,10 +89,7 @@ impl FileVisits {
                 Ok(facts) => facts,
                 Err(error) => return Ok(Err(error.into())),
             };
-            states.push(Worker::new(
-                tables_for(WorkerNumber(number), run.metadata),
-                facts,
-            ));
+            states.push(Worker::new(tables_for(WorkerNumber(number)), facts));
         }
         let (mut headings, limit) = match run.answering {
             Answering::Findings => (
@@ -133,7 +130,7 @@ impl FileVisits {
         self.scheduler.run(&mut jobs, count)?;
         drop(jobs);
         // The workers meet: their tables, the text they made, what they could not read.
-        let mut met = gathering(run.metadata);
+        let mut met = crate::domain::workers::types::WorkersMet::default();
         let mut workers = Vec::new();
         for state in states {
             if let Some(error) = state.failure {
@@ -305,10 +302,7 @@ impl FileVisits {
             store,
             setting: setting.clone(),
         };
-        let mut worker = Worker::new(
-            tables_for(WorkerNumber(0), setting.metadata),
-            self.facts.worker()?,
-        );
+        let mut worker = Worker::new(tables_for(WorkerNumber(0)), self.facts.worker()?);
         for place in changed {
             self.analysis.visit_file(
                 &mut worker,

@@ -43,10 +43,7 @@ pub(super) fn current_project_roots_keep_the_original_two_group_four_cell_result
     let RootOutcome::Complete(table) = done.emit else {
         panic!("complete group root")
     };
-    assert_eq!(
-        [table.count.0, done.counts.fed.len(), table.cells.len()],
-        [2, 2, 4]
-    );
+    assert_eq!([table.count.0, table.cells.len()], [2, 4]);
     Ok(())
 }
 

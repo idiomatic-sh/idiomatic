@@ -42,7 +42,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
     }
     corpus.push(second);
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let mut arena = vec![];
     let mut places = vec![];
     let mut words = Words::default();
@@ -140,8 +140,8 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     let arenas = [ArenaBytes(arena)];
     let outcome = crate::boundary_fixture::project_root(
         &phase,
-        PhaseOccurrences {
-            occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+        PhaseRules {
+            rules: &[RuleIndex(0)],
             first: &[Bucket(0)],
             corpus: &corpus,
             covered: &covered,

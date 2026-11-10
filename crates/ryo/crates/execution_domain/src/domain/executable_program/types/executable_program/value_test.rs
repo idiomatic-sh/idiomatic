@@ -5,10 +5,11 @@ use super::value::ExecutableProgram;
 use crate::domain::{
     coverage::types::RuleIndex,
     executable_program::types::{
-        FileReaderGraph, InputSource, ObservationPlace, PartitionRequirement, RegionId,
-        SourcePartition, region::value::Region,
+        FileReaderGraph, InputSource, ObservationPlace, RegionId, SourcePartition,
+        region::value::Region,
     },
     operating::errors::OperatingError,
+    source_partitions::types::PartitionRequirement,
 };
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;

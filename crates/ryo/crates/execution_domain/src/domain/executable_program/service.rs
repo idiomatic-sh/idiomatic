@@ -9,6 +9,7 @@ use super::types::instruction::value::Instruction;
 use super::types::region::value::Region;
 use super::types::*;
 use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::source_partitions::types::{PartitionRequirement, ProducerPartitions};
 use crate::domain::{
     file_program::types::{NodeInput, RequestGraph},
     operating::errors::OperatingError,
@@ -296,6 +297,7 @@ pub fn compile(
             }
         }),
     );
+    super::origins::place_steps(&mut rules, &logical_regions, &regions);
     let file_readers = super::file_demand::service::readers(&regions, &rules)?;
     let program = ExecutableProgram::new(
         regions.into_boxed_slice(),

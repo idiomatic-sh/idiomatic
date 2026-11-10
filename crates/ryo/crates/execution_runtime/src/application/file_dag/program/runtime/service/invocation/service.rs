@@ -23,6 +23,7 @@ use ryo_execution_domain::domain::executable_program::types::region::value::Regi
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::Value;
 
 impl ProgramExecution {
@@ -275,7 +276,7 @@ impl Drop for Invocation<'_> {
                 Terminal::Ready => State::Ready,
                 Terminal::Published(input) => match input.publication(&self.execution.owner) {
                     Ok(publication) => {
-                        self.execution.owner.pin_derived(publication.as_ref());
+                        self.execution.owner.pin(publication);
                         State::Published(input)
                     }
                     Err(error) => {

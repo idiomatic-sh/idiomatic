@@ -8,10 +8,8 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecutio
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::{
-    FrontierDemand, PhaseOccurrence, PhaseOccurrences, PhasePartials,
-};
+use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
@@ -84,24 +82,16 @@ pub(crate) fn measure_project(
             total
         ];
     for _ in 0..2 {
-        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let partials = Partials::default();
         let mut symbols = Symbols::default();
         tracing::dispatcher::with_default(&dispatch, || {
             tracing::trace!(target: "ryo::diagnostic::activation", event = "begin");
             let phase = request.project_phase().unwrap();
-            let occurrences: Vec<PhaseOccurrence<'_>> = demanded
-                .iter()
-                .map(|&rule| PhaseOccurrence {
-                    rule: RuleIndex(rule),
-                    bound: &[],
-                    slot: PublicationSlot::Unused,
-                    demand: FrontierDemand::Diagnostic,
-                })
-                .collect();
-            let ProjectBatch::Complete(outcomes) = phase.evaluate_occurrences(
-                PhaseOccurrences {
-                    occurrences: &occurrences,
+            let rules: Vec<RuleIndex> = demanded.iter().copied().map(RuleIndex).collect();
+            let ProjectBatch::Complete(outcomes) = phase.evaluate_rules(
+                PhaseRules {
+                    rules: &rules,
                     first: &first,
                     corpus: &corpus,
                     covered: &covered,
@@ -122,7 +112,7 @@ pub(crate) fn measure_project(
                     })
                 },
                 |_| Ok(()),
-                |_, outcome, _, _| Ok(outcome),
+                |_, outcome, _, _, _| Ok(outcome),
             ) else {
                 panic!("an infallible guard cannot refuse")
             };

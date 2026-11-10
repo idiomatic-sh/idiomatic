@@ -2,6 +2,6 @@
 #[cfg(test)]
 mod delivery;
 #[cfg(test)]
-mod physical;
+pub(crate) mod physical;
 #[cfg(test)]
-mod sources;
+pub(crate) mod sources;

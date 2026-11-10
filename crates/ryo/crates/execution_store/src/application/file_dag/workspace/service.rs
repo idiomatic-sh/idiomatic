@@ -30,7 +30,7 @@ impl InvocationWorkspace {
     ) -> Result<BorrowedInput<'a>, OperatingError> {
         let owner = self.owner();
         if let Some(record) = self.publications.get(place.0).and_then(Option::as_ref) {
-            return owner.admit(record.as_ref(), rows);
+            return owner.admit(record.input()?.as_ref(), rows);
         }
         if place.0 >= self.publications.len() {
             Err(OperatingError::MissingInput {

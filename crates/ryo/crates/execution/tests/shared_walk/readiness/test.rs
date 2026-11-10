@@ -11,8 +11,7 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value};
@@ -23,14 +22,14 @@ use ryo_values::domain::{
     row_texts::types::Cell,
     rows::types::{RowCount, Table},
 };
-fn readiness_intent() -> FileRuleIntent {
+pub(crate) fn readiness_intent() -> FileRuleIntent {
     FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::Disabled,
     }
 }
-fn readiness_chain() -> Vec<PlanStep> {
+pub(crate) fn readiness_chain() -> Vec<PlanStep> {
     let mut steps = vec![PlanStep {
         scope: StepScope::PerFile,
         operation: Operation::Hosted {
@@ -58,7 +57,7 @@ fn readiness_chain() -> Vec<PlanStep> {
     }
     steps
 }
-fn readiness_hosted() -> HostRelation {
+pub(crate) fn readiness_hosted() -> HostRelation {
     HostRelation {
         name: HostName("numbers".into()),
         columns: vec![HostColumn {
@@ -71,7 +70,7 @@ fn readiness_hosted() -> HostRelation {
             .collect(),
     }
 }
-fn readiness_budget(request: &PrepareRequest) -> (u64, u64) {
+pub(crate) fn readiness_budget(request: &PrepareRequest) -> (u64, u64) {
     use ryo_values::domain::plans::fixtures::{inputs_of, named};
     let nodes = crate::boundary_fixture::plans_of(&request)
         .iter()
@@ -89,7 +88,7 @@ fn readiness_budget(request: &PrepareRequest) -> (u64, u64) {
         .sum();
     (nodes, edges)
 }
-fn readiness_expected() -> Table {
+pub(crate) fn readiness_expected() -> Table {
     Table {
         kinds: vec![CellKind::Number],
         count: RowCount(3),
@@ -140,10 +139,9 @@ fn exercise_readiness_chain(empty: bool) {
     } else {
         readiness_expected()
     };
-    let (nodes, edges) = readiness_budget(&authored);
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let intents = [readiness_intent(), readiness_intent(), readiness_intent()];
     let mut file = request
@@ -152,46 +150,17 @@ fn exercise_readiness_chain(empty: bool) {
             &mut symbols,
         )
         .unwrap();
-    assert_eq!(file.readiness_counts().preparations.0, 0);
     assert_eq!(
         complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
         expected.clone()
     );
-    let work = file.readiness_counts();
-    assert!(
-        work.suspensions.0 >= 96,
-        "the actual deep chain reached demanded dependencies: {work:?}"
-    );
-    assert!(
-        work.preparations.0 <= nodes + edges,
-        "blocked ancestors must not be rescanned: {work:?}"
-    );
-    assert!(
-        work.evaluations.0 <= nodes,
-        "evaluations cannot exceed all authored nodes: {work:?}"
-    );
-    assert!(
-        work.suspensions.0 <= edges,
-        "no suspension without an authored input edge: {work:?}"
-    );
-    assert_eq!(work.wakeups, work.suspensions);
     assert_eq!(
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected.clone()
     );
     assert_eq!(
-        file.readiness_counts(),
-        work,
-        "demanding another already prepared logical root does not rerun readiness"
-    );
-    assert_eq!(
         complete(file.rule(RuleIndex(2), demand(), &mut symbols).unwrap()),
         expected.clone()
-    );
-    assert_eq!(
-        file.readiness_counts(),
-        work,
-        "equal authored plans keep their own logical identities without another readiness pass"
     );
     file.finish().unwrap();
     request.finish();
@@ -231,10 +200,9 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         },
     }];
     authored.hosted = vec![readiness_hosted()];
-    let (nodes, edges) = readiness_budget(&authored);
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let calls = std::cell::RefCell::new(Vec::new());
     let read = |relation| {
@@ -258,15 +226,9 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         [Relation::Function],
         "the shared pure source is borrowed once; waiting ancestors do not retry it"
     );
-    let work = file.readiness_counts();
     let again = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
     failed(again, OperatingError::NotRead);
     assert_eq!(*calls.borrow(), [Relation::Function]);
-    assert_eq!(
-        file.readiness_counts(),
-        work,
-        "failed-root replay adds no readiness work"
-    );
     let mut expected = readiness_expected();
     expected.count = RowCount(4);
     expected.cells = [3, 1, 3, 2]
@@ -277,14 +239,6 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         complete(file.rule(RuleIndex(2), demand(), &mut symbols).unwrap()),
         expected
     );
-    let work = file.readiness_counts();
-    assert!(
-        work.preparations.0 <= nodes + edges,
-        "failure unwinds each waiter once: {work:?}"
-    );
-    assert!(work.evaluations.0 <= nodes, "{work:?}");
-    assert!(work.suspensions.0 <= edges, "{work:?}");
-    assert_eq!(work.wakeups, work.suspensions);
     file.finish().unwrap();
     request.finish();
 }

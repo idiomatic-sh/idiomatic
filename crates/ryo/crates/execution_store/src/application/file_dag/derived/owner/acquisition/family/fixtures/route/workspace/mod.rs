@@ -113,7 +113,12 @@ fn through_workspace(
         published.push(second.clone());
     }
     let mut workspace = InvocationWorkspace::new(Rc::clone(owner));
-    workspace.capture_admitted(published);
+    workspace.capture_admitted(
+        published
+            .into_iter()
+            .map(crate::application::file_dag::relations::handle::service::Publication::of)
+            .collect(),
+    );
     let admissions = workspace.inputs(&rows[..len]);
     match exit {
         Exit::Cancelled => {

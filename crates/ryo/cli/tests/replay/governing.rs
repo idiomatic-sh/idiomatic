@@ -195,3 +195,49 @@ fn a_rule_that_names_a_kind_no_language_has_fails_the_run() {
         "{refused}"
     );
 }
+
+/// A counted run that uses again what the store kept counts its own work only. A changed file it reads alone before the run, for
+/// the rules that read across files, is not its work, as before the observer counted the work: the per-file rule's results for the
+/// edited file come from that read, so the edit run counts none for it.
+#[test]
+fn a_counted_run_does_not_count_the_files_it_reads_alone() {
+    let _alone = crate::alone();
+    base::COUNTING.store(true, std::sync::atomic::Ordering::Relaxed);
+    let every = "let a = select * from \"syntax-tree\" where kind = \"fn\"; let b = project(from=a, columns=[\"file\"]); emit b subject file key(file);";
+    let across = "let listed = project(from=\"filesystem.file\", columns=[\"path\"]);
+let parts = capture(from=listed, path=\"path\", pattern=\"{*dir}/x.rs\", captures=[\"dir\"]);
+let dirs = project(from=parts, columns=[\"dir\"]);
+let missing = antijoin(left=dirs, right=dirs, left-on=[\"dir\"], right-on=[\"dir\"]);
+emit missing subject dir key(dir);";
+    let store = Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default());
+    let work = |root: &std::path::Path| {
+        let (_, report) = base::lint_report(
+            root,
+            vec![
+                crate::rule_from_query("every", every, &["**".to_owned()]),
+                crate::rule_from_query("across", across, &["**".to_owned()]),
+            ],
+            Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
+            store.clone(),
+        )
+        .expect("the rules run");
+        report
+            .work
+            .iter()
+            .filter(|each| each.rule.0.as_ref() == "every")
+            .flat_map(|each| each.steps.iter().map(|step| step.rows.0))
+            .sum::<u64>()
+    };
+    let root = tempfile::tempdir().expect("a directory");
+    std::fs::write(root.path().join("a.rs"), "fn a() {}\n").expect("a file");
+    std::fs::write(root.path().join("b.rs"), "fn b() {}\n").expect("a file");
+    let cold = work(root.path());
+    std::fs::write(root.path().join("b.rs"), "fn b() {}\nfn c() {}\n").expect("a file");
+    let edit = work(root.path());
+    base::COUNTING.store(false, std::sync::atomic::Ordering::Relaxed);
+    assert!(cold > 0, "the cold run counts the files it reads");
+    assert_eq!(
+        edit, 0,
+        "the edit run counts nothing of the file it read alone"
+    );
+}

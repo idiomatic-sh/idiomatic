@@ -47,7 +47,7 @@ pub(crate) struct ProjectTask<'a> {
     pub(crate) input: ProjectInput<'a>,
 }
 #[derive(Clone, Copy)]
-pub enum FrontierDemand<'a> {
+pub(crate) enum FrontierDemand<'a> {
     Diagnostic,
     Observations { ready: &'a ReadinessProof },
 }
@@ -67,7 +67,7 @@ pub struct OccurrenceNumber(pub usize);
 /// One declared occurrence of a project phase: its rule, the inputs bound to it, the publication slot it reserved and what its
 /// frontiers are prepared for. An ordinary occurrence binds nothing, reserves no slot and prepares its frontiers for the diagnostic.
 #[derive(Clone, Copy)]
-pub struct PhaseOccurrence<'a> {
+pub(crate) struct PhaseOccurrence<'a> {
     /// The occurrence's rule; a rule may occur more than once.
     pub rule: RuleIndex,
     /// The inputs bound to the occurrence.
@@ -85,7 +85,7 @@ impl std::fmt::Debug for PhaseOccurrence<'_> {
 }
 /// What one project phase reads: its declared occurrences, the corpus they are scoped over and the facts their frontiers are read
 /// from.
-pub struct PhaseOccurrences<'a> {
+pub(crate) struct PhaseOccurrences<'a> {
     /// Each declared occurrence, in declaration order.
     pub occurrences: &'a [PhaseOccurrence<'a>],
     /// The first bucket of each rule's frontier, by rule.
@@ -115,6 +115,38 @@ impl std::fmt::Debug for PhaseOccurrences<'_> {
             .finish_non_exhaustive()
     }
 }
+/// What one project phase evaluates: one occurrence of each rule given, in order, the corpus they are scoped over and the facts
+/// their frontiers are read from.
+pub struct PhaseRules<'a> {
+    /// The rule of each occurrence, in declaration order; a rule may occur more than once.
+    pub rules: &'a [RuleIndex],
+    /// The first bucket of each rule's frontier, by rule.
+    pub first: &'a [ryo_values::domain::stored_facts::types::Bucket],
+    /// The files of the request.
+    pub corpus: &'a [CorpusInput],
+    /// The files whose relations the rules read in part.
+    pub covered: &'a [Covered],
+    /// The files each rule skipped.
+    pub skipped: &'a [Skipped],
+    /// The files each rule does not apply to, by rule.
+    pub inapplicable: &'a [InapplicableFiles],
+    /// The files each rule was refused on, by rule.
+    pub refused: &'a [RefusedFiles],
+    /// Finishes the facts the frontiers are read from.
+    pub facts: &'a dyn FactsFinish,
+    /// The project's worker over the facts.
+    pub project: &'a dyn FactsWorker,
+    /// The symbols the project facts name.
+    pub project_symbols: &'a Symbols,
+    /// The arenas of the invocation.
+    pub arenas: &'a [ArenaBytes],
+}
+impl std::fmt::Debug for PhaseRules<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
 /// The partials one occurrence is evaluated with: those its diagnostic sees and those its publication sees.
 #[derive(Debug)]
 pub struct PhasePartials {
@@ -136,6 +168,8 @@ pub enum PhaseStop<E> {
     Frontiers(PreparationError),
     /// The engine answered fewer outcomes than prepared occurrences, with no refusal to explain it.
     Unevaluated,
+    /// The occurrence's frontier readiness, publication slot or bound inputs were refused before it reached the phase.
+    Unbound(OperatingError),
 }
 /// One occurrence of a project phase once prepared: its scope, its frontiers, the inputs bound to it and its publication slot.
 pub(crate) struct PreparedOccurrence<'a> {

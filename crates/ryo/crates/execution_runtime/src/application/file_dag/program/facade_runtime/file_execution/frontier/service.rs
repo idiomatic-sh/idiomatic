@@ -115,7 +115,7 @@ impl FileRun<'_> {
                     context,
                 )?;
                 let coverage = ryo_execution_domain::domain::frontier_coverage::service::file_frontier_coverage(
-                    admitted.coverage()?,
+                    admitted.coverage().clone(),
                     file,
                 )?;
                 let mut table = table_of(&self.owner, &admitted, read)?;

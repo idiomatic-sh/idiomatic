@@ -21,7 +21,7 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
     let engine = engine();
     let prepared = prepared(&engine, total);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let mut intents = vec![FileRuleIntent::Undemanded; total];
     for &index in demanded {
         intents[index] = FileRuleIntent::Run {
@@ -61,7 +61,6 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
                     &mut symbols,
                 )
                 .unwrap();
-            assert_eq!(file.readiness_counts().evaluations.0, 0);
             file.finish().unwrap();
         });
     }

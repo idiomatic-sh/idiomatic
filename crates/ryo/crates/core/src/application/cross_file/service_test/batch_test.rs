@@ -4,22 +4,20 @@ use crate::application::cross_file::errors::CrossFileError;
 use crate::application::cross_file::fixtures::{World, crossing, kept_facts, service};
 use crate::application::cross_file::service::phase_partials;
 use crate::domain::answering::types::Todo;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::FileId;
+use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::rule_requests::service::failed;
@@ -38,7 +36,7 @@ pub(super) fn completed_batch<T>(
 }
 
 /// The declared occurrences `todos` through the production phase call, over one facts port that keeps each rule's rows in that
-/// rule's own first bucket, each outcome completed with its slot.
+/// rule's own first bucket, each outcome completed with the worker its slot reserved.
 pub(super) fn evaluate_rules(
     world: &World,
     phase: &impl ProjectRootExecution,
@@ -54,19 +52,11 @@ pub(super) fn evaluate_rules(
         .collect::<Vec<_>>();
     let inapplicable = vec![InapplicableFiles::default(); world.ids.len()];
     let refused = crate::domain::crossing::service::refused_files(&crossing.domain);
-    let occurrences = todos
-        .iter()
-        .map(|todo| PhaseOccurrence {
-            rule: todo.rule,
-            bound: &[],
-            slot: PublicationSlot::Unused,
-            demand: FrontierDemand::Diagnostic,
-        })
-        .collect::<Vec<_>>();
+    let rules = todos.iter().map(|todo| todo.rule).collect::<Vec<_>>();
     let project_symbols = Symbols::default();
-    phase.evaluate_occurrences(
-        PhaseOccurrences {
-            occurrences: &occurrences,
+    phase.evaluate_rules(
+        PhaseRules {
+            rules: &rules,
             first: &first,
             corpus: &world.files,
             covered: &world.covered,
@@ -80,10 +70,10 @@ pub(super) fn evaluate_rules(
         },
         symbols,
         |_| Ok::<(), CrossFileError>(()),
-        |occurrence| phase_partials(&crossing, &todos[occurrence.0]),
+        |occurrence| phase_partials(&crossing.program, &crossing.domain, &todos[occurrence.0]),
         guard,
-        |occurrence, outcome, slot, symbols: &mut Symbols| {
-            service().complete_occurrence(&crossing, &todos[occurrence.0], outcome, slot, symbols)
+        |occurrence, outcome, _, worker, symbols: &mut Symbols| {
+            service().complete_occurrence(&crossing, &todos[occurrence.0], outcome, worker, symbols)
         },
     )
 }
@@ -107,7 +97,7 @@ pub(super) fn evaluate_outcome(
         covered,
         symbols,
         |_| partials(),
-        |_, outcome, _, _| Ok(outcome),
+        |_, outcome, _, _, _| Ok(outcome),
     )
 }
 
@@ -132,9 +122,9 @@ pub(super) fn evaluate_fixture(
         rows,
         covered,
         symbols,
-        |_| phase_partials(&crossing, todo),
-        |_, outcome, slot, symbols: &mut Symbols| {
-            service().complete_occurrence(&crossing, todo, outcome, slot, symbols)
+        |_| phase_partials(&crossing.program, &crossing.domain, todo),
+        |_, outcome, _, worker, symbols: &mut Symbols| {
+            service().complete_occurrence(&crossing, todo, outcome, worker, symbols)
         },
     );
     done.map(|result| result.crossed)
@@ -153,7 +143,8 @@ fn evaluate_one<T>(
     complete: impl FnMut(
         OccurrenceNumber,
         RuleOutcome<ProjectOutputOutcome>,
-        PublicationSlot,
+        &[ArenaBytes],
+        Option<WorkerNumber>,
         &mut Symbols,
     ) -> Result<T, CrossFileError>,
 ) -> Result<T, PhaseStop<CrossFileError>> {
@@ -184,7 +175,8 @@ pub(super) fn evaluate_all<T>(
     complete: impl FnMut(
         OccurrenceNumber,
         RuleOutcome<ProjectOutputOutcome>,
-        PublicationSlot,
+        &[ArenaBytes],
+        Option<WorkerNumber>,
         &mut Symbols,
     ) -> Result<T, CrossFileError>,
 ) -> Vec<Result<T, PhaseStop<CrossFileError>>> {
@@ -198,18 +190,9 @@ pub(super) fn evaluate_all<T>(
             world.ids.len()
         ];
     let project_symbols = Symbols::default();
-    let occurrences = rules
-        .iter()
-        .map(|rule| PhaseOccurrence {
-            rule: *rule,
-            bound: &[],
-            slot: PublicationSlot::Unused,
-            demand: FrontierDemand::Diagnostic,
-        })
-        .collect::<Vec<_>>();
-    let batch = phase.evaluate_occurrences(
-        PhaseOccurrences {
-            occurrences: &occurrences,
+    let batch = phase.evaluate_rules(
+        PhaseRules {
+            rules,
             first: &first,
             corpus: &world.files,
             covered,

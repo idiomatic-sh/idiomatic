@@ -107,7 +107,7 @@ pub(super) fn staged_replay_reads_only_selected_buckets_after_the_producing_work
     });
     let snapshot = store.stored().expect("read snapshot");
     let new_worker = || Worker {
-        tables: tables_for(WorkerNumber(0), &[]),
+        tables: tables_for(WorkerNumber(0)),
         facts: FactsFake::default().worker().expect("worker"),
         old_rows: None,
         failure: None,

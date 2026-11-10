@@ -1,9 +1,10 @@
 //! The relation-catalog corpus: every catalog relation under every head shape.
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::types::{
-    PartitionRequirement, ProducerPartitions, executable_program::value::ExecutableProgram,
-};
+use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::source_partitions::types::{
+    PartitionRequirement, ProducerPartitions,
+};
 use ryo_relations::domain::relations::service::ALL;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -180,14 +181,11 @@ pub(crate) fn prepare(
     .unwrap();
     let graph =
         ryo_execution_domain::domain::file_program::service::compile_prepared(plans, &operators);
-    let program = ryo_execution_domain::domain::executable_program::service::compile(
+    let program = crate::application::file_dag::program::preparation::service::compile_program(
         plans,
         graph,
         &FileSources,
         &operators,
-        ryo_execution_domain::domain::matching::types::PatternMatcher(
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-        ),
     )
     .unwrap();
     let walk = ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk::compile(plans, &bindings);

@@ -1,5 +1,6 @@
 //! Dense executable instructions and their real publication boundaries.
 use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::source_partitions::types::PartitionRequirement;
 use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{StepId, StepScope};
@@ -54,18 +55,6 @@ pub struct ObservationPlace(pub usize);
 /// One producer of a named input, by its place among the slot's producers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ProducerMember(pub usize);
-/// Which partition of its producer an input must be bound to.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PartitionRequirement {
-    /// The same rows for the whole request.
-    RequestInvariant,
-    /// The rows of the current file.
-    CurrentFile,
-    /// Must be bound to the consumer's finite demanded partition set.
-    Project,
-    /// The partition of the input the rows descend from.
-    InputLineage,
-}
 /// What the engine does for a demanded input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DemandAction {
@@ -139,7 +128,21 @@ pub struct StepOrigin {
     pub step: StepId,
     /// The instruction the step was compiled to.
     pub logical: LogicalInstruction,
+    /// Where that instruction is: its region and its place among the region's instructions; `None` when the program has no
+    /// such instruction, which reads as a step that has not run.
+    pub place: Option<StepSite>,
 }
+/// Where one compiled instruction is: its region and its place among that region's instructions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StepSite {
+    /// The region the instruction is in.
+    pub region: RegionId,
+    /// The instruction's place among the region's instructions.
+    pub instruction: InstructionPlace,
+}
+/// An instruction of a region, by its place among the region's instructions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InstructionPlace(pub usize);
 /// One rule's part of the executable program: its root readers and where each of its original steps is.
 #[derive(Debug)]
 pub struct RuleProgram {
@@ -151,31 +154,6 @@ pub struct RuleProgram {
     pub emit: Result<RegionId, OperatingError>,
     /// Private diagnostic delivery boundary; no ordinary dependency or persisted alias targets it.
     pub frontier: Box<[Result<InputSource, OperatingError>]>,
-}
-
-/// Mandatory producer declarations. No operation kind implies broadcast completeness.
-/// Used by preparation/admission only; semantic kernels never receive this interface.
-pub trait ProducerPartitions {
-    /// The partition requirement of a host relation provided to a rule.
-    fn hosted(
-        &self,
-        rule: RuleIndex,
-        relation: ryo_values::domain::plan_parts::types::HostedNumber,
-    ) -> Result<PartitionRequirement, OperatingError>;
-    /// The partition requirement of a rule's parameter.
-    fn parameter(
-        &self,
-        rule: RuleIndex,
-        parameter: ryo_values::domain::plan_parts::types::ParameterId,
-    ) -> Result<PartitionRequirement, OperatingError>;
-    /// The partition requirement of a language relation.
-    fn relation(&self, relation: Relation) -> PartitionRequirement;
-    /// The partition requirement of an observation.
-    fn observation(
-        &self,
-        rule: RuleIndex,
-        input: ryo_values::domain::plan_parts::types::ObservationBindingId,
-    ) -> Result<PartitionRequirement, OperatingError>;
 }
 
 /// The program of every rule.

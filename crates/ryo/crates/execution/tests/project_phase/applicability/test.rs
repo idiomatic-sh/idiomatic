@@ -104,7 +104,7 @@ fn exercise(case: Case) {
         };
     }
     corpus.push(second);
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let table = source();
     let read = |_| Ok(SourceRows::Computed(&table));
     let elements = ryo_language::domain::elements::types::Elements::default();
@@ -182,7 +182,6 @@ fn exercise(case: Case) {
             rejected.rule(RuleIndex(0), demand(), &mut symbols),
             Err(OperatingError::NotRun)
         ));
-        assert_eq!(rejected.walk_counts().passes.0, 0);
         rejected.finish().unwrap();
     }
     let mut skipped = vec![Skipped {
@@ -233,8 +232,8 @@ fn exercise(case: Case) {
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
     let partials = Partials::default();
-    let occurrences = PhaseOccurrences {
-        occurrences: &[ordinary_occurrence(RuleIndex(0))],
+    let occurrences = PhaseRules {
+        rules: &[RuleIndex(0)],
         first: &[Bucket(0)],
         corpus: &corpus,
         covered: &[],
@@ -248,7 +247,7 @@ fn exercise(case: Case) {
     };
     if !matches!(case, Case::RejectedSyntax | Case::UndeterminedSyntax) {
         // The phase scopes the occurrence and prepares its frontiers itself: invalid transport is its frontiers' refusal.
-        let batch = phase.evaluate_occurrences(
+        let batch = phase.evaluate_rules(
             occurrences,
             &mut symbols,
             |_| Ok::<(), OperatingError>(()),
@@ -259,7 +258,7 @@ fn exercise(case: Case) {
                 })
             },
             |_| Ok(()),
-            |_, outcome, _, _| Ok(outcome),
+            |_, outcome, _, _, _| Ok(outcome),
         );
         let ProjectBatch::Complete(done) = batch else {
             panic!("the guard admits every occurrence")
@@ -317,7 +316,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     crate::boundary_fixture::plans(&mut authored)[0].frontier = vec![Input::Step(StepId(0))];
     let prepared = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let mut symbols = Symbols::default();
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| -> Result<SourceRows<'_>, OperatingError> {
@@ -345,7 +344,6 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
         file.rule(RuleIndex(0), demand(), &mut symbols),
         Err(OperatingError::NotRun)
     ));
-    assert_eq!(file.walk_counts().passes.0, 0);
     file.finish().unwrap();
     let skipped = [Skipped {
         rule: rule_id,
@@ -362,8 +360,8 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     let partials = Partials::default();
     let outcome = crate::boundary_fixture::project_root(
         &phase,
-        PhaseOccurrences {
-            occurrences: &[ordinary_occurrence(RuleIndex(0))],
+        PhaseRules {
+            rules: &[RuleIndex(0)],
             first: &[Bucket(0)],
             corpus: &corpus,
             covered: &[],

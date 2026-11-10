@@ -130,7 +130,7 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
                 modified: Nanoseconds(0),
                 executable: ExecutablePermission::Unknown,
             })];
-            let request = fixtures::requests::execution().execution(&prepared, &corpus);
+            let request = fixtures::requests::execution().execution(&prepared, &corpus, None);
             let mut file = request.open_file(
                 FileInput {
                     language: SourceLanguage::Recognized,

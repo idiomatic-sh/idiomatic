@@ -4,7 +4,6 @@ use super::fixtures::Entry;
 use super::fixtures::submission::{Root, foreign_phase_outcome, submit};
 use super::fixtures::{corpus, covered, prepare_for, program};
 use crate::application::file_dag::frontiers::errors::PreparationError;
-use crate::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
@@ -201,7 +200,7 @@ fn frontiers_and_scopes_of_an_undeclared_rule_are_refused() {
     for entry in [Entry::Phase, Entry::Stage] {
         let prepared = program(entry, 3);
         let corpus = corpus();
-        let request = begin(&prepared, &corpus);
+        let request = begin(&prepared, &corpus, None);
         let mut arenas = Vec::new();
         let check = |phase: &ProjectPhase<'_>| {
             let scope = |rule| {

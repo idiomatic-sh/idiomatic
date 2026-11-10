@@ -1,11 +1,15 @@
 //! Immutable request preparation, physical metadata and compilation ownership.
 use super::types::*;
+use crate::application::file_dag::program::prepared_execution::types::{
+    NamedLayout, ObservationContract,
+};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::source_partitions::types::source_partitions::value::SourcePartitions;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 
@@ -186,6 +190,24 @@ impl PreparedProgram {
 }
 /// Identity is mandatory: readiness layout comes from the same digest/producer
 /// preparation used by the warm store, never from an empty or process-local default.
+/// The executable program of a request: the one place outside the domain that compiles one, so a change to the domain's
+/// compilation edits this function alone.
+pub(crate) fn compile_program(
+    plans: &[ryo_values::domain::plans::types::Plan],
+    graph: ryo_execution_domain::domain::file_program::types::RequestGraph,
+    partitions: &dyn ryo_execution_domain::domain::source_partitions::types::ProducerPartitions,
+    operators: &ryo_execution_domain::domain::file_program::types::RequestOperators,
+) -> Result<ExecutableProgram, OperatingError> {
+    ryo_execution_domain::domain::executable_program::service::compile(
+        plans,
+        graph,
+        partitions,
+        operators,
+        ryo_execution_domain::domain::matching::types::PatternMatcher(
+            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
+        ),
+    )
+}
 pub(crate) fn prepare(
     compiled: Compiled,
     rules: &[RuleSpec],
@@ -214,10 +236,10 @@ pub(crate) fn prepare(
         crate::application::file_dag::service::prepare(&plans, &bindings, hosted, derived.clone())?;
     let request = match identity {
         ObservationIdentity::Independent => {
-            ryo_execution_domain::domain::file_program::types::ObservationRequest::Independent
+            ryo_execution_domain::domain::observation_schedule::types::ObservationRequest::Independent
         }
         ObservationIdentity::Named(layout) => {
-            ryo_execution_domain::domain::file_program::service::observations::request(
+            ryo_execution_domain::domain::observation_schedule::service::request(
                 &schedule,
                 &observations,
                 layout,
@@ -265,23 +287,13 @@ pub(crate) fn prepare(
                 .map(|plan| vec![FrontierPurpose::Diagnostic; plan.frontier.len()])
                 .collect()
         });
-    let program = Arc::new(
-        ryo_execution_domain::domain::executable_program::service::compile(
-            &plans,
-            graph,
-            &partitions,
-            &operators,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-            ),
-        )?,
-    );
+    let program = Arc::new(compile_program(&plans, graph, &partitions, &operators)?);
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
     let derived =
-        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::compile(
-            &program,
-        )?;
+        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::new(
+            demands::service::derived_needs(&program)?,
+        );
     let metadata =
         metadata::service::rules(&program, named.as_ref(), &plans, &observation_frontiers)?;
     // The program's own pattern slots: its presence fold compiled the source searches' patterns into them.

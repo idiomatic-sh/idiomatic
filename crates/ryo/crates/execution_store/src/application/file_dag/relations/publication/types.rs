@@ -1,7 +1,6 @@
 //! Publication bodies and records contain data, never mutable owner workflows.
 use crate::application::file_dag::derived::ledger::types::BackingAddress;
 use crate::application::file_dag::derived::population::types::PopulationId;
-use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::{
     types::PublishedRelation,
@@ -40,7 +39,7 @@ pub(crate) struct StorageSpan {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ProducerKey {
     pub scope: ProducerScope,
-    pub region: RegionId,
+    pub producer: crate::application::file_dag::relations::types::ProducerId,
 }
 
 /// The identities one producer keeps across rules and safe recomputation.
@@ -61,7 +60,7 @@ pub enum ProducerScope {
 
 /// Only this application module can construct or mutate proof state.
 #[derive(Debug)]
-pub struct RelationResult {
+pub(crate) struct RelationResult {
     pub(crate) population: PopulationId,
     pub(crate) producer: OnceLock<PopulationId>,
     pub(crate) producer_scope: OnceLock<ProducerScope>,
@@ -78,3 +77,24 @@ impl PublishedRelation for RelationResult {
 }
 
 use ryo_values::domain::rows::types::{RowCount, Table};
+
+/// What one publication publishes: a source's rows, a supplied compact or flat source, a computed table, or packed words with the
+/// arenas they reference.
+pub enum PublicationBody<'a> {
+    /// The rows of a source relation.
+    Source {
+        relation: Relation,
+        rows: &'a ryo_execution_domain::domain::table_model::types::Rows<'a>,
+    },
+    /// A supplied compact source.
+    Compact(Arc<ryo_values::domain::table_words::types::CompactTable>),
+    /// A supplied flat source, its exact geometry kept for first-borrow inspection.
+    Shared(Arc<Table>),
+    /// A computed table.
+    Computed(Table),
+    /// Encoded words and every existing arena they reference.
+    Packed {
+        words: ryo_values::domain::stored_facts::types::KeptWords,
+        arenas: &'a [&'a ryo_values::domain::stored_facts::types::ArenaBytes],
+    },
+}

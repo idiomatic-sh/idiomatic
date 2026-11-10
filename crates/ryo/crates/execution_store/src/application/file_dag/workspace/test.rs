@@ -1,6 +1,7 @@
 //! Actual view acquisition consumes one immutable proof and refuses stale/mismatched publications.
 use super::*;
 use crate::application::file_dag::derived::owner::ViewContext;
+use crate::application::file_dag::relations::handle::service::Publication;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::PreparedViewUse, *},
@@ -34,7 +35,7 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
     let rows = owner
         .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
-    workspace.capture_admitted(vec![publication.clone()]);
+    workspace.capture_admitted(vec![Publication::of(publication.clone())]);
     let admitted = workspace
         .admit(InputNumber(0), RepresentationInput::from(&rows))
         .unwrap();
@@ -120,7 +121,7 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
         .resolve(published.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
-    workspace.publications = vec![Some((published).clone())];
+    workspace.publications = vec![Some(Publication::of(published.clone()))];
     let equality = use_(
         DerivedKind::Equality,
         ViewRequest::Equality {
@@ -188,7 +189,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
         .resolve(published.as_ref(), &|_| Err(OperatingError::NotRead))
         .unwrap();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
-    workspace.publications = vec![Some((published).clone()), None];
+    workspace.publications = vec![Some(Publication::of(published.clone())), None];
     let use_ = use_(
         DerivedKind::OrderedKeys,
         ViewRequest::OrderedKeys {
@@ -210,7 +211,10 @@ fn distinct_published_populations_never_share_slot_only_identities() {
                 Err(OperatingError::NotRead)
             })
             .unwrap();
-        workspace.capture_admitted(vec![published.clone(), right_publication.clone()]);
+        workspace.capture_admitted(vec![
+            Publication::of(published.clone()),
+            Publication::of(right_publication.clone()),
+        ]);
         let inputs = [
             RepresentationInput::from(&left),
             RepresentationInput::from(&right),
@@ -257,7 +261,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
         2,
         "mixed inputs use the same owner with distinct admitted populations"
     );
-    workspace.publications[1] = Some(published.clone());
+    workspace.publications[1] = Some(Publication::of(published.clone()));
     let wrong = table(&[4, 0], 2);
     let inputs = [
         RepresentationInput::from(&left),
@@ -289,7 +293,7 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     let published = owner.source(Relation::LanguageTarget, &raw).unwrap();
     let normalized = owner.normalize(&published, raw).unwrap();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
-    workspace.publications = vec![Some((published).clone())];
+    workspace.publications = vec![Some(Publication::of(published.clone()))];
     let use_ = use_(
         DerivedKind::Equality,
         ViewRequest::Equality {
@@ -345,7 +349,7 @@ fn recapturing_publications_replaces_population_without_replacing_owner() {
         let rows = owner
             .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))
             .unwrap();
-        workspace.capture_admitted(vec![publication.clone()]);
+        workspace.capture_admitted(vec![Publication::of(publication.clone())]);
         let inputs = [RepresentationInput::from(&rows)];
         views.push(
             workspace

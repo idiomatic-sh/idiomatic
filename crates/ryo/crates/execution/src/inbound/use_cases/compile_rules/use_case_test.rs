@@ -7,7 +7,7 @@ use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_domain::domain::matching::types::PatternMatcher;
 use ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::table_texts::types::TextView;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl as QueryCompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;

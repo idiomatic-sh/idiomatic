@@ -119,7 +119,7 @@ impl FileRun<'_> {
                 return Err(OperatingError::NotRun);
             }
         };
-        let coverage = published.coverage()?;
+        let coverage = published.coverage().clone();
         // Delivery begins only after semantic evaluation has committed. A sink
         // refusal leaves that publication intact for replay without reevaluation.
         sources.replay(&published, context, &mut ForwardRows(each))?;

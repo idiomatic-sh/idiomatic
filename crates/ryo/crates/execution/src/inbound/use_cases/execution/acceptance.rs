@@ -41,7 +41,7 @@ fn runs(world: &mut Behavior) {
         })
         .expect("an empty request is legitimate");
     ExecutionUseCaseImpl::new()
-        .execution(&prepared, &[])
+        .execution(&prepared, &[], None)
         .finish();
     world.answer = "complete".to_owned();
 }

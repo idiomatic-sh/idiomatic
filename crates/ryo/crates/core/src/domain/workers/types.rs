@@ -3,7 +3,6 @@
 use crate::domain::finish::types::LineStarts;
 use crate::domain::render::types::{Answering, Rendered};
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
-use ryo_execution::inbound::use_cases::execution::interface::RowsFed;
 use ryo_execution::inbound::use_cases::metadata::interface::Needs;
 use ryo_execution::inbound::use_cases::metadata::interface::{
     Bearing, Blocking, CoverageScope, Governing, Message, Recovery, RelationRead, RuleIndex,
@@ -148,8 +147,6 @@ pub(crate) struct Tables {
     pub words: Words,
     /// The words of the table being handed over, packed as they are kept.
     pub packed: PackedWords,
-    /// Actual work totals returned by the execution owner.
-    pub fed: Vec<Vec<RowsFed>>,
     /// Where the lines of the file start.
     pub starts: LineStarts,
     /// The text the names of the files made.
@@ -248,8 +245,6 @@ pub(crate) struct WorkersMet {
     pub notes: FreshNotes,
     /// How many files were read, not counting those the store kept.
     pub read: FilesRead,
-    /// How many rows each step of each rule was fed: by the workers over the files, then by the cross-file finish.
-    pub fed: Vec<Vec<RowsFed>>,
 }
 
 /// The records this run made, with each one's place among the files, in the order of the files.

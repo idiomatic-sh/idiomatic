@@ -75,14 +75,17 @@ impl Execution {
         Self(PrepareUseCaseImpl::new(operators, derived, digest))
     }
 
-    /// Begins the execution of a prepared program over the corpus it runs on.
+    /// Begins the execution of a prepared program over the corpus it runs on, telling `observer` of the engine's work.
     #[must_use]
     pub fn begin(
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[ryo_values::domain::files::types::CorpusInput],
+        observer: Option<
+            Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort>,
+        >,
     ) -> RequestExecution {
-        ExecutionUseCaseImpl::new().execution(program, corpus)
+        ExecutionUseCaseImpl::new().execution(program, corpus, observer)
     }
 }
 

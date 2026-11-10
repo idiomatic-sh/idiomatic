@@ -10,7 +10,7 @@ pub(crate) struct CheckCount(pub u64);
 
 /// Whether two borrows are the same admitted allocation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Sameness {
+pub(crate) enum Sameness {
     Same,
     Different,
 }
@@ -31,7 +31,7 @@ pub(crate) enum BackingForm {
 
 /// Whether a generation's admissions may still be consumed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Liveness {
+pub(crate) enum Liveness {
     Live,
     Released,
 }
@@ -42,3 +42,11 @@ pub enum ReuseEligibility {
     Eligible,
     Ineligible,
 }
+
+/// One producer of the runtime's program, as the store keys its population: the runtime names it, the store only compares it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ProducerId(pub usize);
+
+/// How many producers one program owner holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProducerCapacity(pub usize);

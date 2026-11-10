@@ -1,8 +1,9 @@
 //! One part of the executable-program service: where each original step of each rule is in the program, and what each rule
 //! reads as its roots.
+use super::types::region::value::Region;
 use super::types::{
-    InputSource, LogicalInstruction, ObservationPlace, RegionId, RuleProgram, RulePrograms,
-    StepOrigin, StepUse,
+    InputSource, InstructionPlace, LogicalInstruction, ObservationPlace, RegionId, RuleProgram,
+    RulePrograms, StepOrigin, StepSite, StepUse,
 };
 use crate::domain::{
     coverage::types::RuleIndex,
@@ -47,6 +48,41 @@ fn unread_steps(plan: &Plan) -> Vec<StepUse> {
     uses
 }
 
+/// Where `logical` is: its region and its place among the region's instructions, when the program has it.
+fn site(
+    logical: LogicalInstruction,
+    logical_regions: &[RegionId],
+    regions: &[Region],
+) -> Option<StepSite> {
+    let region = *logical_regions.get(logical.0)?;
+    let at = regions
+        .get(region.0)?
+        .instructions()
+        .iter()
+        .position(|instruction| instruction.logical() == logical)?;
+    Some(StepSite {
+        region,
+        instruction: InstructionPlace(at),
+    })
+}
+
+/// Places each original step of `rules` in the finished program: the region of its logical instruction and the instruction's
+/// place there. Run once the regions are final, after the unions are appended and the aliases resolved, so a place is what the
+/// lookup over the finished program finds.
+pub(super) fn place_steps(
+    rules: &mut [RuleProgram],
+    logical_regions: &[RegionId],
+    regions: &[Region],
+) {
+    for origin in rules
+        .iter_mut()
+        .flat_map(|rule| rule.original_steps.iter_mut())
+        .flatten()
+    {
+        origin.place = site(origin.logical, logical_regions, regions);
+    }
+}
+
 /// The program of every rule, and the region each plan's named output reads, in the plan's own output order. A step's
 /// origin is refused when the step has no node (it reads a step that has not run) or when no root reads it and its schema
 /// is at fault (`faults`, by original node).
@@ -75,10 +111,12 @@ pub(super) fn rule_programs(
                 {
                     return Err(fault.clone());
                 }
+                let logical = representative[id.0];
                 Ok(StepOrigin {
                     rule: RuleIndex(rule),
                     step: StepId(u32::try_from(step).unwrap_or(u32::MAX)),
-                    logical: representative[id.0],
+                    logical,
+                    place: None,
                 })
             })
             .collect();

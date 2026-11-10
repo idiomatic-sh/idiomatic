@@ -343,7 +343,7 @@ fn stopped(error: OperatingError, refused: &RefCell<Option<FactsError>>) -> Rule
 }
 
 /// What a rule does after its emitted root: its frontiers captured, each one captured kept in `facts` and committed, and its steps
-/// counted. A capture the engine could not make is answered as it is, for the caller to note.
+/// reported to the observer, if any. A capture the engine could not make is answered as it is, for the caller to note.
 fn rest_of_rule(
     session: &mut FileSession<'_, '_>,
     at: RuleFile<'_>,
@@ -374,22 +374,26 @@ fn rest_of_rule(
         }
         captures.push(each);
     }
-    let counts = session.counts(at.rule)?;
-    Ok(RuleAfter::Ran {
-        captures,
-        fed: counts.fed,
-    })
+    session.observe(at.rule)?;
+    Ok(RuleAfter::Ran { captures })
 }
 
 /// A request begins over the prepared program's kernels and shared services.
-pub fn begin(program: &PreparedExecutionProgram, corpus: &[CorpusInput]) -> RequestExecution {
+pub fn begin(
+    program: &PreparedExecutionProgram,
+    corpus: &[CorpusInput],
+    observer: Option<Arc<dyn crate::outbound::observer::interface::ObserverPort>>,
+) -> RequestExecution {
     RequestExecution {
         program: Arc::clone(&program.parts.inner),
-        services: Arc::new(ProgramServices::new(
-            Arc::clone(&program.parts.kernels),
-            program.parts.derived.clone(),
-            corpus,
-        )),
+        services: Arc::new(
+            ProgramServices::new(
+                Arc::clone(&program.parts.kernels),
+                program.parts.derived.clone(),
+                corpus,
+            )
+            .observed(observer),
+        ),
         frontiers: crate::application::file_dag::frontiers::types::FrontierCache::new(),
         digest: Arc::clone(&program.parts.digest),
     }

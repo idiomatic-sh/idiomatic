@@ -1,13 +1,9 @@
 //! Completed source data and authored requests; every execution enters the public owner.
 use crate::boundary_fixture::authored_request;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
-use ryo_execution_domain::domain::shared_walk::types::WalkPassCount;
-use ryo_execution_domain::domain::shared_walk::types::WalkSourceRows;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
@@ -47,13 +43,12 @@ use ryo_values::domain::{
     query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     rows::types::{RowCount, Table},
 };
-use ryo_values::selects;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
 };
 #[derive(Debug, Default)]
-pub(super) struct SemanticCalls(AtomicUsize);
+pub(crate) struct SemanticCalls(AtomicUsize);
 impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for SemanticCalls {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
         if matches!(
@@ -72,11 +67,11 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Se
     }
 }
 impl SemanticCalls {
-    pub(super) fn selects(&self) -> usize {
+    pub(crate) fn selects(&self) -> usize {
         self.0.load(Ordering::Relaxed)
     }
 }
-pub(super) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
+pub(crate) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
     let semantics = Arc::new(SemanticCalls::default());
     (
         PrepareUseCaseImpl::new(
@@ -88,7 +83,7 @@ pub(super) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
     )
 }
 #[derive(Clone, Copy)]
-pub(super) enum Selector {
+pub(crate) enum Selector {
     Kind(&'static str),
     Parameter(&'static str),
     BadRegex,
@@ -96,7 +91,7 @@ pub(super) enum Selector {
     RegexBeforeAbsentKind,
     AbsentKindBeforeRegex,
 }
-pub(super) fn compared(test: Test, column: u32, right: Operand) -> PlanComparison {
+pub(crate) fn compared(test: Test, column: u32, right: Operand) -> PlanComparison {
     PlanComparison {
         test,
         left: Operand::Column(ColumnIndex(column)),
@@ -104,10 +99,10 @@ pub(super) fn compared(test: Test, column: u32, right: Operand) -> PlanCompariso
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
-pub(super) fn text(text: &str) -> Operand {
+pub(crate) fn text(text: &str) -> Operand {
     Operand::Literal(QueryLiteral::Text(LiteralText(text.into())))
 }
-pub(super) fn selection(selector: Selector) -> Vec<PlanComparison> {
+pub(crate) fn selection(selector: Selector) -> Vec<PlanComparison> {
     let kind = |name| compared(Test::Equal, 1, text(name));
     let regex = compared(Test::Matches, 2, Operand::Column(ColumnIndex(2)));
     match selector {
@@ -121,7 +116,7 @@ pub(super) fn selection(selector: Selector) -> Vec<PlanComparison> {
         Selector::AbsentKindBeforeRegex => vec![kind("absent-kind"), regex],
     }
 }
-pub(super) fn prepared(
+pub(crate) fn prepared(
     engine: &PrepareUseCaseImpl,
     selectors: &[Selector],
 ) -> PreparedExecutionProgram {
@@ -147,7 +142,7 @@ pub(super) fn prepared(
         .prepare(input)
         .expect("prepare actual shared-walk request")
 }
-pub(super) fn tree(file: FileId, source: &[u8]) -> (Elements, Symbols) {
+pub(crate) fn tree(file: FileId, source: &[u8]) -> (Elements, Symbols) {
     assert_eq!(source.len(), 3);
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(source));
@@ -170,7 +165,7 @@ pub(super) fn tree(file: FileId, source: &[u8]) -> (Elements, Symbols) {
     );
     (elements, symbols)
 }
-pub(super) fn input<'a, 'facts>(
+pub(crate) fn input<'a, 'facts>(
     file: FileId,
     source: &'a [u8],
     elements: &'a Elements,
@@ -191,7 +186,7 @@ pub(super) fn input<'a, 'facts>(
         kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
     }
 }
-pub(super) fn expected(file: FileId, elements: &Elements, positions: &[u32]) -> Table {
+pub(crate) fn expected(file: FileId, elements: &Elements, positions: &[u32]) -> Table {
     let mut cells = vec![];
     for position in positions {
         let kind = if *position == 2 { 3 } else { 2 };
@@ -212,7 +207,7 @@ pub(super) fn expected(file: FileId, elements: &Elements, positions: &[u32]) -> 
         cells,
     }
 }
-pub(super) fn complete(outcome: RuleOutcome) -> Table {
+pub(crate) fn complete(outcome: RuleOutcome) -> Table {
     match outcome.emit {
         RootOutcome::Complete(table) => table,
         RootOutcome::Failed(error) => panic!("native publication failed: {error:?}"),
@@ -225,18 +220,13 @@ pub(super) fn complete(outcome: RuleOutcome) -> Table {
         RootOutcome::Deferred { phase } => panic!("native publication deferred to {phase:?}"),
     }
 }
-pub(super) fn failed(outcome: RuleOutcome, expected: OperatingError) {
+pub(crate) fn failed(outcome: RuleOutcome, expected: OperatingError) {
     let RootOutcome::Failed(error) = outcome.emit else {
         panic!("typed failed root required")
     };
     assert_eq!(error, expected);
 }
-pub(super) fn counts(file: &impl FileExecution, passes: u64, rows: u64) {
-    let actual = file.walk_counts();
-    assert_eq!(actual.passes, WalkPassCount(passes));
-    assert_eq!(actual.source_rows, WalkSourceRows(rows));
-}
-pub(super) fn regex_error(pattern: &str) -> OperatingError {
+pub(crate) fn regex_error(pattern: &str) -> OperatingError {
     use ryo_matching::inbound::use_cases::matching::{
         errors::MatchingError, interface::MatchingUseCase, types::RegexSource,
         use_case::MatchingUseCaseImpl,

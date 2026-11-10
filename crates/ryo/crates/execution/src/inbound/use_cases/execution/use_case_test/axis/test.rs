@@ -1,8 +1,7 @@
 //! Axis rows and native tree traversal through real compiled file owners.
 use super::super::super::fixtures;
 use super::super::axis_tree::test::{Domain, over_the_tree};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_language::domain::elements::types::Elements;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::CellKind;

@@ -4,6 +4,7 @@ use super::types::instruction::value::Instruction;
 use super::types::region::value::Region;
 use super::types::*;
 use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::source_partitions::types::ProducerPartitions;
 use crate::domain::{file_program::types::GraphObservations, operating::errors::OperatingError};
 use std::sync::Arc;
 

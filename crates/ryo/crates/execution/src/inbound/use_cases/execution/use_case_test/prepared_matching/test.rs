@@ -1,7 +1,7 @@
 //! Literal metadata and dynamic patterns are exercised through real prepared file owners; the runtime proves which of them
 //! enter the invocation's local caches.
 use super::super::super::fixtures;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_language::domain::{

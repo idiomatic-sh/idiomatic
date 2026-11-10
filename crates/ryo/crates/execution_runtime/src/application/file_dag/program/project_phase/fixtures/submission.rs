@@ -1,6 +1,5 @@
 //! The submission of a caller-built root set through the crate-private root evaluation of a phase or a stage.
 use super::{Entry, corpus, covered, prepare_for, program};
-use crate::application::file_dag::program::observation_stage::interface::ObservationExecution as _;
 use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
 use crate::application::file_dag::program::project_phase::types::{
@@ -72,7 +71,7 @@ pub(crate) fn submit(
     let prepared = program(entry, rule_count);
     let corpus = corpus();
     let request = crate::application::file_dag::program::request_execution::service::begin(
-        &prepared, &corpus,
+        &prepared, &corpus, None,
     );
     let covered = covered(rule_count);
     let mut arenas = Vec::new();
@@ -134,7 +133,7 @@ pub(crate) fn foreign_phase_outcome() -> Result<RuleOutcome<ProjectOutputOutcome
     let prepared = program(Entry::Phase, 1);
     let corpus = corpus();
     let request = crate::application::file_dag::program::request_execution::service::begin(
-        &prepared, &corpus,
+        &prepared, &corpus, None,
     );
     let covered = covered(1);
     let (owner, other) = (

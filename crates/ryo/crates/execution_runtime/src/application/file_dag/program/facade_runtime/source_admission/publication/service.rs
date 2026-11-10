@@ -7,6 +7,7 @@ use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::Representation;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {
@@ -91,7 +92,7 @@ impl SourceInputs<'_, '_> {
                     Ok(ryo_execution_domain::domain::output_coverage::types::InputCoverage {
                         ordinal: ryo_execution_domain::domain::output_coverage::types::OperandOrdinal(ordinal),
                         kinds,
-                        coverage: input.coverage()?,
+                        coverage: input.coverage().clone(),
                         lineage,
                     })
                 })
@@ -130,13 +131,13 @@ impl SourceInputs<'_, '_> {
             );
         }
         let Representation::Computed(rows) = representation;
-        let publication = self.owner.computed(rows)?;
+        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(rows))?;
         self.state.bind(&self.owner, root, &publication)?;
-        let resolved = self.owner.resolve(publication.as_ref(), self.read)?;
+        let resolved = self.owner.rows(&publication, self.read)?;
         let checked = self.owner.admit(
-            publication.as_ref(),
+            &publication,
             ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&resolved),
-        )?;
+        )??;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
             publication.clone(),

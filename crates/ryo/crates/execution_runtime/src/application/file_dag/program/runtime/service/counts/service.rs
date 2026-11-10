@@ -1,5 +1,6 @@
 //! Counters the execution reports: fed rows, populations, logical counts and readiness.
 use super::super::{ProgramExecution, RuntimeState, State};
+use crate::application::file_dag::program::runtime::types::FedRead;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 impl ProgramExecution {
@@ -27,10 +28,13 @@ impl ProgramExecution {
         }
         found
     }
+    /// The rows each step of `rule` was fed, after every check of the rule's state: a stale or dead generation, a rule out of
+    /// range, a step that was not placed or has not run. `CheckOnly` makes the same checks and collects nothing.
     pub(crate) fn logical_counts(
         &self,
         state: &RuntimeState,
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
+        read: FedRead,
     ) -> Result<ryo_execution_domain::domain::operator::types::LogicalCounts, OperatingError> {
         self.validate_state(state)?;
         let rule = self
@@ -39,33 +43,28 @@ impl ProgramExecution {
             .get(rule.0)
             .ok_or_else(|| OperatingError::NotRun)?;
         let slots = state.slots.borrow();
-        let mut fed = Vec::with_capacity(rule.original_steps.len());
+        let mut fed = Vec::with_capacity(match read {
+            FedRead::Collect => rule.original_steps.len(),
+            FedRead::CheckOnly => 0,
+        });
         for origin in rule.original_steps.iter() {
             let origin = origin.as_ref().map_err(Clone::clone)?;
-            let region_id = *self
-                .program
-                .logical_regions()
-                .get(origin.logical.0)
-                .ok_or_else(|| OperatingError::NotRun)?;
-            let code = self
-                .program
-                .regions()
-                .get(region_id.0)
-                .ok_or_else(|| OperatingError::NotRun)?;
-            let at = code
-                .instructions()
-                .iter()
-                .position(|instruction| instruction.logical() == origin.logical)
-                .ok_or_else(|| OperatingError::NotRun)?;
-            let Some(slot) = slots.get(&region_id) else {
-                fed.push(ryo_execution_domain::domain::operator::types::RowsFed::default());
-                continue;
+            let site = origin.place.ok_or_else(|| OperatingError::NotRun)?;
+            let total = match slots.get(&site.region) {
+                None => ryo_execution_domain::domain::operator::types::RowsFed::default(),
+                Some(slot) => {
+                    if matches!(slot.state, State::Running | State::Suspended | State::Ready) {
+                        return Err(OperatingError::NotRun);
+                    }
+                    *slot
+                        .fed
+                        .get(site.instruction.0)
+                        .ok_or_else(|| OperatingError::NotRun)?
+                }
             };
-            if matches!(slot.state, State::Running | State::Suspended | State::Ready) {
-                return Err(OperatingError::NotRun);
+            if read == FedRead::Collect {
+                fed.push(total);
             }
-            let total = *slot.fed.get(at).ok_or_else(|| OperatingError::NotRun)?;
-            fed.push(total);
         }
         Ok(
             ryo_execution_domain::domain::operator::types::LogicalCounts {

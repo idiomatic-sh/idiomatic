@@ -11,10 +11,12 @@ use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    executable_program::types::{InputSource, PartitionRequirement, ProducerPartitions},
+    executable_program::types::InputSource,
+    source_partitions::types::{PartitionRequirement, ProducerPartitions},
     table_model::types::Rows,
 };
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::{
     relations::{
         service::kinds,
@@ -99,14 +101,11 @@ pub(crate) fn compiled() -> CompiledCase {
     let graph =
         ryo_execution_domain::domain::file_program::service::compile_prepared(&plans, &prepared);
     let program = Arc::new(
-        ryo_execution_domain::domain::executable_program::service::compile(
+        crate::application::file_dag::program::preparation::service::compile_program(
             &plans,
             graph,
             &FileProducers,
             &prepared,
-            ryo_execution_domain::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-            ),
         )
         .unwrap(),
     );
@@ -118,7 +117,7 @@ pub(crate) fn compiled() -> CompiledCase {
         roots[0], roots[1],
         "distinct source roots must remain distinct"
     );
-    let owner = Rc::new(RelationOwner::new(
+    let owner = Rc::new(RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         semantic,
     ));
@@ -196,13 +195,14 @@ impl TestInputs {
             inputs,
             &self.owner,
         )?;
-        let publication = self.owner.computed(table)?;
+        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table))?;
         let rows = self
             .owner
-            .resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+            .rows(&publication, &|_| Err(OperatingError::NotRead))?;
         let proof = self
             .owner
-            .admit(publication.as_ref(), RepresentationInput::from(&rows))?;
+            .admit(&publication, RepresentationInput::from(&rows))
+            .and_then(|admitted| admitted)?;
         AdmittedInput::from_publication(
             Rc::clone(&self.owner),
             publication.clone(),
@@ -231,7 +231,10 @@ impl Inputs for TestInputs {
             return Err(OperatingError::NotRead);
         };
         let rows = self.read(relation)?;
-        let publication = self.owner.source(relation, &rows)?;
+        let publication = self.owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Source {
+            relation,
+            rows: &rows,
+        })?;
         crate::application::file_dag::program::admission::AvailableInput::source(
             Rc::clone(&self.owner),
             publication,
@@ -257,7 +260,7 @@ impl Inputs for TestInputs {
         let publication = input.publication(&self.owner)?;
         let rows = self
             .owner
-            .resolve(publication.as_ref(), &|relation| self.read(relation))?;
+            .rows(&publication, &|relation| self.read(relation))?;
         Ok(
             if ryo_execution_domain::domain::table_model::service::count_of(&rows).0 == 0
                 && (representation
@@ -290,7 +293,7 @@ impl Inputs for TestInputs {
         let publication = input.publication(&self.owner)?;
         let rows = self
             .owner
-            .resolve(publication.as_ref(), &|relation| self.read(relation))?;
+            .rows(&publication, &|relation| self.read(relation))?;
         let Rows::Computed(table) = rows else {
             return Err(OperatingError::WrongOperation);
         };

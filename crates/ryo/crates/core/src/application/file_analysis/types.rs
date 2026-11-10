@@ -98,8 +98,6 @@ pub(crate) struct StreamRun<'a> {
     pub answering: &'a crate::domain::render::types::Answering,
     /// Only findings in these files are written; none means every file.
     pub only: &'a [ryo_language::domain::files::types::FilePath],
-    /// Pure rule facts retained for source demand, frontier and work accounting.
-    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleRunMetadata],
 }
 
 /// The findings waiting for their turn to leave, and the workers waiting for it.

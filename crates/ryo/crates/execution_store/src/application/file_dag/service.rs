@@ -29,7 +29,7 @@ pub enum ScopePartials<'a> {
 
 /// The one outer owner factory. Kernels have no way to acquire this permit.
 pub fn open_program_owner(
-    program: &Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
+    producers: crate::application::file_dag::relations::types::ProducerCapacity,
     derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     reuse: ReuseEligibility,
     routes: crate::application::file_dag::route_counts::types::RouteProfile,
@@ -37,9 +37,8 @@ pub fn open_program_owner(
     Rc::new(RelationOwner::for_scope(
         ScopePermit { reuse },
         PinnedViewCount(
-            program
-                .regions()
-                .len()
+            producers
+                .0
                 .saturating_add(ryo_relations::domain::relations::service::all().len())
                 .saturating_add(1),
         ),

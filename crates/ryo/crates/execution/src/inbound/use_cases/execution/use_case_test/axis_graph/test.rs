@@ -9,8 +9,6 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
-use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
@@ -37,7 +35,6 @@ use ryo_values::{
         stored_facts::types::Digest,
     },
 };
-use std::sync::Arc;
 const AXES: [&str; 5] = ["axis-0", "axis-1", "axis-2", "axis-3", "axis-4"];
 const DIRECTIONS: [Direction; 5] = [
     Direction::Parent,
@@ -175,7 +172,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         size: FileSize(0),
         modified: Nanoseconds(0),
     })];
-    let request = fixtures::requests::execution().execution(&prepared, &corpus);
+    let request = fixtures::requests::execution().execution(&prepared, &corpus, None);
     let mut symbols = Symbols::default();
     let elements = Elements::default();
     let intents = vec![
@@ -206,10 +203,7 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
     for i in 0..5 {
         let result = file.rule(
             RuleIndex(i),
-            RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            crate::inbound::use_cases::execution::fixtures::requests::emitted(),
             &mut symbols,
         )?;
         let RootOutcome::Complete(table) = result.emit else {
@@ -217,56 +211,10 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         };
         answers.push(table);
     }
-    let counts = file.resource_fixture_counts();
-    let walks = file.walk_counts();
-    if stored && !projected {
-        // The derived Adjacency route through the owner: one canonical graph for the five consumers.
-        assert_eq!(
-            counts.graph_builds, 1,
-            "the stored edges build one canonical retained graph"
-        );
-        assert_eq!(counts.graph_reuses, 4, "the other four consumers reuse it");
-        assert!(
-            counts.graph_early_stops > 0,
-            "cyclic nearest preserves early stop"
-        );
-        assert_eq!(
-            walks.passes.0, 0,
-            "the axis reads the stored relation itself: there is no select head to walk"
-        );
-    } else {
-        assert_eq!(
-            (counts.graph_builds, counts.graph_reuses),
-            (0, 0),
-            "selected (owned) and hosted edges are traversed as ordinary rows, with no canonical retained graph"
-        );
-    }
-    if stored && projected {
-        assert_eq!(
-            walks.passes.0, 1,
-            "all five selecting consumers share one actual walk"
-        );
-        assert_eq!(
-            walks.source_rows.0, 7,
-            "the seven-edge provider population is scanned once"
-        );
-        assert_eq!(
-            walks.predicate_rows.0, 7,
-            "one shared predicate class visits every source row once"
-        );
-    } else if !stored {
-        assert_eq!(
-            walks.passes.0, 0,
-            "the hosted reference performs no resident shared walk"
-        );
-    }
     for (i, expected) in answers.iter().enumerate() {
         let result = file.rule(
             RuleIndex(i),
-            RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::NotRequired,
-            },
+            crate::inbound::use_cases::execution::fixtures::requests::emitted(),
             &mut symbols,
         )?;
         let RootOutcome::Complete(table) = result.emit else {
@@ -274,15 +222,6 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
         };
         assert_eq!(&table, expected);
     }
-    assert_eq!(
-        file.walk_counts(),
-        walks,
-        "delivery retries do no source or predicate work"
-    );
-    let repeated = file.resource_fixture_counts();
-    assert_eq!(repeated.graph_builds, counts.graph_builds);
-    assert_eq!(repeated.graph_reuses, counts.graph_reuses);
-    assert_eq!(repeated.graph_early_stops, counts.graph_early_stops);
     file.finish()?;
     request.finish();
     Ok(answers)

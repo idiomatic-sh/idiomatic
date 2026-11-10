@@ -17,7 +17,6 @@ use ryo_execution_domain::domain::executable_program::types::DemandAction;
 use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
-use std::sync::Arc;
 
 impl ProgramExecution {
     pub(crate) fn admit_demand(
@@ -188,7 +187,7 @@ impl ProgramExecution {
                         event = crate::application::file_dag::program::constants::WALK_READY,
                         logical = first.logical().0, region = id.0, relation = ?relation,
                         phase = ?region.phase(), file = file.file().0,
-                        generation = ?Arc::as_ptr(&self.generation), population = ?population);
+                        generation = ?self.generation.diagnostic_address(), population = ?population);
                 }
             }
             let joined = kernels

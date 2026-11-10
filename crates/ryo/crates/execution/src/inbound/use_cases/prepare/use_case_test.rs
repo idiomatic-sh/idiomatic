@@ -5,9 +5,9 @@ use super::{
     use_case::PrepareUseCaseImpl,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use ryo_execution_domain::domain::rule_intent::errors::RuleIntentError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
+use crate::inbound::use_cases::execution::interface::RuleIntentError;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use std::sync::Arc;
 

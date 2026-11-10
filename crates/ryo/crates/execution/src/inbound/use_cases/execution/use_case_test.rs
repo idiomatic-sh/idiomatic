@@ -2,8 +2,8 @@
 use super::fixtures::requests::{Authored, Preparation};
 use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::{
     FileInput, SourceLanguage,
@@ -13,7 +13,6 @@ use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
-use std::sync::Arc;
 
 /// What a begun request is asked to do.
 #[derive(Clone, Copy, Debug)]
@@ -68,7 +67,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     })?;
     match input {
         Scenario::Empty => {
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &[]);
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &[], None);
             ExecutionRequest::finish(request);
             Ok(Outcome::Finished)
         }
@@ -79,7 +78,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 size: FileSize(0),
                 modified: Nanoseconds(0),
             })];
-            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
             let elements = ryo_language::domain::elements::types::Elements::default();
             let read = |_| Err(OperatingError::NotRead);
             let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
@@ -183,8 +182,6 @@ mod conformance_emptied;
 
 #[cfg(test)]
 mod conformance_boundary;
-#[cfg(test)]
-mod conformance_scale;
 
 #[cfg(test)]
 mod dispatch;
@@ -215,3 +212,6 @@ mod admission_order_precedence;
 
 #[cfg(test)]
 mod errored_rule;
+
+#[cfg(test)]
+mod interpreter;

@@ -3,7 +3,7 @@
 use super::super::super::fixtures;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::operation_schema::fixtures::{bindings, operations, tables};
 use ryo_execution_domain::domain::operation_schema::service::schema_of;
 use ryo_execution_domain::domain::operation_schema::types::InputShape;

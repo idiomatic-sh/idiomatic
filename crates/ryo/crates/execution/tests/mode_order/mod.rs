@@ -24,7 +24,7 @@ fn evaluate<'facts>(
         .prepare(input)
         .expect("prepare actual owner policy case");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut file = request
@@ -117,7 +117,7 @@ fn deliver<'facts>(
         .prepare(input)
         .expect("prepare actual forward policy case");
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut symbols = Symbols::default();
     let mut file = request

@@ -59,7 +59,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
         if let ryo_values::domain::files::types::CorpusInput::Available(entry) = &mut corpus[0] {
             entry.size = ryo_values::domain::files::types::FileSize(9);
         }
-        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+        let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
         let mut symbols = Symbols::default();
         let table = crate::boundary_fixture::named_functions(&mut symbols);
         let reads = Cell::new(0);

@@ -1,10 +1,12 @@
 //! What a caller may read of a prepared program.
-use crate::application::file_dag::program::preparation::types::{
-    Demand, NamedLayout, ObservationContract, ReplayClosure, RuleTotal, SemanticNeed,
+use crate::application::file_dag::program::preparation::types::RuleTotal;
+use crate::application::file_dag::program::prepared_execution::types::{
+    Demand, NamedLayout, ObservationContract, ReplayClosure,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
+use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::Bucket;
 /// Read-only request metadata; no mutable program, permit or population escapes.

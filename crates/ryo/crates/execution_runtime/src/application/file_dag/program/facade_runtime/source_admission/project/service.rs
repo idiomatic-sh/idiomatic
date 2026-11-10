@@ -125,7 +125,7 @@ impl ProjectSources<'_> {
                         program,
                         crate::application::file_dag::program::admission::AliasSlot(slot),
                         crate::application::file_dag::program::admission::AliasMember(member),
-                        producer.admitted(),
+                        &producer.readmitted(owner)?,
                         partition,
                         owner,
                     )

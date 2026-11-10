@@ -159,7 +159,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
             })
         })
         .collect();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let mut arena = vec![];
     let mut places = vec![];
     let mut words = Words::default();
@@ -250,8 +250,8 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
         let arenas = [ArenaBytes(arena)];
         let RootOutcome::Complete(table) = crate::boundary_fixture::project_root(
             &phase,
-            PhaseOccurrences {
-                occurrences: &[crate::boundary_fixture::ordinary_occurrence(RuleIndex(0))],
+            PhaseRules {
+                rules: &[RuleIndex(0)],
                 first: &[Bucket(0)],
                 corpus: &corpus,
                 covered: &covered,

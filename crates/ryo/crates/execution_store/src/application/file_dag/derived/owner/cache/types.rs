@@ -8,8 +8,10 @@ use ryo_relations::domain::relations::types::Relation;
 
 /// Whether an eligible graph consumer may request bounded adjacency admission.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum GraphAdmission {
+pub enum GraphAdmission {
+    /// It may not: the rule walks no graph.
     Disabled,
+    /// It may: the rule walks a graph.
     Enabled,
 }
 

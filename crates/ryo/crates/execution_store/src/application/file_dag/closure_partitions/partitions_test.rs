@@ -92,7 +92,9 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
         })
         .unwrap();
     let mut cursor = super::schemas::prepare(
-        &publication,
+        &crate::application::file_dag::relations::handle::service::Publication::of(
+            publication.clone(),
+        ),
         RepresentationInput::from(&rows),
         &[ColumnIndex(2)],
         ColumnIndex(0),
@@ -149,7 +151,9 @@ fn separate_keys_never_share_edges() {
         })
         .unwrap();
     let mut cursor = super::schemas::prepare(
-        &publication,
+        &crate::application::file_dag::relations::handle::service::Publication::of(
+            publication.clone(),
+        ),
         RepresentationInput::from(&rows),
         &[ColumnIndex(2)],
         ColumnIndex(0),
@@ -199,7 +203,9 @@ fn advancing_releases_only_the_previous_partition_lease() {
         "the actual input publication remains live"
     );
     let mut cursor = super::schemas::prepare(
-        &publication,
+        &crate::application::file_dag::relations::handle::service::Publication::of(
+            publication.clone(),
+        ),
         RepresentationInput::from(&rows),
         &[ColumnIndex(2)],
         ColumnIndex(0),
@@ -280,7 +286,9 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
         })
         .unwrap();
     let cursor = super::schemas::prepare(
-        &publication,
+        &crate::application::file_dag::relations::handle::service::Publication::of(
+            publication.clone(),
+        ),
         RepresentationInput::from(&rows),
         &[ColumnIndex(2)],
         ColumnIndex(0),

@@ -37,6 +37,7 @@ use crate::domain::reporting::types::RowCounts;
 use crate::domain::run_rules::service::{owner_of, scopes_of};
 use crate::domain::storing::types::{Decision, ReadAlone, Reused, ToKeep};
 use crate::domain::visit::service::wants;
+use crate::domain::workers::service::by_step;
 use crate::domain::workers::service::order;
 use crate::domain::workers::types::{CrossReading, ProjectHandle, Visited, WorkersMet};
 use crate::inbound::use_cases::lint::constants::NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY;
@@ -44,11 +45,12 @@ use crate::outbound::corpus::interface::CorpusPort;
 use crate::outbound::language::interface::LanguagePort;
 use crate::outbound::lint_store::types::StoreKeeping;
 use crate::outbound::row_sink::interface::RowSinkPort;
-use ryo_execution::inbound::use_cases::execution::interface::{Counting, RowsFed};
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, PlacedScopes};
 use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
+use ryo_execution_runtime::outbound::observer::types::FedTotals;
 use ryo_language::inbound::use_cases::project::types::ManifestFile;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_values::domain::files::types::Glob;
@@ -162,7 +164,7 @@ pub(super) fn answer(
     ports: PhasePorts<'_>,
     rows: &dyn RowSinkPort,
     keeps: StoreKeeping,
-    counting: Counting,
+    observed: Option<&dyn ObserverPort>,
     run: &LintRun<'_>,
     visit: &FileVisit<'_>,
     project: &mut ProjectHandle<Box<dyn FactsWorker>>,
@@ -171,7 +173,6 @@ pub(super) fn answer(
         files: &run.listing.files,
         answering: run.answering,
         only: &run.request.files,
-        metadata: run.metadata,
     };
     let Visited {
         workers,
@@ -192,13 +193,11 @@ pub(super) fn answer(
         mut unknowns,
         mut skipped,
         mut notes,
-        fed,
         ..
     } = met;
     let mut answered = Answered {
         unknowns: Vec::new(),
         later: Rendered::default(),
-        fed,
     };
     if matches!(run.again, Reuse::Cross(_)) {
         // What the rules could not decide in the files used again is what the store kept of that.
@@ -269,7 +268,6 @@ pub(super) fn answer(
     let Answered {
         unknowns: mut observation_unknowns,
         mut later,
-        fed: all_fed,
     } = answered;
     // The files whose bytes could not be read, before the refused manifests join them: the next run reads them again.
     let failed = read_outcomes(&mut unread, unrecorded, &now.refused);
@@ -304,14 +302,20 @@ pub(super) fn answer(
         consulted_absent: &now.consulted_absent,
         project_observations: &now.observed_entries,
     };
+    let fed = observed
+        .map(ObserverPort::totals)
+        .transpose()
+        .map_err(|error| LintError::Execution {
+            reason: error.to_string(),
+        })?;
     kept(keeps, run.listing.read.as_ref(), &keep, keeping)?;
     Ok(LintReport {
         dependencies: project_dependencies(&now),
         unread,
         unknowns,
         skipped,
-        features: features_of(counting, run, &all_fed),
-        work: work_of(counting, run, &all_fed),
+        features: features_of(fed.as_ref(), run),
+        work: work_of(fed.as_ref(), run),
     })
 }
 
@@ -327,10 +331,8 @@ pub(super) fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Res
     observed_cross_symbols(BEFORE_CROSS_CLEANUP, &mut symbols);
     for outcome in outcomes {
         if settle(
-            &outcome.todo,
             outcome.result.map_err(LintError::from)?.crossed,
             &mut answered.later,
-            &mut answered.fed,
             &mut answered.unknowns,
         )
         .is_some()
@@ -347,22 +349,22 @@ pub(super) fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Res
 }
 
 /// What the report says each feature of the rules was fed, when the run counts the rows.
-fn features_of(counting: Counting, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<FeatureFed> {
-    match counting {
-        Counting::Counts => kernel_metadata()
-            .fed_over(run.metadata, fed)
+fn features_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<FeatureFed> {
+    match fed {
+        Some(fed) => kernel_metadata()
+            .fed_over(run.metadata, &by_step(&fed.0, run.metadata))
             .into_iter()
             .map(FeatureFed::from)
             .collect(),
-        Counting::DoesNotCount => Vec::new(),
+        None => Vec::new(),
     }
 }
 
 /// What the report says each step of each rule was fed, when the run counts the rows.
-fn work_of(counting: Counting, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<RuleWork> {
-    match counting {
-        Counting::Counts => kernel_metadata()
-            .work_over(run.metadata, fed)
+fn work_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<RuleWork> {
+    match fed {
+        Some(fed) => kernel_metadata()
+            .work_over(run.metadata, &by_step(&fed.0, run.metadata))
             .into_iter()
             .zip(run.rules)
             .map(|(steps, rule)| RuleWork {
@@ -376,7 +378,7 @@ fn work_of(counting: Counting, run: &LintRun<'_>, fed: &[Vec<RowsFed>]) -> Vec<R
                     .collect(),
             })
             .collect(),
-        Counting::DoesNotCount => Vec::new(),
+        None => Vec::new(),
     }
 }
 

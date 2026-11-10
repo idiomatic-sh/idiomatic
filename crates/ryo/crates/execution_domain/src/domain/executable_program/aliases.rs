@@ -3,13 +3,12 @@
 //! to the producer roots their members read.
 use super::types::ProducerMember;
 use super::types::region::value::Region;
-use super::types::{
-    InputSource, ObservationPlace, ProducerPartitions, RegionId, Route, RuleProgram,
-    SourcePartition,
-};
-use crate::domain::file_program::types::{GraphObservations, ResolvedObservationProducer};
+use super::types::{InputSource, ObservationPlace, RegionId, Route, RuleProgram, SourcePartition};
+use crate::domain::file_program::types::GraphObservations;
+use crate::domain::observation_schedule::types::ResolvedObservationProducer;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::types::ReaderMultiplicity;
+use crate::domain::source_partitions::types::ProducerPartitions;
 use ryo_values::domain::lineage::types::Lineage;
 use ryo_values::domain::plan_parts::types::StepScope;
 

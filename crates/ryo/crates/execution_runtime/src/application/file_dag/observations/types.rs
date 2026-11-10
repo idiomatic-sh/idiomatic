@@ -2,21 +2,23 @@
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
 use ryo_values::domain::{
-    observations::validated::ValidatedFrontiers, records::types::ObservationIndex,
-    stored_facts::types::ArenaBytes,
+    observations::validated::ValidatedFrontiers, stored_facts::types::ArenaBytes,
 };
 use std::rc::Rc;
 
 pub(crate) enum CrossRoot {
     Pending,
     FileFrontier {
-        publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
+        publication:
+            ryo_execution_store::application::file_dag::relations::handle::service::Publication,
         token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
         arenas: Vec<WorkerNumber>,
     },
     Named {
-        publication: ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
-        admitted: crate::application::file_dag::program::observed_publication::types::ObservedPublication,
+        publication:
+            ryo_execution_store::application::file_dag::relations::handle::service::Publication,
+        admitted:
+            crate::application::file_dag::program::observed_publication::types::ObservedPublication,
         arenas: Vec<WorkerNumber>,
     },
     Unavailable,
@@ -33,7 +35,7 @@ pub(crate) struct FrontierPopulation<'a> {
 /// A checked physical frontier; aliases share this exact owned payload and common lease.
 pub(crate) struct PreparedFrontier {
     pub(crate) publication:
-        ryo_execution_store::application::file_dag::relations::packed::service::PackedPublication,
+        ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     pub(crate) token: crate::application::file_dag::program::restored::types::ValidatedFrontier,
     pub(crate) arenas: Vec<WorkerNumber>,
 }
@@ -63,15 +65,9 @@ pub(crate) enum FrontierCompatibility {
 }
 /// Whether a rule is among those the current run selected.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RuleSelection {
+pub(crate) enum RuleSelection {
     Selected,
     Unselected,
-}
-/// One output of a rule with the admitted publication it delivers.
-pub struct AdmittedOutput {
-    pub output: ObservationIndex,
-    pub publication:
-        crate::application::file_dag::program::observed_publication::types::ObservedPublication,
 }
 /// One invocation extends the existing arena vector; stable slot indices never move during execution.
 pub(crate) struct CrossPublications<'a> {

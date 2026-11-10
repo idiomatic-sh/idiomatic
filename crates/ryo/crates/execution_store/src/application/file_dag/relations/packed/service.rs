@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 /// Coordinator-local lease. Only the immutable words, never this lease, enter a worker closure.
 #[derive(Clone, Debug)]
-pub struct PackedPublication {
+pub(crate) struct PackedPublication {
     _words: Arc<KeptWords>,
     _lease: Arc<ResourceLease>,
 }

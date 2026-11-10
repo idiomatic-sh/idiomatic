@@ -3,8 +3,9 @@ use super::super::{
     AdmittedInput, AvailableBody, AvailableInput, Partition, ProducerRoot, ReadProof,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_execution_store::application::file_dag::relations::{
-    RelationOwner, handle::service::PublishedInput,
+    RelationOwner, handle::service::Publication,
 };
 use std::rc::Rc;
 
@@ -40,7 +41,7 @@ impl AvailableInput {
     }
     pub(crate) fn source(
         owner: Rc<RelationOwner>,
-        publication: PublishedInput,
+        publication: Publication,
         root: ProducerRoot,
         partition: Partition,
         coverage: ryo_execution_domain::domain::completion::types::CoverageState,
@@ -49,8 +50,8 @@ impl AvailableInput {
         // Inspect this exact first provider borrow now, not a later re-read.
         // Only geometry refusals are deferred; identity/generation/source failures
         // remain immediate. No borrowed rows survive this synchronous boundary.
-        let inspected = owner.inspect_available(
-            publication.as_ref(),
+        let inspected = owner.admit(
+            &publication,
             ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&rows),
         )?;
         let admission = match inspected {
@@ -61,7 +62,7 @@ impl AvailableInput {
                     // remains deferred to the declared admission boundary.
                     drop(physical);
                     owner.normalize(&publication, rows).and_then(|normalized| {
-                        owner.admit(publication.as_ref(), ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&normalized))
+                        owner.admit(&publication, ryo_execution_domain::domain::table_model::types::RepresentationInput::from(&normalized)).and_then(|admitted| admitted)
                             .and_then(|proof| AdmittedInput::from_publication(Rc::clone(&owner), publication.clone(), &proof,
                                 root, ReadProof::complete(partition.clone())))
                     })
@@ -104,7 +105,7 @@ impl AvailableInput {
                 }
                 actual.require_supply(partition)?;
                 // Revalidate owner generation without obtaining another provider population.
-                let _kinds = owner.publication_kinds(publication)?;
+                let _kinds = owner.kinds(publication)?;
                 admission.clone()
             }
         }

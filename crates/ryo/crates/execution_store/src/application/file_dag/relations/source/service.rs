@@ -2,7 +2,7 @@
 use crate::application::file_dag::relations::*;
 impl RelationOwner {
     /// Publishes the rows of a source relation.
-    pub fn source(
+    pub(crate) fn source(
         &self,
         relation: Relation,
         rows: &Rows<'_>,
@@ -61,7 +61,7 @@ impl RelationOwner {
         Ok(result)
     }
     /// Custody of a supplied compact source; no kernel permit is issued here.
-    pub fn source_compact(
+    pub(crate) fn source_compact(
         &self,
         table: Arc<ryo_values::domain::table_words::types::CompactTable>,
     ) -> Result<PublishedInput, OperatingError> {
@@ -76,7 +76,7 @@ impl RelationOwner {
         }))
     }
     /// Custody of a supplied flat source, preserving exact geometry for first-borrow inspection.
-    pub fn source_shared_computed(
+    pub(crate) fn source_shared_computed(
         &self,
         table: Arc<Table>,
     ) -> Result<PublishedInput, OperatingError> {
@@ -91,7 +91,7 @@ impl RelationOwner {
         }))
     }
     /// Publishes a computed table.
-    pub fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
+    pub(crate) fn computed(&self, table: Table) -> Result<PublishedInput, OperatingError> {
         let input = RepresentationInput::Computed(&table);
         let contract = input.contract()?;
         registered(contract.kind).inspect(&contract)?;

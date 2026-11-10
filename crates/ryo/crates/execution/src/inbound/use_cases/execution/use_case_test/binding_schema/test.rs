@@ -1,6 +1,6 @@
 //! Invalid bound and row patterns stay lazy until actual rows reach the public owner.
 use super::super::super::fixtures;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
+use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, Test},

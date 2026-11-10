@@ -1,14 +1,15 @@
 //! Named publication leases across declared project ready batches. No source IO or producer evaluation.
 use super::constants::PUBLICATION_INCOMPLETE;
 use super::types::{
-    AdmittedOutput, ArenaCount, ConsumerCount, CrossPublications, CrossRoot, FinishState,
-    ReferenceCount,
+    ArenaCount, ConsumerCount, CrossPublications, CrossRoot, FinishState, ReferenceCount,
 };
 use crate::application::file_dag::frontiers::types::{
     BoundInput, BoundMember, InputReadiness, PublicationSlot,
 };
+use crate::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use crate::application::file_dag::program::preparation::types::OutputRoot;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
     records::types::{ObservationIndex, ProducerReadiness},
@@ -81,8 +82,8 @@ impl<'a> CrossPublications<'a> {
             .iter()
             .map(|binding| {
                 let available = binding.producers.iter().all(|producer| match producer {
-                    ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => false,
-                    ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::FileFrontier { .. } | CrossRoot::Named { .. })),
+                    ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer::NoQuery { .. } => false,
+                    ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer::Output { rule, output } => matches!(self.roots.get(rule.0).and_then(|roots| roots.get(output.0 as usize)), Some(CrossRoot::FileFrontier { .. } | CrossRoot::Named { .. })),
                 });
                 (
                     binding.input,
@@ -138,8 +139,8 @@ impl<'a> CrossPublications<'a> {
         let bindings = self.metadata.bindings.get(rule.0).ok_or_else(incomplete)?;
         Ok(bindings.iter().filter(|binding| binding.schema.scope == ryo_values::domain::plan_parts::types::StepScope::CrossFile).map(|binding| {
             let members = binding.producers.iter().map(|producer| match producer {
-                ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::Output { rule, output } => self.member(*rule, *output),
-                ryo_execution_domain::domain::file_program::types::ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
+                ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer::Output { rule, output } => self.member(*rule, *output),
+                ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer::NoQuery { .. } => Err(incomplete()),
             }).collect();
             BoundInput {
                 input: binding.input,
@@ -213,7 +214,7 @@ impl<'a> CrossPublications<'a> {
             }
             seen[output] = true;
             if let Some(publication) = admitted.get(&root.output.0) {
-                publication.validate_transfer_readiness(&self.owner, &root.readiness)?;
+                publication.validate_transfer_readiness(&root.readiness)?;
             } else if root.readiness == ProducerReadiness::Complete {
                 return Err(incomplete());
             }
@@ -266,7 +267,12 @@ impl<'a> CrossPublications<'a> {
                         }
                     })
                     .collect::<Result<Vec<_>, _>>()?;
-                let publication = self.owner.packed_publication(words, &backings)?;
+                let publication = self.owner.publish(
+                    ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Packed {
+                        words,
+                        arenas: &backings,
+                    },
+                )?;
                 prepared.push((
                     output,
                     CrossRoot::Named {

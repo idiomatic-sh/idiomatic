@@ -5,17 +5,14 @@ use crate::application::cross_file::errors::CrossFileError;
 use crate::application::cross_file::types::{OrdinaryOutcome, ProjectOutcome};
 use crate::application::file_analysis::errors::FileAnalysisError;
 use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
-use crate::domain::answering::types::{Answered, Crossed, Todo};
+use crate::domain::answering::types::{Answered, Crossed};
 use crate::domain::render::types::Rendered;
 use crate::inbound::use_cases::lint::errors::LintError;
 use crate::inbound::use_cases::lint::service::settled;
-use ryo_execution::inbound::use_cases::execution::interface::{
-    OperatingError, PublicationSlot, RuleIndex,
-};
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::records::types::CrossPublicationTransfer;
-use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 /// Which stage of the lint refuses.
@@ -56,12 +53,7 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
             };
             let ordinary = OrdinaryOutcome {
                 outcomes: vec![ProjectOutcome {
-                    todo: Todo {
-                        rule: RuleIndex(0),
-                        id: RuleId("named".into()),
-                    },
                     result: Ok(CrossedWithPublications {
-                        slot: PublicationSlot::Unused,
                         crossed,
                         publications: Vec::new(),
                     }),
@@ -73,7 +65,6 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
             let mut answered = Answered {
                 unknowns: Vec::new(),
                 later: Rendered::default(),
-                fed: vec![Vec::new()],
             };
             settled(ordinary, &mut answered)
         }

@@ -3,6 +3,7 @@ use super::interface::ExecutionUseCase;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::request_execution::service::begin;
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
+use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
 use ryo_values::domain::files::types::CorpusInput;
 
 /// Begins request executions; every kernel and service comes with the prepared program.
@@ -22,7 +23,8 @@ impl ExecutionUseCase for ExecutionUseCaseImpl {
         &self,
         program: &PreparedExecutionProgram,
         corpus: &[CorpusInput],
+        observer: Option<std::sync::Arc<dyn ObserverPort>>,
     ) -> RequestExecution {
-        begin(program, corpus)
+        begin(program, corpus, observer)
     }
 }

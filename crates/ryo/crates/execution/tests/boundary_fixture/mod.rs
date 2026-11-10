@@ -1,10 +1,8 @@
 //! Canonical public request and catalog-row assembly shared by boundary controls.
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
@@ -12,8 +10,8 @@ use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::application::file_dag::program::project_phase::types::{
-    PhaseOccurrence, PhaseOccurrences, PhasePartials, PhaseStop,
+use ryo_execution::inbound::use_cases::execution::interface::{
+    PhasePartials, PhaseRules, PhaseStop,
 };
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -33,7 +31,7 @@ use ryo_values::domain::{
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 pub(crate) fn engine() -> PrepareUseCaseImpl {
     PrepareUseCaseImpl::new(
         Arc::new(ryo_execution::inbound::use_cases::execution::fixtures::operators()),
@@ -157,17 +155,17 @@ pub(crate) fn named_functions(symbols: &mut Symbols) -> Table {
     table
 }
 
-/// The declared occurrences of `phase`, evaluated as one batch through the phase or stage's one phase call, each over the same
-/// partials (`evaluation` for the diagnostic, `publication` for what it publishes): the only route that opens a project session.
-/// Each answer is the occurrence's outcome, or the engine's refusal of it.
+/// One occurrence of each of `phase.rules`, evaluated as one batch through the phase's one phase call, each over the same partials
+/// (`evaluation` for the diagnostic, `publication` for what it publishes): the only route that opens a project session. Each
+/// answer is the occurrence's outcome, or the engine's refusal of it.
 pub(crate) fn project_roots<R: ProjectRootExecution>(
     root: &R,
-    phase: PhaseOccurrences<'_>,
+    phase: PhaseRules<'_>,
     evaluation: &Partials,
     publication: &Partials,
     symbols: &mut Symbols,
 ) -> Vec<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>> {
-    let batch = root.evaluate_occurrences(
+    let batch = root.evaluate_rules(
         phase,
         symbols,
         |_| Ok::<(), OperatingError>(()),
@@ -178,7 +176,7 @@ pub(crate) fn project_roots<R: ProjectRootExecution>(
             })
         },
         |_| Ok(()),
-        |_, outcome, _, _| Ok(outcome),
+        |_, outcome, _, _, _| Ok(outcome),
     );
     let ProjectBatch::Complete(done) = batch else {
         panic!("the guard admits every occurrence")
@@ -191,19 +189,10 @@ pub(crate) fn project_roots<R: ProjectRootExecution>(
         })
         .collect()
 }
-/// An ordinary occurrence of `rule`: nothing bound, no slot reserved, its frontiers prepared for the diagnostic.
-pub(crate) fn ordinary_occurrence(rule: RuleIndex) -> PhaseOccurrence<'static> {
-    PhaseOccurrence {
-        rule,
-        bound: &[],
-        slot: ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot::Unused,
-        demand: ryo_execution_runtime::application::file_dag::program::project_phase::types::FrontierDemand::Diagnostic,
-    }
-}
 /// The one occurrence of `phase` through [`project_roots`].
 pub(crate) fn project_root<R: ProjectRootExecution>(
     root: &R,
-    phase: PhaseOccurrences<'_>,
+    phase: PhaseRules<'_>,
     evaluation: &Partials,
     publication: &Partials,
     symbols: &mut Symbols,

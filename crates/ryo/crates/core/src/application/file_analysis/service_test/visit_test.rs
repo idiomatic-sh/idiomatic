@@ -227,7 +227,7 @@ pub(super) fn visited_inputs_with_rule_demands(
         },
     };
     let mut worker = Worker {
-        tables: tables_for(WorkerNumber(0), &[]),
+        tables: tables_for(WorkerNumber(0)),
         facts,
         old_rows: None,
         failure: None,

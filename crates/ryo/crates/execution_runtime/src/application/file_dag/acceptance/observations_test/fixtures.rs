@@ -1,14 +1,14 @@
 //! Frontier coordinates must use the same request-qualified slots as instruction inputs.
-use ryo_execution_domain::domain::executable_program::types::{
-    PartitionRequirement, ProducerPartitions,
-};
 use ryo_execution_domain::domain::file_program::types::RequestGraph;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::source_partitions::types::{
+    PartitionRequirement, ProducerPartitions,
+};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    file_program::types::{
-        ObservationRequest, RequestOperators, ResolvedObservationBinding,
-        ResolvedObservationProducer,
+    file_program::types::RequestOperators,
+    observation_schedule::types::{
+        ObservationRequest, ResolvedObservationBinding, ResolvedObservationProducer,
     },
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};

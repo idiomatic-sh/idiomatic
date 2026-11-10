@@ -9,6 +9,7 @@ pub mod kind_check;
 pub mod kind_sets;
 pub mod matching;
 pub(crate) mod numeric_values;
+pub mod observation_schedule;
 pub(crate) mod operands;
 pub mod operating;
 pub mod operation_schema;

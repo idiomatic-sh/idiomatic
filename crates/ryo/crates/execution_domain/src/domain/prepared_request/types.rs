@@ -5,9 +5,10 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 #[derive(Clone, Debug)]
 pub struct Compiled {
     /// A once-resolved traversal over stable original rule indices.
-    pub schedule: crate::domain::file_program::types::RuleSchedule,
+    pub schedule: crate::domain::observation_schedule::types::RuleSchedule,
     /// Names resolved once to real producer roots; empty on ordinary requests.
-    pub observations: Vec<Vec<crate::domain::file_program::types::ResolvedObservationBinding>>,
+    pub observations:
+        Vec<Vec<crate::domain::observation_schedule::types::ResolvedObservationBinding>>,
     /// The plans, in the order of the rules.
     pub plans: Vec<Plan>,
     /// What each rule binds its parameters to, in the order of the plan's parameters.

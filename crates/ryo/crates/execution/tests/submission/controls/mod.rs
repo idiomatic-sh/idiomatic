@@ -11,16 +11,15 @@ use crate::project_phase::negative::fixtures::{Entry, Held, NoFacts, with_held};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
-use ryo_execution::inbound::use_cases::execution::interface::FrontierDemand;
 use ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationPublication;
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrence;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseOccurrences;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
+use ryo_execution::inbound::use_cases::execution::interface::{BatchNumber, BatchOccurrence, ObservationBatches};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
@@ -29,8 +28,6 @@ use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_runtime::application::file_dag::frontiers::types::PublicationSlot;
-use ryo_execution_runtime::application::file_dag::observations::types::RuleSelection;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
@@ -52,30 +49,17 @@ pub(super) fn control(method: Method) -> Control {
         Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
         Method::RequestProjectPhase => Control::AcceptsNoRoot(
-            "opens the phase; its roots are declared through evaluate_occurrences",
+            "opens the phase; its roots are declared through evaluate_rules",
         ),
-        Method::RootsEvaluateOccurrences => Control::Refuses(occurrence_of_an_undeclared_rule),
-        Method::ObservedReserve
-        | Method::ObservedBindings
-        | Method::ObservedBindingReadiness
-        | Method::ObservedFrontierReadiness
-        | Method::ObservedFinish => Control::Refuses(observed_undeclared_rule),
+        Method::RootsEvaluateRules => Control::Refuses(occurrence_of_an_undeclared_rule),
+        Method::ObservedRunBatches => Control::Refuses(observed_undeclared_rule),
         Method::FileEmitRows
         | Method::FileRule
         | Method::FileCaptureFrontiers
-        | Method::FileCommitFrontier
-        | Method::FileCounts => Control::Refuses(file_session_undeclared_rule),
-        Method::FileReadinessCounts => Control::AcceptsNoRoot("reads counters"),
-        Method::FileWalkCounts => Control::AcceptsNoRoot("reads counters"),
+        | Method::FileCommitFrontier => Control::Refuses(file_session_undeclared_rule),
         Method::FileFinish => Control::AcceptsNoRoot("releases the file session"),
         Method::RequestFinish => Control::AcceptsNoRoot("drops the request"),
-        Method::RootsReadinessCounts => Control::AcceptsNoRoot("reads counters"),
-        Method::StageStateCounts => Control::AcceptsNoRoot("reads counters"),
         Method::StageFinish => Control::AcceptsNoRoot("releases the phase"),
-        Method::PublicationInstall => Control::Refuses(install_undeclared_rule),
-        Method::PublicationRestoreFrontiers => Control::Refuses(restore_inapplicable_per_rule),
-        Method::ObservedArenas => Control::AcceptsNoRoot("reads published arenas"),
-        Method::ObservedFinishStage => Control::AcceptsNoRoot("releases the stage"),
     }
 }
 /// A program is prepared from a plan for each declared rule and no other: a rule set missing a planned rule, or with a rule no
@@ -103,7 +87,7 @@ pub(super) fn observations_need_a_named_program() {
     let engine = engine();
     let corpus = corpus();
     let unnamed = prepared_rules(&engine, 2);
-    let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&unnamed, &corpus, None);
     let mut arenas = Vec::new();
     assert!(matches!(
         request.observations(&mut arenas),
@@ -111,38 +95,39 @@ pub(super) fn observations_need_a_named_program() {
     ));
     request.finish();
     let named = engine.prepare(named_request()).expect("named request");
-    let request = ExecutionUseCaseImpl::new().execution(&named, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&named, &corpus, None);
     let mut arenas = Vec::new();
-    request
+    let stage = request
         .observations(&mut arenas)
-        .expect("a named program opens its stage")
-        .finish_stage()
-        .unwrap();
+        .expect("a named program opens its stage");
+    stage
+        .run_batches(
+            stage_batches(&[], &[], &[], &corpus, &[], &[]),
+            &mut Symbols::default(),
+            |_| Ok::<(), OperatingError>(()),
+            |_| Err(OperatingError::NotRun),
+            |_| Ok(()),
+            |_, _, _, _, _| Ok(()),
+            |_, _| Ok(None),
+        )
+        .expect("a stage with no declared occurrence finishes");
     request.finish();
 }
 /// A phase refuses the occurrence of a rule the program did not declare, and that refusal stays with the occurrence: the declared
-/// occurrences beside it, a repeated rule included, are each evaluated and completed with their slot in declaration order, and the
-/// phase is released once the call returns.
+/// occurrences beside it, a repeated rule included, are each evaluated and completed with no reserved worker in declaration order,
+/// and the phase is released once the call returns.
 pub(super) fn occurrence_of_an_undeclared_rule() {
-    with_held(&engine(), Entry::Phase, 3, |request, _, corpus, covered| {
+    with_held(&engine(), Entry::Phase, 3, |_, held, corpus, covered| {
+        let Held::Phase(phase) = held else {
+            panic!("the phase entry holds a project phase")
+        };
         let inapplicable = vec![InapplicableFiles::default(); 4];
         let refused = vec![RefusedFiles::default(); 4];
-        let project_symbols = ryo_language::domain::symbols::types::Symbols::default();
-        let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
-        let occurrence = |rule| PhaseOccurrence {
-            rule,
-            bound: &[],
-            slot: PublicationSlot::Unused,
-            demand: FrontierDemand::Diagnostic,
-        };
-        let phase = request.project_phase().expect("the phase opens");
-        let ran = phase.evaluate_occurrences(
-            PhaseOccurrences {
-                occurrences: &[
-                    occurrence(RuleIndex(0)),
-                    occurrence(RuleIndex(0)),
-                    occurrence(RuleIndex(3)),
-                ],
+        let project_symbols = Symbols::default();
+        let mut symbols = Symbols::default();
+        let ran = phase.evaluate_rules(
+            PhaseRules {
+                rules: &[RuleIndex(0), RuleIndex(0), RuleIndex(3)],
                 first: &[ryo_values::domain::stored_facts::types::Bucket(0); 4],
                 corpus,
                 covered,
@@ -163,18 +148,18 @@ pub(super) fn occurrence_of_an_undeclared_rule() {
                 })
             },
             |_| Ok(()),
-            |occurrence: OccurrenceNumber, _, slot, _| Ok((occurrence, slot)),
+            |occurrence: OccurrenceNumber, _, _, worker, _| Ok((occurrence, worker)),
         );
         let ProjectBatch::Complete(occurrences) = ran else {
             panic!("no guard refused the batch");
         };
         assert!(matches!(
             occurrences.first(),
-            Some(Ok((OccurrenceNumber(0), PublicationSlot::Unused)))
+            Some(Ok((OccurrenceNumber(0), None)))
         ));
         assert!(matches!(
             occurrences.get(1),
-            Some(Ok((OccurrenceNumber(1), PublicationSlot::Unused)))
+            Some(Ok((OccurrenceNumber(1), None)))
         ));
         assert!(matches!(
             occurrences.get(2),
@@ -192,7 +177,7 @@ pub(super) fn file_session_undeclared_rule() {
     let engine = engine();
     let program = prepared_rules(&engine, 2);
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
     let read = |_| Err(OperatingError::NotRead);
     let intent = every_intent()
@@ -220,11 +205,6 @@ pub(super) fn file_session_undeclared_rule() {
         )
         .expect("a complete declared set opens");
     let undeclared = RuleIndex(2);
-    assert!(
-        file.counts(RuleIndex(1)).is_ok(),
-        "a declared rule is known"
-    );
-    assert!(file.counts(undeclared).is_err());
     assert!(file.rule(undeclared, demand(), &mut symbols).is_err());
     assert!(
         file.emit_rows(undeclared, &mut symbols, &mut |_| Ok(()))
@@ -256,71 +236,74 @@ pub(super) fn file_session_undeclared_rule() {
     let _ = file.finish();
     request.finish();
 }
+/// What one observation stage of the controls' program reads: `occurrences` over `rules`, with `inapplicable` files by rule.
+fn stage_batches<'a>(
+    occurrences: &'a [BatchOccurrence],
+    rules: &'a [RuleIndex],
+    first: &'a [ryo_values::domain::stored_facts::types::Bucket],
+    corpus: &'a [ryo_values::domain::files::types::CorpusInput],
+    inapplicable: &'a [InapplicableFiles],
+    refused: &'a [RefusedFiles],
+) -> ObservationBatches<'a> {
+    static PROJECT_SYMBOLS: std::sync::LazyLock<Symbols> = std::sync::LazyLock::new(Symbols::default);
+    ObservationBatches {
+        occurrences,
+        readiness: &[],
+        rules,
+        first,
+        corpus,
+        covered: &[],
+        skipped: &[],
+        inapplicable,
+        refused,
+        facts: &NoFacts,
+        project: &NoFacts,
+        project_symbols: &PROJECT_SYMBOLS,
+    }
+}
+/// A stage refuses an occurrence of a rule the program did not declare, and restoration takes the inapplicable files of every rule
+/// or of none: any other count is refused before any occurrence runs.
 pub(super) fn observed_undeclared_rule() {
-    with_held(&engine(), Entry::Stage, 3, |_, held, _, _| {
-        let Held::Stage(stage) = held else {
-            panic!("the stage entry holds an observation stage")
-        };
-        let undeclared = RuleIndex(3);
-        assert!(stage.reserve(undeclared).is_err());
-        assert!(stage.bindings(undeclared).is_err());
-        assert!(stage.binding_readiness(undeclared).is_err());
-        assert!(stage.frontier_readiness(undeclared).is_err());
-        assert!(ObservationExecution::finish(stage, undeclared).is_err());
-    });
-}
-/// A publication is installed only for a rule the program declared.
-pub(super) fn install_undeclared_rule() {
-    with_held(&engine(), Entry::Stage, 3, |_, held, _, _| {
-        let Held::Stage(stage) = held else {
-            panic!("the stage entry holds an observation stage")
-        };
-        let worker = ryo_relations::domain::relations::types::WorkerNumber(1);
-        let transfer = ryo_values::domain::records::types::CrossPublicationTransfer {
-            worker,
-            arena: ryo_values::domain::stored_facts::types::ArenaBytes::default(),
-            roots: vec![],
-        };
-        assert!(
-            stage
-                .install(
-                    RuleIndex(3),
-                    PublicationSlot::Reserved(worker),
-                    transfer,
-                    vec![]
-                )
-                .is_err()
-        );
-    });
-}
-/// Restoration takes the inapplicable files of every rule or of none; any other count is refused.
-pub(super) fn restore_inapplicable_per_rule() {
-    with_held(&engine(), Entry::Stage, 3, |_, held, corpus, covered| {
-        let Held::Stage(stage) = held else {
-            panic!("the stage entry holds an observation stage")
-        };
-        let mut restore = |inapplicable: usize| {
-            stage.restore_frontiers(
-                &crate::project_phase::negative::fixtures::NoFileFrontiers,
-                corpus,
-                covered,
-                &[],
-                &vec![InapplicableFiles::default(); inapplicable],
-                &vec![RefusedFiles::default(); 3],
-                &[],
-                &[ryo_values::domain::stored_facts::types::Bucket(0); 3],
-                &[RuleSelection::Unselected; 3],
+    let rules = [RuleIndex(0), RuleIndex(1), RuleIndex(2)];
+    let first = [ryo_values::domain::stored_facts::types::Bucket(0); 3];
+    let refused = vec![RefusedFiles::default(); 3];
+    let run = |occurrences: &[BatchOccurrence], inapplicable: usize| {
+        with_held(&engine(), Entry::Stage, 3, |_, held, corpus, _| {
+            let Held::Stage(stage) = held else {
+                panic!("the stage entry holds an observation stage")
+            };
+            let inapplicable = vec![InapplicableFiles::default(); inapplicable];
+            stage.run_batches(
+                stage_batches(occurrences, &rules, &first, corpus, &inapplicable, &refused),
+                &mut Symbols::default(),
+                |_| Ok::<(), OperatingError>(()),
+                |_| {
+                    Ok(PhasePartials {
+                        evaluation: Partials::default(),
+                        publication: Partials::default(),
+                    })
+                },
+                |_| Ok(()),
+                |_, _, _, _, _| Ok(()),
+                |_, _| Ok(None),
             )
-        };
-        for wrong in [1, 2, 4] {
-            assert!(
-                matches!(restore(wrong), Err(OperatingError::NotRun)),
-                "{wrong} sets of inapplicable files for 3 rules"
-            );
-        }
-        restore(0).expect("none for the whole run");
-        restore(3).expect("one set per rule");
-    });
+        })
+    };
+    assert!(
+        matches!(
+            run(&[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(3) }], 0),
+            Err(OperatingError::NotRun)
+        ),
+        "an occurrence of an undeclared rule"
+    );
+    for wrong in [1, 2, 4] {
+        assert!(
+            matches!(run(&[], wrong), Err(OperatingError::NotRun)),
+            "{wrong} sets of inapplicable files for 3 rules"
+        );
+    }
+    run(&[], 0).expect("none for the whole run");
+    run(&[], 3).expect("one set per rule");
 }
 
 mod census;

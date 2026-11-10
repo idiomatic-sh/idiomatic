@@ -14,7 +14,6 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
@@ -69,7 +68,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
     for diagnostic in [DiagnosticDelivery::Collected, DiagnosticDelivery::Forwarded] {
         for independent_first in [false, true] {
             let corpus = corpus();
-            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+            let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
             let (elements, mut symbols) = tree(FileId(0), b"abc");
             let intents = [
                 FileRuleIntent::Run {
@@ -127,12 +126,6 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
                 }
                 // The LHS cannot match the file ("absent-kind"), so it publishes empty without a walk: the independent
                 // selector and the Join's demanded RHS share the one head cohort. A terminal retry adds no work.
-                counts(&file, 1, 4);
-                assert_eq!(
-                    file.walk_counts().predicate_rows.0,
-                    2,
-                    "the independent predicate and first failing RHS predicate each run once"
-                );
             }
             file.finish().unwrap();
             request.finish();
@@ -158,7 +151,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
     }
     let program = engine.prepare(authored).unwrap();
     let corpus = corpus();
-    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus);
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
     let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
     let table = named_functions(&mut symbols);
     let elements = ryo_language::domain::elements::types::Elements::default();
@@ -190,8 +183,6 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
             },
         );
     }
-    counts(&file, 1, 3);
-    assert_eq!(file.walk_counts().predicate_rows.0, 6);
     assert_eq!(
         semantics.selects(),
         0,

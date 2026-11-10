@@ -15,12 +15,12 @@ use ryo_execution::inbound::use_cases::execution::interface::ObservationContract
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectObservation;
-use ryo_execution::inbound::use_cases::execution::interface::PublicationSlot;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::records::types::ObservationReason;
 use ryo_values::domain::records::types::ProducerReadiness;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
@@ -51,7 +51,7 @@ impl ProjectCompletion {
         todo: &Todo,
         evaluated: ProgramEvaluated,
         cross: &mut Symbols,
-        publication: PublicationSlot,
+        worker: Option<WorkerNumber>,
     ) -> Result<CrossedWithPublications, RuleRequestsError> {
         let emit = crossing
             .program
@@ -176,7 +176,7 @@ impl ProjectCompletion {
         let observations = if roots.observations.is_empty() {
             None
         } else {
-            let PublicationSlot::Reserved(worker) = publication else {
+            let Some(worker) = worker else {
                 return Err(refuse(&NO_RESERVED_ARENA));
             };
             Some(pack_roots(
@@ -202,12 +202,10 @@ impl ProjectCompletion {
             publications.clear();
         }
         Ok(CrossedWithPublications {
-            slot: publication,
             crossed: Crossed {
                 unknowns,
                 rendered,
                 observations,
-                fed: evaluated.fed,
             },
             publications,
         })
@@ -282,7 +280,6 @@ pub(crate) fn collected(
     }
     Ok(ProgramEvaluated {
         roots,
-        fed: outcome.counts.fed.into_vec(),
         publications,
     })
 }

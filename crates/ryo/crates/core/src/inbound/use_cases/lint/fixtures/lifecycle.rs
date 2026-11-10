@@ -225,7 +225,11 @@ pub(crate) fn counted_lint(given: Given) -> Result<(usize, u64), Failure> {
     let World {
         use_case, language, ..
     } = world(given);
-    let report = use_case.counting().lint(asked)?;
+    let report = use_case
+        .counting(std::sync::Arc::new(
+            ryo_execution_runtime::outbound::observer::factory::counting(),
+        ))
+        .lint(asked)?;
     let fed = report
         .work
         .iter()

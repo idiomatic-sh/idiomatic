@@ -8,6 +8,7 @@ use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
 use std::sync::Arc;
 
 impl<'scope> KernelPermit<'scope> {
@@ -18,8 +19,11 @@ impl<'scope> KernelPermit<'scope> {
         &ryo_execution_domain::domain::executable_program::types::region::value::Region,
         OperatingError,
     > {
-        if execution.owner.matches_generation(&execution.generation)
-            == ryo_execution_store::application::file_dag::relations::types::Sameness::Different
+        if execution
+            .owner
+            .generation()
+            .same(&execution.generation)
+            .is_err()
         {
             return Err(OperatingError::NotRead);
         }
@@ -128,7 +132,7 @@ impl<'scope> KernelPermit<'scope> {
     }
     /// Opaque diagnostic correlation for this live generation; never execution authority.
     pub(crate) fn diagnostic_generation(&self) -> *const () {
-        Arc::as_ptr(self.generation).cast::<()>()
+        self.generation.diagnostic_address()
     }
     pub(crate) fn descriptor(
         &self,
@@ -153,9 +157,7 @@ impl<'scope> KernelPermit<'scope> {
         .ok_or_else(|| OperatingError::MissingInput { position: at.0 + 1 })
     }
     pub(crate) fn validate_live(&self) -> Result<(), OperatingError> {
-        if self.generation.is_live()
-            == ryo_execution_store::application::file_dag::relations::types::Liveness::Live
-        {
+        if self.generation.live().is_ok() {
             Ok(())
         } else {
             Err(OperatingError::NotRead)
