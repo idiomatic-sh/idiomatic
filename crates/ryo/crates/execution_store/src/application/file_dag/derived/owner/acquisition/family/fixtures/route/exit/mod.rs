@@ -1,0 +1,56 @@
+//! The exits and entries a family is driven through, and the release every exit must end with.
+use ryo_derived::domain::request::types::DerivedKind;
+
+/// How the last consumer of a family leaves through its production entry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Exit {
+    /// The view is acquired, read and dropped.
+    Succeeds,
+    /// The demand is withdrawn after the request is prepared and before the view is read.
+    Cancelled,
+    /// The production entry refuses; nothing acquired may stay charged.
+    Errors,
+}
+/// The production entry a family is acquired through.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Entry {
+    /// `InputAdmissions::{acquire_derived, try_native_lookup}` over an invocation workspace.
+    Workspace,
+    /// The `PartitionedClosure` cursor of `closure_partitions`.
+    Partition,
+    /// `acquire_graph` and `acquire_graph_domain` over an admitted graph input.
+    Graph,
+}
+/// Exhaustive on purpose: a new family must name its production entry before this file compiles.
+pub(crate) fn entry(kind: DerivedKind) -> Entry {
+    match kind {
+        DerivedKind::Equality
+        | DerivedKind::CycleAdjacency
+        | DerivedKind::OrderedKeys
+        | DerivedKind::OrderedDfs
+        | DerivedKind::NativeLookup => Entry::Workspace,
+        DerivedKind::PartitionOrder | DerivedKind::ClosureAdjacency => Entry::Partition,
+        DerivedKind::Adjacency | DerivedKind::Membership => Entry::Graph,
+    }
+}
+pub(crate) fn released(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize)) {
+    assert_eq!(
+        ledger,
+        (0, 0, 0),
+        "{kind:?} {exit:?}: every lease retires with the owner generation"
+    );
+}
+/// The exit itself: the handles and results of the production entry are dropped and the generation
+/// is still live, so nothing but the entry's own release can have returned the required bytes to
+/// `floor`, what the owner keeps for its admitted sources until the generation retires.
+pub(crate) fn released_at_exit(
+    kind: DerivedKind,
+    exit: Exit,
+    ledger: (usize, usize, usize),
+    floor: usize,
+) {
+    assert_eq!(
+        ledger.0, floor,
+        "{kind:?} {exit:?}: the exit itself releases the required lease, before the generation retires"
+    );
+}
