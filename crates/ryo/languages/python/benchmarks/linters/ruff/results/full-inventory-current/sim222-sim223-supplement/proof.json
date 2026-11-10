@@ -1,0 +1,10 @@
+{
+  "schema": "benchmark-inventory-supplement/v1",
+  "base_summary_sha256": "a3eae09e90dcb4a2d7a88bb7e76fddc9888b31648133838fcb1edee3b11e6f91",
+  "supplement_summary_sha256": "8c7aa29c7fee81a57ac27f330a1d030745347aa8806d58c9bd36c0cf4af9d3da",
+  "raw_receipts_sha256": "c10adf2f95b97b91d1a3dff1b9c591c5212fa923ce94bab43d3b9d47c3cca7a8",
+  "rule_ids": [
+    "SIM222",
+    "SIM223"
+  ]
+}

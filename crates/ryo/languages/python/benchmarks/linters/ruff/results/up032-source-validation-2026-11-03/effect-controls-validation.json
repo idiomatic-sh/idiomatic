@@ -1,0 +1,41 @@
+{
+  "execution": {
+    "candidate_and_reference_passed": 29,
+    "cases_jsonl_sha256": "864ff3ea5236e0d8b28a0596a4c81fa716dc81e289524ceffd1f975cd799d794",
+    "pinned_ruff_paired_sha256": "0fbd2e90aba1b43fd9670620ae2bb579f0d00374bf1615c237f92f1e0f429665",
+    "pinned_ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "sealed_ruff_bench_sha256": "e25a469c3dc03e9d2d1aa1e94776529a7d853cddc15f9db0f",
+    "target": "python-target=3.10"
+  },
+  "limitations": [
+    "Python target 3.7 remains unpassed and is not inferred from the Python 3.10 controls.",
+    "These six controls do not establish every possible lambda or default expression."
+  ],
+  "new_controls": [
+    "control-lambda-pure",
+    "control-lambda-subscript",
+    "control-lambda-call",
+    "control-lambda-default-call",
+    "control-lambda-default-subscript",
+    "control-ordinary-subscript"
+  ],
+  "review": {
+    "broader_review": "pending; three prior broad attempts timed out without verdict",
+    "disposition": "falsified by unchanged query against pinned reference and sealed candidate on full diagnostic reports",
+    "effort": "high",
+    "finding": "proposed lambda-subscript false positive",
+    "model": "claude-fable-5-1",
+    "raw_review_sha256": "5007e3598727abc7c810af788f69639026f55b202c5fd88e0399c8df169fa432",
+    "scope": "effect fragment only"
+  },
+  "source": {
+    "cases": 29,
+    "cases_sha256": "d0b2ec2f7172ac4df0402ebe0f5fbf61625554efdbe457ce7afda0932a2b6222",
+    "comparison": "full for every case",
+    "full_upstream_fixtures": 4,
+    "independent_controls": 25,
+    "profile_sha256": "8445399e42208e94a1bdc304c0bf0cff3d5685b857eb8a4881783e3a830606c8",
+    "query_sha256": "72d4a853e3ff661296058f6118e88ee1186ea33870c750d0cae3afea4a719b58"
+  },
+  "status": "source candidate; complete UP032 review and exact-head shared inventory pending"
+}

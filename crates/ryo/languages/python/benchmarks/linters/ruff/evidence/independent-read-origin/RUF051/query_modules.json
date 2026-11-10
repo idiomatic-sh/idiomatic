@@ -1,0 +1,7 @@
+{
+  "python/ruff/assigned-values": "fragments/assigned-values.ryoql",
+  "python/ruff/binding-type": "fragments/binding-type.ryoql",
+  "python/ruff/in-comparison": "fragments/in-comparison.ryoql",
+  "python/ruff/suppress": "fragments/suppress.ryoql",
+  "python/ruff/type-match-at-check": "fragments/type-match-at-check.ryoql"
+}

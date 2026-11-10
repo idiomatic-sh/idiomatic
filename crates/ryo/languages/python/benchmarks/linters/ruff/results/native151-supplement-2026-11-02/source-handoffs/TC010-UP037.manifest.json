@@ -1,0 +1,79 @@
+{
+  "status": "source-only; no replay/admission; py313",
+  "rules": {
+    "TC010": {
+      "stage": "/tmp/tc010-up037-source-batch-20261102/TC010",
+      "cases": 19,
+      "fixtures": {
+        "TC010_1.py": {
+          "source_sha256": "84f9c6203db24fc030bc978f895f8d27cccffa5aa9d9b1854bf00d9c4e37b940",
+          "snapshot_sha256": "5c3419dfad59701fc757fec1417a2274f1eebdf0ba265cf39e57e72bd87d6600",
+          "findings": 1,
+          "target_adjustment": "TC010_2 adds4 eager-annotation string spans at py313; upstream defaultpy314 snapshot has only TypeVar finding. Source-derived, not executed."
+        },
+        "TC010_2.py": {
+          "source_sha256": "e602cf35cb703b2ed04b4d529c9ebcab665b16c81af31793d8fdbfd1c030e51a",
+          "snapshot_sha256": "3e27a3ff8528109f7ac9e9ba6ff0a0195c9bc12fba9c5fd82f4b2cf1893a6fe9",
+          "findings": 5,
+          "target_adjustment": "TC010_2 adds4 eager-annotation string spans at py313; upstream defaultpy314 snapshot has only TypeVar finding. Source-derived, not executed."
+        }
+      },
+      "files": {
+        "benchmark.toml": "a45cbaf767bf3016675470a49ec22e5c1399adf43007e6d4bf07745af0c7ebec",
+        "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+        "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+        "fragments/deferred-type-reads.ryoql": "dc3906fdde5e7278fa69ae0b365f414d3e77add6b7c2c59b336660cb7ab019f6",
+        "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+        "fragments/suppress.ryoql": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "fragments/suppress-directives.ryoql": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "rules/TC010/query.ryoql": "c8017a1eb8348e577c6cbef203f3b37741692f657d450e07d5e49e1a302fea43",
+        "rules/TC010/cases.toml": "890f3afbba2b77f9dd0d4f6b57ab08bdab9445cff4a71eb28379619130de55a8",
+        "rules/TC010/README.md": "9f81fe040f87f961aff2a91485ac9d3f6ac63fb57495179d585d3e5f47cb3df7"
+      }
+    },
+    "UP037": {
+      "stage": "/tmp/tc010-up037-source-batch-20261102/UP037",
+      "cases": 19,
+      "fixtures": {
+        "UP037_0.py": {
+          "source_sha256": "9b7d4e0a68ac18c8c0bc10dcd8bc8539787b87503e0f0d65083755b4a80b1e2b",
+          "snapshot_sha256": "c351ea3c210cf75de181b4f6e67c7d30358c52ef39fd0ce76c7280637defaf59",
+          "snapshot_target": "default py314; annotation-only differences source-audited for py313",
+          "findings": 33
+        },
+        "UP037_1.py": {
+          "source_sha256": "9fdc534ac3b1a42266043b125af253925f805d77de694b67a32b864e2b1e9dc0",
+          "snapshot_sha256": "5bdadea2d3b6b0edf8070b0ca6ec9b7fdd00fdbe9342d576ee3cb5166471327e",
+          "snapshot_target": "default py314; annotation-only differences source-audited for py313",
+          "findings": 1,
+          "target_adjustment": "Default upstream314 has2 findings; actual sealed9348/Ruff explicit313 both have1(local only), removed global163..180 expectation."
+        },
+        "UP037_2.pyi": {
+          "source_sha256": "464d87345957116422014f0457e3fdbbfe8f5ff744855988dc3927f06806f3a0",
+          "snapshot_sha256": "0271344ba94f597bd107f78459444f887b56190e00cd732bbb89161c21b2e7bf",
+          "snapshot_target": "default py314; annotation-only differences source-audited for py313",
+          "findings": 10
+        },
+        "UP037_3.py": {
+          "source_sha256": "82e671899243076a312ac0f16814f0410e585dfbaba03149374930e13dcfc9ea",
+          "snapshot_sha256": "98e01b1a4310b13b2ececde1198e740f5e7a0f7f41be8bdb479abf0ba2058c03",
+          "snapshot_target": "py313 explicit",
+          "findings": 0
+        }
+      },
+      "files": {
+        "benchmark.toml": "c77d0be4d1d4e7959ca1fbf4df8228a43f27d637aece541aca7d2d4286bd341c",
+        "fragments/annotation-evaluation-context.ryoql": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+        "fragments/future-annotation-context.ryoql": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+        "fragments/type-definition-context.ryoql": "a0451b6cf5bebeea9a8cae4fe8c66555d66bca72fdfa1c64c1f159e2d9d957ce",
+        "fragments/suppress.ryoql": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "fragments/suppress-directives.ryoql": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "rules/UP037/query.ryoql": "7877cf8c605ef322b1f8161c33f5163a71ff0e8a44302e791050e842ab9ee566",
+        "rules/UP037/cases.toml": "bf8f4ee78f3ca6dbf730c8881cce731c21f5a0d2a3d9a2394988c37288b747d0",
+        "rules/UP037/README.md": "30a6ed7899ed509a626626cfa08b144d7ceedcbe4c0747075353201f3cf88192"
+      },
+      "correction_evidence": "/tmp/held-eight-9348-20261102/UP037/cases.jsonl"
+    }
+  },
+  "grammar_correction": "Split multi-JOIN SELECT into single-JOIN relations; source inspection only, parser/runtime not executed."
+}

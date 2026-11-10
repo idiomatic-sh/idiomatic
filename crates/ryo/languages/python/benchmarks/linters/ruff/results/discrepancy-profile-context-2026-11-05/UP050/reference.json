@@ -1,0 +1,139 @@
+[
+  {
+    "rule": "UP050",
+    "case": "independent-callable-lexical-ownership-0",
+    "executable": "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "version": "ruff 0.16.5",
+    "command": [
+      "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP050/16-state/ruff",
+      "--select",
+      "UP050",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "directory": "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP050/16",
+    "environment_overrides": {
+      "RAYON_NUM_THREADS": "1"
+    },
+    "status": 1,
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP050\",\n    \"end_location\": {\n      \"column\": 27,\n      \"row\": 2\n    },\n    \"filename\": \"/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP050/16/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 28,\n            \"row\": 2\n          },\n          \"location\": {\n            \"column\": 12,\n            \"row\": 2\n          }\n        }\n      ],\n      \"message\": \"Remove `metaclass=type`\"\n    },\n    \"location\": {\n      \"column\": 13,\n      \"row\": 2\n    },\n    \"message\": \"Class `C` uses `metaclass=type`, which is redundant\",\n    \"name\": \"useless-class-metaclass-type\",\n    \"noqa_row\": 2,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/useless-class-metaclass-type\"\n  }\n]",
+    "stderr": "",
+    "actual": {
+      "files": [
+        "case.py"
+      ],
+      "diagnostics": [
+        {
+          "rule": "UP050",
+          "file": "case.py",
+          "start": 21,
+          "end": 35
+        }
+      ],
+      "skipped": []
+    },
+    "matches_sealed_reference": true,
+    "sealed_identity": {
+      "tool": "ruff",
+      "version": "0.16.5",
+      "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "profile-sha256": "da2e353ccf25bd9ec67aa84e325385e90fa03187b2f12558de755cc7cb004026",
+      "settings-sha256": "7be2f12f1b8e538fef231f32a90f37f9b2dfd71aa672c2ff2f03a0f3b82e68c5",
+      "source-sha256": "6961abc895026fdc26341b3fb82140a42d642607ae3652d9cc608ce3c699e3cb",
+      "reference-output-sha256": "262157d341e7ecde52019638f59660782bbe0265433bcbd0e4b97678820227c3",
+      "intended-output-sha256": "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+    },
+    "normalized_settings": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "UP050",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "directory": "$ROOT",
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated",
+      "performance": {
+        "node_result_reuse": "disabled",
+        "column_kernel": false,
+        "diagnostics": {
+          "execution": false,
+          "lifecycle_memory": false,
+          "resource_routes": false,
+          "row_progress": false,
+          "steps": false,
+          "joins": false,
+          "prefixes": false,
+          "subplans": false,
+          "selection_detail": false
+        }
+      }
+    },
+    "settings_sha256": "7be2f12f1b8e538fef231f32a90f37f9b2dfd71aa672c2ff2f03a0f3b82e68c5",
+    "legacy_settings_sha256": "0ecb5007a44728384758fc04157dff42afbdb28587674bc6a3e67035093ebd32",
+    "settings_match": true,
+    "legacy_settings_match": false,
+    "evidence": [
+      {
+        "path": "evidence/lexical-ownership-cpython310.json",
+        "sha256": "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.10.19",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation."
+      },
+      {
+        "path": "evidence/lexical-ownership-cpython313.json",
+        "sha256": "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.13.5",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation."
+      },
+      {
+        "path": "evidence/lexical-ownership-probe.py",
+        "sha256": "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.10.19 and3.13.5",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags."
+      },
+      {
+        "path": "evidence/lexical-ownership-probe-inputs.json",
+        "sha256": "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.10.19 and3.13.5",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags."
+      }
+    ],
+    "profile_before_sha256": "da2e353ccf25bd9ec67aa84e325385e90fa03187b2f12558de755cc7cb004026",
+    "profile_after_sha256": "e164fdf447b9813ce32c703d6c4eed66e630b9f6c0771929cfb6dc63cecdfe1b",
+    "profile_change": {
+      "project-context-mode": {
+        "before": "implicit isolated",
+        "after": "explicit isolated"
+      }
+    }
+  }
+]

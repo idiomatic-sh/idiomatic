@@ -1,0 +1,49 @@
+[
+  {
+    "rules": [
+      "RUF046",
+      "RUF057"
+    ],
+    "patch": "RUF046-RUF057.patch.gz",
+    "patch_sha256": "c29aa0712cbe0a723af3ca84b7f84f1d9f9d3b79890a107e70a8cf2acf16eb60",
+    "manifest": "RUF046-RUF057.manifest.json",
+    "manifest_sha256": "22d4f3335e8577b9a035c67a8f850ff168f7757bb60c11b3429d0a23e9a7fec6"
+  },
+  {
+    "rules": [
+      "UP043",
+      "UP049"
+    ],
+    "patch": "UP043-UP049.patch.gz",
+    "patch_sha256": "d98cfab7f722e0da65fb00932ada0fce6d6f4dd2388cac34c19fcce66956daec",
+    "manifest": "UP043-UP049.manifest.json",
+    "manifest_sha256": "11b5c958571aef59a6b801ebeb168ab792f698ebdb89be7178d3d7de180e7786"
+  },
+  {
+    "rules": [
+      "TC010",
+      "UP037"
+    ],
+    "patch": "TC010-UP037.patch.gz",
+    "patch_sha256": "6110772ab5d8f685adacabf87972437864388a8d8fa8b7538f1c06288484a364",
+    "manifest": "TC010-UP037.manifest.json",
+    "manifest_sha256": "f86bf62c5d26fc4c1d392813d9498910c453c9405867dead3f2dd039440a21ff"
+  },
+  {
+    "rules": [
+      "UP014",
+      "UP040"
+    ],
+    "patch": "UP014-UP040.patch.gz",
+    "patch_sha256": "b552fc96026aef70cb2748e590f2e771f86d1d43b873aeb2f74bc49a0ba0233d",
+    "manifest": "UP014-UP040.manifest.json",
+    "manifest_sha256": "542c1bb0da26e349998950fd6361f5286a47a3ca0ca079eeeddb7146f1fdd730"
+  },
+  {
+    "rules": [
+      "UP037"
+    ],
+    "patch": "UP037-correction.patch.gz",
+    "patch_sha256": "74300be24667a7dc71124189cd4d234fed0063e3e0b306afaacdb2f0c12d1472"
+  }
+]

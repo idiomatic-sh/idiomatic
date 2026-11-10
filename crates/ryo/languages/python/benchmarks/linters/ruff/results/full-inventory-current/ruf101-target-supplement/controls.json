@@ -1,0 +1,51 @@
+{
+ "controls": [
+  {
+   "case_count": 47,
+   "case_results_path": "regenerated-20261109/RUF101-py310/profiles/RUF101/cases.jsonl",
+   "case_results_sha256": "a0b64518905615fe8735eb3598d4a81bd789ae0a47001bf9a523cd9516ef2811",
+   "cases_file": "rules/RUF101/cases.toml",
+   "cases_sha256": "0a88932795ecabaa49bdbaf6d46ed21436340d9bb749dfdd33ab2ad90bd44d01",
+   "contract_only": 0,
+   "documented_discrepancies": 0,
+   "native_counts": {
+    "complete_case_pairs": 47,
+    "diagnostic_parity_matches": 47,
+    "diagnostic_parity_mismatches": 0,
+    "documented_reference_discrepancies": 0,
+    "documented_tool_contract_differences": 0,
+    "execution_metadata_different": 0,
+    "execution_metadata_exact": 0,
+    "execution_metadata_incomparable": 47,
+    "incomplete_cases": 0,
+    "intended_behavior_failures": 0,
+    "intended_behavior_passes": 47,
+    "legacy_or_unknown_candidate_execution": 0,
+    "raw_parity_matches": 47,
+    "raw_parity_mismatches": 0,
+    "typed_candidate_execution_complete": 47,
+    "unexplained_mismatches": 0
+   },
+   "profile_path": "regenerated-20261109/RUF101-py310/profiles/RUF101/repro/benchmark.toml",
+   "profile_sha256": "4d0a6831f5d5fe84edfa11276c753a825137e73155d59d438d3a3bae3dd567a5",
+   "query_path": "regenerated-20261109/RUF101-py310/profiles/RUF101/repro/rules/RUF101/query.ryoql",
+   "query_sha256": "e5b9c10935586381a1e1d62c645cb718771efa7132bc5b00ecb54631172a68d8",
+   "raw_exact": 47,
+   "registration_path": "regenerated-20261109/RUF101-py310/registration.json",
+   "registration_sha256": "4c2bb8f0bb427d22fa5af04ac8d1fc0587b7056abc19ff7750028d1df7496057",
+   "rule": "RUF101",
+   "settings_source": "profiles/RUF101/benchmark.toml",
+   "settings_source_sha256": "25460375c9c1a1e8f8717a12adc7775729dbd541a6bff10ebdcc0e33ed5443bd",
+   "summary_path": "regenerated-20261109/RUF101-py310/summary.json",
+   "summary_sha256": "2a812530c3ad2289a8a2fad46f1f0523cf7c910b648c5244e146f499eaaee93b",
+   "target": "py310"
+  }
+ ],
+ "identity": {
+  "collector_sha256": "68af3283c411ebf816ebae148f4f137c2f366693dd3a5d3004e6d7dbffa94fd0",
+  "inventory_sha256": "02816f355dcbf13771a5dfdecb13ada8ddbde121049326efc466c9986db3b1d4",
+  "phase_registry_sha256": "4520b056ef5c94924be98477ee160c5405ddb9d4dc92dd40f72e78a23f959f0c",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "worker_sha256": "bde1335bd1a8031cc8f2310f48b5b0baad182c8190c09e4d6dad0c8f8a99019b"
+ }
+}

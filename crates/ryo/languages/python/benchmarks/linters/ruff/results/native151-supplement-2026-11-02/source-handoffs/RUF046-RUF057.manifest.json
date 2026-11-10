@@ -1,0 +1,69 @@
+{
+  "status": "source-only; no replay/admission",
+  "rules": {
+    "RUF046": {
+      "stage": "/tmp/ruf046-ruf057-source-batch-20261102/RUF046",
+      "cases": 29,
+      "fixtures": {
+        "RUF046.py": {
+          "source_sha256": "c8341de15de344e7487c68d449a5ea44f6b6d7235d061df780ec8b860ad048de",
+          "snapshot_sha256": "88783ce4eb325b890b57be204a1e221ea753073755947119edae7037a41a9748",
+          "findings": 59
+        },
+        "RUF046_CR.py": {
+          "source_sha256": "9d1624ab1b9721eb74c1d24b28be4a83f57d1c1644be2a00dc4060bfc5343d70",
+          "snapshot_sha256": "282f00f7a3f0b0ef019c60b772bfc1742782cc00bff13f67de91e9029dd54b9f",
+          "findings": 1
+        },
+        "RUF046_LF.py": {
+          "source_sha256": "46d48a725647bb91ba9d1d69d2624278a51a8cf0edd236ce7cf914c41b5826ff",
+          "snapshot_sha256": "51d9d678797aa0c2f197743554400f4039b6d7f5f54e83bbb07a67b4f650e6d8",
+          "findings": 1
+        }
+      },
+      "files": {
+        "benchmark.toml": "6418d234dfbbe3f6c023e950e62c4e5d4d7f0a033369aed8e08c024d225954cc",
+        "fragments/round-values.ryoql": "356583898e0f2412abbc20e740c5f121180edbd5937433b76132833e8f9ae05b",
+        "fragments/binding-type.ryoql": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+        "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+        "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+        "fragments/suppress.ryoql": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "fragments/suppress-directives.ryoql": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "rules/RUF046/query.ryoql": "2b07b2d671538c7a84b8aed27bd87d68951533a9f7915f65b9ac977a8095dac4",
+        "rules/RUF046/cases.toml": "cc7a896f39f5650ba5d507f0ab24b4cbe4d0ec13649b522efbaf082132b06988",
+        "rules/RUF046/README.md": "b43e7955d17086d30efa53357f969c00025ea5935525d53d204cfd1baa7a62cf"
+      }
+    },
+    "RUF057": {
+      "stage": "/tmp/ruf046-ruf057-source-batch-20261102/RUF057",
+      "cases": 28,
+      "fixtures": {
+        "RUF057.py": {
+          "source_sha256": "8982dc8131115de70046986427a6c68144f253476a5042d8f4c4c17882709e9a",
+          "snapshot_sha256": "b74b12fd30cf961ec4d691bc61fed0c4f35168d3de0b629d76d25eb10e8e3d0b",
+          "findings": 13
+        }
+      },
+      "files": {
+        "benchmark.toml": "e94b96daf731a9bdf071f2251c5633a23fa44999de84abc9537ffcf8fd18a0b3",
+        "fragments/round-values.ryoql": "356583898e0f2412abbc20e740c5f121180edbd5937433b76132833e8f9ae05b",
+        "fragments/binding-type.ryoql": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+        "fragments/assigned-values.ryoql": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+        "fragments/type-match-at-check.ryoql": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+        "fragments/suppress.ryoql": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+        "fragments/suppress-directives.ryoql": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+        "rules/RUF057/query.ryoql": "4c0d3a21868bd3d9cbf0a15b398d63ad9206818f7a2805320daeaed5dd3c7ce4",
+        "rules/RUF057/cases.toml": "db03436e3adf6e57f9afc92542106b78d316ce8adad12eb521cfb5b430b5b6bb",
+        "rules/RUF057/README.md": "5b1dda74812cf3ffa2e9f0104e990e050afea1cdfd38a1954f346299c9449b7f"
+      }
+    }
+  },
+  "canonical_helpers": {
+    "python/ruff/binding-type": "24acc8ec7efcd738bf2379d02ed355932c87aa0dfa8e92c9254b2784635a8141",
+    "python/ruff/assigned-values": "c78ef906aa7e8b31cc6a4935eed21b9da2034ed392cb56da712889d5168ffb86",
+    "python/ruff/type-match-at-check": "f6ab40cc1f8c909331adc33de3caa5a2333a4dab04b1b765c339dff97a83f26b",
+    "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+    "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+  },
+  "grammar_correction": "Split multi-JOIN SELECT into single-JOIN relations; source inspection only, parser/runtime not executed. Output relation string columns corrected to supported symbol kind (string is parameter-only)."
+}

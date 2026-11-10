@@ -1,0 +1,144 @@
+{
+  "source_revision": "0bace568ce915e534c8075de8f3949adb9986948",
+  "scope": "13 canonical singleton profiles; only explicit isolated context and resealed raw profile identity",
+  "reference_only": true,
+  "candidate_executed": false,
+  "rule_count": 13,
+  "discrepancy_cases": 77,
+  "reference_outputs_matched": 77,
+  "actual_settings_matched": 77,
+  "profiles": [
+    {
+      "rule": "FURB122",
+      "discrepancy_cases": 13,
+      "profile_before_sha256": "4dfe4940917dd33a1dd122c2234805708c3a6027946fae1f2092e68998f961cd",
+      "profile_after_sha256": "622ad597d875252c11688c9627034033af17bc459936fe70ed2e8e4943e13f2b",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "2e65bbb1797e973e8ca00032131222f90f403a9f71f80887ebaf65fdaacc13c1",
+      "reference_record_sha256": "21db42b6517373111e5e7a7e21fff0df4a7181c98d6425d3e63a5446ed61335f"
+    },
+    {
+      "rule": "FURB129",
+      "discrepancy_cases": 34,
+      "profile_before_sha256": "a0e721b40753c5009c62631ae89e504f1225f6113c6090e6b3bf694a9618aae7",
+      "profile_after_sha256": "161e547b8ffbaa2476c0b6fc27277d2339eeeab66c634107749f6ca4f38a98fb",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "38b5478083434542fcc72675856150af7e73fab5caa46f29ecafeedbb048d10c",
+      "reference_record_sha256": "faa7142759db7f885201af343285c7e7d72e2690dfd46f7187faa92650fad6d5"
+    },
+    {
+      "rule": "PLE0643",
+      "discrepancy_cases": 3,
+      "profile_before_sha256": "0ad7e3ce38a5c5f5889e90f631e2b3565b5755ee90c64910bd18cb0030eaadb3",
+      "profile_after_sha256": "41b21528d55e06e9c75849a8dfa628c4093c0306873dadd1d21789d96494f54e",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "27494535307e13516d34e4502ac8d7bf5f3eb0f747d969285e063f8b98722e78",
+      "reference_record_sha256": "914fb400a7a3da495614084b91ac327d50df033097d1021167de018be1518eb2"
+    },
+    {
+      "rule": "PLE1142",
+      "discrepancy_cases": 1,
+      "profile_before_sha256": "f19c8e406a4f20cded8d61490ec7708c24c89f3cfae399e0a8b9d2ca42530153",
+      "profile_after_sha256": "85ec39079844b2dfac5fb5429605bac1c75e6a830dd5372845a597e4dec7eff9",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "1cc1733a2e43f75e4a599d8820feeac5ac644f6f05f03e804513ff5bfc7c09c3",
+      "reference_record_sha256": "c3f2a6853571ccdbfa3432783460c2ca1c2c846f2bcccffcaf8bf9426348086c"
+    },
+    {
+      "rule": "PLE1700",
+      "discrepancy_cases": 1,
+      "profile_before_sha256": "4eb744baca3ad036bfd6d192df35f8c6352bedfbf740072e68dfc546807e0ba5",
+      "profile_after_sha256": "67bbb2814fdd6cded6d3cccbeec98526c03b9b866150f9f6a9745f7a6946f6eb",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "c261e753974be28883993099ee1ce1c4476a339cc701e4bbc6d648f1284ce99d",
+      "reference_record_sha256": "5ab1ed4c2828e6c0aac3cfd011c3ca2773fea56cf5fc792a587b5761f689d26d"
+    },
+    {
+      "rule": "PLW2101",
+      "discrepancy_cases": 1,
+      "profile_before_sha256": "83a342b74376fee50a4804e4f14d6e2884113eab1e7067bdd306950c865f902b",
+      "profile_after_sha256": "00fad5f0e7a8c4dcdbb89dcc6f817efb69592c20e771bbf3867064b0d1511602",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "c50565669e575323f89d90f5cdba6f311151e4c09f239847bfb1a1ea41690019",
+      "reference_record_sha256": "76982bfde51096ea3831dedc35074311528ed1750aede2abc25e039bc8050842"
+    },
+    {
+      "rule": "RUF007",
+      "discrepancy_cases": 4,
+      "profile_before_sha256": "985e45a3f387dc7003eec463ab940994717e9cf9272547385956173bfb551518",
+      "profile_after_sha256": "9a0e017eb6dac361eb7e4de6d770931691bdbba5d5bf2c216b2a87d28782bacd",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "3716e853e040fcacd4c7e4830c1aeca099188f8a79d3f123030978b11eb0a400",
+      "reference_record_sha256": "dc5f00c3c9bc480fbca58caa3d5328fbf4b60fb58ffcecee138d585298b50fbe"
+    },
+    {
+      "rule": "RUF028",
+      "discrepancy_cases": 4,
+      "profile_before_sha256": "1d20ece05f14fb118ea19358b07ab34ddc404aa4fdd463814c211141c6977101",
+      "profile_after_sha256": "d08cd9234c642c0c52cc924aeb4af48e173d77c140127a837edca02b2e88135d",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "7bd9abb34835b1787a9fe888abe01f8fac60809a4ee4a75497a4078010ea4a1c",
+      "reference_record_sha256": "1afabb5901b46eb66b023010a9466898bfc689644b82192c6155f69fc6718255"
+    },
+    {
+      "rule": "SIM113",
+      "discrepancy_cases": 2,
+      "profile_before_sha256": "9558014fdc581c04edf1e9c0feaa1ca0f58335513a21b3b55a625a997e725344",
+      "profile_after_sha256": "c58c65ea4cc2778d69a1dcb7a646d58857cd5cdec40196ff8d3e589f077cfdfc",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "4ee99fbb6f726be14970dd8370dc095e39a79892aa5798950e20b22797c3fad3",
+      "reference_record_sha256": "b2b2760bcaa1ed49b03a8e582ba538892c630ec4205c86bb484eb636c038af2c"
+    },
+    {
+      "rule": "UP008",
+      "discrepancy_cases": 4,
+      "profile_before_sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+      "profile_after_sha256": "33f864ab9c5a87c5fdddb5f511cd19a745a1f71faee8476fbb520fd5b0684083",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "0b804e01c341591d278e3a142093c1f18b81f1b0a1af0ee95c9bfe30ac9e011f",
+      "reference_record_sha256": "847244cf6a13245ac9eee9e56c05c40413ea6cb72528a3490cf1855e1889c738"
+    },
+    {
+      "rule": "UP012",
+      "discrepancy_cases": 8,
+      "profile_before_sha256": "0b2b162c58b7281c0632266cdffdef7d542febca76549820817eb012ad2caba2",
+      "profile_after_sha256": "adfb67c3d51d1367c24136758a84d315f3dd9d456295e36cd7d02ec6d3248f78",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "68aa24d64fe8edb9db2ff3b487230505f5b730301b7c20347b1bf0bdb16f91fe",
+      "reference_record_sha256": "3cef92e90ff11e1cddd411240f7fe744e7ca980915d65fbbc0f3dd70844981ad"
+    },
+    {
+      "rule": "UP045",
+      "discrepancy_cases": 1,
+      "profile_before_sha256": "a6a2d2ef51d5a8eb510c1a325d5b4fedd81ba324554528c17dc386f89848286e",
+      "profile_after_sha256": "7e8cd765c81fcb1fde5fb19bb393c044fa442b1ea148e6ec7ed90bb77def667c",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "5eb8ba11b4192e4e168ad47456bd971167d4a33e415573240492d984aaba88c7",
+      "reference_record_sha256": "4557a5a49a90062d81256a4cfd8483f88449d1c843303097c271222576a04559"
+    },
+    {
+      "rule": "UP050",
+      "discrepancy_cases": 1,
+      "profile_before_sha256": "da2e353ccf25bd9ec67aa84e325385e90fa03187b2f12558de755cc7cb004026",
+      "profile_after_sha256": "e164fdf447b9813ce32c703d6c4eed66e630b9f6c0771929cfb6dc63cecdfe1b",
+      "matches_run79_staged_bytes": true,
+      "case_bytes_change": "reference-discrepancy.identity.profile-sha256 only",
+      "cases_sha256": "f46c8078998c1f37020a0ab21cc96cc3b862fd201835eb1fe465164d1aefabc0",
+      "reference_record_sha256": "81018684b22d053377171ef123ac9b3144491e48700620d02f417259298d1ce8"
+    }
+  ],
+  "staged_case_count": 771,
+  "staging_audit": "All 13 admitted through actual stage_full_inventory_rule after resealing; staged canonical profile bytes match source exactly."
+}

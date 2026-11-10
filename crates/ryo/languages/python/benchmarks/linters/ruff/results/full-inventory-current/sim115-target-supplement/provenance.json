@@ -1,0 +1,25 @@
+{
+  "source_patch_sha256": "30c234cf86162c5b9df013c67a656f5ef4ba8e0f56c26fdc4eaa15b2cbb4a5c5",
+  "worker_sha256": "4c3825271775cabd1f72a71ac8d4af6353c3619ec4e9aff0f07d46ab72f9e9e1",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "native_cases_sha256": "0ea4115e1ac8dfd10ff92268dd364da750ea57ae807d7f0f0b58d313b3534ed2",
+  "collector_executed": false,
+  "raw_records_unchanged": true,
+  "counts": {
+    "complete_case_pairs": 26,
+    "incomplete_cases": 0,
+    "raw_parity_matches": 26,
+    "raw_parity_mismatches": 0,
+    "documented_reference_discrepancies": 0,
+    "unexplained_mismatches": 0,
+    "intended_behavior_passes": 26,
+    "intended_behavior_failures": 0,
+    "diagnostic_parity_matches": 26,
+    "diagnostic_parity_mismatches": 0,
+    "execution_metadata_exact": 0,
+    "execution_metadata_different": 0,
+    "execution_metadata_incomparable": 26,
+    "typed_candidate_execution_complete": 26,
+    "legacy_or_unknown_candidate_execution": 0
+  }
+}

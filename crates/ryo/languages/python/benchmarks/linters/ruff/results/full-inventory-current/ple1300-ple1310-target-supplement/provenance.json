@@ -1,0 +1,57 @@
+{
+  "schema": "source-bound-python-rule-fixture-proof/v1",
+  "identity": {
+    "worker_sha256": "0c8585f02b5ea65162237296cd7ea48a2db11d84b00ae5479c205eb55e5f6874",
+    "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8"
+  },
+  "source_head": "04a5d349689144233f94be2fd0fe8230e7b5ec0f",
+  "worker_seal": {
+    "worker": "/tmp/demand-admission-release-20261102/python-release-sealed",
+    "worker_sha256": "0c8585f02b5ea65162237296cd7ea48a2db11d84b00ae5479c205eb55e5f6874",
+    "worker_bytes": 10511256,
+    "source_head": "04a5d349689144233f94be2fd0fe8230e7b5ec0f",
+    "source_stable": true,
+    "source_paths": 101,
+    "source_before_sha256": "5a4d667bb8bca50fef0702ae9d3cf3ed40b8f603cf78f0e2ea7dab9bf57f9e2a",
+    "source_after_sha256": "5a4d667bb8bca50fef0702ae9d3cf3ed40b8f603cf78f0e2ea7dab9bf57f9e2a",
+    "build_jsonl_sha256": "34912c9830affb93c5e89a119ccb38b243f75aaefa95fe34e1c192a875f2211f",
+    "artifact": "/workspaces/idiomatic-benchmark-guards/target/release/deps/ruff-15c3eb82f35d5703",
+    "artifact_target": {
+      "kind": [
+        "bench"
+      ],
+      "crate_types": [
+        "bin"
+      ],
+      "name": "ruff",
+      "src_path": "/workspaces/idiomatic-benchmark-guards/crates/ryo/languages/python/benchmarks/linters/ruff/bench.rs",
+      "edition": "2024",
+      "doc": false,
+      "doctest": false,
+      "test": false
+    },
+    "artifact_profile": {
+      "opt_level": "3",
+      "debuginfo": 0,
+      "debug_assertions": false,
+      "overflow_checks": false,
+      "test": true
+    },
+    "cargo_command": "flock -x /workspaces/.cargo-build.lock cargo build --release -p idiomatic-sh-ryo-python --bench ruff --locked -j 6 --message-format=json",
+    "wall_seconds": 65.19663191500149
+  },
+  "receipt_origin": "Derived offline from preserved successful native verify-cases execution and its strict v2 records; not a collector invocation, combined413 replay, or re-verification of earlier proofs.",
+  "scope": "Only PLE1300 andPLE1310 default+declared countertarget cases; no other previous PASS is reverified. Exact initial failures and raw reference output preserved in archive.",
+  "source_patch_chain": [
+    "40a601e0f764ba7ec04dacc15585defe4707f2b731bf9ba90543fa14caafc06a",
+    "a22f318882b3ea6af8528a96c55077ee11eb8e5d96a36df5aea65b50a4467595",
+    "646ebd5990c6b28463e39273e6676d75915eb9fba518f1efefff023f826ae0cd",
+    "c69ed999c934b8646a17f3f19912a506fa0e424ce4cc5f8ede60f6cb67e370de",
+    "5702e2b083a7c3e60ed609dccf2c4c65000049ca9b9f70c80b99e70b65626e4c",
+    "0726d6d27600b7f15ff2f2ba52bc7d6d1860b7a6694ed2a37b0646c6badc912d",
+    "1db8c21a8773997072c1228199ffd3bac9b87d50394da07f883381b46861dd8a",
+    "8ed4be720fa9983517b74710930a59d0d15ce079547ca5d42524490ee7536c3a",
+    "1f024c368c7319f7d3b41edd7f88cbde49529cff443fd3e7e5c2f79641e1ed0a"
+  ],
+  "language_evidence": "Actual CPython3.10.19 executes10 unchanged-source controls. Python3.11 documentation establishes z introduction; separately labeled actual3.14 supports it. No3.11 interpreter execution claimed."
+}

@@ -1,0 +1,40 @@
+{
+  "rule": "UP043",
+  "command": [
+    "/tmp/graph-schedule-contract-gate-20261102/python-release-sealed",
+    "verify-cases",
+    "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "/tmp/up043-up049-source-batch-20261102/UP043"
+  ],
+  "worker_sha256": "934872341208654f3e8228aae360131703417cacd27d4dfbb8fbbcd437364bb5",
+  "ruff_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "patch_sha256": "d98cfab7f722e0da65fb00932ada0fce6d6f4dd2388cac34c19fcce66956daec",
+  "manifest_sha256": "11b5c958571aef59a6b801ebeb168ab792f698ebdb89be7178d3d7de180e7786",
+  "stage_files_sha256": {
+    "benchmark.toml": "3d40519ad6351f02e81376a5c5737bef1c7727723816c693facb30beb20269df",
+    "fragments/suppress.ryoql": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+    "fragments/suppress-directives.ryoql": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d",
+    "rules/UP043/query.ryoql": "4477fee0ef184b535c1bb4c41eef50836df4f28d8d1e2c93b910301998351ca5",
+    "rules/UP043/cases.toml": "2f96fd248e5c07690f1a000b3587cf7f3590b0a9977915e04217bd1541ee8dba",
+    "rules/UP043/README.md": "2ac51b8ff488c1e8d38d3f48ba81e2e89e6474b10fb12330acdc4730335a2968"
+  },
+  "exit_code": 0,
+  "wall_seconds": 0.467387097000028,
+  "stdout_sha256": "72dd91507daa0d59fdb8c5621beb11bc594f02d6656ca612d983ae800bd02fde",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "cases_sha256": "a12aa02cf6a84e034551582ebfc1e1b8bfa925e4b1b7f8d79900b08941863f62",
+  "counts": {
+    "candidate": {
+      "rows": 18,
+      "passed": 18,
+      "raw_exact": 18,
+      "documented": 0
+    },
+    "reference": {
+      "rows": 18,
+      "passed": 18,
+      "raw_exact": 18,
+      "documented": 0
+    }
+  }
+}

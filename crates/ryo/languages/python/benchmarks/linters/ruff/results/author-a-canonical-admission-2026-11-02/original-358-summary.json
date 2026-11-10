@@ -1,0 +1,391 @@
+{
+  "worker_sha256": "6540ecd69e387437f7e2a7a03eebaeb24544ec97bd0dcfba9520ca7e46e4f83c",
+  "status": "strict source-proof; admission remains integration-owned",
+  "profiles": {
+    "UP007": {
+      "status": 1,
+      "process_status": 1,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 31,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 30,
+        "raw_parity_mismatches": 1,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 1,
+        "intended_behavior_passes": 30,
+        "intended_behavior_failures": 1
+      },
+      "receipt_sha256": "7bef3df56803ee87e1b0a71b88e1f4ad0041e73f9b02922448cce06fb7fe2a1d",
+      "stage_seal_sha256": "f64436c960e34523675a771dc0fa8ab84d7cdb46626a9b1597324d59c4c77b42",
+      "case_results_sha256": "eacb3fd1926f9629cb42f8c5173d57175ca6771423fc3567491e8bea801b984d"
+    },
+    "UP045": {
+      "status": 0,
+      "process_status": 0,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 31,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 31,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 31,
+        "intended_behavior_failures": 0
+      },
+      "receipt_sha256": "6e8419673d0a85bf02eab8eee03a6ad698c7e108ca2fec89cf4fb3dd45ebc596",
+      "stage_seal_sha256": "ea44f5bedade35275cf09162323a8330ce1043cfdb1b5ada881f7ef8d4f78b47",
+      "case_results_sha256": "dffff26e345543bd1a507a4b737652b6ba3459909496978af16de3a3fa704b04"
+    },
+    "UP050": {
+      "status": 0,
+      "process_status": 0,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 16,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 16,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 16,
+        "intended_behavior_failures": 0
+      },
+      "receipt_sha256": "aa1db784195ae5a3baea366c39544b8bb96e1c3d835b0a7501cc15f648b118cd",
+      "stage_seal_sha256": "87ef3d12ba9d2eeb6ed5f055c729afc8880e73e35314b4a2391cd1ef97bf40f8",
+      "case_results_sha256": "bdfae47a3543b95493cc711f210713050a9ac1dcafcd63a8ab9f3326187bf31c"
+    },
+    "UP030": {
+      "status": 0,
+      "process_status": 0,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 36,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 36,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 36,
+        "intended_behavior_failures": 0
+      },
+      "receipt_sha256": "996662133401b65f92073d03f8239b0ad68c1bb8a5ace536dba4580e3cbd439b",
+      "stage_seal_sha256": "6bd60067efb3c708e1cf0a0369ae46ea6eb22d8a172a41ce7f1c90c35ff72bb5",
+      "case_results_sha256": "86d57486518d5d45a34fb047d780d83f9d4a7311d18fd240eeb655ca928f7728"
+    },
+    "UP044": {
+      "status": 0,
+      "process_status": 0,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 29,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 29,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 29,
+        "intended_behavior_failures": 0
+      },
+      "receipt_sha256": "456ca4439b5f0f6dab34780b9ec0525df4ef72617f45fbe8bc9a0c7d3fa1bd5b",
+      "stage_seal_sha256": "2e3ec6c997a2b13c3ba43f7f235a449c627277a3fe8be58cc68ed03ef2b8cef9",
+      "case_results_sha256": "9910ef2573639aa99c20c2a51d8c456d0b7e029ee12b0fa28a93de42371f51cb"
+    },
+    "PLE1142": {
+      "status": 1,
+      "process_status": 1,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 49,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 48,
+        "raw_parity_mismatches": 1,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 1,
+        "intended_behavior_passes": 48,
+        "intended_behavior_failures": 1
+      },
+      "receipt_sha256": "2ea6b263f7b4b11f0eef2dfb2e0bef9173fd46a476bf900baead25b0dbf09291",
+      "stage_seal_sha256": "14077d067b45a870b285ba35b6da0537d324999a1f7d47cd63ccbf17f9d861f8",
+      "case_results_sha256": "95777c2a1856e54a72843fd5b53d00367afbff5ee8b5669dc1d01b8a8ec216a1"
+    },
+    "PLE1700": {
+      "status": 1,
+      "process_status": 1,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 35,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 34,
+        "raw_parity_mismatches": 1,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 1,
+        "intended_behavior_passes": 34,
+        "intended_behavior_failures": 1
+      },
+      "receipt_sha256": "927c9e58ddd5ae19fec68b120c8b0c428e2afb504315c393058ea27895dee313",
+      "stage_seal_sha256": "072d5905682658644b2fa828d08da1f5bb88fc5ca055b77ff0bde0366f533b2a",
+      "case_results_sha256": "3265e638549c2f150697acedba7fd57941f3f251cbbeb25dc6aa9b09e5932d5e"
+    },
+    "EXE004": {
+      "status": 0,
+      "process_status": 0,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 21,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 21,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 21,
+        "intended_behavior_failures": 0
+      },
+      "receipt_sha256": "128483c3c5f969528b7d805e3138663f76ab5847eac9e4ca66c61a156daf1885",
+      "stage_seal_sha256": "69c88d937b1d49a1f8a7d8b266f184cc6beca43e991090059a253f72c6b36011",
+      "case_results_sha256": "6af61565b2d7efb1bea1082d61cbf887f59377a3f8622ea3fa81ec674b1c19ad"
+    },
+    "ISC004": {
+      "status": 0,
+      "process_status": 0,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 26,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 26,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 26,
+        "intended_behavior_failures": 0
+      },
+      "receipt_sha256": "d5fa20e5df49b74d46f7b903eba3c2d3dc842f12b7bbc41301c15485b8587071",
+      "stage_seal_sha256": "9dac9d52b3336e16d56bf50cdeb76996619eea2fdb634bb5a09ecc393b86b153",
+      "case_results_sha256": "d283bee66ac8d0afb4ad82511394bdd79e14cb8244bdb73777c18a98ce35a4c5"
+    },
+    "FLY002": {
+      "status": 0,
+      "process_status": 0,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 38,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 38,
+        "raw_parity_mismatches": 0,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 0,
+        "intended_behavior_passes": 38,
+        "intended_behavior_failures": 0
+      },
+      "receipt_sha256": "579f2cfc1fb7c07e44ebbef29c4cca121cd7711b7eb7874f79e487695e8a0d02",
+      "stage_seal_sha256": "fe9ac060b2f692b06fc10abd611e2b127d29d6ce062168c89060313504e6cf49",
+      "case_results_sha256": "2ec635ca47533707146236b8f39d2a3fde2d6d2e1a79c947cd0d9809f64939f8"
+    },
+    "SIM113": {
+      "status": 1,
+      "process_status": 1,
+      "error": null,
+      "counts": {
+        "complete_case_pairs": 46,
+        "incomplete_cases": 0,
+        "raw_parity_matches": 44,
+        "raw_parity_mismatches": 2,
+        "documented_reference_discrepancies": 0,
+        "unexplained_mismatches": 2,
+        "intended_behavior_passes": 44,
+        "intended_behavior_failures": 2
+      },
+      "receipt_sha256": "d8ffb671028d4d404e8b147f8aa9a716e7b604c4eae53c12e84072f18e7f75f4",
+      "stage_seal_sha256": "cc1d39550cf1623e91a0109a556f44cf1bfd03bbab69d61bde149f858bc78444",
+      "case_results_sha256": "7be3210b5cc65744927348c4387001836657c42bb0e02971c2f86545c8502929"
+    }
+  },
+  "differences": [
+    {
+      "profile": "UP007",
+      "case": "tagged-UP007_1.py",
+      "source_sha256": "9fc62ae9104c0ba04c440062078ae2acfabcd20bac5b571bd6ab480d31d419ce",
+      "comparison": "full",
+      "missing": [],
+      "extra": [
+        {
+          "file": "case.py",
+          "rule": "invalid-syntax",
+          "start": 3694,
+          "end": 3728
+        }
+      ],
+      "reference_case_passed": true,
+      "candidate_case_passed": false
+    },
+    {
+      "profile": "PLE1142",
+      "case": "authored-nested-lambda-in-generator",
+      "source_sha256": "9cf780dbbd473b1f69f7f117b683f71e59f92781a7cf1a48315736fbb1ef3711",
+      "comparison": "full",
+      "missing": [],
+      "extra": [
+        {
+          "file": "case.py",
+          "rule": "PLE1142",
+          "start": 30,
+          "end": 39
+        }
+      ],
+      "reference_case_passed": true,
+      "candidate_case_passed": false
+    },
+    {
+      "profile": "PLE1700",
+      "case": "authored-class-base-outer-async",
+      "source_sha256": "6bf4b6fdecb72f1f054dedbec3e270f19ff1d45fcb677dc0f7a2eba5e31c4b7b",
+      "comparison": "full",
+      "missing": [],
+      "extra": [
+        {
+          "file": "case.py",
+          "rule": "PLE1700",
+          "start": 28,
+          "end": 41
+        }
+      ],
+      "reference_case_passed": true,
+      "candidate_case_passed": false
+    },
+    {
+      "profile": "SIM113",
+      "case": "closure-before-initializer",
+      "source_sha256": "629c96cc7242fa53b736476e2087cd6518655872652b7e23474121512ac772d1",
+      "comparison": "full",
+      "missing": [
+        {
+          "file": "case.py",
+          "rule": "SIM113",
+          "start": 77,
+          "end": 83
+        }
+      ],
+      "extra": [],
+      "reference_case_passed": true,
+      "candidate_case_passed": false
+    },
+    {
+      "profile": "SIM113",
+      "case": "closure-inside-loop",
+      "source_sha256": "a83a00cd9cbc916e3eda8d26e528aaed3df06a705a9fc1cb748058d6460cc9a4",
+      "comparison": "full",
+      "missing": [
+        {
+          "file": "case.py",
+          "rule": "SIM113",
+          "start": 81,
+          "end": 87
+        }
+      ],
+      "extra": [],
+      "reference_case_passed": true,
+      "candidate_case_passed": false
+    }
+  ],
+  "unsupported": {
+    "UP007-py39": {
+      "status": "pending unsupported parser configuration",
+      "profile_file": "profiles/UP007-py39/benchmark.toml",
+      "profile_sha256": "e9858597869609f023ac0f5047a6fb9d5946b803a9f6bae53107056f2e624828",
+      "cases_file": "rules/UP007/cases-py39.toml",
+      "cases_sha256": "8333c67d083c1aa20fbdf59a3d2346d3b42ec15dd9ba3f58905af472131e5881",
+      "case_count": 4,
+      "case_names": [
+        "py39-annotation",
+        "py39-future-annotation",
+        "py39-future-runtime",
+        "py39-quoted-annotation"
+      ],
+      "selected_rules": [
+        "UP007"
+      ],
+      "parser_configuration": "python-target=3.9"
+    },
+    "UP007-py314": {
+      "status": "pending unsupported parser configuration",
+      "profile_file": "profiles/UP007-py314/benchmark.toml",
+      "profile_sha256": "f51b6d17807e981b6b6825bddeb7d5bf25eeedb0dee5f22d3f9d9d9ff856dd04",
+      "cases_file": "rules/UP007/cases-py314.toml",
+      "cases_sha256": "b5e96c0eb69e8abc5b37f21cbcb3594f87de1a12866fabbf39169b09c2b1cb88",
+      "case_count": 4,
+      "case_names": [
+        "py314-annotation",
+        "py314-future-annotation",
+        "py314-future-runtime",
+        "py314-quoted-annotation"
+      ],
+      "selected_rules": [
+        "UP007"
+      ],
+      "parser_configuration": "python-target=3.14"
+    },
+    "UP045-py39": {
+      "status": "pending unsupported parser configuration",
+      "profile_file": "profiles/UP045-py39/benchmark.toml",
+      "profile_sha256": "b55e278acf45af00bb1fae4f9a11082d1ee6e71a3ca0ad3afe11e8a13a7673a5",
+      "cases_file": "rules/UP045/cases-py39.toml",
+      "cases_sha256": "a95dfca2ea5e607a5e5ec2efb82750ca7669baabeb36e31b47e16d66d48ded4a",
+      "case_count": 4,
+      "case_names": [
+        "py39-annotation",
+        "py39-future-annotation",
+        "py39-future-runtime",
+        "py39-quoted-annotation"
+      ],
+      "selected_rules": [
+        "UP045"
+      ],
+      "parser_configuration": "python-target=3.9"
+    },
+    "UP045-py314": {
+      "status": "pending unsupported parser configuration",
+      "profile_file": "profiles/UP045-py314/benchmark.toml",
+      "profile_sha256": "1c83e6d45905157945f96e3c19b25528f31cfaa5aab29e3276dd0a3605c03819",
+      "cases_file": "rules/UP045/cases-py314.toml",
+      "cases_sha256": "305d0c7f98764bab8ba3be8c759c736d83dc780721a5b8887dd6af08d9c2c3e9",
+      "case_count": 4,
+      "case_names": [
+        "py314-annotation",
+        "py314-future-annotation",
+        "py314-future-runtime",
+        "py314-quoted-annotation"
+      ],
+      "selected_rules": [
+        "UP045"
+      ],
+      "parser_configuration": "python-target=3.14"
+    }
+  },
+  "source_unchanged": true,
+  "totals": {
+    "complete_case_pairs": 358,
+    "incomplete_cases": 0,
+    "raw_parity_matches": 353,
+    "raw_parity_mismatches": 5,
+    "documented_reference_discrepancies": 0,
+    "unexplained_mismatches": 5,
+    "intended_behavior_passes": 353,
+    "intended_behavior_failures": 5
+  },
+  "native_pass_profiles": [
+    "UP045",
+    "UP050",
+    "UP030",
+    "UP044",
+    "EXE004",
+    "ISC004",
+    "FLY002"
+  ],
+  "pending_profiles": [
+    "UP007",
+    "PLE1142",
+    "PLE1700",
+    "SIM113"
+  ]
+}

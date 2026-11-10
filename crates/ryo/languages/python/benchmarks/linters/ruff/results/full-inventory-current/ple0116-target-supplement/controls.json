@@ -1,0 +1,69 @@
+{
+ "controls": [
+  {
+   "case_count": 12,
+   "case_results_path": "regenerated-20261109/PLE0116-py37/profiles/PLE0116/cases.jsonl",
+   "case_results_sha256": "11a5406bba8a04c9ba2086b59327425f0f6da0a68e51c9fc19cb244ff106049f",
+   "cases_file": "rules/PLE0116/cases.toml",
+   "cases_sha256": "db28cecfd461a9cd42780f183f4b29987fa3f4cfdd9aaa371fe2e92d26fa3b18",
+   "contract_only": 0,
+   "documented_discrepancies": 0,
+   "native_counts": {
+    "complete_case_pairs": 12,
+    "diagnostic_parity_matches": 12,
+    "diagnostic_parity_mismatches": 0,
+    "documented_reference_discrepancies": 0,
+    "documented_tool_contract_differences": 0,
+    "execution_metadata_different": 0,
+    "execution_metadata_exact": 0,
+    "execution_metadata_incomparable": 12,
+    "incomplete_cases": 0,
+    "intended_behavior_failures": 0,
+    "intended_behavior_passes": 12,
+    "legacy_or_unknown_candidate_execution": 0,
+    "raw_parity_matches": 12,
+    "raw_parity_mismatches": 0,
+    "typed_candidate_execution_complete": 12,
+    "unexplained_mismatches": 0
+   },
+   "profile_path": "regenerated-20261109/PLE0116-py37/profiles/PLE0116/repro/benchmark.toml",
+   "profile_sha256": "7b004004abc94cec309829cfc8c7583b4e5f5cf406fa109e2247eb6f7b8df11f",
+   "query_path": "regenerated-20261109/PLE0116-py37/profiles/PLE0116/repro/rules/PLE0116/query.ryoql",
+   "query_sha256": "e98268b93320026d7684a07dc91d039a0de16070f2abee10d1a5451f9ed8d6a9",
+   "raw_exact": 12,
+   "registration_path": "regenerated-20261109/PLE0116-py37/registration.json",
+   "registration_sha256": "d3325015ba0ca14e11991bfe8b321b02ea77b7d35ac19684d54b8505fb66b583",
+   "rule": "PLE0116",
+   "settings_source": "profiles/PLE0116/benchmark.toml",
+   "settings_source_sha256": "8c03c6883b0c0e47f84dcca86cd92b9f8b95891a1a86ac51385e5149b3bcfbb3",
+   "summary_path": "regenerated-20261109/PLE0116-py37/summary.json",
+   "summary_sha256": "ca2ce7d74ea3d5db899277a502ba5f777702317cb2274e6eb086b144c5febca3",
+   "target": "py37"
+  }
+ ],
+ "direct_negative": [
+  {
+   "archive_prefix": "regenerated-20261109/PLE0116-py310-direct/direct",
+   "canonical_cases_sha256": "db28cecfd461a9cd42780f183f4b29987fa3f4cfdd9aaa371fe2e92d26fa3b18",
+   "cases_path": "regenerated-20261109/PLE0116-py310-direct/stage/rules/PLE0116/cases.toml",
+   "cases_sha256": "4dc7419cdf3a18ef2830e5dbc1469c3e1c852e8019b9fc6fb82054243b1e9d32",
+   "executed_stage_path": "/tmp/claude-1000/-workspaces-idiomatic/49097a8d-ede0-49a6-a00e-e5e13e0b95b9/scratchpad/supp/run-20261109/ple0116-target-supplement/py310/stage",
+   "parser_configuration": "python-target=3.10",
+   "profile_path": "regenerated-20261109/PLE0116-py310-direct/stage/benchmark.toml",
+   "profile_sha256": "47d508623bf55d832bbbe553a2712ea038a6dd664ea1e37b8466bb0dac155fe2",
+   "query_path": "regenerated-20261109/PLE0116-py310-direct/stage/rules/PLE0116/query.ryoql",
+   "query_sha256": "e98268b93320026d7684a07dc91d039a0de16070f2abee10d1a5451f9ed8d6a9",
+   "rule": "PLE0116",
+   "summary_path": "regenerated-20261109/PLE0116-py310-direct/summary.json",
+   "summary_sha256": "cd0187f34f808acf5ede3cc43eb6e7312ca831cfbedf99cc8d6fcac342072089",
+   "target": "py310"
+  }
+ ],
+ "identity": {
+  "collector_sha256": "68af3283c411ebf816ebae148f4f137c2f366693dd3a5d3004e6d7dbffa94fd0",
+  "inventory_sha256": "02816f355dcbf13771a5dfdecb13ada8ddbde121049326efc466c9986db3b1d4",
+  "phase_registry_sha256": "4520b056ef5c94924be98477ee160c5405ddb9d4dc92dd40f72e78a23f959f0c",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "worker_sha256": "bde1335bd1a8031cc8f2310f48b5b0baad182c8190c09e4d6dad0c8f8a99019b"
+ }
+}

@@ -1,0 +1,447 @@
+[
+  {
+    "rule": "UP008",
+    "case": "positional-only-self",
+    "executable": "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "version": "ruff 0.16.5",
+    "command": [
+      "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/4-state/ruff",
+      "--select",
+      "UP008",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "directory": "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/4",
+    "environment_overrides": {
+      "RAYON_NUM_THREADS": "1"
+    },
+    "status": 0,
+    "stdout": "[]",
+    "stderr": "",
+    "actual": {
+      "files": [
+        "case.py"
+      ],
+      "diagnostics": [],
+      "skipped": []
+    },
+    "matches_sealed_reference": true,
+    "sealed_identity": {
+      "tool": "ruff",
+      "version": "0.16.5",
+      "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "profile-sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+      "settings-sha256": "b7f4bc3c2d1d5db19e4f8df60d5e665eed7c39a7261e2f85af3dd390d5b6bd1a",
+      "source-sha256": "cc8087775722237b11f2fb36e37e8e115d6bc3d4e59ccd30e8d7be57bbaaadc0",
+      "reference-output-sha256": "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a",
+      "intended-output-sha256": "0ff11a48785d96066db4be90baed26b9148b6941ae541c06ad456c842c2faee2"
+    },
+    "normalized_settings": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "UP008",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "directory": "$ROOT",
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated",
+      "performance": {
+        "node_result_reuse": "disabled",
+        "column_kernel": false,
+        "diagnostics": {
+          "execution": false,
+          "lifecycle_memory": false,
+          "resource_routes": false,
+          "row_progress": false,
+          "steps": false,
+          "joins": false,
+          "prefixes": false,
+          "subplans": false,
+          "selection_detail": false
+        }
+      }
+    },
+    "settings_sha256": "b7f4bc3c2d1d5db19e4f8df60d5e665eed7c39a7261e2f85af3dd390d5b6bd1a",
+    "legacy_settings_sha256": "38c99c0ce92c49308ba32c662cf0c18ed719f477dc1072fc0788a36e935f1668",
+    "settings_match": true,
+    "legacy_settings_match": false,
+    "evidence": [
+      {
+        "path": "evidence/cpython310-observation.json",
+        "sha256": "5025e32bad439fce48756ad7d79676ab228470ea4c3293e8bf070ccebac7ee72",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.10.19",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "CPython 3.10.19 matches the configured target and runs the exact case source plus paired super() controls."
+      }
+    ],
+    "profile_before_sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+    "profile_after_sha256": "33f864ab9c5a87c5fdddb5f511cd19a745a1f71faee8476fbb520fd5b0684083",
+    "profile_change": {
+      "project-context-mode": {
+        "before": "implicit isolated",
+        "after": "explicit isolated"
+      }
+    }
+  },
+  {
+    "rule": "UP008",
+    "case": "module-class-rebound-after-definition",
+    "executable": "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "version": "ruff 0.16.5",
+    "command": [
+      "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/32-state/ruff",
+      "--select",
+      "UP008",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "directory": "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/32",
+    "environment_overrides": {
+      "RAYON_NUM_THREADS": "1"
+    },
+    "status": 1,
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP008\",\n    \"end_location\": {\n      \"column\": 30,\n      \"row\": 3\n    },\n    \"filename\": \"/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/32/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 29,\n            \"row\": 3\n          },\n          \"location\": {\n            \"column\": 22,\n            \"row\": 3\n          }\n        }\n      ],\n      \"message\": \"Remove `super()` parameters\"\n    },\n    \"location\": {\n      \"column\": 21,\n      \"row\": 3\n    },\n    \"message\": \"Use `super()` instead of `super(__class__, self)`\",\n    \"name\": \"super-call-with-parameters\",\n    \"noqa_row\": 3,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/super-call-with-parameters\"\n  }\n]",
+    "stderr": "",
+    "actual": {
+      "files": [
+        "case.py"
+      ],
+      "diagnostics": [
+        {
+          "rule": "UP008",
+          "file": "case.py",
+          "start": 46,
+          "end": 55
+        }
+      ],
+      "skipped": []
+    },
+    "matches_sealed_reference": true,
+    "sealed_identity": {
+      "tool": "ruff",
+      "version": "0.16.5",
+      "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "profile-sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+      "settings-sha256": "b7f4bc3c2d1d5db19e4f8df60d5e665eed7c39a7261e2f85af3dd390d5b6bd1a",
+      "source-sha256": "f02f9d62e90120ce10abd3ec41112b28ddc7e7f0758e3d61e7683f99573e7e19",
+      "reference-output-sha256": "0ec9c79ca36f76d748e26a791ecac948af49e517ccf0a6ebcaaef029969de1ac",
+      "intended-output-sha256": "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+    },
+    "normalized_settings": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "UP008",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "directory": "$ROOT",
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated",
+      "performance": {
+        "node_result_reuse": "disabled",
+        "column_kernel": false,
+        "diagnostics": {
+          "execution": false,
+          "lifecycle_memory": false,
+          "resource_routes": false,
+          "row_progress": false,
+          "steps": false,
+          "joins": false,
+          "prefixes": false,
+          "subplans": false,
+          "selection_detail": false
+        }
+      }
+    },
+    "settings_sha256": "b7f4bc3c2d1d5db19e4f8df60d5e665eed7c39a7261e2f85af3dd390d5b6bd1a",
+    "legacy_settings_sha256": "38c99c0ce92c49308ba32c662cf0c18ed719f477dc1072fc0788a36e935f1668",
+    "settings_match": true,
+    "legacy_settings_match": false,
+    "evidence": [
+      {
+        "path": "evidence/cpython310-observation.json",
+        "sha256": "5025e32bad439fce48756ad7d79676ab228470ea4c3293e8bf070ccebac7ee72",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.10.19",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "CPython 3.10.19 matches the configured target and runs the exact case source plus paired super() controls."
+      }
+    ],
+    "profile_before_sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+    "profile_after_sha256": "33f864ab9c5a87c5fdddb5f511cd19a745a1f71faee8476fbb520fd5b0684083",
+    "profile_change": {
+      "project-context-mode": {
+        "before": "implicit isolated",
+        "after": "explicit isolated"
+      }
+    }
+  },
+  {
+    "rule": "UP008",
+    "case": "nested-class-attribute-rebound-after-definition",
+    "executable": "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "version": "ruff 0.16.5",
+    "command": [
+      "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/33-state/ruff",
+      "--select",
+      "UP008",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "directory": "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/33",
+    "environment_overrides": {
+      "RAYON_NUM_THREADS": "1"
+    },
+    "status": 1,
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP008\",\n    \"end_location\": {\n      \"column\": 44,\n      \"row\": 9\n    },\n    \"filename\": \"/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/33/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 43,\n            \"row\": 9\n          },\n          \"location\": {\n            \"column\": 26,\n            \"row\": 9\n          }\n        }\n      ],\n      \"message\": \"Remove `super()` parameters\"\n    },\n    \"location\": {\n      \"column\": 25,\n      \"row\": 9\n    },\n    \"message\": \"Use `super()` instead of `super(__class__, self)`\",\n    \"name\": \"super-call-with-parameters\",\n    \"noqa_row\": 9,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/super-call-with-parameters\"\n  }\n]",
+    "stderr": "",
+    "actual": {
+      "files": [
+        "case.py"
+      ],
+      "diagnostics": [
+        {
+          "rule": "UP008",
+          "file": "case.py",
+          "start": 151,
+          "end": 170
+        }
+      ],
+      "skipped": []
+    },
+    "matches_sealed_reference": true,
+    "sealed_identity": {
+      "tool": "ruff",
+      "version": "0.16.5",
+      "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "profile-sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+      "settings-sha256": "b7f4bc3c2d1d5db19e4f8df60d5e665eed7c39a7261e2f85af3dd390d5b6bd1a",
+      "source-sha256": "d02ef6a9e25d644d3bf3c40eadb22e9cb75edae0e937d5c0cd3dd3536343b6e0",
+      "reference-output-sha256": "301bfa6227dd6f4439e6f3a07c44f4e548a1d9fef5308717d3893a3267644404",
+      "intended-output-sha256": "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+    },
+    "normalized_settings": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "UP008",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "directory": "$ROOT",
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated",
+      "performance": {
+        "node_result_reuse": "disabled",
+        "column_kernel": false,
+        "diagnostics": {
+          "execution": false,
+          "lifecycle_memory": false,
+          "resource_routes": false,
+          "row_progress": false,
+          "steps": false,
+          "joins": false,
+          "prefixes": false,
+          "subplans": false,
+          "selection_detail": false
+        }
+      }
+    },
+    "settings_sha256": "b7f4bc3c2d1d5db19e4f8df60d5e665eed7c39a7261e2f85af3dd390d5b6bd1a",
+    "legacy_settings_sha256": "38c99c0ce92c49308ba32c662cf0c18ed719f477dc1072fc0788a36e935f1668",
+    "settings_match": true,
+    "legacy_settings_match": false,
+    "evidence": [
+      {
+        "path": "evidence/cpython310-observation.json",
+        "sha256": "5025e32bad439fce48756ad7d79676ab228470ea4c3293e8bf070ccebac7ee72",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.10.19",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "CPython 3.10.19 matches the configured target and runs the exact case source plus paired super() controls."
+      }
+    ],
+    "profile_before_sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+    "profile_after_sha256": "33f864ab9c5a87c5fdddb5f511cd19a745a1f71faee8476fbb520fd5b0684083",
+    "profile_change": {
+      "project-context-mode": {
+        "before": "implicit isolated",
+        "after": "explicit isolated"
+      }
+    }
+  },
+  {
+    "rule": "UP008",
+    "case": "nested-parent-attribute-rebound-after-definition",
+    "executable": "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+    "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+    "version": "ruff 0.16.5",
+    "command": [
+      "/home/vscode/.local/share/uv/tools/ruff/bin/ruff",
+      "check",
+      "--isolated",
+      "--output-format",
+      "json",
+      "--cache-dir",
+      "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/34-state/ruff",
+      "--select",
+      "UP008",
+      "--target-version",
+      "py310",
+      "--",
+      "case.py"
+    ],
+    "directory": "/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/34",
+    "environment_overrides": {
+      "RAYON_NUM_THREADS": "1"
+    },
+    "status": 1,
+    "stdout": "[\n  {\n    \"cell\": null,\n    \"code\": \"UP008\",\n    \"end_location\": {\n      \"column\": 42,\n      \"row\": 10\n    },\n    \"filename\": \"/tmp/ryo-discrepancy-reference-20261105-2ufuqjr_/UP008/34/case.py\",\n    \"fix\": {\n      \"applicability\": \"safe\",\n      \"edits\": [\n        {\n          \"content\": \"\",\n          \"end_location\": {\n            \"column\": 41,\n            \"row\": 10\n          },\n          \"location\": {\n            \"column\": 30,\n            \"row\": 10\n          }\n        }\n      ],\n      \"message\": \"Remove `super()` parameters\"\n    },\n    \"location\": {\n      \"column\": 29,\n      \"row\": 10\n    },\n    \"message\": \"Use `super()` instead of `super(__class__, self)`\",\n    \"name\": \"super-call-with-parameters\",\n    \"noqa_row\": 10,\n    \"severity\": \"error\",\n    \"url\": \"https://docs.astral.sh/ruff/rules/super-call-with-parameters\"\n  }\n]",
+    "stderr": "",
+    "actual": {
+      "files": [
+        "case.py"
+      ],
+      "diagnostics": [
+        {
+          "rule": "UP008",
+          "file": "case.py",
+          "start": 162,
+          "end": 175
+        }
+      ],
+      "skipped": []
+    },
+    "matches_sealed_reference": true,
+    "sealed_identity": {
+      "tool": "ruff",
+      "version": "0.16.5",
+      "observed-executable-sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+      "profile-sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+      "settings-sha256": "b7f4bc3c2d1d5db19e4f8df60d5e665eed7c39a7261e2f85af3dd390d5b6bd1a",
+      "source-sha256": "6f49e1207aaf5b667e46d070d1e35d37254b45ec463297ca244909826c9795ac",
+      "reference-output-sha256": "dc6b4ccda08c15f671599010ca064e63ddc04e5aaf2fe76da5ea95286d3e69f3",
+      "intended-output-sha256": "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a"
+    },
+    "normalized_settings": {
+      "arguments": [
+        "check",
+        "--isolated",
+        "--output-format",
+        "json",
+        "--cache-dir",
+        "$STATE/ruff",
+        "--select",
+        "UP008",
+        "--target-version",
+        "py310",
+        "--",
+        "case.py"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1"
+      },
+      "directory": "$ROOT",
+      "parser_configuration": "python-target=3.10",
+      "project_context_mode": "Isolated",
+      "performance": {
+        "node_result_reuse": "disabled",
+        "column_kernel": false,
+        "diagnostics": {
+          "execution": false,
+          "lifecycle_memory": false,
+          "resource_routes": false,
+          "row_progress": false,
+          "steps": false,
+          "joins": false,
+          "prefixes": false,
+          "subplans": false,
+          "selection_detail": false
+        }
+      }
+    },
+    "settings_sha256": "b7f4bc3c2d1d5db19e4f8df60d5e665eed7c39a7261e2f85af3dd390d5b6bd1a",
+    "legacy_settings_sha256": "38c99c0ce92c49308ba32c662cf0c18ed719f477dc1072fc0788a36e935f1668",
+    "settings_match": true,
+    "legacy_settings_match": false,
+    "evidence": [
+      {
+        "path": "evidence/cpython310-observation.json",
+        "sha256": "5025e32bad439fce48756ad7d79676ab228470ea4c3293e8bf070ccebac7ee72",
+        "kind": "independent-language-run",
+        "language-version": "CPython3.10.19",
+        "target-configuration": "python-target=3.10",
+        "version-rationale": "CPython 3.10.19 matches the configured target and runs the exact case source plus paired super() controls."
+      }
+    ],
+    "profile_before_sha256": "a3814dcbdc1fdbfb6ab7e1733c8a750047ed374a3ff7901d0e10ac17d33519b3",
+    "profile_after_sha256": "33f864ab9c5a87c5fdddb5f511cd19a745a1f71faee8476fbb520fd5b0684083",
+    "profile_change": {
+      "project-context-mode": {
+        "before": "implicit isolated",
+        "after": "explicit isolated"
+      }
+    }
+  }
+]

@@ -1,0 +1,15 @@
+{
+ "commands": {
+  "PLE0116-py37": [
+   "/tmp/claude-1000/-workspaces-idiomatic/49097a8d-ede0-49a6-a00e-e5e13e0b95b9/scratchpad/supp/collector",
+   "verify-inventory",
+   "/tmp/claude-1000/-workspaces-idiomatic/49097a8d-ede0-49a6-a00e-e5e13e0b95b9/scratchpad/supp/run-20261109/ple0116-target-supplement/PLE0116-py37/registration.json",
+   "/tmp/claude-1000/-workspaces-idiomatic/49097a8d-ede0-49a6-a00e-e5e13e0b95b9/scratchpad/supp/run-20261109/ple0116-target-supplement/PLE0116-py37",
+   "120"
+  ]
+ },
+ "note": "Every control re-executed on the named commit's ruff bench worker and shared collector against Ruff 0.16.5; the previous archive members are kept unchanged beside the regenerated runs.",
+ "previous_proof_sha256": "a7004a8dcbce3b0981426d674aec6a27d733f3c188ab13c7c1978096fb21940f",
+ "regenerated": "regenerated-20261109",
+ "source_commit": "28efeb7bf09cda2686a606dadf68787a6b1d7f23"
+}
