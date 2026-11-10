@@ -1,3 +1,4 @@
+# ignore: idiomatic.arch/file-length - the fixture cases of run.py, the one validation script of this directory: one test module per script, as the directory has no other test file role
 """Fixture cases of `run.py --check`: a ticked row (a `[x]` box or a `☑` cell) stays ticked only when it cites a test, every test it cites passed in the recorded logs, and it does not say its review is pending."""
 import importlib.util,json,re,subprocess,tempfile,unittest
 from pathlib import Path
@@ -305,6 +306,16 @@ class Diff(unittest.TestCase):
             green=head+'ci/a_test.py::test_one_answers PASSED [100%]\n============================== 1 passed in 0.10s ===============================\n',
             bare='ci/a_test.py::test_one_answers PASSED [100%]\n')
   self.assertEqual([run.log_status(self.raw/(n+'.log'),'test_one_answers') for n in ('red','green','bare')],['failed','passed',None])
+ def test_a_tastemaker_rule_is_red_at_the_changed_files_and_green_when_they_lose_it(self):
+  changed=['crates/ryo/crates/values/src/a.rs']
+  finding=lambda path,rule: {'rule':rule,'path':path,'message':'m'}
+  self.logs(red=json.dumps({'findings':[finding(changed[0],'idiomatic.arch/no-ok-on-result')],'suppressed':[]}),
+            green=json.dumps({'findings':[finding('crates/ryo/crates/core/src/b.rs','idiomatic.arch/no-ok-on-result'),finding(changed[0],'idiomatic.arch/unit-test#count')],'suppressed':[]}),
+            cut='{"findings": [')
+  status=lambda name,rule: run.log_status(self.raw/(name+'.log'),rule,changed)
+  self.assertEqual([status('red','idiomatic.arch/no-ok-on-result'),status('green','idiomatic.arch/no-ok-on-result')],['failed','passed'])
+  self.assertEqual([status('green','idiomatic.arch/unit-test'),status('cut','idiomatic.arch/no-ok-on-result')],['failed',None])
+  self.assertIn('idiomatic.arch/no-ok-on-result',run.named_tests('fix(values): no dropped error (idiomatic.arch/no-ok-on-result)'))
  def test_a_clippy_lint_is_red_at_the_changed_spans_and_green_when_they_lose_it(self):
   lint=lambda f,code: json.dumps({'reason':'compiler-message','message':{'code':{'code':code},'spans':[{'file_name':f,'is_primary':True}]}})
   done=json.dumps({'reason':'build-finished','success':False})

@@ -367,7 +367,7 @@ def is_production(path):
  return not is_test_file(path) and (path.endswith('.rs') or path.startswith(HARNESS) and path.endswith('.py'))
 PERF=re.compile(r'^perf(\([^)]*\))?!?:')
 PERF_EVIDENCE='crates/ryo/docs/contracts/evidence/perf/'
-NAMED_TEST=re.compile(r'\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
+NAMED_TEST=re.compile(r'\b[a-z][a-z0-9]*\.[a-z][a-z0-9]*/[a-z][a-z0-9-]*[a-z0-9]|\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
 def named_tests(message): return [t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
 CARGO_LINE=re.compile(r'^test (\S+) \.\.\. (ok|FAILED)\b')
 NEXTEST_LINE=re.compile(r'^\s*(PASS|FAIL|SIGSEGV|SIGABRT|TIMEOUT)\s+\[[^\]]*\]\s+\S+\s+(\S+)')
@@ -384,6 +384,15 @@ RUNNER_FRAMES=((re.compile(r'(?m)^running \d+ tests?$'),re.compile(r'(?m)^test r
                (re.compile(r'(?m)^=+ test session starts =+$'),re.compile(r'(?m)^=+ .*\b\d+ (passed|failed|error)\b.* in [\d.]+s')))
 def runner_framed(text): return any(head.search(text) and tail.search(text) for head,tail in RUNNER_FRAMES)
 CLIPPY_LINT=re.compile(r'^clippy::[a-z_]+$')
+TM_RULE=re.compile(r'^[a-z][a-z0-9]*\.[a-z][a-z0-9]*/[a-z][a-z0-9-]*$')
+def tm_status(text,rule,files):
+ """A Tastemaker rule's status in one `tm check --format json` log: 'failed' when a finding of the rule (or of one of its parts,
+ `rule#part`) is at one of the files (repository paths), 'passed' when the document holds no such finding, else None."""
+ try: report=json.loads(text)
+ except ValueError: return None
+ if not isinstance(report,dict) or not isinstance(report.get('findings'),list): return None
+ hit=any(isinstance(f,dict) and str(f.get('rule','')).split('#')[0]==rule and f.get('path') in files for f in report['findings'])
+ return 'failed' if hit else 'passed'
 def clippy_status(text,lint,files):
  """A clippy lint's status in one `cargo clippy --message-format=json` log: 'failed' when it reports the lint at a primary span in one of
  the files (repository paths; a span path is relative to its workspace), 'passed' when the run finished without it there, else None."""
@@ -402,6 +411,7 @@ def log_status(log,test,files=()):
  named=lambda path,sep: path==test or path.endswith(sep+test)
  failed=passed=False; text=Path(log).read_text(errors='replace')
  if CLIPPY_LINT.match(test): return clippy_status(text,test,files)
+ if TM_RULE.match(test): return tm_status(text,test,files)
  if not runner_framed(text): return None
  for line in text.splitlines():
   m=CARGO_LINE.match(line)
@@ -650,12 +660,13 @@ def resolves_to_runtime(text,name):
  """A name a file uses is the runtime's unless every `use` that brings it in starts at another crate or at this one (crate, self, super); a name no `use` brings in counts."""
  roots=[m.group(1) for m in USE.finditer(text) if re.search(r'\b'+name+r'\b',m.group(0))]
  return not roots or any(r in ('ryo_execution_runtime','ryo_execution') for r in roots)
-REPLACED_LIST=p/'rewrite-replaced.txt'
+REPLACED_LIST=p/'rewrite-replaced.toml'
 # The two entry functions rev 8 keeps as the declared seam (7.3 L13): `begin` and `prepare`, by path and signature.
 SEAM_ENTRIES=re.compile(r'request_execution::service::begin\b|prepared_execution::service::prepare\b')
 def replaced_set(path=REPLACED_LIST):
- """The fused rewrite's replaced files (rewrite-replaced.txt), crates/ryo-relative."""
- return {x.strip() for x in path.read_text().splitlines() if x.strip() and not x.startswith('#')} if path.exists() else set()
+ """The fused rewrite's replaced files (rewrite-replaced.toml, its `files` per crate), crates/ryo-relative."""
+ import tomllib
+ return {f for crate in tomllib.loads(path.read_text()).values() for f in crate['files']} if path.exists() else set()
 def module_of(path):
  """(crate library name, module path) of a crate source file: crates/execution_domain/src/domain/x/types.rs -> (ryo_execution_domain, domain::x::types)."""
  parts=path.split('/'); crate='ryo_'+parts[1] if parts[0]=='crates' else 'ryo_'+parts[0]
@@ -675,7 +686,7 @@ def edit_footprint(prod_text,replaced):
   own=module_of(f)[0]; t=SEAM_ENTRIES.sub('',t)
   if any(re.search(r'\b'+re.escape(c)+'::'+re.escape(m)+r'\b',t) or (c==own and re.search(r'\bcrate::'+re.escape(m)+r'\b',t)) for c,m in roots): hits.append(f)
  return sorted(hits)
-# Exit 7's ratchet (PM decision): the rows measured outside rewrite-replaced.txt never rise between checkpoints; the rows that count
+# Exit 7's ratchet (PM decision): the rows measured outside rewrite-replaced.toml never rise between checkpoints; the rows that count
 # files inside it are informational, since the rewrite deletes those files.
 RATCHETED=['rewrite_edit_footprint','cross_crate_tests_outside_the_replaced_set','operation_exhaustive_matches_outside_the_replaced_set','per_file_fact_touch_points']
 INFORMATIONAL=['replace_the_evaluator','operation_exhaustive_matches','cross_crate_tests_naming_runtime_internals']
