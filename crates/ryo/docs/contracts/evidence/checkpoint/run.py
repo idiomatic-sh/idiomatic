@@ -7,6 +7,7 @@ contracts=p.parents[1]
 readme=contracts/'README.md'
 validation_json=p/'validation.json'
 tests_json=p/'tests.json'
+commands_json=p/'commands.json'
 TM_TARGETS=('tm_source','tm_cli_source')
 def dumps(v,pad=''):
  """JSON with two-space indent where a list of scalars or a short dict of scalars (four keys, 300 characters) stays on one line, so a command line or a red-then-green entry is one line."""
@@ -710,9 +711,11 @@ def finish(v,check=False):
   if reason: print('NOT RUN '+name+': '+NOT_RUN.get(name,name+' not run')+': '+reason)
   print('RED '+name+' exit '+str(code)+(', owned by '+'; '.join('"'+x+'"' for x in owners) if owners else ', owned by no row'))
   if not owners: unowned.append(name)
+ stale=result_problems(v)
+ for line in stale: print('RESULT '+line)
  for line in diff: print(line)
  if changed: print(('STALE RECORD: the committed record is not what validation.json gives: ' if check else 'rewritten from validation.json (numbers block, owner notes, un-ticked rows): ')+', '.join(changed)+'; stage them')
- return 1 if bad or diff or unowned or unticked_any or (check and changed) else 0
+ return 1 if bad or diff or unowned or unticked_any or stale or (check and changed) else 0
 EVALUATOR='crates/execution_runtime/'
 STORE='crates/execution_store/'
 SEAM_PORTS={'DigestPort','DigestBytes','FactsPort','OperatorsPort','FactsError'}
@@ -870,12 +873,65 @@ def census(product):
   'operation_exhaustive_matches_outside_the_replaced_set':count([f for f in exhaustive if f not in replaced]),
   'rewrite_edit_footprint':dict(count(edits),list=edits,replaced_files=len(replaced)),
   'ratcheted':RATCHETED,'informational':INFORMATIONAL}
-if __name__=='__main__' and sys.argv[1:]==['--census']: print(json.dumps(census(p.parents[3]),indent=1)); sys.exit(0)
-if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {}),check=True))
 def placed(word,places):
  """One word of a listed command with each place (`{target}`, `{temp}`, `{worktree}`) replaced by its value on this machine."""
  for name,value in places.items(): word=word.replace(name,value)
  return word
+# What each command checked, read from its tool's own summary line: cargo's `test result:` lines (tests run), the `Executable` lines of
+# a `--no-run` build (test binaries built), and for the other tools the line named here. A count of 0 is a run that checked nothing,
+# as `sdk_api`'s semver step was when it skipped all 260 of its checks; it is refused like a missing or stale result.
+TEST_RESULT=re.compile(r'^test result: \w+\. (\d+) passed; (\d+) failed',re.M)
+EXECUTABLE=re.compile(r'^\s+Executable ',re.M)
+# The harness = false runners of a cargo test command say their own count: cucumber's scenario summary, the activation runner's cases.
+RUNNER_COUNTS=(re.compile(r'^(\d+) scenarios? \(',re.M),re.compile(r'^activation: (\d+) actual cases passed',re.M))
+COUNTED={
+ 'sdk_api':(re.compile(r'^\s+Checked \[[^\]]*\] (\d+) checks',re.M),'semver checks run'),
+ 'ruff_rule_phases':(re.compile(r'^native standalone guards passed: .*?(\d+) cases',re.M),'self-test cases run'),
+ 'ruff_parity':(re.compile(r'^ruff parity: \d+ identical of (\d+) rules',re.M),'rules compared'),
+ 'tm_guards':(re.compile(r'"proven":(\d+)'),'definitions proven'),
+ 'tm_validate_all':(re.compile(r'"proven":(\d+)'),'definitions proven'),
+ 'tm_validate_no_heap_accounting':(re.compile(r'"proven":(\d+)'),'definitions proven'),
+ 'harness_hooks':(re.compile(r'^Ran (\d+) tests?\b',re.M),'tests run'),
+ 'checkpoint_check':(re.compile(r'^Ran (\d+) tests?\b',re.M),'tests run'),
+ 'ownership_edges':(None,'edge rows answered'),
+ 'census':(re.compile(r'"replaced_files": (\d+)'),'replaced files measured'),
+}
+# The commands whose tool prints no count of what it checked: each is named in every report, never given an invented count.
+NO_COUNT={
+ 'checkout_tools':'cargo build prints no count of what it built when its units are fresh; the binaries it leaves are what tm_source, tm_guards, tm_validate_all and ownership_edges run',
+ 'no_print':'cargo clippy prints no count of the crates or files it checked when its units are fresh',
+ 'tm_source':"tm check's JSON names its findings and suppressions, not the files it read",
+ 'tm_cli_source':"tm check's JSON names its findings and suppressions, not the files it read",
+ 'conformance':'the language conformance runner prints only the relations a language does not yet read, no count of the rows it proved',
+}
+def checked(name,cmd,log):
+ """What one command checked, {'count': n, 'what': ...}, from its tool's own summary line in its raw log; None when its tool prints none."""
+ text=Path(log).read_text(errors='replace') if Path(log).is_file() else ''
+ if cmd[:1]==['cargo'] and '--no-run' in cmd: return {'count':len(EXECUTABLE.findall(text)),'what':'test binaries built'}
+ if cmd[:2]==['cargo','test']: return {'count':sum(int(a)+int(b) for a,b in TEST_RESULT.findall(text))+sum(int(x) for pattern in RUNNER_COUNTS for x in pattern.findall(text)),'what':'tests run'}
+ if name=='ownership_edges':
+  rows=[json.loads(x).get('rows',[]) for x in text.splitlines() if x.startswith('{"columns"')]
+  return {'count':sum(len(r) for r in rows),'what':COUNTED[name][1]}
+ if name in COUNTED:
+  pattern,what=COUNTED[name]
+  return {'count':sum(int(x) for x in pattern.findall(text)),'what':what}
+ return None
+def result_problems(v):
+ """Each command of commands.json whose result is missing, is for another source than the validated one, or checked nothing (a count
+ of 0, or no count from a tool that prints one); a command refused as `not available` is reported as not run instead, and a command
+ whose tool prints no count is named (NO COUNT), never failed for it."""
+ bad=[]
+ for name,_ in json.loads(commands_json.read_text()):
+  c=v.get('checks',{}).get(name)
+  if c is None: bad.append(name+': no result for the validated source'); continue
+  if c.get('source')!=v.get('source'): bad.append(name+': its result is for '+str(c.get('source'))[:10]+', not the validated source '+str(v.get('source'))[:10]); continue
+  if c.get('not_available'): continue
+  if name in NO_COUNT: print('NO COUNT '+name+': '+NO_COUNT[name]); continue
+  count=(c.get('checked') or {}).get('count')
+  if not count: bad.append(name+': checked nothing ('+('no count in its log' if count is None else '0 '+c['checked']['what'])+')')
+ return bad
+if __name__=='__main__' and sys.argv[1:]==['--census']: print(json.dumps(census(p.parents[3]),indent=1)); sys.exit(0)
+if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {}),check=True))
 def validate():
  """Runs every command of commands.json at a frozen head, records its results and tests, and checks the matrix."""
  # Every machine path a command needs is derived from where the tree is checked out, never written in commands.json: `{target}`
@@ -918,6 +974,7 @@ def validate():
   result={'source':head,'command':listed[name],'exit':r.returncode,'elapsed_seconds':time.time()-started}
   if r.returncode and (reason:=unavailable(out_dir/(name+'.log'))): result['not_available']=reason
   if name=='tm_source': result['findings']=finding_split(cmd,out_dir/(name+'.log'))
+  if (counted:=checked(name,cmd,out_dir/(name+'.log'))) is not None: result['checked']=counted
   (out_dir/(name+'.json')).write_text(json.dumps(result,indent=2))
   print('END '+name+' exit='+str(r.returncode),flush=True)
   if name=='build' and r.returncode: break

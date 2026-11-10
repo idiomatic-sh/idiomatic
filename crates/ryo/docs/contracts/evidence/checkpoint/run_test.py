@@ -177,6 +177,29 @@ class Check(unittest.TestCase):
   tests={'default_features':run.test_results(log)}
   self.assertEqual(list(tests['default_features']['allocation']['failed']),['per_file_path::allocates_as_the_parser_library_does',run.CRASHED])
   self.assertEqual(run.command_owners('default_features',{'exit':101},tests),[])
+ def test_every_command_needs_a_result_for_the_validated_source_that_checked_something(self):
+  raw=Path(self.raw.name)
+  (raw/'sdk_api.log').write_text('    Checking idiomatic-sh-ryo-sdk v0.2.0 -> v0.1.3 (major change)\n     Checked [   0.000s] 0 checks: 0 pass, 260 skip\n')
+  self.assertEqual(run.checked('sdk_api',['sh'],raw/'sdk_api.log'),{'count':0,'what':'semver checks run'})
+  (raw/'libraries.log').write_text('test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured\ntest result: FAILED. 2 passed; 1 failed; 0 ignored\n')
+  self.assertEqual(run.checked('libraries',['cargo','test'],raw/'libraries.log'),{'count':6,'what':'tests run'})
+  (raw/'bench_build.log').write_text('  Executable benches/lint.rs (/t/lint-1)\n  Executable benches/ruff.rs (/t/ruff-2)\n')
+  self.assertEqual(run.checked('bench_build',['cargo','bench','--no-run'],raw/'bench_build.log'),{'count':2,'what':'test binaries built'})
+  self.assertIsNone(run.checked('tm_source',['tm'],raw/'tm_source.log'))
+  listed=[n for n,_ in json.loads(run.commands_json.read_text())]
+  head='a'*40
+  def good(name): return {'source':head,'exit':0,**({} if name in run.NO_COUNT else {'checked':{'count':1,'what':'tests run'}})}
+  import io,contextlib
+  checks={n:good(n) for n in listed}
+  said=io.StringIO()
+  with contextlib.redirect_stdout(said): self.assertEqual(run.result_problems({'source':head,'checks':checks}),[])
+  self.assertTrue(all('NO COUNT '+n+': ' in said.getvalue() for n in run.NO_COUNT))
+  with contextlib.redirect_stdout(io.StringIO()):
+   self.assertEqual(run.result_problems({'source':head,'checks':dict(checks,sdk_api=dict(good('sdk_api'),checked={'count':0,'what':'semver checks run'}))}),['sdk_api: checked nothing (0 semver checks run)'])
+   self.assertEqual(run.result_problems({'source':head,'checks':dict(checks,sdk_api={'source':head,'exit':0})}),['sdk_api: checked nothing (no count in its log)'])
+   self.assertEqual(run.result_problems({'source':head,'checks':dict(checks,sdk_api=dict(good('sdk_api'),source='b'*40))}),['sdk_api: its result is for bbbbbbbbbb, not the validated source aaaaaaaaaa'])
+   self.assertEqual(run.result_problems({'source':head,'checks':{n:c for n,c in checks.items() if n!='sdk_api'}}),['sdk_api: no result for the validated source'])
+   self.assertEqual(run.result_problems({'source':head,'checks':dict(checks,ruff_parity={'source':head,'exit':2,'not_available':'absent'})}),[])
  def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
   v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
   self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])
@@ -198,10 +221,10 @@ class Check(unittest.TestCase):
  def test_a_rewritten_record_fails_only_the_check_of_the_committed_record_and_an_unowned_red_fails_both(self):
   folder=Path(self.raw.name)/'contracts'; folder.mkdir()
   rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values())|set(run.RED_OWNERS.values()))
-  saved=(run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems,run.census_problems)
+  saved=(run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems,run.census_problems,run.result_problems)
   run.readme,run.contracts,run.validation_json=folder/'README.md',folder,folder/'validation.json'
   # The record alone decides here: the checkpoint's own FIX, DOC and census lines over the real repository are their own tests' subject.
-  run.fix_problems=run.doc_problems=run.census_problems=lambda *a,**k: []
+  run.fix_problems=run.doc_problems=run.census_problems=run.result_problems=lambda *a,**k: []
   try:
    def verdict(check,checks):
     run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
@@ -234,7 +257,7 @@ class Check(unittest.TestCase):
    run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
    v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':self.owned_record(),'checks':planted,'tests':run_tests,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
    with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(v),1)
-  finally: run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems,run.census_problems=saved
+  finally: run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems,run.census_problems,run.result_problems=saved
  def test_a_test_that_printed_not_available_counts_as_not_run_never_as_passed(self):
   tests={'cli_cost':{'replay':{'passed':['cost::typed'],'ignored':[],'not_run':['cost::django'],'failed':{'cost::ratchet':{'rows':[],'collected':False}}}}}
   self.assertEqual(run.count_problems({'results':{'cli_cost':{'passed':1,'failed':1,'not_run':1}},'tests':tests}),[])
