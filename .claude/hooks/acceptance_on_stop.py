@@ -14,7 +14,6 @@ LIMIT = 5
 BD_HOME = "/workspaces/idiomatic"
 EVIDENCE = "crates/ryo/docs/contracts/evidence/"
 # The verdict file of each review agent, under the evidence directory; a leak review of a branch writes branches/<branch>.json.
-ACCEPTED = {"builder", "contract-migration", "integrator"}  # the agents whose stop runs the beads' acceptance
 REVIEWERS = {"rust-review": "checkpoint/rust-review.json", "contract-review": "checkpoint/contract-review.json",
              "leak-review": "checkpoint/leak-review.json", "tm-steward": "checkpoint/tm-steward.json"}
 TRAILING = ".,;:)]}>'\"`"
@@ -209,23 +208,42 @@ def hold(why):
     return 2
 
 
-def state_root():
-    """The hooks' state root as no_subagent_builders.py defines it (its STATE default, overridden by
-    CLAUDE_HOOKS_STATE), read from its source without running it; None when that definition cannot be read."""
+def gate_assignment(name):
+    """The value node of no_subagent_builders.py's top-level `name = ...`, read from its source without running it
+    (a broken gate cannot release a stop through this path); None when it cannot be read."""
     import ast
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "no_subagent_builders.py")
     try:
         with open(path, encoding="utf-8") as handle:
             tree = ast.parse(handle.read())
-        for node in tree.body:
-            if isinstance(node, ast.Assign) and [getattr(t, "id", None) for t in node.targets] == ["STATE"]:
-                call = node.value
-                if (isinstance(call, ast.Call) and len(call.args) == 2 and
-                        all(isinstance(a, ast.Constant) and isinstance(a.value, str) for a in call.args)):
-                    return os.environ.get(call.args[0].value, call.args[1].value)
     except (OSError, SyntaxError, ValueError):
         return None
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and [getattr(t, "id", None) for t in node.targets] == [name]:
+            return node.value
     return None
+
+
+def state_root():
+    """The hooks' state root as no_subagent_builders.py defines it (its STATE default, overridden by
+    CLAUDE_HOOKS_STATE); None when that definition cannot be read."""
+    import ast
+    call = gate_assignment("STATE")
+    if (isinstance(call, ast.Call) and len(call.args) == 2 and
+            all(isinstance(a, ast.Constant) and isinstance(a.value, str) for a in call.args)):
+        return os.environ.get(call.args[0].value, call.args[1].value)
+    return None
+
+
+def accepted_types():
+    """The agent types whose stop runs acceptance, no_subagent_builders.py's ACCEPTED literal; None when unreadable."""
+    import ast
+    node = gate_assignment("ACCEPTED")
+    try:
+        value = ast.literal_eval(node) if node is not None else None
+    except ValueError:
+        return None
+    return value if isinstance(value, set) and all(isinstance(v, str) for v in value) else None
 
 
 def no_state():
@@ -296,12 +314,25 @@ def success(bead):
 
 
 def main():
-    data = json.load(sys.stdin)
+    try:
+        return stop(json.load(sys.stdin))
+    except Exception as error:  # Claude Code releases a stop whose hook crashes; hold it instead
+        print("Stop held: acceptance_on_stop.py failed (" + type(error).__name__ + ": " + str(error) + "); "
+              "repair the brief or the hook, or reply BLOCKED: <one question>.", file=sys.stderr)
+        return 2
+
+
+def stop(data):
     if data.get("agent_type") == "scope-review":
         return scope_review_stop(data)
     if data.get("agent_type") in REVIEWERS:
         return reviewer_stop(data, data["agent_type"])
-    if data.get("agent_type") not in ACCEPTED:
+    accepted = accepted_types()
+    if accepted is None:
+        print("Stop held: no_subagent_builders.py's ACCEPTED cannot be read; repair it, then stop again.",
+              file=sys.stderr)
+        return 2
+    if data.get("agent_type") not in accepted:
         return 0
     # On SubagentStop, transcript_path is the parent session's; the agent's own is agent_transcript_path.
     path = data.get("agent_transcript_path") or data.get("transcript_path")

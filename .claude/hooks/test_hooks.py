@@ -1402,19 +1402,30 @@ class Acceptance(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("Acceptance failed for ryo-t2", result.stderr)
 
+    def test_an_error_on_the_builder_stop_holds(self):
+        self.fake_bd("true")
+        for brief in ("BEAD: ryo/t1\nWORKTREE: " + self.work + "\nDo it.",
+                      "BEAD: ryo-t1\nWORKTREE: " + os.path.join(self.dir.name, "no-such-tree") + "\nDo it."):
+            with self.subTest(brief=brief):
+                self.assertEqual(self.stop(brief, "DONE: ok").returncode, 2)
+
     def test_a_gate_that_fails_to_load_holds_the_builder(self):
         copy = os.path.join(self.dir.name, "copy")
         os.makedirs(os.path.join(copy, ".claude", "hooks"))
         shutil.copy(os.path.join(HERE, "acceptance_on_stop.py"), os.path.join(copy, ".claude", "hooks"))
         env = self.env()
         self.fake_bd("true")
-        for broken in ("import no_such_module_planted\n", "def (:\n"):
+        with open(os.path.join(HERE, "no_subagent_builders.py"), encoding="utf-8") as handle:
+            gate = handle.read()
+        # A gate that fails at import still declares ACCEPTED, so only the agents it names are held; a gate that
+        # does not parse leaves the stop hook unable to tell, so every stop is held.
+        for broken, other in ((gate + "\nimport no_such_module_planted\n", 0), ("def (:\n", 2)):
             with open(os.path.join(copy, ".claude", "hooks", "no_subagent_builders.py"), "w", encoding="utf-8") as handle:
                 handle.write(broken)
             for agent, report, code in [("builder", "All finished.", 2), ("builder", "BLOCKED: which crate?", 2),
-                                        ("contract-migration", "All finished.", 2), ("Explore", "All finished.", 0),
-                                        ("scoper", "PROCEED", 0)]:
-                with self.subTest(broken=broken, agent=agent, report=report):
+                                        ("contract-migration", "All finished.", 2), ("integrator", "All finished.", 2),
+                                        ("Explore", "All finished.", other), ("scoper", "PROCEED", other)]:
+                with self.subTest(broken=broken[-30:], agent=agent, report=report):
                     result = subprocess.run(["python3", "-I", os.path.join(copy, ".claude", "hooks", "acceptance_on_stop.py")],
                                             input=json.dumps(self.payload(self.brief(), report, agent)),
                                             capture_output=True, text=True, env=env, check=False)
@@ -1610,6 +1621,25 @@ class RealStopPayload(unittest.TestCase):
         open(os.path.join(work, "ok"), "w").close()
         self.assertEqual(self.stop("builder", brief, "DONE: R1", env).returncode, 0)
         self.assertEqual(self.stop("builder", brief, "Finished.", env).returncode, 2)
+
+    def test_contract_migration_and_integrator(self):
+        work = os.path.join(self.dir.name, "tree")
+        os.mkdir(work)
+        bin_dir = os.path.join(self.dir.name, "bin")
+        os.mkdir(bin_dir)
+        with open(os.path.join(bin_dir, "bd"), "w", encoding="utf-8") as handle:
+            handle.write("#!/bin/sh\nprintf '[{\"notes\": \"ACCEPTANCE:\\\\ntest -f ok\\\\nEND ACCEPTANCE\"}]\\n'\n")
+        os.chmod(os.path.join(bin_dir, "bd"), 0o755)
+        env = dict(self.env, PATH=bin_dir + os.pathsep + os.environ["PATH"])
+        brief = "BEAD: ryo-t1\nWORKTREE: " + work + "\nDo it."
+        for agent in ("contract-migration", "integrator"):
+            with self.subTest(agent=agent):
+                self.assertEqual(self.stop(agent, brief, "DONE: R1", env).returncode, 2)
+                self.assertEqual(self.stop(agent, brief, "BLOCKED: which crate?", env).returncode, 0)
+        open(os.path.join(work, "ok"), "w").close()
+        for agent in ("contract-migration", "integrator"):
+            with self.subTest(agent=agent, accepted=True):
+                self.assertEqual(self.stop(agent, brief, "DONE: R1", env).returncode, 0)
 
     def test_reviewer(self):
         tree = os.path.join(self.dir.name, "ryo-333")
@@ -1841,14 +1871,17 @@ class ScopeGate(unittest.TestCase):
     def test_other_agents_need_no_scope(self):
         self.assertEqual(self.launch("review sha x", kind="leak-review").returncode, 0)
 
-    def test_any_launch_with_a_builder_brief_needs_a_scope_except_the_integrator(self):
-        for kind in ("general-purpose", "Explore", None):
-            with self.subTest(kind=kind):
-                self.assertEqual(self.launch(self.brief(""), kind=kind).returncode, 2)
-        self.assertEqual(self.launch(self.brief(""), kind="integrator").returncode, 0)
-        self.assertEqual(self.launch("BEAD: ryo-x\nSurvey the bead.", kind="general-purpose").returncode, 0)
+    def test_a_builder_brief_launches_only_as_an_agent_whose_stop_runs_acceptance(self):
         path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path), kind="general-purpose").returncode, 0)
+        for kind in ("general-purpose", "fork", "Explore", None):
+            for extra in ("", "SCOPE=" + path):
+                with self.subTest(kind=kind, extra=extra):
+                    result = self.launch(self.brief(extra), kind=kind)
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("subagent_type builder", result.stderr)
+        self.assertEqual(self.launch(self.brief(""), kind="integrator").returncode, 0)
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path), kind="builder").returncode, 0)
+        self.assertEqual(self.launch("BEAD: ryo-x\nSurvey the bead.", kind="general-purpose").returncode, 0)
 
 
 class ScopeReviewStop(unittest.TestCase):
