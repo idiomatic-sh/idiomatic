@@ -2,11 +2,12 @@
 
 use ryo_core::inbound::use_cases::validate::errors::ValidateError as CoreError;
 use ryo_core::inbound::use_cases::validate::types::ValidateRequest as CoreRequest;
-use ryo_language::domain::relations::types::Span as CoreSpan;
+use ryo_relations::domain::relations::types::Span as CoreSpan;
 use ryo_values::domain::descriptions::types::ValidateReport as CoreReport;
-use ryo_values::domain::plan_parts::types::{QueryText, RefusedKind, RefusedQuery};
+use ryo_values::domain::program::types::RefusedKind;
+use ryo_values::domain::program::types::RefusedQuery;
 
-use ryo_language::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::hosted::types::{
     ColumnLabel as CoreColumnLabel, HostedColumn as CoreHostedColumn, HostedName as CoreHostedName,
     HostedRelation as CoreHosted,
@@ -15,6 +16,7 @@ use ryo_values::domain::hosted::types::{
 use super::types::{StepCount, ValidateReport, ValidateRequest};
 use crate::domain::host::types::{HostDeclaration, HostKind};
 use crate::domain::operator::types::OperatorName;
+use crate::domain::query::errors::QueryBundleError;
 use crate::domain::query::errors::ValidateError;
 use crate::domain::query::types::{ByteOffset, QuerySpan, RyoQlQuery};
 use crate::domain::relation::types::RelationName;
@@ -35,7 +37,93 @@ impl TryFrom<&str> for RyoQlQuery {
         if text.trim().is_empty() {
             return Err(RyoQlQuerySchemaError);
         }
-        Ok(Self::from_text(text.into()))
+        let bundle = ryo_values::domain::program::service::standalone(
+            ryo_values::domain::query_tokens::types::QuerySpelling(text),
+        )
+        .map_err(|_error| RyoQlQuerySchemaError)?;
+        Ok(Self::from_bundle(bundle))
+    }
+}
+
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "checked SDK construction belongs in the query validation schema boundary"
+)]
+impl crate::domain::query::types::QueryModuleSource {
+    /// Build a module source under its stable logical id.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QueryBundleError::BlankSourceId`] when `id` is blank.
+    pub fn try_new(id: &str, text: &str) -> Result<Self, QueryBundleError> {
+        Ok(Self::from_parts(
+            ryo_values::domain::program::service::source_id(
+                ryo_values::domain::query_tokens::types::QuerySpelling(id),
+            )
+            .map_err(QueryBundleError::from_internal)?,
+            ryo_values::domain::query_tokens::types::QuerySourceText(text.into()),
+        ))
+    }
+}
+
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "checked catalog construction belongs at the SDK query schema boundary"
+)]
+impl crate::domain::query::types::QueryModuleCatalog {
+    /// Validate a reusable module catalog once, retaining each source's shared bytes.
+    ///
+    /// # Errors
+    /// Returns [`QueryBundleError::DuplicateSourceId`] for repeated module ids.
+    pub fn try_new(
+        modules: impl IntoIterator<Item = crate::domain::query::types::QueryModuleSource>,
+    ) -> Result<Self, QueryBundleError> {
+        ryo_values::domain::program::service::module_catalog(
+            modules
+                .into_iter()
+                .map(crate::domain::query::types::QueryModuleSource::into_document),
+        )
+        .map(|catalog| Self::from_catalog(catalog.0))
+        .map_err(QueryBundleError::from_internal)
+    }
+}
+
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "bundle validation belongs beside the SDK query schema conversion"
+)]
+impl RyoQlQuery {
+    /// Construct a checked root query and its immutable named module registry.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QueryBundleError::BlankRootText`] for blank root text,
+    /// [`QueryBundleError::BlankSourceId`] for a blank source id, and
+    /// [`QueryBundleError::DuplicateSourceId`] for repeated source ids.
+    pub fn with_modules(
+        root_id: &str,
+        root_text: &str,
+        modules: &crate::domain::query::types::QueryModuleCatalog,
+    ) -> Result<Self, QueryBundleError> {
+        use ryo_values::domain::program::service::{
+            document_source, query_bundle_with_catalog, source_id,
+        };
+        if root_text.trim().is_empty() {
+            return Err(QueryBundleError::BlankRootText);
+        }
+        let root_id = source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
+            root_id,
+        ))
+        .map_err(QueryBundleError::from_internal)?;
+        let root = document_source(root_id, root_text);
+        query_bundle_with_catalog(
+            root,
+            ryo_values::domain::query_tokens::types::ModuleCatalog(std::sync::Arc::clone(
+                modules.catalog(),
+            )),
+        )
+        .map(Self::from_bundle)
+        .map_err(QueryBundleError::from_internal)
     }
 }
 
@@ -99,9 +187,10 @@ impl From<SpanSchema> for QuerySpan {
 
 /// A refusal of the text, by the fault it names and where it is.
 fn refused(error: RefusedQuery) -> ValidateError {
+    let origin = error.origin;
     let span = SpanSchema(error.span).into();
     let message = error.message.0;
-    match error.kind {
+    let error = match error.kind {
         RefusedKind::Syntax => ValidateError::Syntax { span, message },
         RefusedKind::UnknownRelation => ValidateError::UnknownRelation {
             name: message,
@@ -110,6 +199,26 @@ fn refused(error: RefusedQuery) -> ValidateError {
         RefusedKind::Type => ValidateError::Type { span, message },
         RefusedKind::Invalid => ValidateError::Invalid { span, message },
         RefusedKind::Catalog => ValidateError::Catalog { reason: message },
+    };
+    located(error, origin)
+}
+
+/// Keep the standalone SDK's error variants while locating errors in named bundle sources.
+fn located(
+    error: ValidateError,
+    origin: ryo_values::domain::query_tokens::types::Attribution,
+) -> ValidateError {
+    match origin {
+        ryo_values::domain::query_tokens::types::Attribution::Located(origin)
+            if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
+        {
+            ValidateError::Located {
+                origin: crate::domain::query::errors::QueryOrigin::from_internal(origin),
+                error: Box::new(error),
+            }
+        }
+        ryo_values::domain::query_tokens::types::Attribution::Unlocated
+        | ryo_values::domain::query_tokens::types::Attribution::Located(_) => error,
     }
 }
 
@@ -117,8 +226,47 @@ impl From<ValidateErrorSchema<'_>> for ValidateError {
     fn from(schema: ValidateErrorSchema<'_>) -> Self {
         match schema.error {
             CoreError::Refused { error } => refused(error),
-            CoreError::Uncompilable { error } => invalid(schema.text, error.to_string()),
-            CoreError::UnknownKind { reason } => invalid(schema.text, reason),
+            CoreError::Uncompilable { error } => {
+                let origin = error.origin.clone();
+                match origin {
+                    ryo_values::domain::query_tokens::types::Attribution::Located(origin)
+                        if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
+                    {
+                        ValidateError::Located {
+                            origin: crate::domain::query::errors::QueryOrigin::from_internal(
+                                origin,
+                            ),
+                            error: Box::new(ValidateError::Invalid {
+                                span: SpanSchema(error.span).into(),
+                                message: error.message.0.clone(),
+                            }),
+                        }
+                    }
+                    ryo_values::domain::query_tokens::types::Attribution::Located(_)
+                    | ryo_values::domain::query_tokens::types::Attribution::Unlocated => {
+                        invalid(schema.text, error.to_string())
+                    }
+                }
+            }
+            CoreError::UnknownKind { reason, origin } => match origin {
+                Some(origin)
+                    if origin.source_id.0.as_ref() != "<query>" || !origin.trace.is_empty() =>
+                {
+                    ValidateError::Located {
+                        origin: crate::domain::query::errors::QueryOrigin::from_internal(
+                            origin.clone(),
+                        ),
+                        error: Box::new(ValidateError::Invalid {
+                            span: QuerySpan {
+                                start: ByteOffset(origin.span.start.0),
+                                end: ByteOffset(origin.span.end.0),
+                            },
+                            message: reason,
+                        }),
+                    }
+                }
+                None | Some(_) => invalid(schema.text, reason),
+            },
         }
     }
 }
@@ -146,7 +294,12 @@ impl From<ValidateReportSchema> for ValidateReport {
 pub(super) fn request(request: ValidateRequest) -> CoreRequest {
     CoreRequest {
         hosted: hosted(&request.hosted),
-        text: QueryText(request.query.into_text()),
+        observations: request
+            .observations
+            .into_iter()
+            .map(crate::domain::observation::types::BoundObservationInput::into_engine)
+            .collect(),
+        text: request.query.into_bundle(),
     }
 }
 

@@ -3,9 +3,10 @@
 use super::entry::describe;
 use super::errors::DescribeError;
 use super::types::DescribeRequest;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::language::types::Languages;
 use crate::domain::relation::types::RelationName;
+use crate::selects;
 
 type Input = &'static str;
 /// How many columns the relation has.
@@ -24,9 +25,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("unknown_relation_is_refused"),
         word: Word::Refuses,
         input: || "nothing",
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, DescribeError::UnknownRelation { .. }))
-        }),
+        expect: Expect::Refusal(|error| selects!(error, DescribeError::UnknownRelation { .. })),
     },
 ];
 

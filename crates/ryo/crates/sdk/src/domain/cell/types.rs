@@ -1,7 +1,7 @@
 //! The types of the `cell` concept: one value of a row, typed, as a host declares it in the rows of its relations and as a run
 //! answers it in a finding and in the rows of a query. Nothing is text that is not text.
 
-use ryo_language::domain::relations::types::Span;
+use ryo_relations::domain::relations::types::Span;
 
 use crate::domain::file::types::RelativePath;
 

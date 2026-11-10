@@ -5,7 +5,8 @@
 use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::validate::interface::ValidateUseCase;
-use ryo_core::outbound::{language, query_language};
+use ryo_core::outbound::language;
+use ryo_execution::outbound::query_language;
 
 use crate::domain::language::types::Language;
 
@@ -30,7 +31,7 @@ where
 pub(crate) fn build(languages: Vec<Language>) -> impl ValidateUseCase {
     let handles = languages
         .into_iter()
-        .map(language::types::LanguageHandles::from)
+        .map(language::factory::LanguageConnection::from)
         .collect();
     let language = language::factory::use_case(handles);
     compose(QueryValidateParts {

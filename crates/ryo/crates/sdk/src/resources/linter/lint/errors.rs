@@ -1,6 +1,7 @@
 //! The failures of `linter lint`.
 
 use super::types::{Port, ProviderName, RowNumber, RuleId};
+use crate::domain::file::types::RelativePath;
 use crate::domain::host::types::{HostColumnName, HostKind, HostRelationName};
 use crate::domain::query::errors::ValidateError;
 
@@ -8,6 +9,27 @@ use crate::domain::query::errors::ValidateError;
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum LintError {
+    /// The engine could not execute the prepared request.
+    #[error("execution: {reason}")]
+    Execution {
+        /// Why execution failed.
+        reason: String,
+    },
+    /// A required named publication could not be admitted in this execution.
+    #[error("observation execution failed: {reason}")]
+    ObservationExecution { reason: String },
+    /// The explicitly declared named-output dependency contract is invalid.
+    #[error("invalid observation bindings: {reason}")]
+    ObservationBindings {
+        /// Configuration failure before file execution.
+        reason: String,
+    },
+    /// An explicit source provider is unavailable at the request edge.
+    #[error("explicit source provider `{name}` must name exactly one linked provider")]
+    SourceLanguage {
+        /// The exact provider name supplied by the caller.
+        name: String,
+    },
     /// A rule's query is not correct RyoQL.
     #[error("rule `{id}`: {error}")]
     Rule {
@@ -91,6 +113,14 @@ pub enum LintError {
     PathNotText {
         /// The path.
         path: std::path::PathBuf,
+    },
+    /// A project search root or inventory entry does not name a repository-relative path.
+    #[error(
+        "invalid project path {path:?}: expected a repository-relative path without parent traversal"
+    )]
+    ProjectPath {
+        /// The caller's path before normalization.
+        path: RelativePath,
     },
     /// A part of the system failed.
     #[error("{what:?}: {reason}")]

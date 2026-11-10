@@ -57,16 +57,20 @@ impl Linter {
 /// # Errors
 ///
 /// As `lint`.
-pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, LintError> {
+pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport, LintError> {
+    schemas::project_context(&mut request)?;
     let engine = linter.engine();
     let connections = super::connections::connect(&engine.cache, engine)?;
-    let reading = super::composition::build_reading(&request);
+    let inventory = schemas::given_project_inventory(request.given_project_inventory.clone());
+    let reading = super::composition::build_reading(&request, inventory);
     let budget = schemas::budget(engine.memory);
-    let core: CoreRequest = schemas::request(request)?;
+    let mut core: CoreRequest = schemas::request(request)?;
     let opened = super::composition::build_open(budget)
         .open(OpenRequest {
             root: core.session.root.clone(),
             repository: core.session.repository,
+            search_scope: core.session.search_scope.clone(),
+            given_inventory: core.session.given_inventory.clone(),
         })
         .map_err(schemas::open_error)?
         .session;
@@ -75,23 +79,18 @@ pub fn lint_with(linter: &Linter, request: LintRequest) -> Result<LintReport, Li
         root: opened.root.clone(),
         budget,
     };
+    core.session = opened;
     let report = super::composition::build(engine, rows.clone(), reading, &connections, settings)
-        .lint(CoreRequest {
-            session: opened,
-            ..core
-        })
+        .lint(core)
         .map_err(schemas::error)?;
-    schemas::report(rows, report)
+    schemas::report(rows.take(), report)
 }
 
 /// The threads every run of the caller reads files on, built once: `workers` of them, at most as many as the machine has. A pool
 /// that cannot be started is answered by the first run over it, as `Io` of the scheduler.
 impl From<Workers> for WorkerPool {
     fn from(workers: Workers) -> Self {
-        let asked = schemas::workers(workers);
-        Self::scheduler(
-            super::composition::build_pool(asked),
-            super::composition::build_workers(asked),
-        )
+        let started = super::composition::build_workers(schemas::workers(workers));
+        Self::scheduler(super::composition::build_pool(started), started)
     }
 }
