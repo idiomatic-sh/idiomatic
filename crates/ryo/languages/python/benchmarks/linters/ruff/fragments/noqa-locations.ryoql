@@ -1,0 +1,7 @@
+input candidates: relation<id: node, file: file, span: span, line: number>;
+input mappings: relation<id: node, file: file, line: number, endline: number>;
+output relation<id: node, file: file, span: span, line: number>;
+let mapped_candidates = select l.id as id, l.file as file, l.span as span, r.endline as line from candidates as l join mappings as r on l.file = r.file where l.line >= r.line and l.line <= r.endline;
+let unchanged_locations = antijoin(left=candidates, right=mapped_candidates, left-on=["id", "span"], right-on=["id", "span"]);
+let located = union(left=unchanged_locations, right=mapped_candidates);
+return located;

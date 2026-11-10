@@ -1,0 +1,15 @@
+input strings: relation<id: node, value: symbol, file: file>;
+output relation<id: node, file: file>;
+let middle_parts = capture(from=strings, path="value", pattern="{*before}{*octet}{*after}", captures=["before", "octet", "after"]);
+let middle_octets = select id, before, octet, file from middle_parts where matches(octet, "^[0-9a-f]{2}$") and matches(before, "^(?:[0-9a-f]{2})*$");
+let first_parts = capture(from=strings, path="value", pattern="{*octet}{*after}", captures=["octet", "after"]);
+let first_octets0 = select id, octet, file from first_parts where matches(octet, "^[0-9a-f]{2}$");
+let first_octets1 = extend(from=first_octets0, values={before: ""});
+let first_octets = select id, before, octet, file from first_octets1;
+let last_parts = capture(from=strings, path="value", pattern="{*before}{*octet}", captures=["before", "octet"]);
+let last_octets = select id, before, octet, file from last_parts where matches(octet, "^[0-9a-f]{2}$") and matches(before, "^(?:[0-9a-f]{2})*$");
+let edges = union(left=first_octets, right=last_octets);
+let octets = union(left=middle_octets, right=edges);
+let counts = group-count(from=octets, keys=["id", "octet", "file"], distinct="before", count="count");
+let repeated = select id, file from counts where count > 1;
+return repeated;

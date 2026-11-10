@@ -1,0 +1,4 @@
+input candidates: relation<id: node, file: file, span: span>;
+output relation<id: node, file: file, span: span, line: number>;
+let located = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
+return located;

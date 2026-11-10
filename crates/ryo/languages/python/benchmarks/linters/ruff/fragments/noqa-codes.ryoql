@@ -1,0 +1,7 @@
+import noqa_heads from "python/ruff/noqa-heads";
+output relation<id: node, file: file, line: number, scope: number, code: symbol, code_span: span, marker: span, codes_span: span>;
+let heads = noqa_heads();
+let lists = source-matches(from=heads, span="suffix_span", pattern="^\s*:\s*(?P<codes>[\s,]*[A-Z]+[0-9]+(?:[\s,]*[A-Z]+[0-9]+)*)(?:[\s,]*(?:$|#.*)|[\s,]+(?:[^A-Z,\s].*|[A-Z]+(?:$|[^A-Z0-9].*)))$", output="list", capture="codes", capture-output="codes_span");
+let tokens = source-matches(from=lists, span="codes_span", pattern="(?P<code>[A-Z]+[0-9]+)", output="token", capture="code", capture-output="code_span", capture-text-output="code");
+let codes = select id, file, line, scope, code, code_span, marker, codes_span from tokens;
+return codes;
