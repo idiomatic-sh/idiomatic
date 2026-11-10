@@ -339,6 +339,7 @@ pub use ryo::languages::builder_position
 pub use ryo::languages::child_of_kind
 pub use ryo::languages::children
 pub use ryo::languages::clear_elements
+pub use ryo::languages::completion_requirement
 pub use ryo::languages::decoded_at
 pub use ryo::languages::decoded_token
 pub use ryo::languages::diagnose
@@ -404,6 +405,7 @@ pub use ryo::languages::reads_manifests
 pub use ryo::languages::relation_named
 pub use ryo::languages::release
 pub use ryo::languages::resolve_target
+pub use ryo::languages::retain_for_semantics
 pub use ryo::languages::search_roots
 pub use ryo::languages::set_note
 pub use ryo::languages::set_syntax_acceptance
@@ -413,6 +415,7 @@ pub use ryo::languages::source_order
 pub use ryo::languages::start_at
 pub use ryo::languages::syntax_acceptance
 pub use ryo::languages::table_builder
+pub use ryo::languages::take_semantics
 pub use ryo::languages::term_symbol
 pub use ryo::languages::text_at
 pub use ryo::languages::text_of
@@ -423,12 +426,176 @@ pub use ryo::languages::with_file_model
 pub use ryo::languages::write_embedded
 pub use ryo::languages::write_fields
 pub use ryo::languages::write_notes
+pub mod ryo::languages::contract
+pub use ryo::languages::contract::AnalyzedSourceExpectedRow
+pub use ryo::languages::contract::AnnotatesExpectedRow
+pub use ryo::languages::contract::AssignsExpectedRow
+pub use ryo::languages::contract::BindingEventExpectedRow
+pub use ryo::languages::contract::BindingReadExpectedRow
+pub use ryo::languages::contract::BindingShadowExpectedRow
+pub use ryo::languages::contract::BindingUseExpectedRow
+pub use ryo::languages::contract::BraceFormatFieldExpectedRow
+pub use ryo::languages::contract::BraceFormatParseExpectedRow
+pub use ryo::languages::contract::BytesLiteralExpectedRow
+pub use ryo::languages::contract::CallArgumentExpectedRow
+pub use ryo::languages::contract::Cell
+pub use ryo::languages::contract::Collect
+pub use ryo::languages::contract::CommentExpectedRow
+pub use ryo::languages::contract::CompilerFeatureExpectedRow
+pub use ryo::languages::contract::ConstantKeyExpectedRow
+pub use ryo::languages::contract::Count
+pub use ryo::languages::contract::DecoratesExpectedRow
+pub use ryo::languages::contract::DefinesExpectedRow
+pub use ryo::languages::contract::DirectiveExpectedRow
+pub use ryo::languages::contract::Discard
+pub use ryo::languages::contract::EmbeddedExpressionExpectedRow
+pub use ryo::languages::contract::EntryExpectedRow
+pub use ryo::languages::contract::Expected
+pub use ryo::languages::contract::ExpectedRow
+pub use ryo::languages::contract::ExpressionShapeExpectedRow
+pub use ryo::languages::contract::ExpressionTypeExpectedRow
+pub use ryo::languages::contract::FileName
+pub use ryo::languages::contract::FilePackageExpectedRow
+pub use ryo::languages::contract::FilesystemExecutableExpectedRow
+pub use ryo::languages::contract::FilesystemFileExpectedRow
+pub use ryo::languages::contract::FilesystemLineCountExpectedRow
+pub use ryo::languages::contract::FilesystemReadFailureExpectedRow
+pub use ryo::languages::contract::Fixtures
+pub use ryo::languages::contract::FormatFieldExpectedRow
+pub use ryo::languages::contract::FormatParseExpectedRow
+pub use ryo::languages::contract::FormatSpecificationExpectedRow
+pub use ryo::languages::contract::FunctionExpectedRow
+pub use ryo::languages::contract::FunctionTerminalExpectedRow
+pub use ryo::languages::contract::IdentifierExpectedRow
+pub use ryo::languages::contract::ImplicitSymbolExpectedRow
+pub use ryo::languages::contract::IndentRegionExpectedRow
+pub use ryo::languages::contract::InheritsExpectedRow
+pub use ryo::languages::contract::InterpolatedStringLiteralExpectedRow
+pub use ryo::languages::contract::KindSample
+pub use ryo::languages::contract::LanguageTargetExpectedRow
+pub use ryo::languages::contract::Leafness
+pub use ryo::languages::contract::LibraryWalk
+pub use ryo::languages::contract::LiteralExpressionParseExpectedRow
+pub use ryo::languages::contract::LiteralPropertiesExpectedRow
+pub use ryo::languages::contract::ManifestDiagnosticExpectedRow
+pub use ryo::languages::contract::ManifestExpected
+pub use ryo::languages::contract::MappingExpectedRow
+pub use ryo::languages::contract::MentionExpectedRow
+pub use ryo::languages::contract::ModuleIdentityExpectedRow
+pub use ryo::languages::contract::NumericLiteralExpectedRow
+pub use ryo::languages::contract::Oracle
+pub use ryo::languages::contract::OracleRows
+pub use ryo::languages::contract::PackageDependencyExpectedRow
+pub use ryo::languages::contract::ParameterExpectedRow
+pub use ryo::languages::contract::ParseEngine
+pub use ryo::languages::contract::Point
+pub use ryo::languages::contract::ProjectEngine
+pub use ryo::languages::contract::ProjectNamespaceMembershipExpectedRow
+pub use ryo::languages::contract::ProseExpectedRow
+pub use ryo::languages::contract::QualifiedNameExpectedRow
+pub use ryo::languages::contract::RawFormatFieldExpectedRow
+pub use ryo::languages::contract::RawFormatSegmentExpectedRow
+pub use ryo::languages::contract::Reading
+pub use ryo::languages::contract::ReferenceExpectedRow
+pub use ryo::languages::contract::ReferenceRefusal
+pub use ryo::languages::contract::RelationRows
+pub use ryo::languages::contract::ResolvesExpectedRow
+pub use ryo::languages::contract::ScopeExpectedRow
+pub use ryo::languages::contract::SemanticChildExpectedRow
+pub use ryo::languages::contract::SemanticExpected
+pub use ryo::languages::contract::SemanticSyntaxExpectedRow
+pub use ryo::languages::contract::SequenceElementExpectedRow
+pub use ryo::languages::contract::Shape
+pub use ryo::languages::contract::SourceDependencyExpectedRow
+pub use ryo::languages::contract::SourceLocationExpectedRow
+pub use ryo::languages::contract::StandardLibraryImportExpectedRow
+pub use ryo::languages::contract::StaticCallExpectedRow
+pub use ryo::languages::contract::StaticImportExpectedRow
+pub use ryo::languages::contract::Stretch
+pub use ryo::languages::contract::StringLiteralExpectedRow
+pub use ryo::languages::contract::SyntaxChildExpectedRow
+pub use ryo::languages::contract::SyntaxErrorExpectedRow
+pub use ryo::languages::contract::SyntaxTreeExpectedRow
+pub use ryo::languages::contract::Text
+pub use ryo::languages::contract::TokenLinkExpectedRow
+pub use ryo::languages::contract::Unfilled
+pub use ryo::languages::contract::Unshown
+pub use ryo::languages::contract::VisibilityExpectedRow
+pub use ryo::languages::contract::Walked
+pub use ryo::languages::contract::Want
+pub use ryo::languages::contract::Wanted
+pub use ryo::languages::contract::WorkspaceMemberExpectedRow
+pub use ryo::languages::contract::build
+pub use ryo::languages::contract::check_item
+pub use ryo::languages::contract::element_count
+pub use ryo::languages::contract::expected_rows
+pub use ryo::languages::contract::file
+pub use ryo::languages::contract::has_incomplete_lexical_stream
+pub use ryo::languages::contract::has_incomplete_syntax
+pub use ryo::languages::contract::kept
+pub use ryo::languages::contract::name
+pub use ryo::languages::contract::name_count
+pub use ryo::languages::contract::node
+pub use ryo::languages::contract::notes_of
+pub use ryo::languages::contract::number
+pub use ryo::languages::contract::point_of
+pub use ryo::languages::contract::read
+pub use ryo::languages::contract::read_project
+pub use ryo::languages::contract::span
+pub use ryo::languages::contract::unknown
+pub use ryo::languages::contract::unlocated
+pub use ryo::languages::contract::walk
+pub use ryo::languages::contract::want_file
+pub use ryo::languages::contract::want_flag
+pub use ryo::languages::contract::want_name
+pub use ryo::languages::contract::want_node
+pub use ryo::languages::contract::want_number
+pub use ryo::languages::contract::want_span
+pub use ryo::languages::contract::want_unknown
+pub use ryo::languages::contract::written
+pub struct ryo::languages::contract::ConfiguredFixture
+pub ryo::languages::contract::ConfiguredFixture::language: ryo::languages::Language
+pub ryo::languages::contract::ConfiguredFixture::oracle: ryo_language::inbound::use_cases::parse::fixtures::expected::Oracle
+pub ryo::languages::contract::ConfiguredFixture::shape: ryo_language::inbound::use_cases::parse::fixtures::expected::Shape
+impl core::fmt::Debug for ryo::languages::contract::ConfiguredFixture
+pub fn ryo::languages::contract::ConfiguredFixture::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct ryo::languages::contract::FixtureRefusal(pub alloc::string::String)
+impl core::clone::Clone for ryo::languages::contract::FixtureRefusal
+pub fn ryo::languages::contract::FixtureRefusal::clone(&self) -> ryo::languages::contract::FixtureRefusal
+impl core::cmp::Eq for ryo::languages::contract::FixtureRefusal
+impl core::cmp::PartialEq for ryo::languages::contract::FixtureRefusal
+pub fn ryo::languages::contract::FixtureRefusal::eq(&self, &ryo::languages::contract::FixtureRefusal) -> bool
+impl core::fmt::Debug for ryo::languages::contract::FixtureRefusal
+pub fn ryo::languages::contract::FixtureRefusal::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for ryo::languages::contract::FixtureRefusal
+pub struct ryo::languages::contract::FixtureText<'a>(pub &'a str)
+impl<'a> core::clone::Clone for ryo::languages::contract::FixtureText<'a>
+pub fn ryo::languages::contract::FixtureText<'a>::clone(&self) -> ryo::languages::contract::FixtureText<'a>
+impl<'a> core::fmt::Debug for ryo::languages::contract::FixtureText<'a>
+pub fn ryo::languages::contract::FixtureText<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for ryo::languages::contract::FixtureText<'a>
+pub struct ryo::languages::contract::ManifestDir(pub &'static str)
+impl core::clone::Clone for ryo::languages::contract::ManifestDir
+pub fn ryo::languages::contract::ManifestDir::clone(&self) -> ryo::languages::contract::ManifestDir
+impl core::fmt::Debug for ryo::languages::contract::ManifestDir
+pub fn ryo::languages::contract::ManifestDir::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for ryo::languages::contract::ManifestDir
+pub fn ryo::languages::contract::allocations(&impl ryo_language::inbound::use_cases::parse::interface::ParseUseCase, ryo_language::inbound::use_cases::parse::types::SourceFile, &dyn core::ops::function::Fn(ryo_language::domain::symbols::types::ByteSlice<'_>) -> core::result::Result<(), ryo_language::inbound::use_cases::parse::errors::ParseError>)
+pub fn ryo::languages::contract::allocations_of_linked(&ryo::languages::Language, ryo::languages::contract::ManifestDir)
+pub fn ryo::languages::contract::conformance(&ryo::languages::Language, ryo::languages::contract::ManifestDir, &ryo_language::inbound::use_cases::parse::fixtures::expected::Fixtures)
+pub fn ryo::languages::contract::conformance_with(&ryo::languages::Language, ryo::languages::contract::ManifestDir, &ryo_language::inbound::use_cases::parse::fixtures::expected::Fixtures, &dyn core::ops::function::Fn(ryo::languages::contract::FixtureText<'_>) -> core::result::Result<core::option::Option<ryo::languages::contract::ConfiguredFixture>, ryo::languages::contract::FixtureRefusal>)
+pub fn ryo::languages::contract::flow(&impl ryo_language::inbound::use_cases::parse::interface::ParseUseCase, &[ryo_language::inbound::use_cases::parse::types::SourceFile])
+pub fn ryo::languages::contract::parse(&impl ryo_language::inbound::use_cases::parse::interface::ParseUseCase)
+pub fn ryo::languages::contract::project(&impl ryo_language::inbound::use_cases::project::interface::ProjectUseCase)
+pub fn ryo::languages::contract::reading<Item>(&ryo::languages::Language, ryo_language::domain::files::types::SourcePath<'_>, ryo_language::inbound::use_cases::parse::types::SampleText) -> core::result::Result<ryo_language::inbound::use_cases::parse::fixtures::reading::Reading, ryo_language::inbound::use_cases::parse::errors::ParseError> where Item: ryo_language::domain::answers::types::ReadItem
 pub struct ryo::languages::Language
 impl ryo::languages::Language
 pub fn ryo::languages::Language::build(&self) -> &ryo::languages::LanguageBuild
 pub fn ryo::languages::Language::configuration_identity(&self) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_>
 pub fn ryo::languages::Language::name(&self) -> &ryo::languages::LanguageName
+pub fn ryo::languages::Language::parse_engine(&self) -> alloc::sync::Arc<dyn ryo_language::inbound::use_cases::parse::types::ParseEngine>
 pub fn ryo::languages::Language::primary_role(&self, ryo_language::domain::files::types::SourcePath<'_>) -> ryo_language::domain::files::types::PrimaryFileRole
+pub fn ryo::languages::Language::project(&self) -> alloc::sync::Arc<dyn ryo_language::inbound::use_cases::project::types::ProjectEngine>
 pub fn ryo::languages::Language::skips(&self) -> &'static [ryo_language::inbound::use_cases::parse::types::SkippedDirectory]
 impl core::clone::Clone for ryo::languages::Language
 pub fn ryo::languages::Language::clone(&self) -> ryo::languages::Language
@@ -465,7 +632,6 @@ impl core::hash::Hash for ryo::languages::LanguageName
 pub fn ryo::languages::LanguageName::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::languages::LanguageName
 pub mod ryo::linter
-pub use ryo::linter::ExecutablePermission
 pub mod ryo::linter::lint
 pub mod ryo::linter::lint::entry
 pub fn ryo::linter::lint::entry::lint(ryo::linter::Languages, &ryo::linter::WorkerPool, ryo::linter::MemoryBudget, ryo::linter::Cache, ryo::linter::LintRequest) -> core::result::Result<ryo::linter::LintReport, ryo::linter::LintError>
@@ -634,7 +800,7 @@ pub fn ryo::linter::SkipReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for ryo::linter::SkipReason
 impl core::marker::StructuralPartialEq for ryo::linter::SkipReason
 pub struct ryo::linter::lint::types::CaseSource
-pub ryo::linter::lint::types::CaseSource::executable: ryo_values::domain::files::types::ExecutablePermission
+pub ryo::linter::lint::types::CaseSource::executable: ryo::linter::ExecutablePermission
 pub ryo::linter::lint::types::CaseSource::path: ryo::linter::RelativePath
 pub ryo::linter::lint::types::CaseSource::text: ryo::linter::SourceText
 impl core::clone::Clone for ryo::linter::CaseSource
@@ -943,6 +1109,28 @@ pub fn ryo::linter::Corpus::eq(&self, &ryo::linter::Corpus) -> bool
 impl core::fmt::Debug for ryo::linter::Corpus
 pub fn ryo::linter::Corpus::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::Corpus
+pub enum ryo::linter::ExecutablePermission
+pub ryo::linter::ExecutablePermission::PosixExecutable
+pub ryo::linter::ExecutablePermission::PosixNotExecutable
+pub ryo::linter::ExecutablePermission::Unknown
+pub ryo::linter::ExecutablePermission::Unsupported
+impl core::clone::Clone for ryo::linter::ExecutablePermission
+pub fn ryo::linter::ExecutablePermission::clone(&self) -> ryo::linter::ExecutablePermission
+impl core::cmp::Eq for ryo::linter::ExecutablePermission
+impl core::cmp::Ord for ryo::linter::ExecutablePermission
+pub fn ryo::linter::ExecutablePermission::cmp(&self, &ryo::linter::ExecutablePermission) -> core::cmp::Ordering
+impl core::cmp::PartialEq for ryo::linter::ExecutablePermission
+pub fn ryo::linter::ExecutablePermission::eq(&self, &ryo::linter::ExecutablePermission) -> bool
+impl core::cmp::PartialOrd for ryo::linter::ExecutablePermission
+pub fn ryo::linter::ExecutablePermission::partial_cmp(&self, &ryo::linter::ExecutablePermission) -> core::option::Option<core::cmp::Ordering>
+impl core::default::Default for ryo::linter::ExecutablePermission
+pub fn ryo::linter::ExecutablePermission::default() -> ryo::linter::ExecutablePermission
+impl core::fmt::Debug for ryo::linter::ExecutablePermission
+pub fn ryo::linter::ExecutablePermission::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for ryo::linter::ExecutablePermission
+pub fn ryo::linter::ExecutablePermission::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for ryo::linter::ExecutablePermission
+impl core::marker::StructuralPartialEq for ryo::linter::ExecutablePermission
 pub enum ryo::linter::FlagState
 pub ryo::linter::FlagState::Off
 pub ryo::linter::FlagState::On
@@ -1270,7 +1458,7 @@ impl core::fmt::Debug for ryo::linter::Unreadable
 pub fn ryo::linter::Unreadable::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::Unreadable
 pub struct ryo::linter::CaseSource
-pub ryo::linter::CaseSource::executable: ryo_values::domain::files::types::ExecutablePermission
+pub ryo::linter::CaseSource::executable: ryo::linter::ExecutablePermission
 pub ryo::linter::CaseSource::path: ryo::linter::RelativePath
 pub ryo::linter::CaseSource::text: ryo::linter::SourceText
 impl core::clone::Clone for ryo::linter::CaseSource
@@ -1647,8 +1835,6 @@ pub fn ryo::linter::ObservationColumn::clone(&self) -> ryo::linter::ObservationC
 impl core::cmp::Eq for ryo::linter::ObservationColumn
 impl core::cmp::PartialEq for ryo::linter::ObservationColumn
 pub fn ryo::linter::ObservationColumn::eq(&self, &ryo::linter::ObservationColumn) -> bool
-impl core::convert::From<ryo::linter::ObservationColumn> for ryo_values::domain::observations::types::ObservationColumn
-pub fn ryo_values::domain::observations::types::ObservationColumn::from(ryo::linter::ObservationColumn) -> Self
 impl core::fmt::Debug for ryo::linter::ObservationColumn
 pub fn ryo::linter::ObservationColumn::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::ObservationColumn
@@ -2541,8 +2727,6 @@ pub fn ryo::query::ObservationScope::clone(&self) -> ryo::query::ObservationScop
 impl core::cmp::Eq for ryo::query::ObservationScope
 impl core::cmp::PartialEq for ryo::query::ObservationScope
 pub fn ryo::query::ObservationScope::eq(&self, &ryo::query::ObservationScope) -> bool
-impl core::convert::From<ryo::query::ObservationScope> for ryo_values::domain::plan_parts::types::StepScope
-pub fn ryo_values::domain::plan_parts::types::StepScope::from(ryo::query::ObservationScope) -> Self
 impl core::fmt::Debug for ryo::query::ObservationScope
 pub fn ryo::query::ObservationScope::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Copy for ryo::query::ObservationScope
@@ -2657,8 +2841,6 @@ pub fn ryo::query::BoundObservationInput::clone(&self) -> ryo::query::BoundObser
 impl core::cmp::Eq for ryo::query::BoundObservationInput
 impl core::cmp::PartialEq for ryo::query::BoundObservationInput
 pub fn ryo::query::BoundObservationInput::eq(&self, &ryo::query::BoundObservationInput) -> bool
-impl core::convert::From<ryo::query::BoundObservationInput> for ryo_values::domain::observations::types::BoundObservationInput
-pub fn ryo_values::domain::observations::types::BoundObservationInput::from(ryo::query::BoundObservationInput) -> Self
 impl core::fmt::Debug for ryo::query::BoundObservationInput
 pub fn ryo::query::BoundObservationInput::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::query::BoundObservationInput
@@ -2733,8 +2915,6 @@ pub fn ryo::linter::ObservationColumn::clone(&self) -> ryo::linter::ObservationC
 impl core::cmp::Eq for ryo::linter::ObservationColumn
 impl core::cmp::PartialEq for ryo::linter::ObservationColumn
 pub fn ryo::linter::ObservationColumn::eq(&self, &ryo::linter::ObservationColumn) -> bool
-impl core::convert::From<ryo::linter::ObservationColumn> for ryo_values::domain::observations::types::ObservationColumn
-pub fn ryo_values::domain::observations::types::ObservationColumn::from(ryo::linter::ObservationColumn) -> Self
 impl core::fmt::Debug for ryo::linter::ObservationColumn
 pub fn ryo::linter::ObservationColumn::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::linter::ObservationColumn
@@ -2805,9 +2985,6 @@ impl core::hash::Hash for ryo::query::QueryModuleCatalog
 pub fn ryo::query::QueryModuleCatalog::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for ryo::query::QueryModuleCatalog
 pub struct ryo::query::QueryModuleSource
-impl ryo::query::QueryModuleSource
-pub fn ryo::query::QueryModuleSource::id(&self) -> &ryo_values::domain::query_tokens::types::QuerySourceId
-pub fn ryo::query::QueryModuleSource::text(&self) -> &ryo_values::domain::query_tokens::types::QuerySourceText
 impl ryo::query::QueryModuleSource
 pub fn ryo::query::QueryModuleSource::try_new(&str, &str) -> core::result::Result<Self, ryo::query::QueryBundleError>
 impl core::clone::Clone for ryo::query::QueryModuleSource
@@ -2951,8 +3128,6 @@ impl core::fmt::Debug for ryo::query::RunRequest
 pub fn ryo::query::RunRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for ryo::query::RunRequest
 pub struct ryo::query::RyoQlQuery(_)
-impl ryo::query::RyoQlQuery
-pub fn ryo::query::RyoQlQuery::root_text(&self) -> &ryo_values::domain::query_tokens::types::QuerySourceText
 impl ryo::query::RyoQlQuery
 pub fn ryo::query::RyoQlQuery::with_modules(&str, &str, &ryo::query::QueryModuleCatalog) -> core::result::Result<Self, ryo::query::QueryBundleError>
 impl core::clone::Clone for ryo::query::RyoQlQuery
@@ -3412,3 +3587,4 @@ pub fn ryo::relation::describe(ryo::linter::Languages, ryo::relation::DescribeRe
 pub fn ryo::relation::list() -> core::result::Result<ryo::relation::ListReport, ryo::relation::ListError>
 pub macro ryo::link!
 pub macro ryo::reads!
+pub macro ryo::selects!

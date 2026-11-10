@@ -2,7 +2,7 @@
 
 ## Validation set
 
-The quick checks (`asymptote check --groups lint,check,clippy` in `crates/ryo`) have no record here: the TM steward runs them at the landed head, and Asymptote's committed lock (`.asymptote/`) is the record of their findings.
+The quick checks (`asymptote check --groups lint,check,clippy,api` in `crates/ryo`) have no record here: the TM steward runs them at the landed head, and Asymptote's committed lock (`.asymptote/`) is the record of their findings.
 
 `commands.json` is the list of `[name, argv]` validation commands the matrix's
 numbers rest on: `checkout_tools` (this checkout's `tm` and `ryo`, built into the run's target directory, which the commands over
