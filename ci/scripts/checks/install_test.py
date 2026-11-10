@@ -21,8 +21,8 @@ sys.modules["install"] = install
 SPEC.loader.exec_module(install)
 
 # Commands the machine provides before any tool is installed.
-# setup-python supplies the bare Python command used by the benchmark verifier.
-SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq", "python"}
+# setup-python supplies python3, which the checked-in tool config runs (this container has no bare `python`).
+SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq", "python3"}
 
 
 def manifest(path: Path, tools: str) -> None:
