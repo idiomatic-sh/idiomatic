@@ -1,145 +1,232 @@
 {
- "checkpoint": "branch:claude/review-criteria",
- "source": "59d2a731ff3a1da11466c71fd27c3b6ad816aee5",
- "verdict": "FAIL",
- "checks": [
-  {
-   "id": "1",
-   "verdict": "PASS",
-   "evidence": "No engine, core or SDK contract is asserted in e75e47b059..59d2a731ff: the diff is agent definitions and harness hooks, and test_hooks.py proves hook behaviour on temp fixtures, not on a product rule set or corpus."
-  },
-  {
-   "id": "2",
-   "verdict": "FAIL",
-   "evidence": "Both third-pass items are closed. 2a: guard_shell.py:94 skips all of '<<<' and HEREDOC has its (?<!<) lookbehind again, so the four here-string spellings plus the push case exit 2 (they exit 0 at 73649ab28b). 2b: acceptance_on_stop.py:203 state_root() reads STATE from the gate's source without running it, and failure() and success() (:257, :278) hold the stop when it cannot be read: a planted syntax error now exits 2 (it exits 1 at 73649ab28b). Every earlier probe holds: 30 shell probes and 13 scope-gate probes. One branch regression remains and the earlier passes missed it: guard_shell.py:140-145 without_heredoc_bodies skips to the end of the command when a here-doc operator's delimiter line never comes. Any operator whose terminator is never matched exactly therefore hides every later line from every guard, the push guard included. That happens with 'x=$(cat <<EOF' / 'hi' / 'EOF)', which bash 5.2 runs, warning and then running the next line. It also happens when a '<<WORD' sits inside nested quotes in a substitution ('echo \"$(printf \"%s\" \"the <<EOF form\")\"'), and with 'let x=1<<y'. With 'git push origin HEAD:main' or 'cargo build' on the next line, each spelling exits 2 at e75e47b059 and 0 at 9b42116ff3, 73649ab28b and 59d2a731ff."
-  },
-  {
-   "id": "3",
-   "verdict": "PASS",
-   "evidence": "No Rust visibility, package or import boundary is in the diff. The reviewer clippy carve-out (guard_shell.py review_copy) has not changed since the second pass."
-  },
-  {
-   "id": "4",
-   "verdict": "PASS",
-   "evidence": "There is one scope-review validator (no_subagent_builders.py scope_review_problem) and one review-path rule (review_path), both used by the gate and by acceptance_on_stop.py scope_review_stop. The state root is defined once (no_subagent_builders.py:14), and acceptance_on_stop.py:203 parses that definition. The rubric rows come only from the scope-review.md table."
-  },
-  {
-   "id": "5",
-   "verdict": "PASS",
-   "evidence": "No crate or Rust code is touched."
-  },
-  {
-   "id": "6",
-   "verdict": "PASS",
-   "evidence": "No feature, cfg(test) or test helper is reachable from a production build. CLAUDE_HOOKS_STATE is set only by tests and probes."
-  },
-  {
-   "id": "13",
-   "verdict": "PASS",
-   "evidence": "No public Rust item or crate surface changes in the diff."
-  },
-  {
-   "id": "16",
-   "verdict": "PASS",
-   "evidence": "No manifest or lockfile is in the diff. The hooks use the stdlib only (ast is added at acceptance_on_stop.py:207)."
-  },
-  {
-   "id": "17",
-   "verdict": "PASS",
-   "evidence": "The full hook suite passes on a git archive of 59d2a731ff (168 tests, OK), in temp dirs with its own CLAUDE_HOOKS_STATE."
-  },
-  {
-   "id": "18",
-   "verdict": "PASS",
-   "evidence": "No new tool or framework. The here-string and BEADS changes extend the existing hand-written guard tokenizer and gate, which the hooks threat model accepts."
-  },
-  {
-   "id": "20",
-   "verdict": "PASS",
-   "evidence": "The new logic sits in the hooks that own it: the scope gate in no_subagent_builders.py and the stop holds in acceptance_on_stop.py. No catch-all file is added."
-  }
- ],
- "plants": [
-  {
-   "claim": "guard_shell refuses a push to main after a one-word here-string (2a)",
-   "file": ".claude/hooks/guard_shell.py:94",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell refuses cargo build after <<<main, <<<'hello', <<< \"word\" (2a)",
-   "file": ".claude/hooks/guard_shell.py:94",
-   "count": 3,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell refuses cargo build or push after <<< next to << (cat <<<x <<EOF, <<<x<<EOF, <<EOF<<<x)",
-   "file": ".claude/hooks/guard_shell.py:94",
-   "count": 4,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell refuses cargo build after <<< inside quotes",
-   "file": ".claude/hooks/guard_shell.py:72",
-   "count": 4,
-   "reverted": true
-  },
-  {
-   "claim": "acceptance_on_stop holds a failing builder stop when no_subagent_builders.py has a syntax error (2b)",
-   "file": ".claude/hooks/acceptance_on_stop.py:257",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell refuses a heredoc piped to fish, source /dev/stdin, . /dev/stdin",
-   "file": ".claude/hooks/guard_shell.py:63",
-   "count": 3,
-   "reverted": true
-  },
-  {
-   "claim": "builder gate admits a bead listed on a checkpoint scope's BEADS: line and refuses an unlisted one",
-   "file": ".claude/hooks/no_subagent_builders.py:122",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "builder gate refuses a checkpoint scope whose review is named for another stem",
-   "file": ".claude/hooks/no_subagent_builders.py:29",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "builder gate refuses a BEADS: line added after the review (scope_sha256)",
-   "file": ".claude/hooks/no_subagent_builders.py:70",
-   "count": 1,
-   "reverted": true
-  },
-  {
-   "claim": "builder gate refuses a child, prefix or DEFER-scope bead on a BEADS: line",
-   "file": ".claude/hooks/no_subagent_builders.py:122",
-   "count": 3,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell refuses a push to main after x=$(cat <<EOF ... EOF) (terminator never matched)",
-   "file": ".claude/hooks/guard_shell.py:140",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell refuses a push to main after \"$(printf \"%s\" \"the <<EOF form\")\"",
-   "file": ".claude/hooks/guard_shell.py:140",
-   "count": 0,
-   "reverted": true
-  },
-  {
-   "claim": "guard_shell refuses cargo build after let x=1<<y",
-   "file": ".claude/hooks/guard_shell.py:140",
-   "count": 0,
-   "reverted": true
-  }
- ],
- "enforcement_candidates": [],
- "reviewer": "leak-review",
- "date": "2026-11-10T02:06:00Z"
+  "checkpoint": "branch:claude/review-criteria",
+  "source": "1392542771c2c92729ad6b80c9114e10f30d6372",
+  "verdict": "PASS",
+  "checks": [
+    {
+      "id": "1",
+      "verdict": "PASS",
+      "evidence": "Carried from pass 12: the delta's only test change (.claude/hooks/test_hooks.py:1848-1855 ScopeGate loop over malformed_briefs under general-purpose, Explore, Plan, fork and no type; :1925-1926 test_not_a_builder) runs on temp fixtures; no engine, core or SDK contract is asserted."
+    },
+    {
+      "id": "2",
+      "verdict": "PASS",
+      "evidence": "Pass-12 FAIL closed: no_subagent_builders.py:241 is now `brief = bool(brief_beads(prompt))`, so any ^BEAD: line under a type outside ACCEPTED is refused at :242-244 with WRONG_TYPE before any filesystem access. Real PreToolUse payloads (tool_name Agent, no agent_id) against a git archive of 1392542771: the real 2026-09-23 brief (first message of agent-a89d59f998e6155c0.jsonl, `BEAD: ryo-tq5.18.33 ...`, no WORKTREE line) and the six spellings (no worktree line, `Worktree:`, `WORKTREE=`, bold, indented, CRLF) under general-purpose, untyped, Explore, Plan and fork: 35 of 35 exit 2 with `subagent_type builder` in stderr; the control with no ^BEAD: line exits 0 under all five. Planting the old classifier back (`and brief_worktree(prompt) is not None`) fails the suite with 36 failures; reverted (diff against the sha is empty). Full suite from a complete archive: 182 tests OK. Harness scan of the delta: the new loop asserts returncode and stderr per subTest, no skip or caught error; the `Bead:` case asserts 0 because it is not an exact BEAD: line (it is still refused under builder by the pass-12 gate). Integrator advisory carried forward (acceptance_on_stop.py is not in the delta)."
+    },
+    {
+      "id": "3",
+      "verdict": "PASS",
+      "evidence": "git diff 438798b2d2..1392542771 touches only .claude/hooks (README.md, no_subagent_builders.py, test_hooks.py); no Rust visibility, manifest or import boundary. Pass-12 evidence carries forward."
+    },
+    {
+      "id": "4",
+      "verdict": "PASS",
+      "evidence": "One classifier: brief_beads (no_subagent_builders.py:36-40) is the one parser, used by the launch gate (:241) and the stop hook; WRONG_TYPE is defined once (:25-27). No second implementation added."
+    },
+    {
+      "id": "5",
+      "verdict": "PASS",
+      "evidence": "No crate is touched by the delta."
+    },
+    {
+      "id": "6",
+      "verdict": "PASS",
+      "evidence": "Only test_hooks.py sets CLAUDE_HOOKS_STATE. .claude/hooks/guard_shell.py equals e75e47b059: git diff e75e47b059 1392542771 -- guard_shell.py is empty and both blobs are c6cbceaa4439810dc65892e3a5cd76be11e74af4."
+    },
+    {
+      "id": "16",
+      "verdict": "PASS",
+      "evidence": "The delta adds no import; the hooks use the standard library only."
+    },
+    {
+      "id": "17",
+      "verdict": "PASS",
+      "evidence": "The full hook suite passes from a complete git archive of 1392542771 with its own CLAUDE_HOOKS_STATE: `python3 -m unittest test_hooks` ran 182 tests OK in 62.8 s."
+    },
+    {
+      "id": "18",
+      "verdict": "PASS",
+      "evidence": "No new tool, parser or format; one condition dropped."
+    }
+  ],
+  "plants": [
+    {
+      "claim": "a beaded brief (real 2026-09-23 brief plus six worktree spellings) launched as general-purpose, untyped, Explore, Plan or fork is refused with WRONG_TYPE (real PreToolUse payload)",
+      "file": ".claude/hooks/no_subagent_builders.py:241-244",
+      "count": 35,
+      "reverted": true
+    },
+    {
+      "claim": "suite fires with the old classifier planted back (`brief = bool(brief_beads(prompt)) and brief_worktree(prompt) is not None`)",
+      "file": ".claude/hooks/no_subagent_builders.py:241",
+      "count": 36,
+      "reverted": true
+    }
+  ],
+  "enforcement_candidates": [
+    {
+      "id": "subagent-hook-reads-the-session-transcript-5e77b381",
+      "class": "subagent hook reads the session transcript",
+      "signature": "a SubagentStop or in-subagent PreToolUse handler reading data.get(\"transcript_path\") (the session transcript) where the subagent's own transcript is data[\"agent_transcript_path\"] or the subagent signal is data[\"agent_id\"]",
+      "scope": [
+        ".claude/hooks/acceptance_on_stop.py",
+        ".claude/hooks/no_subagent_builders.py"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "fixed",
+      "plants": [
+        {
+          "file": ".claude/hooks/acceptance_on_stop.py",
+          "line": 303,
+          "text": "    path = data.get(\"transcript_path\")"
+        },
+        {
+          "file": ".claude/hooks/no_subagent_builders.py",
+          "line": 215,
+          "text": "    path = data.get(\"transcript_path\")"
+        }
+      ]
+    },
+    {
+      "id": "builder-brief-accepted-by-agent-type-b4b7a32a",
+      "class": "builder brief accepted by agent type",
+      "signature": "ACCEPTED = {\"builder\", \"contract-migration\", \"integrator\"} with a launch gate admitting kind not in ACCEPTED when brief_beads(prompt) and brief_worktree(prompt)",
+      "scope": [
+        ".claude/hooks/acceptance_on_stop.py",
+        ".claude/hooks/no_subagent_builders.py"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "fixed",
+      "plants": [
+        {
+          "file": ".claude/hooks/no_subagent_builders.py",
+          "line": 225,
+          "text": "    if kind in GATED or brief:  # a builder brief needs a passed scope whatever agent type carries it"
+        },
+        {
+          "file": ".claude/hooks/acceptance_on_stop.py",
+          "line": 304,
+          "text": "    if data.get(\"agent_type\") not in ACCEPTED:"
+        }
+      ]
+    },
+    {
+      "id": "hook-crash-releases-the-stop-8bcd4be6",
+      "class": "hook crash releases the stop",
+      "signature": "an uncaught exception in a SubagentStop or PreToolUse hook main() (exit 1, non-blocking): os.path.join(state, bead + \".count\") with a token holding \"/\", subprocess.run(cwd=worktree) on a missing WORKTREE",
+      "scope": [
+        ".claude/hooks/acceptance_on_stop.py",
+        ".claude/hooks/no_subagent_builders.py"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "fixed",
+      "plants": [
+        {
+          "file": ".claude/hooks/acceptance_on_stop.py",
+          "line": 271,
+          "text": "    counter = os.path.join(state, bead + \".count\")"
+        },
+        {
+          "file": ".claude/hooks/acceptance_on_stop.py",
+          "line": 259,
+          "text": "        done = subprocess.run([\"bash\", \"-e\", \"-c\", script], cwd=worktree, capture_output=True, text=True,"
+        }
+      ]
+    },
+    {
+      "id": "gated-launch-without-a-worktree-line-releases-the-stop-68f94134",
+      "class": "gated launch without a worktree line releases the stop",
+      "signature": "a SubagentStop handler returning 0 on `if not beads or not tree:` for agent_type in GATED, while builder_problem admits a SCOPE= launch whose brief_worktree(prompt) is None",
+      "scope": [
+        ".claude/hooks/acceptance_on_stop.py",
+        ".claude/hooks/no_subagent_builders.py"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "fixed",
+      "plants": [
+        {
+          "file": ".claude/hooks/acceptance_on_stop.py",
+          "line": 350,
+          "text": "    if not beads or not tree:\n        return 0"
+        },
+        {
+          "file": ".claude/hooks/no_subagent_builders.py",
+          "line": 191,
+          "text": "    if scope:  # no brief_worktree(prompt) check on this route"
+        }
+      ]
+    },
+    {
+      "id": "acceptance-outlives-the-hook-timeout-07e399b3",
+      "class": "acceptance outlives the hook timeout",
+      "signature": "a SubagentStop command hook running subprocess.run(..., timeout=600) per bead in a loop with no `timeout` key in .claude/settings.json (Claude Code's default 600 s; a timed-out SubagentStop hook is non-blocking)",
+      "scope": [
+        ".claude/hooks/acceptance_on_stop.py",
+        ".claude/hooks/no_subagent_builders.py"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "open",
+      "plants": [
+        {
+          "file": ".claude/hooks/acceptance_on_stop.py",
+          "line": 277,
+          "text": "        done = subprocess.run([\"bash\", \"-e\", \"-c\", script], cwd=worktree, capture_output=True, text=True, timeout=600, check=False)"
+        }
+      ]
+    },
+    {
+      "id": "stop-reads-only-the-first-brief-3fd912d9",
+      "class": "stop reads only the first brief",
+      "signature": "read_transcript keeping only the first user row (`if role == \"user\" and not first_user`) as the brief whose BEAD: lines the builder stop accepts, so a BEAD: line in a later user message (SendMessage follow-up) is never accepted",
+      "scope": [
+        ".claude/hooks/acceptance_on_stop.py",
+        ".claude/hooks/no_subagent_builders.py"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "open",
+      "plants": [
+        {
+          "file": ".claude/hooks/acceptance_on_stop.py",
+          "line": 40,
+          "text": "            if role == \"user\" and not first_user and text:"
+        }
+      ]
+    },
+    {
+      "id": "beaded-brief-under-an-ungated-type-skips-every-gate-028cc8b1",
+      "class": "beaded brief under an ungated type skips every gate",
+      "signature": "brief = bool(brief_beads(prompt)) and brief_worktree(prompt) is not None; if brief and kind not in ACCEPTED: refuse -- so a prompt with a ^BEAD: line but no exact `WORKTREE: /abs/path` line launches under a type outside ACCEPTED (general-purpose, none, Explore, Plan, fork) with no scope gate and no acceptance stop",
+      "scope": [
+        ".claude/hooks/no_subagent_builders.py"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "fixed",
+      "plants": [
+        {
+          "file": ".claude/hooks/no_subagent_builders.py",
+          "line": 241,
+          "text": "    brief = bool(brief_beads(prompt)) and brief_worktree(prompt) is not None"
+        }
+      ]
+    },
+    {
+      "id": "integrator-stop-releases-a-beaded-brief-without-an-exact-worktree-line-3a4d8735",
+      "class": "integrator stop releases a beaded brief without an exact worktree line",
+      "signature": "if not beads or not tree: if data.get(\"agent_type\") not in gate.GATED ...: return 0 -- an integrator whose brief has ^BEAD: lines but no exact `WORKTREE: /abs/path` line stops on DONE: with no acceptance run",
+      "scope": [
+        ".claude/hooks/acceptance_on_stop.py"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "open",
+      "plants": [
+        {
+          "file": ".claude/hooks/acceptance_on_stop.py",
+          "line": 351,
+          "text": "        if data.get(\"agent_type\") not in gate.GATED or last.startswith(\"BLOCKED:\"):"
+        }
+      ]
+    }
+  ],
+  "reviewer": "leak-review",
+  "date": "2026-11-10T00:00:00Z"
 }
