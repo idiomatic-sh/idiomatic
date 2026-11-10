@@ -72,9 +72,9 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::wanted::{
 pub use ryo_language::inbound::use_cases::parse::fixtures::{collect::Collect, contract::Discard};
 pub use ryo_language::inbound::use_cases::parse::service::{build, read, walk};
 pub use ryo_language::inbound::use_cases::parse::types::KindSample;
-pub use ryo_language::inbound::use_cases::project::service::project as read_project;
 /// The engine-side interfaces `Language::parse_engine` and `Language::project` hand a language's own tests.
 pub use ryo_language::inbound::use_cases::parse::types::ParseEngine;
+pub use ryo_language::inbound::use_cases::project::service::project as read_project;
 pub use ryo_language::inbound::use_cases::project::types::ProjectEngine;
 
 use super::{CatalogRelation, Parse, Project, ReadItem, SourceFile, SourcePath};
@@ -206,15 +206,24 @@ pub fn conformance_with(
 
 /// Runs the allocation row against a linked language, with its fixtures under `tests/fixtures` of its directory `manifest_dir`: reading
 /// a file allocates no more than the baseline, what the language's own `read_tree` does for the file alone through a builder that builds nothing. It runs alone in its
-/// process, with `dhat` as the global allocator, so nothing else counts.
+/// process, with `dhat` as the global allocator, so nothing else counts. It reports as cargo's harness does, as the case
+/// `allocation::<language>::reading_allocates_as_the_parser_library_does`, named by the language's directory.
 ///
 /// # Panics
 ///
-/// When reading a file allocates more than the baseline does.
+/// When reading a file allocates more than the baseline does, after the case is reported as failed.
 pub fn allocations_of_linked(linked: &super::Language, manifest_dir: ManifestDir) {
-    ryo_language::inbound::use_cases::parse::fixtures::samples::allocations_of_fixtures(
-        linked.parse_engine().as_ref(),
-        &Path::new(manifest_dir.0).join(FIXTURES),
+    parse_samples::harness_case(
+        &format!(
+            "allocation::{}::reading_allocates_as_the_parser_library_does",
+            linked.name().0
+        ),
+        || {
+            parse_samples::allocations_of_fixtures(
+                linked.parse_engine().as_ref(),
+                &Path::new(manifest_dir.0).join(FIXTURES),
+            );
+        },
     );
 }
 
