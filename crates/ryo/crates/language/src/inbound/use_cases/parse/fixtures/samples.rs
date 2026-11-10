@@ -17,6 +17,7 @@ use crate::domain::symbols::types::Symbols;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest};
 use ryo_relations::domain::relations::service::all;
 use ryo_relations::domain::relations::types::FileId;
+use std::io::Write;
 use std::path::Path;
 
 /// Runs the allocation row against one implementation: after a warm-up, reading a file allocates
@@ -163,3 +164,85 @@ pub fn allocations_of_fixtures(subject: &dyn ParseEngine, fixtures: &Path) {
         });
     }
 }
+
+/// Runs the one case of a `harness = false` test target and reports it as cargo's harness does: `test <name> ... ok`, or
+/// `... FAILED` with its `failures:` list, then a `test result:` summary, so what reads a test log reads this one. It
+/// answers libtest's command line as well, so nextest lists and runs it: `--list` prints `<name>: test` and runs nothing,
+/// `--ignored` names no case, and a filter (`--exact` or not, `--skip`) that leaves the case out runs nothing and prints nothing.
+///
+/// # Panics
+///
+/// When `body` panics: its panic resumes after the report, so the process exits 101 as a failed cargo test does.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::inbound::use_cases::parse::fixtures::samples::harness_case;
+///
+/// harness_case("example::sums", || assert_eq!(1 + 1, 2));
+/// ```
+pub fn harness_case(name: &str, body: impl FnOnce()) {
+    let arguments: Vec<String> = std::env::args().skip(1).collect();
+    case_by_arguments(&arguments, name, &mut std::io::stdout(), body);
+}
+
+/// [`harness_case`] for the libtest command line `arguments`, the program's name left out, its report written to `out`.
+fn case_by_arguments(arguments: &[String], name: &str, out: &mut dyn Write, body: impl FnOnce()) {
+    let (mut list, mut ignored, mut exact) = (false, false, false);
+    let (mut filters, mut skips) = (Vec::new(), Vec::new());
+    let mut words = arguments.iter();
+    while let Some(word) = words.next() {
+        match word.as_str() {
+            "--list" => list = true,
+            "--ignored" => ignored = true,
+            "--exact" => exact = true,
+            "--skip" => skips.extend(words.next()),
+            // The options that take a value: the value is no filter.
+            "--format" | "--test-threads" | "--color" | "--logfile" | "--shuffle-seed" | "-Z" => {
+                let _value: Option<&String> = words.next();
+            }
+            flag if flag.starts_with('-') => {}
+            _ => filters.push(word),
+        }
+    }
+    let matches = |pattern: &&String| {
+        if exact {
+            pattern.as_str() == name
+        } else {
+            name.contains(pattern.as_str())
+        }
+    };
+    let chosen = !ignored
+        && (filters.is_empty() || filters.iter().any(matches))
+        && !skips.iter().any(matches);
+    if chosen && list {
+        writeln!(out, "{name}: test").expect("a runner's standard output is written");
+    }
+    if chosen && !list {
+        report(name, out, body);
+    }
+}
+
+/// Runs `body` and writes its verdict to `out` as cargo's harness does, resuming a failure's panic after the report.
+fn report(name: &str, out: &mut dyn Write, body: impl FnOnce()) {
+    writeln!(out, "\nrunning 1 test").expect("a runner's standard output is written");
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(body)) {
+        Ok(()) => writeln!(
+            out,
+            "test {name} ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+        )
+        .expect("a runner's standard output is written"),
+        Err(payload) => {
+            writeln!(
+                out,
+                "test {name} ... FAILED\n\nfailures:\n    {name}\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n"
+            )
+            .expect("a runner's standard output is written");
+            std::panic::resume_unwind(payload);
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "samples_test.rs"]
+mod tests;

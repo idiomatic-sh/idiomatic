@@ -5,6 +5,7 @@
 //! with `dhat` as the global allocator, so nothing else counts.
 
 use ryo_core::inbound::use_cases::lint::fixtures::{corpus, measures};
+use ryo_language::inbound::use_cases::parse::fixtures::samples::harness_case;
 
 /// The allocator that counts every block, so the row measures what the path allocates.
 #[global_allocator]
@@ -13,30 +14,10 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 /// What the parser does for a file by itself: the fake language reads a file without allocating.
 fn library(_bytes: &[u8]) {}
 
-/// The case's stable id, which its line, its failure and a validation that owns its red name exactly.
-const CASE: &str = "per_file_path::allocates_as_the_parser_library_does";
-
-/// Runs the case and reports it as cargo's test harness does (`test <id> ... ok|FAILED` and a `test result:` summary), so
-/// what reads a test log reads this one; a red exits 101, as a failed cargo test does.
-#[expect(
-    clippy::print_stdout,
-    reason = "a harness = false runner's report is its standard output, in the shape of cargo's harness"
-)]
-fn main() -> std::process::ExitCode {
-    println!("\nrunning 1 test");
-    let passed = std::panic::catch_unwind(|| {
-        measures::allocation(&corpus::fake_corpus(), &library);
-    })
-    .is_ok();
-    if passed {
-        println!(
-            "test {CASE} ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
-        );
-        // ignore: idiomatic.arch/no-silent-skip - the passing case prints cargo's own summary line, which run.py parses (0 tests ignored) and exits: no case is skipped
-        return std::process::ExitCode::SUCCESS;
-    }
-    println!(
-        "test {CASE} ... FAILED\n\nfailures:\n    {CASE}\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n"
+/// Runs the one case and reports it as cargo's harness does; a red exits 101, as a failed cargo test does.
+fn main() {
+    harness_case(
+        "allocation::core::reading_allocates_as_the_parser_library_does",
+        || measures::allocation(&corpus::fake_corpus(), &library),
     );
-    std::process::ExitCode::from(101)
 }

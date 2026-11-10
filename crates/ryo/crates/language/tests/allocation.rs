@@ -15,7 +15,7 @@ use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
-use ryo_language::inbound::use_cases::parse::fixtures::samples::allocations;
+use ryo_language::inbound::use_cases::parse::fixtures::samples::{allocations, harness_case};
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::service::baseline;
 use ryo_language::inbound::use_cases::parse::types::Recognition;
@@ -268,16 +268,21 @@ fn held(language: &Language) -> bool {
 }
 
 fn main() {
-    assert!(
-        held(&Language {
-            greedy_reader: false
-        }),
-        "a library parse that allocates in every file is the library's, and the row holds"
-    );
-    assert!(
-        !held(&Language {
-            greedy_reader: true
-        }),
-        "a reader that allocates in every element is not the library's, and the row does not hold"
+    harness_case(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                held(&Language {
+                    greedy_reader: false
+                }),
+                "a library parse that allocates in every file is the library's, and the row holds"
+            );
+            assert!(
+                !held(&Language {
+                    greedy_reader: true
+                }),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+        },
     );
 }
