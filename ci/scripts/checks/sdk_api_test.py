@@ -114,7 +114,7 @@ def trait_impl(implemented_for: list[str], argument: list[str]) -> dict:
     }
 
 
-HANDLES = ["ryo_core", "outbound", "language", "types", "LanguageHandles"]
+HANDLES = ["ryo_core", "outbound", "language", "adapters", "use_case", "connection", "LanguageConnection"]
 
 
 def test_a_trait_impl_for_an_internal_type_that_is_not_the_listed_one_is_a_leak() -> None:

@@ -66,35 +66,34 @@ impl From<ObservationKind> for ryo_relations::domain::relations::types::CellKind
     }
 }
 
-impl From<ObservationColumn> for ryo_values::domain::observations::types::ObservationColumn {
+// The conversions into the planner's types are the crate's own: a public `From` impl would put the planner's types on the SDK's surface.
+impl ObservationColumn {
     /// Preserve every declared semantic kind at the SDK boundary.
-    fn from(column: ObservationColumn) -> Self {
-        Self {
-            name: ryo_values::domain::observations::types::ObservationColumnName(column.name.0),
-            kind: column.kind.into(),
+    pub(crate) fn into_engine(self) -> ryo_values::domain::observations::types::ObservationColumn {
+        ryo_values::domain::observations::types::ObservationColumn {
+            name: ryo_values::domain::observations::types::ObservationColumnName(self.name.0),
+            kind: self.kind.into(),
         }
     }
 }
 
-impl From<ObservationScope> for ryo_values::domain::plan_parts::types::StepScope {
+impl ObservationScope {
     /// The planner's step scope of the phase a declared input is established in.
-    fn from(scope: ObservationScope) -> Self {
-        match scope {
-            ObservationScope::PerFile => Self::PerFile,
-            ObservationScope::CrossFile => Self::CrossFile,
+    pub(crate) const fn into_engine(self) -> ryo_values::domain::plan_parts::types::StepScope {
+        match self {
+            Self::PerFile => ryo_values::domain::plan_parts::types::StepScope::PerFile,
+            Self::CrossFile => ryo_values::domain::plan_parts::types::StepScope::CrossFile,
         }
     }
 }
 
-impl From<BoundObservationInput>
-    for ryo_values::domain::observations::types::BoundObservationInput
-{
+impl BoundObservationInput {
     /// Carry the same explicit context through validation and compilation.
-    fn from(input: BoundObservationInput) -> Self {
-        Self {
-            name: ryo_values::domain::observations::types::ObservationBindingName(input.name.0),
-            columns: input.columns.into_iter().map(Into::into).collect(),
-            scope: input.scope.into(),
+    pub(crate) fn into_engine(self) -> ryo_values::domain::observations::types::BoundObservationInput {
+        ryo_values::domain::observations::types::BoundObservationInput {
+            name: ryo_values::domain::observations::types::ObservationBindingName(self.name.0),
+            columns: self.columns.into_iter().map(ObservationColumn::into_engine).collect(),
+            scope: self.scope.into_engine(),
         }
     }
 }

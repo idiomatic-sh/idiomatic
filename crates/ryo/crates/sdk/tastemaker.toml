@@ -297,7 +297,7 @@ specs = [
     { resource = "linter", path = "crate::domain::project::types::DependencyBytes", as = "DependencyBytes" },
     { resource = "linter", path = "crate::domain::language::types::SourceLanguage", as = "SourceLanguage" },
     { resource = "linter", path = "crate::domain::project::types::DependencyFingerprint", as = "DependencyFingerprint" },
-    { resource = "linter", path = "ryo_values::domain::files::types::ExecutablePermission", as = "ExecutablePermission" },
+    { resource = "linter", path = "crate::domain::file::types::ExecutablePermission", as = "ExecutablePermission" },
     { resource = "linter", path = "crate::domain::project::types::GivenProjectInventory", as = "GivenProjectInventory" },
     { resource = "linter", path = "crate::domain::project::types::ProjectDependency", as = "ProjectDependency" },
     { resource = "linter", path = "crate::domain::project::types::ProjectDependencyState", as = "ProjectDependencyState" },

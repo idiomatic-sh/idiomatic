@@ -226,7 +226,7 @@ pub(crate) fn build_reading(
         sources
             .iter()
             .map(|each| CorpusFile {
-                executable: each.executable,
+                executable: each.executable.into_engine(),
                 path: FilePath(each.path.0.clone()),
                 bytes: FileBytes(each.text.0.as_bytes().to_vec()),
             })

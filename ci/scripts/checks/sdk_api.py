@@ -29,10 +29,10 @@ from pathlib import Path
 # The crates a product's SDK wraps: no type defined in one of them may be reachable from the SDK's public API.
 INTERNAL = ("ryo_core", "ryo_language", "ryo_relations", "ryo_values", "ryo_query_language")
 
-# The one trait implementation allowed to name an internal crate's type: `From<Language> for LanguageHandles`, which the command line and
-# the tests of the products compose the engine with. It is `doc(hidden)` and stays public because the SDK's composition and the
-# command line's registry (generated from the `languages` template) both build the engine's handles through it.
-ALLOWED_IMPLS = ("ryo_core::outbound::language::types::LanguageHandles",)
+# The one trait implementation allowed to name an internal crate's type: `From<Language> for LanguageConnection`, which the command line
+# and the tests of the products compose the engine with. It is `doc(hidden)` and stays public because the SDK's composition and the
+# command line's registry (generated from the `languages` template) both build the engine's language connections through it.
+ALLOWED_IMPLS = ("ryo_core::outbound::language::adapters::use_case::connection::LanguageConnection",)
 
 
 def toplevel(directory: Path) -> Path:
