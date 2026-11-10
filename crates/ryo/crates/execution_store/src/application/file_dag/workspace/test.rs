@@ -74,8 +74,7 @@ fn use_(
     PreparedViewUse {
         plan: {
             let plan = crate::application::file_dag::derived::prepare::view(
-                (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+                std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
                 &request,
                 &schemas,
             )
@@ -104,7 +103,7 @@ fn context<'a>(
         matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
-        bindings: &[] as &[ParameterBinding],
+        bindings: &[],
         symbols: symbols.into(),
         source: ryo_values::domain::files::types::SourceView(&[]),
         paths: &[],
@@ -369,9 +368,6 @@ use ryo_derived::domain::request::types::DerivedKind;
 fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
     Rc::new(crate::application::file_dag::relations::RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     ))
 }
-
-use ryo_values::domain::query_bindings::types::ParameterBinding;

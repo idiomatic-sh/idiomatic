@@ -20,6 +20,11 @@ use ryo_values::domain::stored_facts::types::{PartialCause, PartialScope, ReadIn
 /// Physical file ordinals affected by a partial project publication. An
 /// unlocated cause applies to the entire named file set; no named file means
 /// the caller must retain the project refusal instead of losing it in a report.
+///
+/// # Errors
+///
+/// [`OperatingError::ObservationIncomplete`](crate::domain::operating::errors::OperatingError::ObservationIncomplete)
+/// when nothing is affected, no file is declared, or a named file lies outside the declared files.
 pub fn affected_ordinals(
     affected: &[Option<FileId>],
     file_count: DeclaredFiles,

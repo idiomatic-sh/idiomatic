@@ -49,7 +49,10 @@ impl RowCells for Cells<'_> {
     ) -> Option<Cell> {
         self.0
             .cells
-            .get(row.0 * self.0.kinds.len() + column.0 as usize)
+            .get(
+                row.0 * self.0.kinds.len()
+                    + usize::try_from(column.0).expect("a column index fits in usize"),
+            )
             .copied()
     }
 }

@@ -12,13 +12,21 @@ use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
 
 /// Assemble explicit step data; the production compiler owns dependencies and schemas.
+///
+/// # Panics
+///
+/// When `operations` is empty, or numbers more steps than a `u32` does.
+#[expect(
+    clippy::expect_used,
+    reason = "a fixture: an authored plan of a handful of steps always has a u32 step number, and one that does not fails the proof"
+)]
 pub fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Plan {
     use ryo_values::domain::{
         plan_parts::types::{ColumnIndex, StepId, StepScope},
         plans::types::{Emit, PlanStep},
     };
     let emit = Emit {
-        step: StepId((operations.len() - 1) as u32),
+        step: StepId(u32::try_from(operations.len() - 1).expect("a step number fits in u32")),
         subject: ColumnIndex(0),
         key: vec![],
         headings: vec![],
@@ -40,6 +48,10 @@ pub fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Pla
     }
 }
 /// Resolve published physical vocabulary; this does not evaluate an operation.
+///
+/// # Panics
+///
+/// When the cell has no published text.
 pub fn text<'a>(
     cell: ryo_relations::domain::relations::types::Value,
     symbols: &'a Symbols,
@@ -56,7 +68,11 @@ pub fn text<'a>(
     };
     match datum(cell, &texts) {
         Datum::Text(text) => text.0,
-        _ => panic!("published text cell required"),
+        Datum::Unlocated
+        | Datum::Number(_)
+        | Datum::Flag(_)
+        | Datum::Numbers(_)
+        | Datum::Texts(_) => panic!("published text cell required"),
     }
 }
 /// An authored plan with the hosted relations and the facts it reads.
@@ -70,6 +86,15 @@ pub struct AuthoredRows {
     pub facts: Vec<(Relation, Table)>,
 }
 /// Only fixture input and plan assembly; callers execute through the real inbound API.
+///
+/// # Panics
+///
+/// When an input table holds a cell kind the fixture cannot author, or the plan reads more inputs than the tables
+/// supplied.
+#[expect(
+    clippy::expect_used,
+    reason = "a fixture: the authored tables and plan always fit, and a request that does not fails the proof"
+)]
 pub fn table_inputs(
     mut operation: ryo_values::domain::plans::types::Operation,
     inputs: &[&Table],
@@ -107,7 +132,9 @@ pub fn table_inputs(
                         CellKind::Number => HostKind::Number,
                         CellKind::Symbol => HostKind::Text,
                         CellKind::File => HostKind::File,
-                        _ => panic!("the fixture lists every case it builds"),
+                        CellKind::Node | CellKind::Span | CellKind::Flag => {
+                            panic!("the fixture lists every case it builds")
+                        }
                     },
                 })
                 .collect();
@@ -121,14 +148,21 @@ pub fn table_inputs(
                                 Value::Number(n) => HostCell::Number(n),
                                 Value::Symbol(_) => HostCell::Text(text(*cell, symbols).into()),
                                 Value::File(_) => HostCell::File("operator-contract.py".into()),
-                                _ => panic!("the fixture lists every case it builds"),
+                                Value::Node(_)
+                                | Value::Name(_)
+                                | Value::Span(_)
+                                | Value::Flag(_) => {
+                                    panic!("the fixture lists every case it builds")
+                                }
                             })
                             .collect(),
                     )
                 })
                 .collect();
             operations.push(Operation::Hosted {
-                relation: HostedNumber(hosted.len() as u32),
+                relation: HostedNumber(
+                    u32::try_from(hosted.len()).expect("a hosted relation number fits in u32"),
+                ),
             });
             hosted.push(HostRelation {
                 name: HostName(format!("input-{at}").into()),
@@ -202,7 +236,7 @@ pub fn table_inputs(
             };
             for (&column, kind) in columns.iter().zip(&table.kinds) {
                 assert_eq!(
-                    kinds(relation)[column as usize],
+                    kinds(relation)[usize::try_from(column).expect("a column index fits in usize")],
                     *kind,
                     "fixture projection must follow its actual catalog"
                 );
@@ -243,7 +277,7 @@ pub fn table_inputs(
                     })
                     .collect::<Vec<_>>();
                 for (&column, &value) in columns.iter().zip(row) {
-                    cells[column as usize] = value;
+                    cells[usize::try_from(column).expect("a column index fits in usize")] = value;
                 }
                 supplied.cells.extend(cells);
                 supplied.count.0 += 1;
@@ -255,7 +289,9 @@ pub fn table_inputs(
                 kept: columns.into_iter().map(ColumnIndex).collect(),
             });
         }
-        sources.push(Input::Step(StepId((operations.len() - 1) as u32)));
+        sources.push(Input::Step(StepId(
+            u32::try_from(operations.len() - 1).expect("a step number fits in u32"),
+        )));
     }
     let mut at = 0;
     ryo_values::domain::plans::service::each_input(&mut operation, &mut |input| {

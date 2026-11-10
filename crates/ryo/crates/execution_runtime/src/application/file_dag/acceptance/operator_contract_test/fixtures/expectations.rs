@@ -41,6 +41,10 @@ pub(super) fn cells(rows: Vec<Vec<Value>>) -> Vec<Vec<Expected>> {
         .collect()
 }
 /// Asserts an answer's rows against the expected rows, cell by cell.
+///
+/// # Panics
+///
+/// When the answer has another number of rows, or a cell differs from the one expected of it.
 pub fn assert_expected(expected: &[Vec<Expected>], actual: &[Vec<Value>], symbols: &Symbols) {
     assert_eq!(expected.len(), actual.len());
     let mut digests = std::collections::BTreeMap::new();

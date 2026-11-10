@@ -85,7 +85,7 @@ pub(super) fn rows(spans: &[FileSpan]) -> Table {
             .enumerate()
             .flat_map(|(at, FileSpan { file, span })| {
                 [
-                    Value::Node(NodeId(at as u64)),
+                    Value::Node(NodeId(u64::try_from(at).expect("a row number fits in u64"))),
                     Value::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
                     Value::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
                     Value::File(*file),
@@ -119,7 +119,9 @@ pub(super) fn run(
 ) -> CompiledRun {
     if downstream == Downstream::Streamed {
         steps.push(step(Operation::Extend {
-            from: Input::Step(StepId((steps.len() - 1) as u32)),
+            from: Input::Step(StepId(
+                u32::try_from(steps.len() - 1).expect("a step number fits in u32"),
+            )),
             values: vec![],
         }));
     }
@@ -128,7 +130,7 @@ pub(super) fn run(
         observations: vec![],
         parameters: vec![],
         emit: Emit {
-            step: StepId((steps.len() - 1) as u32),
+            step: StepId(u32::try_from(steps.len() - 1).expect("a step number fits in u32")),
             subject: ColumnIndex(0),
             key: vec![],
             headings: vec![],
@@ -184,7 +186,7 @@ pub(super) fn run(
             &[CorpusInput::Available(CorpusEntry {
                 executable: ExecutablePermission::Unknown,
                 path: FilePath(RULE_NAME.into()),
-                size: FileSize(source.0.len() as u64),
+                size: FileSize(u64::try_from(source.0.len()).expect("a source length fits in u64")),
                 modified: Nanoseconds(0),
             })],
         ));
@@ -225,7 +227,10 @@ pub(super) fn run(
         let result = match outcome.emit {
             RootOutcome::Complete(table) => Ok(table),
             RootOutcome::Unknown(error) | RootOutcome::Failed(error) => Err(error),
-            _ => Err(OperatingError::NotRun),
+            RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. } => Err(OperatingError::NotRun),
         };
         file.finish()?;
         result

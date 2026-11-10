@@ -23,6 +23,11 @@ impl FailureLatch {
         }
     }
     /// Skip every callback after the first failure and preserve that original engine error.
+    ///
+    /// # Errors
+    ///
+    /// `Err(())` when a failure was already recorded, without calling `body`, and when `body` fails, after
+    /// recording its error for [`FailureLatch::take`].
     pub fn run<T>(&mut self, body: impl FnOnce() -> Result<T, OperatingError>) -> Result<T, ()> {
         if self.0.is_some() {
             return Err(());

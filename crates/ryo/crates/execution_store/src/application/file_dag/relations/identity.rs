@@ -20,13 +20,17 @@ macro_rules! sameness {
 }
 fn span<T>(pointer: *const T, length: SpanLength) -> StorageSpan {
     StorageSpan {
-        address: BackingAddress(pointer as usize),
+        address: BackingAddress(pointer.addr()),
         length,
     }
 }
 fn column_span(column: &FactColumn) -> StorageSpan {
     span(column.0.as_ptr(), SpanLength(column.0.len()))
 }
+#[expect(
+    clippy::as_conversions,
+    reason = "the witness keeps a tree's u32 file id as a span length: lossless into usize on every target ryo builds for, and std offers only a fallible TryFrom for it"
+)]
 fn tree_spans(
     tree: &ryo_execution_domain::domain::table_cells::types::TreeRows<'_>,
 ) -> Vec<StorageSpan> {

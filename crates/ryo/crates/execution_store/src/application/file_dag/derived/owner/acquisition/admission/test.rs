@@ -103,7 +103,13 @@ fn subject(input: Input) -> Result<(), Failure> {
         Input::UnprovedDense => ViewRequest::Membership {
             column: ColumnIndex(0),
         },
-        _ => ViewRequest::PartitionOrder {
+        Scenario::Reuse
+        | Scenario::ForeignOwner
+        | Scenario::ExpiredAdmission
+        | Scenario::ForeignDescriptor
+        | Scenario::SubstitutedRows
+        | Scenario::ExpiredView
+        | Scenario::CloneKeepsLease => ViewRequest::PartitionOrder {
             keys: vec![ColumnIndex(0)],
         },
     };

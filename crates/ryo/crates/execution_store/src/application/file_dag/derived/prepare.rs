@@ -5,6 +5,11 @@ use ryo_execution_domain::domain::{
 };
 
 /// All preparation routes delegate semantic metadata to the injected capability.
+///
+/// # Errors
+///
+/// None in practice: a schema the semantic capability refuses is recorded in the contract, which its validation
+/// returns.
 pub fn view(
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     request: &ryo_execution_domain::domain::derived_views::types::ViewRequest,

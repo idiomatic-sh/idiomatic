@@ -47,6 +47,11 @@ pub(crate) fn escape(table: &mut Table, leaving: Leaving<'_>, kept: Retained<'_>
 
 /// Publish one independently decodable frame. Its place numbers never borrow the
 /// caller's accumulated place log; only the backing text arena is shared.
+///
+/// # Errors
+///
+/// The [`PublicationReason`](super::types::PublicationReason) of the first name the frame cannot publish; the arena
+/// is truncated back to its length before the call.
 pub fn escape_frame(
     table: &mut Table,
     leaving: Leaving<'_>,
@@ -86,10 +91,19 @@ fn normalize_frame(
             *value = Value::Symbol(symbol);
             continue;
         }
+        let Ok(at) = usize::try_from(name.place.0) else {
+            return Err(PublicationReason::PlaceMissing);
+        };
         let mut place = *places_of(leaving.symbols)
-            .get(name.place.0 as usize)
+            .get(at)
             .ok_or(PublicationReason::PlaceMissing)?;
-        let range = place.start.0 as usize..place.end.0 as usize;
+        let Ok(start) = usize::try_from(place.start.0) else {
+            return Err(PublicationReason::StartUnrepresentable);
+        };
+        let Ok(end) = usize::try_from(place.end.0) else {
+            return Err(PublicationReason::EndUnrepresentable);
+        };
+        let range = start..end;
         let local = match place.origin {
             Origin::Source => {
                 if place.file != leaving.file {

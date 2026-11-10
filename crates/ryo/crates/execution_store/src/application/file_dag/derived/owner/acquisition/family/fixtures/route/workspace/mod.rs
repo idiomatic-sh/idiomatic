@@ -190,6 +190,13 @@ fn demand(
         DerivedKind::NativeLookup => admissions
             .try_native_lookup(use_)?
             .ok_or(OperatingError::WrongOperation),
-        _ => admissions.acquire_derived(use_, context, ViewInputs::Rows),
+        DerivedKind::Equality
+        | DerivedKind::Adjacency
+        | DerivedKind::Membership
+        | DerivedKind::PartitionOrder
+        | DerivedKind::ClosureAdjacency
+        | DerivedKind::CycleAdjacency => {
+            admissions.acquire_derived(use_, context, ViewInputs::Rows)
+        }
     }
 }

@@ -42,12 +42,22 @@ pub enum PartitionRequirement {
 /// Used by preparation/admission only; semantic kernels never receive this interface.
 pub trait ProducerPartitions {
     /// The partition requirement of a host relation provided to a rule.
+    ///
+    /// # Errors
+    ///
+    /// The rule's own refusal when it is not declared, and [`OperatingError::NotRead`] for a host relation the request
+    /// does not provide.
     fn hosted(
         &self,
         rule: RuleIndex,
         relation: ryo_values::domain::plan_parts::types::HostedNumber,
     ) -> Result<PartitionRequirement, OperatingError>;
     /// The partition requirement of a rule's parameter.
+    ///
+    /// # Errors
+    ///
+    /// The rule's own refusal when it is not declared, and [`OperatingError::Unbound`] for a parameter it does not
+    /// bind.
     fn parameter(
         &self,
         rule: RuleIndex,
@@ -56,6 +66,11 @@ pub trait ProducerPartitions {
     /// The partition requirement of a language relation.
     fn relation(&self, relation: Relation) -> PartitionRequirement;
     /// The partition requirement of an observation.
+    ///
+    /// # Errors
+    ///
+    /// The rule's own refusal when it is not declared, and
+    /// [`OperatingError::ObservationIncomplete`] for an observation it does not declare.
     fn observation(
         &self,
         rule: RuleIndex,

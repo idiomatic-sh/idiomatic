@@ -5,8 +5,7 @@ use super::super::*;
 fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
@@ -32,7 +31,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
         else {
             panic!("readable physical fallback must normalize")
         };
-        normalized_address = table as *const _;
+        normalized_address = std::ptr::from_ref(table);
         assert_eq!(read(&Rows::Computed(table)), [row(schema, 0)]);
     }
     let charged = owner.derived.publication_ownership_bytes();
@@ -44,7 +43,7 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let Rows::Computed(table) = owner.normalize(&consumer, Rows::Stored(source)).unwrap() else {
         panic!("same demanded fallback")
     };
-    assert_eq!(normalized_address, table as *const _);
+    assert_eq!(normalized_address, std::ptr::from_ref(table));
     assert_eq!(
         owner.checks.get(),
         crate::application::file_dag::relations::types::CheckCount(1)

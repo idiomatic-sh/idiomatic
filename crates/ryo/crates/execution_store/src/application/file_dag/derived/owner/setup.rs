@@ -7,6 +7,10 @@ use ryo_execution_domain::domain::coverage::types::{Partial, RuleIndex};
 use ryo_relations::domain::relations::types::Relation;
 impl DerivedOwner {
     /// Configure the real installed backend for required-versus-optional controls.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRun`] when no backend is installed.
     #[cfg(any(test, feature = "fixtures"))]
     pub fn set_optional_limit(
         &self,
@@ -21,6 +25,11 @@ impl DerivedOwner {
 
 impl DerivedOwner {
     /// Sets the owner up for one file of the program: the views its demanded rules read.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRun`] when the owner is already prepared, and the request's refusal of a demanded rule it
+    /// does not declare.
     pub fn prepare_program_file(
         &self,
         prepared: &RequestDerived,

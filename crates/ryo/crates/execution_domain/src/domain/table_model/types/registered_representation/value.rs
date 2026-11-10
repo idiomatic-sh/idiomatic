@@ -57,6 +57,11 @@ impl RegisteredRepresentation {
         Ok(contract)
     }
     /// Whether the contract's rows can be read in full.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when the contract or its input is of another representation, then the
+    /// representation's refusal of its rows.
     pub fn inspect(
         &self,
         contract: &RelationContract<'_>,
@@ -106,14 +111,28 @@ impl RegisteredRepresentation {
 
 impl<'f> RepresentationInput<'f> {
     /// The rows as one bulk representation.
+    ///
+    /// # Errors
+    ///
+    /// The representation's refusal to read its rows in bulk.
     pub fn bulk(self) -> Result<RepresentationInput<'f>, OperatingError> {
         RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).bulk(self)
     }
     /// The contract the representation declares of its rows.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when the representation declares a contract of another kind, and its refusal
+    /// to declare one.
     pub fn contract(self) -> Result<RelationContract<'f>, OperatingError> {
         RegisteredRepresentation::new(RegisteredRepresentation::kind(self)).prepare(self)
     }
     /// Checks that the rows' contract can be read in full.
+    ///
+    /// # Errors
+    ///
+    /// The refusals of [`Self::contract`] and of the inspection, and [`OperatingError::ShapeMismatch`] when the rows
+    /// cannot be read in full.
     pub fn validate(self) -> Result<(), OperatingError> {
         let contract = self.contract()?;
         if RegisteredRepresentation::new(contract.kind).inspect(&contract)?

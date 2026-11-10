@@ -258,6 +258,10 @@ fn preparing_from_borrowed_schemas_preserves_cell_allocations_and_prepared_metad
         ],
         vec![],
     )];
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the test overrides two relations of the catalog and reads every other as the catalog declares it"
+    )]
     let metadata = |relation| match relation {
         Relation::Function => computed.kinds.as_slice(),
         Relation::SyntaxTree => native.kinds.as_slice(),

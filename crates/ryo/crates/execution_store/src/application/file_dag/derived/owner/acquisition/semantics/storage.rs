@@ -35,6 +35,10 @@ impl DerivedStorage {
         }
     }
     /// The view over the built payload.
+    ///
+    /// # Errors
+    ///
+    /// The derived port's refusal to view the payload, mapped into its [`OperatingError`].
     pub fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         self.port
             .view(&self.plan, &self.payload)
@@ -73,7 +77,7 @@ impl DerivedStorage {
         output.push(Backing {
             key: BackingKey {
                 tag: BackingTag(8),
-                address: BackingAddress(Arc::as_ptr(this) as usize),
+                address: BackingAddress(Arc::as_ptr(this).addr()),
             },
             bytes: ByteCount(bytes),
             retention_units: UnitCount(0),
@@ -90,7 +94,7 @@ impl DerivedStorage {
             output.push(Backing {
                 key: BackingKey {
                     tag: BackingTag(34),
-                    address: BackingAddress(Arc::as_ptr(identity) as usize),
+                    address: BackingAddress(Arc::as_ptr(identity).addr()),
                 },
                 bytes: ByteCount(
                     (size_of::<GraphIdentity>() + 2 * size_of::<usize>())

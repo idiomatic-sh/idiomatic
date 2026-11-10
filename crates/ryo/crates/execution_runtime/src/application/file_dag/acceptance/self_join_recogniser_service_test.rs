@@ -25,7 +25,8 @@ fn fixture() -> Plan {
         schema
             .iter()
             .position(|kind| *kind == CellKind::Number)
-            .expect("typed numeric source") as u32,
+            .map(|at| u32::try_from(at).expect("a relation's column number fits in u32"))
+            .expect("typed numeric source"),
     );
     let source = Operation::Select {
         from: Source::Relation(Relation::SourceLocation),

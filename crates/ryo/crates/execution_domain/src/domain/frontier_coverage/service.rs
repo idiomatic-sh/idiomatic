@@ -5,6 +5,10 @@ use crate::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::FileId;
 
 /// The coverage a file frontier carries, from the coverage of its rows.
+///
+/// # Errors
+///
+/// [`OperatingError::ObservationIncomplete`] when the coverage lacks rows of a file other than `file`.
 pub fn file_frontier_coverage(
     coverage: CoverageState,
     file: FileId,
@@ -15,7 +19,7 @@ pub fn file_frontier_coverage(
         Some(files) => {
             let lacks = match &coverage {
                 CoverageState::Partial { lacks, .. } => lacks.as_slice(),
-                _ => &[],
+                CoverageState::Complete | CoverageState::Inapplicable { .. } => &[],
             };
             let mut affected = lacks_of(&files, lacks)
                 .into_iter()

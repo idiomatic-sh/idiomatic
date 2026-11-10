@@ -97,7 +97,7 @@ fn transported(
     // The missing operand's own column a join names: through the view on the right.
     let own = |column: ColumnIndex| {
         if own_side == Side::Right && !view.is_empty() {
-            view.get(column.0 as usize).copied()
+            usize::try_from(column.0).map_or(None, |at| view.get(at).copied())
         } else {
             Some(column)
         }
@@ -118,7 +118,9 @@ fn transported(
         other_on.iter().zip(missing_on).any(|(other, key)| {
             *other == column.column
                 && own(*key).is_some_and(|key| {
-                    in_file(key) && missing.kinds.get(key.0 as usize) == Some(kind)
+                    in_file(key)
+                        && usize::try_from(key.0)
+                            .is_ok_and(|at| missing.kinds.get(at) == Some(kind))
                 })
         })
     });
@@ -214,15 +216,15 @@ pub fn output_coverage(
                 let mut file_keyed = false;
                 for own in own {
                     let own = if input.ordinal.0 == 1 && !view.is_empty() {
-                        *view.get(own.0 as usize).ok_or(OperatingError::NotRun)?
+                        let Ok(at) = usize::try_from(own.0) else {
+                            return Err(OperatingError::NotRun);
+                        };
+                        *view.get(at).ok_or(OperatingError::NotRun)?
                     } else {
                         *own
                     };
-                    file_keyed |= input
-                        .kinds
-                        .get(own.0 as usize)
-                        .copied()
-                        .is_some_and(file_kind);
+                    file_keyed |= usize::try_from(own.0)
+                        .is_ok_and(|at| input.kinds.get(at).copied().is_some_and(file_kind));
                 }
                 // Only the other operand's file identity depends on the key; the missing operand's own is the missing file.
                 let mut other_identity = false;
@@ -275,11 +277,8 @@ pub fn output_coverage(
                         == Proof::Proven
                     || (base
                         && (right_on.iter().any(|right| {
-                            input
-                                .kinds
-                                .get(right.0 as usize)
-                                .copied()
-                                .is_some_and(file_kind)
+                            usize::try_from(right.0)
+                                .is_ok_and(|at| input.kinds.get(at).copied().is_some_and(file_kind))
                         }) || output_kinds
                             .iter()
                             .copied()
@@ -287,8 +286,10 @@ pub fn output_coverage(
                             .filter(|(_, kind)| file_kind(*kind))
                             .all(|(at, kind)| {
                                 left_on.iter().zip(right_on).any(|(left, right)| {
-                                    left.0 as usize == at
-                                        && input.kinds.get(right.0 as usize).copied() == Some(kind)
+                                    usize::try_from(left.0).is_ok_and(|left_at| left_at == at)
+                                        && usize::try_from(right.0).is_ok_and(|right_at| {
+                                            input.kinds.get(right_at).copied() == Some(kind)
+                                        })
                                 })
                             })))
             }
@@ -308,11 +309,8 @@ pub fn output_coverage(
                 };
                 (base
                     && own.iter().any(|column| {
-                        input
-                            .kinds
-                            .get(column.0 as usize)
-                            .copied()
-                            .is_some_and(file_kind)
+                        usize::try_from(column.0)
+                            .is_ok_and(|at| input.kinds.get(at).copied().is_some_and(file_kind))
                     }))
                     || !output_kinds.iter().copied().any(file_kind)
                     || proven == Proof::Proven
@@ -380,11 +378,8 @@ pub fn ordered_output_coverage(
     let file_kind = |kind: CellKind| anchor_of(kind) == ColumnAnchor::InFile;
     if !output_kinds.iter().copied().any(file_kind)
         || partition.iter().any(|column| {
-            source
-                .kinds
-                .get(column.0 as usize)
-                .copied()
-                .is_some_and(file_kind)
+            usize::try_from(column.0)
+                .is_ok_and(|at| source.kinds.get(at).copied().is_some_and(file_kind))
         })
     {
         source.coverage.clone()

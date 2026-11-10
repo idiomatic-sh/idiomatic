@@ -35,7 +35,7 @@ impl RequestIdentity {
                     Ok(index) => Some(ryo_relations::domain::relations::types::FileId(index)),
                     Err(_) => None,
                 },
-                _ => None,
+                CorpusInput::ReadFailed { .. } | CorpusInput::Unreadable { .. } => None,
             };
             available
                 .entry(path.clone())
@@ -73,7 +73,8 @@ impl RequestIdentity {
         &self,
         file: ryo_relations::domain::relations::types::FileId,
     ) -> Option<&ryo_language::domain::files::types::FilePath> {
-        self.corpus.get(file.0 as usize).map(|input| match input {
+        let listed = usize::try_from(file.0).map_or(None, |at| self.corpus.get(at));
+        listed.map(|input| match input {
             CorpusInput::Available(entry) | CorpusInput::ReadFailed { entry, .. } => &entry.path,
             CorpusInput::Unreadable { path, .. } => path,
         })
@@ -82,7 +83,7 @@ impl RequestIdentity {
         &self,
         file: ryo_relations::domain::relations::types::FileId,
     ) -> CorpusMembership {
-        if (file.0 as usize) < self.corpus.len() {
+        if usize::try_from(file.0).is_ok_and(|at| at < self.corpus.len()) {
             CorpusMembership::Listed
         } else {
             CorpusMembership::Unlisted

@@ -61,7 +61,13 @@ pub(super) fn demand(
             rows: &rows,
             texts: &texts,
         },
-        _ => DerivedInputs::Rows(&rows[..if pair { 2 } else { 1 }]),
+        DerivedKind::Equality
+        | DerivedKind::Adjacency
+        | DerivedKind::PartitionOrder
+        | DerivedKind::ClosureAdjacency
+        | DerivedKind::CycleAdjacency
+        | DerivedKind::OrderedDfs
+        | DerivedKind::NativeLookup => DerivedInputs::Rows(&rows[..if pair { 2 } else { 1 }]),
     };
     owner.derived().acquire_stored(
         plan,

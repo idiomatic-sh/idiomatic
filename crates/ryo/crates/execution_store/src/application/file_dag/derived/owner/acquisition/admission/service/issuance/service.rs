@@ -79,6 +79,11 @@ impl AdmittedViewInputs<'_> {
 
 impl DerivedOwner {
     /// Admits the inputs of a view against the relation owner's proofs, the one way to view inputs for an acquisition.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRead`] when `owner` is not this owner's relation owner or the proofs are not one or two,
+    /// and a proof's refusal of its identity under `owner`.
     pub fn admit_view<'a>(
         &self,
         plan: &Arc<DerivedContract>,

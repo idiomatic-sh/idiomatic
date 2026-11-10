@@ -24,7 +24,12 @@ pub(crate) fn check_spellings<'a>(
         tables.into_iter().flat_map(|table| {
             table.cells.iter().filter_map(|value| match value {
                 Value::Name(name) => Some(*name),
-                _ => None,
+                Value::Node(_)
+                | Value::Symbol(_)
+                | Value::File(_)
+                | Value::Span(_)
+                | Value::Number(_)
+                | Value::Flag(_) => None,
             })
         }),
         symbols,
@@ -33,6 +38,10 @@ pub(crate) fn check_spellings<'a>(
 }
 
 /// The same spelling invariant over compact admission's names; no row table is required.
+///
+/// # Errors
+///
+/// [`SpellingError::EntityInTwoSources`] when two names of one hash are spelled differently.
 pub fn check_name_spellings(
     names: impl IntoIterator<Item = ryo_relations::domain::relations::types::Name>,
     symbols: &Symbols,

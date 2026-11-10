@@ -198,7 +198,7 @@ fn facts(comments: &[&str], functions: &[&str]) -> Facts {
             .enumerate()
             .map(|(at, text)| {
                 vec![
-                    Value::Node(NodeId(at as u64)),
+                    Value::Node(NodeId(u64::try_from(at).expect("a row number fits in u64"))),
                     name(text),
                     Value::File(FileId(0)),
                     span(at),
@@ -214,7 +214,9 @@ fn facts(comments: &[&str], functions: &[&str]) -> Facts {
             .enumerate()
             .map(|(at, text)| {
                 vec![
-                    Value::Node(NodeId(100 + at as u64)),
+                    Value::Node(NodeId(
+                        100 + u64::try_from(at).expect("a row number fits in u64"),
+                    )),
                     name(text),
                     Value::File(FileId(0)),
                     span(at),
@@ -268,6 +270,10 @@ fn run(
         function,
     } = facts;
     let location = table(Relation::SourceLocation, vec![]);
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the file supplies three relations of the catalog and refuses every other as unread"
+    )]
     let read = |relation| match relation {
         Relation::Comment => Ok(Rows::Computed(&*comment)),
         Relation::Function => Ok(Rows::Computed(&*function)),

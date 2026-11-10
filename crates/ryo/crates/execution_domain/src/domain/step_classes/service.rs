@@ -41,7 +41,31 @@ fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
             columns,
             distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
         } => (from, &[][..], columns),
-        _ => return None,
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => return None,
     };
     let (source, mut chosen, columns) = match from {
         Input::Relation(relation) => {

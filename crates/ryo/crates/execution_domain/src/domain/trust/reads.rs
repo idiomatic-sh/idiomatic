@@ -55,15 +55,15 @@ fn step_reads(
                 uses: Vec::new(),
                 provenance: vec![
                     None;
-                    plan.observation_inputs
-                        .get(id.0 as usize)
+                    usize::try_from(id.0)
+                        .map_or(None, |at| plan.observation_inputs.get(at))
                         .ok_or(OperatingError::NotRun)?
                         .columns
                         .len()
                 ],
             },
-            Input::Step(id) => steps
-                .get(id.0 as usize)
+            Input::Step(id) => usize::try_from(id.0)
+                .map_or(None, |at| steps.get(at))
                 .ok_or(OperatingError::NotRun)?
                 .clone()?,
         });

@@ -81,7 +81,9 @@ impl LeaseDriver<'_, '_> {
                 };
                 let at = node_position(start);
                 let elements = tree.elements;
-                if node_file(start) != tree.file || at.0 as usize >= elements.kind.len() {
+                if node_file(start) != tree.file
+                    || !usize::try_from(at.0).is_ok_and(|place| place < elements.kind.len())
+                {
                     return Ok(AxisCandidates::Elements(Count(0)));
                 }
                 let found = &mut work.found;
@@ -137,10 +139,10 @@ impl LeaseDriver<'_, '_> {
                     let reached = among.unwrap_or(tree);
                     self.lease.holds(&element_of(&reached, position))? == Verdict::Holds
                 } else {
-                    *marks
-                        .0
-                        .get(position.0 as usize)
-                        .ok_or(OperatingError::ShapeMismatch)?
+                    let Ok(slot) = usize::try_from(position.0) else {
+                        return Err(OperatingError::ShapeMismatch);
+                    };
+                    *marks.0.get(slot).ok_or(OperatingError::ShapeMismatch)?
                 }
             }
         };

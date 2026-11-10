@@ -56,8 +56,9 @@ impl RepresentationsItem for CompactItem {
             return Err(OperatingError::WrongOperation);
         };
         if row.0 >= ryo_values::domain::compact_table::service::compact_rows(table).0
-            || column.0 as usize
-                >= ryo_values::domain::compact_table::service::compact_kinds(table).len()
+            || !usize::try_from(column.0).is_ok_and(|at| {
+                at < ryo_values::domain::compact_table::service::compact_kinds(table).len()
+            })
         {
             return Ok(CellRead::MissingPhysical);
         }

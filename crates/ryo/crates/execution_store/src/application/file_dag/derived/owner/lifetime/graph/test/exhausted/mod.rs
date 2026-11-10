@@ -51,7 +51,7 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
             )
             .unwrap();
         assert_eq!(
-            nearest.map(|at| graph.graph().vertices()[at as usize]),
+            nearest.map(|at| graph.graph().vertices()[usize::try_from(at).unwrap()]),
             Some(number(Integer(2)))
         );
     }

@@ -14,6 +14,11 @@ use ryo_execution_domain::domain::{
 use ryo_relations::domain::relations::types::Value;
 impl DerivedOwner {
     /// Prepares the cached graph an axis or reach operator reads, when its program caches one.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRead`] when `admission` belongs to another owner, [`OperatingError::NotRun`] when the file's
+    /// graph cache is not prepared, and the refusals of acquiring the graph and its domain.
     pub fn prepare_graph(
         &self,
         contract: &OperatorContract,
@@ -80,6 +85,10 @@ impl DerivedOwner {
         super::acquisition::graph::service::domain(plan, graph, input, cache)
     }
     /// The cached graph's answer for one row.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRun`] when the file's graph cache is not prepared, and the graph's refusal of the row.
     pub fn graph_row<'a>(
         &self,
         graph: &'a mut CachedGraph,
@@ -104,15 +113,18 @@ impl DerivedOwner {
         &self,
         requested: GraphViewIdentity,
         populations: &[PopulationId],
-    ) -> RequirementIdentity {
+    ) -> Result<RequirementIdentity, OperatingError> {
         use std::hash::BuildHasher;
         let requested = RequirementIdentity::Graph(Arc::new(requested));
         let mut ids = [PopulationId(usize::MAX); 2];
         ids[..populations.len()].copy_from_slice(populations);
+        let Ok(len) = u8::try_from(populations.len()) else {
+            return Err(OperatingError::ShapeMismatch);
+        };
         let probe = Key {
             plan: requested.clone(),
             populations: ids,
-            len: PopulationCount(populations.len() as u8),
+            len: PopulationCount(len),
             context: ViewContext::default(),
         };
         let mut state = self.state.borrow_mut();
@@ -153,10 +165,10 @@ impl DerivedOwner {
                 })
                 .map(|(key, entry)| (key.clone(), entry.weak.strong_count() != 0));
             let Some((key, live)) = found else {
-                return requested;
+                return Ok(requested);
             };
             if live {
-                return key.plan;
+                return Ok(key.plan);
             }
             state.entries.remove(&key);
             for population in &key.populations[..usize::from(key.len.0)] {

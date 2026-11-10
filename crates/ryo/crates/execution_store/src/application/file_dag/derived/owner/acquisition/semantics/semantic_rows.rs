@@ -96,7 +96,11 @@ impl ryo_derived::domain::row_cells::types::ValueTexts for CanonicalTexts<'_, '_
         match value {
             Value::Symbol(symbol) => symbol_text(&texts, symbol).map(|text| CellText(text.0)),
             Value::Name(name) => name_text(&texts, name).map(|text| CellText(text.0)),
-            _ => None,
+            Value::Node(_)
+            | Value::File(_)
+            | Value::Span(_)
+            | Value::Number(_)
+            | Value::Flag(_) => None,
         }
     }
 }

@@ -1,5 +1,5 @@
+// ignore: idiomatic.arch/file-length - the invocation workspace and the input admissions of one demand scope, each method stating its errors; a split would part the admissions from the workspace they borrow
 //! The application owns each invocation's mutable allocations and release boundary.
-use self::constants::EXPECT_DEMANDED_INPUT;
 use super::relations::admission::service::BorrowedInput;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
@@ -266,6 +266,10 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         self.workspace.owner_handle()
     }
     /// The input at `place`.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::MissingInput`] when the invocation has no input at `place`.
     pub fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         self.inputs
             .get(place.0)
@@ -275,6 +279,11 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             })
     }
     /// The rows of the input at `place`.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] for a place beyond the three an operator reads,
+    /// [`OperatingError::MissingInput`] when the invocation has no input there, and the refusal of admitting it.
     pub fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
@@ -294,9 +303,14 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             cell.set(self.workspace.admit(place, rows)?)
                 .map_err(|_| OperatingError::WrongOperation)?;
         }
-        Ok(cell.get().expect(EXPECT_DEMANDED_INPUT))
+        cell.get().ok_or(OperatingError::WrongOperation)
     }
     /// The partitioned closure of `input`, built from its shared ordering.
+    ///
+    /// # Errors
+    ///
+    /// The refusal of admitting the ordering's input, [`OperatingError::NotRead`] when `input` is not the rows it
+    /// admitted, and the refusals of acquiring the ordering and preparing the closure.
     pub fn partitioned(
         &self,
         order: &PreparedViewUse,
@@ -320,6 +334,11 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         )
     }
     /// The native lookup view of the tree input, when the input is a tree.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when `use_` is no native lookup over two inputs, and the refusals of admitting
+    /// its inputs and acquiring the view.
     pub fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
@@ -349,6 +368,10 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         )
     }
     /// Acquires the row view `use_` names.
+    ///
+    /// # Errors
+    ///
+    /// The refusals of [`Self::acquire_derived`].
     pub fn acquire_rows(
         &self,
         use_: &PreparedViewUse,
@@ -362,6 +385,12 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
         )
     }
     /// Acquires the derived view `use_` names over `supplied`.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when `use_` reads no input or more than two, or its inputs do not fit
+    /// `supplied`, [`OperatingError::MissingInput`] when `supplied` needs a second input `use_` lacks, and the refusals of
+    /// admitting its inputs and acquiring the view.
     pub fn acquire_derived(
         &self,
         use_: &PreparedViewUse,
@@ -374,7 +403,6 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     }
 }
 
-mod constants;
 mod service;
 #[cfg(test)]
 mod test;

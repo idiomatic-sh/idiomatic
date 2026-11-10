@@ -25,6 +25,12 @@ pub(crate) fn projected(
 
 /// Carry the schema of an empty first instruction through the compiler's closed
 /// row-continuation family without evaluating predicates or acquiring bindings.
+///
+/// # Errors
+///
+/// [`OperatingError::WrongOperation`] for an operation outside the family (a select that keeps columns, a
+/// projection that drops repeated rows, any other operation), and the projection's refusal of a column the input
+/// lacks.
 pub fn continuation_kinds(
     operation: &Operation,
     input: &[CellKind],
@@ -36,7 +42,32 @@ pub fn continuation_kinds(
             distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
             ..
         } => projected(input, columns),
-        _ => Err(OperatingError::WrongOperation),
+        Operation::Select { .. }
+        | Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => Err(OperatingError::WrongOperation),
     }
 }
 
@@ -113,15 +144,39 @@ pub fn tree_output(
         } if *distinct == ryo_values::domain::plan_parts::types::RepeatedRows::Kept
             && input.is_some_and(|input| {
                 columns.len() == input.kinds.len()
-                    && columns
-                        .iter()
-                        .enumerate()
-                        .all(|(at, column)| column.0 as usize == at)
+                    && columns.iter().enumerate().all(|(at, column)| {
+                        usize::try_from(column.0).is_ok_and(|place| place == at)
+                    })
             }) =>
         {
             input.and_then(|input| input.tree)
         }
-        _ => None,
+        Operation::Select { .. }
+        | Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => None,
     }
 }
 
@@ -139,8 +194,9 @@ pub fn output_origins<T: Copy>(
 ) -> Vec<Option<T>> {
     // ignore: idiomatic.arch/no-unwrap-or-on-lookup - an input a step lacks (a deferred schema fault) has no origins: none is the answer.
     let input = |place: InputPlace| origins.get(place.0).copied().unwrap_or(&[]);
-    let pick =
-        |from: &[Option<T>], column: ColumnIndex| from.get(column.0 as usize).copied().flatten();
+    let pick = |from: &[Option<T>], column: ColumnIndex| {
+        usize::try_from(column.0).map_or(None, |at| from.get(at).copied().flatten())
+    };
     let mut answer = input(InputPlace(0)).to_vec();
     match operation {
         Operation::Select { kept, .. } => {

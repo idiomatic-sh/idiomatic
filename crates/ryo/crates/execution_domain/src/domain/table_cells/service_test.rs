@@ -92,7 +92,7 @@ impl ryo_derived::domain::row_cells::types::RowCells for SemanticRows<'_> {
             Rows::Computed(table) => Some(
                 ryo_derived::domain::row_cells::types::BulkRows::Computed(table),
             ),
-            _ => None,
+            Rows::Tree(_) | Rows::Compact(_) => None,
         }
     }
     fn validate(&self) -> Result<(), ryo_derived::domain::fault::types::DerivedFault> {

@@ -13,9 +13,8 @@ use ryo_values::domain::plans::{
 };
 
 fn step(plan: &Plan, id: StepId) -> Result<&Operation, Decline> {
-    let step = plan
-        .steps
-        .get(id.0 as usize)
+    let step = usize::try_from(id.0)
+        .map_or(None, |at| plan.steps.get(at))
         .ok_or(Decline::InvalidColumn)?;
     if step.scope != StepScope::PerFile {
         return Err(Decline::CrossFile);
@@ -27,7 +26,7 @@ fn use_counts(plan: &Plan) -> Vec<ReaderMultiplicity> {
     for step in &plan.steps {
         for input in named(&inputs_of(&step.operation)) {
             if let Input::Step(id) = input {
-                if let Some(count) = counts.get_mut(id.0 as usize) {
+                if let Some(count) = usize::try_from(id.0).map_or(None, |at| counts.get_mut(at)) {
                     count.0 += 1;
                 }
             }
@@ -40,7 +39,7 @@ fn use_counts(plan: &Plan) -> Vec<ReaderMultiplicity> {
         .chain(std::iter::once(Input::Step(plan.emit.step)))
     {
         if let Input::Step(id) = input {
-            if let Some(count) = counts.get_mut(id.0 as usize) {
+            if let Some(count) = usize::try_from(id.0).map_or(None, |at| counts.get_mut(at)) {
                 count.0 += 1;
             }
         }
@@ -50,7 +49,7 @@ fn use_counts(plan: &Plan) -> Vec<ReaderMultiplicity> {
 fn from_step(input: Input) -> Result<StepId, Decline> {
     match input {
         Input::Step(id) => Ok(id),
-        _ => Err(Decline::NotPlainSelfJoin),
+        Input::Relation(_) | Input::BoundObservation(_) => Err(Decline::NotPlainSelfJoin),
     }
 }
 
@@ -68,12 +67,14 @@ pub(super) fn number_origins(
         Input::BoundObservation(_) => None,
         // A native relation is read as its tree, never as stored columns: the runtime's admission of a
         // stored number refuses it, so the shape is declined here rather than refused when it runs.
-        Input::Relation(relation) => (kinds(relation).get(column.0 as usize)
-            == Some(&CellKind::Number)
+        Input::Relation(relation) => (usize::try_from(column.0)
+            .is_ok_and(|at| kinds(relation).get(at) == Some(&CellKind::Number))
             && crate::domain::table_cells::service::native_form(relation).is_none())
         .then_some(vec![StoredNumberOrigin { relation, column }]),
         Input::Step(id) => {
-            let at = id.0 as usize;
+            let Ok(at) = usize::try_from(id.0) else {
+                return None;
+            };
             if at >= before.0 {
                 return None;
             }
@@ -84,12 +85,13 @@ pub(super) fn number_origins(
                     if kept.is_empty() {
                         column
                     } else {
-                        *kept.get(column.0 as usize)?
+                        *usize::try_from(column.0).map_or(None, |slot| kept.get(slot))?
                     },
                 ),
-                Operation::Project { from, columns, .. } => {
-                    (*from, *columns.get(column.0 as usize)?)
-                }
+                Operation::Project { from, columns, .. } => (
+                    *from,
+                    *usize::try_from(column.0).map_or(None, |slot| columns.get(slot))?,
+                ),
                 Operation::Join {
                     left,
                     right,
@@ -101,7 +103,7 @@ pub(super) fn number_origins(
                     if !view.is_empty() || reach.is_some() {
                         return None;
                     }
-                    let mapped = output.get(column.0 as usize)?;
+                    let mapped = usize::try_from(column.0).map_or(None, |slot| output.get(slot))?;
                     (
                         if mapped.side == Side::Left {
                             *left
@@ -123,7 +125,25 @@ pub(super) fn number_origins(
                     }
                     return Some(origins);
                 }
-                _ => return None,
+                Operation::Extend { .. }
+                | Operation::GroupCount { .. }
+                | Operation::GroupDigest { .. }
+                | Operation::Capture { .. }
+                | Operation::Rank { .. }
+                | Operation::Replace { .. }
+                | Operation::OrderedMatch { .. }
+                | Operation::Words { .. }
+                | Operation::Axis { .. }
+                | Operation::Closure { .. }
+                | Operation::OrderedDfs { .. }
+                | Operation::Cycles { .. }
+                | Operation::Rows { .. }
+                | Operation::Hosted { .. }
+                | Operation::SpanBetween { .. }
+                | Operation::SourceMatches { .. }
+                | Operation::RenderSyntax { .. }
+                | Operation::FitsRendered { .. }
+                | Operation::SpanBounds { .. } => return None,
             };
             number_origins(plan, from, column, StepPlace(at))
         }
@@ -190,18 +210,24 @@ fn recognize<'a>(
     if left_on != right_on {
         return Err(Decline::DifferentPartitionColumns);
     }
-    if [join, select, project]
-        .iter()
-        .any(|id| readers.get(id.0 as usize).copied() != Some(ReaderMultiplicity(1)))
-    {
+    if [join, select, project].iter().any(|id| {
+        usize::try_from(id.0)
+            .map_or(None, |at| readers.get(at))
+            .copied()
+            != Some(ReaderMultiplicity(1))
+    }) {
         return Err(Decline::ExtraConsumer);
     }
     let _ = step(plan, source)?;
     let (Operand::Column(a), Operand::Column(b)) = (&comparison.left, &comparison.right) else {
         return Err(Decline::NonStrictOrder);
     };
-    let a = output.get(a.0 as usize).ok_or(Decline::InvalidColumn)?;
-    let b = output.get(b.0 as usize).ok_or(Decline::InvalidColumn)?;
+    let a = usize::try_from(a.0)
+        .map_or(None, |at| output.get(at))
+        .ok_or(Decline::InvalidColumn)?;
+    let b = usize::try_from(b.0)
+        .map_or(None, |at| output.get(at))
+        .ok_or(Decline::InvalidColumn)?;
     if a.column != b.column || a.side == b.side {
         return Err(Decline::DifferentOrderColumns);
     }
@@ -211,41 +237,39 @@ fn recognize<'a>(
         _ => return Err(Decline::NonStrictOrder),
     };
     let schema = schemas(source).ok_or(Decline::InvalidColumn)?;
-    if schema.get(a.column.0 as usize) != Some(&CellKind::Number) {
+    if !usize::try_from(a.column.0).is_ok_and(|at| schema.get(at) == Some(&CellKind::Number)) {
         return Err(Decline::NotNumber);
     }
     if output
         .iter()
-        .any(|column| column.column.0 as usize >= schema.len())
+        .any(|column| !usize::try_from(column.column.0).is_ok_and(|at| at < schema.len()))
     {
         return Err(Decline::InvalidColumn);
     }
     if left_on
         .iter()
-        .any(|column| column.0 as usize >= schema.len())
+        .any(|column| !usize::try_from(column.0).is_ok_and(|at| at < schema.len()))
     {
         return Err(Decline::InvalidColumn);
     }
     let mut projected_left = Vec::with_capacity(columns.len());
     for column in columns {
-        let projected = output
-            .get(column.0 as usize)
+        let projected = usize::try_from(column.0)
+            .map_or(None, |at| output.get(at))
             .ok_or(Decline::InvalidColumn)?;
         if projected.side != Side::Left {
             return Err(Decline::RightProjection);
         }
-        if projected.column.0 as usize >= schema.len() {
+        if !usize::try_from(projected.column.0).is_ok_and(|at| at < schema.len()) {
             return Err(Decline::InvalidColumn);
         }
         projected_left.push(projected.column);
     }
-    let origins = number_origins(
-        plan,
-        Input::Step(source),
-        a.column,
-        StepPlace(join.0 as usize),
-    )
-    .ok_or(Decline::UnprovenNumberOrigin)?;
+    let origins = usize::try_from(join.0)
+        .map_or(None, |place| {
+            number_origins(plan, Input::Step(source), a.column, StepPlace(place))
+        })
+        .ok_or(Decline::UnprovenNumberOrigin)?;
     Ok(Shape {
         plan: PlanIdentity(std::ptr::from_ref(plan).addr()),
         source,

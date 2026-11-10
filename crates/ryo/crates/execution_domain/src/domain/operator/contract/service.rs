@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - exhaustive semantic declarations: one match per operation kind, each naming every kind it leaves to its default, which a split would scatter across files
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::types::*;
 use crate::domain::operating::errors::OperatingError;
@@ -125,7 +126,9 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
         GroupCount | GroupDigest | OrderedMatch | Closure | Cycles | OrderedDfs | RenderSyntax => {
             InputMode::Views
         }
-        _ => InputMode::Row {
+        Replace | Select | Project | Extend | Join | Union | Intersection | Difference
+        | Antijoin | Capture | Rank | Words | Axis | SpanBetween | SourceMatches | FitsRendered
+        | SpanBounds => InputMode::Row {
             primary: ryo_values::domain::plan_parts::types::InputNumber(0),
         },
     };
@@ -137,7 +140,7 @@ pub fn semantics(kind: OperationKind) -> OperationSemantics {
                 1
             }
         }
-        _ => 0,
+        InputMode::Views | InputMode::RequestSource => 0,
     });
     let acquisition = if matches!(
         kind,
@@ -209,17 +212,19 @@ fn failure(
     let per_file = scope == ryo_values::domain::plan_parts::types::StepScope::PerFile;
     let kinds = inputs.first().map_or(&[][..], |input| input.kinds);
     match operation {
-        Operation::Replace { text, .. } => match kinds.get(text.0 as usize) {
-            Some(CellKind::Symbol | CellKind::File) if per_file => RowFailure::Never,
-            _ => RowFailure::OnRows(InputMask(1)),
-        },
+        Operation::Replace { text, .. } => {
+            match usize::try_from(text.0).map_or(None, |at| kinds.get(at)) {
+                Some(CellKind::Symbol | CellKind::File) if per_file => RowFailure::Never,
+                _ => RowFailure::OnRows(InputMask(1)),
+            }
+        }
         Operation::SourceMatches {
             span,
             base_line: None,
             ..
         } if per_file
             && row_error.is_none()
-            && kinds.get(span.0 as usize) == Some(&CellKind::Span) =>
+            && usize::try_from(span.0).is_ok_and(|at| kinds.get(at) == Some(&CellKind::Span)) =>
         {
             RowFailure::UnlessLocated(*span)
         }
@@ -298,35 +303,56 @@ pub(crate) fn prepare_for(
         ryo_values::domain::plans::types::Operation::Replace { text, .. } => {
             SourceGate::CheckedText { column: *text }
         }
-        _ => SourceGate::None,
+        Operation::Select { .. }
+        | Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => SourceGate::None,
     };
-    let row_error = match operation {
-        ryo_values::domain::plans::types::Operation::SourceMatches {
-            capture,
-            base_line,
-            capture_text,
-            capture_line,
-            ..
-        } if ((*capture_text
-            == ryo_values::domain::query_operators::types::TextOutput::Appended
-            || *capture_line
-                == ryo_values::domain::query_operators::types::LineOutput::Appended)
+    let row_error = if let ryo_values::domain::plans::types::Operation::SourceMatches {
+        capture,
+        base_line,
+        capture_text,
+        capture_line,
+        ..
+    } = operation
+        && (((*capture_text == ryo_values::domain::query_operators::types::TextOutput::Appended
+            || *capture_line == ryo_values::domain::query_operators::types::LineOutput::Appended)
             && capture.is_none())
-            || (*capture_line
-                == ryo_values::domain::query_operators::types::LineOutput::Appended
-                && base_line.is_none()) =>
+            || (*capture_line == ryo_values::domain::query_operators::types::LineOutput::Appended
+                && base_line.is_none()))
+    {
+        Some(crate::domain::operating::errors::OperatingError::WrongOperation)
+    } else {
+        None
+    };
+    let literal_pattern =
+        if let ryo_values::domain::plans::types::Operation::Replace { pattern, .. }
+        | ryo_values::domain::plans::types::Operation::SourceMatches { pattern, .. } = operation
         {
-            Some(crate::domain::operating::errors::OperatingError::WrongOperation)
-        }
-        _ => None,
-    };
-    let literal_pattern = match operation {
-        ryo_values::domain::plans::types::Operation::Replace { pattern, .. }
-        | ryo_values::domain::plans::types::Operation::SourceMatches { pattern, .. } => {
             Some(pattern.clone())
-        }
-        _ => None,
-    };
+        } else {
+            None
+        };
     let (comparisons, predicate_input) = match operation {
         ryo_values::domain::plans::types::Operation::Select { comparisons, .. } => {
             (comparisons.as_slice(), 0)
@@ -335,7 +361,29 @@ pub(crate) fn prepare_for(
         ryo_values::domain::plans::types::Operation::Axis { domain_filter, .. } => {
             (domain_filter.as_slice(), 2)
         }
-        _ => (&[][..], 0),
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => (&[][..], 0),
     };
     let predicates = PreparedPredicates {
         comparisons: comparisons.to_vec(),
@@ -348,17 +396,18 @@ pub(crate) fn prepare_for(
     let output_kinds = super::preflight::output_layout(operation, inputs, &schema);
     use ryo_values::domain::plans::types::Operation;
     let resources = super::resources::prepare(operation);
-    let resources = match &resources {
+    let resources = if let super::resources::ResourceProgram::Index {
+        input,
+        columns: super::resources::IndexColumns::Columns(columns),
+    } = &resources
+        && matches!(operation, Operation::Antijoin { .. })
+    {
         super::resources::ResourceProgram::Index {
-            input,
-            columns: super::resources::IndexColumns::Columns(columns),
-        } if matches!(operation, Operation::Antijoin { .. }) => {
-            super::resources::ResourceProgram::Index {
-                input: *input,
-                columns: super::resources::IndexColumns::ColumnsUnlessEmpty(columns.clone()),
-            }
+            input: *input,
+            columns: super::resources::IndexColumns::ColumnsUnlessEmpty(columns.clone()),
         }
-        _ => resources.clone(),
+    } else {
+        resources.clone()
     };
     let workspace = super::workspace::prepare(operation, inputs, &output_kinds);
     Ok(OperatorContract {

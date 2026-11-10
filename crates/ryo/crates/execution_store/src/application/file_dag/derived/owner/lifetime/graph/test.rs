@@ -56,7 +56,8 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
     assert_eq!(
         walk.reached
             .iter()
-            .map(|vertex| reverse.graph().vertices()[vertex.0 as usize])
+            .map(|vertex| reverse.graph().vertices()
+                [usize::try_from(vertex.0).expect("a vertex id fits in usize")])
             .collect::<Vec<_>>(),
         [number(Integer(1)), number(Integer(2))]
     );
@@ -121,7 +122,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        graph.graph().vertices()[nearest as usize],
+        graph.graph().vertices()[usize::try_from(nearest).expect("a vertex id fits in usize")],
         number(Integer(3))
     );
     let answer = fixture

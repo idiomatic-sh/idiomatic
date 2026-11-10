@@ -114,9 +114,11 @@ impl GraphFixture {
             #[cfg(test)]
             index_columns: indexes
                 .iter()
-                .map(|entry| match &entry._plan.request {
-                    ViewRequest::Equality { columns } => columns.clone(),
-                    _ => panic!("filtered equality entry"),
+                .map(|entry| {
+                    let ViewRequest::Equality { columns } = &entry._plan.request else {
+                        panic!("filtered equality entry");
+                    };
+                    columns.clone()
                 })
                 .collect(),
             required_bytes: s.required_bytes.0,

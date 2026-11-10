@@ -184,12 +184,14 @@ impl<'a> DemandAnswers<'a> {
                 cache.graph_counts.expanded.0 += walk.expanded.0;
                 cache.graph_counts.examined.0 += walk.examined.0;
             }
-            return Ok(stopped.then(|| {
-                *walk
-                    .reached
-                    .last()
-                    .expect(constants::EXPECT_QUALIFYING_ENCOUNTER)
-            }));
+            if !stopped {
+                return Ok(None);
+            }
+            // A breadth walk stops only on the qualifying vertex it reached last.
+            let Some(&found) = walk.reached.last() else {
+                return Err(OperatingError::ShapeMismatch);
+            };
+            return Ok(Some(found));
         }
         let shared = self.forest_context(access, domain, orientation)?;
         let Nearest {
@@ -275,7 +277,7 @@ impl<'a> DemandAnswers<'a> {
         let backing = Backing {
             key: BackingKey {
                 tag: BackingTag(20),
-                address: BackingAddress(Arc::as_ptr(&reached) as usize),
+                address: BackingAddress(Arc::as_ptr(&reached).addr()),
             },
             retention_units: UnitCount(0),
             bytes: ByteCount(arc_bytes::<Vec<u32>>().0 + vector(&reached.0).0),
@@ -364,7 +366,7 @@ impl<'a> DemandAnswers<'a> {
         backings.push(Backing {
             key: BackingKey {
                 tag: BackingTag(21),
-                address: BackingAddress(answers.as_ptr() as usize),
+                address: BackingAddress(answers.as_ptr().addr()),
             },
             bytes: vector(&answers),
             retention_units: UnitCount(0),

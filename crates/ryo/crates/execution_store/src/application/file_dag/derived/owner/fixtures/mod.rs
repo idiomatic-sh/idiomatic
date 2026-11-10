@@ -22,6 +22,10 @@ pub(crate) fn walks(relation: Relation) -> super::super::prepared::RuleDerivedNe
         graph: super::cache::types::GraphAdmission::Enabled,
     }
 }
+#[expect(
+    clippy::unwrap_used,
+    reason = "a fixture: preparing a view of a real request over its own rows cannot fail, and a failure fails the proof"
+)]
 pub(crate) fn prepare_view(
     semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     request: ViewRequest,

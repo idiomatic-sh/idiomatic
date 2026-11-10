@@ -16,13 +16,17 @@ pub(crate) fn prepare(
     use OperationKind::*;
     let first = |lifetime, kinds| WorkspaceProgram::FirstOccurrences { lifetime, kinds };
     match ryo_values::domain::plans::service::kind_of(operation) {
-        Project => match operation {
-            Operation::Project {
+        Project => {
+            if let Operation::Project {
                 distinct: RepeatedRows::Dropped,
                 ..
-            } => first(Lifetime::Invocation, output.clone()),
-            _ => WorkspaceProgram::None,
-        },
+            } = operation
+            {
+                first(Lifetime::Invocation, output.clone())
+            } else {
+                WorkspaceProgram::None
+            }
+        }
         Union | Intersection | Difference => first(Lifetime::Invocation, output.clone()),
         Join => match operation {
             Operation::Join {
@@ -34,7 +38,32 @@ pub(crate) fn prepare(
                     reach,
                 ),
             ),
-            _ => WorkspaceProgram::None,
+            Operation::Join { .. }
+            | Operation::Select { .. }
+            | Operation::Project { .. }
+            | Operation::Extend { .. }
+            | Operation::Union { .. }
+            | Operation::Intersection { .. }
+            | Operation::Difference { .. }
+            | Operation::Antijoin { .. }
+            | Operation::GroupCount { .. }
+            | Operation::GroupDigest { .. }
+            | Operation::Capture { .. }
+            | Operation::Rank { .. }
+            | Operation::Replace { .. }
+            | Operation::OrderedMatch { .. }
+            | Operation::Words { .. }
+            | Operation::Axis { .. }
+            | Operation::Closure { .. }
+            | Operation::OrderedDfs { .. }
+            | Operation::Cycles { .. }
+            | Operation::Rows { .. }
+            | Operation::Hosted { .. }
+            | Operation::SpanBetween { .. }
+            | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
+            | Operation::SpanBounds { .. } => WorkspaceProgram::None,
         },
         Select | Antijoin | Extend | Replace | Capture | Rank | Words | OrderedMatch
         | GroupCount | GroupDigest | Closure | Cycles | OrderedDfs | Axis | Rows | Hosted

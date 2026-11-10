@@ -16,13 +16,16 @@ impl DerivedOwner {
             return;
         }
         state.pins.remove(&population);
+        // One plain borrow of the state, so the population's reverse list and the owner's totals are borrowed apart.
+        let state = &mut *state;
         let mut released = ByteCount(0);
         let mut released_overlap = ByteCount(0);
         let mut released_views = 0_usize;
         let mut released_backend = ByteCount(0);
         // Keep this population's reverse list for later re-pins. Taking its
         // buffer releases the map borrow without allocating or scanning other populations.
-        if let Some(keys) = state.dependents.get_mut(&population).map(std::mem::take) {
+        if let Some(slot) = state.dependents.get_mut(&population) {
+            let keys = std::mem::take(slot);
             for key in &keys {
                 state.released_entries += 1_u64;
                 let still_required = key.populations[..usize::from(key.len.0)]
@@ -42,10 +45,7 @@ impl DerivedOwner {
                     }
                 }
             }
-            *state
-                .dependents
-                .get_mut(&population)
-                .expect(constants::EXPECT_KNOWN_POPULATION) = keys;
+            *slot = keys;
         }
         state.required_bytes = ByteCount(state.required_bytes.0.saturating_sub(released.0));
         state.overlap_bytes = ByteCount(state.overlap_bytes.0.saturating_sub(released_overlap.0));

@@ -50,7 +50,9 @@ impl RowCells for Rows<'_> {
         row: ryo_values::domain::rows::types::RowIndex,
         column: ColumnIndex,
     ) -> Option<Cell> {
-        row_in(self.0, row)?.get(column.0 as usize).copied()
+        row_in(self.0, row)?
+            .get(usize::try_from(column.0).expect("a column index fits in usize"))
+            .copied()
     }
 }
 #[derive(Default)]
@@ -61,14 +63,14 @@ impl ValueTexts for Texts {
     fn text(&self, value: Cell) -> Option<ryo_values::domain::row_texts::types::CellText<'_>> {
         match value {
             Cell::Name(name) => ["a", "b", "c", "ctx", "edge"]
-                .get(name.place.0 as usize)
+                .get(usize::try_from(name.place.0).expect("a place number fits in usize"))
                 .copied()
                 .map(ryo_values::domain::row_texts::types::CellText),
             Cell::Symbol(symbol) => self
                 .canonical
-                .get(symbol.0 as usize)
+                .get(usize::try_from(symbol.0).expect("a symbol number fits in usize"))
                 .map(|text| ryo_values::domain::row_texts::types::CellText(text.as_str())),
-            _ => None,
+            Cell::Node(_) | Cell::File(_) | Cell::Span(_) | Cell::Number(_) | Cell::Flag(_) => None,
         }
     }
 }

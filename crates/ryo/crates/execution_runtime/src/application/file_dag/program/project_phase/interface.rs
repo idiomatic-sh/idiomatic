@@ -68,5 +68,11 @@ pub trait ProjectRootExecution {
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E>;
 }
 pub trait ProjectStage: ProjectRootExecution {
+    /// Ends the phase, finishing its publication.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRead`] while another holder still shares the phase's publication, and the publication's
+    /// refusal to finish.
     fn finish(self) -> Result<(), OperatingError>;
 }

@@ -288,7 +288,26 @@ pub(crate) fn binding_dependent(
         | ryo_values::domain::plans::types::Operation::Extend { .. } => {
             return BindingUse::Dependent;
         }
-        _ => &[],
+        ryo_values::domain::plans::types::Operation::Project { .. }
+        | ryo_values::domain::plans::types::Operation::Union { .. }
+        | ryo_values::domain::plans::types::Operation::Intersection { .. }
+        | ryo_values::domain::plans::types::Operation::Difference { .. }
+        | ryo_values::domain::plans::types::Operation::Antijoin { .. }
+        | ryo_values::domain::plans::types::Operation::GroupCount { .. }
+        | ryo_values::domain::plans::types::Operation::GroupDigest { .. }
+        | ryo_values::domain::plans::types::Operation::Capture { .. }
+        | ryo_values::domain::plans::types::Operation::Replace { .. }
+        | ryo_values::domain::plans::types::Operation::OrderedMatch { .. }
+        | ryo_values::domain::plans::types::Operation::Words { .. }
+        | ryo_values::domain::plans::types::Operation::Closure { .. }
+        | ryo_values::domain::plans::types::Operation::OrderedDfs { .. }
+        | ryo_values::domain::plans::types::Operation::Cycles { .. }
+        | ryo_values::domain::plans::types::Operation::Hosted { .. }
+        | ryo_values::domain::plans::types::Operation::SpanBetween { .. }
+        | ryo_values::domain::plans::types::Operation::SourceMatches { .. }
+        | ryo_values::domain::plans::types::Operation::RenderSyntax { .. }
+        | ryo_values::domain::plans::types::Operation::FitsRendered { .. }
+        | ryo_values::domain::plans::types::Operation::SpanBounds { .. } => &[],
     };
     if comparisons.iter().any(|comparison| {
         operand(&comparison.left) == BindingUse::Dependent

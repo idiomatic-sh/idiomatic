@@ -16,6 +16,14 @@ impl DerivedOwner {
     }
 
     /// The counts the resource fixture reads.
+    ///
+    /// # Panics
+    ///
+    /// When the owner has no installed backend: the fixture reads a configured owner only.
+    #[expect(
+        clippy::expect_used,
+        reason = "a fixture reads the counts of an owner its proof configured: none is a broken setup that fails the proof"
+    )]
     pub fn resource_fixture_counts(
         &self,
     ) -> crate::application::file_dag::derived::owner::fixtures::resources::Snapshot {
@@ -87,6 +95,10 @@ impl DerivedOwner {
     }
     /// The observation follows one qualified producer's admitted populations.
     /// Ambiguous matching requirements are refused rather than picking a view.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when more than one retained view of `kind` matches the populations.
     pub fn population_view_witness(
         &self,
         populations: &[PopulationId],

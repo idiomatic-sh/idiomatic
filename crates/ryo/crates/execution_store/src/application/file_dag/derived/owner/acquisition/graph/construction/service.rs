@@ -169,7 +169,7 @@ pub(crate) fn domain(
         crate::application::file_dag::derived::ledger::types::Backing {
             key: BackingKey {
                 tag: BackingTag(19),
-                address: BackingAddress(Arc::as_ptr(&domain) as usize),
+                address: BackingAddress(Arc::as_ptr(&domain).addr()),
             },
             bytes: ByteCount(size_of::<GraphDomain>() + 2 * size_of::<usize>()),
             retention_units: UnitCount(0),

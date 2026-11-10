@@ -69,12 +69,12 @@ fn prepare_build_and_view(bencher: divan::Bencher<'_, '_>, variant: Variant) {
         else {
             panic!("the equality payload is built");
         };
-        match adapter
+        let DerivedView::Equality(index) = adapter
             .view(&prepared, &payload)
             .expect("the payload is viewed")
-        {
-            DerivedView::Equality(index) => index.rows.len(),
-            _ => panic!("the equality payload is viewed as its index"),
-        }
+        else {
+            panic!("the equality payload is viewed as its index");
+        };
+        index.rows.len()
     });
 }

@@ -41,7 +41,7 @@ impl Ledger {
                 return Err(OperatingError::ShapeMismatch);
             }
             let entry = handles
-                .entry(Arc::as_ptr(lease) as usize)
+                .entry(Arc::as_ptr(lease).addr())
                 .or_insert(Dropping {
                     lease,
                     handles: HoldCount(0),

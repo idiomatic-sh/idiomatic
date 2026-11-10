@@ -11,8 +11,7 @@ impl PublishedRelation for Forged {
 fn a_foreign_publication_with_correct_kind_has_no_admission_authority() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     let physical = columns(&[CellKind::Number]);
     let rows = Rows::Stored(ColumnsView {

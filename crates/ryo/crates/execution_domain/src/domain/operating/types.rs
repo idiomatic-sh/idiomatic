@@ -9,6 +9,11 @@ use ryo_values::domain::files::types::SourceView;
 /// they never own a provider session or its cache.
 pub trait SemanticLookup: std::fmt::Debug {
     /// Resolve demanded keys in order; the current application deduplicates each batch.
+    ///
+    /// # Errors
+    ///
+    /// The implementation's [`OperatingError`]: a request it does not admit, a language without semantics, or an
+    /// answer batch whose length differs from the requests'.
     fn render_batch(
         &self,
         requests: &[RenderRequest],
@@ -126,6 +131,11 @@ pub trait PrimitiveSemantics: Sync {
     }
 
     /// The injected operators the primitive evaluates through.
+    ///
+    /// # Errors
+    ///
+    /// The [`PortableOperatorFault`](ryo_operators::domain::contract::types::PortableOperatorFault) the operator
+    /// answers the call with.
     fn operators(
         &self,
         call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,

@@ -39,10 +39,18 @@ pub(crate) mod sealed {
 /// ```
 pub trait PatternSemantics: sealed::Sealed {
     /// Compiles a regex; invalid syntax is a refusal, not an empty match.
+    ///
+    /// # Errors
+    ///
+    /// [`MatchingError::InvalidRegex`] when the pattern is not valid regex syntax.
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError>;
     /// Searches text with a compiled regex.
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome;
     /// Visits the matches of a named capture in source order, refusing a name the regex lacks before reading any text.
+    ///
+    /// # Errors
+    ///
+    /// [`MatchingError::InvalidRegex`] when `name` is not a group of the regex; the visitor is not called.
     fn visit_regex_captures(
         &self,
         regex: &CompiledRegex,

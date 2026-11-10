@@ -21,6 +21,11 @@ impl NativeBatch {
         Self::empty(ClassCount(program.classes().len()))
     }
     /// Preflight the whole transfer before committing any class or counter.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when the batches count different classes or share a class; nothing is
+    /// merged.
     pub fn merge(&mut self, next: Self) -> Result<(), OperatingError> {
         if self.class_count != next.class_count
             || next

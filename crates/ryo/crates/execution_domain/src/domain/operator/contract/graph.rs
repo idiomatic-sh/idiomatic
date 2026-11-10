@@ -295,7 +295,7 @@ impl CyclesEvaluation for LeaseDriver<'_, '_> {
         self.graph
             .cycles
             .as_ref()
-            .map(|graph| graph as &dyn CycleDriver)
+            .map(|graph| -> &dyn CycleDriver { graph })
             .ok_or(Fault::WrongBinding)
     }
 }

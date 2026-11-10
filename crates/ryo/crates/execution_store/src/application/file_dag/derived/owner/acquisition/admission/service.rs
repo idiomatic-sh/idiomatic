@@ -83,6 +83,10 @@ impl AcquiredView {
     /// is the only release). The test-only `assert_required` re-derives that from the ledger;
     /// it is not unconditional because it takes a `RefCell` borrow, scans the lease keys and
     /// does one hash lookup per backing on every read, which production reads must not pay.
+    ///
+    /// # Errors
+    ///
+    /// The derived port's refusal to view the stored payload.
     pub fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         #[cfg(test)]
         self.lease.assert_required(&self.backings);

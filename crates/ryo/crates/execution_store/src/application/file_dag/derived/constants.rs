@@ -32,14 +32,10 @@ pub(crate) const NEAREST_TRAVERSAL: &str = "nearest_traversal";
 pub(crate) const NEAREST_MEMO_HIT: &str = "nearest_memo_hit";
 pub(crate) const OWNER_REQUEST: &str = "owner_request";
 pub(crate) const OWNER_HIT: &str = "owner_hit";
-pub(crate) const EXPECT_REVERSE_LIST: &str = "installed reverse list";
-pub(crate) const EXPECT_KNOWN_POPULATION: &str = "known population";
-pub(crate) const EXPECT_EXISTING_VIEW: &str = "existing view";
 #[cfg(test)]
 pub(crate) const EXPECT_GRAPH_LEASE: &str = "held graph has its required backing lease";
 #[cfg(test)]
 pub(crate) const EXPECT_MEMBERSHIP_LEASE: &str = "held membership has its required backing lease";
-pub(crate) const EXPECT_QUALIFYING_ENCOUNTER: &str = "a qualifying encounter";
 /// Names of the admitted acquisition origin in its debug form.
 pub(super) const ORIGIN_TYPE: &str = "AcquisitionOrigin";
 pub(super) const ORIGIN_LIFETIME: &str = "lifetime";
