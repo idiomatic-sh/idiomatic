@@ -387,11 +387,12 @@ CLIPPY_LINT=re.compile(r'^clippy::[a-z_]+$')
 TM_RULE=re.compile(r'^[a-z][a-z0-9]*\.[a-z][a-z0-9]*/[a-z][a-z0-9-]*$')
 def tm_status(text,rule,files):
  """A Tastemaker rule's status in one `tm check --format json` log: 'failed' when a finding of the rule (or of one of its parts,
- `rule#part`) is at one of the files (repository paths), 'passed' when the document holds no such finding, else None."""
+ `rule#part`) is at one of the files (repository paths) or at a directory holding one, 'passed' when the document holds no such finding, else None."""
  try: report=json.loads(text)
  except ValueError: return None
  if not isinstance(report,dict) or not isinstance(report.get('findings'),list): return None
- hit=any(isinstance(f,dict) and str(f.get('rule','')).split('#')[0]==rule and f.get('path') in files for f in report['findings'])
+ at=lambda path: isinstance(path,str) and any(x==path or x.startswith(path.rstrip('/')+'/') for x in files)
+ hit=any(isinstance(f,dict) and str(f.get('rule','')).split('#')[0]==rule and at(f.get('path')) for f in report['findings'])
  return 'failed' if hit else 'passed'
 def clippy_status(text,lint,files):
  """A clippy lint's status in one `cargo clippy --message-format=json` log: 'failed' when it reports the lint at a primary span in one of
