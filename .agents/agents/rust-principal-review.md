@@ -58,7 +58,7 @@ Item 1 carries these, and they can FAIL it. A public SDK surface is the SDK crat
 - a public item without docs and an example.
 
 ## Open-source hygiene
-The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). It advises, each advisory with file:line and the concrete fix, and every advisory either becomes a bead the PM files or is dropped with a one-line reason. In `rust-review.json` an advisory reads `open item: <short title>` and carries no bead id; the bead id goes only in the Markdown report; no advisory list carries over from a previous pass. It advises on:
+The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). Each note carries file:line and the concrete fix; a note under one of the seven items is a FAIL of that item, and every other note either becomes a bead the PM files or is dropped with a one-line reason. In `rust-review.json` a note that is not a FAIL reads `open item: <short title>` and carries no bead id; the bead id goes only in the Markdown report; no note list carries over from a previous pass. It covers:
 - API design per the Rust API Guidelines: naming, conversions, error types, no leaked internals, sealed or extensible traits used deliberately.
 - Error handling and messages a user can act on.
 - CLI and dev-tool ergonomics per the repo's adopted clig.dev guidance: exit codes, stderr and stdout, output both human and machine readable.

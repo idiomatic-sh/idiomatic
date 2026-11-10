@@ -62,6 +62,19 @@ class GuardShell(unittest.TestCase):
         self.assertEqual(shell(message, self.builder), 0)
         self.assertEqual(shell("cat > notes.md <<-EOF\n\tcargo build\n\tEOF\ncargo build", self.builder), 2)
         self.assertEqual(shell("bash <<'EOF'\ncargo build\nEOF", self.builder), 2)
+        body = "\ncargo build\nEOF"
+        for command in ["cat <<EOF | bash" + body, "cat <<'EOF' | sh" + body, "sudo bash <<EOF" + body,
+                        "sudo -u root bash <<EOF" + body, "<<EOF bash" + body, "<< EOF bash" + body,
+                        "cat <<EOF | xargs -I{} sh -c {}" + body, "env A=1 timeout 60 zsh <<EOF" + body,
+                        "cat <<EOF |\ncargo build\nEOF\nbash", "cat <<EOF \\\n| dash" + body,
+                        "echo hi # see <<EOF\ncargo build", "echo $((1<<EOF))\ncargo build",
+                        "git commit -m \"notes about\nthe <<EOF form\" && true\ncargo build"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 2)
+        for command in ["cat > notes.md <<'EOF'\ncargo build\nEOF", "tee notes.md <<EOF >/dev/null\ncargo build\nEOF",
+                        "cat <<EOF | tee notes.md\ncargo build\nEOF", "git commit -F - <<'EOF'\nfix(x): y # z\ncargo build\nEOF"]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, self.builder), 0)
 
     def test_clippy_runs_only_in_a_reviewers_archive_copy_with_its_own_target(self):
         copy = tempfile.mkdtemp(prefix="ryo-review-", dir="/tmp")
@@ -1534,6 +1547,14 @@ def rubric_rows():
     return module.rubric_rows()
 
 
+def with_digest(review, scope):
+    """review with scope_sha256 set to the scope report's sha256, unless the test set it."""
+    if isinstance(review, dict) and "scope_sha256" not in review:
+        with open(scope, "rb") as handle:
+            review = dict(review, scope_sha256=__import__("hashlib").sha256(handle.read()).hexdigest())
+    return review
+
+
 def scope_rows(failing=()):
     return [{"id": row, "result": "FAIL" if row in failing else "PASS", "reason": "x.rs:1 holds"}
             for row in rubric_rows()]
@@ -1548,12 +1569,12 @@ class ScopeGate(unittest.TestCase):
         self.tree = repo(self.dir.name, "tree", "claude/p1-scoped")
         self.env = dict(os.environ, CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
 
-    def scope(self, first, review):
-        path = os.path.join(self.dir.name, "scope-ryo-x.md")
+    def scope(self, first, review, bead="ryo-x", names="ryo-x"):
+        path = os.path.join(self.dir.name, "scope-" + bead + ".md")
         with open(path, "w", encoding="utf-8") as handle:
-            handle.write(first + "\n\n## Scope review\nS1 PASS\n")
-        with open(os.path.join(self.dir.name, "scope-review-ryo-x.json"), "w", encoding="utf-8") as handle:
-            json.dump(review, handle)
+            handle.write(first + "\n\nBead " + names + ".\n\n## Scope review\nS1 PASS\n")
+        with open(os.path.join(self.dir.name, "scope-review-" + bead + ".json"), "w", encoding="utf-8") as handle:
+            json.dump(with_digest(review, path), handle)
         return path
 
     def launch(self, prompt, kind="builder"):
@@ -1561,8 +1582,8 @@ class ScopeGate(unittest.TestCase):
                    "tool_input": {"subagent_type": kind, "prompt": prompt}}
         return run_hook("no_subagent_builders.py", payload, env=self.env)
 
-    def brief(self, extra):
-        return "BEAD: ryo-x\nWORKTREE: " + self.tree + "\n" + extra + "\nR1 ..."
+    def brief(self, extra, bead="ryo-x", tree=None):
+        return "BEAD: " + bead + "\nWORKTREE: " + (tree or self.tree) + "\n" + extra + "\nR1 ..."
 
     def test_refuses_a_builder_without_a_scope(self):
         result = self.launch(self.brief(""))
@@ -1595,6 +1616,31 @@ class ScopeGate(unittest.TestCase):
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
         self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped")).returncode, 0)
         self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p2-other")).returncode, 2)
+
+    def test_refuses_a_scope_for_another_bead(self):
+        passed = {"rows": scope_rows(), "verdict": "PASS"}
+        path = self.scope("PROCEED", passed, bead="ryo-old", names="ryo-old")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        path = self.scope("PROCEED", passed, names="ryo-old")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        path = self.scope("PROCEED", passed, names="ryo-x.1")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+
+    def test_refuses_a_scope_changed_after_its_review(self):
+        path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write("A re-scope after the review.\n")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS", "scope_sha256": None})
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+
+    def test_a_followup_needs_its_worktree_on_that_branch_and_the_scoped_bead(self):
+        other = repo(self.dir.name, "other", "claude/never-scoped")
+        path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
+        self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped", tree=other)).returncode, 2)
+        self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped", bead="ryo-y")).returncode, 2)
+        self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped")).returncode, 0)
 
     def test_the_rows_come_from_the_rubric_so_a_rubric_change_needs_no_hook_edit(self):
         copy = os.path.join(self.dir.name, "copy")
@@ -1631,10 +1677,12 @@ class ScopeReviewStop(unittest.TestCase):
         self.addCleanup(self.dir.cleanup)
         self.scope = os.path.join(self.dir.name, "scope-ryo-x.md")
         self.review = os.path.join(self.dir.name, "scope-review-ryo-x.json")
+        with open(self.scope, "w", encoding="utf-8") as handle:
+            handle.write("PROCEED\n\nBead ryo-x.\n")
 
     def write(self, review, age=0):
         with open(self.review, "w", encoding="utf-8") as handle:
-            handle.write(review if isinstance(review, str) else json.dumps(review))
+            handle.write(review if isinstance(review, str) else json.dumps(with_digest(review, self.scope)))
         if age:
             stamp = os.path.getmtime(self.review) - age
             os.utime(self.review, (stamp, stamp))
@@ -1657,7 +1705,9 @@ class ScopeReviewStop(unittest.TestCase):
         for name, review, age in [("stale", {"rows": scope_rows(), "verdict": "PASS"}, 3600),
                                   ("not json", "{x", 0),
                                   ("a row missing", {"rows": scope_rows()[:2] + scope_rows()[3:], "verdict": "PASS"}, 0),
-                                  ("verdict against its rows", {"rows": scope_rows({"S3"}), "verdict": "PASS"}, 0)]:
+                                  ("verdict against its rows", {"rows": scope_rows({"S3"}), "verdict": "PASS"}, 0),
+                                  ("another report's digest", {"rows": scope_rows(), "verdict": "PASS",
+                                                               "scope_sha256": "0" * 64}, 0)]:
             with self.subTest(name=name):
                 self.write(review, age)
                 self.assertEqual(self.stop().returncode, 2)

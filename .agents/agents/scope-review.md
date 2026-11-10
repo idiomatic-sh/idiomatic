@@ -33,7 +33,7 @@ as firmly as a PROCEED's.
 Append "Scope review" to the scope report: one line per row with PASS or FAIL
 and the reason, then a last line exactly `VERDICT: PASS` or `VERDICT: FAIL`.
 Write the same as scope-review-<bead>.json
-(`{"rows":[{"id":"S1","result":"PASS","reason":"..."}],"verdict":"PASS"}`).
+(`{"rows":[{"id":"S1","result":"PASS","reason":"..."}],"verdict":"PASS","scope_sha256":"<sha256 of the scope report as written>"}`).
 ## On FAIL
 Each failing row's reason is a fix the scoper can act on: what is missing or
 wrong, and where. The PM sends the list back to the scoper. On re-review,

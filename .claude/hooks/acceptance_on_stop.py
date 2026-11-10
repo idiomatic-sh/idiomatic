@@ -11,7 +11,6 @@ import textwrap
 from datetime import datetime
 
 LIMIT = 5
-STATE = os.environ.get("CLAUDE_HOOKS_STATE", "/tmp/claude-hooks")
 BD_HOME = "/workspaces/idiomatic"
 EVIDENCE = "crates/ryo/docs/contracts/evidence/"
 # The verdict file of each review agent, under the evidence directory; a leak review of a branch writes branches/<branch>.json.
@@ -160,31 +159,39 @@ def scope_review_stop(data):
     names, during its run, or on BLOCKED: <question>."""
     path = data.get("agent_transcript_path") or data.get("transcript_path")
     if not path or not os.path.exists(path):
-        return hold("its transcript is unreadable, so the run's start is unknown")
+        return scope_hold("its transcript is unreadable, so the run's start is unknown")
     first, last = read_transcript(path)
     last = data.get("last_assistant_message") or last
     if last.strip().startswith("BLOCKED:"):
         return 0
     scope, since = token(first, "SCOPE"), started_at(path)
     if since is None:
-        return hold("its transcript has no timestamp, so the run's start is unknown")
+        return scope_hold("its transcript has no timestamp, so the run's start is unknown")
     try:
         gate = gate_module()
     except Exception as error:  # a missing or broken gate holds the stop, never releases it
-        return hold("no_subagent_builders.py failed to load (" + type(error).__name__ + ": " + str(error) + ")")
+        return scope_hold("no_subagent_builders.py failed to load (" + type(error).__name__ + ": " + str(error) + ")")
     review_path = gate.review_path(scope) if scope else None
     if review_path is None:
-        return hold("the prompt must name SCOPE=<path to scope-<bead>.md> once")
+        return scope_hold("the prompt must name SCOPE=<path to scope-<bead>.md> once")
     try:
         if os.path.getmtime(review_path) < since:
-            return hold(review_path + " was not written during this run")
+            return scope_hold(review_path + " was not written during this run")
     except OSError:
-        return hold(review_path + " does not exist")
+        return scope_hold(review_path + " does not exist")
     review, problem = gate.load(review_path)
     if problem:
-        return hold(problem)
+        return scope_hold(problem)
     problem = gate.scope_review_problem(review, scope)
-    return hold(review_path + " " + problem) if problem else 0
+    return scope_hold(review_path + " " + problem) if problem else 0
+
+
+def scope_hold(why):
+    print("Scope review not finished: " + why + ". Append the Scope review section to the scope report, then write "
+          "scope-review-<bead>.json beside it: {\"rows\": [{\"id\", \"result\": PASS|FAIL, \"reason\"}] for every "
+          "rubric row (S1 and S10 only for a DEFER or DROP report), \"verdict\", and \"scope_sha256\", the sha256 of "
+          "the report as written; or reply BLOCKED: <one question>.", file=sys.stderr)
+    return 2
 
 
 def hold(why):
@@ -223,8 +230,9 @@ def run(script, worktree):
 
 
 def failure(bead, detail):
-    os.makedirs(STATE, exist_ok=True)
-    counter = os.path.join(STATE, bead + ".count")
+    state = gate_module().STATE
+    os.makedirs(state, exist_ok=True)
+    counter = os.path.join(state, bead + ".count")
     try:
         with open(counter, encoding="utf-8") as handle:
             count = int(handle.read().strip() or 0) + 1
@@ -242,7 +250,7 @@ def failure(bead, detail):
 
 def success(bead):
     try:
-        os.remove(os.path.join(STATE, bead + ".count"))
+        os.remove(os.path.join(gate_module().STATE, bead + ".count"))
     except OSError:
         pass
     return 0
