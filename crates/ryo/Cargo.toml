@@ -153,9 +153,9 @@ pedantic = { level = "warn", priority = -1 }
 # panic states when; the Rust gate failed these by hand (332 F1).
 missing_errors_doc = "deny"
 missing_panics_doc = "deny"
-pub_use = "deny"
 missing_docs_in_private_items = "warn"
 # mod_module_files is not denied: file layout is owned by Tastemaker's placement rules (test-directory-layout, templates); one definition.
+# pub_use is not denied: re-export policy is owned by Tastemaker's no-reexports rule; one definition.
 # Clippy restriction lints, each chosen (never the group: blanket_clippy_restriction_lints). Off, as fighting idiomatic
 # code or the other side of a pair: absolute_paths, alloc_instead_of_core, arbitrary_source_item_ordering, arithmetic_side_effects,
 # big_endian_bytes, decimal_literal_representation, exhaustive_enums, exhaustive_structs, float_arithmetic,
