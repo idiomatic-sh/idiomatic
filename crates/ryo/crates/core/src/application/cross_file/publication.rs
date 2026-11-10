@@ -62,7 +62,9 @@ fn pack_root(
     match &published.readiness {
         ProducerReadiness::Complete => {}
         ProducerReadiness::Unknown(_) if root.table.is_some() => {}
-        _ => return published,
+        ProducerReadiness::Unknown(_) | ProducerReadiness::Skipped | ProducerReadiness::NoQuery => {
+            return published;
+        }
     }
     let Some(mut table) = root.table else {
         published.readiness = ProducerReadiness::Unknown(ObservationReason(

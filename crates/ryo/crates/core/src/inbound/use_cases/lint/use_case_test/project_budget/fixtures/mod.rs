@@ -55,7 +55,7 @@ impl MemoryPort for ProjectPressure {
     fn budget(&self) -> Result<MemoryBytes, MemoryError> {
         Ok(MemoryBytes(match self.pressure {
             MemoryPressure::Allowed => 4_000_000,
-            _ => 1_000_000,
+            MemoryPressure::Budget | MemoryPressure::Unreadable => 1_000_000,
         }))
     }
     fn resident_bytes(&self) -> Result<MemoryBytes, MemoryError> {
@@ -66,7 +66,7 @@ impl MemoryPort for ProjectPressure {
             MemoryPressure::Unreadable => Err(MemoryError::Unreadable {
                 reason: "after first project reduction".into(),
             }),
-            _ => Ok(MemoryBytes(2_000_000)),
+            MemoryPressure::Budget | MemoryPressure::Allowed => Ok(MemoryBytes(2_000_000)),
         }
     }
 }
@@ -136,7 +136,9 @@ impl QueryLanguagePort for ProjectQueries {
             },
         });
         plan.emit = Emit {
-            step: StepId((plan.steps.len() - 1) as u32),
+            step: StepId(
+                u32::try_from(plan.steps.len() - 1).expect("the emitted step's number fits in u32"),
+            ),
             subject: ColumnIndex(0),
             key: vec![ColumnIndex(1)],
             headings: vec![],

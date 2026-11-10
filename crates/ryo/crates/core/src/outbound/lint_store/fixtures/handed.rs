@@ -7,6 +7,10 @@ use ryo_values::domain::stores::types::{BucketsWanted, StoredHanded, StoredWords
 
 /// Explicitly resolve the read representation only in contract result oracles.
 /// Production handover resolves a filtered row at a time instead of materializing this table.
+///
+/// # Errors
+///
+/// What `read` refuses when it hands its rows or reads a row's old words back.
 pub fn materialized_handed(
     read: &dyn ReadStore,
     wanted: &BucketsWanted,

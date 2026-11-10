@@ -190,7 +190,9 @@ impl FileVisits {
                 {
                     reason
                 }
-                _ => continue,
+                CorpusInput::Available(_)
+                | CorpusInput::ReadFailed { .. }
+                | CorpusInput::Unreadable { .. } => continue,
             };
             now.partials
                 .extend(crate::domain::project::service::unread_manifest_partials(

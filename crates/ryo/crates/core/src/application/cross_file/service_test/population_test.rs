@@ -158,10 +158,12 @@ pub(super) fn equal_policies_do_not_alias_distinct_admitted_frontier_payloads()
                 RootOutcome::Failed(error) | RootOutcome::Unknown(error) => {
                     panic!("actual prepared population refused: {error}")
                 }
-                _ => panic!(
-                    "actual prepared population absent: {}",
-                    OperatingError::NotRun
-                ),
+                RootOutcome::Skipped(_) | RootOutcome::NoQuery | RootOutcome::Deferred { .. } => {
+                    panic!(
+                        "actual prepared population absent: {}",
+                        OperatingError::NotRun
+                    )
+                }
             };
             let first = if rule == 0 { 1 } else { 9 };
             assert_eq!(

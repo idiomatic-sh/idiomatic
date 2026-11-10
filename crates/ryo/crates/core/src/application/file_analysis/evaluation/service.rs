@@ -93,9 +93,10 @@ impl FileAnalysis {
                 let capture = match captured.outcome {
                     Ok(capture) => capture,
                     Err(error) => {
+                        let at = usize::try_from(file.0).map_err(|_| OperatingError::NotRun)?;
                         tables.unknowns.push(Unknown {
                             rule: visit.setting.ids[rule.0].clone(),
-                            path: visit.setting.paths[file.0 as usize].clone(),
+                            path: visit.setting.paths[at].clone(),
                             message: Message(
                                 format!("file phase frontier input {}: {error}", captured.input.0)
                                     .into(),
@@ -149,7 +150,12 @@ impl FileAnalysis {
     ) -> Result<(), FileAnalysisError> {
         let affected = match &outcome {
             RootOutcome::Partial { affected, .. } => Some(affected.clone()),
-            _ => None,
+            RootOutcome::Complete(_)
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::Failed(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. } => None,
         };
         match outcome {
             RootOutcome::Complete(table) | RootOutcome::Partial { table, .. } => {
@@ -203,7 +209,8 @@ impl FileAnalysis {
                         &visit.setting,
                         rule,
                         file,
-                        &visit.setting.paths[file.0 as usize],
+                        &visit.setting.paths
+                            [usize::try_from(file.0).map_err(|_| OperatingError::NotRun)?],
                         affected,
                     );
                 }
@@ -211,7 +218,9 @@ impl FileAnalysis {
             RootOutcome::Unknown(error) => {
                 tables.unknowns.push(Unknown {
                     rule: visit.setting.ids[rule.0].clone(),
-                    path: visit.setting.paths[file.0 as usize].clone(),
+                    path: visit.setting.paths
+                        [usize::try_from(file.0).map_err(|_| OperatingError::NotRun)?]
+                    .clone(),
                     message: Message(error.to_string().into()),
                     cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                 });

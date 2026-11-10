@@ -34,7 +34,8 @@ pub(crate) fn listed() -> Result<usize, CorpusError> {
             ryo_values::domain::files::types::CorpusInput::Available(entry) => {
                 Some((&*entry.path.0, entry.size.0))
             }
-            _ => None,
+            ryo_values::domain::files::types::CorpusInput::ReadFailed { .. }
+            | ryo_values::domain::files::types::CorpusInput::Unreadable { .. } => None,
         })
         .collect();
     let missing = entries

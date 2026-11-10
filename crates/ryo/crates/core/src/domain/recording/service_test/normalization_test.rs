@@ -148,9 +148,14 @@ fn prepared_packed_buckets_preserve_flat_digests_store_bytes_and_move_ownership(
         let mut expected = Vec::new();
         for (bucket, words) in &expected_words {
             if bucket.0 >= first[rule].0
-                && (bucket.0 - first[rule].0) < plans[rule].frontier.len() as u32
+                && (bucket.0 - first[rule].0)
+                    < u32::try_from(plans[rule].frontier.len())
+                        .expect("a frontier count fits in u32")
             {
-                expected.extend([u64::from(bucket.0), words.0.len() as u64]);
+                expected.extend([
+                    u64::from(bucket.0),
+                    u64::try_from(words.0.len()).expect("a word count fits in u64"),
+                ]);
                 expected.extend_from_slice(&words.0);
             }
         }

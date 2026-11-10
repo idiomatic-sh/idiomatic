@@ -209,14 +209,11 @@ pub(super) fn world_with_applicability(
     let observer = Arc::new(
         ryo_execution_runtime::outbound::observer::fixtures::fake::ObserverFake::default(),
     );
-    let request = ExecutionUseCaseImpl::new().execution(
-        &program,
-        &files,
-        Some(Arc::clone(&observer)
-            as Arc<
-                dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort,
-            >),
-    );
+    let observing: Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort> =
+        Arc::<ryo_execution_runtime::outbound::observer::fixtures::fake::ObserverFake>::clone(
+            &observer,
+        );
+    let request = ExecutionUseCaseImpl::new().execution(&program, &files, Some(observing));
     World {
         observer,
         placed: ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes {
@@ -277,7 +274,9 @@ pub(super) fn kept_facts(world: &World, kept: &[(RuleIndex, &[(FileId, Table)])]
             continue;
         };
         let proof = FrontierProof {
-            rule: ryo_values::domain::records::types::ProducerRule(rule.0 as u32),
+            rule: ryo_values::domain::records::types::ProducerRule(
+                u32::try_from(rule.0).expect("a fixture rule's number fits in u32"),
+            ),
             input: ryo_values::domain::records::types::FrontierOrdinal(0),
             rule_digest,
             coverage: FrontierCoverage::Complete,
@@ -359,6 +358,10 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Pr
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use std::sync::atomic::Ordering;
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "the audit counts reductions and group emissions; every other operator call passes through unchanged"
+        )]
         match &mut call {
             OperatorCall::ReduceCount { .. } => {
                 self.reductions.fetch_add(1, Ordering::SeqCst);
