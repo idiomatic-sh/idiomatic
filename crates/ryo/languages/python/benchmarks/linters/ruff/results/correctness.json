@@ -1,5 +1,5 @@
 {
-  "status": "historical: this file records the 205-rule current-canonical full-report comparison (failed) and earlier corpus and timing evidence; the active cohort is current-canonical-ready-310-r2 in profiles/prepared.json; the current-canonical profile was removed and is in git history at e4f1d396eb",
+  "status": "historical: this file records the 205-rule current-canonical full-report comparison (failed) and earlier corpus and timing evidence; no combined cohort in profiles/prepared.json is active; current-canonical-ready-310-r2 was removed and is in git history at a6e880e1d7; the current-canonical profile was removed and is in git history at e4f1d396eb",
   "current_summary": {
     "historical": true,
     "profile": "current-canonical",

@@ -162,7 +162,7 @@ def verify_profile_sharded(name: str, profile_root: Path, worker: Path, ruff: Pa
                 reused = False
         if not reused:
             if not resume and (receipt_path.exists() or records_path.exists()):
-                raise ValueError('shard output already exists; use --resume with matching identities')
+                raise ValueError('shard output already exists')
             prior_records = []
             malformed = False
             prior_validation_error = None

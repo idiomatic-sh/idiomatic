@@ -156,31 +156,6 @@ def reuse_frozen_worker(output_directory: Path) -> tuple[Path, dict[str, object]
         raise ValueError('cannot resume: saved Cargo artifact is not the Ruff benchmark target')
     return (executable, record)
 
-def resume_manifest(output_directory: Path, profile_name: str) -> dict[str, object]:
-    """Load the immutable manifest snapshot bound to a prior shard plan."""
-    prepared_path = output_directory / 'prepared.json'
-    plan_path = output_directory / 'profiles' / profile_name / 'shard-plan.json'
-    try:
-        manifest_bytes = prepared_path.read_bytes()
-        manifest = json.loads(manifest_bytes)
-        plan = json.loads(plan_path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(f'cannot resume: saved manifest or shard plan is unreadable: {error}') from error
-    selection = plan.get('global_identity', {}).get('selection', {})
-    if plan.get('profile') != profile_name or selection.get('manifest_sha256') != hashlib.sha256(manifest_bytes).hexdigest() or profile_name not in manifest.get('combined_profiles', {}) or (manifest['combined_profiles'][profile_name].get('validation_status') != 'active-current') or (selection.get('sealed_source_hashes') != manifest.get('files')):
-        raise ValueError('cannot resume: saved manifest does not match the sealed active profile plan')
-    repro = output_directory / 'profiles' / profile_name / 'repro'
-    if not repro.is_dir() or plan.get('staged_inputs') != staged_hashes(repro):
-        raise ValueError('cannot resume: staged profile inputs differ from the saved shard plan')
-    profile_data = tomllib.loads((repro / 'benchmark.toml').read_text(encoding='utf-8'))
-    if profile_data.get('defaults') != manifest['combined_profiles'][profile_name].get('selected_rules'):
-        raise ValueError('cannot resume: profile rule selection differs from the saved manifest')
-    if selection.get('target_version') != profile_data.get('parser-configuration', 'python-target=3.10'):
-        raise ValueError('cannot resume: parser target differs from the saved run identity')
-    if selection.get('selected_rule_applicability') != profile_data.get('rule-applicability', {}):
-        raise ValueError('cannot resume: rule applicability differs from the saved run identity')
-    return manifest
-
 def validate_output_directory(output_directory: Path, *, resume: bool) -> None:
     """Keep new verifier receipts outside the Rust source identity being built."""
     rust_root = (profile_config.REPOSITORY / 'crates' / 'ryo').resolve()

@@ -44,9 +44,5 @@ def self_test() -> int:
         code, state = profile_guard_proof_tests.guards_9(fake_bin, helper, last_profile, last_rule, manifest, marker, pristine_manifest, root, ruff, temporary_manifest)
         if code:
             return code
-        kind, = state
-        code, state = profile_guard_proof_tests.guards_10(case, fake_bin, helper, kind, marker, pristine_manifest, root, ruff, temporary_manifest)
-        if code:
-            return code
     print('profile selection and hash-mismatch guards passed')
     return 0

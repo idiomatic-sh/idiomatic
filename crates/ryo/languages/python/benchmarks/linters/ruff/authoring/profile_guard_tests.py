@@ -1,4 +1,4 @@
-"""Profile guards: inventory preservation, cohort checks, resume manifests and shard receipts."""
+"""Profile guards: inventory preservation, cohort checks and shard receipts."""
 from __future__ import annotations
 import hashlib
 import json
@@ -89,41 +89,18 @@ def guards_1() -> tuple[int, tuple]:
         print('Ruff coordinate conversion must count physical CR/LF lines and UTF-8 bytes', file=sys.stderr)
         return 1, ()
     sample_inventory = [{'rule': 'A', 'name': 'one', 'case_sha256': 'a'}, {'rule': 'A', 'name': 'two', 'case_sha256': 'b'}, {'rule': 'B', 'name': 'one', 'case_sha256': 'c'}, {'rule': 'C', 'name': 'one', 'case_sha256': 'd'}, {'rule': 'C', 'name': 'two', 'case_sha256': 'e'}]
-    prior_cases = [{'name': 'old-name', 'files': {'case.py': 'x = 1\n'}, 'expected': []}, {'name': 'kept', 'files': {'case.py': 'y = 2\n'}, 'expected': [{'file': 'case.py', 'start': 0, 'end': 1}]}]
-    extended_cases = [{'name': 'renamed-old-name', 'files': {'case.py': 'x = 1\n'}, 'expected': []}, prior_cases[1], {'name': 'new-case', 'files': {'case.py': 'z = 3\n'}, 'expected': []}]
-    try:
-        profile_proofs.verify_case_inventory_extension(prior_cases, extended_cases, {'old-name': 'renamed-old-name'})
-        for invalid_cases, migrations in ((extended_cases[1:], {'old-name': 'renamed-old-name'}), ([prior_cases[0], {**prior_cases[1], 'expected': []}], {}), ([prior_cases[0], prior_cases[1], prior_cases[0]], {})):
-            try:
-                profile_proofs.verify_case_inventory_extension(prior_cases, invalid_cases, migrations)
-            except ValueError:
-                continue
-            raise ValueError('case preservation accepted a removal, changed expectation, or duplicate identity')
-    except (TypeError, ValueError) as error:
-        print(f'canonical case inventory preservation failed: {error}', file=sys.stderr)
-        return 1, ()
     prepared = json.loads(profile_config.MANIFEST.read_text(encoding='utf-8'))
     try:
-        no_active_cohort = json.loads(json.dumps(prepared))
-        for descriptor in no_active_cohort.get('combined_profiles', {}).values():
-            descriptor['validation_status'] = 'archived-historical'
+        unarchived = json.loads(json.dumps(prepared))
+        unarchived_name = next(iter(sorted(unarchived['combined_profiles'])))
+        unarchived['combined_profiles'][unarchived_name]['validation_status'] = 'active-current'
         try:
-            profile_proofs.verify_active_combined_cohort(no_active_cohort)
+            profile_proofs.verify_files(unarchived, profile_config.ENTRYPOINT.relative_to(profile_config.REPOSITORY).as_posix())
         except ValueError as error:
-            if 'exactly one active combined cohort' not in str(error):
+            if f'combined profile {unarchived_name} must declare archived-historical status' not in str(error):
                 raise
         else:
-            raise ValueError('default acceptance allowed a missing active combined cohort')
-        ambiguous_cohorts = json.loads(json.dumps(prepared))
-        for descriptor in ambiguous_cohorts.get('combined_profiles', {}).values():
-            descriptor['validation_status'] = 'active-current'
-        try:
-            profile_proofs.verify_active_combined_cohort(ambiguous_cohorts)
-        except ValueError as error:
-            if 'exactly one active combined cohort' not in str(error):
-                raise
-        else:
-            raise ValueError('default acceptance allowed multiple active combined cohorts')
+            raise ValueError('prepared manifest admitted a combined profile whose status is not archived-historical')
         dangling_query = json.loads(json.dumps(prepared))
         archived_name = next((name for name, item in sorted(dangling_query['combined_profiles'].items()) if item.get('validation_status') == 'archived-historical'))
         dangling_query['combined_profiles'][archived_name].setdefault('query_files', {})['F401'] = 'crates/ryo/languages/python/benchmarks/linters/ruff/profiles/missing/F401/query.ryoql'
@@ -149,8 +126,6 @@ def guards_1() -> tuple[int, tuple]:
             except ValueError:
                 continue
             raise ValueError('native phase guard admitted missing/duplicate rules or wrong phases')
-        if profile_proofs.selected_rule_applicability(prepared, prepared['combined_profiles']['current-canonical-ready-310-r2']['selected_rules']) != {rule: phase_registry['rules'][rule]['applicability'] for rule in prepared['combined_profiles']['current-canonical-ready-310-r2']['selected_rules']}:
-            raise ValueError('applicability projection changed the selected rule inventory')
         missing_phase = json.loads(json.dumps(phase_registry))
         missing_phase['rules'].pop(next(iter(missing_phase['rules'])))
         unknown_phase = json.loads(json.dumps(phase_registry))
@@ -175,35 +150,6 @@ def guards_1() -> tuple[int, tuple]:
 
 
 def guards_2(sample_inventory) -> tuple[int, tuple]:
-    with tempfile.TemporaryDirectory(prefix='ryo-ruff-resume-manifest-') as temporary:
-        resume_root = Path(temporary)
-        profile_name = 'sealed-active'
-        resume_manifest_data = {'files': {}, 'combined_profiles': {profile_name: {'validation_status': 'active-current', 'expectations_mode': 'complete-full-report', 'selected_rules': ['A']}}}
-        prepared_path = resume_root / 'prepared.json'
-        manifest_bytes = json.dumps(resume_manifest_data, separators=(',', ':')).encode()
-        prepared_path.write_bytes(manifest_bytes)
-        repro = resume_root / 'profiles' / profile_name / 'repro'
-        repro.mkdir(parents=True)
-        (repro / 'benchmark.toml').write_text('defaults = ["A"]\nparser-configuration = "python-target=3.10"\nrule-applicability = {}\n', encoding='utf-8')
-        staged = profile_worker.staged_hashes(repro)
-        selection = {'manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'sealed_source_hashes': {}, 'staged_profile_sha256': staged, 'target_version': 'python-target=3.10', 'selected_rule_applicability': {}}
-        plan_root = resume_root / 'profiles' / profile_name
-        plan_root.mkdir(exist_ok=True)
-        (plan_root / 'shard-plan.json').write_text(json.dumps({'profile': profile_name, 'staged_inputs': staged, 'global_identity': {'selection': selection}}), encoding='utf-8')
-        try:
-            if profile_worker.resume_manifest(resume_root, profile_name) != resume_manifest_data:
-                raise ValueError('resume did not use its saved manifest snapshot')
-            original_manifest_path = profile_config.MANIFEST
-            profile_config.MANIFEST = resume_root / 'mutable-current.json'
-            profile_config.MANIFEST.write_text('{"different":true}', encoding='utf-8')
-            try:
-                if profile_worker.resume_manifest(resume_root, profile_name) != resume_manifest_data:
-                    raise ValueError('resume followed the mutable current manifest')
-            finally:
-                profile_config.MANIFEST = original_manifest_path
-        except (OSError, ValueError, KeyError, TypeError) as error:
-            print(f'sealed resume manifest check failed: {error}', file=sys.stderr)
-            return 1, ()
     partitions = profile_shards.partition_case_inventory(sample_inventory, 3)
     identity = {'inventory_sha256': 'sealed'}
     receipts = [{'shard_index': index, 'shard_count': 3, 'case_ids': [f"{case['rule']}/{case['name']}" for case in partition], 'status': 0, 'last_process_status': 0, 'case_result_records_valid': True, 'stdout_summary_valid': True, 'global_identity': identity} for index, partition in enumerate(partitions)]

@@ -132,8 +132,8 @@ def verify_files(manifest: dict[str, object], helper_path: str) -> None:
         selected = descriptor['selected_rules']
         if len(selected) != len(set(selected)) or set(selected) - defaults:
             raise ValueError('combined profile contains a non-default rule')
-        if descriptor.get('validation_status') not in {'active-current', 'archived-historical'}:
-            raise ValueError('combined profile must declare active-current or archived-historical status')
+        if descriptor.get('validation_status') != 'archived-historical':
+            raise ValueError(f'combined profile {name} must declare archived-historical status')
         dangling = sorted((f'{key}:{rule}' for key in ('query_files', 'case_files') for rule, path in descriptor.get(key, {}).items() if path not in descriptor['input_files']))
         if dangling:
             raise ValueError(f'combined profile {name} names unsealed inputs: {dangling}')
@@ -155,7 +155,6 @@ def verify_rule_phase_registry(manifest: dict[str, object], registry: dict[str, 
     if registry.get('schema_version') != 1 or registry.get('ruff_version') != profile_config.PINNED_RUFF_VERSION or registry.get('ruff_source_commit') != profile_config.PINNED_RUFF_SOURCE_COMMIT or (not isinstance(registry.get('code_to_variant_registry'), dict)) or (not isinstance(registry.get('phase_registry'), dict)) or (manifest.get('rule_phases_file') != profile_config.RULE_PHASES_FILE.relative_to(profile_config.REPOSITORY).as_posix()):
         raise ValueError('pinned Ruff phase registry has an unsupported identity')
     expected_rules = {profile.get('rule_id', profile_name) for profile_name, profile in manifest['profiles'].items()}
-    expected_rules.update((rule for descriptor in manifest.get('combined_profiles', {}).values() if descriptor.get('validation_status') == 'active-current' for rule in descriptor['selected_rules']))
     rules = registry.get('rules')
     shipped_defaults = registry.get('shipped_default_rules')
     supplemental = registry.get('registered_nondefault_rules', {})
@@ -206,15 +205,6 @@ def verify_rule_phase_registry(manifest: dict[str, object], registry: dict[str, 
         if applicability != expected_applicability:
             raise ValueError(f'Ruff phase/applicability mismatch for {rule}: {phases} -> {applicability}')
     return registry
-
-def verify_active_combined_cohort(manifest: dict[str, object]) -> None:
-    """Require the default acceptance run to include one current full-report cohort."""
-    active = [(name, descriptor) for name, descriptor in manifest.get('combined_profiles', {}).items() if descriptor.get('validation_status') == 'active-current']
-    if len(active) != 1:
-        raise ValueError(f'default acceptance requires exactly one active combined cohort; found {len(active)}')
-    name, descriptor = active[0]
-    if descriptor.get('expectations_mode') != 'complete-full-report':
-        raise ValueError(f'active combined cohort {name} is not a complete full-report profile')
 
 def check_base_rule_applicability(profile: dict[str, object], registry: dict[str, object]) -> None:
     """Keep all shipped defaults, and the registered supporting rules a profile names, at their exact tagged phases."""
@@ -340,36 +330,3 @@ def native_descriptor_json(text: str) -> dict[str, object]:
     if not isinstance(result, dict):
         raise ValueError('native descriptor must be an object')
     return result
-
-
-def verify_case_inventory_extension(previous: list[dict[str, object]], current: list[dict[str, object]], explicit_renames: dict[str, str]) -> None:
-    """Require canonical case additions to preserve every prior case byte-for-byte.
-
-    A case identity can move only through a sealed old-name -> new-name migration;
-    after changing that one field, source, effective comparison settings, and expected
-    rows must match. An explicit ``comparison = "rule"`` equals the old default.
-    """
-    previous_by_name = {case.get('name'): case for case in previous}
-    current_by_name = {case.get('name'): case for case in current}
-    if len(previous_by_name) != len(previous) or len(current_by_name) != len(current) or any((not isinstance(name, str) or not name for name in previous_by_name)) or any((not isinstance(name, str) or not name for name in current_by_name)):
-        raise ValueError('case inventory contains a blank or duplicate identity')
-    if set(explicit_renames) - set(previous_by_name):
-        raise ValueError('case migration names an absent prior identity')
-    targets = list(explicit_renames.values())
-    if len(targets) != len(set(targets)):
-        raise ValueError('case migration has colliding target identities')
-    for old_name, old_case in previous_by_name.items():
-        new_name = explicit_renames.get(old_name, old_name)
-        current_case = current_by_name.get(new_name)
-        if current_case is None:
-            raise ValueError(f'canonical case was removed without migration: {old_name}')
-        expected_case = dict(old_case)
-        expected_case['name'] = new_name
-        actual_case = dict(current_case)
-        if expected_case.get('comparison', 'rule') == actual_case.get('comparison', 'rule') == 'rule':
-            expected_case.pop('comparison', None)
-            actual_case.pop('comparison', None)
-        if actual_case != expected_case:
-            raise ValueError(f'canonical case source/settings/expectations changed: {old_name}')
-    if set(explicit_renames.values()) - set(current_by_name):
-        raise ValueError('case migration target is absent from the current inventory')

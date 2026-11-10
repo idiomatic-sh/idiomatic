@@ -14,7 +14,6 @@ import tomllib
 from authoring import case_records
 from authoring import profile_config
 from authoring import profile_proofs
-from authoring import native_standalone
 from authoring import profile_sources
 from authoring import profile_worker
 from authoring import reference_discrepancies
@@ -75,7 +74,6 @@ def stage_binding(manifest: dict[str, object], selected: list[str], stack: conte
 def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: dict[str, object], stack: contextlib.ExitStack, output_directory: Path | None=None) -> tuple[str, Path]:
     if 'expectations_file' not in descriptor or 'oracle_file' not in descriptor:
         raise ValueError(f'{profile_name} is a case-preservation baseline only: it seals no expectations or oracle, so it cannot be staged')
-    native_standalone.verify_ready_assets(profile_name, descriptor, manifest)
     profile_path = profile_config.REPOSITORY / descriptor['profile_file']
     profile_data = tomllib.loads(profile_path.read_text(encoding='utf-8'))
     selected_rules = descriptor['selected_rules']
@@ -169,34 +167,8 @@ def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: d
     inventory_hash = hashlib.sha256(json.dumps(inventory, ensure_ascii=False, separators=(',', ':')).encode('utf-8')).hexdigest()
     if inventory_hash != descriptor['inventory_sha256']:
         raise ValueError(f'{profile_name} inventory hash mismatch')
-    preservation_path = descriptor.get('case_preservation_file')
-    if preservation_path is not None:
-        if preservation_path not in descriptor['input_files']:
-            raise ValueError(f'{profile_name} case-preservation proof is not a sealed input')
-        preservation = json.loads((profile_config.REPOSITORY / preservation_path).read_text(encoding='utf-8'))
-        baseline_name = preservation.get('baseline_profile')
-        baseline = manifest.get('combined_profiles', {}).get(baseline_name)
-        if preservation.get('schema') != 'canonical-case-preservation/v1' or baseline is None or baseline.get('validation_status') != 'archived-historical' or (not set(baseline['selected_rules']) <= set(selected_rules)):
-            raise ValueError(f'{profile_name} case-preservation baseline is invalid')
-        migrations = preservation.get('renamed_identities', {})
-        if not isinstance(migrations, dict):
-            raise ValueError(f'{profile_name} case-preservation migrations are invalid')
-        for rule in baseline['selected_rules']:
-            previous_path = combined_case_path(rule, baseline)
-            current_path = combined_case_path(rule, descriptor)
-            previous_cases = tomllib.loads(previous_path.read_text(encoding='utf-8'))['cases']
-            current_cases = tomllib.loads(current_path.read_text(encoding='utf-8'))['cases']
-            rule_migrations = migrations.get(rule, {})
-            if not isinstance(rule_migrations, dict):
-                raise ValueError(f'{profile_name} case-preservation migrations are invalid for {rule}')
-            profile_proofs.verify_case_inventory_extension(previous_cases, current_cases, rule_migrations)
     destination = stage_directory(profile_name, stack, output_directory)
-    registry = descriptor.get('module_files')
-    if registry is None:
-        registry = profile_sources.combined_modules(profile_data, selected_rules, manifest)
-    else:
-        for source_path in registry.values():
-            combined_input_path(profile_sources.module_path(source_path), descriptor)
+    registry = profile_sources.combined_modules(profile_data, selected_rules, manifest)
     profile_sources.copy_modules(registry, destination)
     target_version = descriptor.get('target_version', 'py310')
     profile_sources.write_staged_profile(profile_path, destination / 'benchmark.toml', registry, profile_sources.parser_configuration(target_version), profile_proofs.selected_rule_applicability(manifest, selected_rules))
