@@ -2,13 +2,16 @@
 //! constructor and no inherent impl.
 
 use super::errors::ProjectError;
-use crate::domain::answers::types::AbsenceCause;
-use crate::domain::files::types::FilePath;
+use crate::domain::files::types::{FilePath, ManifestName};
+use crate::domain::project_context::types::{
+    EntryObservation, GivenProjectInventory, ObservedEntries, ProjectSearchScope,
+};
 use crate::domain::reasons::types::ToolMessage;
-use crate::domain::relations::collections::relations::interface::RelationsItem;
-use crate::domain::relations::types::{Bytes, Rows};
-use crate::domain::relations::types::{Relation, RowWriter};
 use crate::domain::symbols::types::Symbols;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::types::{Bytes, Rows};
+use ryo_relations::domain::relations::types::{Relation, RowWriter};
 
 /// The repository's manifests, read once per run.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,6 +21,12 @@ pub struct ProjectRequest {
     /// Where the repository's files are: on the disk below the root, where a language may read what it is not given, or only the
     /// manifests and files it is given, when it reads nothing from the disk and the root names nothing.
     pub repository: Repository,
+    /// Search roots declared by the host, in resolution order. An undeclared scope carries no absence proof.
+    pub search_scope: ProjectSearchScope,
+    /// Entries explicitly supplied for a Given project, separate from source texts.
+    pub given_inventory: GivenProjectInventory,
+    /// One engine observation of each demanded candidate entry, reused as the project's receipt.
+    pub observed_entries: ObservedEntries,
     /// The manifests, each with its path and its text: both came from disk.
     pub manifests: Vec<ManifestFile>,
     /// Every file of the repository the run lists, by path, in the order of their places: a file's place is the number it has in the rows.
@@ -50,6 +59,8 @@ pub struct Resolved<D = ()> {
     /// for and found none of. The engine digests each and reads the project again only when one is gone or changed, or one it found
     /// none of is there. A language that reads only what it is handed answers none.
     pub consulted: Vec<FilePath>,
+    /// The exact entry observations handed to the project reader; these also determine warm reuse.
+    pub observed_entries: Vec<EntryObservation>,
     /// What the language worked out besides, for the readers of this run alone: the run does not keep it and the engine never compares it.
     /// A language that works out nothing has `()`.
     pub derived: D,
@@ -72,10 +83,6 @@ pub struct ManifestFile {
     /// Its text.
     pub text: ManifestText,
 }
-
-/// The name of a file the language reads as a manifest: the last part of its path.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ManifestName(pub &'static str);
 
 /// What a manifest reader reads its rows from: the request, and what the language's `resolve` worked out for it. Nothing
 /// of it is kept for another run.
@@ -174,6 +181,15 @@ impl std::fmt::Display for ManifestText {
 /// What the engine asks of a language whatever it works out: the same reading as `ProjectUseCase`, with what the language derives
 /// kept inside the call, so that languages of different types are held side by side. Every `ProjectUseCase` is one.
 pub trait ProjectEngine: Send + Sync {
+    /// Which existing operation owns a primary file; this does not read or validate the file.
+    fn primary_role(
+        &self,
+        path: crate::domain::files::types::SourcePath<'_>,
+    ) -> crate::domain::files::types::PrimaryFileRole;
+
+    /// Appends to `entries` the candidate entry paths needed for requested project relations.
+    fn project_entries(&self, request: &ProjectRequest, entries: &mut Vec<FilePath>);
+
     /// The names of the files the language reads as manifests.
     fn manifest_names(&self) -> &'static [ManifestName];
 

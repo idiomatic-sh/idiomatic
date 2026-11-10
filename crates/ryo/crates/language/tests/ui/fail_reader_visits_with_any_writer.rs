@@ -1,7 +1,7 @@
 //! reader_visits_with_any_writer: the compiler rejects this.
 
-use ryo_language::domain::relations::collections::relations::function::item::Function;
-use ryo_language::domain::relations::types::{Position, RowWriter};
+use ryo_relations::domain::relations::collections::relations::function::item::Function;
+use ryo_relations::domain::relations::types::{Position, RowWriter};
 use ryo_language::domain::answers::types::Visiting;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::elements::types::Tree;

@@ -1,272 +1,41 @@
-// ignore: idiomatic.arch/file-length - one row for each thing a walk gives a reader, over one language written for them
 //! The `parse` service's cases: what a walk gives the readers a language answers.
 
-use crate::domain::terms::types::UnknownName;
 use crate::inbound::use_cases::parse::types::Recognition;
+use ryo_relations::domain::terms::types::UnknownName;
 use std::marker::PhantomData;
+use std::sync::Mutex;
 
 use super::errors::ParseError;
+use super::fixtures::breaking::Breaking;
+use super::fixtures::ordered::Ordered;
+use super::fixtures::promised::Promised;
+use super::fixtures::small::{Seen, Small};
 use super::interface::ParseUseCase;
 use super::service::{absence, build, walk};
 use super::types::{FieldRequest, NoteRequest, ParseRequest};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answers::service::{absent, reads};
-use crate::domain::answers::types::{AbsenceCause, Expansions, ReadItem, Reader, Reads, Support};
-use crate::domain::elements::service::{end_of, enter_node, leave_node, table_builder, token};
+use crate::domain::answers::types::{Expansions, ReadItem, Reader, Reads, Support};
+use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use crate::domain::elements::service::end_of;
 use crate::domain::elements::types::{Completion, Elements, TableBuilder, Tree};
 use crate::domain::files::types::SourcePath;
 use crate::domain::reasons::types::ToolMessage;
-use crate::domain::relations::collections::relations::function::item::{Function, FunctionRow};
-use crate::domain::relations::collections::relations::syntax_tree::item::{
-    SyntaxTree, SyntaxTreeRow,
-};
-use crate::domain::relations::types::{
-    Count, FileId, KindBits, NodeId, Offset, Position, Relation, Rows, Span,
-};
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::Symbol;
-use crate::inbound::use_cases::parse::fixtures::contract::Collect;
-
-/// A language that reads `function` from the tokens of kind 2 and `syntax_tree` from every element,
-/// and says the rest is not in it.
-struct Small;
-
-/// What a worker of `Small` keeps between files: the sum of the ends of the trees it has read.
-#[derive(Default)]
-struct Seen(u32);
-
-fn write_function(
-    tree: &Tree<'_>,
-    count: &Seen,
-    _symbols: &mut Symbols,
-    _at: Position,
-    out: &mut dyn Rows<FunctionRow>,
-) {
-    out.write(FunctionRow {
-        id: NodeId(u64::from(count.0)),
-        name: Symbol(0),
-        file: tree.file,
-        span: Span {
-            start: Offset(0),
-            end: Offset(0),
-        },
-    });
-}
-
-fn write_tree(
-    tree: &Tree<'_>,
-    _model: &Seen,
-    _symbols: &mut Symbols,
-    at: Position,
-    out: &mut dyn Rows<SyntaxTreeRow>,
-) {
-    out.write(SyntaxTreeRow {
-        id: NodeId(u64::from(at.0)),
-        kind: Symbol(0),
-        text: Symbol(0),
-        file: tree.file,
-        span: Span {
-            start: Offset(0),
-            end: Offset(0),
-        },
-    });
-}
-
-/// Answers the relations `Small` does not read as not in the language.
-macro_rules! absent_but_two {
-    (
-        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
-        manifest { $( $manifest:tt )* }
-        engine { $( $engine:tt )* }
-    ) => {
-        $(
-            absent_but_two!(@one $module $variant);
-        )*
-    };
-    (@one function Function) => {};
-    (@one syntax_tree SyntaxTree) => {};
-    (@one $module:ident $variant:ident) => {
-        fn $module(
-            &self,
-        ) -> Support<Reader<crate::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
-            absent(AbsenceCause::NoSuchConstruct)
-        }
-    };
-}
-
-/// The item that reads `function` from the tokens of kind 2.
-struct FunctionItem;
-
-impl crate::domain::answers::types::declared::Syntax for FunctionItem {}
-
-impl crate::domain::answers::types::Visiting<Function, Seen> for FunctionItem {
-    fn visit(
-        &self,
-        tree: &Tree<'_>,
-        model: &Seen,
-        symbols: &mut Symbols,
-        position: Position,
-        out: &mut dyn Rows<FunctionRow>,
-    ) {
-        write_function(tree, model, symbols, position, out);
-    }
-}
-
-impl ReadItem for FunctionItem {
-    type Relation = Function;
-    type Model = Seen;
-
-    const READER: Reader<Function, Seen> = Reader {
-        reads: Reads::Kinds(&[KindBits(2)]),
-        visit: &FunctionItem,
-        expansions: Expansions::Ignored,
-        relation: PhantomData,
-    };
-}
-
-/// The item that reads `syntax_tree` from every element, and finishes after the last.
-struct TreeItem;
-
-impl crate::domain::answers::types::declared::Syntax for TreeItem {}
-
-impl crate::domain::answers::types::Visiting<SyntaxTree, Seen> for TreeItem {
-    fn visit(
-        &self,
-        tree: &Tree<'_>,
-        model: &Seen,
-        symbols: &mut Symbols,
-        position: Position,
-        out: &mut dyn Rows<SyntaxTreeRow>,
-    ) {
-        write_tree(tree, model, symbols, position, out);
-    }
-}
-
-impl ReadItem for TreeItem {
-    type Relation = SyntaxTree;
-    type Model = Seen;
-
-    const READER: Reader<SyntaxTree, Seen> = Reader {
-        reads: Reads::Every,
-        visit: &TreeItem,
-        expansions: Expansions::Ignored,
-        relation: PhantomData,
-    };
-}
-
-impl ParseUseCase for Small {
-    type FileModel = Seen;
-
-    fn file_model(&self, tree: &Tree<'_>, model: &mut Seen) {
-        // The model is the worker's, kept between files: what the last file left is still in it.
-        model.0 += end_of(tree.elements).0;
-    }
-
-    fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition {
-        if request.path.ends_with(".small") {
-            Recognition::Reads
-        } else {
-            Recognition::Declines
-        }
-    }
-
-    fn skips(&self) -> &'static [crate::inbound::use_cases::parse::types::SkippedDirectory] {
-        &[]
-    }
-
-    fn unknown_reasons(&self) -> &'static [UnknownName] {
-        &[]
-    }
-
-    fn kind_count(&self) -> Count {
-        Count(3)
-    }
-
-    fn kind_names(&self) -> crate::inbound::use_cases::parse::types::KindNames {
-        crate::inbound::use_cases::parse::types::KindNames(Vec::new())
-    }
-
-    fn read_tree(
-        &self,
-        _request: &ParseRequest<'_>,
-        _builder: &mut TableBuilder<'_>,
-    ) -> Result<(), ParseError> {
-        Ok(())
-    }
-
-    fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
-
-    fn function(&self) -> Support<Reader<Function, Seen>> {
-        reads::<FunctionItem>()
-    }
-
-    fn syntax_tree(&self) -> Support<Reader<SyntaxTree, Seen>> {
-        reads::<TreeItem>()
-    }
-
-    crate::each_relation!(absent_but_two);
-}
-
-/// A language whose library fails: on bytes that are not text it says so, on any other it names the failure.
-struct Breaking;
-
-/// Answers every relation as not in the language.
-macro_rules! absent_all {
-    (
-        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
-        manifest { $( $manifest:tt )* }
-        engine { $( $engine:tt )* }
-    ) => {
-        $(
-            fn $module(
-                &self,
-            ) -> Support<Reader<crate::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
-                absent(AbsenceCause::NoSuchConstruct)
-            }
-        )*
-    };
-}
-
-impl ParseUseCase for Breaking {
-    type FileModel = ();
-
-    fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
-
-    fn recognizes(&self, _request: &ParseRequest<'_>) -> Recognition {
-        Recognition::Reads
-    }
-
-    fn skips(&self) -> &'static [crate::inbound::use_cases::parse::types::SkippedDirectory] {
-        &[]
-    }
-
-    fn unknown_reasons(&self) -> &'static [UnknownName] {
-        &[]
-    }
-
-    fn kind_count(&self) -> Count {
-        Count(0)
-    }
-
-    fn kind_names(&self) -> crate::inbound::use_cases::parse::types::KindNames {
-        crate::inbound::use_cases::parse::types::KindNames(Vec::new())
-    }
-
-    fn read_tree(
-        &self,
-        _request: &ParseRequest<'_>,
-        _builder: &mut TableBuilder<'_>,
-    ) -> Result<(), ParseError> {
-        Err(ParseError::Library {
-            reason: ToolMessage("the library failed".into()),
-        })
-    }
-
-    fn complete(&self, _request: &ParseRequest<'_>, _completion: &mut Completion<'_>) {}
-
-    crate::each_relation!(absent_all);
-}
+use crate::inbound::use_cases::parse::fixtures::collect::Collect;
+use crate::selects;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::collections::relations::syntax_tree::item::{
+    SyntaxTree, SyntaxTreeRow,
+};
+use ryo_relations::domain::relations::types::{
+    Count, FileId, KindBits, NodeId, Offset, Position, Relation, Rows, Span,
+};
+use ryo_relations::domain::terms::types::Symbol;
 
 /// Reads a file of these bytes through `language`.
 fn built(language: &impl ParseUseCase, bytes: &'static [u8]) -> Result<usize, ParseError> {
@@ -391,6 +160,47 @@ type Failure = ParseError;
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName("optional reads preserve declared availability across retained requests"),
+        word: Word::Succeeds,
+        input: || || Ok(optional_readiness_is_fail_closed()),
+        expect: Expect::Value(4),
+    },
+    Case {
+        name: CaseName(
+            "default_requirement_preserves_completion_before_each_model_and_real_reader_results",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                Ok(default_requirement_preserves_completion_before_each_model_and_real_reader_results())
+            }
+        },
+        expect: Expect::Value(3),
+    },
+    Case {
+        name: CaseName("unsupported_compiler_feature_is_unknown_and_emits_no_false_row"),
+        word: Word::Succeeds,
+        input: || || Ok(unsupported_compiler_feature_is_unknown_and_emits_no_false_row()),
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("shared_source_locations_index_and_visit_every_element"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                let found = walked(&[Relation::SourceLocation]);
+                Ok(found
+                    .rows()
+                    .iter()
+                    .filter(|(relation, row)| {
+                        *relation == Relation::SourceLocation && row[3] == 1 && row[4] == 1
+                    })
+                    .count())
+            }
+        },
+        expect: Expect::Value(3),
+    },
+    Case {
         name: CaseName("a_reader_looks_only_at_the_kinds_it_names"),
         word: Word::Succeeds,
         input: || || Ok(a_reader_looks_only_at_the_kinds_it_names()),
@@ -443,8 +253,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || a_file_the_library_cannot_read,
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ParseError::Library { reason }
-                if &*reason.0 == "the library failed"))
+            selects!(error, ParseError::Library { reason }
+                if &*reason.0 == "the library failed")
         }),
     },
 ];
@@ -461,4 +271,126 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+/// A retained worker alternates absent/advertised/absent promises without cached leakage.
+fn optional_readiness_is_fail_closed() -> usize {
+    use ryo_relations::domain::capabilities::types::OptionalCapability;
+    let mut elements = Elements::default();
+    let mut symbols = Symbols::default();
+    let source = ByteSlice(b"ab");
+    let mut builder = table_builder(&mut elements, &mut symbols, source);
+    enter_node(&mut builder, KindBits(1), Offset(0));
+    token(&mut builder, KindBits(2), Offset(0), Offset(1));
+    token(&mut builder, KindBits(2), Offset(1), Offset(2));
+    leave_node(&mut builder, Offset(2));
+    let mut passed = 0;
+    for (provider, count, partials, absent_reason) in [
+        (Promised(&[], true), 0, 1, Some(AbsenceCause::NotYetRead)),
+        (
+            Promised(&[OptionalCapability::Identifier], true),
+            3,
+            0,
+            None,
+        ),
+        (Promised(&[], true), 0, 1, Some(AbsenceCause::NotYetRead)),
+        (
+            Promised(&[OptionalCapability::Identifier], false),
+            0,
+            1,
+            Some(AbsenceCause::NotYetRead),
+        ),
+    ] {
+        let before = absence(&provider, Relation::Identifier);
+        let mut out = Collect::default();
+        walk(
+            &provider,
+            &mut elements,
+            &mut symbols,
+            source,
+            FileId(0),
+            &[Relation::Identifier],
+            &mut out,
+        );
+        if before == absent_reason
+            && absence(&provider, Relation::Identifier) == before
+            && out.rows().len() == count
+            && out.partials_at.len() == partials
+        {
+            passed += 1;
+        }
+    }
+    passed
+}
+
+/// A language without the optional compiler-feature promise cannot imply a disabled flag.
+fn unsupported_compiler_feature_is_unknown_and_emits_no_false_row() -> usize {
+    let mut elements = Elements::default();
+    let mut symbols = Symbols::default();
+    let source = ByteSlice(b"ab");
+    let mut builder = table_builder(&mut elements, &mut symbols, source);
+    enter_node(&mut builder, KindBits(1), Offset(0));
+    token(&mut builder, KindBits(2), Offset(0), Offset(1));
+    token(&mut builder, KindBits(2), Offset(1), Offset(2));
+    leave_node(&mut builder, Offset(2));
+    assert_eq!(
+        absence(&Small, Relation::CompilerFeature),
+        Some(AbsenceCause::NotYetRead)
+    );
+    let mut out = Collect::default();
+    walk(
+        &Small,
+        &mut elements,
+        &mut symbols,
+        source,
+        FileId(0),
+        &[Relation::CompilerFeature],
+        &mut out,
+    );
+    assert!(out.rows().is_empty());
+    assert_eq!(out.partials_at.len(), 1);
+    out.partials_at.len()
+}
+
+/// Non-refining providers retain their original completed-tree/per-walk initialization order: the events it saw.
+fn default_requirement_preserves_completion_before_each_model_and_real_reader_results() -> usize {
+    let provider = Ordered::default();
+    assert_eq!(
+        provider.completion_requirement(),
+        crate::domain::elements::types::CompletionRequirement::Independent
+    );
+    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+    build(
+        &provider,
+        ParseRequest {
+            path: SourcePath("order.small"),
+            file: FileId(0),
+            bytes: ByteSlice(b"x"),
+            notes: NoteRequest::Unwanted,
+            fields: FieldRequest::Unwanted,
+        },
+        &mut elements,
+        &mut symbols,
+    )
+    .unwrap();
+    assert_eq!(*provider.events.lock().unwrap(), ["complete"]);
+    for expected in [2, 4] {
+        let mut out = Collect::default();
+        walk(
+            &provider,
+            &mut elements,
+            &mut symbols,
+            ByteSlice(b"x"),
+            FileId(0),
+            &[Relation::Function],
+            &mut out,
+        );
+        assert_eq!(out.count(Relation::Function), 1);
+        assert_eq!(out.rows()[0].1[0], expected);
+    }
+    assert_eq!(
+        *provider.events.lock().unwrap(),
+        ["complete", "model", "model"]
+    );
+    provider.events.lock().unwrap().len()
 }

@@ -4,7 +4,7 @@
 /// The type a fixture states a column of `kind` with.
 macro_rules! stated {
     (Node) => {
-        $crate::domain::relations::types::Position
+        ryo_relations::domain::relations::types::Position
     };
     (Number) => {
         $crate::inbound::use_cases::parse::fixtures::expected::Count
@@ -30,7 +30,7 @@ macro_rules! cell {
     };
     (Number, $value:expr) => {
         $crate::inbound::use_cases::parse::fixtures::expected::Cell::Number(
-            $crate::domain::relations::types::Integer($value.0),
+            ryo_relations::domain::relations::types::Integer($value.0),
         )
     };
     (Symbol, $value:expr) => {
@@ -61,7 +61,7 @@ macro_rules! expected_row {
         }
 
         impl $crate::inbound::use_cases::parse::fixtures::expected::ExpectedRow for $expected {
-            const RELATION: $crate::domain::relations::types::Relation = $crate::domain::relations::types::Relation::$item;
+            const RELATION: ryo_relations::domain::relations::types::Relation = ryo_relations::domain::relations::types::Relation::$item;
 
             fn cells(&self) -> Vec<$crate::inbound::use_cases::parse::fixtures::expected::Cell> {
                 vec![ $( cell!($kind, self.$field) ),* ]
@@ -81,24 +81,24 @@ macro_rules! expected_modules {
             pub mod $module {
                 //! The rows of one relation as a fixture states them.
 
-                $crate::$module!(expected_row);
+                ryo_relations::$module!(expected_row);
             }
         )*
         $(
             pub mod $manifest_module {
                 //! The rows of one relation as a fixture states them.
 
-                $crate::$manifest_module!(expected_row);
+                ryo_relations::$manifest_module!(expected_row);
             }
         )*
         $(
             pub mod $engine_module {
                 //! The rows of one relation as a fixture states them.
 
-                $crate::$engine_module!(expected_row);
+                ryo_relations::$engine_module!(expected_row);
             }
         )*
     };
 }
 
-crate::each_relation!(expected_modules);
+ryo_relations::each_relation!(expected_modules);

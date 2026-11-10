@@ -1,18 +1,32 @@
 //! The `elements` service's cases, on values alone.
 
-use crate::domain::symbols::types::ByteSlice;
-
 use super::service::{
-    child_of_kind, children, decoded_at, decoded_token, end_at, end_of, enter_node,
-    first_token_text, kind_at, leave_node, number_mut, positions, start_at, table_builder, text_at,
-    token,
+    child_of_kind, children, end_at, end_of, first_token_text, kind_at, number_mut, positions,
+    start_at, text_at,
 };
 use super::types::Elements;
-use crate::domain::relations::types::{KindBits, Offset, Position};
-use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::NameText;
+use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use crate::domain::symbols::types::{ByteSlice, Symbols};
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+
+fn syntax_acceptance_is_separate_and_resets_conservatively() -> usize {
+    use super::service::{clear_elements, syntax_acceptance};
+    use super::types::SyntaxAcceptance;
+    use crate::domain::builders::service::set_syntax_acceptance;
+
+    let mut elements = Elements::default();
+    assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Undetermined);
+    let mut symbols = Symbols::default();
+    {
+        let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"x"));
+        set_syntax_acceptance(&mut builder, SyntaxAcceptance::Rejected);
+    }
+    assert_eq!(syntax_acceptance(&elements), SyntaxAcceptance::Rejected);
+    clear_elements(&mut elements);
+    usize::from(syntax_acceptance(&elements) == SyntaxAcceptance::Undetermined)
+}
 
 /// A scenario: what a row asks of the service.
 type Input = fn() -> usize;
@@ -52,72 +66,46 @@ fn a_child_is_found_by_its_kind_and_a_node_holds_the_text_of_its_first_token() -
     )
 }
 
-fn a_decoded_token_keeps_the_text_its_library_read_and_a_plain_one_has_none() -> usize {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b"\"\\u{41}\"fn"));
-    enter_node(&mut builder, KindBits(1), Offset(0));
-    decoded_token(
-        &mut builder,
-        KindBits(2),
-        Offset(0),
-        Offset(8),
-        NameText("A"),
-    );
-    token(&mut builder, KindBits(3), Offset(8), Offset(10));
-    leave_node(&mut builder, Offset(10));
-    usize::from(
-        decoded_at(&elements, Position(1)) == Some(NameText("A"))
-            && decoded_at(&elements, Position(2)).is_none()
-            && decoded_at(&elements, Position(0)).is_none(),
-    )
-}
-
-fn implied_nodes_keep_properties_without_claiming_bytes() -> usize {
-    use super::service::{enter_implied_node, node_property, origin_at, property_at, source_order};
-    use super::types::SourceOrder;
-    use crate::domain::completion::service::intern_decoded;
-    use crate::domain::relations::{
-        constants::NO_SPAN,
-        types::{ElementOrigin, PropertyId},
-    };
-    use crate::domain::symbols::service::text_of;
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let source = ByteSlice(b"<p>&amp;");
-    let mut builder = table_builder(&mut elements, &mut symbols, source);
-    enter_node(&mut builder, KindBits(1), Offset(0));
-    enter_implied_node(&mut builder, KindBits(2));
-    node_property(&mut builder, PropertyId(2), NameText("html"));
-    node_property(&mut builder, PropertyId(0), NameText("decoded &"));
-    leave_node(&mut builder, Offset(8));
-    token(&mut builder, KindBits(3), Offset(0), Offset(3));
-    token(&mut builder, KindBits(3), Offset(3), Offset(8));
-    leave_node(&mut builder, Offset(8));
-    intern_decoded(&mut elements, &mut symbols, source);
-    usize::from(
-        start_at(&elements, Position(1)) == NO_SPAN.start
-            && end_at(&elements, Position(1)) == NO_SPAN.end
-            && origin_at(&elements, Position(1)) == ElementOrigin::Implied
-            && source_order(&elements) == SourceOrder::Reordered
-            && property_at(&elements, Position(1), PropertyId(2)) == Some(NameText("html"))
-            && text_of(&symbols, source, text_at(&elements, Position(1)))
-                == Some(NameText("decoded &"))
-            && text_of(&symbols, source, text_at(&elements, Position(2))) == Some(NameText("<p>"))
-            && positions(&elements).count() == 4,
-    )
-}
-
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("syntax_acceptance_is_separate_and_resets_conservatively"),
+        word: Word::Succeeds,
+        input: || syntax_acceptance_is_separate_and_resets_conservatively,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("clearing_elements_removes_previous_source_coordinates"),
+        word: Word::Succeeds,
+        input: || {
+            || {
+                use crate::domain::location::{
+                    service::{column, index, line},
+                    types::{SourceLineBytes, SourceLineOffset},
+                };
+                let mut elements = Elements::default();
+                index(
+                    &mut super::service::engine_mut(&mut elements).line_starts,
+                    SourceLineBytes(b"old\nfile\n"),
+                );
+                super::service::clear_elements(&mut elements);
+                index(
+                    &mut super::service::engine_mut(&mut elements).line_starts,
+                    SourceLineBytes("é".as_bytes()),
+                );
+                let index = &super::service::engine(&elements).line_starts;
+                usize::from(
+                    line(index, SourceLineOffset(2)).0 == 1
+                        && column(index, SourceLineOffset(2)).0 == 2,
+                )
+            }
+        },
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("a_write_at_a_position_past_the_table_crashes_instead_of_being_lost"),
         word: Word::Succeeds,
         input: || a_write_past_the_table_crashes,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("implied_nodes_keep_properties_without_claiming_bytes"),
-        word: Word::Succeeds,
-        input: || implied_nodes_keep_properties_without_claiming_bytes,
         expect: Expect::Value(1),
     },
     Case {
@@ -127,24 +115,68 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("a_decoded_token_keeps_the_text_its_library_read_and_a_plain_one_has_none"),
-        word: Word::Succeeds,
-        input: || a_decoded_token_keeps_the_text_its_library_read_and_a_plain_one_has_none,
-        expect: Expect::Value(1),
-    },
-    Case {
         name: CaseName("a_node_with_a_token_is_three_positions_with_its_root"),
         word: Word::Succeeds,
         input: || a_node_with_a_token_is_three_positions_with_its_root,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("an_embedded_source_is_found_in_n_plus_m_log_m_comparisons_not_n_times_m"),
+        word: Word::Succeeds,
+        input: || an_embedded_source_is_found_by_bisection,
+        expect: Expect::Value(1),
+    },
 ];
+
+/// Native elements end at this position; embedded source `i` spans `NATIVE + 4i ..+ 3`.
+const NATIVE: u32 = 1000;
+
+/// Looks up 1024 occurrences over 1024 embedded sources, counting each interval read: 1 when every
+/// answer matches its source and the reads stay within N(log2(M + 1) + 2). A scan of the sources
+/// per occurrence reads at least 1024 * 1024 / 2 of them here, over the bound.
+fn an_embedded_source_is_found_by_bisection() -> usize {
+    use super::service::{embedded_source_at, engine_mut, holding};
+    use ryo_relations::domain::elements::types::{EmbeddedMapping, EmbeddedSource};
+
+    let rows = 1024_u32;
+    let spans = 1024_u32;
+    let mut elements = Elements::default();
+    engine_mut(&mut elements).embedded = (0..spans)
+        .map(|index| EmbeddedSource {
+            host: Position(index),
+            root: Position(NATIVE + 4 * index),
+            end: Position(NATIVE + 4 * index + 3),
+            mapping: EmbeddedMapping::WholeHost,
+        })
+        .collect();
+    let mut count = 0_u64;
+    let last = u64::from(NATIVE + 4 * spans);
+    let mut answers = 0_u32;
+    for row in 0..u64::from(rows) {
+        let at = Position(u32::try_from(row * last / u64::from(rows)).unwrap_or(u32::MAX));
+        let expected =
+            at.0.checked_sub(NATIVE)
+                .filter(|offset| offset % 4 < 3)
+                .map(|offset| Position(offset / 4));
+        let counted = holding(&super::service::engine(&elements).embedded, at, |source| {
+            count += 1;
+            source.root..source.end
+        });
+        let found = embedded_source_at(&elements, at);
+        if found == counted && found.map(|source| source.host) == expected {
+            answers += 1;
+        }
+    }
+    let depth = u64::from((spans + 1).next_power_of_two().trailing_zeros());
+    usize::from(answers == rows && count <= u64::from(rows) * (depth + 2))
+}
 
 /// Writes at a position past an empty table: 1 when that crashes as a position the table never gave.
 fn a_write_past_the_table_crashes() -> usize {
     let message = crash_of(|| {
         let mut elements = Elements::default();
-        *number_mut(&mut elements.size, Position(3)) = crate::domain::relations::types::Extent(1);
+        *number_mut(&mut elements.size, Position(3)) =
+            ryo_relations::domain::relations::types::Extent(1);
     });
     usize::from(message == "a position this table gave")
 }

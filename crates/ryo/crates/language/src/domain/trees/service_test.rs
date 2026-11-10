@@ -6,13 +6,13 @@ use super::service::{
     readable_text,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::elements::service::{
-    decoded_at, end_at, enter_node, kind_at, leave_node, positions, start_at, table_builder, token,
-};
+use crate::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use crate::domain::decoded::service::decoded_at;
+use crate::domain::elements::service::{end_at, kind_at, positions, start_at};
 use crate::domain::elements::types::{Elements, TableBuilder};
-use crate::domain::relations::types::{KindBits, Offset};
 use crate::domain::symbols::types::{ByteSlice, Symbols};
-use crate::domain::terms::types::NameText;
+use ryo_relations::domain::relations::types::{KindBits, Offset};
+use ryo_relations::domain::terms::types::NameText;
 
 /// The kind the cases' events write.
 const EVENT: KindBits = KindBits(1);

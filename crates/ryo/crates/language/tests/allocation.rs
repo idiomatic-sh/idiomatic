@@ -3,27 +3,28 @@
 //! `read_tree` that allocates a scratch buffer in every file passes; a reader that allocates in every file fails. It runs alone in its
 //! process, with `dhat` as the global allocator, so nothing else counts.
 
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::terms::types::UnknownName;
 use std::marker::PhantomData;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use ryo_language::domain::answers::service::{absent, reads};
-use ryo_language::domain::answers::types::{AbsenceCause, ReadItem, Reader, Reads, Support};
-use ryo_language::domain::elements::service::{enter_node, leave_node, token};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_language::domain::builders::service::{enter_node, leave_node, token};
 use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
 use ryo_language::domain::files::types::SourcePath;
-use ryo_language::domain::relations::collections::relations::function::item::{
-    Function, FunctionRow,
-};
-use ryo_language::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
-use ryo_language::inbound::use_cases::parse::fixtures::samples::allocations;
+use ryo_language::inbound::use_cases::parse::fixtures::samples::{allocations, harness_case};
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::service::baseline;
 use ryo_language::inbound::use_cases::parse::types::Recognition;
 use ryo_language::inbound::use_cases::parse::types::{ParseRequest, SourceFile};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
 
 /// Counts every allocation the test makes, so a run's allocations are read back.
 #[global_allocator]
@@ -42,7 +43,7 @@ macro_rules! all_but_function {
     (@one $module:ident $variant:ident) => {
         fn $module(
             &self,
-        ) -> Support<Reader<ryo_language::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
+        ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
             absent(AbsenceCause::NoSuchConstruct)
         }
     };
@@ -146,6 +147,47 @@ struct Language {
 impl ParseUseCase for Language {
     type FileModel = ();
 
+    fn begin_semantics(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _tree: &ryo_language::domain::elements::types::Elements,
+        _slot: &mut ryo_language::domain::semantics::types::SemanticSlot,
+    ) {
+    }
+
+    fn completion_requirement(
+        &self,
+    ) -> ryo_language::domain::elements::types::CompletionRequirement {
+        ryo_language::domain::elements::types::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &ryo_language::domain::elements::types::Tree<'_>,
+        _from: ryo_relations::domain::relations::types::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+    ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
+        ryo_language::inbound::use_cases::parse::types::Recognition::Declines
+    }
+
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(
+        &self,
+    ) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
+    }
+
     fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
 
     fn recognizes(&self, _request: &ParseRequest<'_>) -> Recognition {
@@ -194,7 +236,7 @@ impl ParseUseCase for Language {
         }
     }
 
-    ryo_language::each_relation!(all_but_function);
+    ryo_relations::each_relation!(all_but_function);
 }
 
 /// Runs the allocation row over the double and says whether it held.
@@ -212,7 +254,7 @@ fn held(language: &Language) -> bool {
                 language,
                 &ParseRequest {
                     path: sample.path,
-                    file: ryo_language::domain::relations::types::FileId(0),
+                    file: ryo_relations::domain::relations::types::FileId(0),
                     bytes,
                     notes: ryo_language::inbound::use_cases::parse::types::NoteRequest::Unwanted,
                     fields: ryo_language::inbound::use_cases::parse::types::FieldRequest::Unwanted,
@@ -226,16 +268,21 @@ fn held(language: &Language) -> bool {
 }
 
 fn main() {
-    assert!(
-        held(&Language {
-            greedy_reader: false
-        }),
-        "a library parse that allocates in every file is the library's, and the row holds"
-    );
-    assert!(
-        !held(&Language {
-            greedy_reader: true
-        }),
-        "a reader that allocates in every element is not the library's, and the row does not hold"
+    harness_case(
+        "allocation::language::reading_allocates_as_the_parser_library_does",
+        || {
+            assert!(
+                held(&Language {
+                    greedy_reader: false
+                }),
+                "a library parse that allocates in every file is the library's, and the row holds"
+            );
+            assert!(
+                !held(&Language {
+                    greedy_reader: true
+                }),
+                "a reader that allocates in every element is not the library's, and the row does not hold"
+            );
+        },
     );
 }

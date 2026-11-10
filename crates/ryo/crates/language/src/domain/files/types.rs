@@ -35,3 +35,16 @@ impl std::fmt::Display for SourcePath<'_> {
         f.write_str(self.0)
     }
 }
+
+/// The name of a file the language reads as a manifest: the last part of its path.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ManifestName(pub &'static str);
+
+/// Which existing language operation owns an explicitly requested primary file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PrimaryFileRole {
+    /// Source input; syntax may be accepted, rejected or unknown after an actual parse.
+    Source,
+    /// Project/configuration input; the project reader owns parsing and validation, not the source parser.
+    Configuration,
+}

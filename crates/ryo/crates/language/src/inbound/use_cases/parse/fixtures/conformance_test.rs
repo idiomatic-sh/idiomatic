@@ -2,21 +2,21 @@
 
 use super::super::findings::Findings;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::relations::collections::relations::entry::item::EntryRow;
-use crate::domain::relations::constants::NO_SYMBOL;
-use crate::domain::relations::service::node_id;
-use crate::domain::relations::types::{
-    FileId, Flag, Integer, KindBits, Offset, Position, Relation, Rows as _, Span,
-};
 use crate::domain::symbols::service::intern_derived;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::domain::terms::types::NameText;
-use crate::domain::terms::types::ValueKind;
-use crate::inbound::use_cases::parse::fixtures::contract::Collect;
+use crate::inbound::use_cases::parse::fixtures::collect::Collect;
 use crate::inbound::use_cases::parse::fixtures::expected::{Cell, Fixtures};
 use crate::inbound::use_cases::parse::fixtures::expected::{Leafness, Shape, Walked};
 use crate::inbound::use_cases::parse::fixtures::rows::{Read, compare, rows_of_relation};
+use ryo_relations::domain::relations::collections::relations::entry::item::EntryRow;
+use ryo_relations::domain::relations::constants::NO_SYMBOL;
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
+    FileId, Flag, Integer, KindBits, Offset, Position, Relation, Rows as _, Span,
+};
+use ryo_relations::domain::terms::types::NameText;
+use ryo_relations::domain::value_kind::types::ValueKind;
 
 /// A scenario: what a row asks of the rendering.
 type Input = fn() -> usize;
@@ -110,6 +110,7 @@ fn the_language_that_reads_nothing_is_refused() -> usize {
                 kinds: Vec::new(),
                 relations: Vec::new(),
                 manifests: Vec::new(),
+                semantic: Vec::new(),
                 shape: Shape::Walk(|_| Walked {
                     kind: KindBits(0),
                     leaf: Leafness::Node,
@@ -175,4 +176,117 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// The same local node IDs remain distinct through explicit per-input file cells.
+#[test]
+fn multiple_inputs_preserve_file_identity_and_reject_ambiguous_shapes() {
+    use ryo_relations::domain::relations::types::CellKind;
+    let left = rows_of_relation(&two_entries(), Relation::Entry, "entry/a.py");
+    let right = rows_of_relation(&two_entries(), Relation::Entry, "entry/b.py");
+    assert_eq!(left.len(), 2);
+    assert_eq!(right.len(), 2);
+    assert_ne!(left, right);
+    for (rows, path) in [(&left, "entry/a.py"), (&right, "entry/b.py")] {
+        assert!(
+            rows.iter()
+                .all(|row| row.contains(&Cell::File(path.to_owned())))
+        );
+        assert!(rows.iter().any(|row| row.contains(&Cell::Node(0))));
+    }
+    let mut findings = Findings(Vec::new());
+    assert!(super::super::rows::check_input_identity(
+        1,
+        &[CellKind::Node],
+        "entry",
+        &mut findings
+    ));
+    assert!(super::super::rows::check_input_identity(
+        2,
+        &[CellKind::File],
+        "entry",
+        &mut findings
+    ));
+    assert!(findings.0.is_empty());
+    assert!(!super::super::rows::check_input_identity(
+        2,
+        &[CellKind::Node],
+        "entry",
+        &mut findings
+    ));
+    assert_eq!(findings.0.len(), 1);
+    assert!(
+        findings
+            .0
+            .iter()
+            .all(|message| message.contains("File column"))
+    );
+}
+
+/// Conformance and allocation select the same sorted regular inputs; singleton lookup is unchanged.
+#[test]
+fn fixture_inputs_are_sorted_and_shared_with_allocation_samples() -> std::io::Result<()> {
+    let root =
+        std::env::temp_dir().join(format!("ryo-multi-input-fixtures-{}", std::process::id()));
+    let folder = root.join("relations/compiler_feature");
+    std::fs::create_dir_all(&folder)?;
+    std::fs::write(
+        folder.join("input.py"),
+        b"from __future__ import annotations\n",
+    )?;
+    std::fs::write(folder.join("input.disabled.py"), b"value = 1\n")?;
+    std::fs::write(folder.join("expected.rs"), b"not an input")?;
+    std::fs::create_dir_all(folder.join("input.directory"))?;
+    let inputs = super::super::findings::inputs_in(&folder);
+    assert_eq!(
+        inputs,
+        vec![folder.join("input.disabled.py"), folder.join("input.py")]
+    );
+    assert_eq!(
+        super::super::findings::input_in(&folder),
+        inputs.first().cloned()
+    );
+    let samples = super::super::samples::samples_in(&root);
+    assert_eq!(
+        samples
+            .iter()
+            .map(|sample| sample.path.0)
+            .collect::<Vec<_>>(),
+        vec![
+            "relations/compiler_feature/disabled.py",
+            "relations/compiler_feature/input.py"
+        ]
+    );
+    std::fs::remove_file(folder.join("input.disabled.py"))?;
+    assert_eq!(
+        super::super::findings::inputs_in(&folder),
+        vec![folder.join("input.py")]
+    );
+    std::fs::remove_dir_all(root)?;
+    Ok(())
+}
+
+/// Distinct source paths must not silently collapse through the input-name mapping.
+#[test]
+fn colliding_input_paths_are_refused_before_reading() {
+    let inputs = vec![
+        std::path::PathBuf::from("input.py"),
+        std::path::PathBuf::from("input.input.py"),
+    ];
+    let mut findings = Findings(Vec::new());
+    let rows = super::super::rows::rows_of_inputs(
+        &crate::inbound::use_cases::parse::use_case::ParseUseCaseImpl,
+        &inputs,
+        Relation::Entry,
+        "entry",
+        &mut findings,
+    );
+    assert!(rows.is_none());
+    assert_eq!(findings.0.len(), 1);
+    assert!(
+        findings
+            .0
+            .iter()
+            .all(|message| message.contains("same file"))
+    );
 }

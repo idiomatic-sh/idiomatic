@@ -2,7 +2,7 @@
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answers::types::ReadItem;
-use crate::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
 
 /// What a shared row is given: nothing, the item is asked about itself.
 type Input = ();

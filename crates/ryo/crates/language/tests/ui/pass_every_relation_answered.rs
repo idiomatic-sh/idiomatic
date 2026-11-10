@@ -1,19 +1,21 @@
 //! every_relation_answered: the compiler accepts this.
 
-use ryo_language::domain::terms::types::UnknownName;
-use ryo_language::domain::relations::collections::relations::function::item::{
-    Function, FunctionRow,
-};
-use ryo_language::domain::relations::types::{Count, Position, Rows};
-use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, AbsenceCause, Support};
+use ryo_language::domain::answers::types::{ReadItem, Reader, Reads, Support};
+use ryo_language::domain::elements::types::{Completion, TableBuilder, Tree};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::elements::types::{Tree, Completion, TableBuilder};
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
 use ryo_language::inbound::use_cases::parse::interface::ParseUseCase;
 use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 use ryo_language::inbound::use_cases::project::errors::ProjectError;
 use ryo_language::inbound::use_cases::project::interface::ProjectUseCase;
-use ryo_language::inbound::use_cases::project::types::{ManifestName, ProjectRequest};
+use ryo_language::domain::files::types::ManifestName;
+use ryo_language::inbound::use_cases::project::types::ProjectRequest;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::collections::relations::function::item::{
+    Function, FunctionRow,
+};
+use ryo_relations::domain::relations::types::{Count, Position, Rows};
+use ryo_relations::domain::terms::types::UnknownName;
 
 /// Answers every manifest relation as not in the language, for a language of this test that has no manifests.
 macro_rules! no_manifests {
@@ -27,7 +29,7 @@ macro_rules! no_manifests {
                 &self,
             ) -> Support<
                 ryo_language::inbound::use_cases::project::types::ManifestReader<
-                    ryo_language::domain::relations::collections::relations::$module::item::$variant,
+                    ryo_relations::domain::relations::collections::relations::$module::item::$variant,
                 >,
             > {
                 ryo_language::domain::answers::service::absent(AbsenceCause::NoManifests)
@@ -49,8 +51,8 @@ macro_rules! all_but_function {
     (@one $module:ident $variant:ident) => {
         fn $module(
             &self,
-        ) -> Support<Reader<ryo_language::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
-            ryo_language::domain::answers::service::absent(ryo_language::domain::answers::types::AbsenceCause::NoSuchConstruct)
+        ) -> Support<Reader<ryo_relations::domain::relations::collections::relations::$module::item::$variant, Self::FileModel>> {
+            ryo_language::domain::answers::service::absent(ryo_relations::domain::answers::types::AbsenceCause::NoSuchConstruct)
         }
     };
 }
@@ -100,9 +102,52 @@ struct Language;
 impl ParseUseCase for Language {
     type FileModel = ();
 
-    fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut ()) {}
+    fn begin_semantics(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+        _tree: &ryo_language::domain::elements::types::Elements,
+        _slot: &mut ryo_language::domain::semantics::types::SemanticSlot,
+    ) {
+    }
 
-    fn recognizes(&self, _request: &ParseRequest<'_>) -> ryo_language::inbound::use_cases::parse::types::Recognition {
+    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement {
+        ryo_language::domain::elements::types::CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(
+        &self,
+        _tree: &ryo_language::domain::elements::types::Tree<'_>,
+        _from: ryo_relations::domain::relations::types::Position,
+        _model: &mut (),
+    ) {
+    }
+
+    fn recognizes_explicit(
+        &self,
+        _request: &ryo_language::inbound::use_cases::parse::types::ParseRequest<'_>,
+    ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
+        ryo_language::inbound::use_cases::parse::types::Recognition::Declines
+    }
+
+    fn capabilities(
+        &self,
+    ) -> &'static [ryo_relations::domain::capabilities::types::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(
+        &self,
+    ) -> ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity<'_> {
+        ryo_language::inbound::use_cases::parse::types::ParseConfigurationIdentity("")
+    }
+
+    fn file_model(&self, _tree: &ryo_language::domain::elements::types::Tree<'_>, _model: &mut ()) {
+    }
+
+    fn recognizes(
+        &self,
+        _request: &ParseRequest<'_>,
+    ) -> ryo_language::inbound::use_cases::parse::types::Recognition {
         ryo_language::inbound::use_cases::parse::types::Recognition::Declines
     }
 
@@ -136,7 +181,7 @@ impl ParseUseCase for Language {
         ryo_language::domain::answers::service::reads::<FunctionItem>()
     }
 
-    ryo_language::each_relation!(all_but_function);
+    ryo_relations::each_relation!(all_but_function);
 }
 
 impl ProjectUseCase for Language {
@@ -146,11 +191,37 @@ impl ProjectUseCase for Language {
         &[]
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<ryo_language::inbound::use_cases::project::types::Resolved, ProjectError> {
-        Ok(ryo_language::inbound::use_cases::project::types::Resolved { refused: Vec::new(), unlisted: Vec::new(), consulted: Vec::new(), derived: () })
+    fn primary_role(
+        &self,
+        _path: ryo_language::domain::files::types::SourcePath<'_>,
+    ) -> ryo_language::domain::files::types::PrimaryFileRole {
+        ryo_language::domain::files::service::primary_role_from_manifests(
+            _path,
+            self.manifests().iter().copied(),
+        )
     }
 
-    ryo_language::each_relation!(no_manifests);
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<ryo_language::domain::files::types::FilePath>,
+    ) {
+    }
+
+    fn resolve(
+        &self,
+        _request: &ProjectRequest,
+    ) -> Result<ryo_language::inbound::use_cases::project::types::Resolved, ProjectError> {
+        Ok(ryo_language::inbound::use_cases::project::types::Resolved {
+            observed_entries: Vec::new(),
+            refused: Vec::new(),
+            unlisted: Vec::new(),
+            consulted: Vec::new(),
+            derived: (),
+        })
+    }
+
+    ryo_relations::each_relation!(no_manifests);
 }
 
 fn main() {}

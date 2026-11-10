@@ -1,20 +1,20 @@
 //! The reading of an item's rows, on values alone: every row as typed cells, and each cause once, a cause of one file of a run with
 //! the file's path.
 
-use super::super::contract::Collect;
-use super::super::expected::{want_file, want_flag, want_name, want_node, want_span, want_unknown};
+use super::super::collect::Collect;
+use super::super::wanted::{want_file, want_flag, want_name, want_node, want_span, want_unknown};
 use super::{Reading, written};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::files::types::SourcePath;
-use crate::domain::relations::collections::relations::comment::item::CommentRow;
-use crate::domain::relations::service::node_id;
-use crate::domain::relations::types::{
-    FileId, Flag, Missing, Offset, Position, Relation, ReportText, Rows, Span,
-};
 use crate::domain::symbols::service::intern_derived;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
-use crate::domain::terms::service::unknown_symbol;
-use crate::domain::terms::types::{NameText, ReasonName, UnknownName, UnknownReason};
+use ryo_relations::domain::relations::collections::relations::comment::item::CommentRow;
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::{
+    FileId, Flag, Missing, Offset, Position, Relation, ReportText, Rows, Span,
+};
+use ryo_relations::domain::terms::service::unknown_symbol;
+use ryo_relations::domain::terms::types::{NameText, ReasonName, UnknownName, UnknownReason};
 
 /// What a row gives: the files of the run, by number, whether the causes are said of one of them, and what the row's text is.
 type Input = (&'static [&'static str], Said, Text);
