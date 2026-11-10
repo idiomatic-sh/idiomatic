@@ -1,0 +1,134 @@
+description = "Canonical benchmark assets are paired and linter composition delegates execution policy."
+why = "Active rules have one query.ryoql and independent cases.toml; historical profiles preserve evidence and are not active inputs. Cargo entry/composition roles may wire the shared inbound runner and local linter adapter, but explicit Rust loops, external execution/timing/filesystem capabilities and trait implementations do not belong there. This AST/import boundary does not resolve aliases through arbitrary reexports, macro expansion, closures hiding iteration, or runtime behavior; two independent provider registrations must exercise the same shared execution/status loop in its semantic contract."
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let active-files = select * from files where not glob_any(path, "{profiles/**,**/profiles/**,results/**,**/results/**}");
+let queries = capture(from=active-files, path="path", pattern="{*dir}/query.ryoql", captures=["dir"]);
+let cases = capture(from=active-files, path="path", pattern="{*dir}/cases.toml", captures=["dir"]);
+let untested = antijoin(left=queries, right=cases, left-on=["dir"], right-on=["dir"]);
+let unimplemented = antijoin(left=cases, right=queries, left-on=["dir"], right-on=["dir"]);
+let missing-pair = union(left=untested, right=unimplemented);
+let rows = select path from missing-pair;
+let integrations = capture(from=active-files, path="path", pattern="{*dir}/benchmark.toml", captures=["dir"]);
+let source-files = capture(from=files, path="path", pattern="{*dir}/{part}.rs", captures=["dir", "part"]);
+let required-0 = extend(from=integrations, values={"part": "bench"});
+let required-1 = extend(from=integrations, values={"part": "tests"});
+let required-2 = extend(from=integrations, values={"part": "composition"});
+let required-3 = extend(from=integrations, values={"part": "adapter"});
+let required-4 = extend(from=integrations, values={"part": "adapter_test"});
+let required-5 = extend(from=integrations, values={"part": "schemas"});
+let required-6 = extend(from=integrations, values={"part": "schemas_test"});
+let required-7 = extend(from=integrations, values={"part": "settings"});
+let required-pair-1 = union(left=required-0, right=required-1);
+let required-pair-2 = union(left=required-pair-1, right=required-2);
+let required-pair-3 = union(left=required-pair-2, right=required-3);
+let required-pair-4 = union(left=required-pair-3, right=required-4);
+let required-pair-5 = union(left=required-pair-4, right=required-5);
+let required-pair-6 = union(left=required-pair-5, right=required-6);
+let required-pair-7 = union(left=required-pair-6, right=required-7);
+let missing-sources = antijoin(left=required-pair-7, right=source-files, left-on=["dir", "part"], right-on=["dir", "part"]);
+let source-findings = project(from=missing-sources, columns=["path"]);
+let asset-findings = union(left=rows, right=source-findings);
+let roles = select path from files where glob_any(path, "{bench.rs,composition.rs,composition/**/*.rs,**/bench.rs,**/composition.rs,**/composition/**/*.rs}");
+let nodes = select id, kind, file, span from "syntax-tree" where text = "";
+let tokens = select id, kind, file, span from "syntax-tree" where text != "";
+let role-nodes = select n.id as id, n.kind as kind, n.file as file, n.span as span from nodes as n join roles as r on n.file = r.path;
+let loops = select file as path from role-nodes where glob_any(kind, "{for-expr,while-expr,loop-expr}");
+let impls = select * from role-nodes where kind = "impl";
+let for-tokens = select id from tokens where kind = "for-kw";
+let trait-impl-ids = select e.parent as id from "syntax-child" as e join for-tokens as t on e.child = t.id;
+let trait-impls = select i.file as path from impls as i join trait-impl-ids as t on i.id = t.id;
+let capability-imports = select file, target from "static-import" where glob_any(target, "{std::fs,std::fs::*,std::thread,std::thread::*,std::time,std::time::*,std::process::Command,std::process::Command::*,ryo_core,ryo_core::*,ryo_benchmark::application,ryo_benchmark::application::*}");
+let capability-calls = select file, target from "static-call" where glob_any(target, "{std::fs::*,std::thread::*,std::time::*,std::process::Command::*,ryo_core::*,ryo_benchmark::application::*}");
+let capabilities = union(left=capability-imports, right=capability-calls);
+let role-capabilities = select c.file as path from capabilities as c join roles as r on c.file = r.path;
+let flow-findings = union(left=loops, right=trait-impls);
+let policy-findings = union(left=flow-findings, right=role-capabilities);
+let findings = union(left=asset-findings, right=policy-findings);
+emit findings subject "path" key("path");
+'''
+[diagnostic]
+primary = "path"
+message = "benchmark ownership contract is violated in `{path}`"
+help = "Pair active query.ryoql and cases.toml and supply the local adapter roles. Entry/composition only wires and delegates: execution/status loops belong to the shared benchmark application, external effects to its injected adapters. Archived profiles are evidence. The shared runtime contract separately proves two-provider behavior and exact default-rule accounting."
+[given]
+include = ['linters/**']
+[[scenarios]]
+id = 'paired-rule'
+scenario = 'A rule and its cases are colocated.'
+given.files.'linters/tool/rules/F001/query.ryoql' = ''
+given.files.'linters/tool/rules/F001/cases.toml' = ''
+[[scenarios]]
+id = 'query-without-cases'
+scenario = 'A candidate rule lacks its correctness cases.'
+given.files.'linters/tool/rules/F001/query.ryoql' = ''
+then.findings = [{ path = 'linters/tool/rules/F001/query.ryoql' }]
+[[scenarios]]
+id = 'cases-without-query'
+scenario = 'Active cases cannot hide a missing canonical query.'
+given.files.'linters/tool/rules/F001/cases.toml' = ''
+then.findings = [{ path = 'linters/tool/rules/F001/cases.toml' }]
+
+[[scenarios]]
+id = 'second-linter-cannot-borrow-integration'
+scenario = 'Another linter cannot satisfy missing local integration files.'
+given.files.'linters/first/benchmark.toml' = ''
+given.files.'linters/second/benchmark.toml' = ''
+given.files.'linters/first/bench.rs' = ''
+given.files.'linters/first/tests.rs' = ''
+given.files.'linters/first/composition.rs' = ''
+given.files.'linters/first/adapter.rs' = ''
+given.files.'linters/first/adapter_test.rs' = ''
+given.files.'linters/first/schemas.rs' = ''
+given.files.'linters/first/schemas_test.rs' = ''
+given.files.'linters/first/settings.rs' = ''
+then.findings = [{ path = 'linters/second/benchmark.toml' }]
+
+[[scenarios]]
+id = 'thin-composition-delegates'
+scenario = 'Composition supplies dependencies to the shared use case without execution policy.'
+given.files.'linters/tool/composition.rs' = '''
+use ryo_benchmark::inbound::use_cases::verify_inventory::use_case::VerifyInventoryUseCaseImpl;
+pub fn run(parts: Parts) { VerifyInventoryUseCaseImpl::new(parts).verify(); }
+'''
+
+[[scenarios]]
+id = 'composition-cannot-spawn-contestants'
+scenario = 'An actual process capability is misplaced even when hidden behind a use alias.'
+given.files.'linters/tool/composition.rs' = '''
+use std::process::Command as Contestant;
+pub fn run() { let _child = Contestant::new("tool").spawn(); }
+'''
+then.findings = [{ path = 'linters/tool/composition.rs' }]
+
+[[scenarios]]
+id = 'qualified-timing-policy-is-not-composition'
+scenario = 'Avoiding use declarations does not authorize local timing policy.'
+given.files.'linters/tool/composition.rs' = 'pub fn run() { let _start = std::time::Instant::now(); }'
+then.findings = [{ path = 'linters/tool/composition.rs' }]
+
+[[scenarios]]
+id = 'execution-loop-is-not-composition'
+scenario = 'The shared runner owns iteration and continuation, detected as Rust AST rather than source text.'
+given.files.'linters/tool/composition.rs' = 'pub fn run() { for rule in inventory() { verify(rule); } }'
+then.findings = [{ path = 'linters/tool/composition.rs' }]
+
+[[scenarios]]
+id = 'capability-implementation-is-not-composition'
+scenario = 'Implementing an execution capability belongs to its adapter role, not wiring.'
+given.files.'linters/tool/composition.rs' = 'impl ryo_benchmark::outbound::execution::interface::ExecutionPort for LocalWorker {}'
+then.findings = [{ path = 'linters/tool/composition.rs' }]
+
+[[scenarios]]
+id = 'documentation-is-not-execution-policy'
+scenario = 'Words inside strings or comments do not create AST capabilities.'
+given.files.'linters/tool/composition.rs' = '''
+// for rule in inventory: Command::new; Instant::now.
+pub const EXAMPLE: &str = "std::process::Command::new for loop";
+'''
+
+[[scenarios]]
+id = 'historical-snapshot-is-not-active-cases'
+scenario = 'A frozen case snapshot is not mistaken for an active unimplemented rule.'
+given.files.'linters/tool/profiles/previous/inputs/rules/F001/candidate.ryoql' = ''
+given.files.'linters/tool/profiles/previous/inputs/rules/F001/cases.toml' = ''

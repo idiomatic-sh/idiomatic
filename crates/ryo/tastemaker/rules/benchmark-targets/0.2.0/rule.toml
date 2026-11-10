@@ -1,0 +1,230 @@
+description = "Local benchmark and correctness runners are Cargo targets; a linter's are targets of its own package."
+why = "A file Cargo never runs cannot supply correctness or measurement evidence. A linter's rules, fragments, profiles and harness are not the language provider's: declared from the provider's manifest, they ship in its published package."
+query = '''
+let files = project(from="filesystem.file", columns=["path"]);
+let runners = capture(from=files, path="path", pattern="{*root}/benchmarks/linters/{linter}/{part}.rs", captures=["root", "linter", "part"]);
+let providers = capture(from=files, path="path", pattern="{*root}/benchmarks/provider/bench.rs", captures=["root"]);
+let legacy-providers = capture(from=files, path="path", pattern="{*root}/benches/performance.rs", captures=["root"]);
+let entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "decoded", "text"]);
+let headings = select * from entries where key = "bench" or key = "test";
+let elements = select r."occurrence" as "element", l."key" as "kind" from headings as l join "sequence-element" as r on l."occurrence" = r."owner";
+let members = select * from "mapping" where kind = "sequence-member";
+let tables = select r."id" as "table", l."kind" as "kind" from elements as l join members as r on l."element" = r."owner";
+let paths = select * from entries where key = "path";
+let targeted = select l."file" as "file", l."decoded" as "target", l."owner" as "owner", r."kind" as "kind" from paths as l join tables as r on l."owner" = r."table";
+let linter-manifests = capture(from=targeted, path="file", pattern="{*root}/benchmarks/linters/{linter}/Cargo.toml", captures=["root", "linter"]);
+let manifests = capture(from=linter-manifests, path="target", pattern="{part}.rs", captures=["part"]);
+let language-linter-targets = capture(from=targeted, path="target", pattern="benchmarks/linters/{linter}/{part}.rs", captures=["linter", "part"]);
+let harness-off = select * from entries where key = "harness" and text = "false";
+let provider-names = select * from entries where key = "name" and decoded = "provider";
+let provider-paths = select * from targeted where kind = "bench" and target = "benchmarks/provider/bench.rs";
+let provider-named = select l."file" as "file", l."owner" as "owner", l."target" as "target" from provider-paths as l join provider-names as r on l."owner" = r."owner";
+let provider-harness = select l."file" as "file", l."owner" as "owner" from provider-named as l join harness-off as r on l."owner" = r."owner";
+let provider-manifests = capture(from=provider-harness, path="file", pattern="{*root}/Cargo.toml", captures=["root"]);
+let bench-targets = select * from manifests where kind = "bench" and part = "bench";
+let all-bench-targets = select * from targeted where kind = "bench";
+let allowed-linter-targets = project(from=bench-targets, columns=["file", "owner", "target"]);
+let allowed-provider-targets = project(from=provider-named, columns=["file", "owner", "target"]);
+let allowed-targets = union(left=allowed-linter-targets, right=allowed-provider-targets);
+let misplaced-targets = antijoin(left=all-bench-targets, right=allowed-targets, left-on=["file", "owner", "target"], right-on=["file", "owner", "target"]);
+let bench-wired = select l."root" as "root", l."linter" as "linter", l."part" as "part" from bench-targets as l join harness-off as r on l."owner" = r."owner";
+let test-targets = select * from manifests where kind = "test" and part = "tests";
+let conventional-tests = antijoin(left=test-targets, right=harness-off, left-on=["owner"], right-on=["owner"]);
+let test-wired = project(from=conventional-tests, columns=["root", "linter", "part"]);
+let wired = union(left=bench-wired, right=test-wired);
+let missing = antijoin(left=runners, right=wired, left-on=["root", "linter", "part"], right-on=["root", "linter", "part"]);
+let missing-provider = antijoin(left=providers, right=provider-manifests, left-on=["root"], right-on=["root"]);
+let linter-findings = project(from=missing, columns=["path"]);
+let provider-findings = project(from=missing-provider, columns=["path"]);
+let misplaced-bench-findings = select l."file" as "path" from misplaced-targets as l;
+let language-target-findings = select l."file" as "path" from language-linter-targets as l;
+let misplaced-findings = union(left=misplaced-bench-findings, right=language-target-findings);
+let required-findings = union(left=linter-findings, right=provider-findings);
+let target-findings = union(left=required-findings, right=misplaced-findings);
+let legacy-findings = project(from=legacy-providers, columns=["path"]);
+let findings = union(left=target-findings, right=legacy-findings);
+emit findings subject "path" key("path");
+'''
+[diagnostic]
+primary = "path"
+message = "benchmark runner is not a Cargo target with the required harness"
+help = "Declare benchmarks/provider/bench.rs as [[bench]] name=provider with harness=false; declare a linter's bench.rs ([[bench]], harness=false) and tests.rs ([[test]]) in benchmarks/linters/<linter>/Cargo.toml, never in the language's Cargo.toml."
+[given]
+include = ["**"]
+
+[[scenarios]]
+id = 'wired'
+scenario = 'The linter package wires its benchmark runner.'
+given.files.'language/benchmarks/linters/tool/bench.rs' = ''
+given.files.'language/benchmarks/linters/tool/Cargo.toml' = '''
+[[bench]]
+name="lint"
+path="bench.rs"
+harness=false
+'''
+
+[[scenarios]]
+id = 'wired-from-the-language'
+scenario = 'A linter runner declared in the language manifest would ship in the provider package.'
+given.files.'language/benchmarks/linters/tool/bench.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[bench]]
+name="lint"
+path="benchmarks/linters/tool/bench.rs"
+harness=false
+'''
+then.findings = [
+  { path = 'language/benchmarks/linters/tool/bench.rs' },
+  { path = 'language/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'test-wired-from-the-language'
+scenario = 'A linter test target declared in the language manifest is refused as well.'
+given.files.'language/benchmarks/linters/tool/tests.rs' = ''
+given.files.'language/benchmarks/linters/tool/Cargo.toml' = '''
+[[test]]
+name="lint_cases"
+path="tests.rs"
+'''
+given.files.'language/Cargo.toml' = '''
+[[test]]
+name="lint_cases"
+path="benchmarks/linters/tool/tests.rs"
+'''
+then.findings = [{ path = 'language/Cargo.toml' }]
+
+[[scenarios]]
+id = 'provider-wired'
+scenario = 'The provider bench has its distinct Cargo target.'
+given.files.'language/benchmarks/provider/bench.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[bench]]
+name="provider"
+path="benchmarks/provider/bench.rs"
+harness=false
+'''
+
+[[scenarios]]
+id = 'provider-wrong-name'
+scenario = 'An ambiguous performance target cannot stand in for provider.'
+given.files.'language/benchmarks/provider/bench.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[bench]]
+name="performance"
+path="benchmarks/provider/bench.rs"
+harness=false
+'''
+then.findings = [
+  { path = 'language/benchmarks/provider/bench.rs' },
+  { path = 'language/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'provider-wrong-harness'
+scenario = 'The provider bench uses the benchmark harness contract.'
+given.files.'language/benchmarks/provider/bench.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[bench]]
+name="provider"
+path="benchmarks/provider/bench.rs"
+harness=true
+'''
+then.findings = [{ path = 'language/benchmarks/provider/bench.rs' }]
+
+[[scenarios]]
+id = 'misplaced-bench-target'
+scenario = 'A provider benchmark target cannot be placed outside provider.'
+given.files.'language/benchmarks/provider/bench.rs' = ''
+given.files.'language/benchmarks/misc/bench.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[bench]]
+name="provider"
+path="benchmarks/provider/bench.rs"
+harness=false
+[[bench]]
+name="misc"
+path="benchmarks/misc/bench.rs"
+harness=false
+'''
+then.findings = [{ path = 'language/Cargo.toml' }]
+
+[[scenarios]]
+id = 'legacy-provider-file-beside-current'
+scenario = 'The old provider bench cannot remain beside the current provider target.'
+given.files.'language/benchmarks/provider/bench.rs' = ''
+given.files.'language/benches/performance.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[bench]]
+name="provider"
+path="benchmarks/provider/bench.rs"
+harness=false
+'''
+then.findings = [{ path = 'language/benches/performance.rs' }]
+
+[[scenarios]]
+id = 'ambiguous-old-target-beside-provider'
+scenario = 'The old performance target cannot coexist with provider.'
+given.files.'language/benchmarks/provider/bench.rs' = ''
+given.files.'language/benches/performance.rs' = ''
+given.files.'language/Cargo.toml' = '''
+[[bench]]
+name="provider"
+path="benchmarks/provider/bench.rs"
+harness=false
+[[bench]]
+name="performance"
+path="benches/performance.rs"
+harness=false
+'''
+then.findings = [
+  { path = 'language/benches/performance.rs' },
+  { path = 'language/Cargo.toml' },
+]
+
+[[scenarios]]
+id = 'unwired'
+scenario = 'The unwired benchmark runner.'
+given.files.'language/benchmarks/linters/tool/bench.rs' = ''
+given.files.'language/benchmarks/linters/tool/Cargo.toml' = '''
+
+'''
+then.findings = [{ path = 'language/benchmarks/linters/tool/bench.rs' }]
+
+[[scenarios]]
+id = 'wrong-target'
+scenario = 'The wrong-target benchmark runner.'
+given.files.'language/benchmarks/linters/tool/bench.rs' = ''
+given.files.'language/benchmarks/linters/tool/Cargo.toml' = '''
+[[test]]
+name="lint"
+path="bench.rs"
+'''
+then.findings = [{ path = 'language/benchmarks/linters/tool/bench.rs' }]
+
+[[scenarios]]
+id = 'schema-cases-have-cargo-test-target'
+scenario = 'Schema cases live in an explicit conventional Cargo test target.'
+given.files.'language/benchmarks/linters/tool/tests.rs' = ''
+given.files.'language/benchmarks/linters/tool/Cargo.toml' = '''
+[[test]]
+name="lint_cases"
+path="tests.rs"
+'''
+[[scenarios]]
+id = 'schema-cases-are-not-a-benchmark'
+scenario = 'A harness-free test target cannot execute Rust test functions.'
+given.files.'language/benchmarks/linters/tool/tests.rs' = ''
+given.files.'language/benchmarks/linters/tool/Cargo.toml' = '''
+[[test]]
+name="lint_cases"
+path="tests.rs"
+harness=false
+'''
+then.findings = [{ path = 'language/benchmarks/linters/tool/tests.rs' }]
+[[scenarios]]
+id = 'schema-cases-missing-target'
+scenario = 'An unregistered correctness runner cannot prove schemas.'
+given.files.'language/benchmarks/linters/tool/tests.rs' = ''
+given.files.'language/benchmarks/linters/tool/Cargo.toml' = ''
+then.findings = [{ path = 'language/benchmarks/linters/tool/tests.rs' }]

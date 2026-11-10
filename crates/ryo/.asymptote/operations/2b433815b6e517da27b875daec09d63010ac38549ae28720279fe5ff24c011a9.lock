@@ -1,0 +1,7 @@
+version = 1
+parents = ["e75103035f127771ccb37dbb33d23f98c832183dbbb146e45c9fc7ec355f776b"]
+
+removed = [
+  { tool = "cargo-clippy", rule = "clippy::as_conversions", path = "crates/execution/src/inbound/use_cases/execution/use_case_test/interpreter/conformance_scale/test.rs", level = "warning", fingerprint = "f4fee23a36c096bb" },
+  { tool = "cargo-clippy", rule = "clippy::as_conversions", path = "crates/execution/tests/interpreter/project_phase/population_reads/test.rs", level = "warning", fingerprint = "b286f82da4518c47" },
+]

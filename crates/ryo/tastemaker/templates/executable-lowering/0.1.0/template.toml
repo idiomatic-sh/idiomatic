@@ -1,0 +1,17 @@
+description = "One exact pure executable-program lowering part."
+why = "This declared domain part maps transient typed graph coordinates into immutable semantic candidates. It cannot acquire inputs, cache, publish, or execute a kernel; the existing domain dependency boundary and runtime owner rules remain in force."
+content = '''
+//! Pure lowering of transient executable-program candidates.
+'''
+
+[[scenarios]]
+id = "declared-lowering"
+scenario = "The exact declared domain lowering file is placed."
+given.file = "example.rs"
+given.files."example.rs" = "//! Pure lowering of transient candidates.\n"
+
+[[scenarios]]
+id = "missing-lowering"
+scenario = "The declared domain lowering file is required."
+given.file = "example.rs"
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]
