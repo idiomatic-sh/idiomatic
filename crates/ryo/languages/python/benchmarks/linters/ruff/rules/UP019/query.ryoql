@@ -1,0 +1,12 @@
+import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
+let deprecated_text_names = select id, file from "qualified-name" where path = "typing.Text" or path = "typing_extensions.Text";
+let reportable = select l.id as id, l.file as file, r.span as span from deprecated_text_names as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
+let candidate_locations = line_located(candidates=reportable);
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:U019|UP019)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "UP019"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

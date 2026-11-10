@@ -1,0 +1,40 @@
+[[cases]]
+name = "constant_exception_type"
+files = { "case.py" = "try:\n    pass\nexcept 42:\n    pass\n" }
+expected = [{ rule = "B030", file = "case.py", start = 21, end = 23 }]
+
+[[cases]]
+name = "constant_in_exception_tuple"
+files = { "case.py" = "try:\n    pass\nexcept (ValueError, 42):\n    pass\n" }
+expected = [{ rule = "B030", file = "case.py", start = 34, end = 36 }]
+
+[[cases]]
+name = "named_exception_type"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "list_expression_in_exception_type"
+files = { "case.py" = "try:\n    pass\nexcept [ValueError]:\n    pass\n" }
+expected = [{ rule = "B030", file = "case.py", start = 21, end = 33 }]
+
+[[cases]]
+name = "nested-tuple-in-exception-types"
+comparison = "full"
+files = { "case.py" = "for item in values:\n    try:\n        f()\n    except ((Exception,),):\n        continue\n" }
+expected = [{ rule = "B030", file = "case.py", start = 53, end = 65 }]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-constant_exception_type"
+files = { "case.py" = "try:\n    pass\nexcept 42:  # noqa: E501, B030\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-constant_exception_type"
+files = { "case.py" = "try:\n    pass\nexcept 42:  # noqa: E501,B030\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-constant_exception_type"
+files = { "case.py" = "try:\n    pass\nexcept 42:  # noqa: B030 # why\n    pass\n" }
+expected = []

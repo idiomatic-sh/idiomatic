@@ -1,0 +1,33 @@
+{
+  "active_module_sha256": {
+    "python/ruff/annotation-evaluation-context": "b176d58a1687fe99f5b41d85fc781c0b33d2dcd58b49c6a16670216b78361ef5",
+    "python/ruff/annotation-origins": "6cfa26a97e143633f526c534006c42df872a6bff5da05904d2f5843fc10b9240",
+    "python/ruff/future-annotation-context": "976b10f474f5e82e4976f85c14d73ed3b3c6f864b1de183699784f00e5e8269b",
+    "python/ruff/lookup-symbol-events": "b0fb09349eb9b0acde95944add1760c9ce104fc66df1bd218261b40b4f895dfb",
+    "python/ruff/suppress": "8926f2c6145a45be1939f65aec59754ab5c789661ecfe78c767c5d9d3f9ae63a",
+    "python/ruff/suppress-directives": "07cd32f495f072cf04611a3dddf52c54b966d4b5f1b2ace434a6c61d47de651d"
+  },
+  "admission": "pending canonical descriptor and combined gate",
+  "candidate_cases_passed": 12,
+  "complete_records": 24,
+  "error_records": 0,
+  "historical_stage_receipts": {
+    "v3_old_helpers": "/tmp/ruf012-ruf013-kernel-reader-replay-v3-20261102/RUF013/result.json",
+    "v4_incomplete_module_closure": "/tmp/ruf012-ruf013-current-helper-replay-v4-20261102/RUF013/stderr.bin",
+    "v5_prior_helper_and_worker": "/tmp/ruf012-ruf013-current-helper-replay-v5-20261102/RUF013/result.json"
+  },
+  "raw_exact_records": 24,
+  "raw_records_path": "/tmp/ruf012-ruf013-replay-v7-active-20261102/RUF013/cases.jsonl",
+  "raw_records_sha256": "151c4bebf30ec2649d4578f9a31e239afb0ea55d2a84eec7f9f1a00dd16fc12e",
+  "reference_cases_passed": 12,
+  "replay_result_path": "/tmp/ruf012-ruf013-replay-v7-active-20261102/RUF013/result.json",
+  "replay_result_sha256": "6e1a23352dc75b4a2eb256e335a12fbf117dedd88524b2a0fde07e71ef89c931",
+  "rule": "RUF013",
+  "sealed_worker_sha256": "7a386a3c3b26f49f2730a87000a32b696a0d3856a8ff8e9e9a7d72d48024bbfa",
+  "skipped_records": 0,
+  "source_cases_sha256": "73cf52d9e8d7f3fbf5eece4971b2080eada25f028a111c4f90f592bbbd9dee9a",
+  "source_profile_sha256": "17ff3da4f08d0ef63f380a5f9102b08d385b913bcc1877f175ae8e444f06e1de",
+  "source_query_sha256": "668355a267eb0e85a01bb5ee80d338fa7f360db99cf0d4263f97c7fd65a97b02",
+  "stage_manifest_path": "/tmp/ruf012-ruf013-stage-v7-active-20261102/manifest.json",
+  "stage_manifest_sha256": "1e4cd65366cfa8a4cc23751a0d6c28bffcb51b90c2174f372c36cc4dd7f191a4"
+}

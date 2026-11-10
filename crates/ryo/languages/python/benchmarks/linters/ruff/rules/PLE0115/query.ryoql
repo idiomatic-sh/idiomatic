@@ -1,0 +1,17 @@
+import observation_matches from "python/ruff/suppress-matches";
+let events = select occurrence, name, scope, phase, kind, ordinal, file from "binding-event";
+let globals = select occurrence as id, name, phase, ordinal, file from events where kind = "global";
+let nonlocals = select occurrence as nonlocal_id, name, phase, file from events where kind = "nonlocal";
+let earlier_globals = select l.id as id, l.file as file from globals as l join globals as r on l.name = r.name and l.phase = r.phase and l.file = r.file where l.ordinal < r.ordinal;
+let latest_globals = antijoin(left=globals, right=earlier_globals, left-on=["id","file"], right-on=["id","file"]);
+let conflicting_globals = select l.nonlocal_id as id, r.id as diagnostic_id, l.file as file from nonlocals as l join latest_globals as r on l.name = r.name and l.phase = r.phase and l.file = r.file;
+let nodes = select id, file, span from "semantic-syntax";
+let reportable = select l.id as id, l.diagnostic_id as diagnostic_id, l.file as file, r.span as span from conflicting_globals as l join nodes as r on l.diagnostic_id = r.id and l.file = r.file;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.diagnostic_id = r.id and l.file = r.file;
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE0115)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PLE0115"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

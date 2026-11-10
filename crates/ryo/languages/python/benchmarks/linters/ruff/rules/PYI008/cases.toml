@@ -1,0 +1,35 @@
+[[cases]]
+name = "misspelled-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":\n    ...\n" }
+expected = [{ file = "case.pyi", start = 30, end = 37 }]
+
+[[cases]]
+name = "unknown-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"freebsd\":\n    ...\n" }
+expected = [{ file = "case.pyi", start = 30, end = 39 }]
+
+[[cases]]
+name = "known-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"win32\":\n    ...\n" }
+expected = []
+
+
+[[cases]]
+name = "runtime"
+files = { "case.py" = "import sys\nif sys.platform == \"linus\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-misspelled-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":  # noqa: E501, PYI008\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-misspelled-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":  # noqa: E501,PYI008\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-misspelled-platform"
+files = { "case.pyi" = "import sys\nif sys.platform == \"linus\":  # noqa: PYI008 # why\n    ...\n" }
+expected = []

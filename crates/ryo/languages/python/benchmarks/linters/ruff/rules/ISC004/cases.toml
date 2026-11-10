@@ -1,0 +1,165 @@
+[[cases]]
+name = "list"
+comparison = "full"
+files = { "case.py" = "x = [\"a\" \"b\"]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 12 }]
+
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.py" = "x = (\"a\" \"b\",)\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 12 }]
+
+[[cases]]
+name = "tuple-no-parens"
+comparison = "full"
+files = { "case.py" = "x = \"a\" \"b\",\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 4, end = 11 }]
+
+[[cases]]
+name = "set"
+comparison = "full"
+files = { "case.py" = "x = {\"a\" \"b\"}\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 12 }]
+
+[[cases]]
+name = "dict-not-collection"
+comparison = "full"
+files = { "case.py" = "x = {\"a\" \"b\": 1}\n" }
+expected = []
+
+[[cases]]
+name = "separated"
+comparison = "full"
+files = { "case.py" = "x = [\"a\", \"b\"]\n" }
+expected = []
+
+[[cases]]
+name = "single"
+comparison = "full"
+files = { "case.py" = "x = [\"ab\"]\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-assignment"
+comparison = "full"
+files = { "case.py" = "x = \"a\" \"b\"\n" }
+expected = []
+
+[[cases]]
+name = "call-argument"
+comparison = "full"
+files = { "case.py" = "f(\"a\" \"b\")\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-list"
+comparison = "full"
+files = { "case.py" = "x = [(\"a\" \"b\")]\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-tuple"
+comparison = "full"
+files = { "case.py" = "x = ((\"a\" \"b\"),)\n" }
+expected = []
+
+[[cases]]
+name = "parenthesized-set"
+comparison = "full"
+files = { "case.py" = "x = {(\"a\" \"b\")}\n" }
+expected = []
+
+[[cases]]
+name = "multiline"
+comparison = "full"
+files = { "case.py" = "x = [\n    \"a\"\n    \"b\",\n]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 10, end = 21 }]
+
+[[cases]]
+name = "comment"
+comparison = "full"
+files = { "case.py" = "x = [\"a\"  # segment\n     \"b\"]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 28 }]
+
+[[cases]]
+name = "paren-comment"
+comparison = "full"
+files = { "case.py" = "x = [( # group\n    \"a\" \"b\"\n)]\n" }
+expected = []
+
+[[cases]]
+name = "bytes"
+comparison = "full"
+files = { "case.py" = "x = [b\"a\" b\"b\"]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 14 }]
+
+[[cases]]
+name = "mixed-fstring"
+comparison = "full"
+files = { "case.py" = "x = [\"a\" f\"{value}\"]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 19 }]
+
+[[cases]]
+name = "two-fstrings"
+comparison = "full"
+files = { "case.py" = "x = [f\"{a}\" f\"{b}\"]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 18 }]
+
+[[cases]]
+name = "one-fstring-inner-string"
+comparison = "full"
+files = { "case.py" = "x = [f\"{str('text')}\"]\n" }
+expected = []
+
+[[cases]]
+name = "concat-fstring-inner-string"
+comparison = "full"
+files = { "case.py" = "x = [f\"{str('text')}\" \"tail\"]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 28 }]
+
+[[cases]]
+name = "parenthesized-fstring"
+comparison = "full"
+files = { "case.py" = "x = [(f\"{a}\" f\"{b}\")]\n" }
+expected = []
+
+[[cases]]
+name = "comprehension"
+comparison = "full"
+files = { "case.py" = "x = [\"a\" \"b\" for _ in xs]\n" }
+expected = []
+
+[[cases]]
+name = "multiple-elements"
+comparison = "full"
+files = { "case.py" = "x = [\"a\" \"b\", \"c\" \"d\"]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 12 }, { rule = "ISC004", file = "case.py", start = 14, end = 21 }]
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.py" = "π = [\"a\" \"b\"]\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 6, end = 13 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "x = [\"a\" \"b\"]  # noqa: ISC004\n" }
+expected = []
+
+[[cases]]
+name = "tagged-ISC004.py"
+comparison = "full"
+files = { "case.py" = "facts = (\n    \"Lobsters have blue blood.\",\n    \"The liver is the only human organ that can fully regenerate itself.\",\n    \"Clarinets are made almost entirely out of wood from the mpingo tree.\"\n    \"In 1971, astronaut Alan Shepard played golf on the moon.\",\n)\n\nfacts = [\n    \"Lobsters have blue blood.\",\n    \"The liver is the only human organ that can fully regenerate itself.\",\n    \"Clarinets are made almost entirely out of wood from the mpingo tree.\"\n    \"In 1971, astronaut Alan Shepard played golf on the moon.\",\n]\n\nfacts = {\n    \"Lobsters have blue blood.\",\n    \"The liver is the only human organ that can fully regenerate itself.\",\n    \"Clarinets are made almost entirely out of wood from the mpingo tree.\"\n    \"In 1971, astronaut Alan Shepard played golf on the moon.\",\n}\n\nfacts = {\n    (\n        \"Clarinets are made almost entirely out of wood from the mpingo tree.\"\n        \"In 1971, astronaut Alan Shepard played golf on the moon.\"\n    ),\n}\n\nfacts = (\n    \"Octopuses have three hearts.\"\n    # Missing comma here.\n    \"Honey never spoils.\",\n)\n\nfacts = [\n    \"Octopuses have three hearts.\"\n    # Missing comma here.\n    \"Honey never spoils.\",\n]\n\nfacts = {\n    \"Octopuses have three hearts.\"\n    # Missing comma here.\n    \"Honey never spoils.\",\n}\n\nfacts = (\n    (\n        \"Clarinets are made almost entirely out of wood from the mpingo tree.\"\n        \"In 1971, astronaut Alan Shepard played golf on the moon.\"\n    ),\n)\n\nfacts = [\n    (\n        \"Clarinets are made almost entirely out of wood from the mpingo tree.\"\n        \"In 1971, astronaut Alan Shepard played golf on the moon.\"\n    ),\n]\n\nfacts = (\n    \"Lobsters have blue blood.\\n\"\n    \"The liver is the only human organ that can fully regenerate itself.\\n\"\n    \"Clarinets are made almost entirely out of wood from the mpingo tree.\\n\"\n    \"In 1971, astronaut Alan Shepard played golf on the moon.\\n\"\n)\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 122, end = 255 }, { rule = "ISC004", file = "case.py", start = 382, end = 515 }, { rule = "ISC004", file = "case.py", start = 642, end = 775 }, { rule = "ISC004", file = "case.py", start = 966, end = 1048 }, { rule = "ISC004", file = "case.py", start = 1067, end = 1149 }, { rule = "ISC004", file = "case.py", start = 1168, end = 1250 }]
+
+[[cases]]
+name = "parenthesized-first-element-of-an-unparenthesized-tuple"
+files = { "case.py" = "def f(sql, params):\n    return (\n        f\"A({sql}) \"\n        f\"B\"\n    ), (*params, \"x\")\n" }
+expected = []
+
+[[cases]]
+name = "first-element-of-a-parenthesized-tuple-is-not-parenthesized"
+files = { "case.py" = "x = (\"a\" \"b\", 1)\n" }
+expected = [{ rule = "ISC004", file = "case.py", start = 5, end = 12 }]

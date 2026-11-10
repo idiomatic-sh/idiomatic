@@ -1,0 +1,54 @@
+
+[[cases]]
+name="policy-slice-valid"
+comparison="full"
+files={"case.py"="x=[1][1:2:3]\n"}
+expected=[]
+
+[[cases]]
+name="policy-slice-negative"
+comparison="full"
+files={"case.py"="x=[1][-1:-2:-3]\n"}
+expected=[]
+
+[[cases]]
+name="policy-slice-bad"
+comparison="full"
+files={"case.py"="x=[1][\"a\":\"b\":\"c\"]\n"}
+expected=[{rule="RUF016", file="case.py", start=6, end=9}, {rule="RUF016", file="case.py", start=10, end=13}, {rule="RUF016", file="case.py", start=14, end=17}]
+
+[[cases]]
+name="policy-tuple-slice"
+comparison="full"
+files={"case.py"="x=(1,)[::None]\n"}
+expected=[]
+
+[[cases]]
+name="policy-ellipsis"
+comparison="full"
+files={"case.py"="x=[1][...]\n"}
+expected=[{rule="RUF016", file="case.py", start=6, end=9}]
+
+[[cases]]
+name="policy-nested-tuple"
+comparison="full"
+files={"case.py"="x=[1][(0,)]\n"}
+expected=[{rule="RUF016", file="case.py", start=6, end=10}]
+
+[[cases]]
+name="policy-unary-string"
+comparison="full"
+files={"case.py"="x=[1][-\"bad\"]\n"}
+expected=[]
+
+[[cases]]
+name="policy-bool-index"
+comparison="full"
+files={"case.py"="x=[1][True]\n"}
+expected=[]
+
+[[cases]]
+name="policy-tagged-ruff-RUF016.py"
+comparison="full"
+files={"case.py"="# Should not emit for valid access with index\nvar = \"abc\"[0]\nvar = f\"abc\"[0]\nvar = [1, 2, 3][0]\nvar = (1, 2, 3)[0]\nvar = b\"abc\"[0]\n\n# Should not emit for valid access with slice\nvar = \"abc\"[0:2]\nvar = f\"abc\"[0:2]\nvar = b\"abc\"[0:2]\nvar = [1, 2, 3][0:2]\nvar = (1, 2, 3)[0:2]\nvar = [1, 2, 3][None:2]\nvar = [1, 2, 3][0:None]\nvar = [1, 2, 3][:2]\nvar = [1, 2, 3][0:]\n\n# Should emit for invalid access on strings\nvar = \"abc\"[\"x\"]\nvar = f\"abc\"[\"x\"]\n\n# Should emit for invalid access on bytes\nvar = b\"abc\"[\"x\"]\n\n# Should emit for invalid access on lists and tuples\nvar = [1, 2, 3][\"x\"]\nvar = (1, 2, 3)[\"x\"]\n\n# Should emit for invalid access on list comprehensions\nvar = [x for x in range(10)][\"x\"]\n\n# Should emit for invalid access using tuple\nvar = \"abc\"[1, 2]\n\n# Should emit for invalid access using string\nvar = [1, 2][\"x\"]\n\n# Should emit for invalid access using float\nvar = [1, 2][0.25]\n\n# Should emit for invalid access using dict\nvar = [1, 2][{\"x\": \"y\"}]\n\n# Should emit for invalid access using dict comp\nvar = [1, 2][{x: \"y\" for x in range(2)}]\n\n# Should emit for invalid access using list \nvar = [1, 2][2, 3]\n\n# Should emit for invalid access using list comp\nvar = [1, 2][[x for x in range(2)]]\n\n# Should emit on invalid access using set\nvar = [1, 2][{\"x\", \"y\"}]\n\n# Should emit on invalid access using set comp\nvar = [1, 2][{x for x in range(2)}]\n\n# Should emit on invalid access using bytes\nvar = [1, 2][b\"x\"]\n\n# Should emit for non-integer slice start\nvar = [1, 2, 3][\"x\":2]\nvar = [1, 2, 3][f\"x\":2]\nvar = [1, 2, 3][1.2:2]\nvar = [1, 2, 3][{\"x\"}:2]\nvar = [1, 2, 3][{x for x in range(2)}:2]\nvar = [1, 2, 3][{\"x\": x for x in range(2)}:2]\nvar = [1, 2, 3][[x for x in range(2)]:2]\n\n# Should emit for non-integer slice end\nvar = [1, 2, 3][0:\"x\"]\nvar = [1, 2, 3][0:f\"x\"]\nvar = [1, 2, 3][0:1.2]\nvar = [1, 2, 3][0:{\"x\"}]\nvar = [1, 2, 3][0:{x for x in range(2)}]\nvar = [1, 2, 3][0:{\"x\": x for x in range(2)}]\nvar = [1, 2, 3][0:[x for x in range(2)]]\n\n# Should emit for non-integer slice step\nvar = [1, 2, 3][0:1:\"x\"]\nvar = [1, 2, 3][0:1:f\"x\"]\nvar = [1, 2, 3][0:1:1.2]\nvar = [1, 2, 3][0:1:{\"x\"}]\nvar = [1, 2, 3][0:1:{x for x in range(2)}]\nvar = [1, 2, 3][0:1:{\"x\": x for x in range(2)}]\nvar = [1, 2, 3][0:1:[x for x in range(2)]]\n\n# Should emit for non-integer slice start and end; should emit twice with specific ranges\nvar = [1, 2, 3][\"x\":\"y\"]\n\n# Should emit once for repeated invalid access\nvar = [1, 2, 3][\"x\"][\"y\"][\"z\"]\n\n# Cannot emit on invalid access using variable in index\nx = \"x\"\nvar = \"abc\"[x]\n\n# Cannot emit on invalid access using call\ndef func():\n    return 1\nvar = \"abc\"[func()]\n\n# Cannot emit on invalid access using a variable in parent\nx = [1, 2, 3]\nvar = x[\"y\"]\n\n# Cannot emit for invalid access on byte array\nvar = bytearray(b\"abc\")[\"x\"]\n\n# Cannot emit for slice bound using variable\nx = \"x\"\nvar = [1, 2, 3][0:x]\nvar = [1, 2, 3][x:1]\n\n# https://github.com/astral-sh/ruff/issues/20204\n\n# Should not emit for boolean index and slice bounds\nvar = [1, 2, 3][False]\nvar = [1, 2, 3][False:True:True]\n\n# Should emit for invalid access using t-string\nvar = [1, 2][t\"x\"]\n\n# Should emit for invalid access using lambda\nvar = [1, 2, 3][lambda: 0]\n\n# Should emit for invalid access using generator\nvar = [1, 2, 3][(x for x in ())]\n\n# Should still emit for a later invalid bound, even if an earlier bound is unrecognized\nx = \"x\"\nvar = [1, 2, 3][x:\"y\"]\n"}
+expected=[{rule="B035", file="case.py", start=1607, end=1610}, {rule="B035", file="case.py", start=1873, end=1876}, {rule="B035", file="case.py", start=2150, end=2153}, {rule="F541", file="case.py", start=67, end=73}, {rule="F541", file="case.py", start=201, end=207}, {rule="F541", file="case.py", start=429, end=435}, {rule="F541", file="case.py", start=1493, end=1497}, {rule="F541", file="case.py", start=1759, end=1763}, {rule="F541", file="case.py", start=2028, end=2032}, {rule="RUF016", file="case.py", start=418, end=421}, {rule="RUF016", file="case.py", start=436, end=439}, {rule="RUF016", file="case.py", start=497, end=500}, {rule="RUF016", file="case.py", start=572, end=575}, {rule="RUF016", file="case.py", start=593, end=596}, {rule="RUF016", file="case.py", start=684, end=687}, {rule="RUF016", file="case.py", start=747, end=751}, {rule="RUF016", file="case.py", start=813, end=816}, {rule="RUF016", file="case.py", start=877, end=881}, {rule="RUF016", file="case.py", start=941, end=951}, {rule="RUF016", file="case.py", start=1016, end=1042}, {rule="RUF016", file="case.py", start=1103, end=1107}, {rule="RUF016", file="case.py", start=1172, end=1193}, {rule="RUF016", file="case.py", start=1251, end=1261}, {rule="RUF016", file="case.py", start=1324, end=1345}, {rule="RUF016", file="case.py", start=1405, end=1409}, {rule="RUF016", file="case.py", start=1470, end=1473}, {rule="RUF016", file="case.py", start=1493, end=1497}, {rule="RUF016", file="case.py", start=1517, end=1520}, {rule="RUF016", file="case.py", start=1540, end=1545}, {rule="RUF016", file="case.py", start=1565, end=1586}, {rule="RUF016", file="case.py", start=1606, end=1632}, {rule="RUF016", file="case.py", start=1652, end=1673}, {rule="RUF016", file="case.py", start=1736, end=1739}, {rule="RUF016", file="case.py", start=1759, end=1763}, {rule="RUF016", file="case.py", start=1783, end=1786}, {rule="RUF016", file="case.py", start=1806, end=1811}, {rule="RUF016", file="case.py", start=1831, end=1852}, {rule="RUF016", file="case.py", start=1872, end=1898}, {rule="RUF016", file="case.py", start=1918, end=1939}, {rule="RUF016", file="case.py", start=2003, end=2006}, {rule="RUF016", file="case.py", start=2028, end=2032}, {rule="RUF016", file="case.py", start=2054, end=2057}, {rule="RUF016", file="case.py", start=2079, end=2084}, {rule="RUF016", file="case.py", start=2106, end=2127}, {rule="RUF016", file="case.py", start=2149, end=2175}, {rule="RUF016", file="case.py", start=2197, end=2218}, {rule="RUF016", file="case.py", start=2327, end=2330}, {rule="RUF016", file="case.py", start=2331, end=2334}, {rule="RUF016", file="case.py", start=2400, end=2403}, {rule="RUF016", file="case.py", start=3066, end=3070}, {rule="RUF016", file="case.py", start=3135, end=3144}, {rule="RUF016", file="case.py", start=3212, end=3227}, {rule="RUF016", file="case.py", start=3344, end=3347}, {rule="invalid-syntax", file="case.py", start=3066, end=3070}]

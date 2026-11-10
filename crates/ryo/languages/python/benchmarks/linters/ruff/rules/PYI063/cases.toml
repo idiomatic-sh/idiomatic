@@ -1,0 +1,69 @@
+[[cases]]
+name = "function-private-leading-parameter"
+files = { "case.pyi" = "def f(__x): ...\n" }
+expected = [{ file = "case.pyi", start = 6, end = 9 }]
+
+[[cases]]
+name = "method-skips-receiver"
+files = { "case.pyi" = "class C:\n    def f(self, __x): ...\n" }
+expected = [{ file = "case.pyi", start = 25, end = 28 }]
+
+[[cases]]
+name = "static-method-does-not-skip"
+files = { "case.pyi" = "class C:\n    @staticmethod\n    def f(__x): ...\n" }
+expected = [{ file = "case.pyi", start = 37, end = 40 }]
+
+[[cases]]
+name = "dunder-control"
+files = { "case.pyi" = "def f(__x__): ...\n" }
+expected = []
+
+[[cases]]
+name = "positional-only-control"
+files = { "case.pyi" = "def f(__x, /): ...\n" }
+expected = []
+
+[[cases]]
+name = "python-file-control"
+files = { "case.py" = "def f(__x): ...\n" }
+expected = [{ file = "case.py", start = 6, end = 9 }]
+
+[[cases]]
+name = "nested-function-control"
+files = { "case.pyi" = "class C:\n    def outer(self):\n        def f(__x): ...\n" }
+expected = [{ file = "case.pyi", start = 44, end = 47 }]
+
+[[cases]]
+name = "async-function-private-parameter"
+files = { "case.pyi" = "async def f(__x): ...\n" }
+expected = [{ file = "case.pyi", start = 12, end = 15 }]
+
+[[cases]]
+name = "class-method-skips-class-parameter"
+files = { "case.pyi" = "class C:\n    @classmethod\n    def f(cls, __x): ...\n" }
+expected = [{ file = "case.pyi", start = 41, end = 44 }]
+
+[[cases]]
+name = "defaulted-parameter"
+files = { "case.pyi" = "def f(__x=1): ...\n" }
+expected = [{ file = "case.pyi", start = 6, end = 9 }]
+
+[[cases]]
+name = "staticmethod-import-alias"
+files = { "case.pyi" = "from builtins import staticmethod as sm\nclass C:\n    @sm\n    def f(__x): ...\n" }
+expected = [{ file = "case.pyi", start = 67, end = 70 }]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-function-private-leading-parameter"
+files = { "case.pyi" = "def f(__x): ...  # noqa: E501, PYI063\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-function-private-leading-parameter"
+files = { "case.pyi" = "def f(__x): ...  # noqa: E501,PYI063\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-function-private-leading-parameter"
+files = { "case.pyi" = "def f(__x): ...  # noqa: PYI063 # why\n" }
+expected = []

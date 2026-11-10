@@ -1,0 +1,18 @@
+import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
+let unary = select id, file, span from "semantic-syntax" where kind = "unary-op";
+let operators = select parent, child from "semantic-child" where field = "op";
+let signs = select id, text from "semantic-syntax" where text = "not";
+let signed = select l.parent as id, r.text as sign from operators as l join signs as r on l.child = r.id;
+let operands = select parent, child from "semantic-child" where field = "operand";
+let inner_signs = select l.parent as id, r.sign as sign from operands as l join signed as r on l.child = r.id;
+let doubled = select l.id as id from signed as l join inner_signs as r on l.id = r.id and l.sign = r.sign;
+let reportable = select l.id as id, l.file as file, l.span as span from unary as l join doubled as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:SIM208)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "SIM208"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

@@ -1,0 +1,300 @@
+[[cases]]
+name = "tagged-ruff-0-16-5"
+comparison = "full"
+files = { "case.py" = "ORCHESTRA = {\n    \"violin\": \"strings\",\n    \"oboe\": \"woodwind\",\n    \"tuba\": \"brass\",\n    \"gong\": \"percussion\",\n}\n\n# Errors\nfor instrument in ORCHESTRA:\n    print(f\"{instrument}: {ORCHESTRA[instrument]}\")\n\nfor instrument in ORCHESTRA:\n    ORCHESTRA[instrument]\n\nfor instrument in ORCHESTRA.keys():\n    print(f\"{instrument}: {ORCHESTRA[instrument]}\")\n\nfor instrument in ORCHESTRA.keys():\n    ORCHESTRA[instrument]\n\nfor instrument in (temp_orchestra := {\"violin\": \"strings\", \"oboe\": \"woodwind\"}):\n    print(f\"{instrument}: {temp_orchestra[instrument]}\")\n\nfor instrument in (temp_orchestra := {\"violin\": \"strings\", \"oboe\": \"woodwind\"}):\n    temp_orchestra[instrument]\n\n# # OK\nfor instrument, section in ORCHESTRA.items():\n    print(f\"{instrument}: {section}\")\n\nfor instrument, section in ORCHESTRA.items():\n    section\n\nfor instrument, section in (\n    temp_orchestra := {\"violin\": \"strings\", \"oboe\": \"woodwind\"}\n).items():\n    print(f\"{instrument}: {section}\")\n\nfor instrument, section in (\n    temp_orchestra := {\"violin\": \"strings\", \"oboe\": \"woodwind\"}\n).items():\n    section\n\nfor instrument in ORCHESTRA:\n    ORCHESTRA[instrument] = 3\n\n\n# Shouldn't trigger for non-dict types\nitems = {1, 2, 3, 4}\nfor i in items:\n    items[i]\n\nitems = [1, 2, 3, 4]\nfor i in items:\n    items[i]\n\n\n# A case with multiple uses of the value to show off the secondary annotations\nfor instrument in ORCHESTRA:\n    data = json.dumps(\n        {\n            \"instrument\": instrument,\n            \"section\": ORCHESTRA[instrument],\n        }\n    )\n\n    print(f\"saving data for {instrument} in {ORCHESTRA[instrument]}\")\n\n    with open(f\"{instrument}/{ORCHESTRA[instrument]}.txt\", \"w\") as f:\n        f.write(data)\n\n\n# This should still suppress the error\nfor (  # noqa: PLC0206\n    instrument\n) in ORCHESTRA:\n    print(f\"{instrument}: {ORCHESTRA[instrument]}\")\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 126, "end" = 149 }, { "rule" = "PLC0206", "file" = "case.py", "start" = 208, "end" = 231 }, { "rule" = "PLC0206", "file" = "case.py", "start" = 264, "end" = 294 }, { "rule" = "PLC0206", "file" = "case.py", "start" = 353, "end" = 383 }, { "rule" = "PLC0206", "file" = "case.py", "start" = 416, "end" = 490 }, { "rule" = "PLC0206", "file" = "case.py", "start" = 555, "end" = 629 }, { "rule" = "PLC0206", "file" = "case.py", "start" = 1361, "end" = 1384 }]
+
+[[cases]]
+name = "literal"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 15 }]
+
+[[cases]]
+name = "comprehension"
+comparison = "full"
+files = { "case.py" = "d={k:k for k in []}\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 24, "end" = 30 }]
+
+[[cases]]
+name = "constructor"
+comparison = "full"
+files = { "case.py" = "d=dict()\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 13, "end" = 19 }]
+
+[[cases]]
+name = "conditional"
+comparison = "full"
+files = { "case.py" = "d={} if flag else {}\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 25, "end" = 31 }]
+
+[[cases]]
+name = "not-dict"
+comparison = "full"
+files = { "case.py" = "d=[]\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "annotation"
+comparison = "full"
+files = { "case.py" = "d:dict\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "dict-subscript"
+comparison = "full"
+files = { "case.py" = "d:dict[str,int]\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "typing"
+comparison = "full"
+files = { "case.py" = "from typing import Dict\nd:Dict\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "typing-extensions"
+comparison = "full"
+files = { "case.py" = "from typing_extensions import Dict\nd:Dict\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "ann-priority"
+comparison = "full"
+files = { "case.py" = "d:list={}\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "replacement"
+comparison = "full"
+files = { "case.py" = "d={}\nd={}\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "builtin-name"
+comparison = "full"
+files = { "case.py" = "list={}\nfor k in list:\n print(list[k])\n" }
+expected = []
+
+[[cases]]
+name = "assignment-tuple"
+comparison = "full"
+files = { "case.py" = "a,d=1,{}\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 13, "end" = 19 }]
+
+[[cases]]
+name = "assignment-nested"
+comparison = "full"
+files = { "case.py" = "a,(b,d)=1,(2,{})\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 21, "end" = 27 }]
+
+[[cases]]
+name = "assignment-list"
+comparison = "full"
+files = { "case.py" = "[a,d]=[1,{}]\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 17, "end" = 23 }]
+
+[[cases]]
+name = "assignment-set"
+comparison = "full"
+files = { "case.py" = "a,d={1,{}}\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 15, "end" = 21 }]
+
+[[cases]]
+name = "assignment-zip-short"
+comparison = "full"
+files = { "case.py" = "a,d=[{}]\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "assignment-starred"
+comparison = "full"
+files = { "case.py" = "a,*d=[1,{}]\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "assignment-walrus"
+comparison = "full"
+files = { "case.py" = "(d:={})\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 12, "end" = 18 }]
+
+[[cases]]
+name = "assignment-with"
+comparison = "full"
+files = { "case.py" = "with {} as d:\n pass\nfor k in d:\n print(d[k])\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 30, "file" = "case.py", "rule" = "PLC0206", "start" = 24 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "a00d96d8453a3312ca48eaaa257ce37cb90de2a7b4020b6484bfbe9d83923812", "settings-sha256" = "a07d17c654582962466caceff0866dc63db3e3b90f922810a96eb0796fe6766c", "source-sha256" = "3b206f3a3d842f1d8d51bc504b16e84ddca8fd1c5597f156ecacab3d7c6dfb76", "reference-output-sha256" = "7e52346c4b71770e86c8527535767e303599119dc14fca00942fcc712565f264", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/context-target-contract.json", "sha256" = "b49a73199b992a46d6ede9b45681db7cc81128cde8fcbba848a7d3a4e6a31e54", "kind" = "language-spec", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-original-value-inputs.json", "sha256" = "2f5984014c8d2cb9f5f3143982c542c7f5630d5a52002d41ec20cc41269e1cb2", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-value-program.py", "sha256" = "c6b1525b150daf9d751334460e637b3741572ca896d50d1ad06a4cd6637d1d81", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-values-py310.json", "sha256" = "6fb56d800362a9756a0c1e0fabf7a3bbd6a1531fb8b3fcb7eb3187bf06a27f7d", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-values-py313.json", "sha256" = "3e2b98d6f1f2cb97105fc35dcfccd7ab4dd169b548ea75233aac360d27b5f146", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-valid-context-inputs.json", "sha256" = "790137c3ab57c9a9e1a28e061af34289c997c95a2b95563c55f5428313fb9eca", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-valid-context-program.py", "sha256" = "5c4747ea9feaefa04952bcd17c384c7f52c56beff47e40833f439058b356b5a4", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-valid-context-py310.json", "sha256" = "67b30a341813e1f69096e183d4ef775462e69a3991e8125b38c3cc8d297167ea", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-valid-context-py313.json", "sha256" = "3e53095522c066b1c78fff8fe22afc15f3a003cc10e03ea0e21b4f8db2ec8aaf", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-protocol-inputs.json", "sha256" = "6a5a02544f46baeeff65a1b2ae07f9c86456b21746446bb1eb437dbb12a181b1", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-protocol-program.py", "sha256" = "606590d948b3d963d1e25e7899b08a6bdb93cafeb07312e5909cc64891d975c0", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-protocol-py310.json", "sha256" = "b200e1b8552630c3f4e0fb6ab5354fe74e33aa91a831fada5005afc2312aa922", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }, { "path" = "evidence/context-target-protocol-py313.json", "sha256" = "583503fcee64f647960c6e4a8dc2865f9478233fa43b8006050b9197108806a3", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Actual CPython3.10.19 and3.13.5 controls retain exact sources and explicit invocation/namespace models. Generic headers execute only on3.13; canonical3.10 unsupported syntax is retained, not waived. Missing context protocol raises AttributeError on3.10 and TypeError on3.13, both explicitly recorded." }], "reason" = "With and async-with assign __enter__/__aenter__ result, not the context manager. Builtin dict/set/list managers in these exact7sources have neither method. No legitimate target type is lost: no target value exists. This is an unknown-result inference correction, not a blanket rule suppression whenever any runtime error exists. The diagnostic requires a known result receiver type; a manager initializer supplies no such evidence. Valid self-return/different-return controls preserve the uncertainty rather than pretending all managers return themselves. Sixteen exact complete reference/intended output multisets only. No unknown candidate relation, skipped accounting, unrelated diagnostics or fixture body is waived. This generic assignment/protocol contract applies independently of linter IDs." }
+
+[[cases]]
+name = "keys"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d.keys():\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 22 }]
+
+[[cases]]
+name = "keys-arguments"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d.keys(1):\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 23 }]
+
+[[cases]]
+name = "walrus-literal"
+comparison = "full"
+files = { "case.py" = "for k in (d:={}):\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 4, "end" = 15 }]
+
+[[cases]]
+name = "walrus-comprehension"
+comparison = "full"
+files = { "case.py" = "for k in (d:={x:x for x in []}):\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "nested-function"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n def f():\n  print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 15 }]
+
+[[cases]]
+name = "nested-load-boundary"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n x=unknown[d[k]]\n" }
+expected = []
+
+[[cases]]
+name = "nested-store-traversal"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n unknown[d[k]]=1\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 15 }]
+
+[[cases]]
+name = "index-store-only"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n d[k]=1\n" }
+expected = []
+
+[[cases]]
+name = "index-delete-only"
+comparison = "full"
+files = { "case.py" = "d={}\nfor k in d:\n del d[k]\n" }
+expected = []
+
+[[cases]]
+name = "tuple-target"
+comparison = "full"
+files = { "case.py" = "d={}\nfor (x,y) in d:\n print(d[x,y])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 19 }]
+
+[[cases]]
+name = "parenthesized-target"
+comparison = "full"
+files = { "case.py" = "d={}\nfor (\n k\n) in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 20 }]
+
+[[cases]]
+name = "parenthesis-noqa"
+comparison = "full"
+files = { "case.py" = "d={}\nfor ( # noqa: PLC0206\n k\n) in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "async-loop"
+comparison = "full"
+files = { "case.py" = "async def f():\n d={}\n async for k in d:\n  print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 32, "end" = 38 }]
+
+[[cases]]
+name = "argument-ann"
+comparison = "full"
+files = { "case.py" = "def f(d:dict):\n for k in d:\n  print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 20, "end" = 26 }]
+
+[[cases]]
+name = "argument-default-not-inferred"
+comparison = "full"
+files = { "case.py" = "def f(d={}):\n for k in d:\n  print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "kwargs"
+comparison = "full"
+files = { "case.py" = "def f(**d):\n for k in d:\n  print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 17, "end" = 23 }]
+
+[[cases]]
+name = "function-return-ann"
+comparison = "full"
+files = { "case.py" = "def d()->dict: pass\nfor k in d:\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 24, "end" = 30 }]
+
+[[cases]]
+name = "dict-rebound-in-body"
+comparison = "full"
+files = { "case.py" = "d=dict()\nfor k in d:\n dict=unknown\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "dict-rebound-after-loop"
+comparison = "full"
+files = { "case.py" = "d=dict()\nfor k in d:\n print(d[k])\ndict=unknown\n" }
+expected = []
+
+[[cases]]
+name = "dict-qualified-seen"
+comparison = "full"
+files = { "case.py" = "import builtins\nd=dict()\nfor k in d:\n dict=unknown\n print(d[k])\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 29, "end" = 35 }]
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PLC0206\nd={}\nfor k in d:\n print(d[k])\n" }
+expected = []
+
+[[cases]]
+name = "ordinal-empty"
+comparison = "full"
+files = { "case.py" = "pass\n" }
+expected = []
+
+[[cases]]
+name = "ordinal-literal-only"
+comparison = "full"
+files = { "case.py" = "\"literal\"\n" }
+expected = []
+
+[[cases]]
+name = "ordinal-global-alias-ties-at-final-event"
+comparison = "full"
+files = { "case.py" = "d={}\nfor key in d:\n    print(d[key])\ndef declarations():\n    global a,b,c\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 17 }]
+
+[[cases]]
+name = "ordinal-nonlocal-alias-ties-at-final-event"
+comparison = "full"
+files = { "case.py" = "def outer():\n    a=b=c=0\n    d={}\n    for key in d:\n        print(d[key])\n    def declarations():\n        nonlocal a,b,c\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 42, "end" = 50 }]
+
+[[cases]]
+name = "ordinal-schedule-control-gaps"
+comparison = "full"
+files = { "case.py" = "if condition:\n    x=1\nelse:\n    x=2\nd={}\nfor key in d:\n    print(d[key])\ndef tail():\n    if condition:\n        pass\n    else:\n        pass\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 45, "end" = 53 }]
+
+[[cases]]
+name = "ordinal-independent-files"
+comparison = "full"
+files = { "a.py" = "d={}\nfor key in d:\n    print(d[key])\ndef declarations():\n    global a,b,c\n", "b.py" = "pass\n" }
+expected = [{ "rule" = "PLC0206", "file" = "a.py", "start" = 9, "end" = 17 }]
+
+[[cases]]
+name = "ordinal-repeated-source-identifiers-scopes"
+comparison = "full"
+files = { "case.py" = "d={}\nfor key in d:\n    print(d[key])\ndef other():\n    d={}\n    for key in d:\n        print(d[key])\n    def declarations():\n        global a,b,c\n" }
+expected = [{ "rule" = "PLC0206", "file" = "case.py", "start" = 9, "end" = 17 }, { "rule" = "PLC0206", "file" = "case.py", "start" = 67, "end" = 75 }]
+
+[[cases]]
+name = "ordinal-suppressed-marker"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PLC0206\nd={}\nfor key in d:\n    print(d[key])\ndef declarations():\n    global a,b,c\n" }
+expected = []

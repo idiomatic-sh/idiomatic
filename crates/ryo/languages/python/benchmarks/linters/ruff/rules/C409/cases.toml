@@ -1,0 +1,94 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "tuple([1, 2])\n" }
+expected = [{ file = "case.py", start = 0, end = 13 }]
+
+[[cases]]
+name = "assignment"
+files = { "case.py" = "result = tuple([1, 2])\n" }
+expected = [{ file = "case.py", start = 9, end = 22 }]
+
+[[cases]]
+name = "parenthesized-function"
+files = { "case.py" = "(tuple)([1, 2])\n" }
+expected = [{ file = "case.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(tuple):\n    tuple([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "tuple = custom\ntuple([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nbuiltins.tuple([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "imported-same-name"
+files = { "case.py" = "from builtins import tuple\ntuple([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "imported-alias"
+files = { "case.py" = "from builtins import tuple as convert\nconvert([1, 2])\n" }
+expected = []
+
+[[cases]]
+name = "extra-positional"
+files = { "case.py" = "tuple([1, 2], other)\n" }
+expected = []
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "tuple([1, 2], unexpected=True)\n" }
+expected = []
+
+[[cases]]
+name = "unpacked-keyword"
+files = { "case.py" = "tuple([1, 2], **kwargs)\n" }
+expected = []
+
+[[cases]]
+name = "starred-argument"
+files = { "case.py" = "tuple(*[([1, 2])])\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "tuple()\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "tuple([1, 2]) # noqa: C409\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "# ruff: disable[C409]\ntuple([1, 2])\n# ruff: enable[C409]\n" }
+expected = []
+
+[[cases]]
+name = "empty-list"
+files = { "case.py" = "tuple([])\n" }
+expected = [{ file = "case.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "empty-tuple"
+files = { "case.py" = "tuple(())\n" }
+expected = [{ file = "case.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "starred-literal"
+files = { "case.py" = "tuple([*values])\n" }
+expected = [{ file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "variable"
+files = { "case.py" = "tuple(values)\n" }
+expected = []

@@ -1,0 +1,89 @@
+[[cases]]
+name = "upstream-UP043.py"
+files = { "UP043.py" = "from collections.abc import Generator, AsyncGenerator\n\n\ndef func() -> Generator[int, None, None]:\n    yield 42\n\n\ndef func() -> Generator[int, None]:\n    yield 42\n\n\ndef func() -> Generator[int]:\n    yield 42\n\n\ndef func() -> Generator[int, int, int]:\n    foo = yield 42\n    return foo\n\n\ndef func() -> Generator[int, int, None]:\n    _ = yield 42\n    return None\n\n\ndef func() -> Generator[int, None, int]:\n    yield 42\n    return 42\n\n\nasync def func() -> AsyncGenerator[int, None]:\n    yield 42\n\n\nasync def func() -> AsyncGenerator[int]:\n    yield 42\n\n\nasync def func() -> AsyncGenerator[int, int]:\n    foo = yield 42\n    return foo\n\n\nfrom typing import Generator, AsyncGenerator\n\n\ndef func() -> Generator[str, None, None]:\n    yield \"hello\"\n\n\nasync def func() -> AsyncGenerator[str, None]:\n    yield \"hello\"\n\n\nasync def func() -> AsyncGenerator[  # type: ignore\n    str,\n    None\n]:\n    yield \"hello\"\n" }
+expected = [{ rule = "UP043", file = "UP043.py", start = 70, end = 96 }, { rule = "UP043", file = "UP043.py", start = 127, end = 147 }, { rule = "UP043", file = "UP043.py", start = 299, end = 324 }, { rule = "UP043", file = "UP043.py", start = 451, end = 476 }, { rule = "UP043", file = "UP043.py", start = 692, end = 718 }, { rule = "UP043", file = "UP043.py", start = 760, end = 785 }, { rule = "UP043", file = "UP043.py", start = 827, end = 878 }]
+
+[[cases]]
+name = "upstream-UP043.pyi"
+files = { "UP043.pyi" = "from collections.abc import Generator, AsyncGenerator\n\n\ndef func() -> Generator[int, None, None]:\n    yield 42\n\n\ndef func() -> Generator[int, None]:\n    yield 42\n\n\ndef func() -> Generator[int]:\n    yield 42\n\n\ndef func() -> Generator[int, int, int]:\n    foo = yield 42\n    return foo\n\n\ndef func() -> Generator[int, int, None]:\n    _ = yield 42\n    return None\n\n\ndef func() -> Generator[int, None, int]:\n    yield 42\n    return 42\n\n\nasync def func() -> AsyncGenerator[int, None]:\n    yield 42\n\n\nasync def func() -> AsyncGenerator[int]:\n    yield 42\n\n\nasync def func() -> AsyncGenerator[int, int]:\n    foo = yield 42\n    return foo\n\n\nfrom typing import Generator, AsyncGenerator\n\n\ndef func() -> Generator[str, None, None]:\n    yield \"hello\"\n\n\nasync def func() -> AsyncGenerator[str, None]:\n    yield \"hello\"\n\n\nasync def func() -> AsyncGenerator[  # type: ignore\n    str,\n    None\n]:\n    yield \"hello\"\n" }
+expected = [{ rule = "UP043", file = "UP043.pyi", start = 70, end = 96 }, { rule = "UP043", file = "UP043.pyi", start = 127, end = 147 }, { rule = "UP043", file = "UP043.pyi", start = 299, end = 324 }, { rule = "UP043", file = "UP043.pyi", start = 451, end = 476 }, { rule = "UP043", file = "UP043.pyi", start = 692, end = 718 }, { rule = "UP043", file = "UP043.pyi", start = 760, end = 785 }, { rule = "UP043", file = "UP043.pyi", start = 827, end = 878 }]
+
+[[cases]]
+name = "sync-three"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: Generator[int, None, None]\n" }
+expected = [{ rule = "UP043", file = "case.py", start = 52, end = 78 }]
+
+[[cases]]
+name = "sync-two"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: Generator[int, None]\n" }
+expected = [{ rule = "UP043", file = "case.py", start = 52, end = 72 }]
+
+[[cases]]
+name = "sync-send"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: Generator[int, str, None]\n" }
+expected = [{ rule = "UP043", file = "case.py", start = 52, end = 77 }]
+
+[[cases]]
+name = "sync-return"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: Generator[int, None, str]\n" }
+expected = []
+
+[[cases]]
+name = "sync-no-default"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: Generator[int]\n" }
+expected = []
+
+[[cases]]
+name = "sync-extra-arg"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: Generator[int, None, None, None]\n" }
+expected = []
+
+[[cases]]
+name = "async-two"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: AsyncGenerator[int, None]\n" }
+expected = [{ rule = "UP043", file = "case.py", start = 52, end = 77 }]
+
+[[cases]]
+name = "async-three"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: AsyncGenerator[int, None, None]\n" }
+expected = []
+
+[[cases]]
+name = "async-nondefault"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: AsyncGenerator[int, str]\n" }
+expected = []
+
+[[cases]]
+name = "string-none"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: Generator[int, \"None\"]\n" }
+expected = []
+
+[[cases]]
+name = "tuple-one"
+files = { "case.py" = "from typing import Generator, AsyncGenerator\nvalue: Generator[None,]\n" }
+expected = []
+
+[[cases]]
+name = "import-alias"
+files = { "case.py" = "from collections.abc import Generator as G\nvalue: G[int, None]\n" }
+expected = [{ rule = "UP043", file = "case.py", start = 50, end = 62 }]
+
+[[cases]]
+name = "shadowed-name"
+files = { "case.py" = "class Generator: ...\nvalue: Generator[int, None]\n" }
+expected = []
+
+[[cases]]
+name = "stub-context"
+files = { "case.pyi" = "from typing import Generator\nx: Generator[int, None]\n" }
+expected = [{ rule = "UP043", file = "case.pyi", start = 32, end = 52 }]
+
+[[cases]]
+name = "suppressed"
+files = { "case.py" = "from typing import Generator\nx: Generator[int, None] # noqa: UP043\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-noqa"
+files = { "case.py" = "from typing import Generator\nx: Generator[int, None] # noqa: F401\n" }
+expected = [{ rule = "UP043", file = "case.py", start = 32, end = 52 }]

@@ -1,0 +1,94 @@
+[[cases]]
+name = "upstream-UP049_0.py"
+files = { "UP049_0.py" = "# simple case, replace _T in signature and body\nclass Generic[_T]:\n    buf: list[_T]\n\n    def append(self, t: _T):\n        self.buf.append(t)\n\n\n# simple case, replace _T in signature and body\ndef second[_T](var: tuple[_T]) -> _T:\n    y: _T = var[1]\n    return y\n\n\n# one diagnostic for each variable, comments are preserved\ndef many_generics[\n    _T,  # first generic\n    _U,  # second generic\n](args):\n    return args\n\n\n# neither of these are currently renamed\nfrom typing import Literal, cast\n\n\ndef f[_T](v):\n    cast(\"_T\", v)\n    cast(\"Literal['_T']\")\n    cast(\"list[_T]\", v)\n" }
+expected = [{ rule = "UP049", file = "UP049_0.py", start = 62, end = 64 }, { rule = "UP049", file = "UP049_0.py", start = 203, end = 205 }, { rule = "UP049", file = "UP049_0.py", start = 346, end = 348 }, { rule = "UP049", file = "UP049_0.py", start = 371, end = 373 }, { rule = "UP049", file = "UP049_0.py", start = 502, end = 504 }]
+
+[[cases]]
+name = "upstream-UP049_1.py"
+files = { "UP049_1.py" = "# bound\nclass Foo[_T: str]:\n    var: _T\n\n\n# constraint\nclass Foo[_T: (str, bytes)]:\n    var: _T\n\n\n# python 3.13+ default\nclass Foo[_T = int]:\n    var: _T\n\n\n# tuple\nclass Foo[*_Ts]:\n    var: tuple[*_Ts]\n\n\n# paramspec\nclass C[**_P]:\n    var: _P\n\n\nfrom typing import Callable\n\n\n# each of these will get a separate diagnostic, but at least they'll all get\n# fixed\nclass Everything[_T, _U: str, _V: (int, float), *_W, **_X]:\n    @staticmethod\n    def transform(t: _T, u: _U, v: _V) -> tuple[*_W] | Callable[_X, _T] | None:\n        return None\n\n\n# this should not be fixed because the new name is a keyword, but we still\n# offer a diagnostic\nclass F[_async]: ...\n\n\n# and this should not be fixed because of the conflict with the outer X, but it\n# also gets a diagnostic\ndef f():\n    type X = int\n\n    class ScopeConflict[_X]:\n        var: _X\n        x: X\n\n\n# these cases should be skipped entirely\ndef f[_](x: _) -> _: ...\ndef g[__](x: __) -> __: ...\ndef h[_T_](x: _T_) -> _T_: ...\ndef i[__T__](x: __T__) -> __T__: ...\n\n\n# https://github.com/astral-sh/ruff/issues/16024\n\nfrom typing import cast, Literal\n\n\nclass C[_0]: ...\n\n\nclass C[T, _T]: ...\nclass C[_T, T]: ...\n\n\nclass C[_T]:\n    v1 = cast(_T, ...)\n    v2 = cast('_T', ...)\n    v3 = cast(\"\\u005fT\", ...)\n\n    def _(self):\n        v1 = cast(_T, ...)\n        v2 = cast('_T', ...)\n        v3 = cast(\"\\u005fT\", ...)\n\n\nclass C[_T]:\n    v = cast('Literal[\\'foo\\'] | _T', ...)\n\n\n## Name collision\nclass C[T]:\n    def f[_T](self):  # No fix, collides with `T` from outer scope\n        v1 = cast(_T, ...)\n        v2 = cast('_T', ...)\n\n\n# Unfixable as the new name collides with a variable visible from one of the inner scopes\nclass C[_T]:\n    T = 42\n\n    v1 = cast(_T, ...)\n    v2 = cast('_T', ...)\n\n\n# Unfixable as the new name collides with a variable visible from one of the inner scopes\nclass C[_T]:\n    def f[T](self):\n        v1 = cast(_T, ...)\n        v2 = cast('_T', ...)\n" }
+expected = [{ rule = "UP049", file = "UP049_1.py", start = 18, end = 20 }, { rule = "UP049", file = "UP049_1.py", start = 65, end = 67 }, { rule = "UP049", file = "UP049_1.py", start = 131, end = 133 }, { rule = "UP049", file = "UP049_1.py", start = 175, end = 178 }, { rule = "UP049", file = "UP049_1.py", start = 226, end = 228 }, { rule = "UP049", file = "UP049_1.py", start = 377, end = 379 }, { rule = "UP049", file = "UP049_1.py", start = 381, end = 383 }, { rule = "UP049", file = "UP049_1.py", start = 390, end = 392 }, { rule = "UP049", file = "UP049_1.py", start = 409, end = 411 }, { rule = "UP049", file = "UP049_1.py", start = 415, end = 417 }, { rule = "UP049", file = "UP049_1.py", start = 644, end = 650 }, { rule = "UP049", file = "UP049_1.py", start = 815, end = 817 }, { rule = "UP049", file = "UP049_1.py", start = 1108, end = 1110 }, { rule = "UP049", file = "UP049_1.py", start = 1130, end = 1132 }, { rule = "UP049", file = "UP049_1.py", start = 1147, end = 1149 }, { rule = "UP049", file = "UP049_1.py", start = 1169, end = 1171 }, { rule = "UP049", file = "UP049_1.py", start = 1370, end = 1372 }, { rule = "UP049", file = "UP049_1.py", start = 1460, end = 1462 }, { rule = "UP049", file = "UP049_1.py", start = 1673, end = 1675 }, { rule = "UP049", file = "UP049_1.py", start = 1838, end = 1840 }]
+
+[[cases]]
+name = "class"
+files = { "case.py" = "class C[_T]: ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 8, end = 10 }]
+
+[[cases]]
+name = "function"
+files = { "case.py" = "def f[_T](): ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 6, end = 8 }]
+
+[[cases]]
+name = "async-function"
+files = { "case.py" = "async def f[_T](): ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "variadic"
+files = { "case.py" = "class C[*_Ts]: ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 9, end = 12 }]
+
+[[cases]]
+name = "paramspec"
+files = { "case.py" = "class C[**_P]: ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 10, end = 12 }]
+
+[[cases]]
+name = "public"
+files = { "case.py" = "class C[T]: ...\n" }
+expected = []
+
+[[cases]]
+name = "sunder"
+files = { "case.py" = "class C[_T_]: ...\n" }
+expected = []
+
+[[cases]]
+name = "dunder"
+files = { "case.py" = "class C[__T__]: ...\n" }
+expected = []
+
+[[cases]]
+name = "all-underscores"
+files = { "case.py" = "class C[__]: ...\n" }
+expected = []
+
+[[cases]]
+name = "alias-not-class"
+files = { "case.py" = "type Alias[_T] = list[_T]\n" }
+expected = []
+
+[[cases]]
+name = "old-typevar"
+files = { "case.py" = "from typing import TypeVar\n_T = TypeVar(\"_T\")\n" }
+expected = []
+
+[[cases]]
+name = "multiple"
+files = { "case.py" = "class C[_T, _U]: ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 8, end = 10 }, { rule = "UP049", file = "case.py", start = 12, end = 14 }]
+
+[[cases]]
+name = "keyword-new-name"
+files = { "case.py" = "class C[_async]: ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 8, end = 14 }]
+
+[[cases]]
+name = "bounded"
+files = { "case.py" = "class C[_T: int]: ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 8, end = 10 }]
+
+[[cases]]
+name = "defaulted"
+files = { "case.py" = "class C[_T = int]: ...\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 8, end = 10 }]
+
+[[cases]]
+name = "suppressed"
+files = { "case.py" = "class C[_T]: ... # noqa: UP049\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-noqa"
+files = { "case.py" = "class C[_T]: ... # noqa: F401\n" }
+expected = [{ rule = "UP049", file = "case.py", start = 8, end = 10 }]

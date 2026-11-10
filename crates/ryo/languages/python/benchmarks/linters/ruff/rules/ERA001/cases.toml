@@ -1,0 +1,47 @@
+[[cases]]
+name = "commented-import"
+comparison = "full"
+files = { "case.py" = "# import os\n" }
+expected = [{ "file" = "case.py", "start" = 0, "end" = 11, "rule" = "ERA001" }]
+
+[[cases]]
+name = "commented-call"
+comparison = "full"
+files = { "case.py" = "# print(\"hello\")\n" }
+expected = [{ "file" = "case.py", "start" = 0, "end" = 16, "rule" = "ERA001" }]
+
+[[cases]]
+name = "prose-comment"
+comparison = "full"
+files = { "case.py" = "# This explains the next expression.\n" }
+expected = []
+
+[[cases]]
+name = "trailing-comment"
+comparison = "full"
+files = { "case.py" = "value = 1  # import os\n" }
+expected = []
+
+[[cases]]
+name = "task-comment"
+comparison = "full"
+files = { "case.py" = "# TODO: import os when this feature is ready.\n" }
+expected = []
+
+[[cases]]
+name = "suppressed-code"
+comparison = "full"
+files = { "case.py" = "# import os  # noqa: ERA001\n" }
+expected = []
+
+[[cases]]
+name = "commented-dictionary-entry"
+comparison = "full"
+files = { "case.py" = "# \"key\": 123,\n" }
+expected = [{ "file" = "case.py", "start" = 0, "end" = 13, "rule" = "ERA001" }]
+
+[[cases]]
+name = "unmatched-code-delimiter"
+comparison = "full"
+files = { "case.py" = "# )\n" }
+expected = [{ "file" = "case.py", "start" = 0, "end" = 3, "rule" = "ERA001" }]

@@ -1,0 +1,198 @@
+[[cases]]
+name = "annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx: Optional[int]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 31, end = 44 }]
+
+[[cases]]
+name = "alias"
+comparison = "full"
+files = { "case.py" = "from typing import Optional as T\nx: T[int]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 36, end = 42 }]
+
+[[cases]]
+name = "module"
+comparison = "full"
+files = { "case.py" = "import typing\nx: typing.Optional[int]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 17, end = 37 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import typing as t\nx: t.Optional[int]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 22, end = 37 }]
+
+[[cases]]
+name = "extensions"
+comparison = "full"
+files = { "case.py" = "from typing_extensions import Optional\nx: Optional[int]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 42, end = 55 }]
+
+[[cases]]
+name = "runtime-alias"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nAlias = Optional[int]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 36, end = 49 }]
+
+[[cases]]
+name = "signature"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\ndef f(x: Optional[int]) -> Optional[int]: pass\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 37, end = 50 }, { rule = "UP045", file = "case.py", start = 55, end = 68 }]
+
+[[cases]]
+name = "async-signature"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nasync def f(x: Optional[int]): pass\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 43, end = 56 }]
+
+[[cases]]
+name = "local-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\ndef f():\n    x: Optional[int]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 44, end = 57 }]
+
+[[cases]]
+name = "shadowed"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nOptional = other\nx: Optional[int]\n" }
+expected = []
+
+[[cases]]
+name = "argument-shadow"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\ndef f(Optional):\n    x = Optional[int]\n" }
+expected = []
+
+[[cases]]
+name = "undefined"
+comparison = "full"
+files = { "case.py" = "x: Optional[int]\n" }
+expected = []
+
+[[cases]]
+name = "other-operator"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nx: Union[int]\n" }
+expected = []
+
+[[cases]]
+name = "quoted-runtime"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx = Optional[\"Later\"]\n" }
+expected = []
+
+[[cases]]
+name = "quoted-future"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Optional\nx: Optional[\"Later\"]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 66, end = 83 }]
+
+[[cases]]
+name = "nested-quoted-runtime"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx = Optional[list[\"Later\"]]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 32, end = 55 }]
+
+[[cases]]
+name = "starred"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx = Optional[*types]\n" }
+expected = [{ rule = "invalid-syntax", file = "case.py", start = 41, end = 47 }]
+
+[[cases]]
+name = "named-tuple"
+comparison = "full"
+files = { "case.py" = "from typing import Optional, NamedTuple\nx: Optional[NamedTuple]\n" }
+expected = []
+
+[[cases]]
+name = "guard"
+comparison = "full"
+files = { "case.py" = "from typing import Optional, TYPE_CHECKING\nif TYPE_CHECKING:\n    x = Optional[\"Later\"]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 69, end = 86 }]
+
+[[cases]]
+name = "stub"
+comparison = "full"
+files = { "case.pyi" = "from typing import Optional\nx: Optional[\"Later\"]\n" }
+expected = [{ rule = "UP045", file = "case.pyi", start = 31, end = 48 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx: Optional[int]  # noqa: UP045\n" }
+expected = []
+
+[[cases]]
+name = "unicode"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nπ: Optional[int]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 32, end = 45 }]
+
+[[cases]]
+name = "tagged-UP045_1.py"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import Optional\n\n\ndef f(x: Optional[str]) -> None:\n    ...\n\n\ndef f(x: typing.Optional[str]) -> None:\n    ...\n\n\ndef f() -> None:\n    x: Optional[str]\n    x = Optional[str]\n\n\ndef f(x: list[Optional[int]]) -> None:\n    ...\n\n\ndef f(x: Optional[int : float]) -> None:\n    ...\n\n\ndef f(x: Optional[str, int : float]) -> None:\n    ...\n\n\ndef f(x: Optional[int, float]) -> None:\n    ...\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/7131\nclass ServiceRefOrValue:\n    service_specification: Optional[\n        list[ServiceSpecificationRef]\n        | list[ServiceSpecification]\n    ] = None\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/7201\nclass ServiceRefOrValue:\n    service_specification: Optional[str]is not True = None\n\n\n# Test for: https://github.com/astral-sh/ruff/issues/18508\n# Optional[None] should not be offered a fix\nfoo: Optional[None] = None\n\n\nfrom typing import NamedTuple, Optional\n\nimport typing_extensions\nfrom typing_extensions import (\n    NamedTuple as NamedTupleTE,\n    Optional as OptionalTE,\n)\n\n# Regression test for https://github.com/astral-sh/ruff/issues/18619\n# Don't emit lint for `NamedTuple`\na1: Optional[NamedTuple] = None\na2: typing.Optional[NamedTuple] = None\na3: OptionalTE[NamedTuple] = None\na4: typing_extensions.Optional[NamedTuple] = None\na5: Optional[typing.NamedTuple] = None\na6: typing.Optional[typing.NamedTuple] = None\na7: OptionalTE[typing.NamedTuple] = None\na8: typing_extensions.Optional[typing.NamedTuple] = None\na9: \"Optional[NamedTuple]\" = None\na10: Optional[NamedTupleTE] = None\n\n\n# Test for: https://github.com/astral-sh/ruff/issues/19746\n# Nested Optional types should be flattened\nnested_optional: Optional[Optional[str]] = None\nnested_optional_typing: typing.Optional[Optional[int]] = None\ntriple_nested_optional: Optional[Optional[Optional[str]]] = None\n\n\nfoo: Optional[\n    int\n    # text\n] = None\n\n\n# Regression test for: https://github.com/astral-sh/ruff/issues/23429\n# Optional[None | X] should not produce None | None\nbar: None | Optional[None | int] = None\nbar: Optional[None | int] = None\nbar: Optional[int | None] = None\nbar: Optional[None | int | str] = None\nbar: Optional[None | None] = None\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 53, end = 66 }, { rule = "UP045", file = "case.py", start = 96, end = 116 }, { rule = "UP045", file = "case.py", start = 161, end = 174 }, { rule = "UP045", file = "case.py", start = 183, end = 196 }, { rule = "UP045", file = "case.py", start = 213, end = 226 }, { rule = "UP045", file = "case.py", start = 257, end = 278 }, { rule = "UP045", file = "case.py", start = 308, end = 334 }, { rule = "UP045", file = "case.py", start = 364, end = 384 }, { rule = "UP045", file = "case.py", start = 526, end = 616 }, { rule = "UP045", file = "case.py", start = 747, end = 760 }, { rule = "UP045", file = "case.py", start = 890, end = 904 }, { rule = "UP045", file = "case.py", start = 1708, end = 1731 }, { rule = "UP045", file = "case.py", start = 1717, end = 1730 }, { rule = "UP045", file = "case.py", start = 1763, end = 1793 }, { rule = "UP045", file = "case.py", start = 1779, end = 1792 }, { rule = "UP045", file = "case.py", start = 1825, end = 1858 }, { rule = "UP045", file = "case.py", start = 1834, end = 1857 }, { rule = "UP045", file = "case.py", start = 1843, end = 1856 }, { rule = "UP045", file = "case.py", start = 1873, end = 1903 }, { rule = "UP045", file = "case.py", start = 2047, end = 2067 }, { rule = "UP045", file = "case.py", start = 2080, end = 2100 }, { rule = "UP045", file = "case.py", start = 2113, end = 2133 }, { rule = "UP045", file = "case.py", start = 2146, end = 2172 }, { rule = "UP045", file = "case.py", start = 2185, end = 2206 }]
+
+[[cases]]
+name = "tagged-UP045_2.py"
+comparison = "full"
+files = { "case.py" = "import typing\nfrom typing import Optional\n\n\ndef f(x: Optional[str]) -> None:\n    ...\n\n\ndef f(x: typing.Optional[str]) -> None:\n    ...\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 53, end = 66 }, { rule = "UP045", file = "case.py", start = 96, end = 116 }]
+
+[[cases]]
+name = "future-forward-import"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nx: Optional[int]\nfrom typing import Optional\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 38, end = 51 }]
+
+[[cases]]
+name = "function-later-import"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = Optional[int]\nfrom typing import Optional\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 17, end = 30 }]
+
+[[cases]]
+name = "direct-quoted-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx: Optional[\"Later\"]\n" }
+expected = []
+
+[[cases]]
+name = "guard-else"
+comparison = "full"
+files = { "case.py" = "from typing import Optional, TYPE_CHECKING\nif TYPE_CHECKING:\n    pass\nelse:\n    x = Optional[\"Later\"]\n" }
+expected = []
+
+[[cases]]
+name = "nested-direct-guard"
+comparison = "full"
+files = { "case.py" = "from typing import Optional, TYPE_CHECKING\nif TYPE_CHECKING:\n    if condition:\n        x = Optional[\"Later\"]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 91, end = 108 }]
+
+[[cases]]
+name = "union-nested-tuples"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx: Optional[(int, str)]\n" }
+expected = [{ rule = "UP045", file = "case.py", start = 31, end = 51 }]
+
+[[cases]]
+name = "module-rebound"
+comparison = "full"
+files = { "case.py" = "import typing\ntyping = other\nx: typing.Optional[int]\n" }
+expected = []
+
+[[cases]]
+name = "independent-callable-lexical-ownership-0"
+comparison = "full"
+files = { "case.py" = "from typing import Optional as Opt\ndef f():\n    value = Opt[int]\n    Opt = object\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "end" = 64, "file" = "case.py", "rule" = "UP045", "start" = 56 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "fce26a73149befaa425ccaf48a392c08f1b585902835d5b03f4b972d32e6d250", "settings-sha256" = "baa0d12ce89675379c2532203ac74f76a2bed87ba43872b160311cac19df86bb", "source-sha256" = "d5a984be8a0e780b7100fcabd2d0529967b3c60b636e213b715538a80805f8e3", "reference-output-sha256" = "94fd38a3d289619c1b89d4817378e707668933da184ef0bb78500246e32025a2", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/lexical-ownership-cpython310.json", "sha256" = "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation." }, { "path" = "evidence/lexical-ownership-cpython313.json", "sha256" = "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation." }, { "path" = "evidence/lexical-ownership-probe.py", "sha256" = "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags." }, { "path" = "evidence/lexical-ownership-probe-inputs.json", "sha256" = "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags." }], "reason" = "Python compiler-local ownership makes this earlier read unbound; it does not load the outer typing import or builtin. The intended origin-dependent modernization/type-checking policy declines the suggestion without an established read-time origin. Exact unmodified fixture execution raises UnboundLocalError in3.10 and3.13. This is not a claim about eager/deferred annotation evaluation or spelling-only style rules." }
+
+[[cases]]
+name = "independent-callable-lexical-ownership-1"
+comparison = "full"
+files = { "case.py" = "def f():\n    from typing import Optional as Opt\n    value = Opt[int]\n" }
+expected = [{ "rule" = "UP045", "file" = "case.py", "start" = 60, "end" = 68 }]

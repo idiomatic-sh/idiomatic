@@ -1,0 +1,34 @@
+[[cases]]
+name = "membership"
+files = { "case.pyi" = "import sys\nif sys.platform in (\"win32\", \"linux\"):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 48 }]
+
+[[cases]]
+name = "numeric"
+files = { "case.pyi" = "import sys\nif sys.platform == 1:\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 31 }]
+
+[[cases]]
+name = "valid"
+files = { "case.pyi" = "import sys\nif sys.platform == \"darwin\":\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "runtime"
+files = { "case.py" = "import sys\nif sys.platform == 1:\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-numeric"
+files = { "case.pyi" = "import sys\nif sys.platform == 1:  # noqa: E501, PYI007\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-numeric"
+files = { "case.pyi" = "import sys\nif sys.platform == 1:  # noqa: E501,PYI007\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-numeric"
+files = { "case.pyi" = "import sys\nif sys.platform == 1:  # noqa: PYI007 # why\n    ...\n" }
+expected = []

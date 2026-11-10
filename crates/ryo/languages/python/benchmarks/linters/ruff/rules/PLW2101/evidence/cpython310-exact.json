@@ -1,0 +1,13 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "source": "import threading\nwith resource(), threading.Lock(): pass\n",
+  "source_sha256": "0a17705767560a746b95cf1cd922d9fa269964624092dd2fded66e4825c1e1a6",
+  "events": [
+    "first-resource-entered",
+    "fresh-lock-created",
+    "first-resource-exited"
+  ],
+  "created_locks": 1,
+  "lock_released_after_with": true,
+  "conclusion": "All context items execute from left to right; an unrelated earlier context call does not prevent constructing the subsequent fresh lock."
+}

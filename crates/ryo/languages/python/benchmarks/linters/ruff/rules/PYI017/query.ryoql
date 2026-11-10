@@ -1,0 +1,18 @@
+import observation_matches from "python/ruff/suppress-matches";
+import line_located from "python/ruff/candidate-locations";
+let assignments = select id, file, span from "semantic-syntax" where kind = "assign" and matches(file, "\.pyi$");
+let targets = select parent, child from "semantic-child" where field = "targets";
+let counts = group-count(from=targets, keys=["parent"], count="count", distinct="child");
+let singles = select parent from counts where count = 1;
+let names = select id from "semantic-syntax" where kind = "name";
+let name_targets = select l.parent as parent from targets as l join names as r on l.child = r.id;
+let simple = select l.parent as parent from singles as l join name_targets as r on l.parent = r.parent;
+let reportable = antijoin(left=assignments, right=simple, left-on=["id"], right-on=["parent"]);
+let candidate_locations = line_located(candidates=reportable);
+let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PYI017)$");
+let violations_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_directives = select directive, file from violations_matches where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "PYI017"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

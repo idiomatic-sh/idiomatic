@@ -1,0 +1,94 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "dict([(x, y) for x, y in values])\n" }
+expected = [{ file = "case.py", start = 0, end = 33 }]
+
+[[cases]]
+name = "assignment"
+files = { "case.py" = "result = dict([(x, y) for x, y in values])\n" }
+expected = [{ file = "case.py", start = 9, end = 42 }]
+
+[[cases]]
+name = "parenthesized-function"
+files = { "case.py" = "(dict)([(x, y) for x, y in values])\n" }
+expected = [{ file = "case.py", start = 0, end = 35 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(dict):\n    dict([(x, y) for x, y in values])\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "dict = custom\ndict([(x, y) for x, y in values])\n" }
+expected = []
+
+[[cases]]
+name = "qualified"
+files = { "case.py" = "import builtins\nbuiltins.dict([(x, y) for x, y in values])\n" }
+expected = []
+
+[[cases]]
+name = "imported-same-name"
+files = { "case.py" = "from builtins import dict\ndict([(x, y) for x, y in values])\n" }
+expected = []
+
+[[cases]]
+name = "imported-alias"
+files = { "case.py" = "from builtins import dict as convert\nconvert([(x, y) for x, y in values])\n" }
+expected = []
+
+[[cases]]
+name = "extra-positional"
+files = { "case.py" = "dict([(x, y) for x, y in values], other)\n" }
+expected = []
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "dict([(x, y) for x, y in values], unexpected=True)\n" }
+expected = []
+
+[[cases]]
+name = "unpacked-keyword"
+files = { "case.py" = "dict([(x, y) for x, y in values], **kwargs)\n" }
+expected = []
+
+[[cases]]
+name = "starred-argument"
+files = { "case.py" = "dict(*[([(x, y) for x, y in values])])\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+files = { "case.py" = "dict()\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "dict([(x, y) for x, y in values]) # noqa: C404\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "# ruff: disable[C404]\ndict([(x, y) for x, y in values])\n# ruff: enable[C404]\n" }
+expected = []
+
+[[cases]]
+name = "element-shape-0"
+files = { "case.py" = "dict([[x, y] for x, y in values])\n" }
+expected = []
+
+[[cases]]
+name = "element-shape-1"
+files = { "case.py" = "dict([(x,) for x, y in values])\n" }
+expected = []
+
+[[cases]]
+name = "element-shape-2"
+files = { "case.py" = "dict([(x, y, z) for x, y in values])\n" }
+expected = []
+
+[[cases]]
+name = "element-shape-3"
+files = { "case.py" = "dict([(*x, y) for x, y in values])\n" }
+expected = [{ file = "case.py", start = 0, end = 34 }]

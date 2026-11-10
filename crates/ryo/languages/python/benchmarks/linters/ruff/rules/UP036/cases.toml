@@ -1,0 +1,228 @@
+[[cases]]
+name = "upstream-full-0"
+comparison = "full"
+files = { "UP036_0.py" = "import sys\n\nif sys.version_info < (3,0):\n    print(\"py2\")\nelse:\n    print(\"py3\")\n\nif sys.version_info < (3,0):\n    if True:\n        print(\"py2!\")\n    else:\n        print(\"???\")\nelse:\n    print(\"py3\")\n\nif sys.version_info < (3,0): print(\"PY2!\")\nelse: print(\"PY3!\")\n\nif True:\n    if sys.version_info < (3,0):\n        print(\"PY2\")\n    else:\n        print(\"PY3\")\n\nif sys.version_info < (3,0): print(1 if True else 3)\nelse:\n    print(\"py3\")\n\nif sys.version_info < (3,0):\n    def f():\n        print(\"py2\")\nelse:\n    def f():\n        print(\"py3\")\n        print(\"This the next\")\n\nif sys.version_info > (3,0):\n    print(\"py3\")\nelse:\n    print(\"py2\")\n\n\nx = 1\n\nif sys.version_info > (3,0):\n    print(\"py3\")\nelse:\n    print(\"py2\")\n    # ohai\n\nx = 1\n\nif sys.version_info > (3,0): print(\"py3\")\nelse: print(\"py2\")\n\nif sys.version_info > (3,):\n    print(\"py3\")\nelse:\n    print(\"py2\")\n\nif True:\n    if sys.version_info > (3,):\n        print(\"py3\")\n    else:\n        print(\"py2\")\n\nif sys.version_info < (3,):\n    print(\"py2\")\nelse:\n    print(\"py3\")\n\ndef f():\n    if sys.version_info < (3,0):\n        try:\n            yield\n        finally:\n            pass\n    else:\n        yield\n\n\nclass C:\n    def g():\n        pass\n\n    if sys.version_info < (3,0):\n        def f(py2):\n            pass\n    else:\n        def f(py3):\n            pass\n\n    def h():\n        pass\n\nif True:\n    if sys.version_info < (3,0):\n        2\n    else:\n        3\n\n    # comment\n\nif sys.version_info < (3,0):\n    def f():\n        print(\"py2\")\n    def g():\n        print(\"py2\")\nelse:\n    def f():\n        print(\"py3\")\n    def g():\n        print(\"py3\")\n\nif True:\n    if sys.version_info > (3,):\n        print(3)\n    # comment\n    print(2+3)\n\nif True:\n    if sys.version_info > (3,): print(3)\n\nif True:\n    if sys.version_info > (3,):\n        print(3)\n\n\nif True:\n    if sys.version_info <= (3, 0):\n        expected_error = []\n    else:\n        expected_error = [\n\"<stdin>:1:5: Generator expression must be parenthesized\",\n\"max(1 for i in range(10), key=lambda x: x+1)\",\n\"    ^\",\n        ]\n\n\nif sys.version_info <= (3, 0):\n    expected_error = []\nelse:\n    expected_error = [\n\"<stdin>:1:5: Generator expression must be parenthesized\",\n\"max(1 for i in range(10), key=lambda x: x+1)\",\n\"    ^\",\n    ]\n\n\nif sys.version_info > (3,0):\n    \"\"\"this\nis valid\"\"\"\n\n    \"\"\"the indentation on\n    this line is significant\"\"\"\n\n    \"this is\" \\\n    \"allowed too\"\n\n    (\"so is\"\n     \"this for some reason\")\n\nif sys.version_info > (3, 0): expected_error = \\\n    []\n\nif sys.version_info > (3, 0): expected_error = []\n\nif sys.version_info > (3, 0): \\\n    expected_error = []\n\nif True:\n    if sys.version_info > (3, 0): expected_error = \\\n    []\n\nif True:\n    if sys.version_info > (3, 0): expected_error = []\n\nif True:\n    if sys.version_info > (3, 0): \\\n    expected_error = []\n\nif sys.version_info < (3,13):\n    print(\"py3\")\n\nif sys.version_info <= (3,13):\n    print(\"py3\")\n\nif sys.version_info <= (3,13):\n    print(\"py3\")\n\nif sys.version_info == 10000000:\n    print(\"py3\")\n\nif sys.version_info < (3,10000000):\n    print(\"py3\")\n\nif sys.version_info <= (3,10000000):\n    print(\"py3\")\n\nif sys.version_info > (3,13):\n    print(\"py3\")\n\nif sys.version_info >= (3,13):\n    print(\"py3\")\n\n# Slices on `sys.version_info` should be treated equivalently.\nif sys.version_info[:2] >= (3,0):\n    print(\"py3\")\n\nif sys.version_info[:3] >= (3,0):\n    print(\"py3\")\n\nif sys.version_info[:2] > (3,14):\n    print(\"py3\")\n\nif sys.version_info[:3] > (3,14):\n    print(\"py3\")\n\nif sys.version_info > (3,0):\n    f\"this is\\\n    allowed too\"\n\n    f\"\"\"the indentation on\n    this line is significant\"\"\"\n\n    \"this is\\\n    allowed too\"\n\nif sys.version_info[0] == 3:\n    print(\"py3\")\n\nif sys.version_info[0] <= 3:\n    print(\"py3\")\n\nif sys.version_info[0] < 3:\n    print(\"py3\")\n\nif sys.version_info[0] >= 3:\n    print(\"py3\")\n\nif sys.version_info[0] > 3:\n    print(\"py3\")\n\nif sys.version_info[0] == 2:\n    print(\"py3\")\n\nif sys.version_info[0] <= 2:\n    print(\"py3\")\n\nif sys.version_info[0] < 2:\n    print(\"py3\")\n\nif sys.version_info[0] >= 2:\n    print(\"py3\")\n\nif sys.version_info[0] > 2:\n    print(\"py3\")\n" }
+expected = [{ "rule" = "UP036", "file" = "UP036_0.py", "start" = 15, "end" = 39 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 85, "end" = 109 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 204, "end" = 228 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 281, "end" = 305 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 363, "end" = 387 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 440, "end" = 464 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 575, "end" = 599 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 653, "end" = 677 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 741, "end" = 765 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 803, "end" = 826 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 885, "end" = 908 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 966, "end" = 989 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 1048, "end" = 1072 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 1208, "end" = 1232 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 1362, "end" = 1386 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 1437, "end" = 1461 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 1622, "end" = 1645 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 1710, "end" = 1733 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 1761, "end" = 1784 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 1821, "end" = 1847 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2045, "end" = 2071 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2253, "end" = 2277 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2444, "end" = 2469 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2501, "end" = 2526 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2552, "end" = 2577 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2622, "end" = 2647 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2692, "end" = 2717 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2756, "end" = 2781 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 2979, "end" = 2987 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3029, "end" = 3041 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3084, "end" = 3096 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3279, "end" = 3308 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3331, "end" = 3360 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3487, "end" = 3511 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3641, "end" = 3665 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3688, "end" = 3712 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3735, "end" = 3758 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3781, "end" = 3805 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3828, "end" = 3851 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3874, "end" = 3898 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3921, "end" = 3945 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 3968, "end" = 3991 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 4014, "end" = 4038 }, { "rule" = "UP036", "file" = "UP036_0.py", "start" = 4061, "end" = 4084 }]
+
+[[cases]]
+name = "upstream-full-1"
+comparison = "full"
+files = { "UP036_1.py" = "import sys\n\nif sys.version_info == 2:\n    2\nelse:\n    3\n\nif sys.version_info < (3,):\n    2\nelse:\n    3\n\nif sys.version_info < (3,0):\n    2\nelse:\n    3\n\nif sys.version_info == 3:\n    3\nelse:\n    2\n\nif sys.version_info > (3,):\n    3\nelse:\n    2\n\nif sys.version_info >= (3,):\n    3\nelse:\n    2\n\nfrom sys import version_info\n\nif version_info > (3,):\n    3\nelse:\n    2\n\nif True:\n    print(1)\nelif sys.version_info < (3,0):\n    print(2)\nelse:\n    print(3)\n\nif True:\n    print(1)\nelif sys.version_info > (3,):\n    print(3)\nelse:\n    print(2)\n\nif True:\n    print(1)\nelif sys.version_info > (3,):\n    print(3)\n\ndef f():\n    if True:\n        print(1)\n    elif sys.version_info > (3,):\n        print(3)\n\nif True:\n    print(1)\nelif sys.version_info < (3,0):\n    print(2)\nelse:\n    print(3)\n\ndef f():\n    if True:\n        print(1)\n    elif sys.version_info > (3,):\n        print(3)\n" }
+expected = [{ "rule" = "UP036", "file" = "UP036_1.py", "start" = 15, "end" = 36 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 60, "end" = 83 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 107, "end" = 131 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 155, "end" = 176 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 200, "end" = 223 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 247, "end" = 271 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 325, "end" = 344 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 392, "end" = 416 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 478, "end" = 501 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 563, "end" = 586 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 650, "end" = 673 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 720, "end" = 744 }, { "rule" = "UP036", "file" = "UP036_1.py", "start" = 827, "end" = 850 }]
+
+[[cases]]
+name = "upstream-full-2"
+comparison = "full"
+files = { "UP036_2.py" = "import sys\nfrom sys import version_info\n\nif sys.version_info > (3, 5):\n    3+6\nelse:\n    3-5\n\nif version_info > (3, 5):\n    3+6\nelse:\n    3-5\n\nif sys.version_info >= (3,6):\n    3+6\nelse:\n    3-5\n\nif version_info >= (3,6):\n    3+6\nelse:\n    3-5\n\nif sys.version_info < (3,6):\n    3-5\nelse:\n    3+6\n\nif sys.version_info <= (3,5):\n    3-5\nelse:\n    3+6\n\nif sys.version_info <= (3, 5):\n    3-5\nelse:\n    3+6\n\nif sys.version_info >= (3, 5):\n    pass\n\nif sys.version_info < (3,0):\n    pass\n\nif True:\n    if sys.version_info < (3,0):\n        pass\n\nif sys.version_info < (3,0):\n    pass\nelif False:\n    pass\n\nif sys.version_info > (3,):\n    pass\nelif False:\n    pass\n\nif sys.version_info[0] > \"2\":\n    3\nelse:\n    2\n" }
+expected = [{ "rule" = "UP036", "file" = "UP036_2.py", "start" = 44, "end" = 69 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 97, "end" = 118 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 146, "end" = 171 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 199, "end" = 220 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 248, "end" = 272 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 300, "end" = 325 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 353, "end" = 379 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 407, "end" = 433 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 448, "end" = 472 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 500, "end" = 524 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 543, "end" = 567 }, { "rule" = "UP036", "file" = "UP036_2.py", "start" = 603, "end" = 626 }]
+
+[[cases]]
+name = "upstream-full-3"
+comparison = "full"
+files = { "UP036_3.py" = "import sys\n\nif            sys.version_info < (3,0):\n    print(\"py2\")\n    for item in range(10):\n        print(f\"PY2-{item}\")\nelse                                :\n    print(\"py3\")\n    for item in range(10):\n        print(f\"PY3-{item}\")\n\nif False:\n    if            sys.version_info < (3,0):\n        print(\"py2\")\n        for item in range(10):\n            print(f\"PY2-{item}\")\n    else                                :\n        print(\"py3\")\n        for item in range(10):\n            print(f\"PY3-{item}\")\n\n\nif            sys.version_info < (3,0): print(\"PY2!\")\nelse                               : print(\"PY3!\")\n" }
+expected = [{ "rule" = "UP036", "file" = "UP036_3.py", "start" = 26, "end" = 50 }, { "rule" = "UP036", "file" = "UP036_3.py", "start" = 265, "end" = 289 }, { "rule" = "UP036", "file" = "UP036_3.py", "start" = 519, "end" = 543 }]
+
+[[cases]]
+name = "upstream-full-4"
+comparison = "full"
+files = { "UP036_4.py" = "import sys\n\nif True:\n    if sys.version_info < (3, 3):\n        cmd = [sys.executable, \"-m\", \"test.regrtest\"]\n\n\nif True:\n    if foo:\n        print()\n    elif sys.version_info < (3, 3):\n        cmd = [sys.executable, \"-m\", \"test.regrtest\"]\n\nif True:\n    if foo:\n        print()\n    elif sys.version_info < (3, 3):\n        cmd = [sys.executable, \"-m\", \"test.regrtest\"]\n    elif foo:\n        cmd = [sys.executable, \"-m\", \"test\", \"-j0\"]\n\n    if foo:\n        print()\n    elif sys.version_info < (3, 3):\n        cmd = [sys.executable, \"-m\", \"test.regrtest\"]\n\n    if sys.version_info < (3, 3):\n        cmd = [sys.executable, \"-m\", \"test.regrtest\"]\n\n    if foo:\n        print()\n    elif sys.version_info < (3, 3):\n        cmd = [sys.executable, \"-m\", \"test.regrtest\"]\n    else:\n        cmd = [sys.executable, \"-m\", \"test\", \"-j0\"]\n\n    if sys.version_info < (3, 3):\n        cmd = [sys.executable, \"-m\", \"test.regrtest\"]\n    else:\n        cmd = [sys.executable, \"-m\", \"test\", \"-j0\"]\n\n    if sys.version_info < (3, 3):\n        cmd = [sys.executable, \"-m\", \"test.regrtest\"]\n    elif foo:\n        cmd = [sys.executable, \"-m\", \"test\", \"-j0\"]\n" }
+expected = [{ "rule" = "UP036", "file" = "UP036_4.py", "start" = 28, "end" = 53 }, { "rule" = "UP036", "file" = "UP036_4.py", "start" = 157, "end" = 182 }, { "rule" = "UP036", "file" = "UP036_4.py", "start" = 285, "end" = 310 }, { "rule" = "UP036", "file" = "UP036_4.py", "start" = 470, "end" = 495 }, { "rule" = "UP036", "file" = "UP036_4.py", "start" = 559, "end" = 584 }, { "rule" = "UP036", "file" = "UP036_4.py", "start" = 678, "end" = 703 }, { "rule" = "UP036", "file" = "UP036_4.py", "start" = 829, "end" = 854 }, { "rule" = "UP036", "file" = "UP036_4.py", "start" = 980, "end" = 1005 }]
+
+[[cases]]
+name = "upstream-full-5"
+comparison = "full"
+files = { "UP036_5.py" = "import sys\n\nif sys.version_info < (3, 8):\n\n    def a():\n        if b:\n            print(1)\n        elif c:\n            print(2)\n        return None\n\nelse:\n    pass\n\n\nimport sys\n\nif sys.version_info < (3, 8):\n    pass\n\nelse:\n\n    def a():\n        if b:\n            print(1)\n        elif c:\n            print(2)\n        else:\n            print(3)\n        return None\n\n\n# https://github.com/astral-sh/ruff/issues/16082\n\n## Errors\nif sys.version_info < (3, 12, 0):\n    print()\n\nif sys.version_info <= (3, 12, 0):\n    print()\n\nif sys.version_info < (3, 12, 11):\n    print()\n\nif sys.version_info < (3, 13, 0):\n    print()\n\nif sys.version_info <= (3, 13, 100000):\n    print()\n\n\n## No errors\n\nif sys.version_info <= (3, 13, foo):\n    print()\n\nif sys.version_info <= (3, 13, 'final'):\n    print()\n\nif sys.version_info <= (3, 13, 0):\n    print()\n\nif sys.version_info < (3, 13, 37):\n    print()\n\nif sys.version_info <= (3, 13, 37):\n    print()\n\nif sys.version_info <= (3, 14, 0):\n    print()\n\nif sys.version_info <= (3, 14, 15):\n    print()\n\n# https://github.com/astral-sh/ruff/issues/18165\n\nif sys.version_info.major >= 3:\n    print(\"3\")\nelse:\n    print(\"2\")\n\nif sys.version_info.major > 3:\n    print(\"3\")\nelse:\n    print(\"2\")\n\nif sys.version_info.major <= 3:\n    print(\"3\")\nelse:\n    print(\"2\")\n\nif sys.version_info.major < 3:\n    print(\"3\")\nelse:\n    print(\"2\")\n\nif sys.version_info.major == 3:\n    print(\"3\")\nelse:\n    print(\"2\")\n\n# Semantically incorrect, skip fixing\n\nif sys.version_info.major[1] > 3:\n    print(3)\nelse:\n    print(2)\n\nif sys.version_info.major > (3, 13):\n    print(3)\nelse:\n    print(2)\n\nif sys.version_info.major[:2] > (3, 13):\n    print(3)\nelse:\n    print(2)\n" }
+expected = [{ "rule" = "UP036", "file" = "UP036_5.py", "start" = 15, "end" = 40 }, { "rule" = "UP036", "file" = "UP036_5.py", "start" = 181, "end" = 206 }, { "rule" = "UP036", "file" = "UP036_5.py", "start" = 640, "end" = 655 }, { "rule" = "UP036", "file" = "UP036_5.py", "start" = 1084, "end" = 1111 }, { "rule" = "UP036", "file" = "UP036_5.py", "start" = 1153, "end" = 1179 }, { "rule" = "UP036", "file" = "UP036_5.py", "start" = 1221, "end" = 1248 }, { "rule" = "UP036", "file" = "UP036_5.py", "start" = 1290, "end" = 1316 }, { "rule" = "UP036", "file" = "UP036_5.py", "start" = 1358, "end" = 1385 }]
+
+[[cases]]
+name = "tuple-older"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, 5): pass\nif sys.version_info <= (3, 5): pass\nif sys.version_info > (3, 5): pass\nif sys.version_info >= (3, 5): pass\nif sys.version_info == (3, 5): pass\nif sys.version_info != (3, 5): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 39 }, { "rule" = "UP036", "file" = "case.py", "start" = 49, "end" = 75 }, { "rule" = "UP036", "file" = "case.py", "start" = 85, "end" = 110 }, { "rule" = "UP036", "file" = "case.py", "start" = 120, "end" = 146 }]
+
+[[cases]]
+name = "tuple-at-default"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, 10): pass\nif sys.version_info <= (3, 10): pass\nif sys.version_info > (3, 10): pass\nif sys.version_info >= (3, 10): pass\nif sys.version_info == (3, 10): pass\nif sys.version_info != (3, 10): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 40 }, { "rule" = "UP036", "file" = "case.py", "start" = 123, "end" = 150 }]
+
+[[cases]]
+name = "tuple-future"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, 13): pass\nif sys.version_info <= (3, 13): pass\nif sys.version_info > (3, 13): pass\nif sys.version_info >= (3, 13): pass\nif sys.version_info == (3, 13): pass\nif sys.version_info != (3, 13): pass\n" }
+expected = []
+
+[[cases]]
+name = "tuple-micro-zero"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, 10, 0): pass\nif sys.version_info <= (3, 10, 0): pass\nif sys.version_info > (3, 10, 0): pass\nif sys.version_info >= (3, 10, 0): pass\nif sys.version_info == (3, 10, 0): pass\nif sys.version_info != (3, 10, 0): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 43 }, { "rule" = "UP036", "file" = "case.py", "start" = 132, "end" = 162 }]
+
+[[cases]]
+name = "tuple-micro-positive"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, 10, 1): pass\nif sys.version_info <= (3, 10, 1): pass\nif sys.version_info > (3, 10, 1): pass\nif sys.version_info >= (3, 10, 1): pass\nif sys.version_info == (3, 10, 1): pass\nif sys.version_info != (3, 10, 1): pass\n" }
+expected = []
+
+[[cases]]
+name = "tuple-major-only"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3,): pass\nif sys.version_info <= (3,): pass\nif sys.version_info > (3,): pass\nif sys.version_info >= (3,): pass\nif sys.version_info == (3,): pass\nif sys.version_info != (3,): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 37 }, { "rule" = "UP036", "file" = "case.py", "start" = 47, "end" = 71 }, { "rule" = "UP036", "file" = "case.py", "start" = 81, "end" = 104 }, { "rule" = "UP036", "file" = "case.py", "start" = 114, "end" = 138 }]
+
+[[cases]]
+name = "tuple-empty-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (): pass\nif sys.version_info <= (): pass\nif sys.version_info > (): pass\nif sys.version_info >= (): pass\nif sys.version_info == (): pass\nif sys.version_info != (): pass\n" }
+expected = []
+
+[[cases]]
+name = "major-operators"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info.major < 2: pass\nif sys.version_info.major <= 2: pass\nif sys.version_info.major > 2: pass\nif sys.version_info.major >= 2: pass\nif sys.version_info.major == 2: pass\nif sys.version_info.major != 2: pass\nif sys.version_info.major < 3: pass\nif sys.version_info.major <= 3: pass\nif sys.version_info.major > 3: pass\nif sys.version_info.major >= 3: pass\nif sys.version_info.major == 3: pass\nif sys.version_info.major != 3: pass\nif sys.version_info.major < 4: pass\nif sys.version_info.major <= 4: pass\nif sys.version_info.major > 4: pass\nif sys.version_info.major >= 4: pass\nif sys.version_info.major == 4: pass\nif sys.version_info.major != 4: pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 40 }, { "rule" = "UP036", "file" = "case.py", "start" = 50, "end" = 77 }, { "rule" = "UP036", "file" = "case.py", "start" = 87, "end" = 113 }, { "rule" = "UP036", "file" = "case.py", "start" = 123, "end" = 150 }, { "rule" = "UP036", "file" = "case.py", "start" = 160, "end" = 187 }, { "rule" = "UP036", "file" = "case.py", "start" = 197, "end" = 224 }, { "rule" = "UP036", "file" = "case.py", "start" = 234, "end" = 260 }, { "rule" = "UP036", "file" = "case.py", "start" = 270, "end" = 297 }, { "rule" = "UP036", "file" = "case.py", "start" = 307, "end" = 333 }, { "rule" = "UP036", "file" = "case.py", "start" = 343, "end" = 370 }, { "rule" = "UP036", "file" = "case.py", "start" = 380, "end" = 407 }, { "rule" = "UP036", "file" = "case.py", "start" = 417, "end" = 444 }]
+
+[[cases]]
+name = "major-index-operators"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0] < 2: pass\nif sys.version_info[0] <= 2: pass\nif sys.version_info[0] > 2: pass\nif sys.version_info[0] >= 2: pass\nif sys.version_info[0] == 2: pass\nif sys.version_info[0] != 2: pass\nif sys.version_info[0] < 3: pass\nif sys.version_info[0] <= 3: pass\nif sys.version_info[0] > 3: pass\nif sys.version_info[0] >= 3: pass\nif sys.version_info[0] == 3: pass\nif sys.version_info[0] != 3: pass\nif sys.version_info[0] < 4: pass\nif sys.version_info[0] <= 4: pass\nif sys.version_info[0] > 4: pass\nif sys.version_info[0] >= 4: pass\nif sys.version_info[0] == 4: pass\nif sys.version_info[0] != 4: pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 37 }, { "rule" = "UP036", "file" = "case.py", "start" = 47, "end" = 71 }, { "rule" = "UP036", "file" = "case.py", "start" = 81, "end" = 104 }, { "rule" = "UP036", "file" = "case.py", "start" = 114, "end" = 138 }, { "rule" = "UP036", "file" = "case.py", "start" = 148, "end" = 172 }, { "rule" = "UP036", "file" = "case.py", "start" = 182, "end" = 206 }, { "rule" = "UP036", "file" = "case.py", "start" = 216, "end" = 239 }, { "rule" = "UP036", "file" = "case.py", "start" = 249, "end" = 273 }, { "rule" = "UP036", "file" = "case.py", "start" = 283, "end" = 306 }, { "rule" = "UP036", "file" = "case.py", "start" = 316, "end" = 340 }, { "rule" = "UP036", "file" = "case.py", "start" = 350, "end" = 374 }, { "rule" = "UP036", "file" = "case.py", "start" = 384, "end" = 408 }]
+
+[[cases]]
+name = "version-slices"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:2] < (3, 10): pass\nif sys.version_info[:3] >= (3, 10, 0): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 44 }, { "rule" = "UP036", "file" = "case.py", "start" = 54, "end" = 88 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import sys as system\nif system.version_info < (3, 8): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 24, "end" = 52 }]
+
+[[cases]]
+name = "from-alias"
+comparison = "full"
+files = { "case.py" = "from sys import version_info as v\nif v < (3, 8): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 37, "end" = 47 }]
+
+[[cases]]
+name = "module-shadow"
+comparison = "full"
+files = { "case.py" = "import sys\nsys = other\nif sys.version_info < (3, 8): pass\n" }
+expected = []
+
+[[cases]]
+name = "parameter-shadow"
+comparison = "full"
+files = { "case.py" = "import sys\ndef f(sys):\n    if sys.version_info < (3, 8): pass\n" }
+expected = []
+
+[[cases]]
+name = "from-shadow"
+comparison = "full"
+files = { "case.py" = "from sys import version_info\nversion_info = other\nif version_info < (3, 8): pass\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-module"
+comparison = "full"
+files = { "case.py" = "import other\nif other.version_info < (3, 8): pass\n" }
+expected = []
+
+[[cases]]
+name = "not-an-if"
+comparison = "full"
+files = { "case.py" = "import sys\noutdated = sys.version_info < (3, 8)\nwhile sys.version_info < (3, 8): break\nassert sys.version_info < (3, 8)\n" }
+expected = []
+
+[[cases]]
+name = "reversed"
+comparison = "full"
+files = { "case.py" = "import sys\nif (3, 8) > sys.version_info: pass\n" }
+expected = []
+
+[[cases]]
+name = "chained"
+comparison = "full"
+files = { "case.py" = "import sys\nif (3, 0) < sys.version_info < (3, 8): pass\nif sys.version_info < (3, 8) < (3, 9): pass\n" }
+expected = []
+
+[[cases]]
+name = "boolean-test"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, 8) and enabled: pass\n" }
+expected = []
+
+[[cases]]
+name = "elif"
+comparison = "full"
+files = { "case.py" = "import sys\nif enabled: pass\nelif sys.version_info < (3, 8): pass\nelif sys.version_info >= (3, 10): pass\nelse: pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 33, "end" = 58 }, { "rule" = "UP036", "file" = "case.py", "start" = 70, "end" = 97 }]
+
+[[cases]]
+name = "invalid-components"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (256,): pass\nif sys.version_info < (3, 256): pass\nif sys.version_info < (3, 10, 256): pass\nif sys.version_info.major == 256: pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 33, "end" = 39 }, { "rule" = "UP036", "file" = "case.py", "start" = 68, "end" = 76 }, { "rule" = "UP036", "file" = "case.py", "start" = 105, "end" = 117 }, { "rule" = "UP036", "file" = "case.py", "start" = 153, "end" = 156 }]
+
+[[cases]]
+name = "valid-u8-boundary"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (255,): pass\nif sys.version_info < (3, 255): pass\nif sys.version_info < (3, 10, 255): pass\nif sys.version_info < (2, 1000): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 127, "end" = 155 }]
+
+[[cases]]
+name = "noninteger-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, variable): pass\nif sys.version_info < (3, 10.0): pass\nif sys.version_info < (3, True): pass\nif sys.version_info < (3, -1): pass\n" }
+expected = []
+
+[[cases]]
+name = "literal-normalization"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (0x3, 0b1010, 0o0): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 51 }]
+
+[[cases]]
+name = "stub"
+comparison = "full"
+files = { "case.pyi" = "import sys\nif sys.version_info < (3, 8): ...\n" }
+expected = [{ "rule" = "UP036", "file" = "case.pyi", "start" = 14, "end" = 39 }]
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, 8): pass  # noqa: UP036\n" }
+expected = []
+
+[[cases]]
+name = "file-noqa"
+comparison = "full"
+files = { "case.py" = "import sys\n# ruff: noqa: UP036\nif sys.version_info < (3, 8): pass\n" }
+expected = []
+
+[[cases]]
+name = "other-noqa"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info < (3, 8): pass  # noqa: UP035\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 39 }]
+
+[[cases]]
+name = "utf8-offset"
+comparison = "full"
+files = { "case.py" = "import sys\nlabel = \"é\"\nif sys.version_info < (3, 8): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 27, "end" = 52 }]
+
+[[cases]]
+name = "micro-varies"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[2] == 3:\n    branch = \"micro-three\"\nelse:\n    branch = \"other-micro\"\n" }
+expected = []
+reference-discrepancy = { "expected" = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 38 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61ebf50964fb6029b01094f9f06aecce0069219b8eca9fdf337bc4a111af0eb2", "settings-sha256" = "218c449a350aec2bc7a9c9985bf1751c9a827107a0869960c5e3ac8f2c1c89f0", "source-sha256" = "1ca495b66f1ac3ed99416263d1468901ff2273eed3e1125add64c7a3f53ae193", "reference-output-sha256" = "92ff7f4c93bdc06bcc4de2d420fa7af7889aaa34f0c7acbf80a43fbdf826c315", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/micro-version-probe.py", "sha256" = "45b03145659ad7f7cfc173ac84814df5aea859667e15dde50b100e18a614213e", "kind" = "independent-language-run", "language-version" = "CPython 3.13.5 with explicitly modeled supported patch versions", "target-configuration" = "python-target=3.10", "version-rationale" = "The host executes the complete unchanged case against modeled version tuples (3,10,0) and (3,10,3). These are explicitly modeled supported patch versions, not actual interpreter samples. Micro comparison takes both branches; the major-index positive control takes the same branch. No source expression is rewritten." }, { "path" = "evidence/micro-version-inputs.json", "sha256" = "ada6f12ba9c027676337a6f486b6ffdca48f1a9bd1fcf4f5149eaa8335b1655d", "kind" = "independent-language-run", "language-version" = "CPython 3.13.5 with explicitly modeled supported patch versions", "target-configuration" = "python-target=3.10", "version-rationale" = "The host executes the complete unchanged case against modeled version tuples (3,10,0) and (3,10,3). These are explicitly modeled supported patch versions, not actual interpreter samples. Micro comparison takes both branches; the major-index positive control takes the same branch. No source expression is rewritten." }, { "path" = "evidence/micro-version-observations.json", "sha256" = "b6ec02ecc26bb21a5373ecab2c309815cc15950caec623b90d69d4a92a0f0d10", "kind" = "independent-language-run", "language-version" = "CPython 3.13.5 with explicitly modeled supported patch versions", "target-configuration" = "python-target=3.10", "version-rationale" = "The host executes the complete unchanged case against modeled version tuples (3,10,0) and (3,10,3). These are explicitly modeled supported patch versions, not actual interpreter samples. Micro comparison takes both branches; the major-index positive control takes the same branch. No source expression is rewritten." }], "reason" = "Index 2 of sys.version_info denotes the micro version, not the major version. The exact predicate can be true or false for supported patch releases sharing the same major/minor minimum. Pinned Ruff strips the arbitrary subscript and applies its major-version scalar comparison policy; this exact-source exception preserves its observed finding while the intended guarantee policy reports none. Standard full-version, prefix-slice, major attribute, and index-zero controls remain independently positive." }
+
+[[cases]]
+name = "two-file-node-isolation"
+comparison = "full"
+files = { "positive.py" = "import sys\nif sys.version_info < (3, 0): pass\n", "negative.py" = "import other\nif other.version_info < (3, 0): pass\n" }
+expected = [{ "rule" = "UP036", "file" = "positive.py", "start" = 14, "end" = 39 }]

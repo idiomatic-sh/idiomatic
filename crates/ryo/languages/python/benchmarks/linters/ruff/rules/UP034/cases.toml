@@ -1,0 +1,112 @@
+
+[[cases]]
+name = "upstream-full-fixture"
+comparison = "full"
+files = { "UP034.py" = "# UP034\nprint((\"foo\"))\n\n# UP034\nprint((\"hell((goodbye))o\"))\n\n# UP034\nprint(((\"foo\")))\n\n# UP034\nprint((((1))))\n\n# UP034\nprint((\"foo{}\".format(1)))\n\n# UP034\nprint(\n    (\"foo{}\".format(1))\n)\n\n# UP034\nprint(\n    (\n        \"foo\"\n    )\n)\n\n# UP034\ndef f():\n    x = int(((yield 1)))\n\n# UP034\nif True:\n    print(\n        (\"foo{}\".format(1))\n    )\n\n# UP034\nprint((x for x in range(3)))\n\n# OK\nprint(\"foo\")\n\n# OK\nprint((1, 2, 3))\n\n# OK\nprint(())\n\n# OK\nprint((1,))\n\n# OK\nsum((block.code for block in blocks), [])\n\n# OK\ndef f():\n    x = int((yield 1))\n\n# OK\nsum((i for i in range(3)), [])\n" }
+expected = [{ "rule" = "UP034", "file" = "UP034.py", "start" = 14, "end" = 21 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 38, "end" = 58 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 75, "end" = 84 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 101, "end" = 108 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 125, "end" = 144 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 166, "end" = 185 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 208, "end" = 229 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 262, "end" = 273 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 312, "end" = 331 }, { "rule" = "UP034", "file" = "UP034.py", "start" = 353, "end" = 374 }]
+
+[[cases]]
+name = "basic"
+comparison = "full"
+files = { "case.py" = "print((\"foo\"))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 6, "end" = 13 }]
+
+[[cases]]
+name = "tuple"
+comparison = "full"
+files = { "case.py" = "print((1,2))\n" }
+expected = []
+
+[[cases]]
+name = "empty-tuple"
+comparison = "full"
+files = { "case.py" = "print(())\n" }
+expected = []
+
+[[cases]]
+name = "singleton-tuple"
+comparison = "full"
+files = { "case.py" = "print((1,))\n" }
+expected = []
+
+[[cases]]
+name = "triple"
+comparison = "full"
+files = { "case.py" = "x = (((1)))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 5, "end" = 10 }]
+
+[[cases]]
+name = "quadruple"
+comparison = "full"
+files = { "case.py" = "print((((1))))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 6, "end" = 13 }]
+
+[[cases]]
+name = "two-pairs"
+comparison = "full"
+files = { "case.py" = "f((x), (y))\n" }
+expected = []
+
+[[cases]]
+name = "comment"
+comparison = "full"
+files = { "case.py" = "f(( # comment\n x\n))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 2, "end" = 18 }]
+
+[[cases]]
+name = "string-delimiters"
+comparison = "full"
+files = { "case.py" = "f((\"(()),yield\"))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 2, "end" = 16 }]
+
+[[cases]]
+name = "generator"
+comparison = "full"
+files = { "case.py" = "f((x for x in xs))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 2, "end" = 17 }]
+
+[[cases]]
+name = "yield-necessary"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = int((yield 1))\n" }
+expected = []
+
+[[cases]]
+name = "yield-extra"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = int(((yield 1)))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 21, "end" = 32 }]
+
+[[cases]]
+name = "nested-dict"
+comparison = "full"
+files = { "case.py" = "f(({\"a\": (1,2)}))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 2, "end" = 16 }]
+
+[[cases]]
+name = "nested-list"
+comparison = "full"
+files = { "case.py" = "f(([1,2]))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 2, "end" = 9 }]
+
+[[cases]]
+name = "suppressed"
+comparison = "full"
+files = { "case.py" = "f((x))  # noqa: UP034\n" }
+expected = []
+
+[[cases]]
+name = "unicode-span"
+comparison = "full"
+files = { "case.py" = "é = f((\"💣\"))\n" }
+expected = [{ "rule" = "UP034", "file" = "case.py", "start" = 7, "end" = 15 }]
+
+[[cases]]
+name = "fstring-middle-yield-is-not-keyword"
+files = { "case.py" = "f((f\"yield\"))\n" }
+expected = [{ rule = "UP034", file = "case.py", start = 2, end = 12 }]
+
+[[cases]]
+name = "interpolated-fstring-middle-yield-is-not-keyword"
+files = { "case.py" = "f((f\"{a}yield\"))\n" }
+expected = [{ rule = "UP034", file = "case.py", start = 2, end = 15 }]

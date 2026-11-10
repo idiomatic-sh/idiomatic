@@ -1,0 +1,12 @@
+
+[[cases]]
+name="b008-native-class-header-in-function"
+comparison="full"
+files={"case.py"="from typing import NewType\ndef outer():\n class C(base:=(int:=object)):\n  T=NewType(\"T\",int)\n  def f(x=T(1)): ...\n"}
+expected=[{rule="B008", file="case.py", start=102, end=106}, {rule="I001", file="case.py", start=0, end=26}]
+
+[[cases]]
+name="b008-stub-class-header-in-function"
+comparison="full"
+files={"case.pyi"="from typing import NewType\ndef outer():\n class C(base:=(int:=object)):\n  T=NewType(\"T\",int)\n  def f(x=T(1)): ...\n"}
+expected=[{rule="I001", file="case.pyi", start=0, end=26}, {rule="PYI010", file="case.pyi", start=41, end=112}]

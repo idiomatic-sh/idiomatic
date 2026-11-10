@@ -1,0 +1,131 @@
+# Pinned Ruff 0.16.5 fixture is reproduced verbatim in upstream-RUF068.
+
+[[cases]]
+name = "upstream-RUF068"
+files = { "RUF068.py" = "import typing\n\n\nclass A: ...\n\n\nclass B: ...\n\n\n# Good\n__all__ = \"A\" + \"B\"\n__all__: list[str] = [\"A\", \"B\"]\n__all__: typing.Any = (\"A\", \"B\")\n__all__ = [\"A\", \"B\"]\n__all__ = [A, \"B\", \"B\"]\n__all__ += [\"A\", \"B\"]\n__all__.extend([\"A\", \"B\"])\n\n# Bad\n__all__: list[str] = [\"A\", \"B\", \"A\"]\n__all__: typing.Any = (\"A\", \"B\", \"B\")\n__all__ = [\"A\", \"B\", \"A\"]\n__all__ = [\"A\", \"A\", \"B\", \"B\"]\n__all__ = [\n    \"A\",\n    \"A\",\n    \"B\",\n    \"B\"\n]\n__all__ += [\"B\", \"B\"]\n__all__.extend([\"B\", \"B\"])\n\n# Bad, unsafe\n__all__ = [\n    \"A\",\n    \"A\",\n    \"B\",\n    # Comment\n    \"B\",  # 2\n    # 3\n]\n" }
+expected = [{ rule = "RUF068", file = "RUF068.py", start = 178, end = 181 }, { rule = "RUF068", file = "RUF068.py", start = 271, end = 274 }, { rule = "RUF068", file = "RUF068.py", start = 309, end = 312 }, { rule = "RUF068", file = "RUF068.py", start = 335, end = 338 }, { rule = "RUF068", file = "RUF068.py", start = 356, end = 359 }, { rule = "RUF068", file = "RUF068.py", start = 366, end = 369 }, { rule = "RUF068", file = "RUF068.py", start = 396, end = 399 }, { rule = "RUF068", file = "RUF068.py", start = 414, end = 417 }, { rule = "RUF068", file = "RUF068.py", start = 437, end = 440 }, { rule = "RUF068", file = "RUF068.py", start = 463, end = 466 }, { rule = "RUF068", file = "RUF068.py", start = 509, end = 512 }, { rule = "RUF068", file = "RUF068.py", start = 541, end = 544 }]
+
+[[cases]]
+name = "module-conditional"
+files = { "case.py" = "if True:\n    __all__ = [\"A\", \"A\"]\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 29, end = 32 }]
+
+[[cases]]
+name = "class-member"
+files = { "case.py" = "class C:\n    __all__ = [\"A\", \"A\"]\n" }
+expected = []
+
+[[cases]]
+name = "function-local"
+files = { "case.py" = "def f():\n    __all__ = [\"A\", \"A\"]\n" }
+expected = []
+
+[[cases]]
+name = "multi-target"
+files = { "case.py" = "other = __all__ = [\"A\", \"A\"]\n" }
+expected = []
+
+[[cases]]
+name = "separate-assignments"
+files = { "case.py" = "__all__ = [\"A\"]\n__all__ += [\"A\"]\n" }
+expected = []
+
+[[cases]]
+name = "non-add-augmented"
+files = { "case.py" = "__all__ -= [\"A\", \"A\"]\n" }
+expected = []
+
+[[cases]]
+name = "dynamic-element"
+files = { "case.py" = "__all__ = [\"A\", value, \"A\"]\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 23, end = 26 }]
+
+[[cases]]
+name = "extend-keyword"
+files = { "case.py" = "__all__.extend(iterable=[\"A\", \"A\"])\n" }
+expected = []
+
+[[cases]]
+name = "extend-two-arguments"
+files = { "case.py" = "__all__.extend([\"A\", \"A\"], [\"B\"])\n" }
+expected = []
+
+[[cases]]
+name = "unrelated-extend"
+files = { "case.py" = "exports.extend([\"A\", \"A\"])\n" }
+expected = []
+
+[[cases]]
+name = "tuple-duplicates"
+files = { "case.py" = "__all__ = (\"A\", \"B\", \"B\")\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 21, end = 24 }]
+
+[[cases]]
+name = "decoded-escape-equality"
+files = { "case.py" = "__all__ = [\"A\", \"\\x41\"]\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 16, end = 22 }]
+
+[[cases]]
+name = "concatenated-literal"
+files = { "case.py" = "__all__ = [\"AB\", \"A\" \"B\"]\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 17, end = 24 }]
+
+[[cases]]
+name = "noqa-suppression"
+files = { "case.py" = "__all__ = [\"A\", \"A\"]  # noqa: RUF068\n" }
+expected = []
+
+[[cases]]
+name = "rebound-module-name"
+files = { "case.py" = "__all__ = object()\n__all__ = [\"A\", \"A\"]\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 35, end = 38 }]
+
+[[cases]]
+name = "three-occurrences"
+files = { "case.py" = "__all__ = [\"A\", \"A\", \"A\"]\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 16, end = 19 }, { rule = "RUF068", file = "case.py", start = 21, end = 24 }]
+
+[[cases]]
+name = "nested-lists-not-flattened"
+files = { "case.py" = "__all__ = [[\"A\", \"A\"]]\n" }
+expected = []
+
+[[cases]]
+name = "bytes-not-strings"
+files = { "case.py" = "__all__ = [b\"A\", b\"A\"]\n" }
+expected = []
+
+[[cases]]
+name = "fstrings-not-literals"
+files = { "case.py" = "__all__ = [f\"A\", f\"A\"]\n" }
+expected = []
+
+[[cases]]
+name = "module-loop"
+files = { "case.py" = "for unused in []:\n    __all__ = [\"A\", \"A\"]\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 38, end = 41 }]
+
+[[cases]]
+name = "async-local"
+files = { "case.py" = "async def f():\n    __all__ = [\"A\", \"A\"]\n" }
+expected = []
+
+[[cases]]
+name = "starred-extend-argument"
+files = { "case.py" = "__all__.extend(*[[\"A\", \"A\"]])\n" }
+expected = []
+
+[[cases]]
+name = "nested-call-keyword-not-extend-keyword"
+files = { "case.py" = "__all__.extend([factory(value=1), \"A\", \"A\"])\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 39, end = 42 }]
+
+[[cases]]
+name = "unrelated-noqa"
+files = { "case.py" = "__all__ = [\"A\", \"A\"]  # noqa: F401\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 16, end = 19 }]
+
+[[cases]]
+name = "unicode-offset"
+files = { "case.py" = "prefix = \"\u00e9\"\n__all__ = [\"A\", \"A\"]\n" }
+expected = [{ rule = "RUF068", file = "case.py", start = 30, end = 33 }]

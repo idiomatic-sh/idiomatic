@@ -1,0 +1,148 @@
+[[cases]]
+name = "any-list"
+files = { "case.py" = "any([x for x in values])\n" }
+expected = [{ file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "all-set"
+files = { "case.py" = "all({x for x in values})\n" }
+expected = [{ file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "generator"
+files = { "case.py" = "any(x for x in values)\n" }
+expected = []
+
+[[cases]]
+name = "sum-preview-only"
+files = { "case.py" = "sum([x for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "min-preview-only"
+files = { "case.py" = "min([x for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "extra-positional"
+files = { "case.py" = "any([x for x in values], other)\n" }
+expected = [{ file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "any([x for x in values], extra=True)\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import any as some\nsome([x for x in values])\n" }
+expected = [{ file = "case.py", start = 38, end = 57 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(any):\n    any([x for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "async-generator"
+files = { "case.py" = "async def f():\n    any([x async for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "await-element"
+files = { "case.py" = "async def f():\n    any([await f(x) for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "nested-await-element"
+files = { "case.py" = "async def f():\n    any([f(await g(x)) for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "await-filter"
+files = { "case.py" = "async def f():\n    any([x for x in values if await pred(x)])\n" }
+expected = [{ file = "case.py", start = 23, end = 59 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "all([x for x in values]) # noqa: C419\n" }
+expected = []
+
+[[cases]]
+name = "rooted-direct-root-await"
+files = { "case.py" = "async def f(items):\n    return any([await work(x) for x in items])\n" }
+expected = []
+
+[[cases]]
+name = "rooted-nested-await-through-intermediates"
+files = { "case.py" = "async def f(items):\n    return any([call(deep(await work(x)), other) for x in items])\n" }
+expected = []
+
+[[cases]]
+name = "rooted-fstring-await-descendant"
+files = { "case.py" = "async def f(items):\n    return any([f\"{await work(x)}\" for x in items])\n" }
+expected = []
+
+[[cases]]
+name = "rooted-await-outside-element-does-not-prune"
+files = { "case.py" = "async def f(items):\n    await work()\n    return any([call(deep(x)) for x in items])\n" }
+expected = [{ "rule" = "C419", "file" = "case.py", "start" = 52, "end" = 82 }]
+
+[[cases]]
+name = "rooted-await-in-condition-keeps-existing-policy"
+files = { "case.py" = "async def f(items):\n    return any([x for x in items if await work()])\n" }
+expected = [{ "rule" = "C419", "file" = "case.py", "start" = 35, "end" = 69 }]
+
+[[cases]]
+name = "rooted-async-generator-exclusion-unchanged"
+files = { "case.py" = "async def f(items):\n    return any([call(x) async for x in items])\n" }
+expected = []
+
+[[cases]]
+name = "rooted-multiple-comprehensions-and-owner-order"
+files = { "case.py" = "async def f(items):\n    await work()\n    a = any([call(deep(x)) for x in items])\n    b = all({call(x) for x in items})\n    return a,b\n" }
+expected = [{ "rule" = "C419", "file" = "case.py", "start" = 49, "end" = 79 }, { "rule" = "C419", "file" = "case.py", "start" = 93, "end" = 117 }]
+
+[[cases]]
+name = "rooted-unicode-multiline-elt"
+files = { "case.py" = "async def f(items):\n    await work()\n    return any([\n        call(café)\n        for café in items\n    ])\n" }
+expected = [{ "rule" = "C419", "file" = "case.py", "start" = 52, "end" = 106 }]
+
+[[cases]]
+name = "rooted-two-files-reused-identities"
+files = { "a.py" = "async def f(items):\n    return any([await work(x) for x in items])\n", "b.py" = "async def f(items):\n    await work()\n    return any([call(deep(x)) for x in items])\n" }
+expected = [{ "rule" = "C419", "file" = "b.py", "start" = 52, "end" = 82 }]
+
+[[cases]]
+name = "redirect-source-noqa-suppresses"
+comparison = "full"
+files = { "case.py" = "def u(y):\n    return any([v for v in y])  # noqa: PIE802\n" }
+expected = []
+
+[[cases]]
+name = "redirect-source-file-noqa-suppresses"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: PIE802\n\n\ndef u(y):\n    return any([v for v in y])\n" }
+expected = [{ "rule" = "RUF101", "file" = "case.py", "start" = 14, "end" = 20 }]
+"selected-rules" = ["C419", "RUF101"]
+
+[[cases]]
+name = "redirect-source-disable-range-suppresses"
+comparison = "full"
+files = { "case.py" = "def u(y):\n    # ruff: disable[PIE802]\n    x = any([v for v in y])\n    # ruff: enable[PIE802]\n    return x\n" }
+expected = []
+"selected-rules" = ["C419", "RUF101"]
+
+[[cases]]
+name = "redirect-source-trailing-ignore-suppresses"
+comparison = "full"
+files = { "case.py" = "def u(y):\n    return any([v for v in y])  # ruff: ignore[PIE802]\n" }
+expected = []
+"selected-rules" = ["C419", "RUF101"]
+
+[[cases]]
+name = "redirect-source-file-ignore-suppresses"
+comparison = "full"
+files = { "case.py" = "# ruff: file-ignore[PIE802]\n\n\ndef u(y):\n    return any([v for v in y])\n" }
+expected = []
+"selected-rules" = ["C419", "RUF101"]

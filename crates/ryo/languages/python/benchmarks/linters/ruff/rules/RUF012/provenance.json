@@ -1,0 +1,17 @@
+{
+  "candidate_sha256": "f01c53fa8f19e59c28dbd47a7fa4e46c96940c8aa76fbe8b6fdf8b0e3384ab3e",
+  "canonical_profile_sha256": "2dbd111cfb6312b1661e03a635cc3ecd6d1a60c79afed7280301e04781ab4d02",
+  "cases_sha256": "0be140f5d40c63386a5142ca47048a90864c1d49e1210f40cca0848309706aa5",
+  "pinned_applicability": "accepted-syntax",
+  "reference_binary_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "reference_tag": "0.16.5",
+  "replay_proof_sha256": "9551da046c3913a0edf9e138f5be22ec6a9a62903c940f8495176f6a823357ab",
+  "rule": "RUF012",
+  "source_status": "current canonical helper singleton candidate and reference replay passed; combined admission pending",
+  "target_version": "py310",
+  "upstream_base": "https://github.com/astral-sh/ruff/blob/0.16.5/crates/ruff_linter/resources/test/fixtures/ruff/",
+  "upstream_sha256": {
+    "RUF012.py": "734f3ae79f494669d7fc0fb5cc9ee4c03ec07cedde7de091d8c57c45a26ccc80",
+    "RUF012_deferred.py": "fe0cb50dfe5e30655d3fa24e3146a1e2cd4f0d0a7a0ec894c01fbcc60a65c3b7"
+  }
+}

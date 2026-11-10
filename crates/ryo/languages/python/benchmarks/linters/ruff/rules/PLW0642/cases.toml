@@ -1,0 +1,44 @@
+[[cases]]
+name = "instance_self_assignment"
+files = { "case.py" = "class C:\n    def f(self):\n        self = 1\n" }
+expected = [{ rule = "PLW0642", file = "case.py", start = 34, end = 38 }]
+
+[[cases]]
+name = "classmethod_cls_assignment"
+files = { "case.py" = "class C:\n    @classmethod\n    def f(cls):\n        cls = 1\n" }
+expected = [{ rule = "PLW0642", file = "case.py", start = 50, end = 53 }]
+
+[[cases]]
+name = "staticmethod_self_assignment_is_ignored"
+files = { "case.py" = "class C:\n    @staticmethod\n    def f(self):\n        self = 1\n" }
+expected = []
+
+[[cases]]
+name = "assignment_to_nonconventional_name_is_ignored"
+files = { "case.py" = "class C:\n    def f(self):\n        cls = 1\n" }
+expected = []
+
+[[cases]]
+name = "new_method_cls_assignment"
+files = { "case.py" = "class C:\n    def __new__(cls):\n        cls = 1\n" }
+expected = [{ rule = "PLW0642", file = "case.py", start = 39, end = 42 }]
+
+[[cases]]
+name = "tuple_target_self_assignment"
+files = { "case.py" = "class C:\n    def f(self):\n        self, other = values\n" }
+expected = [{ rule = "PLW0642", file = "case.py", start = 34, end = 38 }]
+
+[[cases]]
+name = "noqa-codes-comma-space-suppress-instance_self_assignment"
+files = { "case.py" = "class C:\n    def f(self):\n        self = 1  # noqa: E501, PLW0642\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-comma-suppress-instance_self_assignment"
+files = { "case.py" = "class C:\n    def f(self):\n        self = 1  # noqa: E501,PLW0642\n" }
+expected = []
+
+[[cases]]
+name = "noqa-codes-trailing-reason-suppress-instance_self_assignment"
+files = { "case.py" = "class C:\n    def f(self):\n        self = 1  # noqa: PLW0642 # why\n" }
+expected = []

@@ -1,0 +1,17 @@
+import observation_matches from "python/ruff/suppress-matches";
+import call_syntax from "python/ruff/calls";
+import line_located from "python/ruff/candidate-locations";
+let calls = call_syntax();
+let functions = select parent, child from "semantic-child" where field = "func";
+let qualified = select id from "qualified-name" where matches(path, "^logging\.(?:debug|info|warn|warning|error|critical|log|exception)$");
+let matching_calls = select l.parent as id from functions as l join qualified as r on l.child = r.id;
+let reportable = select l.id as id, l.file as file, l.span as span from calls as l join matching_calls as r on l.id = r.id;
+let candidate_locations = line_located(candidates=reportable);
+let suppression_candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let suppression_found = observation_matches(candidates=suppression_candidates, codes="^(?:LOG015)$");
+let candidate_rows = select id, file, span from candidate_locations;
+let violations = antijoin(left=candidate_rows, right=suppression_found, left-on=[id], right-on=[id]);
+let ruf100_directives = select directive, file from suppression_found where scope < 2;
+let ruf100_used = extend(from=ruf100_directives, values={code: "LOG015"});
+observe ruf100_used as noqa_matches;
+emit violations subject file key(id);

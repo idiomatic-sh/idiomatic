@@ -1,0 +1,200 @@
+[[cases]]
+name = "async"
+files = { "case.py" = "async def f():\n    yield from values\n" }
+expected = [{ file = "case.py", start = 19, end = 36 }]
+
+[[cases]]
+name = "sync"
+files = { "case.py" = "def f():\n    yield from values\n" }
+expected = []
+
+[[cases]]
+name = "nested-sync"
+files = { "case.py" = "async def f():\n    def g():\n        yield from values\n" }
+expected = []
+
+[[cases]]
+name = "outer-async-default"
+files = { "case.py" = "async def f():\n    def g(value=(yield from values)):\n        pass\n" }
+expected = [{ file = "case.py", start = 32, end = 49 }]
+
+[[cases]]
+name = "nested-class"
+files = { "case.py" = "async def f():\n    class C:\n        yield from values\n" }
+expected = []
+
+[[cases]]
+name = "module"
+files = { "case.py" = "yield from values\n" }
+expected = []
+
+[[cases]]
+name = "async-yield"
+files = { "case.py" = "async def f():\n    yield values\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "async def f():\n    yield from values # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "async def f():\n    yield from values # noqa: PLE1700\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "async def f():\n    yield from values # noqa: F401\n" }
+expected = [{ file = "case.py", start = 19, end = 36 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nasync def f():\n    yield from values\n" }
+expected = []
+
+# Independently authored additions; prior case bytes above are retained verbatim.
+[[cases]]
+name = "authored-async-yield-from"
+comparison = "full"
+files = { "case.py" = "async def f():\n    yield from xs\n" }
+expected = [{ rule = "PLE1700", file = "case.py", start = 19, end = 32 }]
+
+[[cases]]
+name = "authored-sync-yield-from"
+comparison = "full"
+files = { "case.py" = "def f():\n    yield from xs\n" }
+expected = []
+
+[[cases]]
+name = "authored-module-yield-from"
+comparison = "full"
+files = { "case.py" = "yield from xs\n" }
+expected = []
+
+[[cases]]
+name = "authored-async-yield"
+comparison = "full"
+files = { "case.py" = "async def f():\n    yield 1\n" }
+expected = []
+
+[[cases]]
+name = "authored-nested-sync"
+comparison = "full"
+files = { "case.py" = "async def outer():\n    def inner():\n        yield from xs\n" }
+expected = []
+
+[[cases]]
+name = "authored-nested-async"
+comparison = "full"
+files = { "case.py" = "def outer():\n    async def inner():\n        yield from xs\n" }
+expected = [{ rule = "PLE1700", file = "case.py", start = 44, end = 57 }]
+
+[[cases]]
+name = "authored-class-barrier"
+comparison = "full"
+files = { "case.py" = "async def f():\n    class C:\n        yield from xs\n" }
+expected = []
+
+[[cases]]
+name = "authored-lambda-barrier"
+comparison = "full"
+files = { "case.py" = "async def f():\n    return lambda: (yield from xs)\n" }
+expected = []
+
+[[cases]]
+name = "authored-function-default-outer-async"
+comparison = "full"
+files = { "case.py" = "async def outer():\n    def inner(x=(yield from xs)): pass\n" }
+expected = [{ rule = "PLE1700", file = "case.py", start = 36, end = 49 }]
+
+[[cases]]
+name = "authored-function-default-module"
+comparison = "full"
+files = { "case.py" = "def f(x=(yield from xs)): pass\n" }
+expected = []
+
+[[cases]]
+name = "authored-class-base-outer-async"
+comparison = "full"
+files = { "case.py" = "async def f():\n    class C((yield from xs)): pass\n" }
+expected = [{ "end" = 41, "file" = "case.py", "rule" = "PLE1700", "start" = 28 }]
+reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "e320651d1197b28a465bcb530d7886e8b5563387b50d554c6501f2d6dd10d9b7", "settings-sha256" = "618ff023b9f15618e48dd0328cc9d57d8b5c441a06d01c3aef5946f37458afc4", "source-sha256" = "6bf4b6fdecb72f1f054dedbec3e270f19ff1d45fcb677dc0f7a2eba5e31c4b7b", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "f62651747b78feffc163c1a163725461614a90fba686b2dec03d7c2dc9f255fc" }, "evidence" = [{ "path" = "evidence/cpython-3.10.19.json", "sha256" = "e7e70b50276dc6b7fba4f824516756186551b399bc1e0fbba401b21d00755eab", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact authored source, compile(dont_inherit=True); CPython3.10.19 matches target3.10, with independent3.13.5 corroboration. Compiler rejects the exact await/yield-from construct in its actual lexical evaluation scope; paired legal controls are retained." }, { "path" = "evidence/cpython-3.13.5.json", "sha256" = "41599009810e4a8c1f354a85414349fda2ddf28e21eab426e366fba071295ed9", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact authored source, compile(dont_inherit=True); CPython3.10.19 matches target3.10, with independent3.13.5 corroboration. Compiler rejects the exact await/yield-from construct in its actual lexical evaluation scope; paired legal controls are retained." }], "reason" = "The pinned reference omits an invalid await/yield-from diagnostic that the configured Python language independently rejects in this exact lexical context." }
+
+[[cases]]
+name = "authored-decorator-outer-async"
+comparison = "full"
+files = { "case.py" = "async def f():\n    @decorate((yield from xs))\n    def inner(): pass\n" }
+expected = [{ rule = "PLE1700", file = "case.py", start = 30, end = 43 }]
+
+[[cases]]
+name = "authored-comprehension-element"
+comparison = "full"
+files = { "case.py" = "async def f():\n    return [(yield from xs) for x in ys]\n" }
+expected = []
+
+[[cases]]
+name = "authored-generator-element"
+comparison = "full"
+files = { "case.py" = "async def f():\n    return ((yield from xs) for x in ys)\n" }
+expected = []
+
+[[cases]]
+name = "authored-comprehension-first-iterable"
+comparison = "full"
+files = { "case.py" = "async def f():\n    return [x for x in (yield from xs)]\n" }
+expected = [{ rule = "PLE1700", file = "case.py", start = 39, end = 52 }]
+
+[[cases]]
+name = "authored-comprehension-later-iterable"
+comparison = "full"
+files = { "case.py" = "async def f():\n    return [x for y in ys for x in (yield from xs)]\n" }
+expected = []
+
+[[cases]]
+name = "authored-comprehension-filter"
+comparison = "full"
+files = { "case.py" = "async def f():\n    return [x for x in xs if (yield from ys)]\n" }
+expected = []
+
+[[cases]]
+name = "authored-string-text"
+comparison = "full"
+files = { "case.py" = "x = \"yield from xs\"\n" }
+expected = []
+
+[[cases]]
+name = "authored-unicode"
+comparison = "full"
+files = { "case.py" = "π = 1\nasync def f():\n    yield from xs\n" }
+expected = [{ rule = "PLE1700", file = "case.py", start = 26, end = 39 }]
+
+[[cases]]
+name = "authored-noqa"
+comparison = "full"
+files = { "case.py" = "async def f():\n    yield from xs  # noqa: PLE1700\n" }
+expected = []
+
+[[cases]]
+name = "authored-tagged-yield_from_in_async_function.py-59ac7922"
+comparison = "full"
+files = { "case.py" = "async def success():\n    yield 42\n\n\nasync def fail():\n    l = (1, 2, 3)\n    yield from l\n" }
+expected = [{ rule = "PLE1700", file = "case.py", start = 76, end = 88 }]
+
+[[cases]]
+name = "authored-tagged-yield_from_in_async_function.py-f701fdb5"
+comparison = "full"
+files = { "case.py" = "async def f(): yield from x # error" }
+expected = [{ rule = "PLE1700", file = "case.py", start = 15, end = 27 }]
+
+[[cases]]
+name = "authored-two-file-scope-isolation"
+comparison = "full"
+files = { "a.py" = "async def f():\n    yield from xs\n", "b.py" = "def f():\n    yield from xs\n" }
+expected = [{ rule = "PLE1700", file = "a.py", start = 19, end = 32 }]
+
+[[cases]]
+name = "authored-stub-async-yield-from"
+comparison = "full"
+files = { "case.pyi" = "async def f():\n    yield from xs\n" }
+expected = [{ rule = "PLE1700", file = "case.pyi", start = 19, end = 32 }]

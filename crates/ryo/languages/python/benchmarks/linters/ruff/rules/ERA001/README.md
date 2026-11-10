@@ -1,0 +1,1 @@
+Supporting cohort rule for RUF100, no shipped-default inventory credit. Commented-code recognition is explicit query policy over real own-line comments and Python lexical statement forms, not parser validity or an engine-specific code detector. Prose/task exclusions, PEP723 blocks, and exact heuristic parity remain pending controls; draft is not accepted.

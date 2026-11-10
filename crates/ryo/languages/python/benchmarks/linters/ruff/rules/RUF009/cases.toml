@@ -1,0 +1,155 @@
+[[cases]]
+name = "upstream-pinned-RUF009.py"
+comparison = "full"
+files = { "RUF009.py" = "import datetime\nimport re\nimport typing\nfrom dataclasses import dataclass, field\nfrom fractions import Fraction\nfrom pathlib import Path\nfrom typing import ClassVar, NamedTuple\n\n\ndef default_function() -> list[int]:\n    return []\n\n\nclass ImmutableType(NamedTuple):\n    something: int = 8\n\n\n@dataclass()\nclass A:\n    hidden_mutable_default: list[int] = default_function()\n    class_variable: typing.ClassVar[list[int]] = default_function()\n    another_class_var: ClassVar[list[int]] = default_function()\n\n    fine_path: Path = Path()\n    fine_date: datetime.date = datetime.date(2042, 1, 1)\n    fine_timedelta: datetime.timedelta = datetime.timedelta(hours=7)\n    fine_tuple: tuple[int] = tuple([1])\n    fine_regex: re.Pattern = re.compile(r\".*\")\n    fine_float: float = float(\"-inf\")\n    fine_int: int = int(12)\n    fine_complex: complex = complex(1, 2)\n    fine_str: str = str(\"foo\")\n    fine_bool: bool = bool(\"foo\")\n    fine_fraction: Fraction = Fraction(1, 2)\n\n\nDEFAULT_IMMUTABLETYPE_FOR_ALL_DATACLASSES = ImmutableType(40)\nDEFAULT_A_FOR_ALL_DATACLASSES = A([1, 2, 3])\n\n\n@dataclass\nclass B:\n    hidden_mutable_default: list[int] = default_function()\n    another_dataclass: A = A()\n    not_optimal: ImmutableType = ImmutableType(20)\n    good_variant: ImmutableType = DEFAULT_IMMUTABLETYPE_FOR_ALL_DATACLASSES\n    okay_variant: A = DEFAULT_A_FOR_ALL_DATACLASSES\n\n    fine_dataclass_function: list[int] = field(default_factory=list)\n\n\nclass IntConversionDescriptor:\n    def __init__(self, *, default):\n        self._default = default\n\n    def __set_name__(self, owner, name):\n        self._name = \"_\" + name\n\n    def __get__(self, obj, type):\n        if obj is None:\n            return self._default\n\n        return getattr(obj, self._name, self._default)\n\n    def __set__(self, obj, value):\n        setattr(obj, self._name, int(value))\n\n\n@dataclass\nclass InventoryItem:\n    quantity_on_hand: IntConversionDescriptor = IntConversionDescriptor(default=100)\n\n\n# Regression tests for:\n# https://github.com/astral-sh/ruff/issues/6447\nfrom typing import NewType\n\nListOfStrings = NewType(\"ListOfStrs\", list[str])\nStringsToInts = NewType(\"IntsToStrings\", dict[str, int])\n\nSpecialString = NewType(name=\"SpecialString\", tp=str)\nNegativeInteger = NewType(\"NegInt\", tp=int)\n\nInvalid1 = NewType(*Foo)\nInvalid2 = NewType(\"Invalid2\", name=Foo)\nInvalid3 = NewType(\"Invalid3\", name=Foo, lorem=\"ipsum\")\n\n@dataclass\nclass DataclassWithNewTypeFields:\n    # Errors\n    a: ListOfStrings = ListOfStrings([])\n    b: StringsToInts = StringsToInts()\n    c: Invalid1 = Invalid1()\n    d: Invalid2 = Invalid2()\n    e: Invalid3 = Invalid3()\n\n    # No errors\n    e: SpecialString = SpecialString(\"Lorem ipsum\")\n    f: NegativeInteger = NegativeInteger(-110)\n\n\n# Test for:\n# https://github.com/astral-sh/ruff/issues/15772\ndef f() -> int:\n    return 0\n\n@dataclass\nclass ShouldMatchB008RuleOfImmutableTypeAnnotationIgnored:\n    this_is_not_fine: list[int] = default_function()\n    # ignored\n    this_is_fine: int = f()\n\n\n# Test for:\n# https://github.com/astral-sh/ruff/issues/17424\n@dataclass(frozen=True)\nclass C:\n    foo: int = 1\n\n\n@dataclass\nclass D:\n    c: C = C()\n\n\n@dataclass\nclass E:\n    c: C = C()\n\n# https://github.com/astral-sh/ruff/issues/20266\n@dataclass(frozen=True)\nclass C:\n    @dataclass(frozen=True)\n    class D:\n        foo: int = 1\n\n    d: D = D() # OK" }
+expected = [{ "rule" = "RUF009", "file" = "RUF009.py", "start" = 352, "end" = 370 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 1135, "end" = 1153 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 1181, "end" = 1184 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 1218, "end" = 1235 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 2469, "end" = 2486 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 2510, "end" = 2525 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 2544, "end" = 2554 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 2573, "end" = 2583 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 2602, "end" = 2612 }, { "rule" = "RUF009", "file" = "RUF009.py", "start" = 2926, "end" = 2944 }]
+
+[[cases]]
+name = "upstream-pinned-RUF009_attrs.py"
+comparison = "full"
+files = { "RUF009_attrs.py" = "import datetime\nimport re\nimport typing\nfrom collections import OrderedDict\nfrom fractions import Fraction\nfrom pathlib import Path\nfrom typing import ClassVar, NamedTuple\n\nimport attr\nfrom attrs import Factory, define, field, frozen\n\n\ndef default_function() -> list[int]:\n    return []\n\n\nclass ImmutableType(NamedTuple):\n    something: int = 8\n\n\n@attr.s\nclass A:\n    hidden_mutable_default: list[int] = default_function()\n    class_variable: typing.ClassVar[list[int]] = default_function()\n    another_class_var: ClassVar[list[int]] = default_function()\n\n    fine_path: Path = Path()\n    fine_date: datetime.date = datetime.date(2042, 1, 1)\n    fine_timedelta: datetime.timedelta = datetime.timedelta(hours=7)\n    fine_tuple: tuple[int] = tuple([1])\n    fine_regex: re.Pattern = re.compile(r\".*\")\n    fine_float: float = float(\"-inf\")\n    fine_int: int = int(12)\n    fine_complex: complex = complex(1, 2)\n    fine_str: str = str(\"foo\")\n    fine_bool: bool = bool(\"foo\")\n    fine_fraction: Fraction = Fraction(1, 2)\n\n\nDEFAULT_IMMUTABLETYPE_FOR_ALL_DATACLASSES = ImmutableType(40)\nDEFAULT_A_FOR_ALL_DATACLASSES = A([1, 2, 3])\n\n\n@define\nclass B:\n    hidden_mutable_default: list[int] = default_function()\n    another_dataclass: A = A()\n    not_optimal: ImmutableType = ImmutableType(20)\n    good_variant: ImmutableType = DEFAULT_IMMUTABLETYPE_FOR_ALL_DATACLASSES\n    okay_variant: A = DEFAULT_A_FOR_ALL_DATACLASSES\n\n    fine_dataclass_function: list[int] = field(default_factory=list)\n    attrs_factory: dict[str, str] = Factory(OrderedDict)\n\n\nclass IntConversionDescriptor:\n    def __init__(self, *, default):\n        self._default = default\n\n    def __set_name__(self, owner, name):\n        self._name = \"_\" + name\n\n    def __get__(self, obj, type):\n        if obj is None:\n            return self._default\n\n        return getattr(obj, self._name, self._default)\n\n    def __set__(self, obj, value):\n        setattr(obj, self._name, int(value))\n\n\n@frozen\nclass InventoryItem:\n    quantity_on_hand: IntConversionDescriptor = IntConversionDescriptor(default=100)\n\n\n# Test for:\n# https://github.com/astral-sh/ruff/issues/17424\n@frozen\nclass C:\n    foo: int = 1\n\n\n@attr.frozen\nclass D:\n    foo: int = 1\n\n\n@define\nclass E:\n    c: C = C()\n    d: D = D()\n\n\n@attr.s\nclass F:\n    foo: int = 1\n\n\n@attr.mutable\nclass G:\n    foo: int = 1\n\n\n@attr.attrs\nclass H:\n    f: F = F()\n    g: G = G()\n\n\n@attr.define\nclass I:\n    f: F = F()\n    g: G = G()\n\n\n@attr.frozen\nclass J:\n    f: F = F()\n    g: G = G()\n\n\n@attr.mutable\nclass K:\n    f: F = F()\n    g: G = G()\n\n\n# Regression test for https://github.com/astral-sh/ruff/issues/19014\n# These are all valid field calls and should not cause diagnostics.\n@attr.define\nclass TestAttrField:\n    attr_field_factory: list[int] = attr.field(factory=list)\n    attr_field_default: list[int] = attr.field(default=attr.Factory(list))\n    attr_factory: list[int] = attr.Factory(list)\n    attr_ib: list[int] = attr.ib(factory=list)\n    attr_attr: list[int] = attr.attr(factory=list)\n    attr_attrib: list[int] = attr.attrib(factory=list)\n\n\n@attr.attributes\nclass TestAttrAttributes:\n    x: list[int] = list()  # RUF009\n" }
+expected = [{ "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 1184, "end" = 1202 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 1230, "end" = 1233 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 1267, "end" = 1284 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 2359, "end" = 2362 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 2374, "end" = 2377 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 2413, "end" = 2416 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 2428, "end" = 2431 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 2467, "end" = 2470 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 2482, "end" = 2485 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 2522, "end" = 2525 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 2537, "end" = 2540 }, { "rule" = "RUF009", "file" = "RUF009_attrs.py", "start" = 3116, "end" = 3122 }]
+
+[[cases]]
+name = "upstream-pinned-RUF009_attrs_auto_attribs.py"
+comparison = "full"
+files = { "RUF009_attrs_auto_attribs.py" = "import attr\nfrom attrs import define, field, frozen, mutable\n\n\nfoo = int\n\n\n@define  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@define()  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@define(auto_attribs=None)  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@frozen  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@frozen()  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@frozen(auto_attribs=None)  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@mutable  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@mutable()  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@mutable(auto_attribs=None)  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@attr.s  # auto_attribs = False\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@attr.s()  # auto_attribs = False\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@attr.s(auto_attribs=None)  # auto_attribs = None => True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@attr.s(auto_attribs=False)  # auto_attribs = False\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@attr.s(auto_attribs=True)  # auto_attribs = True\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n\n\n@attr.s(auto_attribs=[1, 2, 3])  # auto_attribs = False\nclass C:\n    a: str = 0\n    b = field()\n    c: int = foo()\n    d = list()\n" }
+expected = []
+
+[[cases]]
+name = "upstream-pinned-RUF009_deferred.py"
+comparison = "full"
+files = { "RUF009_deferred.py" = "from dataclasses import dataclass \nfrom typing import TYPE_CHECKING\n\n\ndef default_function() ->list[int]:\n    return []\n\n@dataclass()\nclass A:\n    hidden_mutable_default: list[int] = default_function()\n    class_variable: typing.ClassVar[list[int]] = default_function()\n    another_class_var: ClassVar[list[int]] = default_function()\n\nif TYPE_CHECKING:\n    from typing import ClassVar\n" }
+expected = [{ "rule" = "RUF009", "file" = "RUF009_deferred.py", "start" = 183, "end" = 201 }, { "rule" = "RUF009", "file" = "RUF009_deferred.py", "start" = 251, "end" = 269 }]
+
+[[cases]]
+name = "plain-class-negative"
+comparison = "full"
+files = { "case.py" = "def make():\n    return []\nclass C:\n    x: list[int] = make()\n" }
+expected = []
+
+[[cases]]
+name = "dataclass-default-positive"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\ndef make():\n    return []\n@dataclass\nclass C:\n    x: list[int] = make()\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 99, "end" = 105 }]
+
+[[cases]]
+name = "classvar-negative"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom typing import ClassVar\ndef make():\n    return []\n@dataclass\nclass C:\n    x: ClassVar[list[int]] = make()\n" }
+expected = []
+
+[[cases]]
+name = "immutable-annotation-negative"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\ndef make():\n    return []\n@dataclass\nclass C:\n    x: int = make()\n" }
+expected = []
+
+[[cases]]
+name = "field-factory-negative"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass, field\n@dataclass\nclass C:\n    x: list[int] = field(default_factory=list)\n" }
+expected = []
+
+[[cases]]
+name = "attrs-positive"
+comparison = "full"
+files = { "case.py" = "from attrs import define\ndef make():\n    return []\n@define\nclass C:\n    x: list[int] = make()\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 87, "end" = 93 }]
+
+[[cases]]
+name = "attrs-auto-attribs-negative"
+comparison = "full"
+files = { "case.py" = "import attr\ndef make():\n    return []\n@attr.s(auto_attribs=False)\nclass C:\n    x: list[int] = make()\n" }
+expected = []
+
+[[cases]]
+name = "noqa-negative"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\ndef make():\n    return []\n@dataclass\nclass C:\n    x: list[int] = make()  # noqa: RUF009\n" }
+expected = []
+
+[[cases]]
+name = "stdlib-attrs-field-positive"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nimport attr\n@dataclass\nclass C:\n    x: list[int] = attr.Factory(list)\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 85, "end" = 103 }]
+
+[[cases]]
+name = "attrs-stdlib-field-positive"
+comparison = "full"
+files = { "case.py" = "from attrs import define\nfrom dataclasses import field\n@define\nclass C:\n    x: list[int] = field(default_factory=list)\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 91, "end" = 118 }]
+
+[[cases]]
+name = "attrs-s-direct-negative"
+comparison = "full"
+files = { "case.py" = "import attr\ndef make(): return []\n@attr.s\nclass C:\n    x: list[int] = make()\n" }
+expected = []
+
+[[cases]]
+name = "attrs-s-called-positive"
+comparison = "full"
+files = { "case.py" = "import attr\ndef make(): return []\n@attr.s()\nclass C:\n    x: list[int] = make()\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 72, "end" = 78 }]
+
+[[cases]]
+name = "attrs-s-explicit-field-negative"
+comparison = "full"
+files = { "case.py" = "import attr\n@attr.s(auto_attribs=False)\nclass C:\n    x: list[int] = attr.ib(factory=list)\n" }
+expected = []
+
+[[cases]]
+name = "descriptor-get-negative"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nclass D:\n    def __get__(self, obj, owner): return []\n@dataclass\nclass C:\n    x: list[int] = D()\n" }
+expected = []
+
+[[cases]]
+name = "non-descriptor-positive"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nclass D:\n    pass\n@dataclass\nclass C:\n    x: list[int] = D()\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 91, "end" = 94 }]
+
+[[cases]]
+name = "immutable-newtype-negative"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom typing import NewType\nI = NewType(\"I\", int)\n@dataclass\nclass C:\n    x: I = I(1)\n" }
+expected = []
+
+[[cases]]
+name = "mutable-newtype-positive"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom typing import NewType\nL = NewType(\"L\", list[int])\n@dataclass\nclass C:\n    x: L = L([])\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 120, "end" = 125 }]
+
+[[cases]]
+name = "late-classvar-shadow-control"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom typing import ClassVar as CV\ndef make(): return []\n@dataclass\nclass C:\n    x: CV[list[int]] = make()\n" }
+expected = []
+
+[[cases]]
+name = "classvar-shadow-positive"
+comparison = "full"
+files = { "case.py" = "from dataclasses import dataclass\nfrom typing import ClassVar\nClassVar = list\ndef make(): return []\n@dataclass\nclass C:\n    x: ClassVar[list[int]] = make()\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 149, "end" = 155 }]
+
+[[cases]]
+name = "attrs-unknown-auto-negative"
+comparison = "full"
+files = { "case.py" = "import attr\ndef make(): return []\nflag = object()\n@attr.s(auto_attribs=flag)\nclass C:\n    x: list[int] = make()\n" }
+expected = []
+
+[[cases]]
+name = "attrs-truthy-nonbool-negative"
+comparison = "full"
+files = { "case.py" = "import attr\ndef make(): return []\n@attr.s(auto_attribs=1)\nclass C:\n    x: list[int] = make()\n" }
+expected = []
+
+[[cases]]
+name = "attrs-none-auto-positive"
+comparison = "full"
+files = { "case.py" = "import attr\ndef make(): return []\n@attr.s(auto_attribs=None)\nclass C:\n    x: list[int] = make()\n" }
+expected = [{ "rule" = "RUF009", "file" = "case.py", "start" = 89, "end" = 95 }]

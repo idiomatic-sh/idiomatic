@@ -1,0 +1,69 @@
+[[cases]]
+name = "first"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "last"
+files = { "case.py" = "try:\n    pass\nexcept ValueError:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "only"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "two"
+files = { "case.py" = "try:\n    pass\nexcept:\n    pass\nexcept:\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "try:\n    try:\n        pass\n    except:\n        pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "try:\n    pass\nexcept: # noqa\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "try:\n    pass\nexcept: # noqa: F707\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "try:\n    pass\nexcept: # noqa: F401\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 20 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\ntry:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[F707]\ntry:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n\n# ruff: enable[F707]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[F707]\n# ruff: enable[F707]\ntry:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ file = "case.py", start = 57, end = 63 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[F707]\ntry:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\ntry:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = [{ file = "case.py", start = 36, end = 42 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[F707]\ntry:\n    pass\nexcept:\n    pass\nexcept ValueError:\n    pass\n" }
+expected = []

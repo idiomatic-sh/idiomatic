@@ -1,0 +1,497 @@
+[[cases]]
+name = "integer-default"
+comparison = "full"
+files = { "case.pyi" = "value = 3\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 9 }]
+
+[[cases]]
+name = "string-default"
+comparison = "full"
+files = { "case.pyi" = "value = \"text\"\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 14 }]
+
+[[cases]]
+name = "boolean-default"
+comparison = "full"
+files = { "case.pyi" = "value = True\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 12 }]
+
+[[cases]]
+name = "bytes-default"
+comparison = "full"
+files = { "case.pyi" = "value = b'x'\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 12 }]
+
+[[cases]]
+name = "none-is-type-alias-control"
+comparison = "full"
+files = { "case.pyi" = "value = None\n" }
+expected = []
+
+[[cases]]
+name = "ellipsis-is-allowed-control"
+comparison = "full"
+files = { "case.pyi" = "value = ...\n" }
+expected = []
+
+[[cases]]
+name = "annotated-control"
+comparison = "full"
+files = { "case.pyi" = "value: int = 3\n" }
+expected = []
+
+[[cases]]
+name = "call-default-is-allowed-control"
+comparison = "full"
+files = { "case.pyi" = "value = make()\n" }
+expected = []
+
+[[cases]]
+name = "runtime-python-file-control"
+comparison = "full"
+files = { "case.py" = "value = 3\n" }
+expected = []
+
+[[cases]]
+name = "function-scope-control"
+comparison = "full"
+files = { "case.pyi" = "def f():\n    value = 3\n" }
+expected = []
+
+[[cases]]
+name = "class-nested-in-function-control"
+comparison = "full"
+files = { "case.pyi" = "def f():\n    class Inner:\n        value = 3\n" }
+expected = []
+
+[[cases]]
+name = "all-special-assignment-control"
+comparison = "full"
+files = { "case.pyi" = "__all__ = ['value']\n" }
+expected = []
+
+[[cases]]
+name = "class-level-assignment-current-gap"
+comparison = "full"
+files = { "case.pyi" = "class Plain:\n    value = 3\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 25, end = 26 }]
+
+[[cases]]
+name = "based-non-enum-class-assignment"
+comparison = "full"
+files = { "case.pyi" = "class Base: ...\nclass Derived(Base):\n    value = 3\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 49, end = 50 }]
+
+[[cases]]
+name = "enum-assignment-control"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Color(Enum):\n    RED = 1\nclass Shade(Color):\n    BLUE = 2\n" }
+expected = []
+
+[[cases]]
+name = "container-default"
+comparison = "full"
+files = { "case.pyi" = "value = [1, 2, 3]\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 17 }]
+
+[[cases]]
+name = "tuple-container"
+comparison = "full"
+files = { "case.pyi" = "value = (1, 2, 3)\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 17 }]
+
+[[cases]]
+name = "set-container"
+comparison = "full"
+files = { "case.pyi" = "value = {1, 2, 3}\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 17 }]
+
+[[cases]]
+name = "dict-container"
+comparison = "full"
+files = { "case.pyi" = "value = {\"x\": 1}\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 16 }]
+
+[[cases]]
+name = "negative-numeric-default"
+comparison = "full"
+files = { "case.pyi" = "value = -1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 10 }]
+
+[[cases]]
+name = "complex-expression-default"
+comparison = "full"
+files = { "case.pyi" = "value = 5 + 42j\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 15 }]
+
+[[cases]]
+name = "negative-real-complex-default"
+comparison = "full"
+files = { "case.pyi" = "value = -5 + 42j\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 16 }]
+
+[[cases]]
+name = "negative-nan-attribute-control"
+comparison = "full"
+files = { "case.pyi" = "import math\nvalue = -math.nan\n" }
+expected = []
+
+[[cases]]
+name = "complex-expression-long-real-control"
+comparison = "full"
+files = { "case.pyi" = "value = 12345678901 + 42j\n" }
+expected = []
+
+[[cases]]
+name = "complex-expression-ten-character-real"
+comparison = "full"
+files = { "case.pyi" = "value = 1234567890 + 42j\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 24 }]
+
+[[cases]]
+name = "unary-minus-complex-literal"
+comparison = "full"
+files = { "case.pyi" = "value = -42j\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 12 }]
+
+[[cases]]
+name = "unary-minus-hex-integer"
+comparison = "full"
+files = { "case.pyi" = "value = -0xFFFFFFFF\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 19 }]
+
+[[cases]]
+name = "unary-plus-control"
+comparison = "full"
+files = { "case.pyi" = "value = +1\n" }
+expected = []
+
+[[cases]]
+name = "chained-assignment-control"
+comparison = "full"
+files = { "case.pyi" = "first = second = 1\n" }
+expected = []
+
+[[cases]]
+name = "math-attribute-default"
+comparison = "full"
+files = { "case.pyi" = "import math\nvalue = math.pi\n" }
+expected = []
+
+[[cases]]
+name = "negated-math-attribute-default"
+comparison = "full"
+files = { "case.pyi" = "import math\nvalue = -math.pi\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 20, end = 28 }]
+
+[[cases]]
+name = "unapproved-arithmetic-control"
+comparison = "full"
+files = { "case.pyi" = "value = 5 * 5\n" }
+expected = []
+
+[[cases]]
+name = "nested-container-control"
+comparison = "full"
+files = { "case.pyi" = "value = [1, [2]]\n" }
+expected = []
+
+[[cases]]
+name = "container-too-many-elements-control"
+comparison = "full"
+files = { "case.pyi" = "value = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]\n" }
+expected = []
+
+[[cases]]
+name = "container-ten-elements"
+comparison = "full"
+files = { "case.pyi" = "value = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 39 }]
+
+[[cases]]
+name = "dict-expansion-control"
+comparison = "full"
+files = { "case.pyi" = "value = {**mapping}\n" }
+expected = []
+
+[[cases]]
+name = "class-special-slots-control"
+comparison = "full"
+files = { "case.pyi" = "class Item:\n    __slots__ = ('x',)\n" }
+expected = []
+
+[[cases]]
+name = "class-special-match-args-control"
+comparison = "full"
+files = { "case.pyi" = "class Item:\n    __match_args__ = ('x',)\n" }
+expected = []
+
+[[cases]]
+name = "empty-list-container"
+comparison = "full"
+files = { "case.pyi" = "value = []\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 10 }]
+
+[[cases]]
+name = "empty-dict-container"
+comparison = "full"
+files = { "case.pyi" = "value = {}\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 8, end = 10 }]
+
+[[cases]]
+name = "name-default-is-allowed-control"
+comparison = "full"
+files = { "case.pyi" = "value = KNOWN\n" }
+expected = []
+
+[[cases]]
+name = "attribute-default-is-allowed-control"
+comparison = "full"
+files = { "case.pyi" = "value = package.value\n" }
+expected = []
+
+[[cases]]
+name = "subscript-default-is-allowed-control"
+comparison = "full"
+files = { "case.pyi" = "value = list[int]\n" }
+expected = []
+
+[[cases]]
+name = "union-default-is-allowed-control"
+comparison = "full"
+files = { "case.pyi" = "value = int | str\n" }
+expected = []
+
+[[cases]]
+name = "class-all-is-not-module-special"
+comparison = "full"
+files = { "case.pyi" = "class Item:\n    __all__ = 3\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 26, end = 27 }]
+
+[[cases]]
+name = "module-slots-is-not-class-special"
+comparison = "full"
+files = { "case.pyi" = "__slots__ = ['x']\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 12, end = 17 }]
+
+[[cases]]
+name = "enum-import-alias-control"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum as E\nclass Color(E):\n    RED = 1\n" }
+expected = []
+
+[[cases]]
+name = "custom-enum-name-is-not-special"
+comparison = "full"
+files = { "case.pyi" = "from custom import Enum\nclass Color(Enum):\n    RED = 1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 53, end = 54 }]
+
+[[cases]]
+name = "suppression-control"
+comparison = "full"
+files = { "case.pyi" = "value = 3  # noqa: PYI052\n" }
+expected = []
+
+[[cases]]
+name = "nested-unrelated-enum-does-not-contaminate-module-base"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Base: ...\nclass Outer:\n    class Base(Enum): ...\nclass Child(Base):\n    value = 1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 108, end = 109 }]
+
+[[cases]]
+name = "subscripted-enum-base"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Child(Enum[int]):\n    value = 1\n" }
+expected = []
+
+[[cases]]
+name = "aliased-subscripted-enum-base"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum as E\nclass Child(E[int]):\n    value = 1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-0"
+comparison = "full"
+files = { "case.pyi" = "import enum\nclass Subject(enum.Enum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-1"
+comparison = "full"
+files = { "case.pyi" = "import enum as e\nclass Subject(e.Enum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-2"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum as E\nclass Subject(E):\n E=object\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 58, end = 59 }]
+
+[[cases]]
+name = "current-enum-context-3"
+comparison = "full"
+files = { "case.pyi" = "import enum as e\nclass Subject(e.Enum):\n e=object\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 53, end = 54 }]
+
+[[cases]]
+name = "current-enum-context-4"
+comparison = "full"
+files = { "case.pyi" = "import enum\nclass Subject(enum.Enum):\n enum=object\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 54, end = 55 }]
+
+[[cases]]
+name = "current-enum-context-5"
+comparison = "full"
+files = { "case.pyi" = "import enum.Enum\nclass Subject(enum.Enum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-6"
+comparison = "full"
+files = { "case.pyi" = "import enum.Enum as E\nclass Subject(E):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-7"
+comparison = "full"
+files = { "case.pyi" = "import enum.Enum as enum\nclass Subject(enum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-8"
+comparison = "full"
+files = { "case.pyi" = "import enum.Enum as enum\nclass Subject(enum.Enum):\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 54, end = 55 }]
+
+[[cases]]
+name = "current-enum-context-9"
+comparison = "full"
+files = { "case.pyi" = "import enum.Other\nclass Subject(enum.Enum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-10"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Outer:\n E=Enum\nclass Subject(Outer.E):\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 70, end = 71 }]
+
+[[cases]]
+name = "current-enum-context-11"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Outer:\n from enum import Enum as E\nclass Subject(Outer.E):\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 90, end = 91 }]
+
+[[cases]]
+name = "current-enum-context-12"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass A(Enum): ...\nclass Subject(A):\n class A: ...\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 76, end = 77 }]
+
+[[cases]]
+name = "current-enum-context-13"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass A(Enum): ...\nclass Subject(A):\n A=unknown\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 73, end = 74 }]
+
+[[cases]]
+name = "current-enum-context-14"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass A(Enum): ...\nclass Subject(A):\n x=1\n class A: ...\n y=2\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 81, end = 82 }]
+
+[[cases]]
+name = "current-enum-context-15"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Outer:\n class A(Enum): ...\nclass Subject(Outer.A):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-16"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Outer:\n class Inner:\n  class A(Enum): ...\nclass Subject(Outer.Inner.A):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-17"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass A(Enum): ...\nclass Middle(A): ...\nA=unknown\nclass Subject(Middle):\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 98, end = 99 }]
+
+[[cases]]
+name = "current-enum-context-18"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Subject(A):\n x=1\nclass A(Enum): ...\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 43, end = 44 }]
+
+[[cases]]
+name = "current-enum-context-19"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass A(Enum): ...\nclass Subject(A):\n x=1\nA=unknown\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-20"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass A(B): ...\nclass B(A,Enum): ...\nclass Subject(A):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-21"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Subject(Enum):\n x=1\n Enum=unknown\n y=2\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 65, end = 66 }]
+
+[[cases]]
+name = "current-enum-context-22"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Subject(Enum,(Enum:=unknown)):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "current-enum-context-23"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Subject(Enum):\n global Enum\n Enum=unknown\n x=1\n" }
+expected = [{ rule = "PYI052", file = "case.pyi", start = 73, end = 74 }]
+
+[[cases]]
+name = "enum-member-catalog-0"
+comparison = "full"
+files = { "case.pyi" = "from enum import Enum\nclass Subject(Enum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "enum-member-catalog-1"
+comparison = "full"
+files = { "case.pyi" = "from enum import Flag\nclass Subject(Flag):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "enum-member-catalog-2"
+comparison = "full"
+files = { "case.pyi" = "from enum import IntEnum\nclass Subject(IntEnum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "enum-member-catalog-3"
+comparison = "full"
+files = { "case.pyi" = "from enum import IntFlag\nclass Subject(IntFlag):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "enum-member-catalog-4"
+comparison = "full"
+files = { "case.pyi" = "from enum import StrEnum\nclass Subject(StrEnum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "enum-member-catalog-5"
+comparison = "full"
+files = { "case.pyi" = "from enum import ReprEnum\nclass Subject(ReprEnum):\n x=1\n" }
+expected = []
+
+[[cases]]
+name = "enum-member-catalog-6"
+comparison = "full"
+files = { "case.pyi" = "from enum import CheckEnum\nclass Subject(CheckEnum):\n x=1\n" }
+expected = []
