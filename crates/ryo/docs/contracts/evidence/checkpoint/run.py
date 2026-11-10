@@ -650,6 +650,31 @@ def resolves_to_runtime(text,name):
  """A name a file uses is the runtime's unless every `use` that brings it in starts at another crate or at this one (crate, self, super); a name no `use` brings in counts."""
  roots=[m.group(1) for m in USE.finditer(text) if re.search(r'\b'+name+r'\b',m.group(0))]
  return not roots or any(r in ('ryo_execution_runtime','ryo_execution') for r in roots)
+REPLACED_LIST=p/'rewrite-replaced.txt'
+# The two entry functions rev 8 keeps as the declared seam (7.3 L13): `begin` and `prepare`, by path and signature.
+SEAM_ENTRIES=re.compile(r'request_execution::service::begin\b|prepared_execution::service::prepare\b')
+def replaced_set(path=REPLACED_LIST):
+ """The fused rewrite's replaced files (rewrite-replaced.txt), crates/ryo-relative."""
+ return {x.strip() for x in path.read_text().splitlines() if x.strip() and not x.startswith('#')} if path.exists() else set()
+def module_of(path):
+ """(crate library name, module path) of a crate source file: crates/execution_domain/src/domain/x/types.rs -> (ryo_execution_domain, domain::x::types)."""
+ parts=path.split('/'); crate='ryo_'+parts[1] if parts[0]=='crates' else 'ryo_'+parts[0]
+ rest=[x.removesuffix('.rs') for x in (parts[3:] if parts[2:3]==['src'] else parts[2:])]
+ return crate,'::'.join(x for x in rest if x not in ('mod','lib','main'))
+def edit_footprint(prod_text,replaced):
+ """The production files outside the runtime crate and outside the replaced set that name an item of a replaced module, by its
+ crate path (`ryo_<crate>::<module>`, or `crate::<module>` inside that crate): the files the rewrite must edit (rev 8 section 7.3),
+ the seam's two entry functions excepted."""
+ modules=sorted({module_of(f) for f in replaced if f in prod_text},key=lambda x:len(x[1]))
+ roots=[]
+ for crate,module in modules:
+  if not any(c==crate and (module==m or module.startswith(m+'::')) for c,m in roots): roots.append((crate,module))
+ hits=[]
+ for f,t in prod_text.items():
+  if f in replaced or f.startswith(EVALUATOR): continue
+  own=module_of(f)[0]; t=SEAM_ENTRIES.sub('',t)
+  if any(re.search(r'\b'+re.escape(c)+'::'+re.escape(m)+r'\b',t) or (c==own and re.search(r'\bcrate::'+re.escape(m)+r'\b',t)) for c,m in roots): hits.append(f)
+ return sorted(hits)
 def census(product):
  """Change-amplification counts over the product's tracked Rust files, read statically: what a change of each kind must touch outside its owner. A #[cfg(test)] part of a production file counts as test."""
  files=(git(product,'ls-files','*.rs') or '').split()
@@ -673,9 +698,13 @@ def census(product):
  fact=[f for f,t in prod_text.items() if PER_FILE_FACT.search(t)]
  internals=re.compile(r'\b(?:'+'|'.join(RUNTIME_INTERNALS)+r')\b')
  leaking=[f for f,t in test_text.items() if not f.startswith((EVALUATOR,STORE)) and internals.search(t)]
+ replaced=replaced_set()
  count=lambda fs:{'files':len(fs),'crates':len({census_crate(f) for f in fs})}
+ edits=edit_footprint(prod_text,replaced)
  return {'replace_the_evaluator':{'production':count(ev_prod),'test':count(ev_test),'total_files':len(set(ev_prod)|set(ev_test)),'vocabulary':len(vocabulary)},
-  'operation_exhaustive_matches':count(exhaustive),'per_file_fact_touch_points':count(fact),'cross_crate_tests_naming_runtime_internals':count(leaking)}
+  'operation_exhaustive_matches':count(exhaustive),'per_file_fact_touch_points':count(fact),'cross_crate_tests_naming_runtime_internals':count(leaking),
+  'cross_crate_tests_outside_the_replaced_set':count([f for f in leaking if f not in replaced]),
+  'rewrite_edit_footprint':dict(count(edits),list=edits,replaced_files=len(replaced))}
 if __name__=='__main__' and sys.argv[1:]==['--census']: print(json.dumps(census(p.parents[3]),indent=1)); sys.exit(0)
 if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {}),check=True))
 def validate():

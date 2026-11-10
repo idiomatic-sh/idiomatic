@@ -374,6 +374,16 @@ class Census(unittest.TestCase):
         'crates/execution_store/tests/s.rs':'RelationOwner\n','crates/values/src/m.rs':' '.join('Operation::V'+str(n) for n in range(8)),'crates/values/src/n.rs':'Operation::V1',
         'crates/values/src/op.rs':'pub enum Operation {\n'+''.join('    V'+str(n)+',\n' for n in range(9))+'}\n',
         'languages/go/src/r.rs':'binding_read','crates/relations/src/r.rs':'BindingRead','crates/core/src/r_test.rs':'binding_read'}
+ def test_the_edit_footprint_counts_files_outside_the_runtime_and_the_replaced_set_that_name_a_replaced_module(self):
+  replaced={'crates/execution_domain/src/domain/executable_program/types.rs','crates/execution_runtime/src/application/file_dag/program/runtime/service.rs'}
+  prod={'crates/execution_domain/src/domain/executable_program/types.rs':'pub struct ExecutableProgram;\n',
+        'crates/execution_domain/src/domain/shared_walk/value.rs':'use crate::domain::executable_program::types::ExecutableProgram;\n',
+        'crates/core/src/a.rs':'use ryo_execution_domain::domain::executable_program::types::ExecutableProgram;\n',
+        'crates/core/src/b.rs':'use crate::domain::executable_program::Other;\n',
+        'crates/execution/src/c.rs':'use ryo_execution_runtime::application::file_dag::program::request_execution::service::begin;\n',
+        'crates/execution_runtime/src/application/file_dag/program/context.rs':'use crate::application::file_dag::program::runtime::service::x;\n'}
+  self.assertEqual(run.edit_footprint(prod,replaced),['crates/core/src/a.rs','crates/execution_domain/src/domain/shared_walk/value.rs'])
+
  def census(self,**changes):
   with tempfile.TemporaryDirectory() as repo:
    subprocess.run(['git','init','-q',repo],check=True)
