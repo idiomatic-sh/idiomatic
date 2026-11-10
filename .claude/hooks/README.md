@@ -1,9 +1,13 @@
 # Harness hooks
 
 `guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent:
-no subagent spawns another, and a `builder` or `contract-migration` launch needs `SCOPE=<path>`, a report whose second line is `BEADS: <id> ...` listing its bead, with a passing
-`scope-review-<report stem>.json` that carries the report's sha256),
-`acceptance_on_stop.py` (SubagentStop) and `check_in_on_stop.py` (Stop). `test_hooks.py` holds their cases; run it with
+no subagent spawns another, judged by the payload's `agent_id`; and a `builder` or `contract-migration` launch, or any
+launch but the integrator's whose prompt has `BEAD:` and `WORKTREE:` lines, needs `SCOPE=<path>`, a report whose second
+line is `BEADS: <id> ...` listing every bead of the brief, with a passing `scope-review-<report stem>.json` that carries
+the report's sha256), `acceptance_on_stop.py` (SubagentStop: the builder, contract-migration and integrator stops run
+each bead's acceptance block, and the reviewers and the scope review hold until their verdict file is valid; it reads
+the agent's own transcript, `agent_transcript_path`, before `transcript_path`, which is the parent session's) and
+`check_in_on_stop.py` (Stop, the main session's own `transcript_path`). `test_hooks.py` holds their cases; run it with
 `python3 -m unittest test_hooks` in this directory.
 
 ## Threat model

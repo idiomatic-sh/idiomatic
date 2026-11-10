@@ -1306,6 +1306,15 @@ class BranchMerge(unittest.TestCase):
         self.assertEqual(self.merge().returncode, 0)
 
 
+def write_transcript(path, brief, report):
+    """A transcript whose first user message is brief and whose last assistant message is report."""
+    rows = [{"type": "user", "timestamp": "2026-11-10T00:00:00Z", "message": {"role": "user", "content": brief}},
+            {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "working"}]}},
+            {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": report}]}}]
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(json.dumps(r) for r in rows))
+
+
 class Acceptance(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
@@ -1319,19 +1328,28 @@ class Acceptance(unittest.TestCase):
         notes = "intro\nACCEPTANCE:\n" + script + "\nEND ACCEPTANCE\nafter"
         path = os.path.join(self.bin, "bd")
         with open(path, "w", encoding="utf-8") as handle:
-            handle.write("#!/bin/sh\ncat <<'NOTES'\n" + json.dumps([{"id": "ryo-t1", "notes": notes}]) + "\nNOTES\n")
+            handle.write("#!/bin/sh\nif [ \"$2\" != ryo-t1 ]; then echo '[]'; exit 0; fi\ncat <<'NOTES'\n" +
+                         json.dumps([{"id": "ryo-t1", "notes": notes}]) + "\nNOTES\n")
         os.chmod(path, 0o755)
 
-    def stop(self, brief, report):
+    def payload(self, brief, report, agent="builder"):
+        """Claude Code's SubagentStop payload: the builder's own transcript in agent_transcript_path, its last
+        message in last_assistant_message, and transcript_path the PARENT session's, here a decoy builder brief
+        for another bead that a hook reading the wrong transcript would judge instead."""
         transcript = os.path.join(self.dir.name, "t.jsonl")
-        rows = [{"type": "user", "message": {"role": "user", "content": brief}},
-                {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "working"}]}},
-                {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": report}]}}]
-        with open(transcript, "w", encoding="utf-8") as handle:
-            handle.write("\n".join(json.dumps(r) for r in rows))
-        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ["PATH"],
-                   CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
-        return run_hook("acceptance_on_stop.py", {"transcript_path": transcript, "stop_hook_active": False}, env)
+        write_transcript(transcript, brief, report)
+        parent = os.path.join(self.dir.name, "parent.jsonl")
+        write_transcript(parent, "BEAD: ryo-parent\nWORKTREE: " + self.work + "\nPM session.", "DONE: decoy")
+        return {"session_id": "s1", "transcript_path": parent, "hook_event_name": "SubagentStop",
+                "stop_hook_active": False, "agent_id": "a1", "agent_type": agent,
+                "agent_transcript_path": transcript, "last_assistant_message": report}
+
+    def env(self):
+        return dict(os.environ, PATH=self.bin + os.pathsep + os.environ["PATH"],
+                    CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
+
+    def stop(self, brief, report, agent="builder"):
+        return run_hook("acceptance_on_stop.py", self.payload(brief, report, agent), self.env())
 
     def brief(self):
         return "BEAD: ryo-t1\nWORKTREE: " + self.work + "\nDo the work."
@@ -1361,6 +1379,7 @@ class Acceptance(unittest.TestCase):
     def test_not_a_builder(self):
         self.fake_bd("false")
         self.assertEqual(self.stop("Just research this.", "DONE: ok").returncode, 0)
+        self.assertEqual(self.stop(self.brief(), "All finished.", agent="Explore").returncode, 0)
 
     def test_missing_prefix(self):
         self.fake_bd("true")
@@ -1376,6 +1395,7 @@ class Acceptance(unittest.TestCase):
         os.chmod(path, 0o755)
         work = "\nWORKTREE: " + self.work + "\nDo the work."
         self.assertEqual(self.stop("BEAD: ryo-t1" + work, "DONE: ok").returncode, 0)
+        self.assertEqual(self.stop("BEAD: ryo-t2" + work, "DONE: ok").returncode, 2)
         for brief in ("BEAD: ryo-t1 ryo-t2" + work, "BEAD: ryo-t1\nBEAD: ryo-t2" + work):
             with self.subTest(brief=brief):
                 result = self.stop(brief, "DONE: ok")
@@ -1386,26 +1406,25 @@ class Acceptance(unittest.TestCase):
         copy = os.path.join(self.dir.name, "copy")
         os.makedirs(os.path.join(copy, ".claude", "hooks"))
         shutil.copy(os.path.join(HERE, "acceptance_on_stop.py"), os.path.join(copy, ".claude", "hooks"))
-        transcript = os.path.join(self.dir.name, "t.jsonl")
-        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ["PATH"],
-                   CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
+        env = self.env()
         self.fake_bd("true")
         for broken in ("import no_such_module_planted\n", "def (:\n"):
-            for report in ("All finished.", "BLOCKED: which crate?"):
-                with self.subTest(broken=broken, report=report):
-                    with open(os.path.join(copy, ".claude", "hooks", "no_subagent_builders.py"), "w",
-                              encoding="utf-8") as handle:
-                        handle.write(broken)
-                    self.stop(self.brief(), report)  # writes the transcript
+            with open(os.path.join(copy, ".claude", "hooks", "no_subagent_builders.py"), "w", encoding="utf-8") as handle:
+                handle.write(broken)
+            for agent, report, code in [("builder", "All finished.", 2), ("builder", "BLOCKED: which crate?", 2),
+                                        ("contract-migration", "All finished.", 2), ("Explore", "All finished.", 0),
+                                        ("scoper", "PROCEED", 0)]:
+                with self.subTest(broken=broken, agent=agent, report=report):
                     result = subprocess.run(["python3", "-I", os.path.join(copy, ".claude", "hooks", "acceptance_on_stop.py")],
-                                            input=json.dumps({"transcript_path": transcript, "stop_hook_active": False}),
+                                            input=json.dumps(self.payload(self.brief(), report, agent)),
                                             capture_output=True, text=True, env=env, check=False)
-                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertEqual(result.returncode, code, result.stderr)
 
     def test_stop_allowed_after_five_failures(self):
         self.fake_bd("false")
-        codes = [self.stop(self.brief(), "DONE: x").returncode for _ in range(5)]
-        self.assertEqual(codes, [2, 2, 2, 2, 0])
+        results = [self.stop(self.brief(), "DONE: x") for _ in range(5)]
+        self.assertEqual([r.returncode for r in results], [2, 2, 2, 2, 0])
+        self.assertIn("Acceptance failed for ryo-t1", results[0].stderr)
 
 
 SHA = "a" * 40
@@ -1552,23 +1571,90 @@ class ReviewerStop(unittest.TestCase):
         self.assertEqual(self.stop("perf-diagnosis").returncode, 0)
 
 
+class RealStopPayload(unittest.TestCase):
+    """Each stop type driven by the payload Claude Code sends on SubagentStop, with the parent session's transcript
+    in transcript_path and a last message only in last_assistant_message, so a hook reading the wrong field fails."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.env = dict(os.environ, CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
+        self.parent = os.path.join(self.dir.name, "parent.jsonl")
+        write_transcript(self.parent, "The PM session.", "Launching agents.")
+
+    def stop(self, agent, brief, last, env=None):
+        transcript = os.path.join(self.dir.name, "agent.jsonl")
+        clock = __import__("datetime")
+        rows = [{"type": "user", "timestamp": (clock.datetime.now(clock.timezone.utc) -
+                                               clock.timedelta(seconds=60)).isoformat(),
+                 "message": {"role": "user", "content": brief}},
+                {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "working"}]}}]
+        with open(transcript, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(json.dumps(r) for r in rows))
+        payload = {"session_id": "s1", "transcript_path": self.parent, "hook_event_name": "SubagentStop",
+                   "stop_hook_active": False, "agent_id": "a1", "agent_type": agent,
+                   "agent_transcript_path": transcript, "last_assistant_message": last}
+        return run_hook("acceptance_on_stop.py", payload, env or self.env)
+
+    def test_builder(self):
+        work = os.path.join(self.dir.name, "tree")
+        os.mkdir(work)
+        bin_dir = os.path.join(self.dir.name, "bin")
+        os.mkdir(bin_dir)
+        with open(os.path.join(bin_dir, "bd"), "w", encoding="utf-8") as handle:
+            handle.write("#!/bin/sh\nprintf '[{\"notes\": \"ACCEPTANCE:\\\\ntest -f ok\\\\nEND ACCEPTANCE\"}]\\n'\n")
+        os.chmod(os.path.join(bin_dir, "bd"), 0o755)
+        env = dict(self.env, PATH=bin_dir + os.pathsep + os.environ["PATH"])
+        brief = "BEAD: ryo-t1\nWORKTREE: " + work + "\nDo it."
+        self.assertEqual(self.stop("builder", brief, "DONE: R1", env).returncode, 2)
+        open(os.path.join(work, "ok"), "w").close()
+        self.assertEqual(self.stop("builder", brief, "DONE: R1", env).returncode, 0)
+        self.assertEqual(self.stop("builder", brief, "Finished.", env).returncode, 2)
+
+    def test_reviewer(self):
+        tree = os.path.join(self.dir.name, "ryo-333")
+        os.makedirs(os.path.join(tree, "crates/ryo/docs/contracts/evidence/checkpoint"))
+        brief = "INTEGRATION_TREE=" + tree + " SOURCE=" + SHA
+        self.assertEqual(self.stop("rust-review", brief, "Reviewed.").returncode, 2)
+        with open(os.path.join(tree, "crates/ryo/docs/contracts/evidence/checkpoint/rust-review.json"), "w",
+                  encoding="utf-8") as handle:
+            json.dump({"source": SHA, "verdict": "FAIL", "reviewer": "rust-review",
+                       "checks": [{"id": "1", "verdict": "FAIL", "evidence": "x.rs:1"}]}, handle)
+        self.assertEqual(self.stop("rust-review", brief, "Reviewed.").returncode, 0)
+
+    def test_scope_review(self):
+        scope = os.path.join(self.dir.name, "scope-ryo-x.md")
+        with open(scope, "w", encoding="utf-8") as handle:
+            handle.write("PROCEED\nBEADS: ryo-x\n")
+        self.assertEqual(self.stop("scope-review", "Review SCOPE=" + scope, "Reviewed.").returncode, 2)
+        self.assertEqual(self.stop("scope-review", "Review SCOPE=" + scope, "BLOCKED: which goal?").returncode, 0)
+        with open(os.path.join(self.dir.name, "scope-review-ryo-x.json"), "w", encoding="utf-8") as handle:
+            json.dump(with_digest({"rows": scope_rows(), "verdict": "PASS"}, scope), handle)
+        self.assertEqual(self.stop("scope-review", "Review SCOPE=" + scope, "Reviewed.").returncode, 0)
+
+
 class NoSubagentBuilders(unittest.TestCase):
     SUB = "/home/u/.claude/projects/p/s1/subagents/agent-a1.jsonl"
     MAIN = "/home/u/.claude/projects/p/s1.jsonl"
 
-    def spawn(self, tool, path):
-        return run_hook("no_subagent_builders.py", {"tool_name": tool, "tool_input": {}, "transcript_path": path})
+    def spawn(self, tool, agent_id=None):
+        """Claude Code's PreToolUse payload: transcript_path is the session's in a subagent too; agent_id is set only
+        when a subagent makes the call."""
+        payload = {"tool_name": tool, "tool_input": {}, "transcript_path": self.MAIN, "hook_event_name": "PreToolUse"}
+        if agent_id:
+            payload.update(agent_id=agent_id, agent_type="builder")
+        return run_hook("no_subagent_builders.py", payload)
 
     def test_refused_from_subagent(self):
-        result = self.spawn("Agent", self.SUB)
+        result = self.spawn("Agent", agent_id="a1")
         self.assertEqual(result.returncode, 2)
         self.assertIn("Blocked: a builder never spawns subagents", result.stderr)
 
     def test_allowed_from_main_session(self):
-        self.assertEqual(self.spawn("Agent", self.MAIN).returncode, 0)
+        self.assertEqual(self.spawn("Agent").returncode, 0)
 
     def test_allowed_for_other_tool(self):
-        self.assertEqual(self.spawn("Bash", self.SUB).returncode, 0)
+        self.assertEqual(self.spawn("Bash", agent_id="a1").returncode, 0)
 
     def test_allowed_on_malformed_input(self):
         result = subprocess.run(["python3", "-I", os.path.join(HERE, "no_subagent_builders.py")],
@@ -1619,8 +1705,11 @@ class ScopeGate(unittest.TestCase):
         return path
 
     def launch(self, prompt, kind="builder"):
-        payload = {"tool_name": "Agent", "transcript_path": self.MAIN,
-                   "tool_input": {"subagent_type": kind, "prompt": prompt}}
+        tool_input = {"prompt": prompt, "description": "work"}
+        if kind:
+            tool_input["subagent_type"] = kind
+        payload = {"tool_name": "Agent", "transcript_path": self.MAIN, "hook_event_name": "PreToolUse",
+                   "tool_input": tool_input}
         return run_hook("no_subagent_builders.py", payload, env=self.env)
 
     def brief(self, extra, bead="ryo-x", tree=None):
@@ -1751,6 +1840,15 @@ class ScopeGate(unittest.TestCase):
 
     def test_other_agents_need_no_scope(self):
         self.assertEqual(self.launch("review sha x", kind="leak-review").returncode, 0)
+
+    def test_any_launch_with_a_builder_brief_needs_a_scope_except_the_integrator(self):
+        for kind in ("general-purpose", "Explore", None):
+            with self.subTest(kind=kind):
+                self.assertEqual(self.launch(self.brief(""), kind=kind).returncode, 2)
+        self.assertEqual(self.launch(self.brief(""), kind="integrator").returncode, 0)
+        self.assertEqual(self.launch("BEAD: ryo-x\nSurvey the bead.", kind="general-purpose").returncode, 0)
+        path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path), kind="general-purpose").returncode, 0)
 
 
 class ScopeReviewStop(unittest.TestCase):

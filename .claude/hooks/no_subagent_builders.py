@@ -18,6 +18,7 @@ ROW = re.compile(r"^\|\s*(S\w+)\s", re.MULTILINE)
 DEFERRAL = re.compile(r"For a DEFER or DROP report,[^.]*")
 FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
 GATED = {"builder", "contract-migration"}  # the agents that edit code launch only on a passed scope
+UNGATED = "integrator"  # carries BEAD:/WORKTREE: briefs to land work, not to author it
 TRAILING = ".,;:)]}>'\"`"
 NEEDS = ("a builder needs SCOPE=<path to scope-<stem>.md>, a report whose first line starts PROCEED or RESHAPE and "
          "whose second line is exactly `BEADS: <id> ...` listing every bead of the brief's BEAD: lines, with "
@@ -212,14 +213,18 @@ def main():
         return 0
     if not isinstance(data, dict) or data.get("tool_name") != "Agent":
         return 0
-    path = data.get("transcript_path")
-    if isinstance(path, str) and "subagents" in os.path.normpath(path).split(os.sep)[:-1]:
+    if data.get("agent_id"):  # set only when a subagent makes the call; transcript_path is the session's either way
         print(MESSAGE, file=sys.stderr)
         return 2
     tool_input = data.get("tool_input") or {}
-    if tool_input.get("subagent_type") in GATED:
+    kind, prompt = tool_input.get("subagent_type"), str(tool_input.get("prompt") or "")
+    try:
+        brief = kind != UNGATED and bool(brief_beads(prompt)) and brief_worktree(prompt) is not None
+    except Exception:  # a parser that breaks gates the launch
+        brief = True
+    if kind in GATED or brief:  # a builder brief needs a passed scope whatever agent type carries it
         try:
-            found = builder_problem(str(tool_input.get("prompt") or ""))
+            found = builder_problem(prompt)
         except Exception as error:  # a gate that breaks refuses, never lets the launch through
             found = "the scope gate failed (" + type(error).__name__ + ": " + str(error) + ")"
         if found:

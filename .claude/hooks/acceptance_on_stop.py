@@ -14,6 +14,7 @@ LIMIT = 5
 BD_HOME = "/workspaces/idiomatic"
 EVIDENCE = "crates/ryo/docs/contracts/evidence/"
 # The verdict file of each review agent, under the evidence directory; a leak review of a branch writes branches/<branch>.json.
+ACCEPTED = {"builder", "contract-migration", "integrator"}  # the agents whose stop runs the beads' acceptance
 REVIEWERS = {"rust-review": "checkpoint/rust-review.json", "contract-review": "checkpoint/contract-review.json",
              "leak-review": "checkpoint/leak-review.json", "tm-steward": "checkpoint/tm-steward.json"}
 TRAILING = ".,;:)]}>'\"`"
@@ -300,10 +301,14 @@ def main():
         return scope_review_stop(data)
     if data.get("agent_type") in REVIEWERS:
         return reviewer_stop(data, data["agent_type"])
-    path = data.get("transcript_path")
+    if data.get("agent_type") not in ACCEPTED:
+        return 0
+    # On SubagentStop, transcript_path is the parent session's; the agent's own is agent_transcript_path.
+    path = data.get("agent_transcript_path") or data.get("transcript_path")
     if not path or not os.path.exists(path):
         return 0
     first, last = read_transcript(path)
+    last = (data.get("last_assistant_message") or last).strip()
     try:
         gate = gate_module()
     except Exception as error:  # the brief cannot be read without the gate's parser; hold, never release
