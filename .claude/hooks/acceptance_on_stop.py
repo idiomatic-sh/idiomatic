@@ -183,7 +183,7 @@ def scope_review_stop(data):
     review, problem = gate.load(review_path)
     if problem:
         return hold(problem)
-    problem = gate.scope_review_problem(review)
+    problem = gate.scope_review_problem(review, scope)
     return hold(review_path + " " + problem) if problem else 0
 
 

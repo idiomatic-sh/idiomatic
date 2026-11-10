@@ -14,6 +14,7 @@ STATE = os.environ.get("CLAUDE_HOOKS_STATE", "/tmp/claude-hooks")
 SCOPED = os.path.join(STATE, "scoped-branches")
 RUBRIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".agents", "agents", "scope-review.md")
 ROW = re.compile(r"^\|\s*(S\w+)\s", re.MULTILINE)
+DEFERRAL = re.compile(r"For a DEFER or DROP report,[^.]*")
 SCOPE = re.compile(r"(?<![A-Za-z0-9_])SCOPE=(\S+)")
 FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
 WORKTREE = re.compile(r"^WORKTREE:\s*(\S+)", re.MULTILINE)
@@ -28,19 +29,38 @@ def review_path(scope):
     return os.path.join(os.path.dirname(scope), "scope-review-" + found.group(1) + ".json") if found else None
 
 
-def rubric_rows():
-    """The row ids of the rubric table in scope-review.md (its `| S<id> ...` rows), in order: the one definition."""
+def rubric_rows(deferral=False):
+    """The row ids scope-review.md grades, in order: every `| S<id> ...` row of its rubric table, or for a DEFER or
+    DROP report the rows its "For a DEFER or DROP report, ..." sentence names. The rubric is the one definition."""
     try:
         with open(RUBRIC, encoding="utf-8") as handle:
-            return ROW.findall(handle.read())
+            text = handle.read()
     except OSError:
         return []
+    rows = ROW.findall(text)
+    if not deferral:
+        return rows
+    sentence = DEFERRAL.search(text)
+    named = set(re.findall(r"\bS\w+", sentence.group(0))) if sentence else set()
+    return [row for row in rows if row in named]
 
 
-def scope_review_problem(review):
-    """Why review is not a valid scope review (the rubric rows in order, each PASS or FAIL with a reason, and a verdict
-    that is PASS exactly when every row passes), or None."""
-    rubric = rubric_rows()
+def scope_verdict(scope):
+    """The first word of the scope report's first non-blank line (PROCEED, RESHAPE, DEFER, DROP), or None."""
+    try:
+        with open(scope, encoding="utf-8") as handle:
+            first = next((line for line in handle if line.strip()), "")
+    except OSError:
+        return None
+    found = re.match(r"[A-Z]+", first)
+    return found.group(0) if found else None
+
+
+def scope_review_problem(review, scope):
+    """Why review is not a valid scope review of the report at scope, or None: the rows the rubric grades for that
+    report's verdict, in order, each PASS or FAIL with a reason (a row carried forward from an earlier review counts
+    as written), and a verdict that is PASS exactly when every row passes."""
+    rubric = rubric_rows(deferral=scope_verdict(scope) in ("DEFER", "DROP"))
     if not rubric:
         return "cannot be judged: no rubric rows in " + os.path.normpath(RUBRIC)
     if not isinstance(review, dict) or not isinstance(review.get("rows"), list):
@@ -70,12 +90,7 @@ def load(path):
 
 
 def scope_problem(scope):
-    try:
-        with open(scope, encoding="utf-8") as handle:
-            first = next((line for line in handle if line.strip()), "")
-    except OSError as error:
-        return "the scope report " + scope + " cannot be read (" + str(error.strerror) + ")"
-    if not first.startswith(("PROCEED", "RESHAPE")):
+    if scope_verdict(scope) not in ("PROCEED", "RESHAPE"):
         return "the scope report " + scope + " does not start with PROCEED or RESHAPE"
     path = review_path(scope)
     if path is None:
@@ -83,7 +98,7 @@ def scope_problem(scope):
     review, problem = load(path)
     if problem:
         return problem
-    problem = scope_review_problem(review)
+    problem = scope_review_problem(review, scope)
     if problem:
         return path + " " + problem
     if review["verdict"] != "PASS":

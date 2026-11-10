@@ -1578,8 +1578,10 @@ class ScopeGate(unittest.TestCase):
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
 
     def test_refuses_a_dropped_scope(self):
-        path = self.scope("DROP: the rewrite deletes this code", {"rows": scope_rows(), "verdict": "PASS"})
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        for rows in (scope_rows(), [r for r in scope_rows() if r["id"] in ("S1", "S10")]):
+            with self.subTest(rows=len(rows)):
+                path = self.scope("DROP: the rewrite deletes this code", {"rows": rows, "verdict": "PASS"})
+                self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
 
     def test_allows_a_passed_proceed_or_reshape(self):
         for verdict in ("PROCEED", "RESHAPE: one crate, not two"):
@@ -1667,6 +1669,21 @@ class ScopeReviewStop(unittest.TestCase):
                 self.assertEqual(self.stop().returncode, 0)
         os.remove(self.review)
         self.assertEqual(self.stop(report="BLOCKED: which goal?").returncode, 0)
+
+    def test_a_defer_or_drop_review_grades_s1_and_s10_only(self):
+        short = [r for r in scope_rows({"S10"}) if r["id"] in ("S1", "S10")]
+        for verdict in ("DEFER: until the rewrite lands", "DROP: the rewrite deletes this code"):
+            with self.subTest(verdict=verdict):
+                with open(self.scope, "w", encoding="utf-8") as handle:
+                    handle.write(verdict + "\n")
+                self.write({"rows": short, "verdict": "FAIL"})
+                self.assertEqual(self.stop().returncode, 0)
+                self.write({"rows": scope_rows(), "verdict": "PASS"})
+                self.assertEqual(self.stop().returncode, 2)
+        with open(self.scope, "w", encoding="utf-8") as handle:
+            handle.write("PROCEED\n")
+        self.write({"rows": short, "verdict": "FAIL"})
+        self.assertEqual(self.stop().returncode, 2)
 
 
 class CheckInOnStop(unittest.TestCase):
