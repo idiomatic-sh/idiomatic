@@ -42,8 +42,8 @@ def brief_beads(prompt):
 
 
 def brief_worktree(prompt):
-    """The path of the brief's `WORKTREE:` line, or None."""
-    found = re.search(r"^WORKTREE:[ \t]*(\S+)", prompt, re.MULTILINE)
+    """The absolute path of the brief's exact `WORKTREE: /abs/path` line, or None."""
+    found = re.search(r"^WORKTREE: (/\S*)[ \t]*$", prompt, re.MULTILINE)
     return found.group(1) if found else None
 
 
@@ -185,8 +185,14 @@ def worktree_branch(prompt):
     return result.stdout.strip() or None
 
 
+BRIEF_FORM = ("a builder brief starts with exact lines `BEAD: <id>` (one per bead) and `WORKTREE: /abs/path`, "
+              "unadorned and unindented")
+
+
 def builder_problem(prompt):
     beads = brief_beads(prompt)
+    if not beads or brief_worktree(prompt) is None:
+        return "the brief lacks " + ("a `BEAD:` line" if not beads else "a `WORKTREE: /abs/path` line") + "; " + BRIEF_FORM
     scope = brief_scope(prompt)
     if scope:
         found = scope_problem(scope, beads)

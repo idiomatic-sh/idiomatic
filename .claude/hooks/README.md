@@ -2,11 +2,13 @@
 
 `guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent:
 no subagent spawns another, judged by the payload's `agent_id`; a prompt with `BEAD:` and `WORKTREE:` lines launches only
-as `builder`, `contract-migration` or `integrator`; and a `builder` or `contract-migration` launch needs `SCOPE=<path>`,
+as `builder`, `contract-migration` or `integrator`; and a `builder` or `contract-migration` launch needs exact
+`BEAD: <id>` and `WORKTREE: /abs/path` lines and `SCOPE=<path>`,
 a report whose second line is `BEADS: <id> ...` listing every bead of the brief, with a passing
 `scope-review-<report stem>.json` that carries the report's sha256), `acceptance_on_stop.py` (SubagentStop: the
 builder, contract-migration and integrator stops run each bead's acceptance block, the reviewers and the scope review
-hold until their verdict file is valid, and any error holds the stop; it reads the agent's own transcript,
+hold until their verdict file is valid, a builder or contract-migration brief without those exact lines holds
+unless it replies BLOCKED, and any error holds the stop; it reads the agent's own transcript,
 `agent_transcript_path`, before `transcript_path`, which is the parent session's) and `check_in_on_stop.py` (Stop, the
 main session's own `transcript_path`). `test_hooks.py` holds their cases; run it with
 `python3 -m unittest test_hooks` in this directory.

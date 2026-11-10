@@ -348,7 +348,11 @@ def stop(data):
         return 2
     beads, tree = gate.brief_beads(first), gate.brief_worktree(first)
     if not beads or not tree:
-        return 0
+        if data.get("agent_type") not in gate.GATED or last.startswith("BLOCKED:"):
+            return 0  # an integrator may run without a brief
+        print("Stop held: the brief lacks an exact `BEAD: <id>` or `WORKTREE: /abs/path` line, so no acceptance block "
+              "can run; reply BLOCKED: <one question>.", file=sys.stderr)
+        return 2
     if last.startswith("BLOCKED:"):
         return max(success(bead) for bead in beads)
     if not last.startswith("DONE:"):

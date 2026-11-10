@@ -1315,6 +1315,20 @@ def write_transcript(path, brief, report):
         handle.write("\n".join(json.dumps(r) for r in rows))
 
 
+def malformed_briefs(tree):
+    """Builder briefs without an exact `BEAD: <id>` and `WORKTREE: /abs/path` line: the leak review's six worktree
+    spellings (a copied 2026-09-23 brief among them) and two bead spellings."""
+    rest = "\nSCOPE={scope}\nR1 do the work."
+    return {"no worktree line": "BEAD: ryo-x" + rest,
+            "Worktree:": "BEAD: ryo-x\nWorktree: " + tree + rest,
+            "WORKTREE=": "BEAD: ryo-x\nWORKTREE=" + tree + rest,
+            "bold": "BEAD: ryo-x\n**WORKTREE:** " + tree + rest,
+            "indented": "BEAD: ryo-x\n  WORKTREE: " + tree + rest,
+            "copied old brief": "BEAD: ryo-x\nWork in your own git worktree, on a branch named for the bead." + rest,
+            "relative worktree": "BEAD: ryo-x\nWORKTREE: ryo-criteria" + rest,
+            "Bead:": "Bead: ryo-x\nWORKTREE: " + tree + rest}
+
+
 class Acceptance(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
@@ -1378,7 +1392,8 @@ class Acceptance(unittest.TestCase):
 
     def test_not_a_builder(self):
         self.fake_bd("false")
-        self.assertEqual(self.stop("Just research this.", "DONE: ok").returncode, 0)
+        self.assertEqual(self.stop("Just research this.", "DONE: ok", agent="general-purpose").returncode, 0)
+        self.assertEqual(self.stop("Land checkpoint 7.", "DONE: ok", agent="integrator").returncode, 0)
         self.assertEqual(self.stop(self.brief(), "All finished.", agent="Explore").returncode, 0)
 
     def test_missing_prefix(self):
@@ -1408,6 +1423,14 @@ class Acceptance(unittest.TestCase):
                       "BEAD: ryo-t1\nWORKTREE: " + os.path.join(self.dir.name, "no-such-tree") + "\nDo it."):
             with self.subTest(brief=brief):
                 self.assertEqual(self.stop(brief, "DONE: ok").returncode, 2)
+
+    def test_a_builder_brief_without_exact_bead_and_worktree_lines_is_held(self):
+        self.fake_bd("false")
+        for name, brief in malformed_briefs(self.work).items():
+            for agent in ("builder", "contract-migration"):
+                with self.subTest(brief=name, agent=agent):
+                    self.assertEqual(self.stop(brief.format(scope="x"), "DONE: ok", agent=agent).returncode, 2)
+                    self.assertEqual(self.stop(brief.format(scope="x"), "BLOCKED: which tree?", agent=agent).returncode, 0)
 
     def test_a_gate_that_fails_to_load_holds_the_builder(self):
         copy = os.path.join(self.dir.name, "copy")
@@ -1813,6 +1836,16 @@ class ScopeGate(unittest.TestCase):
                 self.assertEqual(self.launch(self.brief("SCOPE=" + both, bead=beads)).returncode, 0)
                 self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped", bead=beads)).returncode, 0)
         self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped", bead="ryo-x ryo-z")).returncode, 2)
+
+    def test_a_builder_brief_without_exact_bead_and_worktree_lines_is_refused(self):
+        path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})
+        for name, brief in malformed_briefs(self.tree).items():
+            for kind in ("builder", "contract-migration"):
+                with self.subTest(brief=name, kind=kind):
+                    result = self.launch(brief.format(scope=path), kind=kind)
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("WORKTREE: /", result.stderr)
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
 
     def test_a_scope_that_is_not_utf8_is_judged_not_crashed(self):
         path = os.path.join(self.dir.name, "scope-ryo-x.md")
