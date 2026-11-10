@@ -5,7 +5,7 @@
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard_shell.py" },
-          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/closed_effect.py" }
+          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/closed_effect.py", "timeout": 30 }
         ]
       },
       {
@@ -25,7 +25,15 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/closed_effect.py" }
+          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/closed_effect.py", "timeout": 30 }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "python3 -I \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/closed_effect.py", "timeout": 30 }
         ]
       }
     ],

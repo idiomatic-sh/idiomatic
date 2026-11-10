@@ -383,24 +383,25 @@ def committed_texts(root, path):
     return [text(found[rev + ":" + path]) if found[rev + ":" + path] is not None else None for rev in revs]
 
 
-def ref_tips(root, pattern=None):
-    """The commit shas every ref (or the refs under pattern) and HEAD point at."""
-    code, out = git(root, "for-each-ref", "--format=%(objectname)", *([pattern] if pattern else []))
+def ref_tips(root):
+    """The commits known before the command: what every ref and HEAD point at, and HEAD's reflog."""
+    code, out = git(root, "for-each-ref", "--format=%(objectname)")
     found = set(out.decode().split()) if code == 0 else set()
     code, out = git(root, "rev-parse", "-q", "--verify", "HEAD")
-    if code == 0 and out.strip() and not pattern:
+    if code == 0 and out.strip():
         found.add(out.decode().strip())
+    code, out = git(root, "reflog", "--format=%H", "-n", "1000", "HEAD")
+    if code == 0:
+        found |= set(out.decode().split())
     return sorted(found)
 
 
-def tips(root, refs, head2):
-    """The commits that existed before the command whose content the working tree may now hold: the new HEAD unless
-    the command made it, and every parent of a commit the command made that it did not make. A commit the command
-    made is one no ref reached before the command and no remote-tracking ref reaches after it."""
+def made_commits(root, refs, head2):
+    """{commit: parents} of the commits the command made: reachable from HEAD after it, from no commit known
+    before it (refs only from the snapshot, nothing read after the command)."""
     if head2 is None:
-        return []
-    known = set(refs) | set(ref_tips(root, "refs/remotes"))
-    code, out = git(root, "rev-list", "--parents", head2, "--stdin", data="".join("^" + k + "\n" for k in known).encode())
+        return {}
+    code, out = git(root, "rev-list", "--parents", head2, "--stdin", data="".join("^" + k + "\n" for k in refs).encode())
     if code != 0:
         raise RuntimeError("git rev-list failed in " + root)
     made = {}
@@ -408,10 +409,27 @@ def tips(root, refs, head2):
         words = line.split()
         if words:
             made[words[0]] = words[1:]
+    return made
+
+
+def tips(head2, made):
+    """The commits that existed before the command whose content the working tree may now hold: the new HEAD unless
+    the command made it, and every parent of a commit the command made that it did not make. A command-made commit
+    is never a base."""
+    if head2 is None:
+        return []
     found = [] if head2 in made else [head2]
     for parents in made.values():
         found += [p for p in parents if p not in made and p not in found]
     return found
+
+
+def made_base(head2, made):
+    """The first commit on HEAD's first-parent line that the command did not make."""
+    commit = head2
+    while commit in made and made[commit]:
+        commit = made[commit][0]
+    return None if commit in made else commit
 
 
 def text(content):
@@ -433,19 +451,21 @@ def restore(root, path, content):
 
 
 def check_root(root, tree1, refs, scratch, listed):
+    """The refusals for one repository, each refused file restored, and HEAD cleared of a refused commit."""
     head2, tree2 = tree_of(root, scratch)
     if tree1 == tree2:
         return []
     code, out = git(root, "diff-tree", "-r", "-z", "--no-renames", "--name-only", tree1, tree2)
     changed = [p.decode() for p in out.split(b"\0") if p]
-    commits = tips(root, refs, head2)
-    operation = [c for c in committed(root)[1:] if c not in commits]
+    made = made_commits(root, refs, head2)
+    commits = tips(head2, made)
+    operation = [c for c in committed(root)[1:] if c not in commits and c not in made]
     commits += operation
     now = blobs(root, [tree2 + ":" + p for p in changed])
     candidates = [p for p in changed if os.path.basename(p) == MANIFEST or
                   (text(now[tree2 + ":" + p]) is not None and marks(text(now[tree2 + ":" + p])))]
     old = blobs(root, [rev + ":" + p for p in candidates for rev in [tree1] + commits])
-    problems = []
+    problems, refused = [], []
     for path in candidates:
         full = os.path.join(root, path)
         after = now[tree2 + ":" + path]
@@ -459,19 +479,59 @@ def check_root(root, tree1, refs, scratch, listed):
         if not found and text(after) is not None:
             found = ignore_problem(full, path, [text(b) or "" for b in bases], text(after), entries(listed, "ignore"))
         if found:
-            restore(root, path, old[tree1 + ":" + path])
             problems.append(found)
+            refused.append(path)
+    if not refused:
+        return []
+    note = clear_head(root, head2, made, refused)
+    for path in refused:
+        restore(root, path, old[tree1 + ":" + path])
+    if note:
+        problems.append(note)
     return problems
 
 
+def clear_head(root, head2, made, refused):
+    """When commits the command made carry a refused file, take them off HEAD: unpushed, `git reset --soft` to the
+    last commit the command did not make (the files' index entries reset too); pushed, a commit on top restores the
+    files. The text that tells the agent what was done, or None."""
+    base = made_base(head2, made) if head2 in made else None
+    if base is None:
+        return None
+    code, out = git(root, "diff", "--name-only", "-z", "--no-renames", base, head2, "--", *refused)
+    carried = [p.decode() for p in out.split(b"\0") if p]
+    if not carried:
+        return None
+    code, out = git(root, "for-each-ref", "--contains", head2, "--format=%(refname:short)", "refs/remotes")
+    pushed = [r for r in out.decode().split() if "/" in r and not r.endswith("/HEAD")]
+    if not pushed:
+        git(root, "reset", "-q", "--soft", base)
+        git(root, "reset", "-q", base, "--", *carried)
+        return ("This command's commits carried the refused change, so HEAD is reset (`git reset --soft " + base[:12] +
+                "`) to the last commit before them; their other changes stay staged for you to commit again.")
+    contents = blobs(root, [base + ":" + p for p in carried])
+    for path in carried:
+        restore(root, path, contents[base + ":" + path])
+    git(root, "add", "-A", "--", *carried)
+    code, _ = git(root, "-c", "core.hooksPath=/dev/null", "commit", "-q", "--no-verify", "-m",
+                  "restore closed-for-extension change", "--", *carried)
+    remote, _, branch = pushed[0].partition("/")
+    if code != 0:
+        return ("This command pushed the refused change to " + ", ".join(pushed) + " and the restoring commit failed: "
+                "restore " + ", ".join(carried) + " to " + base[:12] + ", commit, and push to " + pushed[0] + ".")
+    return ("This command pushed the refused change to " + ", ".join(pushed) + ": a commit on HEAD (\"restore "
+            "closed-for-extension change\") restores " + ", ".join(carried) + ". Push it now: `git push " + remote +
+            " HEAD:" + branch + "`.")
+
+
 REVERTED = ("The command ran, and each file above is restored to its content before the command (any other change "
-            "the command made to that file is reverted with it; a new file is removed). If the command staged or "
-            "committed the change, the index or the commit still holds it: commit the restored file. Make manifest "
-            "edits with the Edit or Write tool, which diffs them before writing.")
+            "the command made to that file is reverted with it; a new file is removed). Make manifest edits with the "
+            "Edit or Write tool, which diffs them before writing.")
 
 
 def after(data):
-    """PostToolUse: refuse and revert what the command extended or loosened."""
+    """PostToolUse, or PostToolUseFailure for a command that failed: refuse and revert what the command extended or
+    loosened."""
     scratch = state_dir()
     path = os.path.join(scratch, snapshot_key(data) + ".json")
     try:
@@ -507,7 +567,7 @@ def main():
         return 0
     if data.get("hook_event_name") == "PreToolUse":
         return before(data)
-    if data.get("hook_event_name") != "PostToolUse":
+    if data.get("hook_event_name") not in ("PostToolUse", "PostToolUseFailure"):
         return 0
     try:
         return after(data)

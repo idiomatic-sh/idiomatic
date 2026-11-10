@@ -24,10 +24,15 @@ unparsable, it admits nothing; each refusal prints the block that would admit it
 `reason`), and agents never change it. `guard_write.py` applies the model before a Write or Edit. For Bash,
 `closed_effect.py` judges the effect, never the spelling: before the command (PreToolUse) it snapshots each repository
 the command may touch, every tracked and untracked file as a git tree written through a temporary index, with the
-refs and the allowlist; after it (PostToolUse) it diffs the trees, refuses what the model refuses, and restores each
-such file to its content before the command (a new file is removed). Content git brings from commits that existed
-before the command (a checkout, merge, rebase or reset, or a side of a merge in progress) passes, and a conflicted
-manifest passes until it is resolved. A snapshot that failed refuses after the command and restores nothing.
+refs, HEAD's reflog and the allowlist; after it (PostToolUse, or PostToolUseFailure when the command fails) it diffs
+the trees, refuses what the model refuses, and restores each such file to its content before the command (a new file
+is removed). Content from commits known before the command (a checkout, merge, rebase or reset, or a side of a merge
+in progress) passes, and a conflicted manifest passes while that operation is in progress. A commit the command made
+is never a base: when one carries a refused change, HEAD is reset (`--soft`) to the last commit before it, or, if the
+command pushed it, a commit on top restores the files and the refusal names the push to make. Commits fetched and
+merged in one command count as the command's own; fetch first, then merge. A snapshot that failed refuses after the
+command and restores nothing. The hook runs with a 30 s timeout against about 250 ms measured on a 20,000-file
+worktree; a hook killed on its timeout is non-blocking in Claude Code, so it fails open.
 
 ## Threat model
 The hooks stop **honest mistakes by our own agents**: the command an agent writes by habit, by copying an old brief or
@@ -62,5 +67,5 @@ These reach past the guards and are left out on purpose; none is a spelling an a
 - for the closed-for-extension effect check: a repository the command reaches only through a path its text does not
   spell (a variable, a relative `cd` out of the working directory's repository), files git ignores, a command's
   background processes that write after it returns, and a list element moved between two entries of the same scope
-  (two unaliased entries of one rule), which keeps the fact counts equal. A change already committed by the command
-  stays in that commit; the refusal says to commit the restored file.
+  (two unaliased entries of one rule), which keeps the fact counts equal, and a commit the command makes on a branch
+  other than the one HEAD is on when it ends.
