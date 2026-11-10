@@ -324,6 +324,10 @@ class Diff(unittest.TestCase):
   self.assertEqual(len(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),3)
   (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'red.log','green':'green.log'},{'semantic':'two','status':'equivalent','argument':'same','evidence':'review.md'}]))
   self.assertEqual(len(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),3)
+  (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'red.log','green':'green.log'},
+      {'semantic':'two','status':'equivalent','argument':'same','evidence':'review.md'},{'semantic':'three','status':'unobservable','argument':'same','evidence':'review.md'}]))
+  moved={'test':run.MOVE+'; guard green before and after (table seam.json, manifest mutants.toml; green.log, green.log)','base_sha':named,'merge_sha':other}
+  self.assertEqual(run.fix_problems({'red_green':[entry,moved],'raw_identity':str(self.raw)},repo=self.repo,base=self.base),[])
   bare={'test':'the port (table seam.json)','base_sha':self.base,'merge_sha':other}
   self.assertEqual(len(run.fix_problems({'red_green':[bare],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),3)
   run.REPO=saved

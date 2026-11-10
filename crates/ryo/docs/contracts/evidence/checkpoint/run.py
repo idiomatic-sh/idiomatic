@@ -490,7 +490,10 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   # A range proven by a validation command (gate:<command>, red then green): every commit the entry covers is proven by it.
   if any(gate_proves(x,raw) for x in entries): proven.add(sha); continue
   # A range proven by a table: a commit naming no test is covered by the whole table, one naming tests by a row of it.
-  if tables and (not tests or any(t in rows for rows in tables for t in tests)): proven.add(sha); continue
+  # A commit of the range with no possible red (a move behind the seam, no behaviour change) is covered by a table entry that says
+  # so and cites the logs that show its guard green before and after.
+  moved=any(MOVE in x.get('test','') and table_of(x,raw) is not None and (cited:=re.findall(r'\b[\w.-]+\.log\b',x['test'])) and all((raw/c).is_file() for c in cited) for x in entries)
+  if tables and (not tests or moved or any(t in rows for rows in tables for t in tests)): proven.add(sha); continue
   if len((git(repo,'rev-list','--parents','-n1',sha) or '').split())>2: merges[sha]=short; continue
   if not tests: unproven[sha]='fix '+short+': its message names no test that fails before it and passes after'
   elif not entries: unproven[sha]='fix '+short+': no red_green entry has it between its base_sha and merge_sha'
@@ -511,6 +514,7 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   elif failing: unproven[sha]='merge '+short+': the validated tree fails a test its merged commits name ('+', '.join(failing[:4])+')'
  return bad+list(unproven.values())
 TABLE=re.compile(r'\btable ([\w.-]+\.json)\b')
+MOVE='move behind the seam, no behaviour change'
 MANIFEST=re.compile(r'\bmanifest ([\w./-]+\.toml)\b')
 # The repository's root: evidence/checkpoint is crates/ryo/docs/contracts/evidence/checkpoint.
 REPO=p.parents[5]
