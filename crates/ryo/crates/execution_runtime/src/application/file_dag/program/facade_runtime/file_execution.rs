@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - in the fused rewrite's replaced set (rewrite-replaced.toml): one file execution's lifecycle, which the rewrite deletes whole; its two test-only counters are gated, not split out
+// ignore: idiomatic.arch/file-length - in the fused rewrite's replaced set: one file execution's lifecycle, which the rewrite deletes whole; its two test-only counters are gated, not split out
 //! File execution and named observation lifecycle.
 use crate::application::file_dag::program::admission::AdmittedInput;
 use crate::application::file_dag::program::admission::FileGeneration;

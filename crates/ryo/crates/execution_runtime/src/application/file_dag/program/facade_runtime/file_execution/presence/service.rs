@@ -1,4 +1,4 @@
-// ignore: idiomatic.arch/file-length - in the fused rewrite's replaced set (rewrite-replaced.toml): the presence read the port publishes through and L-span's relied-span check are one admission step the rewrite deletes whole
+// ignore: idiomatic.arch/file-length - in the fused rewrite's replaced set: the presence read the port publishes through and L-span's relied-span check are one admission step the rewrite deletes whole
 //! Deciding which of a file's roots and reached regions cannot have a row or a row error there: each formula is evaluated
 //! lazily over the file's own rows, each relation's pending tests in one pass, and the answers are kept for the file.
 use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
