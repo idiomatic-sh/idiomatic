@@ -2186,8 +2186,9 @@ class ClosedForExtension(unittest.TestCase):
         if pre:
             done = self.hook("closed_effect.py", dict(payload, hook_event_name="PreToolUse"), cwd)
             self.assertEqual(done.returncode, 0, done.stderr)
-        subprocess.run(["bash", "-c", command], cwd=cwd or self.tree, env=self.env, capture_output=True, check=False)
-        return self.hook("closed_effect.py", dict(payload, hook_event_name="PostToolUse"), cwd)
+        ran = subprocess.run(["bash", "-c", command], cwd=cwd or self.tree, env=self.env, capture_output=True, check=False)
+        event = "PostToolUse" if ran.returncode == 0 else "PostToolUseFailure"
+        return self.hook("closed_effect.py", dict(payload, hook_event_name=event), cwd)
 
     def assert_reverted(self, command, path, named=()):
         """The command's effect on path is refused, path is back to its text before, and named changes are printed."""
@@ -2343,6 +2344,7 @@ class ClosedForExtension(unittest.TestCase):
                 ("for f in $(git ls-files '*tastemaker.toml'); do " + sweep + "\"$f\"; done", rules_exclude),
                 (sweep + "crates/*/tastemaker.toml", rules_exclude),
                 (sweep + "crates/x/tastemaker.toml && git commit -qam sweep", rules_exclude),
+                (sweep + "crates/x/tastemaker.toml && false", rules_exclude),
                 ("tm --format json add x", extra), ("env tm add x --at y", extra), ("uv run --no-project tm add x", extra),
                 ("python3 fix.py", extra),
                 ("node -e \"require('fs').appendFileSync('crates/x/tastemaker.toml', 'extra = [\\\"x\\\"]\\n')\"", extra),
@@ -2359,6 +2361,41 @@ class ClosedForExtension(unittest.TestCase):
                            cwd=outside)
         self.assertEqual(done.returncode, 2, done.stderr)
         self.assertEqual(self.read(self.manifest), before)
+
+    def test_a_refused_change_the_command_committed_is_taken_off_head(self):
+        sweep = "sed -i 's#\"vendor/\\*\\*\"\\]#\"vendor/**\", \"crates/new/**\"]#' crates/x/tastemaker.toml"
+        head = git(self.tree, "rev-parse", "HEAD")
+        done = self.effect(sweep + " && echo hi > notes.md && git add -A && git commit -qm sweep")
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertIn("git reset --soft", done.stderr)
+        self.assertEqual(git(self.tree, "rev-parse", "HEAD"), head)
+        self.assertEqual(git(self.tree, "diff", "--cached", "--name-only"), "notes.md")
+        self.assertEqual(self.read(self.manifest), MANIFEST)
+        for command in ["git checkout -- .", "git reset -q --hard", "git stash -q && git stash drop -q"]:
+            with self.subTest(command=command):
+                done = self.effect(command)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(self.read(self.manifest), MANIFEST)
+
+    def test_a_refused_change_pushed_in_the_same_command_is_restored_by_a_commit_on_top(self):
+        remote = os.path.join(self.dir.name, "remote.git")
+        subprocess.run(["git", "init", "-q", "--bare", remote], check=True)
+        git(self.tree, "remote", "add", "origin", remote)
+        git(self.tree, "push", "-q", "origin", "claude/closed-x")
+        git(self.tree, "fetch", "-q", "origin")
+        sweep = "sed -i 's#\"vendor/\\*\\*\"\\]#\"vendor/**\", \"crates/new/**\"]#' crates/x/tastemaker.toml"
+        done = self.effect(sweep + " && git commit -qam sweep && git push -q origin HEAD")
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertIn("git push origin HEAD:claude/closed-x", done.stderr)
+        self.assertEqual(git(self.tree, "log", "-1", "--format=%s"), "restore closed-for-extension change")
+        self.assertEqual(git(self.tree, "show", "HEAD:crates/x/tastemaker.toml") + "\n", MANIFEST)
+        self.assertEqual(self.read(self.manifest), MANIFEST)
+        done = self.effect("git push -q origin HEAD")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(git(remote, "show", "claude/closed-x:crates/x/tastemaker.toml") + "\n", MANIFEST)
+
+    def test_conflict_markers_outside_a_merge_in_progress_are_refused(self):
+        self.assert_reverted("printf '<<<<<<< x\\n' >> crates/x/tastemaker.toml", self.manifest)
 
     def test_a_loosening_removal_by_bash_is_refused_and_restored(self):
         self.assert_reverted("sed -i '/idiomatic.arch\\/second/d' crates/x/tastemaker.toml", self.manifest,
@@ -2436,9 +2473,9 @@ class ClosedForExtension(unittest.TestCase):
     def test_the_committed_settings_run_the_effect_check_before_and_after_every_bash_command(self):
         with open(os.path.join(HERE, "..", "settings.json"), encoding="utf-8") as handle:
             hooks = json.load(handle)["hooks"]
-        for event in ("PreToolUse", "PostToolUse"):
-            found = [e["matcher"] for e in hooks[event] if "closed_effect.py" in json.dumps(e)]
-            self.assertEqual(found, ["Bash"], event)
+        for event in ("PreToolUse", "PostToolUse", "PostToolUseFailure"):
+            found = [(e["matcher"], h["timeout"]) for e in hooks[event] for h in e["hooks"] if "closed_effect.py" in h["command"]]
+            self.assertEqual(found, [("Bash", 30)], event)
 
     def test_a_tightening_removal_by_bash_is_allowed(self):
         for command, path in [("sed -i 's#, \"src/old/\\*\\*\"##' crates/x/tastemaker.toml", self.manifest),
@@ -2478,6 +2515,18 @@ class ClosedForExtension(unittest.TestCase):
                 done = self.effect(command)
                 self.assertEqual(done.returncode, 0, done.stderr)
                 self.assertNotEqual(self.read(self.manifest), before)
+
+    def test_an_ignore_line_a_merge_brings_is_allowed(self):
+        line = "// ignore: idiomatic.arch/merged - the reason\n"
+        git(self.tree, "checkout", "-q", "-b", "other")
+        self.put(self.source, SOURCE + line)
+        git(self.tree, "commit", "-qam", "other adds an ignore line")
+        git(self.tree, "checkout", "-q", "claude/closed-x")
+        self.put(self.manifest, MANIFEST.replace('"target/**", "vendor/**"', '"target/**"'))
+        git(self.tree, "commit", "-qam", "here drops a rules-exclude glob")
+        done = self.effect("git merge -q --no-edit other")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn(line, self.read(self.source))
 
     def test_resolving_a_manifest_conflict_with_either_side_or_both_is_allowed(self):
         exclude = '"src/old/**"]'
