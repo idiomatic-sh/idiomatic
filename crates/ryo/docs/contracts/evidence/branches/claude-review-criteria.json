@@ -1,15 +1,145 @@
-{"checkpoint": "branch:claude/review-criteria", "source": "b9fc93cf21c3bf51bdee2a1942f4c84c8534c3a3", "verdict": "FAIL",
+{
+ "checkpoint": "branch:claude/review-criteria",
+ "source": "59d2a731ff3a1da11466c71fd27c3b6ad816aee5",
+ "verdict": "FAIL",
  "checks": [
-  {"id": "1", "verdict": "PASS", "evidence": "Docs-only diff e75e47b059..b9fc93cf21 (5 files under .agents/agents/); no engine, core or SDK contract is asserted or proved anywhere in it."},
-  {"id": "2", "verdict": "PASS", "evidence": "The diff cites no Tastemaker rule, compile_fail probe or lint and touches no test or runner; shape() in ci/contract_review/service.py:28-53 accepts any non-empty string check id, so the new ids 10/15/16/17/18/19/21 validate (this file uses 16-18)."},
-  {"id": "3", "verdict": "PASS", "evidence": "No Rust visibility, package allowlist or import boundary in the diff; .agents/agents/{*agents} is an unchecked placement (tastemaker.toml:19), so the new file needs no placement."},
-  {"id": "4", "verdict": "FAIL", "evidence": "review-criteria.md:2 claims to be the one definition of what every reviewer grades, but the mappings route items to checks whose FAIL text stays the operative, narrower definition: rust-principal-review.md:20 maps item 1 -> 12, 13, 14 and 7 -> 12 while rust-principal-review.md:60-75 keeps naming, conversions, error types, docs and semver advisory and says at :69 they never change the verdict; contract-review.md:18 maps Enforced boundaries (:14) -> item 1 and Clear ownership and flow (:15) -> item 2, neither of which states item 1's footprint/census check or item 2's old-code-deleted check; two definitions of the same check disagree, so parts of owned items are graded by nobody."},
-  {"id": "5", "verdict": "PASS", "evidence": "No crate or code touched; no layer direction to break."},
-  {"id": "6", "verdict": "PASS", "evidence": "No feature, cfg(test) or test helper touched; docs-only diff."},
-  {"id": "16", "verdict": "PASS", "evidence": "No dependency, manifest or lockfile in the diff (git diff --stat e75e47b059..b9fc93cf21 lists five .md files)."},
-  {"id": "17", "verdict": "PASS", "evidence": "No code or tool pin in the diff; nothing platform- or order-dependent added."},
-  {"id": "18", "verdict": "PASS", "evidence": "No mechanism, parser, runner or checker added; the diff is prose in .agents/agents/."}
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "No engine, core or SDK contract is asserted in e75e47b059..59d2a731ff: the diff is agent definitions and harness hooks, and test_hooks.py proves hook behaviour on temp fixtures, not on a product rule set or corpus."
+  },
+  {
+   "id": "2",
+   "verdict": "FAIL",
+   "evidence": "Both third-pass items are closed. 2a: guard_shell.py:94 skips all of '<<<' and HEREDOC has its (?<!<) lookbehind again, so the four here-string spellings plus the push case exit 2 (they exit 0 at 73649ab28b). 2b: acceptance_on_stop.py:203 state_root() reads STATE from the gate's source without running it, and failure() and success() (:257, :278) hold the stop when it cannot be read: a planted syntax error now exits 2 (it exits 1 at 73649ab28b). Every earlier probe holds: 30 shell probes and 13 scope-gate probes. One branch regression remains and the earlier passes missed it: guard_shell.py:140-145 without_heredoc_bodies skips to the end of the command when a here-doc operator's delimiter line never comes. Any operator whose terminator is never matched exactly therefore hides every later line from every guard, the push guard included. That happens with 'x=$(cat <<EOF' / 'hi' / 'EOF)', which bash 5.2 runs, warning and then running the next line. It also happens when a '<<WORD' sits inside nested quotes in a substitution ('echo \"$(printf \"%s\" \"the <<EOF form\")\"'), and with 'let x=1<<y'. With 'git push origin HEAD:main' or 'cargo build' on the next line, each spelling exits 2 at e75e47b059 and 0 at 9b42116ff3, 73649ab28b and 59d2a731ff."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "No Rust visibility, package or import boundary is in the diff. The reviewer clippy carve-out (guard_shell.py review_copy) has not changed since the second pass."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "There is one scope-review validator (no_subagent_builders.py scope_review_problem) and one review-path rule (review_path), both used by the gate and by acceptance_on_stop.py scope_review_stop. The state root is defined once (no_subagent_builders.py:14), and acceptance_on_stop.py:203 parses that definition. The rubric rows come only from the scope-review.md table."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "No crate or Rust code is touched."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "No feature, cfg(test) or test helper is reachable from a production build. CLAUDE_HOOKS_STATE is set only by tests and probes."
+  },
+  {
+   "id": "13",
+   "verdict": "PASS",
+   "evidence": "No public Rust item or crate surface changes in the diff."
+  },
+  {
+   "id": "16",
+   "verdict": "PASS",
+   "evidence": "No manifest or lockfile is in the diff. The hooks use the stdlib only (ast is added at acceptance_on_stop.py:207)."
+  },
+  {
+   "id": "17",
+   "verdict": "PASS",
+   "evidence": "The full hook suite passes on a git archive of 59d2a731ff (168 tests, OK), in temp dirs with its own CLAUDE_HOOKS_STATE."
+  },
+  {
+   "id": "18",
+   "verdict": "PASS",
+   "evidence": "No new tool or framework. The here-string and BEADS changes extend the existing hand-written guard tokenizer and gate, which the hooks threat model accepts."
+  },
+  {
+   "id": "20",
+   "verdict": "PASS",
+   "evidence": "The new logic sits in the hooks that own it: the scope gate in no_subagent_builders.py and the stop holds in acceptance_on_stop.py. No catch-all file is added."
+  }
  ],
- "plants": [],
+ "plants": [
+  {
+   "claim": "guard_shell refuses a push to main after a one-word here-string (2a)",
+   "file": ".claude/hooks/guard_shell.py:94",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "guard_shell refuses cargo build after <<<main, <<<'hello', <<< \"word\" (2a)",
+   "file": ".claude/hooks/guard_shell.py:94",
+   "count": 3,
+   "reverted": true
+  },
+  {
+   "claim": "guard_shell refuses cargo build or push after <<< next to << (cat <<<x <<EOF, <<<x<<EOF, <<EOF<<<x)",
+   "file": ".claude/hooks/guard_shell.py:94",
+   "count": 4,
+   "reverted": true
+  },
+  {
+   "claim": "guard_shell refuses cargo build after <<< inside quotes",
+   "file": ".claude/hooks/guard_shell.py:72",
+   "count": 4,
+   "reverted": true
+  },
+  {
+   "claim": "acceptance_on_stop holds a failing builder stop when no_subagent_builders.py has a syntax error (2b)",
+   "file": ".claude/hooks/acceptance_on_stop.py:257",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "guard_shell refuses a heredoc piped to fish, source /dev/stdin, . /dev/stdin",
+   "file": ".claude/hooks/guard_shell.py:63",
+   "count": 3,
+   "reverted": true
+  },
+  {
+   "claim": "builder gate admits a bead listed on a checkpoint scope's BEADS: line and refuses an unlisted one",
+   "file": ".claude/hooks/no_subagent_builders.py:122",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "builder gate refuses a checkpoint scope whose review is named for another stem",
+   "file": ".claude/hooks/no_subagent_builders.py:29",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "builder gate refuses a BEADS: line added after the review (scope_sha256)",
+   "file": ".claude/hooks/no_subagent_builders.py:70",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "builder gate refuses a child, prefix or DEFER-scope bead on a BEADS: line",
+   "file": ".claude/hooks/no_subagent_builders.py:122",
+   "count": 3,
+   "reverted": true
+  },
+  {
+   "claim": "guard_shell refuses a push to main after x=$(cat <<EOF ... EOF) (terminator never matched)",
+   "file": ".claude/hooks/guard_shell.py:140",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "guard_shell refuses a push to main after \"$(printf \"%s\" \"the <<EOF form\")\"",
+   "file": ".claude/hooks/guard_shell.py:140",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "guard_shell refuses cargo build after let x=1<<y",
+   "file": ".claude/hooks/guard_shell.py:140",
+   "count": 0,
+   "reverted": true
+  }
+ ],
  "enforcement_candidates": [],
- "reviewer": "leak-review", "date": "2026-11-10T00:00:00Z"}
+ "reviewer": "leak-review",
+ "date": "2026-11-10T02:06:00Z"
+}

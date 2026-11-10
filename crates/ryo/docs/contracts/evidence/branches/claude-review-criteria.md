@@ -1,50 +1,93 @@
-# Leak review: claude/review-criteria
+# Leak review: claude/review-criteria (fourth pass)
 
-Source `b9fc93cf21c3bf51bdee2a1942f4c84c8534c3a3`, base `e75e47b059`. Docs-only diff: `.agents/agents/review-criteria.md` (new) plus one "Grade against" line in each of `rust-principal-review.md`, `contract-review.md`, `leak-review.md` and `tm-specialist.md`, and the matching edits to the `checks` sentence. All evidence below was read with `git show b9fc93cf21:<path>`.
+Source `59d2a731ff3a1da11466c71fd27c3b6ad816aee5`, base `e75e47b059`. Everything was read with `git show 59d2a731ff:<path>`. The hooks were run from full `git archive` copies in the session scratchpad, with their own state root:
+- the source sha;
+- the base;
+- `73649ab28b` (the third pass);
+- `9b42116ff3`, where needed.
 
-Tree note: the worktree `/workspaces/ryo-criteria` was at `b9fc93cf21` at the start of the review and at `cd8d324dfc` at the end. Two commits that touch the hooks, `builder.md` and `tm-specialist.md` landed on top during the review. This review reads only the pinned sha and never wrote to the tree.
+The full hook suite passes on the archive: 168 tests, OK. The reviewed worktree stayed at `59d2a731ff` with no tracked changes.
 
-## Before and after, check by check
-No existing check was dropped, weakened or reworded. The only rewordings append text: the `checks` sentence of each reviewer now adds the own-check ids (rust :47, leak :45, contract :27), and every original FAIL/PASS row is byte-identical to the base. Coverage: every item 1-21 has at least one owner, and every owned item is either mapped or graded as its own check (Rust 19 and 21; leak 16, 17 and 18; contract 10, 15, 19 and 21; TM 9 through step 3). No item number is left without an owner.
+## Third-pass findings: closed
+- **2a, here-string.** `guard_shell.py:94` now skips all three characters of `<<<`, and `HEREDOC` (`:62`) has its `(?<!<)` lookbehind back.
+  - These spellings exit 2 here and 0 at `73649ab28b`: `read -r base <<<"main"` with `git push origin HEAD:main` on the next line, `<<<main`, `<<<'hello'` and `<<< "word"`.
+  - The test is `test_a_here_string_hides_no_later_line`, along with the refused list at `test_hooks.py:60`.
+- **2b, broken gate.** `acceptance_on_stop.py:203` `state_root()` reads `STATE` from the gate's source with `ast`, without running it, and `failure`/`success` (`:257`, `:278`) hold when it cannot be read.
+  - A planted syntax error now holds with exit 2; at `73649ab28b` it exits 1.
+  - A planted rewrite of the `STATE` line also holds, so the hook fails closed.
+- **Third-pass advisories.**
+  - `fish`, `source` and `.` now count as shells, and all three pipe spellings exit 2.
+  - The `BEADS:` line now covers checkpoint-wide naming.
+
+## Earlier probes re-run
+Each probe ran against `e75e47b059`, `73649ab28b` and `59d2a731ff`.
+
+**Shell guard.** 30 probes, all unchanged or fixed:
+- every heredoc spelling from the second and third passes (`<<-`, nested `bash -c "$(…)"`, `<<\EOF`, `/bin/bash`, `command`/`exec`/`sudo`, `bash -`, `tee | sh`, `&&`/`;` after the operator, apostrophes, comment and `$((…))` `<<`);
+- the data cases (`git commit -F - <<'EOF'`, `cat > notes.md <<'EOF'`, `git commit -m "$(cat <<'EOF' …)"`, `gh pr create --body "$(cat <<'EOF' …)"`).
+
+**Scope gate.** 13 probes:
+- another bead's scope, a rewritten report, a child bead, a missing SCOPE, and the three FOLLOWUP bypasses all refuse;
+- an own scope and a correct FOLLOWUP pass.
+
+**New probes, all refused (exit 2):**
+- `<<<` next to `<<` (`cat <<<x <<EOF`, `<<<x<<EOF`, `<<EOF<<<x`, with cargo or a push after the body);
+- `<<<` inside single or double quotes, followed by a later line;
+- `<<<<EOF`, a leading `<<<x cat`, `x=$(cat <<<y)`, and a backslash continuation into `<<EOF`.
+
+**`BEADS:` spoofing:**
+- an unlisted bead in a checkpoint scope is refused;
+- so are a child (`ryo-k.1`) or prefix (`ryo`) of a listed bead, and a DEFER checkpoint scope;
+- a `BEADS:` line added after the review is refused through `scope_sha256`;
+- a checkpoint scope whose review JSON is named for another stem (`scope-review-ryo-m.json` beside `scope-cp336.md`) is refused, because `review_path` derives the name from the report's own stem.
 
 ## 1 Proof where the contract lives: PASS
-No contract is asserted or proved anywhere in the diff.
+No contract is asserted. The hook tests prove hook behaviour on temp fixtures.
 
-## 2 Every enforcement claim fires: PASS
-The diff cites no rule, probe or lint and touches no test or runner. `shape()` (`ci/contract_review/service.py:28-53`) puts no limit on check ids or their count, so the added ids validate. This file uses 16-18 and passed `shape(..., "leak-review")`. No other consumer in `ci/` or `.claude/hooks/` counts checks or fixes their ids.
+## 2 Every enforcement claim fires: FAIL
+**A here-doc whose terminator never matches hides every later line from every guard, the push guard included** (`guard_shell.py:140-145`, `without_heredoc_bodies`). When a `<<WORD` operator's delimiter line never appears exactly, the body skip runs to the end of the command. Every later line is then dropped before any guard reads it.
+
+The three spellings below exit 2 at `e75e47b059`, with `git push origin HEAD:main` or `cargo build` on the next line. They exit 0 at `9b42116ff3`, at `73649ab28b` and at this sha. The class has been there since the heredoc change (`7203127513`), and the earlier passes missed it.
+- `x=$(cat <<EOF` / `hi` / `EOF)` (also with `<<'EOF'`). Bash 5.2 accepts this: it warns "delimited by end-of-file", ends the substitution at `)`, then runs the next line. An agent can easily write `EOF)` on one line by accident.
+- `echo "$(printf '%s' "the <<EOF form")"` and the same shape inside `git commit -m "$(…)"`. `logical_line` does not model quotes nested in `$(…)`, so a literal `<<EOF` inside the inner quotes reads as an operator.
+- `let x=1<<y`, where a shift reads as an operator.
+
+Required change:
+- In `without_heredoc_bodies`, when the delimiter line is not found before the end of the text, keep the skipped lines and read them as commands (fail closed). A real here-doc that runs to the end of the command has nothing after it to hide, so this costs nothing. It closes every misparse in the class at once, including future ones, instead of one spelling per pass.
+- Add the three spellings above, each with `git push origin HEAD:main` on the next line, to the refused list at `test_hooks.py:60`.
+
+**Not counted (old gaps, unchanged at base):**
+- `bash <<<"$(cat <<EOF … )"`. A here-string handed to a shell is a known non-goal (a command passed as one string).
+- `$'it\'s'` ANSI-C quoting before a later line. The tokenizer misreads `\'`, and this exits 0 at all three shas.
 
 ## 3 Boundaries hold across crates: PASS
-No code. `.agents/agents/{*agents}` is an unchecked placement (`tastemaker.toml:19`).
+No Rust boundary is in the diff. The reviewer clippy carve-out has not changed.
 
-## 4 One implementation and one representation per concept: FAIL
-`review-criteria.md:2` says it is "the one definition of what every reviewer grades". Each reviewer's FAIL/PASS table is still the text it actually grades against, and several mappings say a check covers an item that its table does not state. That leaves two definitions of one check that disagree, so the parts that differ go ungraded. Every instance in the class:
-
-- **Rust 1 -> 12, 13, 14 and 7 -> 12** (`rust-principal-review.md:20`). Item 1 (`:12`) covers borrow-checker fights and the Public SDK contracts list (`:49-57`), which applies to the SDK surface only. Item 7 (`:18`) covers unsafe, unwrap, panics and bare `#[allow]`. Neither covers these parts of item 12: `as_`/`to_`/`into_` naming, `From`/`TryFrom`, derived traits, `#[must_use]`, iterators, or typed errors and builders outside the SDK. Neither covers these parts of item 13: semver checks run, features additive. Neither covers these parts of item 14: `# Errors`/`# Panics`, crate- and module-level docs, tested doc examples. Worse, `:60-75` makes exactly these topics advisory, and `:69` says they "never change the seven-item verdict". `:75` makes semver "advisory until distribution". So the mapping and the advisory section contradict each other.
-- **Rust 3 -> 11**. Item 11 requires "perf claims from matched, quiet measurements". Hot path (`:14`) does not state it. Contract Proof (`contract-review.md:16`) does state it, but contract review does not own item 11.
-- **Rust 2/7 -> 9**. Item 9 requires "every suppression ... actually suppresses something". No Rust item states that, and TM step 3 decides a mechanism, not whether a suppression is live.
-- **Rust 4 -> 6 and leak 4 -> 6**. Item 6 requires "one authority per policy (e.g. Tastemaker owns layout and re-exports)". Neither table states it.
-- **Contract Enforced boundaries -> 1** (`contract-review.md:14`, `:18`). Item 1's check (concept hex plus wiring, ratcheted census rows don't rise) is not in the criterion, which covers privacy and Tastemaker preventing bypasses.
-- **Contract Clear ownership and flow -> 2** (`:15`). Item 2's check (no parallel route, old code deleted in the same change) is not in the criterion.
-- **Contract Clear ownership and flow -> 5, Proof -> 7**: only partly stated. The criterion does not state "domain without I/O, imports inward, no common/utils, no flat layouts". Proof does not state "Ruff parity, Django byte identity, refusal text and error order".
-- **Leak mappings** (`leak-review.md:19`): 3 -> 3, 13, 20 and 6 -> 13, 20 hold for visibility and seams. Item 20's placement clause (Tastemaker placements, hex layer, concept dir) is in neither leak check 3 nor leak check 6. Contract review co-owns item 20 but grades it only through Enforced boundaries, which does not state placement either. As a result, nobody grades item 20's placement clause. 5 -> 3 and 1/2 -> 4 are partial too: leak check 2 covers vacuous tests and enforcement firing, but not item 4's planted-bug table for seam behaviour. Contract Proof co-owns item 4 and covers it only as "evidence covers every route".
-
-Required change, which closes the whole class at once: add one sentence to `review-criteria.md:2`, and repeat it in each "Grade against" line, saying that a check mapped to an item FAILs on any clause of that item's **Check** line in addition to its own FAIL text. Then delete or reconcile `rust-principal-review.md:69` and `:75`, so that items 12-14 can FAIL item 1 instead of being advisory only. The other way to fix it: grade every partly covered item as its own check (Rust 11, 12, 13, 14; contract 1, 2; leak 20). Either way, the reviewer's tables and the criteria file must stop disagreeing.
+## 4 One implementation and one representation per concept: PASS
+- One scope-review validator and one `review_path` serve both the gate and the scope-review stop.
+- The state root is defined once (`no_subagent_builders.py:14`), and the stop hook parses that line instead of keeping a copy.
 
 ## 5 Layer direction: PASS
-No code.
+No crate is touched.
 
 ## 6 Test seams stay out of production: PASS
-No code.
+Only tests set `CLAUDE_HOOKS_STATE`.
 
-## 16 Dependency hygiene: PASS / 17 Portable and reproducible: PASS / 18 Use what everyone uses: PASS
-No dependency, pin, code or tool in the diff.
+## 13 API stability: PASS / 16 Dependency hygiene: PASS / 17 Portable and reproducible: PASS / 18 Use what everyone uses: PASS / 20 Purposeful placement: PASS
+- 13: no public Rust surface changes.
+- 16: stdlib only (`ast` added).
+- 17: the suite passes on a clean archive in temp dirs.
+- 18: no new tool.
+- 20: the logic sits in the hooks that own it.
 
 ## Advisories (no verdict effect)
-- **Agent loading.** `.claude/agents` is a symlink to `../.agents/agents`. `review-criteria.md` is the only file there without YAML frontmatter; every other file starts with `---` and has `name`/`description`. Claude Code skips an agents-directory `.md` that lacks a `name`/`description` frontmatter. The skipped file can show up as a parse error in `/agents`, but the other definitions still load. What was tried: `claude agents` only lists background sessions and needs a TTY, so it did not settle this. The probe that would settle it is opening `/agents` in an interactive session at this sha. The file would be cleaner outside the agent directory, for example under `crates/ryo/docs/contracts/review/`, linked from each reviewer.
-- **Shipped text.** No machine paths, tracker ids or profanity in the new text. Item 10 uses "the fused rewrite" and "the goal's out-of-scope list". Both are internal references that a stranger cannot resolve, which is item 15's own test.
-- **Verdict wording.** `contract-review.md:22` still says "All three must pass" and `leak-review.md:8` still says "each of the six checks". The added own-checks are covered mechanically, because `shape()` refuses a PASS that has a FAIL check, but the prose should say "every check".
-- **Duplicated ownership list.** Item ownership is written twice: once in the owner table at `review-criteria.md:4-9`, and again in each reviewer's "Grade against" line. The two copies agree today, but nothing checks that they stay in agreement.
+- **A deferred bead on a `BEADS:` line passes the gate.** `scoper.md:81` says a checkpoint-wide scope "lists its beads", which a scoper can read as every bead of the checkpoint, deferred ones included. No `scope-review.md` row checks the line. A PROCEED checkpoint scope that writes `BEADS: ryo-p ryo-q ryo-r` and also "ryo-r is deferred" admits a builder for `ryo-r` (exit 0).
+  - A `BEADS:` line inside a fenced code block (an earlier scope quoted in the report) also counts.
 
-No enforcement candidates: every finding is semantic.
+  Suggested fix: change `scoper.md:81` to "lists the beads it proceeds with or reshapes on one `BEADS:` line, outside code blocks", and have S2 or S10 confirm that each listed bead is designed.
+- **The review file name is described in two ways.** `scope-review.md:35` and the README at `.claude/hooks/README.md:5` still say `scope-review-<bead>.json`. `scope_hold` and `NEEDS` say the gate reads `scope-review-<stem>.json`. The gate fails closed, so this is a doc gap: name it `scope-review-<report stem>.json` in both places.
+- **The stop hook parses the `STATE` line.** Any refactor of `STATE` that is not `os.environ.get("<const>", "<const>")` holds every builder stop, including BLOCKED ones. This fails closed and the message names the cause, so it is acceptable.
 
-VERDICT: FAIL: 4
+No enforcement candidates: the finding is in hook code, and the fix is the hook itself.
+
+VERDICT: FAIL: 2
