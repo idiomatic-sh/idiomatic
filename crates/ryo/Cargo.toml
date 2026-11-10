@@ -13,7 +13,7 @@ package = "idiomatic-sh-ryo-sdk"
 library = "ryo"
 nightly = "nightly-2026-08-01"
 listing = "crates/sdk/api.txt"
-baseline-rev = "e48028e553"
+baseline-rev = "idiomatic-sh-ryo-v0.1.2"
 allow = [
   # The deliberate language-author contract, versioned and semver-checked with the SDK.
   "ryo::resources::languages",

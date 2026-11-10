@@ -97,6 +97,9 @@ SUMMARY=re.compile(r'^test result: ')
 # failed test, did not finish, and is recorded red under CRASHED, which no row owns.
 CARGO_FAILED=re.compile(r'^error: test failed, to rerun pass ')
 CRASHED='(the binary did not finish: no `test result:` line, or cargo failed it with no failed test)'
+# cargo-semver-checks' comparison line and each lint it fails: the comparison is the `semver-checks` binary, each failed lint a failed test.
+SEMVER_RAN=re.compile(r'^\s+Checking \S+ v\S+ -> v\S+ ')
+SEMVER_FAILURE=re.compile(r'^--- failure (\w+): ')
 def test_results(log):
  """Per test binary of one cargo test log: its passed, ignored and not-run tests, and each failed test with the case rows its runner names; `collected` when the runner ran every row and named every red one. A binary cargo failed that printed no `test result:` line, or no failed test, crashed: its failure is CRASHED. A test that prints before its status has the status on a line of its own; one that prints `not available` there measured nothing, so its `ok` is recorded as not run, never as passed."""
  out={}; binary=None; failing=None; pending=[]; summarized=set()
@@ -105,6 +108,9 @@ def test_results(log):
   if binary and CARGO_FAILED.match(line):
    if binary not in summarized or not out[binary]['failed']: out[binary]['failed'].setdefault(CRASHED,{'rows':[],'collected':False})
    continue
+  if SEMVER_RAN.match(line): binary='semver-checks'; out.setdefault(binary,{'passed':[],'ignored':[],'not_run':[],'failed':{}}); failing=None; continue
+  m=SEMVER_FAILURE.match(line)
+  if m and binary=='semver-checks': out[binary]['failed'].setdefault(m.group(1),{'rows':[],'collected':False}); continue
   m=RAN.match(line)
   if m: binary=m.group(2) or m.group(3); out.setdefault(binary,{'passed':[],'ignored':[],'not_run':[],'failed':{}}); failing=None; continue
   m=TEST.match(line) or (pending and re.match(r'^()(ok|FAILED|ignored)$',line))
@@ -130,7 +136,7 @@ def loaded(kept):
  return {n:{b:{'passed':t.get('passed',[]),'ignored':t.get('ignored',[]),'not_run':t.get('not_run',[]),'failed':{name:{'collected':f[0]=='collected','rows':f[1:]} for name,f in t.get('failed',{}).items()}} for b,t in bs.items()} for n,bs in kept.items()}
 def record_tests(v,commands,out_dir):
  """Every cargo test target's tests, from its raw log, into tests.json beside validation.json (which stays within its line budget)."""
- v['tests']={n:test_results(out_dir/(n+'.log')) for n,c in commands if c[:2]==['cargo','test'] and (out_dir/(n+'.log')).exists()}
+ v['tests']={n:test_results(out_dir/(n+'.log')) for n,c in commands if (c[:2]==['cargo','test'] or n in SEMVER_COMMANDS) and (out_dir/(n+'.log')).exists()}
  tests_json.write_text(dumps(stored(v['tests']))+'\n')
 def red_rows(v):
  """Each failed test with the case rows it reports: every red row when its runner collected them, else the first only."""
@@ -253,6 +259,9 @@ def reruns_without_log(texts,v):
  return bad
 RUST_REGRESSIONS='Measure full-Django cold/warm/edit and Rust regressions; meet final objective.'
 CLOSE='Close full TM, contracts, independent review and normal CI.'
+SDK_RELEASE='The next SDK release is breaking (semver 0.x major, i.e. 0.2.0), owner-started via release-plz.'
+# The commands whose log carries cargo-semver-checks' report, read for its failed lints as `test_results` reads a test binary.
+SEMVER_COMMANDS={'sdk_api'}
 # One entry per result or replay test that is red now, chosen when it turned red; `own()` refuses an entry whose result or
 # test is green (a stale owner would pre-own a red that has not happened yet).
 OWNERS={
@@ -277,6 +286,7 @@ RED_OWNERS={
  ('cli_cost','replay','cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets'):OWNERS['cli_cost'],
  ('cli_cost','replay','cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff'):OWNERS['cli_cost'],
  ('core_allocation','allocation','per_file_path::allocates_as_the_parser_library_does'):OWNERS['core_allocation'],
+ **{('sdk_api','semver-checks',lint):SDK_RELEASE for lint in ('constructible_struct_adds_field','enum_missing','enum_no_repr_variant_discriminant_changed','struct_missing')},
 }
 # A command that cannot run on this machine says so on its first output line (`not available: <why>`) and exits non-zero; the row
 # named here owns that refusal, and only that refusal. Every run prints it as not run (`ruff_parity`: parity not run).

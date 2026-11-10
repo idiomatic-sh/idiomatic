@@ -96,7 +96,7 @@ class Check(unittest.TestCase):
   """owned_reds() as own() leaves it: every OWNERS entry red and carrying its owner note, so finish() rewrites nothing for owners."""
   results=self.owned_reds(); run.own({'results':results},''); return results
  def test_every_red_result_carries_its_owner_and_a_green_one_carries_none(self):
-  readme=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  readme=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values())|set(run.RED_OWNERS.values()))
   v={'results':{**self.owned_reds(),'ruff_rule_phases':{'exit':0,'note':'repaired; owned by "Close full TM, contracts, independent review and normal CI."'},'unowned_target':{'failed':1},'libraries_total':{'passed':1,'failed':1}}}
   changed,bad=run.own(v,readme)
   self.assertTrue(changed); self.assertEqual(bad,['red unowned_target has no owner in OWNERS'])
@@ -104,7 +104,7 @@ class Check(unittest.TestCase):
   self.assertEqual(v['results']['ruff_rule_phases']['note'],'repaired')
   self.assertNotIn('note',v['results']['libraries_total'])
  def test_a_green_result_with_only_a_stale_owner_fails_the_check(self):
-  readme=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  readme=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values())|set(run.RED_OWNERS.values()))
   results=self.owned_reds(); results['core_allocation']={'exit':0}
   changed,bad=run.own({'results':results},readme)
   self.assertEqual(bad,['stale owner: core_allocation is not red, so OWNERS may not pre-own it'])
@@ -142,11 +142,24 @@ class Check(unittest.TestCase):
   self.assertEqual(list(tests['libraries']['ryo_benchmark']['failed']),[benchmark])
   self.assertEqual(tests['libraries']['ryo_values']['failed'],{})
   self.assertEqual(run.command_owners('libraries',{'exit':101},tests),[])
+ def test_each_lint_semver_checks_fails_is_a_failed_test_of_its_comparison_and_owned_only_by_its_exact_id(self):
+  log=Path(self.raw.name)/'sdk_api.log'
+  log.write_text('    Checking idiomatic-sh-ryo-core v0.1.3 (/t/crates/core)\n'
+   '    Checking idiomatic-sh-ryo-sdk v0.1.2 -> v0.1.3 (minor change)\n'
+   '     Checked [   0.031s] 202 checks: 200 pass, 2 fail, 0 warn, 58 skip\n\n'
+   '--- failure enum_missing: pub enum removed or renamed ---\n\nDescription:\n'
+   '--- failure brand_new_lint: a lint no entry names ---\n')
+  tests={'sdk_api':run.test_results(log)}
+  self.assertEqual(list(tests),['sdk_api']); self.assertEqual(list(tests['sdk_api']),['semver-checks'])
+  self.assertEqual(list(tests['sdk_api']['semver-checks']['failed']),['enum_missing','brand_new_lint'])
+  self.assertEqual(run.command_owners('sdk_api',{'exit':1},tests),[])
+  del tests['sdk_api']['semver-checks']['failed']['brand_new_lint']
+  self.assertEqual(run.command_owners('sdk_api',{'exit':1},tests),[run.SDK_RELEASE])
  def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
   v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
   self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])
  def test_an_owner_row_that_is_ticked_owns_nothing(self):
-  rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values())|set(run.RED_OWNERS.values()))
   self.assertEqual(run.open_row_problems(rows),[])
   ticked=rows.replace('- [ ] '+run.CLOSE,'- [x] '+run.CLOSE)
   self.assertTrue(run.open_row_problems(ticked)); self.assertTrue(all('ticked README row' in x for x in run.open_row_problems(ticked)))
@@ -162,7 +175,7 @@ class Check(unittest.TestCase):
   self.assertEqual(run.command_owners('bench_build',{'exit':2,'not_available':'absent'},{}),[])
  def test_a_rewritten_record_fails_only_the_check_of_the_committed_record_and_an_unowned_red_fails_both(self):
   folder=Path(self.raw.name)/'contracts'; folder.mkdir()
-  rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
+  rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values())|set(run.RED_OWNERS.values()))
   saved=(run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems,run.census_problems)
   run.readme,run.contracts,run.validation_json=folder/'README.md',folder,folder/'validation.json'
   # The record alone decides here: the checkpoint's own FIX, DOC and census lines over the real repository are their own tests' subject.
