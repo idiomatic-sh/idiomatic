@@ -20,7 +20,8 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
         schema
             .iter()
             .position(|kind| *kind == CellKind::Number)
-            .unwrap() as u32,
+            .map(|at| u32::try_from(at).expect("a relation's column number fits in u32"))
+            .unwrap(),
     );
     let columns = schema
         .iter()
@@ -42,8 +43,7 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     let owner = RelationOwner::for_request(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         crate::application::file_dag::relations::types::PinnedViewCount(64),
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     let publication = owner.source_borrowed(relation, rows).unwrap();
     owner
@@ -286,7 +286,8 @@ fn number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one(
         schema
             .iter()
             .position(|kind| *kind == CellKind::Number)
-            .unwrap() as u32,
+            .map(|at| u32::try_from(at).expect("a relation's column number fits in u32"))
+            .unwrap(),
     );
     let required = NumberRequirement {
         source: StepId(0),
@@ -312,8 +313,7 @@ fn number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one(
         let owner = RelationOwner::for_request(
             crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
             crate::application::file_dag::relations::types::PinnedViewCount(64),
-            (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-                as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+            std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
         );
         let publication = owner.source_borrowed(relation, rows).unwrap();
         owner

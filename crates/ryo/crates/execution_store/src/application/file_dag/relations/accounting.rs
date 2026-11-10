@@ -25,7 +25,7 @@ impl RelationOwner {
                 output.push(Backing {
                     key: BackingKey {
                         tag: BackingTag(22),
-                        address: BackingAddress(Arc::as_ptr(&words.0) as usize),
+                        address: BackingAddress(Arc::as_ptr(&words.0).addr()),
                     },
                     retention_units: UnitCount(0),
                     bytes: ByteCount(
@@ -37,7 +37,7 @@ impl RelationOwner {
                 output.push(Backing {
                     key: BackingKey {
                         tag: BackingTag(24),
-                        address: BackingAddress(Arc::as_ptr(table) as usize),
+                        address: BackingAddress(Arc::as_ptr(table).addr()),
                     },
                     retention_units: UnitCount(0),
                     bytes: crate::application::file_dag::derived::ledger::capacity::compact_table(
@@ -49,7 +49,7 @@ impl RelationOwner {
         output.push(Backing {
             key: BackingKey {
                 tag: BackingTag(7),
-                address: BackingAddress(Arc::as_ptr(record) as usize),
+                address: BackingAddress(Arc::as_ptr(record).addr()),
             },
             retention_units: UnitCount(0),
             bytes: ByteCount(metadata),
@@ -62,7 +62,7 @@ impl RelationOwner {
         Backing {
             key: BackingKey {
                 tag: BackingTag(0),
-                address: BackingAddress(Arc::as_ptr(table) as usize),
+                address: BackingAddress(Arc::as_ptr(table).addr()),
             },
             retention_units: UnitCount(0),
             bytes: table_bytes(table),

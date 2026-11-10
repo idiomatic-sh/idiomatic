@@ -15,7 +15,8 @@ pub(crate) fn source(
         population,
         columns,
     } = population(input, eligible, PopulationScope::Stored)?;
-    let mapped = |column: ColumnIndex| columns.get(column.0 as usize).copied();
+    let mapped =
+        |column: ColumnIndex| usize::try_from(column.0).map_or(None, |at| columns.get(at).copied());
     let first = mapped(endpoints[0])?;
     let second = mapped(endpoints[1])?;
     let forward = first <= second;
@@ -57,7 +58,7 @@ pub(crate) fn domain_identity(
     } = population(input, eligible, PopulationScope::Native)?;
     Some(graph::DomainIdentity {
         population,
-        column: *columns.get(column.0 as usize)?,
+        column: *usize::try_from(column.0).map_or(None, |at| columns.get(at))?,
     })
 }
 

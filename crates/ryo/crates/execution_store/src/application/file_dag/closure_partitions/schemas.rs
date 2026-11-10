@@ -54,6 +54,11 @@ pub(crate) fn from_prepared<'f>(
     })
 }
 /// A partitioned closure over a publication, for the proofs of its cursor.
+///
+/// # Errors
+///
+/// The input's refusal to validate, and the owner's refusal to admit the publication or to prepare and acquire its
+/// shared ordering.
 #[cfg(any(test, feature = "fixtures"))]
 pub fn prepare<'f>(
     publication: &crate::application::file_dag::relations::handle::service::Publication,

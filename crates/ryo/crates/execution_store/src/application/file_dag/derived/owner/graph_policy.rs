@@ -153,7 +153,12 @@ impl DerivedOwner {
             let after = self.ledger.borrow().snapshot().view_optional_bytes.0;
             let physical = before.saturating_sub(after);
             cache.bytes.0 = cache.bytes.0.saturating_sub(physical);
-            cache.graph_counts.reclaimed_bytes.0 += physical as u64;
+            #[expect(
+                clippy::as_conversions,
+                reason = "a byte count: usize to u64 is lossless on every target ryo builds for, and std offers only a fallible TryFrom for it"
+            )]
+            let physical_bytes = physical as u64;
+            cache.graph_counts.reclaimed_bytes.0 += physical_bytes;
         }
         state.retained_bytes = ByteCount(state.retained_bytes.0.saturating_sub(released.0));
         cache.graph_counts.reclaimed_indexes.0 += released_indexes;

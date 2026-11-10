@@ -6,6 +6,11 @@ use crate::application::file_dag::relations::types::Sameness;
 use crate::application::file_dag::relations::*;
 impl<'a> BorrowedInput<'a> {
     /// Checks that `publication` is the one this input was admitted from.
+    ///
+    /// # Errors
+    ///
+    /// The refusals of [`Self::identity`] and of the publication's input, and [`OperatingError::NotRead`] when the
+    /// publication is another population or generation than the one this input was admitted from.
     pub fn require_publication(
         &self,
         owner: &RelationOwner,
@@ -62,6 +67,11 @@ impl<'a> BorrowedInput<'a> {
         self.rows
     }
     /// The population and relation the input was admitted under, while `owner` still holds its generation.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRead`] when `owner` no longer holds the input's generation, and
+    /// [`OperatingError::ShapeMismatch`] when the admitted rows cannot be read in full.
     pub fn identity(
         &self,
         owner: &RelationOwner,
@@ -125,7 +135,7 @@ impl RelationOwner {
                     population: self.result_population(result),
                     relation: match &result.body {
                         RelationBody::Source(source) => Some(source.relation),
-                        _ => None,
+                        RelationBody::Computed(_) | RelationBody::Compact(_) => None,
                     },
                     generation: Arc::clone(&result.generation),
                 },

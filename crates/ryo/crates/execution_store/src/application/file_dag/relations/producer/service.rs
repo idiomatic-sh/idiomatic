@@ -89,6 +89,11 @@ impl RelationOwner {
         }
     }
     /// Read-only evidence for the actual producer in the actual population.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when more than one retained view of `kind` matches the producer's
+    /// populations.
     #[cfg(any(test, feature = "fixtures"))]
     pub fn producer_view_witness(
         &self,

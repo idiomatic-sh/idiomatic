@@ -1,5 +1,4 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
-use crate::application::file_dag::derived::constants;
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::types::PopulationId;
@@ -117,6 +116,11 @@ pub struct DerivedOwner {
 }
 impl DerivedOwner {
     /// Prepares the contract of a view request against its input schemas.
+    ///
+    /// # Errors
+    ///
+    /// None in practice: preparation records a schema the semantic capability refuses in the contract, which its
+    /// validation returns.
     #[cfg(any(test, feature = "fixtures"))]
     pub fn prepare_view(
         &self,
@@ -226,14 +230,10 @@ impl DerivedOwner {
 
 fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
     for &population in populations {
-        if !state.dependents.contains_key(&population) {
-            let spare = state.spare_dependencies.pop().unwrap_or_default();
-            state.dependents.insert(population, spare);
-        }
         state
             .dependents
-            .get_mut(&population)
-            .expect(constants::EXPECT_REVERSE_LIST)
+            .entry(population)
+            .or_insert_with(|| state.spare_dependencies.pop().unwrap_or_default())
             .push(key.clone());
     }
 }

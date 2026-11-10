@@ -20,6 +20,14 @@ fn working_cells(closure: &PartitionedClosure<'_>) -> usize {
 }
 
 /// Reserved Value buffers; shared ordering remains charged independently.
+///
+/// # Panics
+///
+/// When the cursor holds a partition whose view cannot be read as a closure adjacency.
+#[expect(
+    clippy::expect_used,
+    reason = "a fixture: the cursor it measures holds a live partition, and a broken one fails the proof that reads it"
+)]
 pub fn working_capacity(closure: &PartitionedClosure<'_>) -> usize {
     closure.current.as_ref().map_or(0, |_| {
         let current = closure.current().expect(LIVE_PARTITION_VIEW);
@@ -117,7 +125,10 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
         maximum_live = maximum_live.max(working_cells(&cursor));
         maximum_reserved = maximum_reserved.max(working_capacity(&cursor));
     }
-    assert_eq!(seen, partitions as usize);
+    assert_eq!(
+        seen,
+        usize::try_from(partitions).expect("the partition count fits in usize")
+    );
     assert!(
         maximum_live <= 16,
         "all owned Value payload, including key and sources: {maximum_live}"

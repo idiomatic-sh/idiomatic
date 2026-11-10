@@ -7,6 +7,11 @@ use crate::application::file_dag::route_counts::{self, types::BuildRoute};
 
 impl DerivedOwner {
     /// Acquires the stored view `plan` names over admitted inputs, building it or reusing a retained one.
+    ///
+    /// # Errors
+    ///
+    /// The owner's refusal of the admitted inputs for `plan` (another owner, a retired generation, another plan or
+    /// population), and the derived port's refusal to build or view the payload.
     pub fn acquire_stored(
         &self,
         plan: &Arc<DerivedContract>,

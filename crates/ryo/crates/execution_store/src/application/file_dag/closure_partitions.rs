@@ -31,6 +31,12 @@ pub struct PartitionedClosure<'f> {
 }
 impl<'f> PartitionedClosure<'f> {
     /// Moves to the next partition, building it from the shared ordering, or answers that none is left.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when the ordering or the partition plan is of another kind,
+    /// [`OperatingError::ShapeMismatch`] when a key cell of an ordered row is missing, and the owner's refusal to admit
+    /// or build the next partition.
     pub fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
             self.ordered.view()?
@@ -92,18 +98,27 @@ impl<'f> PartitionedClosure<'f> {
         Ok(PartitionAdvance::Advanced)
     }
     /// Takes the current partition's view out of the cursor, for the invocation to hold.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRun`] when the cursor is on no partition.
     pub fn take_current(&mut self) -> Result<AcquiredView, OperatingError> {
         self.current.take().ok_or(OperatingError::NotRun)
     }
     /// The partition the cursor is on.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRun`] when the cursor is on no partition, the view's own refusal, and
+    /// [`OperatingError::WrongOperation`] when the view is no closure adjacency.
     pub fn current(&self) -> Result<&ClosurePartition, OperatingError> {
         let current = self.current.as_ref().ok_or(OperatingError::NotRun)?;
-        match current.view()? {
-            ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(partition) => {
-                Ok(partition)
-            }
-            _ => Err(OperatingError::WrongOperation),
-        }
+        let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(partition) =
+            current.view()?
+        else {
+            return Err(OperatingError::WrongOperation);
+        };
+        Ok(partition)
     }
 }
 

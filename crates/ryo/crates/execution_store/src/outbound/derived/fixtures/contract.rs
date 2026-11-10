@@ -79,7 +79,10 @@ pub fn check(adapter: &impl DerivedPort) {
         };
         let column = match scenario {
             Scenario::AbsentColumn => ColumnIndex(3),
-            _ => ColumnIndex(0),
+            Scenario::PresentColumn
+            | Scenario::Builds
+            | Scenario::ViewsIndex
+            | Scenario::BuildsFromAnotherKind => ColumnIndex(0),
         };
         let prepared = adapter.prepare(
             DerivedRequest::Equality {
@@ -101,10 +104,10 @@ pub fn check(adapter: &impl DerivedPort) {
                 else {
                     return Err(DerivedFault::NotRun);
                 };
-                match adapter.view(&prepared, &payload)? {
-                    DerivedView::Equality(index) => Ok(index.rows.len()),
-                    _ => Err(DerivedFault::WrongOperation),
-                }
+                let DerivedView::Equality(index) = adapter.view(&prepared, &payload)? else {
+                    return Err(DerivedFault::WrongOperation);
+                };
+                Ok(index.rows.len())
             }
             Scenario::BuildsFromAnotherKind => {
                 let built = adapter.build(

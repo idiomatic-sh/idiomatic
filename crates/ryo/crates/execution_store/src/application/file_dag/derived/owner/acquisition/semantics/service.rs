@@ -73,25 +73,23 @@ pub(crate) fn build(
                 rows: first(rows, InputPosition(0))?,
                 failure: &failure,
             };
-            match &plan.request {
-                ViewRequest::OrderedKeys { .. } => {
-                    let right = AdmittedRows {
-                        rows: first(rows, InputPosition(1))?,
-                        failure: &failure,
-                    };
-                    port.build(
-                        &plan.semantic,
-                        ryo_derived::domain::contract::types::BuildInputs::Ordered {
-                            left: &left,
-                            right: &right,
-                            texts,
-                        },
-                        &mut scratch.semantic,
-                        recycled,
-                    )
-                }
-                _ => return Err(OperatingError::WrongOperation),
-            }
+            let ViewRequest::OrderedKeys { .. } = &plan.request else {
+                return Err(OperatingError::WrongOperation);
+            };
+            let right = AdmittedRows {
+                rows: first(rows, InputPosition(1))?,
+                failure: &failure,
+            };
+            port.build(
+                &plan.semantic,
+                ryo_derived::domain::contract::types::BuildInputs::Ordered {
+                    left: &left,
+                    right: &right,
+                    texts,
+                },
+                &mut scratch.semantic,
+                recycled,
+            )
         }
         DerivedInputs::Membership { rows, space } => {
             let source = AdmittedRows {

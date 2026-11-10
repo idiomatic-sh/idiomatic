@@ -66,7 +66,8 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         )
         .unwrap();
     assert_eq!(
-        first.map(|vertex| graph.graph().vertices()[vertex as usize]),
+        first.map(|vertex| graph.graph().vertices()
+            [usize::try_from(vertex).expect("a vertex id fits in usize")]),
         Some(Value::Number(Integer(3)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
@@ -111,7 +112,8 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         )
         .unwrap();
     assert_eq!(
-        changed.map(|vertex| graph.graph().vertices()[vertex as usize]),
+        changed.map(|vertex| graph.graph().vertices()
+            [usize::try_from(vertex).expect("a vertex id fits in usize")]),
         Some(Value::Number(Integer(2)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
@@ -161,7 +163,8 @@ fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
             )
             .unwrap();
         assert_eq!(
-            answer.map(|id| graph.graph().vertices()[id as usize]),
+            answer.map(|id| graph.graph().vertices()
+                [usize::try_from(id).expect("a vertex id fits in usize")]),
             expected.map(|n| Value::Number(Integer(n)))
         );
     }

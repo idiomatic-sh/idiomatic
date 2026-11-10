@@ -41,7 +41,8 @@ impl RelationOwner {
                     return true;
                 };
                 let source = &source.population;
-                source.kinds.get(origin.column.0 as usize) != Some(&CellKind::Number)
+                !usize::try_from(origin.column.0)
+                    .is_ok_and(|at| source.kinds.get(at) == Some(&CellKind::Number))
                     || match source.kind {
                         RepresentationKind::Stored => {
                             source.storage.len() != source.kinds.len()
@@ -54,7 +55,7 @@ impl RelationOwner {
                             let cells = source.rows.0.checked_mul(source.kinds.len());
                             source.storage.get(1).map(|span| Some(span.length.0)) != Some(cells)
                         }
-                        _ => true,
+                        RepresentationKind::Tree | RepresentationKind::Compact => true,
                     }
             })
         {
@@ -66,7 +67,8 @@ impl RelationOwner {
         // from the query layout. Raw hosted/Rows lineages were already refused.
         if shape != PhysicalShape::Complete
             || rows.kinds().len() != required.width.0
-            || rows.kinds().get(required.column.0 as usize) != Some(&CellKind::Number)
+            || !usize::try_from(required.column.0)
+                .is_ok_and(|at| rows.kinds().get(at) == Some(&CellKind::Number))
         {
             return Ok(None);
         }

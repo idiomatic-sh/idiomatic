@@ -68,8 +68,8 @@ pub(crate) fn acquire(
     let requirement = graph_requirement(&source.identity);
     let orientation = source.orientation;
     let invoked = std::cell::Cell::new(false);
-    let canonical =
-        owner.canonical_graph_requirement(GraphViewIdentity::Adjacency(requirement), &[population]);
+    let canonical = owner
+        .canonical_graph_requirement(GraphViewIdentity::Adjacency(requirement), &[population])?;
     let acquired = owner.try_acquire_shared_with_requirement(
         canonical,
         plan,
@@ -179,7 +179,7 @@ pub(crate) fn domain(
         ),
         column: physical_column,
     };
-    let requirement = owner.canonical_graph_requirement(requirement, admitted.populations());
+    let requirement = owner.canonical_graph_requirement(requirement, admitted.populations())?;
     let invoked = std::cell::Cell::new(false);
     let acquired = if input.canonical_backing()
         == crate::application::file_dag::relations::types::BackingForm::Canonical
@@ -267,7 +267,7 @@ pub(crate) fn domain(
         crate::application::file_dag::derived::ledger::types::Backing {
             key: BackingKey {
                 tag: BackingTag(19),
-                address: BackingAddress(Arc::as_ptr(&domain) as usize),
+                address: BackingAddress(Arc::as_ptr(&domain).addr()),
             },
             bytes: ByteCount(size_of::<GraphDomain>() + 2 * size_of::<usize>()),
             retention_units: UnitCount(0),

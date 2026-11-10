@@ -10,6 +10,10 @@ mod partition;
 mod workspace;
 
 /// Drive one exit of `kind` through its production entry.
+///
+/// # Errors
+///
+/// The production refusal the exit drives the family into, or the first refusal of its setup.
 pub fn leave(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
     match entry(kind) {
         Entry::Workspace => workspace::workspace(kind, exit),

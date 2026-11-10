@@ -39,6 +39,11 @@ impl RequestViews {
         }
     }
     /// Bind finite semantic requirements once per compiled operator. No rows or cache are read here.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`] when a resource asks for a view slot already full or more than two inputs,
+    /// and the refusal of preparing a view over its inputs' schemas.
     pub fn bind(&mut self, contract: &mut OperatorContract) -> Result<(), OperatingError> {
         self.logical.clear();
         self.logical
@@ -299,11 +304,14 @@ impl RequestViews {
         let binding = if let Some(binding) = binding {
             (binding).clone()
         } else {
+            let Ok(len) = u8::try_from(positions.len()) else {
+                return Err(OperatingError::WrongOperation);
+            };
             let binding = Arc::new(PreparedViewUse {
                 plan,
                 inputs,
                 relations,
-                len: InputsUsed(positions.len() as u8),
+                len: InputsUsed(len),
             });
             self.bindings.push((binding).clone());
             binding

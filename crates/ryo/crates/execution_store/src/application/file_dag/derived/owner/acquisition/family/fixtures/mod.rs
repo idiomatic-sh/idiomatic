@@ -72,6 +72,14 @@ enum Release {
     Forgetful,
 }
 /// Runs one acquisition family's scenario and answers the kind it acquired.
+///
+/// # Errors
+///
+/// The production refusal the scenario drives the family into, or the first refusal of its setup.
+///
+/// # Panics
+///
+/// When the production exit leaves a lease charged, or a scenario's assertion about the owner fails.
 pub fn exercise(kind: DerivedKind, scenario: Scenario) -> Result<DerivedKind, OperatingError> {
     let (actual, leaked) = drive(kind, scenario, Release::Production);
     assert_eq!(
@@ -91,12 +99,12 @@ fn drive(
     scenario: Scenario,
     release: Release,
 ) -> (Result<DerivedKind, OperatingError>, Option<Leaked>) {
-    let port = if scenario == Scenario::BuildFails {
-        Arc::new(refusing::RefusingBuild)
-            as Arc<dyn crate::outbound::derived::interface::DerivedPort>
-    } else {
-        program_derived_port()
-    };
+    let port: Arc<dyn crate::outbound::derived::interface::DerivedPort> =
+        if scenario == Scenario::BuildFails {
+            Arc::new(refusing::RefusingBuild)
+        } else {
+            program_derived_port()
+        };
     let owner = Rc::new(RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         port,
@@ -167,7 +175,12 @@ fn acquire(
                         "the next partition is a new demand on a retired generation"
                     );
                 }
-                _ => {
+                Scenario::Succeeds
+                | Scenario::Stale
+                | Scenario::OtherPlan
+                | Scenario::OtherPopulation
+                | Scenario::RetargetedDescriptor
+                | Scenario::BuildFails => {
                     assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced, "the second actual partition rebuilds the scoped acquired view");
                     assert_eq!(cursor.current()?.key, &[Value::Number(Integer(1))]);
                     assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
@@ -217,7 +230,12 @@ fn acquire(
         let (plan, proof) = match scenario {
             Scenario::OtherPlan => (&partition_plan, &first),
             Scenario::OtherPopulation => (&closure_plan, &second),
-            _ => (&closure_plan, &first),
+            Scenario::Succeeds
+            | Scenario::Cancelled
+            | Scenario::Held
+            | Scenario::Stale
+            | Scenario::RetargetedDescriptor
+            | Scenario::BuildFails => (&closure_plan, &first),
         };
         return owner
             .derived()
@@ -266,7 +284,12 @@ fn acquire(
     let presented = match scenario {
         Scenario::OtherPlan => Arc::new(owner.derived().prepare_view(&request(kind), shapes)?),
         Scenario::RetargetedDescriptor => Arc::new((*plan).clone()),
-        _ => Arc::clone(&plan),
+        Scenario::Succeeds
+        | Scenario::Cancelled
+        | Scenario::Held
+        | Scenario::Stale
+        | Scenario::OtherPopulation
+        | Scenario::BuildFails => Arc::clone(&plan),
     };
     let presented_rows = if scenario == Scenario::OtherPopulation {
         [rows[1], rows[0]]
@@ -317,7 +340,11 @@ fn acquire(
             );
             return Ok(kind);
         }
-        _ => {}
+        Scenario::Succeeds
+        | Scenario::OtherPlan
+        | Scenario::OtherPopulation
+        | Scenario::RetargetedDescriptor
+        | Scenario::BuildFails => {}
     }
     let result = demand(
         kind,

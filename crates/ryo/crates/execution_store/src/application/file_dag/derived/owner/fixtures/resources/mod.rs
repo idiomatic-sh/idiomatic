@@ -138,6 +138,14 @@ pub struct RecordedDerived {
 }
 impl RecordedDerived {
     /// The requests the port was asked to build, in order.
+    ///
+    /// # Panics
+    ///
+    /// When a thread panicked while recording a build, poisoning the record.
+    #[expect(
+        clippy::expect_used,
+        reason = "a fixture: a poisoned record means a recording thread panicked, and the proof reading it fails"
+    )]
     pub fn builds(&self) -> Vec<ryo_derived::domain::request::types::DerivedRequest> {
         self.builds.lock().expect("recorded semantic calls").clone()
     }
@@ -150,6 +158,10 @@ impl DerivedPort for RecordedDerived {
     ) -> ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived {
         crate::application::file_dag::fixtures::derived().prepare(request, schemas)
     }
+    #[expect(
+        clippy::expect_used,
+        reason = "a fixture: a poisoned record means a recording thread panicked, and the proof reading it fails"
+    )]
     fn build(
         &self,
         prepared: &ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived,

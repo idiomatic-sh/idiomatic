@@ -18,7 +18,7 @@ impl RelationOwner {
         backings.push(Backing {
             key: BackingKey {
                 tag: BackingTag(22),
-                address: BackingAddress(Arc::as_ptr(&words) as usize),
+                address: BackingAddress(Arc::as_ptr(&words).addr()),
             },
             retention_units: UnitCount(0),
             bytes: ByteCount(
@@ -30,7 +30,7 @@ impl RelationOwner {
                 backings.push(Backing {
                     key: BackingKey {
                         tag: BackingTag(23),
-                        address: BackingAddress(arena.0.as_ptr() as usize),
+                        address: BackingAddress(arena.0.as_ptr().addr()),
                     },
                     bytes: ByteCount(arena.0.capacity()),
                     retention_units: UnitCount(0),

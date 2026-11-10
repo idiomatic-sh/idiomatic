@@ -55,8 +55,7 @@ fn compact_publications_share_backing_accounting_and_expire_with_generation() {
     let compact_weak = Arc::downgrade(&compact);
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     let first = owner.source_compact(Arc::clone(&compact)).unwrap();
     owner
@@ -131,8 +130,7 @@ use fixtures::{columns, group, read, row};
 fn every_catalog_relation_is_admitted_resolved_and_read_with_its_actual_schema() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     let mut groups = [0; 3];
     for relation in all() {
@@ -189,8 +187,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     let mut physical = columns(schema);
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     let original = {
         let rows = Rows::Stored(ColumnsView {
@@ -257,8 +254,7 @@ fn population_epoch_invalidates_proofs_even_when_same_buffer_and_count_are_reuse
     assert_eq!(read(&resolved), expected);
     let other = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     assert!(matches!(
         other.inspect(fresh.as_ref(), RepresentationInput::from(&rows)),
@@ -282,8 +278,7 @@ fn stable_partial_population_reuses_structure_without_proving_semantic_absence()
     }];
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     let first = owner.source(relation, &rows).unwrap();
     let second = owner.source(relation, &rows).unwrap();
@@ -331,8 +326,7 @@ fn normalization_reuses_one_owned_fallback_without_promoting_missing_rows() {
     };
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-            as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
     );
     let publication = owner
         .source(Relation::Function, &Rows::Stored(source))

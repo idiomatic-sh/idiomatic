@@ -43,14 +43,19 @@ fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {
     assert!(fixture.reclaim(cost));
     let reclaimed = fixture.snapshot();
     assert_eq!(
-        reclaimed.bytes + reclaimed.counts.reclaimed_bytes as usize,
+        reclaimed.bytes
+            + usize::try_from(reclaimed.counts.reclaimed_bytes)
+                .expect("a byte count fits in usize"),
         before.bytes,
         "the owner accounts for the unique physical credit once"
     );
     assert_eq!(reclaimed.indexes, 0);
     assert_eq!(reclaimed.owner_entries_capacity, capacity);
     assert_eq!(reclaimed.counts.reclaimed_indexes, 1);
-    assert_eq!(reclaimed.counts.reclaimed_bytes, cost as u64);
+    assert_eq!(
+        reclaimed.counts.reclaimed_bytes,
+        u64::try_from(cost).expect("a byte count fits in u64")
+    );
     assert_eq!(reclaimed.optional_bytes, 0);
     assert_eq!(reclaimed.retained_view_bytes, 0);
     assert!(reclaimed.bytes + cost <= reclaimed.limit);

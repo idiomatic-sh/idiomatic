@@ -26,16 +26,23 @@ impl RouteProfile {
     pub fn row_file(&self, row: &[Value], paths: &[FilePath]) {
         let file = row.iter().find_map(|value| match value {
             Value::File(file) => Some(file),
-            _ => None,
+            Value::Node(_)
+            | Value::Symbol(_)
+            | Value::Name(_)
+            | Value::Span(_)
+            | Value::Number(_)
+            | Value::Flag(_) => None,
         });
         let _attributed = with_state(self, |state| match file {
             Some(file)
                 if state.progress.row_file.as_ref().map(|known| known.file.0) != Some(file.0) =>
             {
-                state.progress.row_file = paths.get(file.0 as usize).map(|path| RouteRowFile {
-                    file: ryo_relations::domain::relations::types::FileId(file.0),
-                    path: RouteFileName(path.0.to_string()),
-                });
+                state.progress.row_file = usize::try_from(file.0)
+                    .map_or(None, |at| paths.get(at))
+                    .map(|path| RouteRowFile {
+                        file: ryo_relations::domain::relations::types::FileId(file.0),
+                        path: RouteFileName(path.0.to_string()),
+                    });
             }
             None => state.progress.row_file = None,
             _ => {}
@@ -177,6 +184,11 @@ fn snapshot(profile: &RouteProfile) -> Option<RouteSnapshot> {
                 node_namespace: key.origin.namespace,
             })
             .collect::<Vec<_>>();
+        #[expect(
+            clippy::as_conversions,
+            reason = "milliseconds since the route started: the u128 passes u64 only after 584 million years, so the cast never truncates"
+        )]
+        let elapsed_ms = state.progress.started.elapsed().as_millis() as u64;
         RouteSnapshot {
             file: state.file,
             path: state.progress.name.clone(),
@@ -187,7 +199,7 @@ fn snapshot(profile: &RouteProfile) -> Option<RouteSnapshot> {
                 .and_then(|rule| state.rules.get(&rule))
                 .cloned()
                 .unwrap_or_default(),
-            elapsed_ms: RouteTally(state.progress.started.elapsed().as_millis() as u64),
+            elapsed_ms: RouteTally(elapsed_ms),
             ticks: state.progress.ticks,
             overflow: state.overflow,
             hottest: document(&hottest),

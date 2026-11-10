@@ -35,6 +35,10 @@ impl ResourceLease {
 }
 
 impl Drop for ResourceLease {
+    #[expect(
+        clippy::expect_used,
+        reason = "a lease holds every key it charged until this drop, its only release: a missing entry is a broken ledger, and a drop cannot return the error"
+    )]
     fn drop(&mut self) {
         let mut state = self.ledger.borrow_mut();
         for key in &self.keys {

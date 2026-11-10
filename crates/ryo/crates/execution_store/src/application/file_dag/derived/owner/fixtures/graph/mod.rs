@@ -54,8 +54,7 @@ impl GraphFixture {
                     crate::application::file_dag::relations::types::ReuseEligibility::Ineligible
                 },
                 crate::application::file_dag::relations::types::PinnedViewCount(max_views),
-                (std::sync::Arc::new(crate::application::file_dag::fixtures::derived())
-                    as std::sync::Arc<dyn crate::outbound::derived::interface::DerivedPort>),
+                std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
             )),
             wanted: wanted.to_vec(),
             partials: partials.to_vec(),
@@ -64,6 +63,10 @@ impl GraphFixture {
         fixture.setup();
         fixture
     }
+    #[expect(
+        clippy::unwrap_used,
+        reason = "a fixture: preparing the owner it builds for a proof cannot fail, and a failure fails the proof"
+    )]
     fn setup(&self) {
         let mut needs = self
             .wanted
@@ -115,7 +118,7 @@ impl GraphFixture {
                     .admit(publication.as_ref(), RepresentationInput::from(&supplied))?;
                 publication
             }
-            _ => match input {
+            Rows::Stored(_) | Rows::Tree(_) => match input {
                 Input::Relation(relation) => self.owner.source(relation, rows)?,
                 Input::Step(_) | Input::BoundObservation(_) => return Err(OperatingError::NotRun),
             },
@@ -171,7 +174,9 @@ impl GraphFixture {
             .owner
             .resolve(publication.as_ref(), &|relation| match input {
                 Input::Relation(expected) if expected == relation => Ok(rows.clone()),
-                _ => Err(OperatingError::NotRead),
+                Input::Relation(_) | Input::Step(_) | Input::BoundObservation(_) => {
+                    Err(OperatingError::NotRead)
+                }
             })?;
         let Some(source) = workspace.graph_input(InputNumber(0), &admitted_rows)? else {
             return Ok(None);
@@ -193,7 +198,9 @@ impl GraphFixture {
             .owner
             .resolve(publication.as_ref(), &|relation| match input {
                 Input::Relation(expected) if expected == relation => Ok(rows.clone()),
-                _ => Err(OperatingError::NotRead),
+                Input::Relation(_) | Input::Step(_) | Input::BoundObservation(_) => {
+                    Err(OperatingError::NotRead)
+                }
             })?;
         drop(workspace.graph_input(InputNumber(0), &admitted_rows)?);
         drop(admitted_rows);
@@ -218,7 +225,9 @@ impl GraphFixture {
             .owner
             .resolve(publication.as_ref(), &|relation| match input {
                 Input::Relation(expected) if expected == relation => Ok(rows.clone()),
-                _ => Err(OperatingError::NotRead),
+                Input::Relation(_) | Input::Step(_) | Input::BoundObservation(_) => {
+                    Err(OperatingError::NotRead)
+                }
             })?;
         let Some(source) = workspace.graph_input(InputNumber(0), &admitted_rows)? else {
             return Ok(None);

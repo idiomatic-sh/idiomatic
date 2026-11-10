@@ -52,10 +52,12 @@ impl CachedGraph {
                         join.right_on
                             .iter()
                             .position(|column| {
-                                reach.columns.get(column.0 as usize)
-                                    == Some(&ColumnIndex(
-                                        u32::try_from(logical).unwrap_or(u32::MAX),
-                                    ))
+                                usize::try_from(column.0).is_ok_and(|at| {
+                                    reach.columns.get(at)
+                                        == Some(&ColumnIndex(
+                                            u32::try_from(logical).unwrap_or(u32::MAX),
+                                        ))
+                                })
                             })
                             .map(KeyPosition)
                     })
@@ -141,7 +143,16 @@ impl CachedGraph {
                     walk: GraphWalk::default(),
                 })))
             }
-            _ => Ok(None),
+            ResourceProgram::None
+            | ResourceProgram::Appended(_)
+            | ResourceProgram::Rank(_)
+            | ResourceProgram::Index { .. }
+            | ResourceProgram::Count { .. }
+            | ResourceProgram::Digest { .. }
+            | ResourceProgram::Closure { .. }
+            | ResourceProgram::Cycles { .. }
+            | ResourceProgram::Ordered { .. }
+            | ResourceProgram::Dfs(_) => Ok(None),
         }
     }
 
@@ -204,12 +215,15 @@ impl ReachGraph {
             }
         } else {
             for vertex in &self.walk.reached {
+                let Ok(at) = usize::try_from(vertex.0) else {
+                    return Err(OperatingError::ShapeMismatch);
+                };
                 self.destinations.push(
                     *self
                         .access
                         .graph()
                         .vertices()
-                        .get(vertex.0 as usize)
+                        .get(at)
                         .ok_or(OperatingError::ShapeMismatch)?,
                 );
             }
@@ -264,12 +278,15 @@ impl AxisGraph {
             )?;
             self.walk.answers = answers;
             if let Some(found) = found {
+                let Ok(at) = usize::try_from(found.0) else {
+                    return Err(OperatingError::ShapeMismatch);
+                };
                 self.destinations.push(
                     *self
                         .access
                         .graph()
                         .vertices()
-                        .get(found.0 as usize)
+                        .get(at)
                         .ok_or(OperatingError::ShapeMismatch)?,
                 );
             }
@@ -282,13 +299,16 @@ impl AxisGraph {
                 &mut self.walk,
             )?;
             for vertex in &self.walk.reached {
-                if self.domain.members().0.get(vertex.0 as usize) == Some(&true) {
+                let Ok(at) = usize::try_from(vertex.0) else {
+                    return Err(OperatingError::ShapeMismatch);
+                };
+                if self.domain.members().0.get(at) == Some(&true) {
                     self.destinations.push(
                         *self
                             .access
                             .graph()
                             .vertices()
-                            .get(vertex.0 as usize)
+                            .get(at)
                             .ok_or(OperatingError::ShapeMismatch)?,
                     );
                 }

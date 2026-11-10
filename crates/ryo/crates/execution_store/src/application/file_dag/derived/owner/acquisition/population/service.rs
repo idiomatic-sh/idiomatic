@@ -54,16 +54,19 @@ impl DerivedOwner {
         }
         let mut ids = [PopulationId(usize::MAX); 2];
         ids[..populations.len()].copy_from_slice(populations);
+        let Ok(len) = u8::try_from(populations.len()) else {
+            return Err(OperatingError::ShapeMismatch);
+        };
         let key = Key {
             plan: requirement,
             populations: ids,
-            len: types::PopulationCount(populations.len() as u8),
+            len: types::PopulationCount(len),
             context,
         };
-        let _owner = route_counts::owner(&self.routes, self as *const _ as usize);
+        let _owner = route_counts::owner(&self.routes, std::ptr::from_ref(self).addr());
         let _identity = route_counts::identity(
             &self.routes,
-            Arc::as_ptr(plan) as usize,
+            Arc::as_ptr(plan).addr(),
             ids.map(|id| (id.0 != usize::MAX).then_some(id.0)),
         );
         route_counts::event(
@@ -72,19 +75,15 @@ impl DerivedOwner {
             route_counts::derived(plan.kind),
         );
         {
-            let mut state = self.state.borrow_mut();
+            let mut guard = self.state.borrow_mut();
+            // One plain borrow of the state, so the entry found once and the owner's totals are borrowed apart.
+            let state = &mut *guard;
             let required = populations
                 .iter()
                 .any(|id| state.pins.get(id).is_some_and(|n| n.0 > 0));
-            if let Some(storage) = state
-                .entries
-                .get(&key)
-                .and_then(|entry| entry.weak.upgrade())
+            if let Some(entry) = state.entries.get_mut(&key)
+                && let Some(storage) = entry.weak.upgrade()
             {
-                let entry = state
-                    .entries
-                    .get(&key)
-                    .expect(constants::EXPECT_EXISTING_VIEW);
                 let backings = Arc::clone(&entry.backings);
                 let lease = match entry.lease.upgrade() {
                     Some(lease) => lease,
@@ -100,10 +99,6 @@ impl DerivedOwner {
                 )?;
                 let promote = required && entry.required.is_none();
                 if promote {
-                    let entry = state
-                        .entries
-                        .get_mut(&key)
-                        .expect(constants::EXPECT_EXISTING_VIEW);
                     entry.required = Some(OwnedView {
                         storage: Arc::clone(handle.storage()),
                         _lease: Arc::clone(handle.lease()),
@@ -124,11 +119,7 @@ impl DerivedOwner {
                     state.peak_required_views = state.peak_required_views.max(state.required_views);
                     state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
                 }
-                state
-                    .entries
-                    .get_mut(&key)
-                    .expect(constants::EXPECT_EXISTING_VIEW)
-                    .lease = Arc::downgrade(handle.lease());
+                entry.lease = Arc::downgrade(handle.lease());
                 state.hits += 1;
                 route_counts::event(
                     &self.routes,

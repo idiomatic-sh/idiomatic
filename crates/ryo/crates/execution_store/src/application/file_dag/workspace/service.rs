@@ -1,5 +1,4 @@
 //! The invocation workspace admits an operator's inputs and acquires the derived view they demand.
-use super::constants::{EXPECT_ADMITTED_INPUT, EXPECT_FIRST_INPUT};
 use super::{InputAdmissions, InvocationWorkspace, ViewInputs};
 use crate::application::file_dag::derived::owner::acquisition::population::types::StoredColumns;
 use crate::application::file_dag::relations::admission::service::BorrowedInput;
@@ -23,6 +22,11 @@ impl InvocationWorkspace {
         }
     }
     /// Admits `rows` as the borrowed input at `place`.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::MissingInput`] for a place beyond the captured publications, [`OperatingError::NotRun`] for a
+    /// place whose publication was not captured, and the owner's refusal to admit `rows` for it.
     pub fn admit<'a>(
         &self,
         place: InputNumber,
@@ -84,8 +88,11 @@ impl InvocationWorkspace {
             relations[at] = relation;
             proofs[at] = Some(proof);
         }
+        let Some(first) = proofs[0] else {
+            return Err(OperatingError::WrongOperation);
+        };
         let rows = [
-            proofs[0].as_ref().expect(EXPECT_FIRST_INPUT).rows(),
+            first.rows(),
             proofs[1].as_ref().map_or(
                 RepresentationInput::Computed(&EMPTY_DERIVED_INPUT),
                 |proof| proof.rows(),
@@ -129,7 +136,9 @@ impl InvocationWorkspace {
                 RepresentationInput::Stored(source) => relations[0]
                     .or(use_.relations[0])
                     .map(|relation| StoredColumns { relation }),
-                _ => None,
+                RepresentationInput::Tree(_)
+                | RepresentationInput::Computed(_)
+                | RepresentationInput::Compact(_) => None,
             }
         } else {
             None
@@ -137,8 +146,8 @@ impl InvocationWorkspace {
         let owner = self.owner().derived();
         let sources = proofs[..semantic_sources]
             .iter()
-            .map(|proof| proof.expect(EXPECT_ADMITTED_INPUT))
-            .collect::<Vec<_>>();
+            .map(|proof| proof.ok_or(OperatingError::WrongOperation))
+            .collect::<Result<Vec<_>, _>>()?;
         let admitted = owner.admit_view(&use_.plan, self.owner(), &sources)?;
         owner.acquire_stored(
             &use_.plan,

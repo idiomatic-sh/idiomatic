@@ -38,7 +38,9 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .expect("memo admitted");
     let values: Vec<_> = actual
         .iter()
-        .map(|vertex| first.graph().vertices()[*vertex as usize])
+        .map(|vertex| {
+            first.graph().vertices()[usize::try_from(*vertex).expect("a vertex id fits in usize")]
+        })
         .collect();
     assert_eq!(
         values,
@@ -212,7 +214,7 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
     assert_eq!(admitted.retained_view_bytes, 0);
     assert_eq!(
         admitted.counts.reclaimed_bytes,
-        before.retained_view_bytes as u64
+        u64::try_from(before.retained_view_bytes).expect("a byte count fits in u64")
     );
     assert!(admitted.optional_bytes <= admitted.limit);
     assert!(Arc::ptr_eq(local.raw_graph(), shared.raw_graph()));

@@ -22,7 +22,7 @@ pub(crate) fn completed(
     backings.push(Backing {
         key: BackingKey {
             tag: BackingTag(20),
-            address: BackingAddress(Arc::as_ptr(&rows) as usize),
+            address: BackingAddress(Arc::as_ptr(&rows).addr()),
         },
         bytes: ByteCount(arc_bytes::<Vec<u32>>().0 + vector(&rows.0).0),
         retention_units: UnitCount(0),

@@ -173,9 +173,8 @@ impl RootAnswer {
             return Err(OperatingError::WrongOperation);
         };
         Ok(self.rows.0.iter().map(move |vertex| {
-            graph
-                .vertices()
-                .get(*vertex as usize)
+            usize::try_from(*vertex)
+                .map_or(None, |at| graph.vertices().get(at))
                 .copied()
                 .ok_or(OperatingError::ShapeMismatch)
         }))
