@@ -1,75 +1,57 @@
 {
   "checkpoint": "branch:claude/port-engine",
-  "source": "c23d7fa7596b8af6b03d9381aa68c31b3340e4b3",
-  "base": "40e49021520d4392d29df28ee5bd2fef739e5d37",
-  "verdict": "FAIL",
+  "source": "cd9878320b4f4b34d3844d254f2c5f3d76938337",
+  "base": "ffd0b1b1341e785c80cfd09019dc815b71c2a089",
+  "verdict": "PASS",
   "reviewer": "leak-review",
   "checks": [
     {
       "id": "1",
       "verdict": "PASS",
-      "evidence": "The diff touches no file under benchmarks/ or languages/ (git diff --stat 40e4902152..c23d7fa759). The new proofs live with their owners: the place guard in execution_domain/src/domain/executable_program/service_test.rs:248-363, the coverage merge in execution_domain/src/domain/completion/service_test.rs, the derived needs in crates/ryo/crates/execution_runtime/src/application/file_dag/program/preparation/service/demands/service_test.rs, all on hand-built plans, no product rule set or corpus."
+      "evidence": "The delta ffd0b1b134..cd9878320b touches three files, all in engine crates (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs, crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs, crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/test.rs); none under benchmarks/ or languages/, and both proofs use hand-built tables (ordered_partial two-row SourceLocation table; store test crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/test.rs:301-310 a one-row computed table)."
     },
     {
       "id": "2",
-      "verdict": "FAIL",
-      "evidence": "T1 fires: 3 plants in core (a stale forward, a grouped import, a glob) each reported by idiomatic.arch/library-surface, and the {,::*} negative did not fire. Three harness paths pass on a failure: (a) the observer port contract cannot fail: crates/ryo/crates/execution_runtime/src/outbound/observer/fixtures/contract.rs:81-86 runs every row with a closure returning Ok(()) and Value = (), so ObserverFake, whose totals() always answers FedTotals::default() (fixtures/fake.rs:21-23), passes it; (b) the counter seals are bundled compile_fail doctests: crates/ryo/crates/execution_runtime/src/application/file_dag/program/file_session/interface.rs:23-31 and crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/interface.rs:30-38 put several calls in one E0599 probe, so putting back walk_counts on FileSession or state_counts on ProjectPhase still leaves the doctest failing to compile, which counts as a pass (probe counts 0 and 0 below); (c) a weakened assertion: crates/ryo/crates/core/src/application/cross_file/service_test.rs:97,112 put the literal 0 where done.fed.len() was measured, and :176 expects [2, 0, 10], a column that cannot fail."
+      "verdict": "PASS",
+      "evidence": "Each claim fired on a plant in a detached copy of cd9878320b: recogniser shapes dropped (execution_domain/src/domain/self_join_recogniser/service.rs:283 `Ok(_shape) => {}`) now fails the twin test at crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs:135 'the plan is recognised and its ordered meaning entered' (previously count 0); the computed arm forced to refuse (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53 `Computed => true`) fails it at crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs:134 with \"failed NotRun\" against the twin's complete table; the new ragged check removed (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53-56 back to `Computed => false`) fails the new store test at crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/test.rs:336 with Err(ShapeMismatch) against Ok(false). The twin test reads calls.ordered for both sides (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs:110-130), asserts ordered>0 and declined==0, and pins the whole answer with starts_with(\"complete\") (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs:150); no skip, continue, caught error or weakened assertion in the delta."
     },
     {
       "id": "3",
       "verdict": "PASS",
-      "evidence": "Sealed items are pub(crate) and the forwards are gone: PublicationSlot, BoundInput, ReadinessProof, InputReadiness (frontiers/types.rs), PhaseOccurrence(s) and FrontierDemand (crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/types.rs:50,70,88), RuleSelection, and GenerationLease (execution_store/.../relations/generation/service.rs:6). Twenty RelationOwner methods are pub(crate) (relations/{source,producer,inspection,admission,number,packed}/service.rs). execution/src/inbound/use_cases/execution/interface.rs forwards exactly T1's list; the T1 entry (crates/ryo/tastemaker.toml:17) carries the general entry's engine libraries for core, sdk and cli, so nothing lost coverage when the general entry excluded them (:16)."
+      "evidence": "admit_number stays pub(crate) (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:7); the store test is a #[cfg(test)] module (number/service/mod.rs:24-25) and reaches application::file_dag::fixtures only from test code; no visibility, manifest or feature changed in the delta."
     },
     {
       "id": "4",
-      "verdict": "FAIL",
-      "evidence": "The protocol was moved, not copied: core's bind, batch loop and BatchOccurrenceBinding are deleted (core/src/application/cross_file/service.rs, types.rs) and the one loop is ObservationStage::run_batches (crates/ryo/crates/execution_runtime/src/application/file_dag/program/observation_stage/service.rs:35-176). But 'does the run count the rows' now has two representations: the dead enum Counting (crates/ryo/crates/execution_domain/src/domain/operator/types.rs:33), still forwarded (crates/ryo/crates/execution/src/inbound/use_cases/execution/interface.rs:59) and listed in T1's surface (crates/ryo/tastemaker.toml:17), and Option<Arc<dyn ObserverPort>>, which replaced it (crates/ryo/crates/core/src/inbound/use_cases/lint/use_case.rs:96). No production file in any crate reads Counting."
+      "verdict": "PASS",
+      "evidence": "The rectangularity check stays one predicate in one owner (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:39-58); the twin test reuses the shared run_read/MeaningCalls harness (route_controls/fixtures) instead of copying it, and the store test drives the real admit_number rather than re-implementing the predicate."
     },
     {
       "id": "5",
       "verdict": "PASS",
-      "evidence": "The observer is an outbound port of the runtime (execution_runtime/src/outbound/observer/) that imports only execution_domain; application reaches it through ProgramServices::observer (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/types.rs:141,167); core's lint names only its interface. file_program imports observation_schedule and never the other way round (grep: observation_schedule names file_program only in a fixtures doc comment); execution_store/src names no executable_program item (grep: 0 hits)."
+      "evidence": "The change stays inside execution_store's relation owner (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:39-58) and two test modules; no new cross-crate import or layer edge in the diff."
     },
     {
       "id": "6",
       "verdict": "PASS",
-      "evidence": "The new test helpers are behind cfg(any(test, feature = \"fixtures\")): FileSession::fixture_{readiness_counts,walk_counts,counts} (crates/ryo/crates/execution_runtime/src/application/file_dag/program/file_session/service.rs:126-170), ProjectPhase::fixture_{readiness,state}_counts (crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/service.rs), FileRun::collected_counts (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution.rs:278), RelationStore::fixture (execution_store/.../relations/interface.rs:119) and observer::fixtures (outbound/observer.rs:8). No Cargo.toml changed, and every fixtures feature stays a dev-dependency."
+      "evidence": "Both changed tests are test-only: ordered_partial/mod.rs:2-3 #[cfg(test)] and number/service/mod.rs:24-25 #[cfg(test)]; the production change (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53-56) adds no seam."
     }
   ],
   "plants": [
     {
-      "claim": "T1 library-surface (core, sdk, cli confined to the seam vocabulary): a stale forward",
-      "file": "crates/ryo/crates/core/src/application/cross_file/ordinary/service.rs:3",
+      "claim": "ordered_partial twin test pins the recognised route: recogniser shapes dropped (`Ok(_shape) => {}`); failed at test.rs:135 (also join/release and route_controls tests)",
+      "file": "crates/ryo/crates/execution_domain/src/domain/self_join_recogniser/service.rs:283",
       "count": 1,
       "reverted": true
     },
     {
-      "claim": "T1 library-surface: a grouped import naming a sealed item",
-      "file": "crates/ryo/crates/core/src/application/cross_file/ordinary/service.rs:4",
+      "claim": "ordered_partial twin test: admit_number's computed arm forced to refuse (`Computed => true`); failed at test.rs:134 with failed NotRun against the twin's complete answer",
+      "file": "crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53",
       "count": 1,
       "reverted": true
     },
     {
-      "claim": "T1 library-surface: a glob import of the interface",
-      "file": "crates/ryo/crates/core/src/application/cross_file/ordinary/service.rs:5",
-      "count": 1,
-      "reverted": true
-    },
-    {
-      "claim": "compile_fail,E0599 doctest on FileExecution (counters gone): pub fn walk_counts put back on FileSession; the doctest body still fails to compile with E0599 on readiness_counts and counts",
-      "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/file_session/service.rs:175",
-      "count": 0,
-      "reverted": true
-    },
-    {
-      "claim": "compile_fail,E0599 doctest on ProjectRootExecution (counters gone): pub fn state_counts put back on ProjectPhase; the doctest body still fails to compile with E0599 on readiness_counts",
-      "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/service.rs:107",
-      "count": 0,
-      "reverted": true
-    },
-    {
-      "claim": "compile_fail,E0624 doctest on RelationStore (control): RelationOwner::computed made pub; the doctest body compiles, so the doctest reports it",
-      "file": "crates/ryo/crates/execution_store/src/application/file_dag/relations/source/service.rs:94",
+      "claim": "ragged computed source refused: the new check removed (`Computed => false`); number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one failed at test.rs:336 with Err(ShapeMismatch) against Ok(false)",
+      "file": "crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53",
       "count": 1,
       "reverted": true
     }
@@ -91,7 +73,7 @@
           "text": "        Ok(())"
         }
       ],
-      "instance_status": "open"
+      "instance_status": "fixed"
     },
     {
       "id": "compile-fail-doctest-several-probes-73e2218f",
@@ -113,7 +95,7 @@
           "text": "///     let _ = project.state_counts();"
         }
       ],
-      "instance_status": "open"
+      "instance_status": "fixed"
     },
     {
       "id": "constant-in-place-of-measured-value-9ffcaaea",
@@ -131,7 +113,7 @@
           "text": "                0,"
         }
       ],
-      "instance_status": "open"
+      "instance_status": "fixed"
     },
     {
       "id": "dead-seam-forward-de90151f",
@@ -148,8 +130,25 @@
           "text": "pub use ryo_execution_domain::domain::operator::types::Counting;"
         }
       ],
-      "instance_status": "open"
+      "instance_status": "fixed"
+    },
+    {
+      "id": "twin-test-without-route-pin-22c0cc60",
+      "class": "twin-test-without-route-pin",
+      "signature": "a #[test] that asserts run_read(<recognised plan>, ..) == run_read(<declined twin>, ..) and passes Arc::new(MeaningCalls::default()) inline, so calls.ordered is never read",
+      "scope": [
+        "crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/*/test.rs"
+      ],
+      "suggested_mechanism": "new rule",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs",
+          "line": 114,
+          "text": "        Arc::new(MeaningCalls::default()),"
+        }
+      ],
+      "instance_status": "fixed"
     }
   ],
-  "date": "2026-11-09T21:40:00+00:00"
+  "date": "2026-11-09T23:43:10+00:00"
 }
