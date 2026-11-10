@@ -1,0 +1,37 @@
+{
+  "source": "a33f361f7a7f1421358fe006a7b88fa5f9456ff4",
+  "verdict": "FAIL",
+  "reviewer": "contract-review",
+  "checkpoint": 334,
+  "date": "2026-11-10",
+  "base": "40e49021520d4392d29df28ee5bd2fef739e5d37",
+  "frozen_validation": "333641a62a01e87ce8bab84f94a43a710f813b9a",
+  "delta": "333641a62a..a33f361f7a: c00074ffe6 (run.py writes one line per check and red_green entry), b6aff49ae3 (sdk_api derives its internal crates), a01a31de23 and a33f361f7a (record). No engine source changes. The PM ruling stands: the frozen validation at 333641a62a plus the sdk_api rerun.",
+  "checks": [
+    {"id": "Enforced boundaries", "verdict": "PASS", "evidence": "B1 closed. b6aff49ae3 replaces the hand-written INTERNAL with internal_crates(), which reads every [dependencies] entry with a path from the SDK's Cargo.toml, so ryo_execution, ryo_execution_runtime, ryo_operators and ryo_matching are covered. The fix has a red/green test: test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks is red at c00074ffe6 and green at b6aff49ae3 (18 passed). The sdk_api rerun at b6aff49ae3 (sdk_api-at-b6aff49ae3.log) passes the leak step and the listing and reaches semver-checks: 202 checks, 4 fail, each owned. That exit 1 is the owned semver red. Advisory for the leak review, whose lane this is: crates the SDK reaches only transitively (execution_domain, execution_store, derived) are not path dependencies of the SDK, so whether a type of theirs on the SDK surface is caught needs its plant."},
+    {"id": "Clear ownership and flow", "verdict": "PASS", "evidence": "The delta is harness and record only. One definition of the internal set now comes from the manifest. run.py has one writer for validation.json."},
+    {"id": "Proof", "verdict": "FAIL", "evidence": "B2 closed. The integrator's whole-tree tm at a33f361f7a (tm-whole-at-a33f361f7a.json) gives 1 finding and 28 suppressed. The finding is no-machine-paths-shipped in evidence/checkpoint/contract-review-334-early.md, an untracked file absent from the source, so the committed tree is at 0 findings. validation.json is 316 lines at a33f361f7a, which clears the 790-line file-length finding. Django f50bb571, 89.75 s, 2,616,380 KB and load 1.89 confirmed from django-333641a62a/time.txt and output.sha256. Still open at a33f361f7a: B3 (the status block is unchanged), B4 (language 42 against 49 in the log), B5 (ownership_graph still has source 563c0bc69b) and B7 (no clippy group run since 9e03aa81fe; there is no clippy log after it in the validation directory). tm_whole_tree in validation.json also still holds the 333 record (total 0, suppressed 19, at 8568d6f1a2) rather than the 334 run."},
+    {"id": "Change isolation", "verdict": "FAIL", "evidence": "(a) and (b) pass; the delta touches only the harness and the record. (c) The validation.json census shows no ratcheted rise (2/51/24/25). B6 open: census.md line 49 still ends at the 333 column, so the proxy rows this criterion compares have no 334 figures."},
+    {"id": "1", "verdict": "PASS", "evidence": "No ratcheted census row rises."},
+    {"id": "2", "verdict": "PASS", "evidence": "The hand-written crate list was deleted in the change that replaced it (b6aff49ae3)."},
+    {"id": "4", "verdict": "PASS", "evidence": "The seam-mutation table is complete (25 rows), semver ran 202 checks, and the leak guard now covers every path dependency (B1 closed)."},
+    {"id": "5", "verdict": "PASS", "evidence": "Unchanged by the delta."},
+    {"id": "7", "verdict": "PASS", "evidence": "Parity is 412/413 with per-rule.json byte-identical (bc01526e). Django f50bb571, unknown_or_unread 0, at the frozen 333641a62a. The delta changes no engine code."},
+    {"id": "10", "verdict": "PASS", "evidence": "Nothing out of scope."},
+    {"id": "15", "verdict": "PASS", "evidence": "As in the previous pass: default_features runs and every red is owned."},
+    {"id": "19", "verdict": "PASS", "evidence": "Manual judgment: the delta is small. The advisory on run.py's size stands."},
+    {"id": "20", "verdict": "PASS", "evidence": "Nothing misplaced in the delta."},
+    {"id": "21", "verdict": "PASS", "evidence": "The internal set is derived once for any product's SDK."},
+    {"id": "goal exits", "verdict": "FAIL", "evidence": "(1) in progress. (2) met. (3) met. (4) met on the committed tree at a33f361f7a (0 findings once the untracked early review is excluded), but the matrix still dates it to 293766d1a3 (B3). (5) open: no dispatch yet. (6) met as recorded red. (7) met."}
+  ],
+  "findings": [
+    "B3 open: README lines 16-21 at a33f361f7a still say 'F3 part 2 is not merged yet ... 29 against their ratchet of 24', '22 planted mutants' (25 rows), exit 4 'met at 293766d1a3, 29 suppressed', and exit 6 'cli_cost 4 / 3' (now 1/3 with 3 not run) and 4,424,456 (4,348,400 at the head). Owner: integrator.",
+    "B4 open: validation.json results.python_and_language_libraries says 182, 'language 42/0'. language_lib.log at 333641a62a shows 49 passed, so the total is 189. Owner: integrator.",
+    "B5 open: validation.json ownership_graph source is 563c0bc69b. Record the measurement at this head; my recount from ownership_edges.log at 333641a62a is 0 file-level cycles over 789 files. Owner: integrator.",
+    "B6 open: census.md proxy rows (lines 49-55) have no 334 column. Owner: integrator.",
+    "B7 open: the clippy ratchet was last measured at 9e03aa81fe (new 0, accepted 293). Required proof: asymptote check --groups clippy at the head, 0 new, accepted 293 or fewer. Owner: integrator.",
+    "open item: record tm_whole_tree from the 334 run (0 findings on the committed tree, 28 suppressed) in place of the 333 record",
+    "open item: contract-review-334-early.md (untracked) names a machine path; strip it before committing it",
+    "open item: leak review to plant a transitive-crate type (execution_domain, execution_store, derived) against the derived internal set"
+  ]
+}

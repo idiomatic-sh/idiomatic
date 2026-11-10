@@ -88,7 +88,7 @@
     "harness_hooks": {"passed": 181, "failed": 0, "note": "181 at 333641a62a (135 at 333): the review-criteria hook gates"},
     "checkpoint_check": {"passed": 77, "failed": 0, "note": "77 at 333641a62a (17 at 333): FIX, DOC, census, lock, result and semver rules"},
     "derived_library": {"passed": 35, "failed": 0},
-    "python_and_language_libraries": {"passed": 182, "failed": 0, "note": "python 140/0 and language 42/0 at 333641a62a"},
+    "python_and_language_libraries": {"passed": 189, "failed": 0, "note": "python 140/0 and language 49/0 at 333641a62a, read from each log's test result line (the language library prints inside its test lines, so 7 of its 49 names are not on lines of their own)"},
     "tm_validate_all": {
       "crates_ryo": {"passed": 241, "failed": 0},
       "repository_root": {"passed": 224, "failed": 0}
@@ -106,32 +106,32 @@
     }
   },
   "ownership_graph": {
-    "source": "563c0bc69b95071aa4586d4d8bcd4a1bab9eec0e",
-    "raw": "ownership_edges.log of the final checkpoint 333 run (kept outside the repository)",
-    "occurrences": 4971,
+    "source": "333641a62a01e87ce8bab84f94a43a710f813b9a",
+    "raw": "ownership_edges.log of validation335 (kept outside the repository)",
+    "occurrences": 26707,
     "targeted_cycles": [],
     "other_cycles": 0,
-    "note": "file-level strongly connected components of the ownership edges over execution, execution_domain, execution_runtime and execution_store, computed from ownership_edges.log of the final checkpoint 333 run at 563c0bc69b (766 files, 4,971 occurrences; 4,741 at 331): 0",
-    "scope": "checkpoint 333"
+    "note": "file-level strongly connected components of the ownership edges ownership_edges answers at 333641a62a (914 files, 26,707 occurrences; 766 files and 4,971 at 333, the query over the port's crates and its seam suite): 0",
+    "scope": "checkpoint 334"
   },
   "evidence_reuse": [],
   "review": "../../audits/2026-11-06-derived/ownership/checkpoint.json",
   "new_performance_measurement": false,
   "validation": 335,
-  "raw_identity": "/tmp/ryo-contract-validation334",
+  "raw_identity": "{temp}/ryo-contract-validation334",
   "tm_whole_tree": {
-    "command": "tm --root crates/ryo check --format json, tm 0.1.2 built from 8568d6f1a2 (crates/tastemaker with the local ryo crates), sha256 8cddc4c1, on a fresh store (crates/ryo/.tastemaker_cache removed first), run on 8568d6f1a2",
+    "command": "tm --root crates/ryo check --format json, tm 0.1.2 built from the checkout at 333641a62a (checkout_tools of validation335), run at a33f361f7a (the frozen head plus record and harness commits)",
     "total": 0,
-    "suppressed": 19,
+    "suppressed": 28,
     "at_checkpoint_318": 3676,
     "at_checkpoint_332": 1467,
-    "status": "measured whole-tree state at checkpoint 333 after the third 332 merge; 165 s wall, 4.4 GB peak; no ProjectError",
+    "status": "measured whole-tree state at checkpoint 334 (tm-whole-at-a33f361f7a.json): 0 findings in tracked files; its one finding is no-machine-paths-shipped in contract-review-334-early.md, an untracked pre-landing review input kept out of the tree",
     "per_crate": {},
     "module_cycles_findings": 0,
     "no_domain_concept_cycles_findings": 0,
     "tm_validate": "crates/ryo: 241 versions hold, 0 do not; repository root: 224 hold, 0 do not",
     "unknown_findings": 0,
-    "note": "1,467 at 332 under tm 0.1.1: the 1,464 import false positives are gone with tm 0.1.2's import reading. At e0a566da62 (tm 754622be): 1, file-length of core lint/fixtures/lookups.rs, which the 332 head's 5b9555b1a0 split. At cbdc70adad: 0, 16 suppressed."
+    "note": "at 293766d1a3: 0 findings, 29 suppressed; the suppressions at 334 are listed with their reasons in the 334 record"
   },
   "tm_targets": {
     "tm_cli_source": {
@@ -290,7 +290,9 @@
     {"test": "a_filter_that_names_another_case_runs_nothing (red samples-plant-exact-matches-all-red.log, green samples-language-nextest-listing-green-at-bb1468438a.log)", "base_sha": "c0f8d63f5859afb544015ce1191c850a1cddc8ba", "merge_sha": "bb1468438a0ba99e5ec46f09306e86e9b09b8a4f"},
     {"test": "gate:doctest (red gate-doctest-red-at-100297522f.log, green gate-doctest-green-at-2e9505dfca.log; cargo test -p idiomatic-sh-ryo-execution-store --doc with fixtures on)", "base_sha": "100297522f2df8af4f795a389a7c3bfa6cfcde1f", "merge_sha": "2e9505dfcafa1eb2723f73257bb8be42c36e53eb"},
     {"test": "test_each_check_and_each_red_green_entry_is_one_line_of_the_record (red test_each_check_and_each_red_green_entry_is_one_line_of_the_record-red-at-333641a62a-with-the-test-of-c00074ffe6.log, green test_each_check_and_each_red_green_entry_is_one_line_of_the_record-green-at-c00074ffe6.log)", "base_sha": "333641a62a01e87ce8bab84f94a43a710f813b9a", "merge_sha": "c00074ffe686039bd297ee9e547591c75d8dfd7c"},
-    {"test": "test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks (red test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks-red-at-c00074ffe6-with-the-test-of-b6aff49ae3.log, green test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks-green-at-b6aff49ae3.log)", "base_sha": "c00074ffe686039bd297ee9e547591c75d8dfd7c", "merge_sha": "b6aff49ae3fe86380cba34a1cacc9d5d56821723"}
+    {"test": "test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks (red test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks-red-at-c00074ffe6-with-the-test-of-b6aff49ae3.log, green test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks-green-at-b6aff49ae3.log)", "base_sha": "c00074ffe686039bd297ee9e547591c75d8dfd7c", "merge_sha": "b6aff49ae3fe86380cba34a1cacc9d5d56821723"},
+    {"test": "test_a_type_a_member_forwards_through_another_members_reexport_is_internal_and_leaks (red test_a_type_a_member_forwards_through_another_members_reexport_is_internal_and_leaks-red-at-a33f361f7a-with-the-test-of-56169f083f.log, green test_a_type_a_member_forwards_through_another_members_reexport_is_internal_and_leaks-green-at-56169f083f.log)", "base_sha": "a33f361f7a7f1421358fe006a7b88fa5f9456ff4", "merge_sha": "56169f083f622be3b39420c1c2c2795c167a142e"},
+    {"test": "test_the_raw_directory_is_named_under_temp_and_read_back_on_any_machine (red test_the_raw_directory_is_named_under_temp_and_read_back_on_any_machine-red-at-56169f083f-with-the-test-of-9bfc1c34c8.log, green test_the_raw_directory_is_named_under_temp_and_read_back_on_any_machine-green-at-9bfc1c34c8.log)", "base_sha": "56169f083f622be3b39420c1c2c2795c167a142e", "merge_sha": "9bfc1c34c832c2b8dcbaff85eaaec796f96c9d7f"}
   ],
   "census": {
     "replace_the_evaluator": {

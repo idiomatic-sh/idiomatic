@@ -1,4 +1,4 @@
-# Census trend: change amplification, checkpoints 318 to 333
+# Census trend: change amplification, checkpoints 318 to 334
 
 The question: "is our architecture getting meaningfully better and easier to extend or modify on each cycle?" The owner added: adding semantic analysis, or tuning one perf strategy, must be "very isolated".
 
@@ -13,6 +13,7 @@ The question: "is our architecture getting meaningfully better and easier to ext
 | 331 | `340808449f` | validation331 source |
 | 332 | `781653e221` | head of `claude/checkpoint-332` |
 | 333 | `e0a566da62` | head of the checkpoint 333 tree. It adds 20 commits over 332: noqa fragment rewrite, p7 skip rules, provider alias, t611 |
+| 334 | `333641a62a` | validation335 source, the frozen checkpoint 334 head. Only section 2 has a 334 column. It is measured by `git archive` and a script over the same production-file rule. The script reads 333 as 26 / 14 and 77 / 18 for the first and third proxies, where the 333 column says 23 / 13 and 84 / 18, so compare 334 with the script's 333 reading |
 
 - Every number comes from static `grep` over `git archive` copies. I built nothing and ran nothing. The copies are deleted.
 - A production file is a `.rs` file under `crates/*/src`, `cli/src` or `languages/*/src`. Excluded: `*_test.rs`, `test.rs`, `fixtures*`, `tests/`, `acceptance`, `benches/` and `benchmarks/`. This is the audit's rule, plus benches and benchmarks.
@@ -46,13 +47,20 @@ The question: "is our architecture getting meaningfully better and easier to ext
 
 ## 2. Add a relation that rules can read
 
-| Metric | 318 | 321 | 324 | 328 | 331 | 332 | 333 |
-|---|---|---|---|---|---|---|---|
-| Per-file semantic relation, proxy `binding_read`: prod files / crates | 22 / 13 | 23 / 13 | 23 / 13 | 23 / 13 | 23 / 13 | 23 / 13 | 23 / 13 |
-| Required relation, proxy `static_import`: prod files / crates | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 |
-| Project-scoped semantic fact, proxy `ProjectNamespaceMembership` + `project_context`: prod files / crates | 74 / 18 | — | 84 / 18 | 84 / 18 | 84 / 18 | 84 / 18 | 84 / 18 |
-| ... of which benchmark crates | 25 | — | 32 | 32 | 32 | 32 | 32 |
-| Engine prod files naming a specific `Relation::X` (outside relations): files / occurrences / crates | 29 / 170 / 4 | 24 / 154 / 5 | 24 / 154 / 7 | 24 / 154 / 8 | 24 / 154 / 8 | 25 / 155 / 9 | 25 / 155 / 9 |
+| Metric | 318 | 321 | 324 | 328 | 331 | 332 | 333 | 334 |
+|---|---|---|---|---|---|---|---|---|
+| Per-file semantic relation, proxy `binding_read`: prod files / crates | 22 / 13 | 23 / 13 | 23 / 13 | 23 / 13 | 23 / 13 | 23 / 13 | 23 / 13 | 25 / 14 (26 / 14 at 333 by the same script) |
+| Required relation, proxy `static_import`: prod files / crates | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 | 34 / 13 |
+| Project-scoped semantic fact, proxy `ProjectNamespaceMembership` + `project_context`: prod files / crates | 74 / 18 | — | 84 / 18 | 84 / 18 | 84 / 18 | 84 / 18 | 84 / 18 | 77 / 18 (77 / 18 at 333 by the same script) |
+| ... of which benchmark crates | 25 | — | 32 | 32 | 32 | 32 | 32 | 31 (31 at 333 by the same script) |
+| Engine prod files naming a specific `Relation::X` (outside relations): files / occurrences / crates | 29 / 170 / 4 | 24 / 154 / 5 | 24 / 154 / 7 | 24 / 154 / 8 | 24 / 154 / 8 | 25 / 155 / 9 | 25 / 155 / 9 | 28 / 159 / 9; outside comments 24 / 154 / 8 |
+
+At 334 no proxy rose in code, and the per-file proxy fell by one file. The `Relation::X` row rose by 3 files and 4 occurrences. Every one of them is a `///` doc example the doc batch wrote for a new pub item, in three files:
+- execution_domain `executable_program/presence/types.rs`;
+- execution_domain `source_partitions/types.rs`;
+- execution_store `file_dag/derived/prepared.rs`.
+
+Outside comments the row reads 24 / 154 / 8.
 
 **Verdict: flat, no improvement in any cycle.** A per-file relation costs 23 files in 13 crates. A project-scoped fact costs 84 files in 18 crates. The engine's special-casing of named relations went down once (29 → 24 files at 321) and has since spread over more crates (4 → 9), because the crates were split.
 
