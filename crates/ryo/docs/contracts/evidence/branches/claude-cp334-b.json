@@ -1,0 +1,62 @@
+{
+ "checkpoint": 334,
+ "branch": "claude/cp334-b",
+ "source": "2308cf70792e72f268b70a680759166d1e59b547",
+ "base": "100297522f",
+ "verdict": "PASS",
+ "checks": [
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "The seal's proof lives in the store crate (execution_store/src/application/file_dag/relations/interface.rs:51-92, compile_fail,E0277) and the semantics 12/13/15 proofs in execution/tests (boundary_contract); no proof rests on benchmarks/, languages/ or a product corpus."
+  },
+  {
+   "id": "2",
+   "verdict": "PASS",
+   "evidence": "Re-planted on a review worktree at the source sha with its own target dir: 13-latch-last -> S13 (shared_walk/order/error_order/test.rs:232) fails, 153/154; 15b -> project_phase/consumers/test.rs:234 fails, 153/154; seal removed (interface.rs:110 without `: sealed::Sealed`) -> compile_fail doctest at interface.rs:54 FAILED; unplanted suite 154/154 and store doctests 7/7. S13 can fail (shown); `let _finished = file.finish()` (test.rs:287) discards a result after the asserted refusal, advisory only."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "interface.rs:16 `pub(crate) mod sealed` with no re-export (grep: the only Sealed impl is relations.rs:191, the only RelationStore impl relations.rs:192); the seal planted out turns the cross-crate doctest green-compiling, so the seal is what refuses. interface.rs has no cfg: the trait's shape is feature-independent; `fixture` is an inherent fn at relations.rs:167-175 under cfg(any(test, feature = \"fixtures\"))."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "One constructor: the trait `fixture` and its impl are deleted (interface.rs, relations.rs diff); the inherent RelationOwner::fixture is the one path. S13's fake OperatorsPort delegates to OperatorsUseCaseImpl exactly as shared_walk/fixtures.rs:52-68 does, holding no copy of operator logic."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "No layer move: the seal sits beside the port trait in application/file_dag/relations/interface.rs, the impl in relations.rs; S13 and the plants touch only tests and evidence."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "RelationOwner::fixture is gated cfg(any(test, feature = \"fixtures\")) (relations.rs:167); execution/Cargo.toml:20 and execution_runtime/Cargo.toml:17 take execution_store without fixtures in [dependencies], fixtures only in dev-dependencies (:32 each)."
+  }
+ ],
+ "plants": [
+  {
+   "claim": "S13 the_first_engine_error_of_an_evaluation_is_the_one_reported vs seam-mutants/13-latch-last.patch",
+   "file": "crates/ryo/crates/execution_domain/src/domain/operator/contract/failure.rs:38",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "consumers a_publication_held_past_its_stage_is_refused_by_the_next_stage vs seam-mutants/15b-release-keeps-generation.patch",
+   "file": "crates/ryo/crates/execution_store/src/application/file_dag/relations.rs:186",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "compile_fail,E0277 seal probe vs the supertrait removed",
+   "file": "crates/ryo/crates/execution_store/src/application/file_dag/relations/interface.rs:110",
+   "count": 1,
+   "reverted": true
+  }
+ ],
+ "enforcement_candidates": [],
+ "reviewer": "leak-review",
+ "date": "2026-11-10T05:09:53+00:00"
+}
