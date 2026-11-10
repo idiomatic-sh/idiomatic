@@ -290,7 +290,7 @@ class Diff(unittest.TestCase):
   subprocess.run(['git','-C',self.repo,'checkout','-q','side'],check=True)
   fix=commit(self.repo,{'a/src/two.rs':'pub fn two() {}\n'},'fix(a): two answers, `service_test::two_answers`')
   subprocess.run(['git','-C',self.repo,'checkout','-q','claude/checkpoint-9'],check=True)
-  subprocess.run(['git','-C',self.repo,'merge','-q','--no-ff','--no-commit','side'],check=True)
+  subprocess.run(['git','-C',self.repo,'merge','-q','--no-ff','--no-commit','side'],check=True,capture_output=True)
   (Path(self.repo)/'a/src/lib.rs').write_text('pub fn one() { /* resolved in the merge */ }\n')
   subprocess.run(['git','-C',self.repo,'commit','-q','-am','Merge side again'],check=True)
   found=self.fixes([])
