@@ -4,14 +4,17 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
-try: import tree_sitter,tree_sitter_rust
-except ImportError:
+try:
+ import tree_sitter,tree_sitter_rust
+ os.environ.pop('RYO_RUN_REEXEC',None)
+except (ImportError,OSError):
  # Rust is read through tree-sitter-rust, pinned with its runtime in tools/install.py's pytest environment: a script started by another
- # Python (run.py, or run_test.py importing it) starts again there, and without that environment it says what to run.
+ # Python (run.py, or run_test.py importing it) starts again there, once, and only when both import there; otherwise it says what to run.
  LAUNCH=['uv','tool','run','--offline','--from','pytest','python','-I']; script=Path(sys.argv[0])
- try: ready=script.suffix=='.py' and script.is_file() and subprocess.run(LAUNCH+['-c','import tree_sitter_rust'],capture_output=True).returncode==0
+ try: ready=not os.environ.get('RYO_RUN_REEXEC') and script.suffix=='.py' and script.is_file() and subprocess.run(LAUNCH+['-c','import tree_sitter, tree_sitter_rust'],capture_output=True).returncode==0
  except OSError: ready=False
  if not ready: sys.exit('run tools/install.py first')
+ os.environ['RYO_RUN_REEXEC']='1'
  os.execvp(LAUNCH[0],LAUNCH+[str(script.resolve()),*sys.argv[1:]])
 p=Path(__file__).resolve().parent
 contracts=p.parents[1]
