@@ -200,6 +200,13 @@ class Check(unittest.TestCase):
    self.assertEqual(run.result_problems({'source':head,'checks':dict(checks,sdk_api=dict(good('sdk_api'),source='b'*40))}),['sdk_api: its result is for bbbbbbbbbb, not the validated source aaaaaaaaaa'])
    self.assertEqual(run.result_problems({'source':head,'checks':{n:c for n,c in checks.items() if n!='sdk_api'}}),['sdk_api: no result for the validated source'])
    self.assertEqual(run.result_problems({'source':head,'checks':dict(checks,ruff_parity={'source':head,'exit':2,'not_available':'absent'})}),[])
+ def test_each_check_and_each_red_green_entry_is_one_line_of_the_record(self):
+  long='x'*400
+  v={'source':'a'*40,'checks':{'one':{'source':'a'*40,'command':['cargo','test',long],'exit':0,'elapsed_seconds':1.0,'checked':{'count':1,'what':'tests run'}}},'red_green':[{'test':long,'base_sha':'b'*40,'merge_sha':'c'*40}],'results':{'r':{'passed':1,'failed':0,'note':long}}}
+  text=run.dumps(v)
+  self.assertEqual(json.loads(text),v)
+  self.assertEqual(len([l for l in text.splitlines() if '"one": ' in l]),1); self.assertEqual(len([l for l in text.splitlines() if '"merge_sha"' in l]),1)
+  self.assertIn('"merge_sha": "'+'c'*40+'"}',text)
  def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
   v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
   self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])

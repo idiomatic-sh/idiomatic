@@ -23,8 +23,17 @@ validation_json=p/'validation.json'
 tests_json=p/'tests.json'
 commands_json=p/'commands.json'
 TM_TARGETS=('tm_source','tm_cli_source')
+# The record's blocks that hold one item per command or per proof: each item is one line of validation.json, so the record grows by a
+# line per command and per red_green entry and stays a file of one screenful per block.
+ONE_LINE_ITEMS=('checks','red_green')
 def dumps(v,pad=''):
- """JSON with two-space indent where a list of scalars or a short dict of scalars (four keys, 300 characters) stays on one line, so a command line or a red-then-green entry is one line."""
+ """JSON with two-space indent where a list of scalars or a short dict of scalars (four keys, 300 characters) stays on one line, so a command line or a red-then-green entry is one line; at the top level, each item of a block named in ONE_LINE_ITEMS is one line whatever its length."""
+ if pad=='' and isinstance(v,dict) and any(k in ONE_LINE_ITEMS for k in v):
+  def block(k,x):
+   if k in ONE_LINE_ITEMS and isinstance(x,list): return '[\n'+',\n'.join('    '+json.dumps(i) for i in x)+'\n  ]'
+   if k in ONE_LINE_ITEMS and isinstance(x,dict): return '{\n'+',\n'.join('    '+json.dumps(n)+': '+json.dumps(i) for n,i in x.items())+'\n  }'
+   return dumps(x,'  ')
+  return '{\n'+',\n'.join('  '+json.dumps(k)+': '+block(k,x) for k,x in v.items())+'\n}'
  if isinstance(v,list) and all(not isinstance(x,(list,dict)) for x in v): return json.dumps(v)
  if isinstance(v,list): return '[\n'+',\n'.join(pad+'  '+dumps(x,pad+'  ') for x in v)+'\n'+pad+']'
  if isinstance(v,dict) and len(v)<=4 and all(not isinstance(x,(list,dict)) for x in v.values()) and len(json.dumps(v))<=300: return json.dumps(v)
