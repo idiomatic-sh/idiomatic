@@ -27,7 +27,7 @@ pub(crate) struct Want {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Made {
     /// Where it comes from.
-    pub origin: Origin,
+    pub origin: ElementSource,
     /// Its kind and the text it spans.
     pub element: Want,
     /// The text the adapter's library decoded it to stand for, when it did: the value of a string.
@@ -36,7 +36,9 @@ pub(crate) struct Made {
 
 /// Where an element of the table comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Origin {
+pub(crate) enum ElementSource {
+    /// A separately parsed non-macro expression; the Rust adapter emits none.
+    Embedded,
     /// A parser-created node without source bytes.
     Implied,
     /// The file wrote it.
@@ -73,7 +75,7 @@ type Failure = ();
 /// An element written in the file itself, with no decoded value.
 const fn own(kind: Kind, text: &'static str) -> Made {
     Made {
-        origin: Origin::File,
+        origin: ElementSource::File,
         element: Want { kind, text },
         value: Decoding::Plain,
     }
@@ -82,14 +84,14 @@ const fn own(kind: Kind, text: &'static str) -> Made {
 /// An element a macro call expanded to, with no decoded value.
 const fn expanded(kind: Kind, text: &'static str) -> Made {
     Made {
-        origin: Origin::Expansion(Kind::Node(Node::MacroCall)),
+        origin: ElementSource::Expansion(Kind::Node(Node::MacroCall)),
         element: Want { kind, text },
         value: Decoding::Plain,
     }
 }
 
 /// A string token whose value the library decoded.
-const fn string(text: &'static str, value: &'static str, origin: Origin) -> Made {
+const fn string(text: &'static str, value: &'static str, origin: ElementSource) -> Made {
     Made {
         origin,
         element: Want {
@@ -161,7 +163,7 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
             own(Kind::Token(Token::Bang), "!"),
             own(Kind::Node(Node::TokenTree), "(\"{}\", a)"),
             own(Kind::Token(Token::LParen), "("),
-            string("\"{}\"", "{}", Origin::File),
+            string("\"{}\"", "{}", ElementSource::File),
             own(Kind::Token(Token::Comma), ","),
             own(Kind::Token(Token::Whitespace), " "),
             own(Kind::Token(Token::Ident), "a"),
@@ -173,7 +175,7 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
             string(
                 "\"{}\"",
                 "{}",
-                Origin::Expansion(Kind::Node(Node::MacroCall)),
+                ElementSource::Expansion(Kind::Node(Node::MacroCall)),
             ),
             expanded(Kind::Node(Node::PathExpr), "a"),
             expanded(Kind::Node(Node::Path), "a"),
@@ -196,7 +198,7 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
             own(Kind::Token(Token::Bang), "!"),
             own(Kind::Node(Node::TokenTree), "(\"{}\", a)"),
             own(Kind::Token(Token::LParen), "("),
-            string("\"{}\"", "{}", Origin::File),
+            string("\"{}\"", "{}", ElementSource::File),
             own(Kind::Token(Token::Comma), ","),
             own(Kind::Token(Token::Whitespace), " "),
             own(Kind::Token(Token::Ident), "a"),
@@ -278,10 +280,11 @@ fn positions_of(elements: &Elements, source: &str) -> Vec<Made> {
             );
             Made {
                 origin: match origin_at(elements, position) {
-                    ElementOrigin::File => Origin::File,
-                    ElementOrigin::Implied => Origin::Implied,
+                    ElementOrigin::File => ElementSource::File,
+                    ElementOrigin::Implied => ElementSource::Implied,
+                    ElementOrigin::Embedded { .. } => ElementSource::Embedded,
                     ElementOrigin::Expansion { call_site, .. } => {
-                        Origin::Expansion(kind_of(kind_at(elements, call_site)))
+                        ElementSource::Expansion(kind_of(kind_at(elements, call_site)))
                     }
                 },
                 element: Want {

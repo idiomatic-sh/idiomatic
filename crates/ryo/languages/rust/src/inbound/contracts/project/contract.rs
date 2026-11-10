@@ -18,8 +18,11 @@ use ryo::languages::{
 use crate::domain::links::collections::links::analyzed_source::item::AnalyzedSourceItem;
 use crate::domain::links::collections::links::file_package::item::FilePackageItem;
 use crate::domain::links::collections::links::source_dependency::item::SourceDependencyItem;
-use crate::domain::links::service::{declared_in, draw, examine, facts_in, gaps_in, merged};
+use crate::domain::links::service::{
+    declared_in, draw, examine, externs_in, facts_in, gaps_in, merged,
+};
 use crate::domain::links::types::{Linked, Run};
+use crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem;
 use crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem;
 use crate::domain::manifests::collections::manifests::workspace_member::item::WorkspaceMemberItem;
 use crate::domain::module_tree::types::Segment;
@@ -29,14 +32,17 @@ use crate::domain::package_index::types::ListIndex;
 use crate::domain::packages::constants::{CONFIGURATION, LEGACY_CONFIGURATION};
 use crate::domain::packages::service::{read, unlisted_among};
 use crate::domain::packages::types::Packages;
-use crate::domain::paths::service::{entries_among, found_above, name_of};
+use crate::domain::paths::service::{
+    consulted_files, entries_among, found_above, fulfil, linking_of, name_of, supply_of,
+};
 use crate::domain::paths::types::EntryName;
 use crate::domain::paths::types::RepoPath;
 use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{FileText, Settlement};
+use crate::domain::paths::types::{PathLinking, Supply};
 use crate::domain::targets::types::Manifest as TargetManifest;
 use crate::domain::workspaces::service::settled;
-use crate::domain::workspaces::types::{Configured, Looking, Reason};
+use crate::domain::workspaces::types::{Looking, Reason, WorkspaceConfiguration};
 use crate::outbound::conditions::interface::ConditionsPort;
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
 use crate::outbound::job_scheduling::types::{JobIndex, ScheduledJobCount};
@@ -111,26 +117,38 @@ impl ProjectContract {
             .collect()
     }
 
-    /// How the source files of the request refer to one another, from what the manifests declared and the notes the parse left of each:
-    /// the names modules bear, the facts of each file, the trees of the packages and the examination of each file are each worked on
-    /// in all the threads there are.
-    fn linked(&self, request: &ProjectRequest, packages: &Packages) -> Linked {
-        let files = &request.files;
-        let kept = kept_files(files, &packages.outputs);
+    /// How the source files of the request refer to one another, from the manifests and the notes the parse left of each, worked on in
+    /// all the threads there are. Empty bytes are a file noted nothing of; other bytes that hold no note refuse the links.
+    fn linked(&self, request: &ProjectRequest, packages: &Packages) -> Result<Linked, NotesError> {
+        let kept = kept_files(&request.files, &packages.outputs);
         let owners = index(&kept, &packages.roots);
-        // Bytes that hold no note are a file the parse noted nothing of.
-        let declared = self.spread(&request.notes, &|_, note| match self.notes.note_in(note) {
-            Ok(each) => Some(declared_in(&each)),
-            Err(NotesError::NotANote) => None,
-        });
-        let names: BTreeSet<Segment> = declared.into_iter().flatten().flatten().collect();
-        let facts = self.spread(&request.notes, &|_, note| match self.notes.note_in(note) {
-            Ok(each) => Some(facts_in(each, &names)),
-            Err(NotesError::NotANote) => None,
+        let notes = self
+            .spread(&request.notes, &|place, _| {
+                let bytes = request.notes.get(place.0).filter(|each| !each.0.is_empty());
+                bytes.map(|each| self.notes.note_in(each)).transpose()
+            })
+            .into_iter()
+            .collect::<Result<Vec<_>, NotesError>>()?;
+        let declared = self.spread(&notes, &|_, note| note.as_ref().map(declared_in));
+        let externs = externs_in(packages);
+        // A path that starts with the name of a library of the repository names a module of it, as one that starts with a module's name.
+        let names: BTreeSet<Segment> = declared
+            .into_iter()
+            .flatten()
+            .flatten()
+            .chain(
+                externs
+                    .by_package
+                    .values()
+                    .flat_map(|each| each.keys().cloned()),
+            )
+            .collect();
+        let facts = self.spread(&notes, &|_, note| {
+            note.clone().map(|each| facts_in(each, &names))
         });
         let run = Run {
             kept: &kept,
-            files,
+            files: &request.files,
             facts: &facts,
         };
         let drawn = self.spread(&owners.directories, &|_, package| draw(run, package));
@@ -138,10 +156,10 @@ impl ProjectContract {
             .into_iter()
             .map(|each| (each.directory, each.trees))
             .collect();
-        let examined = self.spread(files, &|place, file| {
-            examine(run, &owners, &trees, place, file)
+        let examined = self.spread(&request.files, &|place, file| {
+            examine(run, &owners, &trees, &externs, place, file)
         });
-        merged(run, gaps_in(&trees), examined)
+        Ok(merged(run, gaps_in(&trees), examined))
     }
 
     /// What the manifests of the repository at `root` declare, read in process every time: it is a function of the files, and no process
@@ -187,66 +205,34 @@ impl ProjectContract {
             if settled(&looking) == Settlement::Settled {
                 return packages;
             }
-            looking.manifests.seen.extend(
-                std::mem::take(&mut looking.manifests.wanted)
-                    .into_iter()
-                    .map(|path| {
-                        let text = match given {
-                            Section::Present(_) => Section::Absent,
-                            Section::Absent => repository.text(&path),
-                        };
-                        if matches!(text, Section::Present(_)) {
-                            consulted.push(path.clone());
-                        }
-                        let told = present(text)
-                            .ok_or_else(|| Reason(path.0.clone()))
-                            .and_then(|text| self.parsed(&text));
-                        (path, told)
-                    }),
-            );
-            looking.directories.seen.extend(
-                std::mem::take(&mut looking.directories.wanted)
-                    .into_iter()
-                    .map(|directory| {
-                        let entries = match given {
-                            Section::Present(files) => entries_among(files, supplied, &directory),
-                            Section::Absent => repository.entries(&directory).0,
-                        };
-                        (directory, entries)
-                    }),
-            );
-            looking.matches.seen.extend(
-                std::mem::take(&mut looking.matches.wanted)
-                    .into_iter()
-                    .map(|comparison| {
-                        let matching = self
-                            .matching
-                            .matches(&comparison.pattern, &comparison.name)
-                            .unwrap_or(Matching::Differs);
-                        (comparison, matching)
-                    }),
-            );
-            looking.configurations.seen.extend(
-                std::mem::take(&mut looking.configurations.wanted)
-                    .into_iter()
-                    .map(|directory| {
-                        let configured = match given {
-                            Section::Present(_) => Vec::new(),
-                            Section::Absent => {
-                                self.configurations(&*repository, &directory, consulted)
-                            }
-                        };
-                        (directory, configured)
-                    }),
-            );
-            looking.platforms.seen.extend(
-                std::mem::take(&mut looking.platforms.wanted)
-                    .into_iter()
-                    .map(|platform| {
-                        let shown = self.conditions.show(&platform);
-                        (platform, shown)
-                    }),
-            );
+            fulfil(&mut looking.manifests, |path| {
+                let text = match given {
+                    Section::Present(_) => Section::Absent,
+                    Section::Absent => repository.text(path),
+                };
+                if matches!(text, Section::Present(_)) {
+                    consulted.push(path.clone());
+                }
+                present(text)
+                    .ok_or_else(|| Reason(path.0.clone()))
+                    .and_then(|text| self.parsed(&text))
+            });
+            fulfil(&mut looking.directories, |directory| match given {
+                Section::Present(files) => entries_among(files, supplied, directory),
+                Section::Absent => repository.entries(directory).0,
+            });
+            fulfil(&mut looking.matches, |comparison| {
+                self.matching
+                    .matches(&comparison.pattern, &comparison.name)
+                    .unwrap_or(Matching::Differs)
+            });
+            fulfil(&mut looking.configurations, |directory| match given {
+                Section::Present(_) => Vec::new(),
+                Section::Absent => self.configurations(&*repository, directory, consulted),
+            });
+            fulfil(&mut looking.platforms, |platform| {
+                self.conditions.show(platform)
+            });
         }
     }
 
@@ -264,7 +250,7 @@ impl ProjectContract {
         repository: &dyn RepositoryPort,
         directory: &RepoPath,
         consulted: &mut Vec<RepoPath>,
-    ) -> Vec<Configured> {
+    ) -> Vec<WorkspaceConfiguration> {
         let current = repository
             .above(directory, &EntryName(CONFIGURATION.into()))
             .0;
@@ -295,7 +281,7 @@ impl ProjectContract {
                 let Ok(config) = self.manifest.configuration(text) else {
                     return None;
                 };
-                Some(Configured {
+                Some(WorkspaceConfiguration {
                     target_dir: match &config.target_dir {
                         Section::Present(written) => {
                             Section::Present(repository.placed(directory, look.height, written))
@@ -315,13 +301,21 @@ impl Project for ProjectContract {
         MANIFESTS
     }
 
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(path, self.manifests().iter().copied())
+    }
+
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<ryo::languages::FilePath>,
+    ) {
+    }
+
     fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<Linked>, ProjectError> {
-        if !request
-            .manifests
-            .iter()
-            .any(|manifest| *name_of(&RepoPath(manifest.path.0.clone())).0 == *MANIFEST)
-        {
+        if supply_of(&request.manifests) == Supply::NoManifest {
             return Ok(Resolved {
+                observed_entries: request.observed_entries.0.to_vec(),
                 refused: Vec::new(),
                 unlisted: Vec::new(),
                 consulted: Vec::new(),
@@ -340,12 +334,7 @@ impl Project for ProjectContract {
                 &mut found,
             ),
         };
-        found.sort_unstable();
-        found.dedup();
-        let consulted = found
-            .into_iter()
-            .map(|path| languages::FilePath(path.0))
-            .collect();
+        let consulted = consulted_files(found);
         let refused = packages
             .refused
             .iter()
@@ -354,14 +343,8 @@ impl Project for ProjectContract {
                 reason: languages::ToolMessage(each.reason.0.clone()),
             })
             .collect();
-        let links_wanted = request.wanted.iter().any(|each| {
-            matches!(
-                each,
-                languages::Relation::SourceDependency | languages::Relation::AnalyzedSource
-            )
-        });
-        let mut derived = if links_wanted {
-            self.linked(request, &packages)
+        let mut derived = if linking_of(&request.wanted) == PathLinking::Asked {
+            self.linked(request, &packages)?
         } else {
             Linked::default()
         };
@@ -371,6 +354,7 @@ impl Project for ProjectContract {
             .collect();
         derived.packages = Some(packages);
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused,
             unlisted,
             consulted,
@@ -388,6 +372,22 @@ impl Project for ProjectContract {
 
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, Linked>> {
         languages::reads_manifests::<SourceDependencyItem>()
+    }
+
+    fn manifest_diagnostic(
+        &self,
+    ) -> Support<ManifestReader<languages::ManifestDiagnostic, Linked>> {
+        languages::reads_manifests::<ManifestDiagnosticItem>()
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, Linked>> {
+        languages::absent(languages::AbsenceCause::NotYetRead)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, Linked>> {

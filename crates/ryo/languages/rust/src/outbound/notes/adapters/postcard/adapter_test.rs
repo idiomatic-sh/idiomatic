@@ -2,7 +2,7 @@
 //! writes, and what is nothing.
 
 use super::adapter::NotesPostcardAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::fact_notes::service::{facts_of, note_of};
 use crate::domain::fact_notes::types::Naming;
 use crate::domain::module_tree::types::{
@@ -26,6 +26,7 @@ fn facts() -> Facts {
         clean: Cleanliness::Clean,
         declared: vec![
             ModDeclaration {
+                gate: crate::domain::module_tree::types::Gate::Always,
                 around: vec![EnclosingBlock {
                     name: Segment("outer".into()),
                     path: Section::Present(WrittenPath("x".into())),
@@ -35,6 +36,7 @@ fn facts() -> Facts {
                 path: Section::Absent,
             },
             ModDeclaration {
+                gate: crate::domain::module_tree::types::Gate::Always,
                 around: Vec::new(),
                 name: Segment("inner".into()),
                 body: Body::Inline,
@@ -62,6 +64,8 @@ fn written(segments: &[&str], enclosing: &[&str], place: (u32, u32)) -> Written 
         start: Offset(place.0),
         end: Offset(place.1),
         text: Spelling(segments.join("::").into()),
+        bound: None,
+        scope: None,
     }
 }
 
@@ -94,6 +98,7 @@ fn tiny_bytes() -> String {
     let tiny = Facts {
         clean: Cleanliness::Clean,
         declared: vec![ModDeclaration {
+            gate: crate::domain::module_tree::types::Gate::Always,
             around: Vec::new(),
             name: Segment("a".into()),
             body: Body::File,
@@ -116,19 +121,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("bytes_cut_short_are_no_note"),
         word: Word::Refuses,
         input: || cut_short,
-        expect: Expect::Refusal(|error| selects(matches!(error, NotesError::NotANote))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, NotesError::NotANote)))),
     },
     Case {
         name: CaseName("a_note_is_written_as_postcard_writes_it"),
         word: Word::Succeeds,
         input: || || Ok(tiny_bytes()),
-        expect: Expect::Value("[1, 1, 0, 1, 97, 0, 0, 0]"),
+        expect: Expect::Value("[1, 1, 0, 1, 97, 0, 0, 0, 0]"),
     },
     Case {
         name: CaseName("bytes_followed_by_more_are_no_note"),
         word: Word::Refuses,
         input: || trailing,
-        expect: Expect::Refusal(|error| selects(matches!(error, NotesError::NotANote))),
+        expect: Expect::Refusal(|error| selects(Matched(matches!(error, NotesError::NotANote)))),
     },
 ];
 

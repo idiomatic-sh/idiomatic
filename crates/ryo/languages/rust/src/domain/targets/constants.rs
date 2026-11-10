@@ -29,3 +29,9 @@ pub(crate) const EXTENSION: &str = crate::domain::language::constants::EXTENSION
 
 /// What a name starts with when Cargo leaves the file out.
 pub(crate) const HIDDEN: char = '.';
+
+/// What separates the words of a package's name, which a crate's name cannot hold.
+pub(crate) const PACKAGE_SEPARATOR: char = '-';
+
+/// What separates the words of a crate's name in its place.
+pub(crate) const CRATE_SEPARATOR: &str = "_";

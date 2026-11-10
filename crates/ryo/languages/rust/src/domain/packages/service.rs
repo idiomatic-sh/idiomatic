@@ -6,7 +6,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::constants::OUTPUTS;
 use super::errors::PackagesError;
-use super::types::{Analysis, Cause, Dependency, Membership, Packages, Refusal};
+use super::types::{
+    Analysis, Cause, Dependency, Diagnosed, Library, Packages, Refusal, Stage,
+    WorkspacePackageMembership,
+};
 use crate::domain::dependencies::service::declared_of;
 use crate::domain::dependencies::types::{DeclaredDependency, Shared};
 use crate::domain::package_index::types::ListIndex;
@@ -14,13 +17,13 @@ use crate::domain::paths::constants::{MANIFEST, SEPARATOR};
 use crate::domain::paths::service::{directory_of, lexical_join, name_of};
 use crate::domain::paths::types::Section;
 use crate::domain::paths::types::{Placement, Relative, RepoPath};
-use crate::domain::targets::service::targets_of;
+use crate::domain::targets::service::{library_name, library_of, targets_of};
 use crate::domain::targets::types::Inheritance;
 use crate::domain::targets::types::Manifest;
 use crate::domain::workspaces::service::{
     configurations_above, excluded, load, members_of, root_of,
 };
-use crate::domain::workspaces::types::{Configured, Looking, Reason};
+use crate::domain::workspaces::types::{Looking, Reason, WorkspaceConfiguration};
 use ryo::languages;
 
 /// Where the outputs of the workspace in `directory` go, relative to the root when they go inside it: where the nearest configuration
@@ -28,7 +31,7 @@ use ryo::languages;
 fn output_of(looking: &mut Looking, directory: &RepoPath) -> Option<RepoPath> {
     let placed = configurations_above(looking, directory)
         .into_iter()
-        .find_map(|Configured { target_dir }| match target_dir {
+        .find_map(|WorkspaceConfiguration { target_dir }| match target_dir {
             Section::Present(placement) => Some(placement),
             Section::Absent => None,
         })
@@ -156,7 +159,16 @@ pub(crate) fn read(manifests: &[RepoPath], looking: &mut Looking) -> Packages {
                     package,
                     &mut looking.directories,
                 ));
-            packages.members.push(Membership {
+            if let Some(root) = library_of(&directory, &each, package, &mut looking.directories) {
+                drop(packages.libraries.insert(
+                    member.clone(),
+                    Library {
+                        root,
+                        name: library_name(&each, package),
+                    },
+                ));
+            }
+            packages.members.push(WorkspacePackageMembership {
                 workspace: root.clone(),
                 package: member.clone(),
             });
@@ -212,6 +224,35 @@ pub(crate) fn refused_membership(refusal: &Refusal) -> Analysis {
     } else {
         Analysis::Unanalyzed
     }
+}
+
+/// The manifests refused that are among the `files` the run lists, which are in the order of their paths, each with the stage it was
+/// refused at and what the reader said: a refusal of the workspace not holding the package, or of a value taken from a workspace the
+/// package is not in, is of the validation; any other is of the reading.
+#[must_use]
+pub(crate) fn diagnoses_in(files: &[languages::FilePath], packages: &Packages) -> Vec<Diagnosed> {
+    let validated = [
+        PackagesError::NotAMember.to_string(),
+        PackagesError::NoWorkspaceToInheritFrom.to_string(),
+    ];
+    packages
+        .refused
+        .iter()
+        .filter_map(|refusal| {
+            let Ok(at) = files.binary_search_by(|each| (*each.0).cmp(&*refusal.manifest.0)) else {
+                return None;
+            };
+            Some(Diagnosed {
+                file: languages::FileId(u32::try_from(at).unwrap_or(u32::MAX)),
+                stage: if validated.iter().any(|said| **said == *refusal.reason.0) {
+                    Stage::Validation
+                } else {
+                    Stage::Parse
+                },
+                reason: refusal.reason.clone(),
+            })
+        })
+        .collect()
 }
 
 /// Whether the package a dependency is on is held by no workspace that was read: what it declares is missing.

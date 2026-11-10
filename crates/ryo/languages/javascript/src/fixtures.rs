@@ -3,6 +3,7 @@
 //! ownership.
 
 pub mod contracts;
+mod invalid_manifest;
 pub(crate) mod kinds;
 pub(crate) mod projects;
 #[cfg(test)]
@@ -22,7 +23,12 @@ pub fn expected() -> Fixtures {
     Fixtures {
         kinds: kinds::shown(),
         relations: stated_relations(),
-        manifests: vec![projects::expected(), workspace::expected()],
+        manifests: vec![
+            invalid_manifest::expected(),
+            projects::expected(),
+            workspace::expected(),
+        ],
+        semantic: Vec::new(),
         shape: Shape::Reference(library::walk()),
         oracle: library::oracle(),
         unfilled: stated_unfilled(),

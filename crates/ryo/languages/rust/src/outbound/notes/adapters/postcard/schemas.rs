@@ -7,16 +7,16 @@ use serde::ser::SerializeStruct as _;
 use serde::{Deserialize, Serialize, Serializer};
 
 use super::constants::{
-    AROUND, CLEAN, DECLARED, DECLARED_FIELD, DECLARED_FIELDS, ENCLOSING, END, INLINE, NAME, NOTE,
-    NOTE_FIELDS, PATH, SEGMENTS, START, STEP, STEP_FIELDS, TEXT, WRITTEN, WRITTEN_FIELD,
-    WRITTEN_FIELDS,
+    AROUND, BOUND, CLEAN, DECLARED, DECLARED_FIELD, DECLARED_FIELDS, ENCLOSING, END, INLINE, NAME,
+    NOTE, NOTE_FIELDS, PATH, SCOPE, SEGMENTS, START, STEP, STEP_FIELDS, TEST_ONLY, TEXT, WRITTEN,
+    WRITTEN_FIELD, WRITTEN_FIELDS,
 };
 use super::types::Leftover;
 use crate::domain::fact_notes::types::{
     DeclaredNote, Note, NoteFlag, NoteName, NoteOffset, NotePath, StepNote, WrittenNote,
 };
 use crate::outbound::notes::errors::NotesError;
-use ryo::languages::Bytes;
+use ryo::languages::{Bytes, Offset, Span};
 
 /// A flag, as it is written.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +70,8 @@ pub(super) struct DeclaredSchema<'a> {
     inline: FlagSchema,
     /// The `#[path]` the declaration is given, when it has one.
     path: Option<TextSchema>,
+    /// Whether the declaration is under `#[cfg(test)]`.
+    test_only: FlagSchema,
 }
 
 /// A path a file writes, as it is read.
@@ -88,6 +90,11 @@ pub(super) struct WrittenSchema<'a> {
     /// The path as the file writes it, its whitespace left out.
     #[serde(borrow)]
     text: NameSchema<'a>,
+    /// The name a `use` leaf binds, when it binds one.
+    #[serde(borrow)]
+    bound: Option<NameSchema<'a>>,
+    /// Where a `use` leaf binds its name, where that starts and ends, when it binds short of the whole file.
+    scope: Option<(OffsetSchema, OffsetSchema)>,
 }
 
 impl<'a> From<NoteSchema<'a>> for Note<'a> {
@@ -116,6 +123,7 @@ impl<'a> From<NoteSchema<'a>> for Note<'a> {
                     name: NoteName(Cow::Borrowed(each.name.0)),
                     inline: NoteFlag(each.inline.0),
                     path: path(each.path),
+                    test_only: NoteFlag(each.test_only.0),
                 })
                 .collect(),
             written: schema
@@ -127,6 +135,11 @@ impl<'a> From<NoteSchema<'a>> for Note<'a> {
                     start: NoteOffset(each.start.0),
                     end: NoteOffset(each.end.0),
                     text: NoteName(Cow::Borrowed(each.text.0)),
+                    bound: each.bound.map(|name| NoteName(Cow::Borrowed(name.0))),
+                    scope: each.scope.map(|(start, end)| Span {
+                        start: Offset(start.0),
+                        end: Offset(end.0),
+                    }),
                 })
                 .collect(),
         }
@@ -182,6 +195,7 @@ impl Serialize for DeclaredViewSchema<'_, '_> {
         declared.serialize_field(NAME, &*self.0.name.0)?;
         declared.serialize_field(INLINE, &self.0.inline.0)?;
         declared.serialize_field(PATH, &self.0.path.as_ref().map(|each| &each.0))?;
+        declared.serialize_field(TEST_ONLY, &self.0.test_only.0)?;
         declared.end()
     }
 }
@@ -209,6 +223,8 @@ impl Serialize for WrittenViewSchema<'_, '_> {
         written.serialize_field(START, &self.0.start.0)?;
         written.serialize_field(END, &self.0.end.0)?;
         written.serialize_field(TEXT, &*self.0.text.0)?;
+        written.serialize_field(BOUND, &self.0.bound.as_ref().map(|name| &*name.0))?;
+        written.serialize_field(SCOPE, &self.0.scope.map(|span| (span.start.0, span.end.0)))?;
         written.end()
     }
 }

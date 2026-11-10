@@ -1,9 +1,10 @@
 //! Pure repository package edges and nearest-package file ownership.
 
-use super::constants::{CURRENT, EMPTY, PACKAGE, PARENT, SEPARATOR};
+use super::constants::{CURRENT, EMPTY, PACKAGE, PARENT, SEPARATOR, UNRESOLVED_CATALOG};
 use super::types::{
-    Containment, Declared, Dependency, Directory, Fact, ManifestKind, ManifestPath, Package,
-    PackageName, Packages, Projection, RepositoryPath, Requirement, Version,
+    Containment, Declared, Dependency, Diagnosed, Directory, Fact, ManifestKind, ManifestPath,
+    Package, PackageName, Packages, Projection, ReadAs, RepositoryPath, Requirement, Stage,
+    Version,
 };
 use ryo::languages;
 
@@ -86,8 +87,43 @@ pub(crate) fn file(
     files
         .iter()
         .position(|file| file.0 == path.0)
-        .and_then(|place| u32::try_from(place).ok()) // ignore: idiomatic.arch/no-ok-on-result - a place past 2^32 files has no file number: the file is not one the rows can name
+        .and_then(|place| {
+            // a place past 2^32 files has no file number: the file is not one the rows can name
+            let Ok(number) = u32::try_from(place) else {
+                return None;
+            };
+            Some(number)
+        })
         .map(languages::FileId)
+}
+
+/// The manifests refused that are among the `files` the run lists, each with the file name it is read as, the stage it was refused at and
+/// what was said: a `catalog:` requirement no catalog answers is of the validation; any other refusal is of the reading.
+pub(crate) fn diagnoses_in(files: &[languages::FilePath], packages: &Packages) -> Vec<Diagnosed> {
+    packages
+        .refused
+        .iter()
+        .filter_map(|refused| {
+            file(files, &ManifestPath(refused.path.0.clone())).map(|at| Diagnosed {
+                file: at,
+                read_as: ReadAs(
+                    refused
+                        .path
+                        .0
+                        .rsplit(SEPARATOR)
+                        .next()
+                        .unwrap_or_default()
+                        .into(),
+                ),
+                stage: if refused.reason.0.starts_with(UNRESOLVED_CATALOG) {
+                    Stage::Validation
+                } else {
+                    Stage::Parse
+                },
+                reason: refused.reason.clone(),
+            })
+        })
+        .collect()
 }
 
 /// The dependencies of the repository's packages, on one another and on packages it does not hold, and why a project reference into a package with no name gives no row: the
@@ -285,8 +321,12 @@ pub(crate) fn ownership(
         .enumerate()
         .filter_map(|(index, path)| {
             let package = owner(packages, RepositoryPath(&path.0))?;
+            // a place past 2^32 files has no file number: the file is not one the rows can name
+            let Ok(number) = u32::try_from(index) else {
+                return None;
+            };
             Some(languages::FilePackageRow {
-                path: languages::FileId(u32::try_from(index).ok()?), // ignore: idiomatic.arch/no-ok-on-result - a place past 2^32 files has no file number: the file is not one the rows can name
+                path: languages::FileId(number),
                 package: file(files, &package.manifest)?,
             })
         })

@@ -68,7 +68,8 @@ fn written<'a>(tree: &Tree<'a>, at: languages::Position) -> languages::NameText<
         tree.source
             .0
             .get(from..to)
-            .and_then(|bytes| std::str::from_utf8(bytes).ok()) // ignore: idiomatic.arch/no-ok-on-result - the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
+            .map(|bytes| std::str::from_utf8(bytes).unwrap_or_default())
             .unwrap_or_default(),
     )
 }

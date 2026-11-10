@@ -7,7 +7,7 @@ use crate::domain::packages::types::Packages;
 
 /// An import written in one file that names another file of the repository, by the files' numbers.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Link {
+pub(crate) struct TypeScriptImportLink {
     /// The file the import is written in.
     pub source: FileId,
     /// The file it names.
@@ -34,7 +34,7 @@ pub(crate) struct Unresolved {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Linked {
     /// The links, by source file, then place, then target.
-    pub dependencies: Vec<Link>,
+    pub dependencies: Vec<TypeScriptImportLink>,
     /// The files whose imports were all examined, in order.
     pub analyzed: Vec<FileId>,
     /// The imports that name a file of the repository no file is, by file.

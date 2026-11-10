@@ -7,7 +7,7 @@ use ryo::languages::Optionality;
 
 use super::super::errors::ManifestError;
 use super::super::interface::ManifestPort;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::domain::paths::types::Section;
 use crate::domain::targets::types::Config;
 use crate::domain::targets::types::Manifest;
@@ -32,7 +32,9 @@ pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || "",
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, ManifestError::Unreadable { reason } if !reason.is_empty()))
+            selects(Matched(
+                matches!(error, ManifestError::Unreadable { reason } if !reason.is_empty()),
+            ))
         }),
     },
 ];

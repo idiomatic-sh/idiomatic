@@ -19,6 +19,8 @@ pub(crate) struct ModuleTree {
     pub files: BTreeMap<RepoPath, Vec<ModulePath>>,
     /// Each module that could not be followed, and why: no file for it, two, or a file already being loaded.
     pub gaps: Vec<Unfollowed>,
+    /// The modules declared under `#[cfg(test)]`: they and every module inside them are built for the unit tests alone.
+    pub tests: std::collections::BTreeSet<ModulePath>,
 }
 
 /// Where a `mod` declaration puts its module: the module's path, and the directories its children and its `#[path]` resolve under.
@@ -149,6 +151,18 @@ pub(crate) struct ModDeclaration {
     pub body: Body,
     /// The value of its `#[path = "…"]`, when it has one.
     pub path: Section<WrittenPath>,
+    /// Whether the module is built always, or only for the package's unit tests.
+    pub gate: Gate,
+}
+
+/// When a module is built: always, or only under `#[cfg(test)]`, for the package's unit tests, with its dev-dependencies.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Gate {
+    /// In every build of its crate.
+    #[default]
+    Always,
+    /// Only under `#[cfg(test)]`.
+    Test,
 }
 
 /// Whether a module is written inline in its file or in a file of its own.
@@ -163,7 +177,7 @@ pub(crate) enum Body {
 
 /// A path a file writes: every `use` target, and every outermost path of two segments or more.
 #[derive(Clone, Debug, PartialEq, Eq)]
-// ignore: idiomatic.arch/mirrored-types - a written path as the module tree owns it; its look-alike is the notes' borrowed `WrittenNote`, which is converted to this once
+// a written path as the module tree owns it; its look-alike is the notes' borrowed `WrittenNote`, which is converted to this once
 pub(crate) struct Written {
     /// The segments, keywords as written and generic arguments left out; a glob ends in `*`.
     pub segments: Vec<Segment>,
@@ -175,6 +189,12 @@ pub(crate) struct Written {
     pub end: Offset,
     /// The path as the file writes it, its whitespace left out.
     pub text: Spelling,
+    /// The name a `use` leaf binds in its module: its `as` name, or else its last segment; none for a glob, an `as _` or a path
+    /// that is not a `use` leaf.
+    pub bound: Option<Segment>,
+    /// Where a `use` leaf binds its name: the innermost block of statements or inline module around it, by its span. None for a path
+    /// that is not a `use` leaf and for a `use` written at the top of its file, which binds in the whole file.
+    pub scope: Option<ryo::languages::Span>,
 }
 
 /// A path as the file writes it from where it starts to where it ends, its whitespace left out: `crate::a::<T>::b`.
@@ -183,7 +203,7 @@ pub(crate) struct Spelling(pub Box<str>);
 
 /// What one source file says about the modules of its crate.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-// ignore: idiomatic.arch/mirrored-types - what a file says of its modules as the module tree owns it; its look-alike is the notes' borrowed `Note`, which is converted to this once
+// what a file says of its modules as the module tree owns it; its look-alike is the notes' borrowed `Note`, which is converted to this once
 pub(crate) struct Facts {
     /// Whether the file parses without errors.
     pub clean: Cleanliness,

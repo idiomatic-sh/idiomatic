@@ -25,8 +25,20 @@ impl Project for ProjectContract {
         &[]
     }
 
-    fn resolve(&self, _request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(path, self.manifests().iter().copied())
+    }
+
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<ryo::languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
         Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
             refused: Vec::new(),
             unlisted: Vec::new(),
             consulted: Vec::new(),
@@ -47,6 +59,23 @@ impl Project for ProjectContract {
     fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
         // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document trees and no package manifest or dependency graph.
         languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document trees and no package manifest or dependency graph.
+        languages::absent(languages::AbsenceCause::NoManifests)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document trees and no package manifest or dependency graph.
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
+        // standard: WHATWG HTML, Parsing HTML documents: https://html.spec.whatwg.org/multipage/parsing.html defines document trees and no package manifest or dependency graph.
+        languages::absent(languages::AbsenceCause::NoManifests)
     }
 
     fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {

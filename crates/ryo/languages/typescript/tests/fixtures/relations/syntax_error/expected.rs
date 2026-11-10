@@ -8,6 +8,9 @@ use ryo::languages::contract::{
 const ROWS: &[SyntaxErrorExpectedRow] = &[SyntaxErrorExpectedRow {
     id: node(2_147_483_648),
     message: name("Unexpected token"),
+    phase: name("parse"),
+    impact: name("incomplete"),
+    code: name("unspecified"),
     file: file("syntax_error/input.ts"),
     span: span((1, 7), (1, 8)),
 }];

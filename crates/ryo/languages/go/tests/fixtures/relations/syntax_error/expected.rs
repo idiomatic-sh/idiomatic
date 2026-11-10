@@ -8,6 +8,9 @@ use ryo::languages::contract::{
 const ROWS: &[SyntaxErrorExpectedRow] = &[SyntaxErrorExpectedRow {
     id: node(2_147_483_648),
     message: name("syntax error: the string is not terminated"),
+    phase: name("parse"),
+    impact: name("incomplete"),
+    code: name("unspecified"),
     file: file("syntax_error/input.go"),
     span: span((3, 8), (3, 12)),
 }];

@@ -13,8 +13,8 @@ use super::schemas::kind_of;
 use super::schemas::repaired;
 use super::schemas::step_of;
 use super::types::{
-    ArgumentSpan, Child, Cursor, DecodedString, Expansion, Held, MacroArgument, MacroName, Open,
-    Reading, RustText, Step, Stretch, StringLiteral, Triviality,
+    ArgumentSpan, Child, Cursor, DecodedString, Expansion, FragmentEntryPoint, HeldMacro,
+    MacroArgument, MacroName, Open, RustText, Step, Stretch, StringLiteral, Triviality,
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -127,7 +127,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         let (mut name, mut armed) = (0..0, false);
         // The nodes open, with the place each has in the table.
         let mut open: Vec<Open> = Vec::new();
-        let mut held: Option<Held> = None;
+        let mut held: Option<HeldMacro> = None;
         let mut expansions: Vec<Expansion> = Vec::new();
         // The library answers whether the walk reached the end of the text, which a whole file's walk always does.
         let _: bool = lexed.intersperse_trivia(&output, &mut |step| {
@@ -169,7 +169,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
                 Step::Token(SyntaxKind::WHITESPACE | SyntaxKind::COMMENT, _) | Step::Exit => {}
                 Step::Enter(SyntaxKind::TOKEN_TREE) if armed => {
                     armed = false;
-                    held = Some(Held {
+                    held = Some(HeldMacro {
                         name: MacroName(whole.get(name.clone()).unwrap_or_default().into()),
                         host: open.last().map_or(Position(0), |each| each.at),
                         start: cursor.position,
@@ -267,15 +267,15 @@ pub(super) fn children_of(steps: &[Step], start: Offset) -> Option<Vec<Child>> {
 }
 
 /// The steps of `text` read as `reading`, with no error; nothing when it is not all one of them.
-pub(super) fn parsed(text: RustText<'_>, reading: Reading) -> Option<Vec<Step>> {
+pub(super) fn parsed(text: RustText<'_>, reading: FragmentEntryPoint) -> Option<Vec<Step>> {
     let lexed = LexedStr::new(Edition::CURRENT, text.0);
     if lexed.errors().next().is_some() {
         return None;
     }
     let input = lexed.to_input(Edition::CURRENT);
     let entry = match reading {
-        Reading::Expression => TopEntryPoint::Expr,
-        Reading::Pattern => TopEntryPoint::Pattern,
+        FragmentEntryPoint::Expression => TopEntryPoint::Expr,
+        FragmentEntryPoint::Pattern => TopEntryPoint::Pattern,
     };
     let output = entry.parse(&input);
     let mut steps = Vec::new();
@@ -339,22 +339,22 @@ pub(super) fn stretches(name: &MacroName, children: &[Child]) -> Option<Vec<Stre
                 Some(at) => {
                     found.push(Stretch {
                         span: trimmed(argument.get(..at)?)?,
-                        reading: Reading::Pattern,
+                        reading: FragmentEntryPoint::Pattern,
                     });
                     found.push(Stretch {
                         span: trimmed(argument.get(at + 1..)?)?,
-                        reading: Reading::Expression,
+                        reading: FragmentEntryPoint::Expression,
                     });
                 }
                 None => found.push(Stretch {
                     span,
-                    reading: Reading::Pattern,
+                    reading: FragmentEntryPoint::Pattern,
                 }),
             }
         } else {
             found.push(Stretch {
                 span,
-                reading: Reading::Expression,
+                reading: FragmentEntryPoint::Expression,
             });
         }
         place += 1_i32;

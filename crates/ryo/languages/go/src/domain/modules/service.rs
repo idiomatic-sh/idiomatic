@@ -8,8 +8,8 @@ use super::constants::{
 };
 use super::constants::{QUOTES, REQUIRE_VERB};
 use super::types::{
-    Cause, Directory, FilePlacement, Located, Manifest, ManifestPath, Manifestness, Modules, Part,
-    Relative, Replacement, Replacing, Wired, Wiring, WorkspaceMembership,
+    Cause, Diagnosed, Directory, FilePlacement, Located, Manifest, ManifestPath, Manifestness,
+    Modules, Part, Relative, Replacement, Replacing, Wired, Wiring, WorkspaceMembership,
 };
 use super::types::{ModuleMapping, RequiredLine, Verb};
 use std::borrow::Cow;
@@ -112,6 +112,22 @@ fn causes_of(modules: &Modules) -> Vec<Cause> {
                 )
                 .into(),
             )
+        })
+        .collect()
+}
+
+/// The manifests the tool refused that are among the files of the run, each with what it said, in the order of their paths.
+#[must_use]
+pub(crate) fn diagnoses_in(files: &[languages::FilePath], modules: &Modules) -> Vec<Diagnosed> {
+    modules
+        .refused
+        .iter()
+        .filter_map(|refusal| {
+            file_of(files, &refusal.manifest).map(|file| Diagnosed {
+                file,
+                manifest: manifestness_of(&languages::FilePath(refusal.manifest.0.clone())),
+                reason: refusal.reason.clone(),
+            })
         })
         .collect()
 }

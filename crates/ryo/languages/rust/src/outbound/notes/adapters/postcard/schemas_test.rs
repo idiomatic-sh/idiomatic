@@ -20,6 +20,7 @@ fn note_is_read_as_it_is_written() -> String {
     let schema = NoteSchema {
         clean: FlagSchema(true),
         declared: vec![DeclaredSchema {
+            test_only: FlagSchema(false),
             around: vec![StepSchema {
                 name: NameSchema("outer"),
                 path: Some(TextSchema("x".into())),
@@ -34,11 +35,14 @@ fn note_is_read_as_it_is_written() -> String {
             start: OffsetSchema(3),
             end: OffsetSchema(9),
             text: NameSchema("crate::a"),
+            bound: None,
+            scope: None,
         }],
     };
     let expected = Note {
         clean: NoteFlag(true),
         declared: vec![DeclaredNote {
+            test_only: NoteFlag(false),
             around: vec![StepNote {
                 name: NoteName(Cow::Borrowed("outer")),
                 path: Some(NotePath("x".into())),
@@ -56,6 +60,8 @@ fn note_is_read_as_it_is_written() -> String {
             start: NoteOffset(3),
             end: NoteOffset(9),
             text: NoteName(Cow::Borrowed("crate::a")),
+            bound: None,
+            scope: None,
         }],
     };
     (Note::from(schema) == expected).to_string()

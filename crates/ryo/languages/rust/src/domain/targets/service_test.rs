@@ -85,6 +85,7 @@ fn subject(scenario: Input) -> Value {
             Manifest {
                 lib: Section::Present(LibrarySection {
                     path: Section::Present(WrittenPath("./lib/mine.rs".into())),
+                    name: Section::Absent,
                 }),
                 ..Manifest::default()
             },

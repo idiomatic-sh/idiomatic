@@ -8,7 +8,8 @@ use ryo::languages::{self, FileId, FilePath};
 
 use super::constants::{GO, ROOT, SEPARATOR, TEST, UNREAD_CAUSE, UNRESOLVED_CAUSE};
 use super::types::{
-    Doubt, FileIndex, ImportOutcome, Layout, Link, Linked, Owner, Rest, Root, UnlinkedFile,
+    Doubt, FileIndex, ImportOutcome, Layout, Linked, Owner, PackageImportLink, Rest, Root,
+    UnlinkedFile,
 };
 use crate::domain::fact_notes::types::{ImportPath, Note};
 use crate::domain::modules::constants::MODULE_FILE;
@@ -23,7 +24,7 @@ pub(crate) fn file_id(place: FileIndex) -> FileId {
 
 /// Where the import of a link is written.
 #[must_use]
-pub(crate) fn link_span(link: &Link) -> languages::Span {
+pub(crate) fn link_span(link: &PackageImportLink) -> languages::Span {
     languages::Span {
         start: link.start,
         end: link.end,
@@ -208,7 +209,7 @@ pub(crate) fn linked(files: &[FilePath], notes: &[Option<Note>], modules: Module
                             targets
                                 .iter()
                                 .filter(|target| **target != source)
-                                .map(|target| Link {
+                                .map(|target| PackageImportLink {
                                     source,
                                     target: *target,
                                     start: import.start,

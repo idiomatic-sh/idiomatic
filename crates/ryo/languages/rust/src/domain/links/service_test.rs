@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::service::{draw, examine, gaps_in, merged};
-use super::types::{Link, Linked, Run};
+use super::types::{ExternCrate, Externs, Linked, Run, SourceDependencyLink};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::module_tree::types::{
     Body, Cleanliness, Facts, ModDeclaration, Segment, Spelling, Written,
@@ -15,23 +15,27 @@ use crate::domain::paths::types::Section;
 use ryo::languages::{FilePath, Offset};
 
 /// A scenario: a repository of files with their facts, and what to link.
-type Input = fn() -> Repository;
+pub(super) type Input = fn() -> Repository;
 /// The links as `source -> target`, then the files analyzed, all by path.
-type Value = &'static str;
-type Failure = ();
+pub(super) type Value = &'static str;
+pub(super) type Failure = ();
 
 /// The files of a repository, the crate roots Cargo declares by package directory, the outputs, and the facts of each source file.
-struct Repository {
+/// `externs` are the libraries each package depends on, as `(package directory, name its code writes, library's package directory,
+/// library root)`.
+pub(super) struct Repository {
     files: Vec<&'static str>,
     roots: Vec<(&'static str, &'static str)>,
     outputs: Vec<&'static str>,
     facts: Vec<(&'static str, Facts)>,
+    externs: Vec<(&'static str, &'static str, &'static str, &'static str)>,
 }
 
-fn declares(names: &[&str]) -> Vec<ModDeclaration> {
+pub(super) fn declares(names: &[&str]) -> Vec<ModDeclaration> {
     names
         .iter()
         .map(|name| ModDeclaration {
+            gate: crate::domain::module_tree::types::Gate::Always,
             around: Vec::new(),
             name: Segment((*name).into()),
             body: Body::File,
@@ -40,7 +44,7 @@ fn declares(names: &[&str]) -> Vec<ModDeclaration> {
         .collect()
 }
 
-fn writes(segments: &[&str]) -> Written {
+pub(super) fn writes(segments: &[&str]) -> Written {
     Written {
         segments: segments
             .iter()
@@ -50,10 +54,12 @@ fn writes(segments: &[&str]) -> Written {
         start: Offset(1),
         end: Offset(2),
         text: Spelling(segments.join("::").into()),
+        bound: None,
+        scope: None,
     }
 }
 
-fn facts(declared: Vec<ModDeclaration>, written: Vec<Written>) -> Facts {
+pub(super) fn facts(declared: Vec<ModDeclaration>, written: Vec<Written>) -> Facts {
     Facts {
         clean: Cleanliness::Clean,
         declared,
@@ -62,12 +68,13 @@ fn facts(declared: Vec<ModDeclaration>, written: Vec<Written>) -> Facts {
 }
 
 /// A package `p` rooted at `p/src/lib.rs`.
-fn package(files: Vec<&'static str>, facts: Vec<(&'static str, Facts)>) -> Repository {
+pub(super) fn package(files: Vec<&'static str>, facts: Vec<(&'static str, Facts)>) -> Repository {
     Repository {
         files,
         roots: vec![("p", "p/src/lib.rs")],
         outputs: Vec::new(),
         facts,
+        externs: Vec::new(),
     }
 }
 
@@ -168,49 +175,8 @@ fn files_in_an_output_directory_belong_to_no_package() -> Repository {
     made
 }
 
-fn a_path_to_an_external_crate_names_nothing_of_the_repository() -> Repository {
-    package(
-        vec!["p/Cargo.toml", "p/src/lib.rs"],
-        vec![(
-            "p/src/lib.rs",
-            facts(
-                Vec::new(),
-                vec![writes(&["std", "mem", "swap"]), writes(&["Self", "new"])],
-            ),
-        )],
-    )
-}
-
-/// Cargo retains parent segments in a target path; source discovery normalizes them.
-fn an_external_target_with_parent_segments() -> Repository {
-    Repository {
-        files: vec![
-            "distribution/child.rs",
-            "distribution/main.rs",
-            "p/Cargo.toml",
-        ],
-        roots: vec![("p", "p/../distribution/main.rs")],
-        outputs: Vec::new(),
-        facts: vec![
-            (
-                "distribution/main.rs",
-                facts(declares(&["child"]), vec![writes(&["child"])]),
-            ),
-            ("distribution/child.rs", facts(Vec::new(), Vec::new())),
-        ],
-    }
-}
-
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_declared_external_target_and_its_modules_are_analyzed"),
-        word: Word::Succeeds,
-        input: || an_external_target_with_parent_segments,
-        expect: Expect::Value(
-            "distribution/main.rs -> distribution/child.rs | distribution/child.rs distribution/main.rs",
-        ),
-    },
     Case {
         name: CaseName("a_path_from_the_crate_root_names_the_file_of_the_module"),
         word: Word::Succeeds,
@@ -255,15 +221,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || files_in_an_output_directory_belong_to_no_package,
         expect: Expect::Value("p/src/b.rs -> p/src/c.rs | p/src/b.rs p/src/c.rs p/src/lib.rs"),
     },
-    Case {
-        name: CaseName("a_path_to_an_external_crate_names_nothing_of_the_repository"),
-        word: Word::Succeeds,
-        input: || a_path_to_an_external_crate_names_nothing_of_the_repository,
-        expect: Expect::Value(" | p/src/lib.rs"),
-    },
 ];
 
-fn subject(made: Input) -> Value {
+pub(super) fn subject(made: Input) -> Value {
     let made = made();
     let files: Vec<FilePath> = made
         .files
@@ -288,11 +248,27 @@ fn subject(made: Input) -> Value {
             known[place] = Some(each);
         }
     }
-    let linked = link(&files, &roots, &outputs, &known);
+    let mut externs = Externs::default();
+    for (package, name, directory, root) in made.externs {
+        externs
+            .by_package
+            .entry(RepoPath(package.into()))
+            .or_default()
+            .entry(Segment(name.into()))
+            .or_default()
+            .push(ExternCrate {
+                directory: RepoPath(directory.into()),
+                root: RepoPath(root.into()),
+                kind: ryo::languages::DependencyKind::Normal,
+            });
+    }
+    let linked = link(&files, &roots, &outputs, &known, &externs);
     let links: Vec<String> = linked
         .dependencies
         .iter()
-        .map(|Link { source, target, .. }| format!("{} -> {}", files[source.0], files[target.0]))
+        .map(|SourceDependencyLink { source, target, .. }| {
+            format!("{} -> {}", files[source.0], files[target.0])
+        })
         .collect();
     let analyzed: Vec<&str> = linked
         .analyzed
@@ -327,6 +303,7 @@ fn link(
     roots: &BTreeMap<RepoPath, BTreeSet<RepoPath>>,
     outputs: &[RepoPath],
     facts: &[Option<Facts>],
+    externs: &Externs,
 ) -> Linked {
     let kept = kept_files(files, outputs);
     let packages = index(&kept, roots);
@@ -346,7 +323,12 @@ fn link(
     let examined = files
         .iter()
         .enumerate()
-        .map(|(place, file)| examine(run, &packages, &trees, ListIndex(place), file))
+        .map(|(place, file)| examine(run, &packages, &trees, externs, ListIndex(place), file))
         .collect();
     merged(run, gaps_in(&trees), examined)
 }
+
+#[cfg(test)]
+mod aliases_test;
+#[cfg(test)]
+mod external_test;

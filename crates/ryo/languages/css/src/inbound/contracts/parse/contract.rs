@@ -7,24 +7,27 @@
 use ryo::languages::SourcePath;
 use std::sync::Arc;
 
-use ryo::languages::{self, AbsenceCause, Parse, Reader, Support, UnknownName};
+use ryo::languages::{
+    self, AbsenceCause, CompletionRequirement, Elements, Parse, ParseRequest, Position, Reader,
+    Recognition, SemanticSlot, Support, Tree, UnknownName,
+};
 
 use crate::domain::language::constants::UNKNOWN_REASONS;
 use crate::domain::language::service::reads;
-use crate::domain::relations::collections::relations::comment::item::CommentItem;
-use crate::domain::relations::collections::relations::reference::item::ReferenceItem;
-use crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
-use crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
-use crate::domain::relations::collections::relations::syntax_child::item::SyntaxChildItem;
-use crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
-use crate::domain::relations::collections::relations::syntax_tree::item::SyntaxTreeItem;
+use crate::domain::relations::collections::relations::{
+    comment::item::CommentItem, reference::item::ReferenceItem,
+    static_import::item::StaticImportItem, string_literal::item::StringLiteralItem,
+    syntax_child::item::SyntaxChildItem, syntax_error::item::SyntaxErrorItem,
+    syntax_tree::item::SyntaxTreeItem,
+};
+use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{
     field_bits, field_name, fields, kind_bits, kind_name, kinds, role_of,
 };
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 
-/// `parse`, implementing `ryo::languages::Parse`.
+/// `parse`, implementing `ryo::Parse`.
 pub(crate) struct ParseContract {
     /// The syntax port the contract reads each file's tree through.
     syntax: Arc<dyn SyntaxPort>,
@@ -41,13 +44,33 @@ impl ParseContract {
 impl Parse for ParseContract {
     type FileModel = ();
 
-    fn file_model(&self, _tree: &languages::Tree<'_>, _model: &mut ()) {}
+    fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
+
+    fn completion_requirement(&self) -> CompletionRequirement {
+        CompletionRequirement::Independent
+    }
+
+    fn extend_file_model(&self, _: &Tree<'_>, _: Position, _: &mut Self::FileModel) {}
+
+    fn recognizes_explicit(&self, _: &ParseRequest<'_>) -> Recognition {
+        Recognition::Declines
+    }
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity(NO_CONFIGURATION)
+    }
+
+    fn file_model(&self, _tree: &Tree<'_>, _model: &mut ()) {}
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         UNKNOWN_REASONS
     }
 
-    fn recognizes(&self, request: &languages::ParseRequest<'_>) -> languages::Recognition {
+    fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition {
         reads(request.path)
     }
 
@@ -65,7 +88,7 @@ impl Parse for ParseContract {
 
     fn read_tree(
         &self,
-        request: &languages::ParseRequest<'_>,
+        request: &ParseRequest<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) -> Result<(), languages::ParseError> {
         self.syntax.read(
@@ -76,11 +99,7 @@ impl Parse for ParseContract {
         Ok(())
     }
 
-    fn complete(
-        &self,
-        request: &languages::ParseRequest<'_>,
-        completion: &mut languages::Completion<'_>,
-    ) {
+    fn complete(&self, request: &ParseRequest<'_>, completion: &mut languages::Completion<'_>) {
         for kind in kinds() {
             languages::name_kind(completion, kind_bits(kind), kind_name(kind));
         }
@@ -113,12 +132,28 @@ impl Parse for ParseContract {
         languages::reads::<SyntaxErrorItem>()
     }
 
+    fn source_location(&self) -> Support<Reader<languages::SourceLocation, ()>> {
+        languages::source_locations()
+    }
+
+    fn indent_region(&self) -> Support<Reader<languages::IndentRegion, ()>> {
+        // standard: CSS Syntax Level 3, Tokenization: whitespace produces whitespace tokens;
+        // blocks use delimiter tokens, with no lexical INDENT/DEDENT suite regions.
+        // https://www.w3.org/TR/css-syntax-3/#tokenization
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
     fn syntax_tree(&self) -> Support<Reader<languages::SyntaxTree, ()>> {
         languages::reads::<SyntaxTreeItem>()
     }
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, ()>> {
         languages::reads::<StaticImportItem>()
+    }
+
+    fn standard_library_import(&self) -> Support<Reader<languages::StandardLibraryImport, ()>> {
+        // standard: CSS Cascading and Style Sheets Level 3 (css-cascade-3), §6 Importing style sheets: an `@import` names a style sheet by URL, and the standard defines no standard library of modules.
+        languages::absent(AbsenceCause::NoSuchConstruct)
     }
 
     fn reference(&self) -> Support<Reader<languages::Reference, ()>> {
@@ -199,6 +234,141 @@ impl Parse for ParseContract {
     fn call_argument(&self) -> Support<Reader<languages::CallArgument, ()>> {
         // standard: the CSS Syntax Module Level 3, §5.2 CSS Parsing Results: it has no call of a path written out, so it has no argument of one.
         languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+
+    fn embedded_expression(
+        &self,
+    ) -> Support<Reader<languages::EmbeddedExpression, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn semantic_syntax(&self) -> Support<Reader<languages::SemanticSyntax, Self::FileModel>> {
+        languages::native_semantic_syntax()
+    }
+
+    fn semantic_child(&self) -> Support<Reader<languages::SemanticChild, Self::FileModel>> {
+        languages::native_semantic_child()
+    }
+
+    fn expression_shape(&self) -> Support<Reader<languages::ExpressionShape, ()>> {
+        // Parsed expression identity is not yet implemented by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn constant_key(&self) -> Support<Reader<languages::ConstantKey, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_parse(&self) -> Support<Reader<languages::FormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_field(&self) -> Support<Reader<languages::FormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_expression_parse(
+        &self,
+    ) -> Support<Reader<languages::LiteralExpressionParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_segment(&self) -> Support<Reader<languages::RawFormatSegment, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn token_link(&self) -> Support<Reader<languages::TokenLink, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn raw_format_field(&self) -> Support<Reader<languages::RawFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_parse(&self) -> Support<Reader<languages::BraceFormatParse, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn brace_format_field(&self) -> Support<Reader<languages::BraceFormatField, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn function_terminal(&self) -> Support<Reader<languages::FunctionTerminal, Self::FileModel>> {
+        // This provider does not yet implement this optional semantic relation.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn expression_type(&self) -> Support<Reader<languages::ExpressionType, Self::FileModel>> {
+        // This provider does not yet implement this optional semantic relation.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn format_specification(
+        &self,
+    ) -> Support<Reader<languages::FormatSpecification, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn bytes_literal(&self) -> Support<Reader<languages::BytesLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn interpolated_string_literal(
+        &self,
+    ) -> Support<Reader<languages::InterpolatedStringLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn literal_properties(&self) -> Support<Reader<languages::LiteralProperties, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn numeric_literal(&self) -> Support<Reader<languages::NumericLiteral, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn compiler_feature(&self) -> Support<Reader<languages::CompilerFeature, Self::FileModel>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn language_target(&self) -> Support<Reader<languages::LanguageTarget, Self::FileModel>> {
+        // This provider does not expose a parser target version.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn implicit_symbol(&self) -> Support<Reader<languages::ImplicitSymbol, Self::FileModel>> {
+        // This optional provider catalog is not yet implemented or advertised here.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_event(&self) -> Support<Reader<languages::BindingEvent, Self::FileModel>> {
+        // This optional analysis is not yet implemented or advertised by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_read(&self) -> Support<Reader<languages::BindingRead, Self::FileModel>> {
+        // This optional analysis is not yet implemented or advertised by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_use(&self) -> Support<Reader<languages::BindingUse, Self::FileModel>> {
+        // This optional analysis is not yet implemented or advertised by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn binding_shadow(&self) -> Support<Reader<languages::BindingShadow, Self::FileModel>> {
+        // This optional analysis is not yet implemented or advertised by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn identifier(&self) -> Support<Reader<languages::Identifier, ()>> {
+        // Canonical identifier spelling is not yet exposed by this provider.
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn qualified_name(&self) -> Support<Reader<languages::QualifiedName, ()>> {
+        // Qualified source identities are applicable, but this provider has not implemented their reader.
+        languages::absent(AbsenceCause::NotYetRead)
     }
 
     fn resolves(&self) -> Support<Reader<languages::Resolves, ()>> {

@@ -8,6 +8,9 @@ use ryo::languages::contract::{
 const ROWS: &[SyntaxErrorExpectedRow] = &[SyntaxErrorExpectedRow {
     id: node(2_147_483_648),
     message: name("Eof in tag"),
+    phase: name("parse"),
+    impact: name("incomplete"),
+    code: name("unspecified"),
     file: file("syntax_error/input.html"),
     span: span((2, 1), (2, 1)),
 }];
