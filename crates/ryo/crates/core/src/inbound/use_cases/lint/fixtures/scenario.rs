@@ -6,6 +6,7 @@ use super::given::Lint;
 use super::given::SOURCES;
 use super::given::request;
 use super::given::violations;
+use super::lifecycle::counted_twice;
 use super::lifecycle::crossed_after;
 use super::lifecycle::deleted;
 use super::lifecycle::edited;
@@ -81,6 +82,8 @@ pub(crate) enum Scenario {
     Projects,
     /// Lints and reads the line and the character the first finding is at.
     Placed,
+    /// Lints the same request twice with one counting use case, and reads the rows each run's steps were fed.
+    CountedTwice,
     /// The pipeline's lifecycle: a lint, then another over the same files and store.
     Unchanged,
     /// The pipeline's lifecycle: a lint with a rule that crosses files, then one after a file's body is edited and what it hands
@@ -154,6 +157,7 @@ pub(crate) fn scenario(scenario: Scenario) -> Result<(usize, usize), LintError> 
             made.report.map(|unread| (findings, unread))
         }
         Scenario::Placed => placed(),
+        Scenario::CountedTwice => counted_twice(),
         Scenario::Projects => {
             let made = lint(violations());
             made.report.map(|unread| (made.projects, unread))

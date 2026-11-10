@@ -93,7 +93,7 @@ pub struct LintUseCaseImpl {
     store: Arc<dyn LintStorePort>,
     /// The observer told of the rows each step is fed, when they are counted for the report's `features`: a count that costs a
     /// call for every row.
-    observer: Option<Arc<dyn ObserverPort>>,
+    observer: Option<fn() -> Arc<dyn ObserverPort>>,
 }
 
 impl std::fmt::Debug for LintUseCaseImpl {
@@ -167,11 +167,10 @@ impl LintUseCaseImpl {
         self
     }
 
-    /// The same, counting the rows each step is fed, for the report's `features`: `observer` is told of them and its totals
-    /// are what the report reads. Its totals add up every run it is told of, so each run that reports its own work takes an
-    /// observer of its own.
+    /// The same, counting the rows each step is fed, for the report's `features`: each run builds its own observer with `observer`,
+    /// so a run's totals are its own work only.
     #[must_use]
-    pub fn counting(mut self, observer: Arc<dyn ObserverPort>) -> Self {
+    pub fn counting(mut self, observer: fn() -> Arc<dyn ObserverPort>) -> Self {
         self.observer = Some(observer);
         self
     }
@@ -179,6 +178,7 @@ impl LintUseCaseImpl {
 
 impl LintUseCase for LintUseCaseImpl {
     fn lint(&self, request: LintRequest) -> Result<LintReport, LintError> {
+        let observer = self.observer.map(|make| make());
         let analysis = self.visits.analysis();
         analysis.validate_source_language(named_provider(&request.source_language))?;
         let rules: Vec<RuleSpec> = request.rules.iter().map(RuleSpec::from).collect();
@@ -267,10 +267,9 @@ impl LintUseCase for LintUseCaseImpl {
                 .map_err(|error| request_failed(&error))?,
         );
         let metadata = program.metadata();
-        let services = execution.begin(&program, &listing.files, self.observer.clone());
+        let services = execution.begin(&program, &listing.files, observer.clone());
         // The files read alone before the run are not the run's work: a counting run reads them over services nobody observes.
-        let unobserved = self
-            .observer
+        let unobserved = observer
             .as_ref()
             .map(|_| execution.begin(&program, &listing.files, None));
         let mut setting = RequestVisitSetting {
@@ -379,7 +378,7 @@ impl LintUseCase for LintUseCaseImpl {
             ports,
             self.rows.as_ref(),
             self.store.keeps(),
-            self.observer.as_deref(),
+            observer.as_deref(),
             &run,
             &visit,
             &mut project,
