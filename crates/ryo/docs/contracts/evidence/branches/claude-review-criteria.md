@@ -1,11 +1,11 @@
 # Leak review: claude/review-criteria (thirteenth pass, targeted)
 
-Source `1392542771c2c92729ad6b80c9114e10f30d6372`, base `438798b2d2` (pass 12, FAIL: 2). This pass covers the delta `438798b2d2..1392542771` (the hooks README, `no_subagent_builders.py` and `test_hooks.py`) and checks that the pass-12 FAIL is closed. Everything else in pass 12 passed and carries forward. The reviewed tree `/workspaces/ryo-334` stayed at `da77293b16`, and nothing changed in it except these two evidence files. Hooks ran from a `git archive` copy in the session scratchpad, with its own `CLAUDE_HOOKS_STATE`.
+Source `1392542771c2c92729ad6b80c9114e10f30d6372`, base `438798b2d2` (pass 12, FAIL: 2). This pass covers the delta `438798b2d2..1392542771` (the hooks README, `no_subagent_builders.py` and `test_hooks.py`) and checks that the pass-12 FAIL is closed. Everything else in pass 12 passed and carries forward. The reviewed tree the integration worktree stayed at `da77293b16`, and nothing changed in it except these two evidence files. Hooks ran from a `git archive` copy in the session scratchpad, with its own `CLAUDE_HOOKS_STATE`.
 
 ## The fix: the pass-12 FAIL is closed
 `no_subagent_builders.py:241` is now `brief = bool(brief_beads(prompt))`. Any prompt with a `^BEAD:` line under a type outside `ACCEPTED` is refused at `:242-244` with `WRONG_TYPE`, before any filesystem access.
 
-I replayed the pass-12 plants with real PreToolUse payloads (`tool_name: Agent`, no `agent_id`). The real 2026-09-23 brief is the first message of `agent-a89d59f998e6155c0.jsonl` (`BEAD: ryo-tq5.18.33 ...`, no WORKTREE line).
+I replayed the pass-12 plants with real PreToolUse payloads (`tool_name: Agent`, no `agent_id`). The real 2026-09-23 brief is the first message of `agent-a89d59f998e6155c0.jsonl` (`BEAD: <task id> ...`, no WORKTREE line).
 
 | Brief | general-purpose | untyped | Explore | Plan | fork |
 | --- | --- | --- | --- | --- | --- |
