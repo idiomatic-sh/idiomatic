@@ -353,6 +353,13 @@ class Diff(unittest.TestCase):
   self.assertFalse(any(lint[:10] in x for x in found),found); self.assertTrue(any(code[:10] in x for x in found),found)
   deep=Path(self.repo)/'d'; deep.mkdir(exist_ok=True)
   self.assertEqual(run.fix_problems({'red_green':[],'raw_identity':str(self.raw)},repo=deep,base=self.base),found)
+ def test_a_change_inside_cfg_test_items_is_no_fix_and_one_outside_them_still_is(self):
+  base='pub struct One {\n    pub kept: u8,\n    #[cfg(test)]\n    pub probe: u8,\n}\n\n#[cfg(test)]\nmod tests {\n    fn a() {}\n}\n'
+  commit(self.repo,{'a/src/two.rs':base},'feat(a): two')
+  quiet=commit(self.repo,{'a/src/two.rs':base.replace('    #[cfg(test)]\n    pub probe: u8,\n','').replace('fn a() {}','fn b() {}')},'test(a): the probe field goes')
+  loud=commit(self.repo,{'a/src/two.rs':base.replace('pub kept: u8','pub kept: u16')},'fix(a): a wider field')
+  found=self.fixes([])
+  self.assertFalse(any(quiet[:10] in x for x in found),found); self.assertTrue(any(loud[:10] in x for x in found),found)
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])
