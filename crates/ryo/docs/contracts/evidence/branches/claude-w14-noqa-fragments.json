@@ -1,0 +1,37 @@
+{
+ "checkpoint": 332,
+ "source": "555076902b1992304c17b00098b2e90ed0c9bb9f",
+ "base": "79ef18b419d4cafe87305f374b714cb109b2a8ad",
+ "branch": "claude/w14-noqa-fragments",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "date": "2026-11-09",
+ "checks": [
+  {"id": "1", "verdict": "PASS", "evidence": "The change is Ruff benchmark assets (languages/python/benchmarks/linters/ruff: fragments, rules, profiles, cases, authoring) and docs/ryoql.md. git diff 79ef18b419..555076902b touches no file under crates/ryo/crates, languages/python/src or cli. No engine contract is asserted from the product directory."},
+  {"id": "2", "verdict": "PASS", "evidence": "One grammar: RUF100 and RUF101 import noqa-heads/noqa-codes/noqa-blankets (rules/RUF100/query.ryoql:1-8), and RUF100 computes its own span-between (:291); noqa-codes carries marker and codes_span, not a span-between. Codes: a script over all 418 rules finds 414 in standard-suppression-policy v2, each with exactly one codes= equal to render_codes(pinned-noqa-code-policy, rule) (0 mismatches). The 4 not in the policy are exactly E902, RUF100, RUF101 and RUF200, and none carries a codes= call. Ruff 0.16.5 probes agree with the exact-spelling rule: `# noqa: U031`, `U0`, `UP` and `U` do not suppress UP031, while `UP031` does. Ruff never suppresses RUF101 by noqa, so RUF101's exemption is right. Guard v2: the self-test (profile_case_tests.self_test_standard_suppression) passes and refuses through one helper that raises when a form is accepted, and the live check over the real tree accepts all 414 rules. Plants in a copy, through check_standard_suppression: widening B035 to ^(?:B035|RUF011|PIE999)$ is refused; narrowing to ^(?:B035)$ is refused; an emit that no longer depends on the family is refused. The narrowed grammar ban (profile_proofs.py:258-259) refuses `(?i:noqa)` only together with capture=; E501's pragma test stays legal, as the self-test pins. Advisory: replacing B035's antijoin with a union of the rows and the matches is accepted, because the guard checks dependency, not subtraction."},
+  {"id": "3", "verdict": "PASS", "evidence": "No crate visibility or import boundary changes; benchmark.toml declares the six new modules (benchmark.toml:885-890), and the deleted modules are gone from it."},
+  {"id": "4", "verdict": "PASS", "evidence": "The directive grammar exists once (noqa-heads), shared by every producer and by RUF100/RUF101. The rules' codes spellings come from the one generator noqa_policy.render_codes, which the guard re-runs. check_suppression_patterns.py and the 12 inline copies are deleted (the guard refuses copied mapping_edges/supp_range_comments and comment-noqa selects)."},
+  {"id": "5", "verdict": "PASS", "evidence": "No Rust layer change. The fragments import downward only: noqa-codes and noqa-blankets import noqa-heads; noqa-suppressions imports codes, blankets and ranges."},
+  {"id": "6", "verdict": "PASS", "evidence": "No production code."}
+ ],
+ "rebinds": "Every rebind tracks a byte change. 267 profile-sha256 old→new pairs in the changed cases.toml (40 distinct pairs) each equal (sha256 of a profile benchmark.toml at base, sha256 at head) for one of the 335 changed profiles: 0 unexplained. The profile diffs are only query-modules declarations (deleted suppress/suppress-directives/suppression-edges/suppress-unmapped/suppress-with-additional-lines lines out, the noqa modules in). The cases.toml changes other than the sha lines are 14 appended new cases; no existing expected or reference value changed. The 8 UP031 invocation.json changes are profile_sha256 plus one appended context_derivation note each. My count is 267 sha lines against the builder's 285; the difference is not a hidden change, because every changed sha line was checked.",
+ "spot_checks": "The 14 new cases (C419 x5, B035, RUF100 x2, PIE790, C414 x2, W605, SIM101 x2) were run through Ruff 0.16.5 (--isolated --target-version py310 --preview): 14 of 14 equal their expected rows. The ryo-side claims (412/413 with per-rule.json d707aa94 byte-identical, Django f50bb571, RUF100 29/30) were not re-run: the engine is unchanged, but running them needs a sealed benchmark worker, and none exists on disk (after.json worker 40f8ce0d) while the hook refuses building one. One attempt was made (a search for any recent worker binary); this is a documented residual.",
+ "skip_gate": "The 87.76% relaxation is a recorded give-back in the design §7 and after.json (step 8 not run on this base); no code gate in this diff enforces it, so nothing is hidden. Restoring it is tracked separately.",
+ "plants": [
+  {"claim": "guard v2: codes equal render_codes (widened spelling)", "file": "rules/B035/query.ryoql:26", "count": 1, "reverted": true},
+  {"claim": "guard v2: codes equal render_codes (narrowed spelling)", "file": "rules/B035/query.ryoql:26", "count": 1, "reverted": true},
+  {"claim": "guard v2: emit depends on the suppression family", "file": "rules/B035/query.ryoql:28", "count": 1, "reverted": true},
+  {"claim": "guard v2: suppression is subtracted (union instead of antijoin)", "file": "rules/B035/query.ryoql:28", "count": 0, "reverted": true, "note": "advisory: the guard claims dependency, not subtraction"}
+ ],
+ "findings": [
+  "open item: suppression guard accepts a rule that unions instead of subtracting its suppression matches",
+  "open item: no completeness check that every rule importing a suppression module is listed in standard-suppression-policy (today's exempt set verified correct by script)",
+  "open item: ryo-side parity/Django/RUF100 claims not re-run by this review (no worker; build blocked)"
+ ],
+ "enforcement_candidates": [
+  {"id": "suppression-guard-accepts-non-subtraction-361ac554", "class": "suppression-guard-accepts-non-subtraction", "signature": "a rule in standard-suppression-policy whose emitted rows depend on the suppression family call through union/select instead of antijoin(left=<rows>, right=<family result>)", "scope": ["crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_proofs.py", "crates/ryo/languages/python/benchmarks/linters/ruff/rules"], "suggested_mechanism": "new rule",
+   "plants": [{"file": "crates/ryo/languages/python/benchmarks/linters/ruff/rules/B035/query.ryoql", "line": 28, "text": "let violations = union(left=violations_rows, right=violations_unsupp);"}]},
+  {"id": "suppression-policy-completeness-unchecked-a5132b93", "class": "suppression-policy-completeness-unchecked", "signature": "a rules/<R>/query.ryoql importing python/ruff/suppress-*-matches or noqa-suppressions* with no entry in results/standard-suppression-policy.json rules", "scope": ["crates/ryo/languages/python/benchmarks/linters/ruff/results/standard-suppression-policy.json", "crates/ryo/languages/python/benchmarks/linters/ruff/rules"], "suggested_mechanism": "new rule",
+   "plants": [{"file": "crates/ryo/languages/python/benchmarks/linters/ruff/results/standard-suppression-policy.json", "line": 1, "text": "(B035 entry removed while rules/B035/query.ryoql still imports python/ruff/suppress-matches)"}]}
+ ]
+}

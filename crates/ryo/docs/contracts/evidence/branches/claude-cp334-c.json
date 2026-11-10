@@ -1,0 +1,68 @@
+{
+ "checkpoint": 334,
+ "branch": "claude/cp334-c",
+ "source": "940a264aaa28b205cab5067d4a063e6c6370bc9c",
+ "verdict": "PASS",
+ "checks": [
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "The .17 proof is core's own case runs/test.rs:97-102 over core fixtures (lifecycle.rs:240-264, scenario.rs:85,160); the .16 conversions live in their newtypes' types.rs (values plan_parts/types.rs:46,60,304; derived vertices/types.rs:8,22; relations relations/types.rs:30). Nothing is asserted from benchmarks/ or languages/."
+  },
+  {
+   "id": "2",
+   "verdict": "PASS",
+   "evidence": "Plant: lint built its observer once per use case (a thread_local OnceCell around `make` at use_case.rs:181) and `cargo nextest run -p idiomatic-sh-ryo-core --lib runs::test` failed: 'two_counted_lints_of_one_use_case_each_report_only_their_own_rows: expected (2, 2), answered Ok((2, 4))'; reverted, 3/3 passed. The cases runner (core cases.rs:83-138) records every mismatch, panic and wrong-kind row as a failure and refuses an empty word, so no row passes silently. The doctest on ExecutablePermission (sdk file/types.rs:32-44) asserts. Advisory: the clippy `unfulfilled_lint_expectations` plant for the six From impls could not run (the shell guard allows builders only cargo check and nextest); by reading, as_conversions is deny (crates/ryo/Cargo.toml:140) and each expect covers exactly one `as`, so all are fulfilled; the integrator's clippy group runs it."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "The six `impl From<X> for usize` sit on types already pub in their crates; no new pub item, re-export or manifest edge (git diff --stat touches no Cargo.toml). counting's parameter type keeps the same pub ObserverPort it named before (use_case.rs:116). sdk api.txt is unchanged, and the doc example uses only re-exported paths (sdk resources/linter.rs:28,30,32,121)."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "One conversion per index type: grep finds exactly one From<_> for usize per type (vertices/types.rs:8,22, relations/types.rs:30, plan_parts/types.rs:46,60,304). The diff adds 0 sentinels and removes 36 (git diff | grep -c). The observer is still built only by the edge's closure (lifecycle.rs:229,251, stores.rs:258, inapplicable_identity/fixtures/mod.rs:221, cli replay/base.rs:565). Advisory: 239 sentinels on newtypes remain elsewhere in the tree, and some are in the touched crates (derived 1, operators 5, query_language 13, values 4). They are outside the diff-scoped gate (scope 2.4) and handed to the TM steward as a candidate."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "Core's use case gets an fn pointer and calls no runtime factory (grep finds factory::counting only in fixtures and tests). The From impls sit in each crate's domain types.rs, and no inbound or application item crosses a crate."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "Scenario::CountedTwice and counted_twice sit under lint/fixtures, which lint.rs:10-11 gates with #[cfg(any(test, feature = \"fixtures\"))]. The case is under #[cfg(test)] use_case_test. Advisory, older than this diff: LintUseCaseImpl::counting (use_case.rs:116) is pub, ungated and has only test or fixture callers."
+  }
+ ],
+ "plants": [
+  {
+   "claim": "runs case two_counted_lints_of_one_use_case_each_report_only_their_own_rows (one observer per run)",
+   "file": "crates/ryo/crates/core/src/inbound/use_cases/lint/use_case.rs:181",
+   "count": 1,
+   "reverted": true
+  }
+ ],
+ "enforcement_candidates": [
+  {
+   "id": "usize-max-index-sentinel-0c59892e",
+   "class": "usize-max-index-sentinel",
+   "signature": "usize::try_from(<newtype>.0).unwrap_or(usize::MAX)",
+   "scope": [
+    "crates/ryo/crates",
+    "crates/ryo/languages"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "open",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/derived/src/domain/row_cells/types.rs",
+     "line": 86,
+     "text": "        let column = usize::try_from(column.0).unwrap_or(usize::MAX);"
+    }
+   ]
+  }
+ ],
+ "reviewer": "leak-review",
+ "date": "2026-11-10T04:30:00+00:00"
+}

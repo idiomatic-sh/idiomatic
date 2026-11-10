@@ -1,0 +1,76 @@
+{
+ "schema": "contract-review-verdict/v1",
+ "scope": "Phase 3 re-review (base cd2b23f100): value.rs repairs, prepared_walk split, independent route expectation on the compiled 413 program, delivery accounting, relation-keyed release, cross-rule sharing",
+ "source": {
+  "base": "cd2b23f100b0c32a359aa81fd12515f61c4de73a",
+  "head": "1e3eba5c90a3de41b297676972c03d4187b2c6d0",
+  "tree": "02d22a77569b2fccdb9339a4def9dfe9534126ac",
+  "validated_source": "dcfb869ef5379cc8da43d508e4383e7d082b6628",
+  "note": "dcfb869ef5..1e3eba5c90 is docs only (README.md, evidence/checkpoint/{identity,validation}.json)"
+ },
+ "reviewers": {
+  "lead": "unavailable: Astra not reachable in this session; this is the single independent review",
+  "independent": {
+   "model": "claude-opus-5-5",
+   "harness": "Claude Code subagent (contract-review)",
+   "session": "49097a8d-ede0-49a6-a00e-e5e13e0b95b9",
+   "round": "review-316-1e3eba5c90"
+  },
+  "mode": "read-only; git read commands only; no build, test or tm run",
+  "worktree": "/workspaces/ryo-review-316 detached at 1e3eba5c90a3de41b297676972c03d4187b2c6d0, status clean before and after, removed at end",
+  "evidence": "/tmp/ryo-contract-validation316-20261106/final3 (all 20 per-check json source=dcfb869ef5; run3.out BATCH COMPLETE; exits: ruff 101, core_allocation 101, tm_source 1, rest 0); committed evidence/checkpoint/validation.json (validation 316, raw_identity final3). Top-level raw files in that directory are from 46264ac52d and were not used."
+ },
+ "verdict": "blocking",
+ "axes": {
+  "enforced_boundaries": "FAIL",
+  "ownership_and_flow": "FAIL",
+  "proof": "FAIL"
+ },
+ "findings": [
+  {
+   "id": 1,
+   "axis": "ownership_and_flow",
+   "location": "crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs:172-176,215; crates/ryo/crates/execution/src/application/file_dag/program/preparation/service.rs:302; control value/coverage/heads/test.rs:111-130",
+   "failure": "The repair turned a silent drop into a whole-request failure. original_steps is Box<[Result<Origin, OperatingError>]> (executable_program/types.rs:137) precisely so one rule's bad step stays that rule's error, but resolve_class/retain_program_consumers now `?` the first errored origin of any member rule, and preparation returns it for every rule. Concrete example from the control itself: plans [one, two] where two has one step beyond its prepared contracts; retain_program_consumers returns NotRun, so rule one (valid) is refused too. The control asserts this blast radius as the expected behaviour.",
+   "owner": "Phase 3 walk agent",
+   "required_enforcement": "Refuse only the errored rule: exclude it from class membership with its typed error recorded as that rule's outcome (or a Barrier for its steps), keep other rules shared; control: one valid and one errored rule in one request, the valid rule still prepares, shares and answers, the errored rule reports its own error."
+  },
+  {
+   "id": 2,
+   "axis": "enforced_boundaries",
+   "location": "/tmp/ryo-contract-validation316-20261106/final3/tm_source.json (scope: program, invocation, derived, domain/shared_walk, tests/shared_walk); crates/ryo/crates/execution/src/domain/step_classes/{service.rs,types.rs} (changed cd2b23f100..dcfb869ef5)",
+   "failure": "The four step_classes/service.rs findings are claimed fixed only from an unvalidated branch run (README:84); domain/step_classes is not in any recorded TM scope at 315 or 316 although it changed after cd2b23f100. Missing evidence for an in-scope production claim.",
+   "owner": "integrator",
+   "required_enforcement": "Add crates/execution/src/domain/step_classes to the committed tm_source command and record its result on the validated source."
+  },
+  {
+   "id": 3,
+   "axis": "proof",
+   "location": "crates/ryo/docs/contracts/README.md:17,80-82,84-85,128,218,251,254,256; crates/ryo/docs/contracts/audits/2026-11-03-operator-execution-routes.md:42,66",
+   "failure": "Matrix/audit not current with validated source dcfb869ef5. README:17 still says the Phase 2/3 re-reviews have not run (both ran at cd2b23f100, BLOCKING). Phase 2 row (README:81) still says the census has '25 methods ... not yet executed'; A9/B5.9 cite '7 other cycles (validation314)' (316 has 6). P3.7/P3.10/P3.12 and the Phase 3 phase rows are bound to validation314/315 (492/518 tests) not 316 (526). The route audit header is bound to b5074c6ba3/314 and its proof-gap text still names the deleted TreeSteps::AsOperators; it has no rows for the Phase 5 Route enum / choose() / StrategyOutcome::Declined. Phase 3 is affected through P3.7/P3.10/P3.12 and README:84-85.",
+   "owner": "integrator (matrix author)",
+   "required_enforcement": "Rebind every touched row and the route audit to 316 with the test paths that passed in final3/libraries.log and boundary.log; add Route/choose/Declined rows; independent re-verify."
+  }
+ ],
+ "repaired": [
+  {
+   "earlier": 1,
+   "status": "findings fixed in scoped TM (no production finding under domain/shared_walk in final3/tm_source.log); behaviour see finding 1",
+   "evidence": "value.rs 549 -> 360 lines, NativeBatch split to types/native_batch (sparse cohort test moved, ok in libraries.log), WalkRoute split; no .ok() on origins"
+  },
+  {
+   "earlier": 2,
+   "status": "not fixed; see finding 3",
+   "evidence": "P3 rows still bound to 314"
+  }
+ ],
+ "verified": [
+  "Independent route expectation runs on the compiled 413 program: ruff_sharing sharing::test::succeeds 1/1 (final3/ruff_sharing.log) checks one shared_walk_route per physical instruction against the four-list table with a relabelled-route negative; coverage::routes::test::{routes_succeed,routes_reject} ok (agreement and moved-kind negative).",
+  "Delivery accounting, relation-keyed release and cross-rule sharing controls (walk_routes::retention::test::*, lifetime::test::*) ok in final3/libraries.log; no assertion removed between cd2b23f100 and dcfb869ef5 in those files; moved tests (sparse cohorts, generic late error replay, observation census) located and passing."
+ ],
+ "dispositions": [],
+ "manual_judgment": [
+  "The 'engine-independent' table is forced equal to the engine's meaning() by coverage/routes/test.rs:204-232, which reads the python crate's source at run time via CARGO_MANIFEST_DIR/../../languages (open io-at-boundary finding at :227). It detects drift, not a wrong meaning(); the allowed-route sets per kind are coarse (a Selection head may take four routes).",
+  "a_held_lease_stays_readable... still uses test-only lease_any; the KernelPermit nested-demand path is not exercised."
+ ]
+}

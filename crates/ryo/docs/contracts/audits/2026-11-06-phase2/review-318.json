@@ -1,0 +1,95 @@
+{
+ "schema": "contract-review-verdict/v1",
+ "scope": "Phase 2 re-review (base 1e3eba5c90): frontier prepare narrowed to the cache, census with ObservationPublication and per-trait method/variant check, inapplicable files out of project identity",
+ "source": {
+  "base": "1e3eba5c90a3de41b297676972c03d4187b2c6d0",
+  "head": "80f473c67d67767d6c0d7c0718e189a13211da7f",
+  "tree": "37a0b220c62f9f3e6a6374a84209939fd8a7e8bb",
+  "validated_source": "c043a6dc68b38f11a10f2e8c4d8ef982a38db844",
+  "note": "validated source c043a6dc68; c043a6dc68..80f473c67d is docs only (README.md, evidence/checkpoint/{README,identity,validation}.json)"
+ },
+ "reviewers": {
+  "lead": "unavailable: Astra not reachable in this session; this is the single independent review",
+  "independent": {
+   "model": "claude-opus-5-5",
+   "harness": "Claude Code subagent (contract-review)",
+   "session": "49097a8d-ede0-49a6-a00e-e5e13e0b95b9",
+   "round": "review-318-80f473c67d",
+   "commands": [
+    "git -C /workspaces/idiomatic-public-benchmark fetch origin claude/ryo-consolidation (polled until 'checkpoint 318')",
+    "git worktree add --detach /workspaces/ryo-review-318 origin/claude/ryo-consolidation",
+    "git diff/log/show/grep d3f16fcd11..c043a6dc68..80f473c67d",
+    "read raw /tmp/ryo-contract-validation318-20261106/*.{json,log}"
+   ],
+   "exit": 0,
+   "head_status_before": "80f473c67d clean",
+   "head_status_after": "80f473c67d clean",
+   "raw_results": "/tmp/ryo-contract-validation318-20261106"
+  }
+ },
+ "verdict": "blocking",
+ "axes": {
+  "enforced_boundaries": "FAIL",
+  "ownership_and_flow": "PASS",
+  "proof": "FAIL"
+ },
+ "findings": [
+  {
+   "axis": "enforced_boundaries",
+   "location": "/tmp/ryo-contract-validation318-20261106/tm_source.log: program/constants.rs:9,36 (repeated-string-literals), program/facade_runtime/types.rs:46, program/protocol/types.rs:112,135 (mirrored-types); README:82 ([x] row claims '0 in production files')",
+   "failure": "Five production structural findings now sit in the Phase 2 scope (program/**) while the ticked row claims zero; none is recorded or decided.",
+   "owner": "Phase 2 agent",
+   "required_enforcement": "Fix the five (shared constants, distinct or unified outcome types) or untick row 82 with a recorded Phase 7 decision; re-run tm_source.",
+   "id": 1
+  },
+  {
+   "axis": "proof",
+   "location": "crates/ryo/crates/execution/tests/source_boundary/submission/controls/mod.rs:250-258 (TRAITS hand-listed, 7 of 11 pub traits in interface.rs)",
+   "failure": "The per-trait check compares variants to methods only for the listed traits; a new pub trait with root-taking methods in interface.rs is never counted, so the census closure is still self-derived (the class of the 316 finding, fixed only for ObservationPublication).",
+   "owner": "Phase 2 agent",
+   "required_enforcement": "Assert every 'pub trait' in interface.rs is either in TRAITS or in a named non-entry list (PreparedExecution, ExecutionCompilation, PreparedQueries, PreparedReporting) with a reason, so an unlisted trait fails the test.",
+   "id": 2
+  },
+  {
+   "axis": "proof",
+   "location": "crates/ryo/docs/contracts/README.md:35-53 ('Current ownership checkpoint' table bound to dcfb869ef5/validation316: core 186, scoped TM 53, ruff 35, bdd '7 scenarios'), phase rows 80-96 (bound to validation314-317), README:91 (claims RequiredPartitions::inapplicable is 'part of the FrontierCache key through the derived PartialEq'; admission.rs:40 now ignores it); crates/ryo/docs/contracts/review/README.md:10,57-71 (brief says checkpoint 317, source 18f96bccd7, ruff 11/1 red, cli replay does not compile); audits/2026-11-03-operator-execution-routes.md:42 (header bound to checkpoint 317/validation316); evidence/checkpoint/validation.json (tm_source exit 1 recorded without its 344 findings or their production split)",
+   "failure": "Docs outrun or contradict the 318 code and logs: core lib is 159 (not 186), scoped TM is 344 findings over 16 directories (not 53 over 5), ruff is 12/0, execution bdd was always 3 scenarios (+5 core), cli replay compiles and runs 72/6; README:91 states the opposite of the current PartialEq. No phase row cites validation318 except Phase 1's status line.",
+   "owner": "integrator (matrix author)",
+   "required_enforcement": "Rebind the checkpoint table, every touched phase row, the review brief and the route-audit header to c043a6dc68/validation318; record the tm_source total and per-directory production/test split in validation.json; correct README:91.",
+   "id": 3
+  }
+ ],
+ "dispositions": [
+  {
+   "item": "316 #1 frontier prepare bypass",
+   "disposition": "fixed",
+   "reason": "frontiers/service.rs:37 prepare is pub(super); FrontierCache::prepared is the only route; submission/mod.rs probes refuse prepare from program and request (E0603) and accept the cache; boundary 101/0."
+  },
+  {
+   "item": "316 #2 ObservationPublication census",
+   "disposition": "fixed",
+   "reason": "witness implements ObservationPublication; PublicationInstall/PublicationRestoreFrontiers have Refuses controls; every_trait_method_has_its_own_variant passes."
+  },
+  {
+   "item": "316 #3 project identity split",
+   "disposition": "fixed",
+   "reason": "same_project removed; RequiredPartitions PartialEq excludes inapplicable (admission.rs:40) and identity() strips it, so open/supplies/materialize/cache agree; core lint inapplicable_identity case table (memory and postcard, producer and consumer skipping) reuses the restored member warm."
+  },
+  {
+   "item": "316 #4 matrix",
+   "disposition": "not fixed",
+   "reason": "see finding 3"
+  }
+ ],
+ "remaining_manual_judgment": [
+  "RequiredPartitions still carries a per-rule field excluded from its equality; a separate per-rule evidence type would make the split structural. Acceptable as is only because identity() strips it and Eq is hand-written next to the field.",
+  "PreparedFrontiers fields are pub(in file_dag), so file_dag code can still build one by literal; the read-sharing guarantee rests on prepare's privacy."
+ ],
+ "acknowledged_open_not_reflagged": [
+  "21 deferred derived newtypes (Phase 4 row c)",
+  "(b) replay group: 4 behaviour tests + cache store size + warm peak",
+  "core_allocation budget",
+  "the required walk, kernel and cohort-decode rows and the Phase 7 acceptance row (unticked by design)",
+  "deferred store/runtime crates"
+ ]
+}

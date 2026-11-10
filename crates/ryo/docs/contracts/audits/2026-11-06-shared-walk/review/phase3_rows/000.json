@@ -1,0 +1,146 @@
+[
+  {
+    "id": "P3.1",
+    "requirement": "Require a file-generation walk owner for every production file invocation; reject project-stage substitution and foreign generations.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "All six kernel entry routes validate required file/project generation scope; two valid and three misuse controls execute in280."
+  },
+  {
+    "id": "P3.2",
+    "requirement": "Resolve all physical source heads once for the request and explicitly classify every operation's source barrier.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Physical source resolution/column demands are request-prepared; exhaustive26-operation barrier enum and request preparation controls pass."
+  },
+  {
+    "id": "P3.3",
+    "requirement": "Share exact ordered predicate prefixes and source column demands across distinct ready classes with equal referenced bindings.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Exact referenced bindings and authored prefix order drive shared prefix decisions; real counter, distinct/missing binding and first-error controls pass."
+  },
+  {
+    "id": "P3.4",
+    "requirement": "Acquire Positions, StoredSelection and ordinary replay results through one file owner; decline representations before predicate work and preserve real errors.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Positions/Stored/Rows consumers use the same validated acquisition owner; representation decline is before prepare/predicate work and portable errors do not fallback. Actual route controls pass."
+  },
+  {
+    "id": "P3.5",
+    "requirement": "Share direct pure Project source heads while preserving zero-column output, repeated columns and duplicate rows.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Real direct pure Project test preserves zero columns, duplicate/reordered projections, duplicates and source row order; invalid-schema bypass alleged by Opus is unreachable."
+  },
+  {
+    "id": "P3.6",
+    "requirement": "Only runtime-ready gates may populate the admitted source queue; prevent arbitrary ready-list issuance.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "BLOCKING P3-1: private queue/factory probes pass, but raw crate-visible semantic evaluate remains callable by unplaced inbound/domain/outbound aliases."
+  },
+  {
+    "id": "P3.7",
+    "requirement": "Preserve provider refusal/physical identity and observation, dependency, partition, error and continuation barriers.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Existing refusal/identity/observation/dependency/continuation tests pass; exhaustive combined barrier/physical-route census and independent controls remain open. Deferred LP2 output repair is excluded."
+  },
+  {
+    "id": "P3.8",
+    "requirement": "Count source passes, offered rows, decoded rows, actual predicate decisions, reused prefix decisions and sparse class storage.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Counters increment actual source/decoded/predicate/reused decisions and admitted storage; actual synthetic413-class control passes. No configured-Ruff claim."
+  },
+  {
+    "id": "P3.9",
+    "requirement": "Undemanded roots perform no provider/kernel/scratch/result work, and delivery/retry reuses admitted results.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Dormant and dependency-gated root controls plus full-counter retry/replay comparisons pass."
+  },
+  {
+    "id": "P3.10",
+    "requirement": "Keep result leases free of mutable cache borrows through reentrant delivery.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Source guarantees Arc result leases and drops mutable cache guard before replay; existing actual reentrant controls pass. A targeted reentrant same shared-walk cache lease control was not established, so the whole row remains open."
+  },
+  {
+    "id": "P3.11",
+    "requirement": "Enforce owner placement/privacy and required file session state with positive and negative structural controls.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "P3-1 placed/resolved-caller gap plus actual TM281 structural findings prevent enforcement closure despite eight original rule scenarios and eight Rust probes passing."
+  },
+  {
+    "id": "P3.12",
+    "requirement": "Prove actual full configured rule inventory sharing and every production physical/source route on one frozen combined source.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "phase3",
+      "runtime280"
+    ],
+    "disposition": "Synthetic413 distinct classes is not the actual configured Ruff inventory. Actual full configured inventory admission/sharing plus complete physical/source route proof remains missing; no benchmark requested."
+  }
+]

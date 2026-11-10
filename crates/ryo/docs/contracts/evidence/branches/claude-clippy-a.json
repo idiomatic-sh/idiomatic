@@ -1,0 +1,118 @@
+{
+  "checkpoint": 334,
+  "source": "f3e9e08f1424fdaabb325e63cebcf5b203eae7ee",
+  "base": "c8347684cd",
+  "verdict": "PASS",
+  "reviewer": "leak-review",
+  "date": "2026-11-09T22:08:00+00:00",
+  "checks": [
+    {
+      "id": "1",
+      "verdict": "PASS",
+      "evidence": "Unchanged from the c8347684cd review; the fix commit touches only a workspace lint level, a test unwrap and a lint expect. No engine, core or SDK contract is newly asserted from benchmarks/ or languages/: the only languages/python/benchmarks change is #![cfg(test)] at crates/ryo/languages/python/benchmarks/linters/ruff/schemas_test.rs:2 and #[cfg(test)] at tests.rs:6, inside the [[test]] ruff target (languages/python/Cargo.toml:89-91, default harness); crates/ryo/crates/benchmark is the bench abstraction, not benchmarks/."
+    },
+    {
+      "id": "2",
+      "verdict": "PASS",
+      "evidence": "The open leak is closed: crates/ryo/crates/benchmark/src/outbound/suite/fixtures/fake_test.rs:8 is now `check(&SuiteFake::default()).unwrap();`, so a fixture setup Err fails the test, and the class is closed by the compiler: crates/ryo/Cargo.toml:96 `unused_must_use = \"deny\"` (priority 0, above the `unused` group at priority -1) in [workspace.lints.rust], inherited by every one of the 26 workspace members ([lints] workspace = true; only the root and test-fixture manifests lack it). Planted in a git archive copy of f3e9e08f14: reverting the unwrap made `cargo check -p idiomatic-sh-ryo-benchmark --all-targets` fail with `fake_test.rs:8:5: error: unused std::result::Result that must be used` (1); a planted `\"1\".parse::<u8>();` in production code query_language/src/domain/planning/service.rs:270 failed the lib build the same way (1). With both reverted, `cargo check -p <member> --all-targets` over all 26 members reported no error, confirming the builder's claim. The earlier enforcement evidence (DerivedKind ordinal check, cfg(test) ruff modules) is unchanged by the fix diff. Nothing else changed since c8347684cd: the one commit touches crates/ryo/Cargo.toml, fake_test.rs and planning/service.rs only (7+/1-)."
+    },
+    {
+      "id": "3",
+      "verdict": "PASS",
+      "evidence": "Unchanged from the c8347684cd review; the fix commit touches only a workspace lint level, a test unwrap and a lint expect. No new pub item in production code: the added pub signatures are fixtures under cfg(any(test, feature = \"fixtures\")) (operators/src/inbound/use_cases/operators.rs:8-9, fixtures.rs regex and SourceDelivery::interns) or test files (values/src/domain/stores/types/retention/value_test.rs pub(in crate::domain::stores) type Value); go's roles fixtures stay #[cfg(test)] (languages/go/src/domain/roles.rs:10-11)."
+    },
+    {
+      "id": "4",
+      "verdict": "PASS",
+      "evidence": "No concept gains a second implementation (unchanged since c8347684cd: assembling uses crate::domain::resolving::service::step_of, query_language/src/domain/assembling/service.rs:201). The earlier advisory is resolved: query_language/src/domain/planning/service.rs:270-273 now carries #[expect(clippy::indexing_slicing, reason = ...)] stating the bound-observation id is an index issued by resolving into this builder's observation_inputs."
+    },
+    {
+      "id": "5",
+      "verdict": "PASS",
+      "evidence": "Unchanged from the c8347684cd review; the fix commit touches only a workspace lint level, a test unwrap and a lint expect. No import crosses layer direction: the one new cross-module call is domain to domain (query_language/src/domain/assembling/service.rs:201 to domain/resolving); no inbound or application item is newly imported across crates (the diff adds no use of another crate's inbound/application path in production code)."
+    },
+    {
+      "id": "6",
+      "verdict": "PASS",
+      "evidence": "Unchanged from the c8347684cd review; the fix commit touches only a workspace lint level, a test unwrap and a lint expect. The cfg(test) marks are in the ruff [[test]] target, where cfg(test) is always on (languages/python/Cargo.toml:89-91, no harness = false), and bench.rs includes none of those modules; fixture signature changes stay behind cfg(any(test, feature = \"fixtures\")) or cfg(test); no production build reaches a new seam."
+    }
+  ],
+  "findings": [
+    "advisory: f3e9e08f14 merges into 334 (f5d1718a06) without conflict, but 334 changed 58 .rs files since the merge base 124ccc45cf; the new unused_must_use deny applies to them, so the integrator's merged build is what proves they drop no Result (a compile error, not a silent pass)",
+    "advisory: mod_module_files is no longer denied in 334 (ecf7dc5fc9, PM decision), so the 48 held findings of the previous review do not arise after merge"
+  ],
+  "plants": [
+    {
+      "claim": "DerivedKind compile-time ordinal check: Adjacency and Membership ordinals swapped (2, 1)",
+      "file": "crates/ryo/crates/derived/src/domain/request/types.rs:30",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "DerivedKind compile-time ordinal check: a new kind appended with a duplicate ordinal (Extra = 8)",
+      "file": "crates/ryo/crates/derived/src/domain/request/types.rs:38",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "cfg(test) ruff module schemas_test compiles into the ruff test target: planted type error",
+      "file": "crates/ryo/languages/python/benchmarks/linters/ruff/schemas_test.rs:271",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "cfg(test) ruff module engine_test compiles into the ruff test target: planted type error",
+      "file": "crates/ryo/languages/python/benchmarks/linters/ruff/engine_test.rs:280",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "rustc unused_must_use = deny: SuiteFake contract check with its Result dropped again",
+      "file": "crates/ryo/crates/benchmark/src/outbound/suite/fixtures/fake_test.rs:8",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "rustc unused_must_use = deny: a dropped Result in production code",
+      "file": "crates/ryo/crates/query_language/src/domain/planning/service.rs:270",
+      "count": 1,
+      "reverted": true
+    }
+  ],
+  "enforcement_candidates": [
+    {
+      "id": "dropped-must-use-result-f839521b",
+      "class": "dropped-must-use-result",
+      "signature": "a statement expression whose value is a std::result::Result (a fixture call such as `check(&SuiteFake::default());`) with the Result discarded, warned by rustc unused_must_use",
+      "scope": [
+        "crates/ryo"
+      ],
+      "suggested_mechanism": "compiler",
+      "instance_status": "fixed",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/benchmark/src/outbound/suite/fixtures/fake_test.rs",
+          "line": 8,
+          "text": "    check(&SuiteFake::default());"
+        }
+      ]
+    },
+    {
+      "id": "sentinel-index-hides-panic-62cdc96e",
+      "class": "sentinel-index-hides-panic",
+      "signature": "an index expression `[usize::try_from(<id>).unwrap_or(usize::MAX)]` outside a function carrying #[expect(clippy::indexing_slicing, reason = ...)]",
+      "scope": [
+        "crates/ryo/crates/query_language/src/domain"
+      ],
+      "suggested_mechanism": "new rule",
+      "instance_status": "fixed",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/query_language/src/domain/planning/service.rs",
+          "line": 270,
+          "text": "            let bound = &builder.observation_inputs[usize::try_from(id.0).unwrap_or(usize::MAX)];"
+        }
+      ]
+    }
+  ]
+}

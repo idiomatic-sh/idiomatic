@@ -1,0 +1,274 @@
+[
+  {
+    "id": "A1",
+    "requirement": "Wake actual dependants; do not repeatedly poll blocked ancestors.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "readiness",
+      "runtime280"
+    ],
+    "disposition": "Event-driven actual dependency wakeups and bounded reached-root controls pass."
+  },
+  {
+    "id": "A2.1",
+    "requirement": "Compile logical-to-physical class lookup once, including synthetic observation IDs.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "classes",
+      "runtime280"
+    ],
+    "disposition": "Actual sparse physical-class/cohort and atomic merge controls pass, including synthetic observation preparation."
+  },
+  {
+    "id": "A2.2",
+    "requirement": "Allocate scratch, pending classes and results only for admitted work.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "classes",
+      "runtime280"
+    ],
+    "disposition": "Actual sparse physical-class/cohort and atomic merge controls pass, including synthetic observation preparation."
+  },
+  {
+    "id": "A2.3",
+    "requirement": "Merge later cohorts atomically and preserve earlier results after failure.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "classes",
+      "runtime280"
+    ],
+    "disposition": "Actual sparse physical-class/cohort and atomic merge controls pass, including synthetic observation preparation."
+  },
+  {
+    "id": "A3",
+    "requirement": "Independently review the complete combined Phase 2 source.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "paired"
+    ],
+    "disposition": "Exact combined source was independently reviewed; the completed review has a blocking verdict, not approval."
+  },
+  {
+    "id": "A4",
+    "requirement": "Retain dormant-class, later-cohort, failure, retry and generation controls.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "classes",
+      "routes",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Dormant, later cohort, failure/retry and next-generation controls retained and rerun."
+  },
+  {
+    "id": "A5",
+    "requirement": "Integrate every assigned Phase 2 batch into one immutable candidate.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "paired",
+      "runtime280"
+    ],
+    "disposition": "All assigned Phase2 source batches are integrated in the immutable reviewed candidate; executed successor differs only by cfg(test) on an unused method."
+  },
+  {
+    "id": "A6",
+    "requirement": "Run the public production-boundary suite on that candidate.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "runtime280"
+    ],
+    "disposition": "Current public production-boundary suite ran:90/90 PASS."
+  },
+  {
+    "id": "A7",
+    "requirement": "Prove counters detect actual excess work with independent negative controls.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "classes",
+      "fileprep",
+      "runtime280"
+    ],
+    "disposition": "Historical actual dense-scratch mutation is retained; independent negative falsifiers do not yet cover all newly exposed Phase2 preparation/queue/reader-initialization counters. No performance run is requested."
+  },
+  {
+    "id": "A8",
+    "requirement": "Run the actual readiness and sparse-merge domain tests.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "readiness",
+      "classes",
+      "runtime280"
+    ],
+    "disposition": "Actual readiness and sparse merge domain tests ran and passed."
+  },
+  {
+    "id": "A9",
+    "requirement": "Resolve Phase-2-owned structural TM, placement and boundary findings without suppression.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "tm281"
+    ],
+    "disposition": "Structural findings remain in the current scope; asset scenario PASS or a zero-finding subpath does not close the combined scope."
+  },
+  {
+    "id": "B1",
+    "requirement": "Identify request/file/project owners; distinguish result delivery from scheduling.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "paired"
+    ],
+    "disposition": "Request/file/project owners and delivery-versus-scheduling distinction are source-audited."
+  },
+  {
+    "id": "B2",
+    "requirement": "Remove repeated request-wide class bookkeeping from cohorts and populations.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "classes",
+      "runtime280"
+    ],
+    "disposition": "Request-sized class lookup is prepared once; cohort scratch, pending classes and result merge touch admitted classes. Remaining reader/graph activation work is separately B4c.9."
+  },
+  {
+    "id": "B3",
+    "requirement": "Refresh the complete constructor/admission/dispatch/publication/retry/retirement route census after integration.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "routes",
+      "paired"
+    ],
+    "disposition": "Route census must be reconciled with every current callable construction/admission/dispatch/publication/retry/retirement boundary, including the P3-1 raw semantic-service entry."
+  },
+  {
+    "id": "B4a.1",
+    "requirement": "Require one phase owner and symbol generation across ordinary project rules.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual Core project controls prove the named ownership/population/generation scope in both applicable orders; sparse state and scoped producer release are exercised."
+  },
+  {
+    "id": "B4a.2",
+    "requirement": "Use the same interpreter and lifecycle for named and ordinary project work.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual Core project controls prove the named ownership/population/generation scope in both applicable orders; sparse state and scoped producer release are exercised."
+  },
+  {
+    "id": "B4a.3",
+    "requirement": "Reuse equal populations and isolate distinct valid populations.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual Core project controls prove the named ownership/population/generation scope in both applicable orders; sparse state and scoped producer release are exercised."
+  },
+  {
+    "id": "B4a.4",
+    "requirement": "Include payload/provenance, refusals, policy and bound members in identity.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual Core project controls prove the named ownership/population/generation scope in both applicable orders; sparse state and scoped producer release are exercised."
+  },
+  {
+    "id": "B4a.5",
+    "requirement": "Test differing applicability under one global partition declaration, in both orders.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual Core project controls prove the named ownership/population/generation scope in both applicable orders; sparse state and scoped producer release are exercised."
+  },
+  {
+    "id": "B4a.6",
+    "requirement": "Test equal-policy/different-payload isolation and equal-input reuse.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual Core project controls prove the named ownership/population/generation scope in both applicable orders; sparse state and scoped producer release are exercised."
+  },
+  {
+    "id": "B4a.7",
+    "requirement": "Reject foreign generations and changed partition proofs; isolate population release.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual Core project controls prove the named ownership/population/generation scope in both applicable orders; sparse state and scoped producer release are exercised."
+  },
+  {
+    "id": "B4a.8",
+    "requirement": "Allocate project state for reached regions, not populations × whole program.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual Core project controls prove the named ownership/population/generation scope in both applicable orders; sparse state and scoped producer release are exercised."
+  }
+]

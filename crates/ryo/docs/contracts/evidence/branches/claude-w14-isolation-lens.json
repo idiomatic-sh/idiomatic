@@ -1,0 +1,24 @@
+{
+ "source": "3d1e6d91a4895cd0867d81c806983d81a08e8bb0",
+ "base": "781653e221c3c7d4b937918d46496c5564ebe647",
+ "branch": "claude/w14-isolation-lens",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "checks": [
+  {"id": "1", "verdict": "PASS", "evidence": "Docs only: the diff 781653e221..3d1e6d91a4 touches .agents/agents/contract-review.md:10,17,21 alone; no engine, core or SDK contract is asserted from benchmarks/ or languages/."},
+  {"id": "2", "verdict": "PASS", "evidence": "No Tastemaker rule, compile_fail probe or lint is cited, so there is nothing to plant. No test or runner is in the closure. The new criterion fails closed: contract-review.md:21 'Missing evidence is FAIL' covers (c), and contract-review.md:10 'never read one off the record' makes the reviewer recount. That recount works because census.md at 333 (crates/ryo/docs/contracts/evidence/checkpoint/census.md:5-21, 176-181) records a grep method that can be repeated read-only. ci/contract_review/service.py:37-39 needs only a non-empty checks list, so moving from three criteria to four breaks no validator."},
+  {"id": "3", "verdict": "PASS", "evidence": "No code. Overlap: criterion (a) at contract-review.md:17, 'names no internals behind another crate's or hex's seam', grades how coupled a test is. Leak check 3 (leak-review.md:14, pub where pub(crate) serves) and check 5 (leak-review.md:16, inbound or application items leaking across crates) grade the production visibility that lets such a test compile. These are two lenses on one fact, not the same check. Footprint (b) and census (c) have no leak-review counterpart."},
+  {"id": "4", "verdict": "PASS", "evidence": "No code. One owner per lens: contract-review.md:10 now gives 'whether each cited enforcement fires' to the leak review (matching leak check 2, leak-review.md:13) and change isolation to the contract review, and no other agent doc defines isolation (grep over .agents/ and .claude/ finds 'census' only in contract-review.md:17)."},
+  {"id": "5", "verdict": "PASS", "evidence": "No code."},
+  {"id": "6", "verdict": "PASS", "evidence": "No code. No machine paths and no tracker ids appear in the diff (grep over the diff came back empty); the tracker id appears only in the commit subject."}
+ ],
+ "plants": [],
+ "advisories": [
+  "contract-review.md:17 (c) says 'the census' without a link. Link crates/ryo/docs/contracts/evidence/checkpoint/census.md and say the reviewer recounts at the reviewed sha with census.md's method, using the previous checkpoint's column as the baseline. census.md stops at 333 and nothing names who adds the next column. The check fails closed today: no recount counts as missing evidence, which is a FAIL.",
+  "Census section 6 (semantic analysis, census.md:107-146) is a traced must-change table, not a number. (c) relies on the section 2 proxies (census.md:51-55) for its 'add semantic analysis' figure; naming those rows would remove a judgment call."
+ ],
+ "enforcement_candidates": [],
+ "tree_state": {"before": {"head": "3d1e6d91a4895cd0867d81c806983d81a08e8bb0", "porcelain": ""}, "after": {"head": "3d1e6d91a4895cd0867d81c806983d81a08e8bb0", "porcelain": ""}},
+ "note": "The request named no base sha; the base used is the commit's single parent 781653e221, which is also the merge-base with the checkpoint 333 tree (6af005e9f7).",
+ "date": "2026-11-09T16:10:00Z"
+}

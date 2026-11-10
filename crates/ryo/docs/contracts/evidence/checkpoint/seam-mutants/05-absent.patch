@@ -1,0 +1,11 @@
+--- a/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/strategies/service.rs
++++ b/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/strategies/service.rs
+@@ -81,7 +81,7 @@
+             .map_err(InvocationFailure::Semantic)?;
+         self.readiness_counts.borrow_mut().presence_absent.0 += 1;
+         Ok(Some(InvocationOutcome::Published(
+-            input.with_coverage(call.completion.coverage(needs)),
++            input.with_coverage(call.completion.blocked_coverage()),
+         )))
+     }
+     pub(crate) fn ordered(

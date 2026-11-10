@@ -1,0 +1,267 @@
+{
+  "schema": "contract-review-verdict/v1",
+  "source": {
+    "base": "4351e1f409cf9d4b2acb833e434c1861982c0f06",
+    "head": "b7558e4494d63144798c436d6d443c0c370d9956",
+    "tree": "bdd32f6e7f4945e940a27cabca701beabf79b878",
+    "worktree": "/tmp/ryo-phase3-review-20261106",
+    "status_before": "clean",
+    "status_after": "clean"
+  },
+  "executed_source": {
+    "head": "c5abcc1da4b0f1a63de7fcc97f979284f4087656",
+    "delta": "diff --git a/crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs b/crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs\nindex d3d0a369c7..a6139d169d 100644\n--- a/crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs\n+++ b/crates/ryo/crates/execution/src/domain/shared_walk/types/prepared_walk/value.rs\n@@ -440,6 +440,7 @@ impl NativeBatch {\n             .get(&place)\n             .map(|(result, visits)| (std::sync::Arc::clone(result), *visits))\n     }\n+    #[cfg(test)]\n     pub(crate) fn visits(&self, place: ClassPlace) -> RowsVisited {\n         self.classes\n             .get(&place)",
+    "postimage_binding": "Only #[cfg(test)] added to NativeBatch::visits, unused by production. Every other reviewed postimage is identical; current280 executed the successor. No blanket reuse of older changing fixtures."
+  },
+  "verdict": "blocking",
+  "source_disposition": "Coherent source can remain integrated for correction; no additional source/runtime fault was found beyond the listed mandatory architecture/contract obligations. Not architecture approval or whole Phase2/3 completion.",
+  "axes": {
+    "enforced_boundaries": "FAIL",
+    "clear_ownership_and_flow": "FAIL",
+    "proof": "FAIL"
+  },
+  "axis_explanation": {
+    "enforced_boundaries": "P3-1 and current TM findings.",
+    "clear_ownership_and_flow": "Current production flow is coherent and single-interpreter, but exclusive owner dispatch is not yet enforced and relevant-rule activation remains incomplete.",
+    "proof": "Many exact narrow contracts now pass280; broad route/lifetime/normal-CI/full-inventory scopes and structural closure remain open."
+  },
+  "findings": [
+    {
+      "id": "P3-1",
+      "severity": "blocking",
+      "rows": [
+        "B5.3",
+        "B5.4",
+        "P3.6",
+        "P3.11"
+      ],
+      "anchor": "crates/ryo/crates/execution/src/domain/shared_walk/service.rs:140; crates/ryo/tastemaker.toml:48; crates/ryo/tastemaker/rules/shared-walk-owner/0.1.0/rule.toml:34",
+      "failure": "Raw evaluator is crate-visible and accepts arbitrary ready classes; both placement and dependency query restrict authority enforcement to application/**.",
+      "falsifier": "An aliased inbound/domain/outbound caller imports shared_walk::service as s (or aliases evaluate directly) and calls s::evaluate with an arbitrary ready list. Rust permits this and current placed rule excludes that caller.",
+      "required": "Whole execution/src resolved caller enforcement with exact legitimate owner/test homes, aliased non-application and misleading-test negatives, authorized positives; no wildcard waiver.",
+      "owner": "phase3_shared_walk_consolidation"
+    },
+    {
+      "id": "P3-TM",
+      "severity": "blocking",
+      "rows": [
+        "A9",
+        "B5.9",
+        "B5.10",
+        "P3.11",
+        "C7"
+      ],
+      "anchor": "/tmp/ryo-phase3-tm281-20261106/check.json",
+      "failure": "Actual current scoped structural check fails282 findings/0suppressed, including program-implementation-boundary kernel_session.rs:479, five import-direction findings and eight module cycles.",
+      "falsifier": "Run the existing exact scoped check: listed structural findings remain despite owner-asset scenario PASS.",
+      "required": "Resolve in-scope structural ownership/placement/import/cycle findings without suppression; retain receipt scopes, do not infer whole-workspace cleanliness.",
+      "owner": "root and assigned structural authors"
+    },
+    {
+      "id": "P2-ACTIVATION",
+      "severity": "blocking for complete B4c.9 claim",
+      "rows": [
+        "B4c.9"
+      ],
+      "anchor": "crates/ryo/crates/execution/src/application/file_dag/derived/owner/setup.rs:33",
+      "failure": "Graph activation still scans the request-wide graph_rules list and tests demanded membership; relevant-rule proportional metadata is not fully implemented.",
+      "falsifier": "Increase dormant graph-bearing rules while holding demanded set constant; source still visits the graph_rules prefix. No benchmark is required to establish this source fact.",
+      "required": "Keep B4c.9 open and complete the relevant-rule activation ownership contract in the coherent consolidation batch; do not label it merely an unrun timing proof.",
+      "owner": "root"
+    },
+    {
+      "id": "DOC-INVENTORY",
+      "severity": "blocking for current matrix accuracy",
+      "rows": [
+        "B3",
+        "B5.14"
+      ],
+      "anchor": "crates/ryo/docs/contracts/README.md:253,257,280,421,437,451",
+      "failure": "Matrix still describes12 registered kinds and RawKeyOrder outside the enum. Current ryo-derived/domain/contract/types.rs includes RawKeyOrder in DerivedKind::ALL (13); execution reuses that enum.",
+      "required": "Correct inventory owner/registry wording without promoting derived acquisition/lifetime proof; RawScope still has separate working lease/build path. No Phase4 implementation audit is claimed.",
+      "owner": "root"
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "P3-2",
+      "status": "rejected",
+      "origin": "independent Opus",
+      "reason": "Invalid Project over empty source cannot reach shared fastpath: runtime AdmissionProgress::check_schema validates SchemaFirst output_kinds at172 and is invoked before physical admission/ready authority at1426/1484; PreparedWalk::resolve_class rejects out-of-catalog projection. KernelSession repeated preflight is not the first schema authority."
+    },
+    {
+      "id": "P2-1/P2-2/P2-3/P2-4",
+      "status": "fixed",
+      "reason": "Prior4351 source corrections remain accepted; current population identity, lifecycle/reentry, actual budget and once-per-slot controls now execute successfully280."
+    },
+    {
+      "id": "Opus stale proof recommendations",
+      "status": "updated by actual evidence",
+      "reason": "Opus completed before280 terminal; current280 supplies runtime proof. Lead found concrete frontier-output and selector-range anchors for B4c.2/B4c.8 and direct-root production test for B4d.7; these correct earlier inventory misses. B5.4 remains open for the raw dispatch half despite8probes PASS."
+    }
+  ],
+  "reviewers": {
+    "lead": {
+      "model": "gpt-6-astra",
+      "role": "retained lead",
+      "tools": "Read-only source/Git/log/JSON reads; no builds/tests/TM or repository edits"
+    },
+    "independent": {
+      "requested_model": "opus",
+      "session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+      "cwd": "/tmp/ryo-test-layout-enforcement-20261105",
+      "command": [
+        "claude",
+        "-p",
+        "--resume",
+        "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+        "--model",
+        "opus",
+        "--output-format",
+        "json",
+        "--tools",
+        "Read,Grep,Glob,Bash",
+        "--allowedTools",
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash(git show *)",
+        "Bash(git diff *)",
+        "Bash(git status *)",
+        "Bash(git rev-parse *)",
+        "Bash(git log *)",
+        "--permission-mode",
+        "dontAsk",
+        "--disable-slash-commands",
+        "--strict-mcp-config",
+        "--mcp-config",
+        "{\"mcpServers\":{}}",
+        "--",
+        "Review ONE cohesive Phase2 proofs + Phase3 source batch frozen /tmp/ryo-phase3-review-20261106 HEAD b7558e4494d63144798c436d6d443c0c370d9956 treebdd32f6e7f4945e940a27cabca701beabf79b878 base4351e1f409cf9d4b2acb833e434c1861982c0f06. Read current contract-review, canonicalgoal /home/vscode/.codex/attachments/080a9bcf-176a-4d81-9747-57ab5afa3dc1/pasted-text-1.txt and README83Phase2rows+Phase3checklist+20b. User explicitly phases2-6 consolidation first, NO performance/tuning/benchmark now. Outputregressions LP2deferredPhase1; mandatory contracts/owners/privacy/onepipeline stillNOW. Source Phase3 12078c7 integrated7540749: required generation/stage-bound FileWalk validated every kernelroute, one acquire/declineowner, privatePermittedWalk fields FileWalk-onlyissuance, removedKernelPermit.walk; request-prepared orderedprefix/columnmetadata; Select+pureProject-kept source classes; all26barrier enum. Audit capability/scope/errorprefix/physicaldecline beforeeffects/hiddenrawbackdoors and realtests. Two addedactual Rust probes walkretargetE0451 and removedfactoryE0599 unrun. Current group279liveparent; no reviewer builds/tests/TM/edits. Phase2 evidence passed: eightcratebuild272 source39f; execution430/430 SDK43 other155; Coreproject27314/14 after exactrenderoracles; inboundbudget277 all6 ordinary/named Budget/MemoryError/Allowed PASS onfe8; public27787/87 including6real-sourceRustprobes. CurrentbudgettestCASESmigrationf8 sourceonlypreserves6cases. Boundary275 leadartifact /tmp/ryo-shared-walk-review-boundary275-lead-evidence.json: copied actualexecution source+normalresolveddeps, runtimeauthorized+5siblingnegativecases, primaryspanscodeschecked, actualPASS; no needmicroround. TM276scoped511/0suppressed, validationPASS; TM278 source_boundary0/budget2 led CASE migration. Phase3shared-walk-owner8scenarios authorPASS /tmp/ryo-phase3-owner-check-20261105/validate.json, onlymini-sourcecheck notwholeworkspace. Must identify exact83Phase2rows NOWfullyproven vs remaining using postimageequivalence; stop blanketnoneverified when narrowrows meet scope. Do notcheckbroadcategories fromsubsets. Preserve prior4sourcecorrections accepted; singleton samequeue allowed; MP3cleanupfailure retained. Latestreadmedates stale277 pending (parentwillrefresh), do not claim proofmissingifreceiptactual. Return concrete source blockers+rowIDs/falsifiers and accurateverifiednarrowrowrecommendations. Do not analyzebenchmarkperformance. Keep rawactualmetadata. No newarchdebate."
+      ],
+      "sources": [
+        "4351e1f409cf9d4b2acb833e434c1861982c0f06",
+        "b7558e4494d63144798c436d6d443c0c370d9956"
+      ],
+      "started_at": "2026-11-06T00:04:44.210246+00:00",
+      "attempt_uuid": "979f0769-4787-4034-8bcf-bab9a3a58145",
+      "source_before": "8c17b9b409281e87892b21d0ce6513047a773aab",
+      "status_before": "",
+      "exit": 0,
+      "finished_at": "2026-11-06T00:08:55.211405+00:00",
+      "source_after": "8c17b9b409281e87892b21d0ce6513047a773aab",
+      "status_after": "",
+      "actual_model": [
+        "claude-opus-5-5"
+      ],
+      "round_uuid": "51a1c1f5-9305-48bd-bb9c-497d97e22520",
+      "returned_session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2"
+    }
+  },
+  "phase2_rows": {
+    "split": [
+      "review/phase2_rows/000.json",
+      "review/phase2_rows/001.json",
+      "review/phase2_rows/002.json",
+      "review/phase2_rows/003.json"
+    ]
+  },
+  "phase3_rows": {
+    "split": [
+      "review/phase3_rows/000.json"
+    ]
+  },
+  "phase2_counts": {
+    "verified": 60,
+    "open": 22,
+    "deferred": 1
+  },
+  "phase3_counts": {
+    "verified": 7,
+    "open": 5
+  },
+  "evidence_groups": {
+    "split": [
+      "review/evidence_groups/000.json"
+    ]
+  },
+  "evidence_hashes": [
+    {
+      "path": "/tmp/ryo-phase3-validation280-20261106/identity.json",
+      "sha256": "3b6fc95d96bad59bfa181695496b4596ec9935d2aa3695835e84e273b7c14afd"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation280-20261106/build-result.json",
+      "sha256": "6b3c75724179f808d6d8d10e2e57eae747e086148daebf3512981d5c7ad127ef"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation280-20261106/libraries-result.json",
+      "sha256": "be6d718be58433637c67d48ed2ef9b9fa7833a98cd23bfba2828d3e341bcbcef"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation280-20261106/boundary-result.json",
+      "sha256": "e5320760ea08ff4b6b21e720fcd95952078ce85275aaa26b86917aaacc4db430"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation280-20261106/build.log",
+      "sha256": "5edd6b2ad18cf744fba5f533e968c2740d8e6f70656285cdea1a77af2ba012cd"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation280-20261106/libraries.log",
+      "sha256": "e6a2c11c51b591f27191825f75832eb39b6b9cb0750fdda2bc829151f8b4d94a"
+    },
+    {
+      "path": "/tmp/ryo-phase3-validation280-20261106/boundary.log",
+      "sha256": "25613aca03b83ccc958628e1d8bf749a47428c96f15bd11ad7692776426b5eac"
+    },
+    {
+      "path": "/tmp/ryo-phase3-tm281-20261106/check.json",
+      "sha256": "37fc7dce53f1dfc170cd543f0b6abcf3ee641760d9fc791f81fa5425af6fe9ae"
+    },
+    {
+      "path": "/tmp/ryo-phase3-owner-check-20261105/validate.json",
+      "sha256": "ed2719c5d1369bccc5beb6dda227943a2fe7f8d91ec76a87c9ff9540e9c2ed7c"
+    },
+    {
+      "path": "/tmp/ryo-shared-walk-opus-b755-phase3.json",
+      "sha256": "29d45b409e7f9939c55266634db7803319f24496bc3ff5956726e7137853bf8d"
+    },
+    {
+      "path": "/tmp/ryo-shared-walk-opus-b755-phase3.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/ryo-shared-walk-opus-b755-phase3.metadata.json",
+      "sha256": "d8447b60ca1caeb1b84dd74b3312335e45c8015c7fd7d050b1fa7d1fb3e91b3f"
+    },
+    {
+      "path": "/tmp/ryo-phase3-review-20261106/.agents/agents/contract-review.md",
+      "sha256": "ae4494f7b742ba5f7204a2db2246f6c089cfc58d68ff54361f541d86095ea626"
+    },
+    {
+      "path": "/tmp/ryo-phase3-review-20261106/crates/ryo/docs/contracts/README.md",
+      "sha256": "398c3d841481c154c9fcb29b0deb54a4d94a285a78a8de6c1745ac050bfaf3e6"
+    }
+  ],
+  "runtime_summary": {
+    "build": "PASS",
+    "execution": "431/431",
+    "sdk": "43/43",
+    "derived_matching_operators_query_values": "155/155",
+    "core": "175 PASS /6 deferred output-persistence FAIL",
+    "public_boundary": "90/90 including8actual-source Rust authority probes",
+    "tm281": "282 findings/0suppressed; scoped28paths, not wholeworkspace"
+  },
+  "exclusions": [
+    "No performance/tuning/benchmark checks; explicit user deferral through phases2–6.",
+    "LP2 and other output corrections deferred Phase1; persistence/configuration outputs deferred appropriate later phase.",
+    "No full413 configured rule sharing proof; synthetic413 only.",
+    "No Phase4 derived lifetime/acquisition closure, Phase5 fusion closure or Phase6 persistent reuse closure.",
+    "No new Opus round for mechanical cfg(test) follow-up or post-review evidence binding."
+  ],
+  "manual_judgment": [
+    "Some broad route/cleanup proof rows remain open because separate narrow controls do not establish every combination.",
+    "TM findings are actual failures; their semantic fixes versus classification fixes require source review, not automatic waiver.",
+    "A checked review/integration/evidence-retention row records its named task, not an approving overall verdict."
+  ]
+}

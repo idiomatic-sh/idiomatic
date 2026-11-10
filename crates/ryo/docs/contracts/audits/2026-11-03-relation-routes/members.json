@@ -1,0 +1,49 @@
+{
+  "source_commit": "076c3ab459ba192822c0f731e3613f95bd6986af",
+  "source_tree": "19e3e7500d5170b79ea84bb1d8ac48488b85f489",
+  "catalog_count": 65,
+  "provider_cells": 650,
+  "members": {
+    "split": [
+      "members/members/000.json",
+      "members/members/001.json",
+      "members/members/002.json",
+      "members/members/003.json",
+      "members/members/004.json",
+      "members/members/005.json",
+      "members/members/006.json",
+      "members/members/007.json",
+      "members/members/008.json",
+      "members/members/009.json",
+      "members/members/010.json",
+      "members/members/011.json",
+      "members/members/012.json",
+      "members/members/013.json",
+      "members/members/014.json",
+      "members/members/015.json",
+      "members/members/016.json",
+      "members/members/017.json",
+      "members/members/018.json",
+      "members/members/019.json",
+      "members/members/020.json",
+      "members/members/021.json",
+      "members/members/022.json",
+      "members/members/023.json",
+      "members/members/024.json",
+      "members/members/025.json",
+      "members/members/026.json",
+      "members/members/027.json",
+      "members/members/028.json",
+      "members/members/029.json",
+      "members/members/030.json",
+      "members/members/031.json",
+      "members/members/032.json"
+    ]
+  },
+  "providers": {
+    "split": [
+      "members/providers/000.json",
+      "members/providers/001.json"
+    ]
+  }
+}

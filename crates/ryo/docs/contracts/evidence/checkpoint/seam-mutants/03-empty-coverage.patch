@@ -1,0 +1,11 @@
+--- a/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/evaluation/service.rs
++++ b/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/evaluation/service.rs
+@@ -113,7 +113,7 @@
+                         )
+                         .map_err(InvocationFailure::Semantic)?;
+                     return Ok(Some(InvocationOutcome::Published(
+-                        publication.with_coverage(completion.coverage(needs)),
++                        publication,
+                     )));
+                 }
+             }

@@ -1,0 +1,154 @@
+{
+  "checkpoint": "branch:claude/port-engine",
+  "source": "cd9878320b4f4b34d3844d254f2c5f3d76938337",
+  "base": "ffd0b1b1341e785c80cfd09019dc815b71c2a089",
+  "verdict": "PASS",
+  "reviewer": "leak-review",
+  "checks": [
+    {
+      "id": "1",
+      "verdict": "PASS",
+      "evidence": "The delta ffd0b1b134..cd9878320b touches three files, all in engine crates (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs, crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs, crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/test.rs); none under benchmarks/ or languages/, and both proofs use hand-built tables (ordered_partial two-row SourceLocation table; store test crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/test.rs:301-310 a one-row computed table)."
+    },
+    {
+      "id": "2",
+      "verdict": "PASS",
+      "evidence": "Each claim fired on a plant in a detached copy of cd9878320b: recogniser shapes dropped (execution_domain/src/domain/self_join_recogniser/service.rs:283 `Ok(_shape) => {}`) now fails the twin test at crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs:135 'the plan is recognised and its ordered meaning entered' (previously count 0); the computed arm forced to refuse (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53 `Computed => true`) fails it at crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs:134 with \"failed NotRun\" against the twin's complete table; the new ragged check removed (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53-56 back to `Computed => false`) fails the new store test at crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/test.rs:336 with Err(ShapeMismatch) against Ok(false). The twin test reads calls.ordered for both sides (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs:110-130), asserts ordered>0 and declined==0, and pins the whole answer with starts_with(\"complete\") (crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs:150); no skip, continue, caught error or weakened assertion in the delta."
+    },
+    {
+      "id": "3",
+      "verdict": "PASS",
+      "evidence": "admit_number stays pub(crate) (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:7); the store test is a #[cfg(test)] module (number/service/mod.rs:24-25) and reaches application::file_dag::fixtures only from test code; no visibility, manifest or feature changed in the delta."
+    },
+    {
+      "id": "4",
+      "verdict": "PASS",
+      "evidence": "The rectangularity check stays one predicate in one owner (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:39-58); the twin test reuses the shared run_read/MeaningCalls harness (route_controls/fixtures) instead of copying it, and the store test drives the real admit_number rather than re-implementing the predicate."
+    },
+    {
+      "id": "5",
+      "verdict": "PASS",
+      "evidence": "The change stays inside execution_store's relation owner (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:39-58) and two test modules; no new cross-crate import or layer edge in the diff."
+    },
+    {
+      "id": "6",
+      "verdict": "PASS",
+      "evidence": "Both changed tests are test-only: ordered_partial/mod.rs:2-3 #[cfg(test)] and number/service/mod.rs:24-25 #[cfg(test)]; the production change (crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53-56) adds no seam."
+    }
+  ],
+  "plants": [
+    {
+      "claim": "ordered_partial twin test pins the recognised route: recogniser shapes dropped (`Ok(_shape) => {}`); failed at test.rs:135 (also join/release and route_controls tests)",
+      "file": "crates/ryo/crates/execution_domain/src/domain/self_join_recogniser/service.rs:283",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "ordered_partial twin test: admit_number's computed arm forced to refuse (`Computed => true`); failed at test.rs:134 with failed NotRun against the twin's complete answer",
+      "file": "crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53",
+      "count": 1,
+      "reverted": true
+    },
+    {
+      "claim": "ragged computed source refused: the new check removed (`Computed => false`); number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one failed at test.rs:336 with Err(ShapeMismatch) against Ok(false)",
+      "file": "crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs:53",
+      "count": 1,
+      "reverted": true
+    }
+  ],
+  "enforcement_candidates": [
+    {
+      "id": "vacuous-port-contract-3390d83d",
+      "class": "vacuous-port-contract",
+      "signature": "a port fixtures/contract.rs whose check() runs CASES with a closure that calls the adapter and returns Ok(()) (type Value = ()), never comparing an adapter answer",
+      "scope": [
+        "crates/ryo/crates/*/src/outbound/*/fixtures/contract.rs",
+        "crates/ryo/languages/*/src/outbound/*/fixtures/contract.rs"
+      ],
+      "suggested_mechanism": "new rule",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/execution_runtime/src/outbound/observer/fixtures/contract.rs",
+          "line": 84,
+          "text": "        Ok(())"
+        }
+      ],
+      "instance_status": "fixed"
+    },
+    {
+      "id": "compile-fail-doctest-several-probes-73e2218f",
+      "class": "compile-fail-doctest-several-probes",
+      "signature": "a ```compile_fail,E<code> doctest whose body holds more than one statement that alone raises E<code>",
+      "scope": [
+        "crates/ryo/crates/**/src/**/*.rs"
+      ],
+      "suggested_mechanism": "new rule",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/file_session/interface.rs",
+          "line": 28,
+          "text": "///     let _ = file.walk_counts();"
+        },
+        {
+          "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/project_phase/interface.rs",
+          "line": 37,
+          "text": "///     let _ = project.state_counts();"
+        }
+      ],
+      "instance_status": "fixed"
+    },
+    {
+      "id": "constant-in-place-of-measured-value-9ffcaaea",
+      "class": "constant-in-place-of-measured-value",
+      "signature": "a case subject returning an array literal Ok([<measured expr>, <integer literal>, <measured expr>]) whose literal element replaced a measured expression",
+      "scope": [
+        "crates/ryo/crates/**/src/**/*_test.rs",
+        "crates/ryo/crates/**/src/**/test.rs"
+      ],
+      "suggested_mechanism": "new rule",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/core/src/application/cross_file/service_test.rs",
+          "line": 97,
+          "text": "                0,"
+        }
+      ],
+      "instance_status": "fixed"
+    },
+    {
+      "id": "dead-seam-forward-de90151f",
+      "class": "dead-seam-forward",
+      "signature": "pub use ryo_execution_domain::domain::operator::types::Counting; in execution/src/inbound/use_cases/execution/interface.rs with no consumer outside the engine crates",
+      "scope": [
+        "crates/ryo/crates/execution/src/inbound/use_cases/*/interface.rs"
+      ],
+      "suggested_mechanism": "strengthen idiomatic.arch/pub-item-unreferenced-elsewhere",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/execution/src/inbound/use_cases/execution/interface.rs",
+          "line": 59,
+          "text": "pub use ryo_execution_domain::domain::operator::types::Counting;"
+        }
+      ],
+      "instance_status": "fixed"
+    },
+    {
+      "id": "twin-test-without-route-pin-22c0cc60",
+      "class": "twin-test-without-route-pin",
+      "signature": "a #[test] that asserts run_read(<recognised plan>, ..) == run_read(<declined twin>, ..) and passes Arc::new(MeaningCalls::default()) inline, so calls.ordered is never read",
+      "scope": [
+        "crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/*/test.rs"
+      ],
+      "suggested_mechanism": "new rule",
+      "plants": [
+        {
+          "file": "crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/ordered_partial/test.rs",
+          "line": 114,
+          "text": "        Arc::new(MeaningCalls::default()),"
+        }
+      ],
+      "instance_status": "fixed"
+    }
+  ],
+  "date": "2026-11-09T23:43:10+00:00"
+}

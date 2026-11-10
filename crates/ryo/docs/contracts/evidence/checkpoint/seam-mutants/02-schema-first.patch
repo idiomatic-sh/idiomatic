@@ -1,0 +1,11 @@
+--- a/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/evaluation/service.rs
++++ b/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/evaluation/service.rs
+@@ -39,7 +39,7 @@
+             .as_ref()
+             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
+         let program = &first.demand();
+-        if first_preflight(region) == Some(PreflightOrder::SchemaFirst) {
++        if false && first_preflight(region) == Some(PreflightOrder::SchemaFirst) {
+             for action in program
+                 .actions()
+                 .iter()

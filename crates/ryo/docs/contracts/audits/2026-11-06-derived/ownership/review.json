@@ -1,0 +1,380 @@
+{
+  "schema": "contract-review-verdict/v1",
+  "source": {
+    "base": "34dbb5248453b112a9792eeada85afa25bb766e0",
+    "head": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+    "tree": "feffd158ae7b0056dbde73930a89bc2b012ef41f",
+    "worktree": "/tmp/ryo-admitted-walk-work-20261105",
+    "status_before": "clean",
+    "status_after": "",
+    "head_after": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+    "tree_after": "feffd158ae7b0056dbde73930a89bc2b012ef41f"
+  },
+  "verdict": "blocking",
+  "axes": {
+    "enforced_boundaries": "FAIL",
+    "clear_ownership_and_flow": "FAIL",
+    "proof": "FAIL"
+  },
+  "axis_reasons": {
+    "enforced_boundaries": "REG-1 and PUB-RAW are concrete source-derived enforcement gaps.",
+    "clear_ownership_and_flow": "Owner inversion is coherent and inspected constructor scopes preserve privacy, but publication raw Arc allows payload ownership to detach from mandatory lease.",
+    "proof": "302 production compilation failed; all new lifecycle/registration/witness/runtime controls unrun.303 query unit passes but built CLI fixture fails before invoking policy."
+  },
+  "reviewers": {
+    "lead": {
+      "model": "gpt-6-astra",
+      "agent": "/root/ownership_review_astra",
+      "round_uuid": "6e5660c4-684c-43c6-bdee-3f31641fde5f"
+    },
+    "independent_rounds": [
+      {
+        "model": [
+          "claude-opus-5-5"
+        ],
+        "session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+        "round_uuid": "b17c571e-1a10-4500-8dc9-5d858c5f72cf",
+        "exit": 0,
+        "command_metadata": "/tmp/ryo-derived-review-opus-b665/metadata.json",
+        "raw_result": "/tmp/ryo-derived-review-opus-b665/raw.json",
+        "raw_sha256": "dc438207255d8608c5ff54a7126c68c3470eb7123d58b2bdd3e297e05fec3542",
+        "verdict": "/tmp/ryo-derived-review-opus-b665/verdict.json",
+        "source_before": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+        "source_after": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+        "status_after": "",
+        "scope_note": "Initial round sampled known build failure; explicitly insufficient as whole-family source review."
+      },
+      {
+        "model": [
+          "claude-opus-5-5"
+        ],
+        "session": "a810a5aa-f1ef-4428-bf1f-624ed4b791b2",
+        "round_uuid": "befaed2b-3b95-410c-b8cd-07c6164cd08d",
+        "exit": 0,
+        "command_metadata": "/tmp/ryo-derived-review-opus-b665-full/metadata.json",
+        "raw_result": "/tmp/ryo-derived-review-opus-b665-full/raw.json",
+        "raw_sha256": "305ad93f1e83f838ea69ae882ec76e0c6253a237b48eca7e799a6dc0745dcc48",
+        "verdict": "/tmp/ryo-derived-review-opus-b665-full/verdict.json",
+        "source_before": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+        "source_after": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+        "status_after": "",
+        "scope_note": "Continuation independently assessed registration, moved issuers, witness and visibility filtering. Its lifecycle assessment remained placement-only; lead separately read actual lifecycle control assertions."
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "REG-1",
+      "severity": "blocking",
+      "family": "Operator and physical implementation registration",
+      "owner": "route registration author",
+      "paths": [
+        "crates/ryo/tastemaker/rules/program-implementation-boundary/0.1.0/rule.toml:77",
+        "crates/ryo/crates/execution/src/domain/operator/contract/registration.rs:63",
+        "crates/ryo/crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value.rs:92"
+      ],
+      "failure": "The guard counts any path descendant of any match arm in the registry file as implementation membership; it does not require the path to be the selected arm value of the designated dispatch match.",
+      "falsifier": "Add Extra impl OperatorsItem beside SelectItem and reference Extra only as `OperationKind::Select => { let _ = &Extra; &SelectItem }`. Extra is imported/referenced in an arm and is classified registered despite no returned selection, kind or fixture obligation. Same weakness covers arm guard/pattern, unrelated match and RepresentationsItem registry.",
+      "evidence_status": "Source-derived by Astra and independently confirmed by retained Opus; author then executed actual installed TM against isolated b665 guard with8 new negative scenarios. All8 negatives expose missing findings (0proven,1assetfailed). Receipt /tmp/ryo-selected-registration-before.json. No reviewer tests executed.",
+      "required_proof": "Whole operator+physical registration family must reject discarded/guard/pattern/non-dispatch/aliased/qualified references while accepting actual dispatch-selected members, including existing tail-only Positioned block. Preserve independent behavioral kind-to-item/classification controls."
+    },
+    {
+      "id": "PUB-RAW",
+      "severity": "blocking",
+      "family": "Publication payload access and required lease lifetime",
+      "owner": "core ownership author",
+      "paths": [
+        "crates/ryo/crates/execution/src/application/file_dag/relations/handle/service.rs:45",
+        "crates/ryo/crates/execution/src/application/file_dag/relations/accounting.rs:140",
+        "crates/ryo/crates/execution/src/application/file_dag/relations.rs:309"
+      ],
+      "failure": "PublishedInput.record() returns &Arc<RelationResult> to the whole file_dag. A sibling can clone raw record then drop the last PublishedInput, releasing RequiredLeases/_resources while raw retains computed/compact/selected payload. RelationOwner.resolve accepts the raw PublishedRelation after checking generation only.",
+      "falsifier": "Construct actual computed publication; from non-relations file_dag caller clone its record, drop last leased handle, then resolve the raw record on the still-live owner. The required publication charge can be zero while payload stays live/readable.",
+      "evidence_status": "Astra source-derived; present before this move but uncovered within the assigned publication/lifetime census. Not claimed as an SCC-move regression. Root assigned whole export/caller audit and actual proof.",
+      "required_proof": "Restrict raw record access to actual relations owner. Add intended-reason non-owner detach negative, borrowed access and leased Clone positives, and actual computed/normalized/derived-backed lifetime accounting coverage as applicable. All existing production record callers found are relations.rs and relations/selection.rs; normalization test is inside the owner.",
+      "adjacent_disposition": "as_ref/Deref/as_any return borrowed non-Clone RelationResult whose payload fields remain relations-private; AdmittedNumber.publication returns leased PublishedInput; internal position_source raw Arc is private. No second adjacent escape demonstrated."
+    },
+    {
+      "id": "BUILD-302",
+      "severity": "blocking",
+      "family": "Combined production/fixture integration",
+      "owner": "assigned core ownership and lifecycle authors",
+      "paths": [
+        "/tmp/ryo-contract-validation302-20261106/build.json",
+        "/tmp/ryo-contract-validation302-20261106/diagnostics.txt"
+      ],
+      "failure": "Terminal build exit101:14 distinct compiler diagnostics, overlapping11 library/13 libtest errors. Root assigned whole import/visibility/fixture-type repair batches; reviewer did not re-derive them.",
+      "required_proof": "One buildable frozen successor followed by actual affected libraries,83+new execution controls,core boundary,sharing and catalog/runtime suites.",
+      "evidence_status": "Executed integrator failure; no b665 execution runtime/probe/sharing result exists."
+    },
+    {
+      "id": "TM-CLI-303",
+      "severity": "blocking",
+      "family": "Actual built visibility-filter enforcement proof",
+      "owner": "route registration author",
+      "paths": [
+        "crates/tastemaker/cli/tests/replay/imports.rs:84",
+        "/tmp/ryo-tm-validation303-20261106/tm_import_cli.json"
+      ],
+      "failure": "Built CLI replay fixture fails before first TM invocation: src/owner parent directory absent. Zero of8 real CLI policy cases executed; this does not demonstrate a filtering bug.",
+      "required_proof": "Repair fixture setup and execute all8 actual built-CLI visibility/import/type/call cases. Keep query-only execution and exact unit1/1 PASS separate.",
+      "evidence_status": "Executed integrator failure; source filter itself accepted."
+    }
+  ],
+  "source_dispositions": [
+    {
+      "id": "MOVED-ISSUERS",
+      "disposition": "source_accepted_pending_execution",
+      "basis": "ExecutableLease/NativeJoinLease/PermittedNativeJoin/PermittedWalk constructor scopes and runtime validation remain equivalent to base; acquisition and relation private data/issuance splits preserve fields. OwnedView retains actual storage and ResourceLease."
+    },
+    {
+      "id": "WITNESS",
+      "disposition": "source_accepted_pending_execution",
+      "basis": "BackingWitness is test-only, private Weak<dyn Any>, owner-only constructor; public observation cannot upgrade/detach.7 authored compiler controls cover1 legitimate observer and6 escape attempts."
+    },
+    {
+      "id": "VIS-FILTER",
+      "disposition": "source_accepted",
+      "basis": "AST visibility descendant path occurrences excluded by exact source file+span antijoin. Other imports/types/calls even of same owner path stay included.303 exact query unit1/1 passes; independent authored query8case proof exists, rebuilt CLI8cases do not yet run."
+    },
+    {
+      "id": "LIFECYCLE-5",
+      "disposition": "authored_unrun",
+      "basis": "Lead inspected ordinary project duplicate replay, restored named duplicate/cancellation, external file sink/refusal/semantic errors and capture/commit replay. Assertions retain required bytes+actual weak backing, terminal outcome/count invariance and last-release zero. New tests cannot close any behavior row before execution."
+    },
+    {
+      "id": "PRIOR-FUNCTIONAL-FIXES",
+      "disposition": "retained_source_fixes",
+      "basis": "SP-1, runtime private issuers, derived raw graph/storage, held-read semantics, Axis parent binding, core supplied-batch entry, synthetic census, pre-callback expected-ready coverage and rejected invalid Project remain source fixes. b665 changes production; no runtime PASS from301 is carried forward and missing evidence is not a demonstrated regression."
+    }
+  ],
+  "evidence_reconciliation": {
+    "SCC": "Author resolved targeted SCC census is bound to577cfa0/tree0b490bf, not exact b665. Ten other source SCCs explicitly remain outside assigned family. Lead checked577→b665: project_execution changes are formatting only; registered-representation module/manifest/guard changes still require final source binding. Non-ancestry alone is not a defect because this work is cherry-picked. unread_count5404 is not proven to count dependency edges; do not promote Opus inference to fact. Classify unresolved/unsupported evidence touching target family before claiming its coverage; zero applies only to resolved targeted graph.",
+    "registration": "Author562 receipt reports80 owner,41 collection,25 shared-walk scenarios and6proven4kept; source_boundary harness and manifest differ in merged tree. Historical broad check624 and other TM scopes are unwaived, not current combined green. Bind actual check/validate and compiler inventory to final repaired successor.",
+    "matrix": "Current README accurately retains34db as last reviewed checkpoint and does not claim b665 passes. Update affected rows with this current blocked source/proof split; do not resurrect fixed prior defects or check new behavior from unrun source."
+  },
+  "inventory": {
+    "execution_compiler": {
+      "authored_total": 83,
+      "positive": 17,
+      "negative": 66,
+      "breakdown": "70 historical +6 registration (2positive4negative) +7 witnesses (1positive6negative)",
+      "executed_b665": 0
+    },
+    "core_compiler": {
+      "authored_total": 8,
+      "executed_b665": 0
+    },
+    "lifecycle_families": 5,
+    "actual_TM_CLI_cases": {
+      "authored": 8,
+      "executed": 0
+    },
+    "physical_representation_classes": 6,
+    "relations": 69,
+    "operations": 26,
+    "derived_kinds": 13,
+    "source_census_methods_reported_by_author": 514
+  },
+  "validation": {
+    "302": {
+      "source": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+      "build_exit": 101,
+      "diagnostics_distinct": 14,
+      "libraries": "unrun",
+      "execution_boundary": "unrun",
+      "core_boundary": "unrun",
+      "actual413_sharing": "unrun"
+    },
+    "303": {
+      "source": "b665d2dbcd756b3c831ced1eb122fed0f2b0ccbd",
+      "tm_import_query_unit": "1/1 PASS",
+      "tm_import_cli": "binary compiled; fixture setupFAIL before invoke;0 of8cases executed"
+    },
+    "registration_before_repair": {
+      "source_binding": "Author reports isolated b665 guard plus new negative scenarios; no guard repair applied for this receipt.",
+      "receipt": "/tmp/ryo-selected-registration-before.json",
+      "result": "All8 expected-negative scenarios lack findings; guard bypass reproduced.",
+      "scope": "Author actual installed-TM evidence, separate from302 execution compiler failure and303 built-CLI setup failure."
+    }
+  },
+  "matrix_dispositions": {
+    "split": [
+      "review/matrix_dispositions/000.json"
+    ]
+  },
+  "repair_batch": {
+    "source_authority_families": [
+      "Actual selected implementation registration for both operator and physical catalogs (REG-1)",
+      "Owner-private raw publication record and leased consumer/export family (PUB-RAW)"
+    ],
+    "already_assigned_integration": [
+      "Whole302 imports/visibility/fixturecfg/lifecycle types",
+      "303 CLI fixture parent directory"
+    ],
+    "acceptance": "One combined frozen successor; actual affected tests/TM/canonical caller probes and exact receipts, followed by retained paired reconciliation. No per-leaf review, no new architecture/performance/output wave."
+  },
+  "file_postimages": {
+    "crates/ryo/crates/execution/src/application/file_dag/closure_partitions.rs": "da7de9e058e31c2366593238be323c85209a227def3b75411ee236d40b2ea58a",
+    "crates/ryo/crates/execution/src/application/file_dag/derived.rs": "35bac4245c6f30136c5094ce7c11cbd461a43a5394ae774a3650ef7bf6c7a3c8",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner.rs": "1850e1ed96f387d9a34ea7cb3e203880210cf5609b3f01656e95275b2a72c441",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service.rs": "d77d5b455f820266839fd7024109f3d8d710ec7c728e438c00e16abba5bc779d",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service/issuance/mod.rs": "587755d1516dd16cee51e1eee006863c371e3cdbaab69f5c9c4b194b9ba7228a",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/admission/service/issuance/service.rs": "4055f3e156ae925c2230f5917fcc2b0fc0caa3ad8f6b12a4bd85a828946f7015",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/graph/construction/service.rs": "1083e06eb4c23935731be9933b177b1eddf03d726c786f2d029aaf8849e371e9",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/graph/service.rs": "78f7051dac8ea29bb8f4bf9f01656e79a9fbc56770cff1845c39aca665d6ffed",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/selection/service.rs": "1a8915cde2b2dc94597d13604d3c61d7cc3fc16d73b9d6e547c769ab112fa942",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/acquisition/service.rs": "5174a2f0de2ffb06832e76e381e92464be9610e162ace2a2ef79ebb443f0edfa",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/fixtures/mod.rs": "08cfd9f593a1b7209fb4b7dde360b4d89d2d4bb1319c40d9f620922262855226",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graph.rs": "dba57db31e3eb3b319ac0f1684f0faebc1d72b75c028765d580620ba101eb079",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graph_fixture.rs": "3e7db949f25867f3bc99249f44a9a2479a1e1a2af19c447b9e79bbba5fd3dc66",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graph_key.rs": "c45c7cf385fb03c18e3b33c21b630553ed71e68c6b755fe670f46f6c30b76e67",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graph_lifetime_test.rs": "ef5e22bcce52ddaf9780856e2882f0e205b0320a28f24943c0e81d0df1f2bbe2",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graph_policy.rs": "ccf59274a330d89caa2e6edea0cb3f41862493aef5c31501f611fa51569f5fc9",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/graphs/types/retained/types.rs": "d20b53d512b1dd1237cc64292a83ff766d9943336f4807bdc6d9cbf75183171a",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/observations.rs": "1751634d2a0216dcdf77bd069798eb7e921215bb8c041220e1885664516aa5b8",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/raw_scope.rs": "1486cb0a5477ec7ffc7c731583908ef6231dde1b700df3b8ff219623074182cc",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/resource_fixture.rs": "89559c1d157e7fc2fade06363c54d3a969921dd51d614de14cea9c7184f1cfff",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/candidates/service.rs": "ec4a039c691bf20fccd0627141fc66a8f89d2473dd89a58753f78b883e9083b2",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/fanout/service.rs": "138ad16b9b2226a20b3cdb3159dcb0180d6c92ebf24379e7316b87f390bff6d9",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/fixtures/mod.rs": "e4453b96112973a5c365a9db1e76bc2ddbb5e01ad4599acdcc97aa4fee94906f",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/literals/mod.rs": "4412230e8ae863b0fecbe293d788cfc7d2f39eeecae76e5dc569f844cc3325fb",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/literals/service.rs": "fde90fe0aa1f7590d8ac84b68a6871fb17a442c42d7cbfd7844149d3aa9d5149",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/mod.rs": "8a300466e1918294992341d39e18a93bc9692476be67a6c0ef6a4ef1a18d0202",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/preparation/service.rs": "e93535524ad1d4344585ee27dac4257d004e51dd9eaa864da6f58dd6a03e8c70",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/retention/test.rs": "423fb9c6d2c31ca083baab2c40cb718fdcab165cf076bc41ebc979b9010af6d1",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/selection/types.rs": "2dbd49bb2764a2bbfc865d751a66f54fdca3216b9db1bacb07c8a1559346e69c",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/witness/mod.rs": "6d874140cb14dbb41ec53016279ad64f77a6e08e741bc817e1a6f67310d7abc0",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner/witness/service.rs": "42df67f3efd5caa541cd5eae65d7a2181916a5afcd3dcf458e7c39e32a635792",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/owner_test.rs": "682cda0ee386799ab64980b7d044b16bba0f6211a737f029786d2998db50e0f2",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/population/mod.rs": "4365528cdceae4bbd4e897731dc0b72d8242e38b5c35fa4c388efa4d5d26dd73",
+    "crates/ryo/crates/execution/src/application/file_dag/derived/population/types.rs": "681976bf3e80e3624d551c73c04cb7807e7d4541503a6a48aad2e9f8d0bf5565",
+    "crates/ryo/crates/execution/src/application/file_dag/execution.rs": "4cc07f9f50d3329f1b9fec654a552dc802f64c606fc34141b8b73fdf25d77499",
+    "crates/ryo/crates/execution/src/application/file_dag/execution/lease.rs": "fa6c43b5c1da23e20e5ee7ec8d90c2dbf628f2f2abcd8501d09571daf39e3d7d",
+    "crates/ryo/crates/execution/src/application/file_dag/execution/lease/capability/mod.rs": "db08b82c5d1736fb0bd4c79a9a0cc4b548985a334431e7f0759d1b5fc6976fc3",
+    "crates/ryo/crates/execution/src/application/file_dag/execution/lease/capability/service.rs": "a0db5df7431ce4ded89c4fbaf6164fffd50149e5c4aa12b2c97844d3fad3671c",
+    "crates/ryo/crates/execution/src/application/file_dag/executor.rs": "de9b2b7660b6ea73eba94f9cf566a629a5a734ec5effab19896d66464731676d",
+    "crates/ryo/crates/execution/src/application/file_dag/executor/response/mod.rs": "be5e792e8dfde208e519afc642f4d2d6ed94ab7aecf70b38bb9d41b432cd7a35",
+    "crates/ryo/crates/execution/src/application/file_dag/executor/response/types.rs": "503b19dbbb1ee6b4c719f3c806bfb55c3b25615ea0ba0d371abeae34a4615ab6",
+    "crates/ryo/crates/execution/src/application/file_dag/invocation.rs": "0beeae0a4de9f28f92752c32ffdae0acb0fb5ff8cf2fd9a120ea78be70ecf0fb",
+    "crates/ryo/crates/execution/src/application/file_dag/invocation/native/mod.rs": "99b64eff94f6250c9f84f88dffca3b2fbdaffa182c2183f0f15be33125d4cc95",
+    "crates/ryo/crates/execution/src/application/file_dag/invocation/native/service.rs": "a6b1e6efacfda018de1845b4d5144b549b01526fa0d9b2e4b161db2c3e9cc3bc",
+    "crates/ryo/crates/execution/src/application/file_dag/observations/cross.rs": "e41fd7e556651f7d64419a59a6518963b0670dbde12362be7209e7fa0bd72d7e",
+    "crates/ryo/crates/execution/src/application/file_dag/ordered_existence.rs": "82c8a9f792322178f59d6fc44e317d2d5330742ac349cf3d4f2d3f1299a035fd",
+    "crates/ryo/crates/execution/src/application/file_dag/program/admission.rs": "64a1d6567287926b46f62d962dbe1b1a6a36f470d09844c64a4eec43ad92310e",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime.rs": "6b027f0d6c0de3a3e79e2af0621077561e1e9e03fcf11f96845d1dd41d844015",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/fixtures/mod.rs": "81db0e6299db00000efcdd0b0688c7d60a4f72cc8f33a474cf5a65a75ba4a0e6",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/mod.rs": "8ec79379c0e9c7908de8cdcb00bd549649692b9b6ad4e8a44faec9cc8945e406",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/external/test.rs": "1a1202ef21adccd3c2a2e449fe14a214f66cc1ab5318eb755347b2f51652e66a",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/mod.rs": "f9cd488540dcf42d72036c691651d00c14e5cdff27e4cc6c8265e855b0ccf55e",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/fixtures/mod.rs": "c502835da71af0b6e56079c808b7c7be440907f7bc505e9466189a2479f753cb",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/mod.rs": "aa3d808569fe21254a1beb8bb85aaa514550bce55167134c9422a46fc31706f6",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/project/test.rs": "775a10d9e7da58226e1d5804bbe4ff440bcd46b31d43f880c9143ca86c59c9f9",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/fixtures/mod.rs": "cf33c9fbb054accd1e757567a1f101b8baca3edcc935fd2fab020f558395f607",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/mod.rs": "ea3b6f7dbd585e92d4f437c75f4cb9b02c871c1c396b52508089607a03b0d1cf",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/restoration/test.rs": "27ba8053f4c5a76e4da6aa8729554b3d7b416f0fd98f77a5e74d77b2425ba825",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/producer_lifetime/test.rs": "64f9e4f3ceebbb7830e3d3d42371001d4c188f3d0a23aad8928aeadef2102619",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/file_execution/distinct_integration/readiness/fixtures/mod.rs": "1c5f6d1f5474ff6c4affeadce0b2708a7e826a35fe76fc9e6c1d6e201a530d87",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/project_execution.rs": "3c9e0600db46ab0a3242a43f1d3656e363408a100d02c29949875cbc0deec7f0",
+    "crates/ryo/crates/execution/src/application/file_dag/program/facade_runtime/source_admission.rs": "cc3498aec5d4d691a716c85d5020249909ce151ffaf628d9e537226101a8b80a",
+    "crates/ryo/crates/execution/src/application/file_dag/program/kernel_session.rs": "17820e6e9e8fc6650fb4d61537721768e94c2516b4becbf3889bd318471a7ccc",
+    "crates/ryo/crates/execution/src/application/file_dag/program/native_join.rs": "287d9c2c80947a0caff128f47b5a74c5bf33b05c10c8a414f5560a57d013c3b0",
+    "crates/ryo/crates/execution/src/application/file_dag/program/native_join/lease/mod.rs": "74f4c635b8a8ebdc358e0bab12672606cd27c938882afb32799259952580d7a9",
+    "crates/ryo/crates/execution/src/application/file_dag/program/native_join/lease/service.rs": "5939a51ddb6963c017c82740efd94099d757b241c2c4f082b0a01c92d6e8d0d5",
+    "crates/ryo/crates/execution/src/application/file_dag/program/native_join/lease/service/dispatch/mod.rs": "27aeec495787fc4ed927150d716ca209bca6fdebbd980553dcea8e08c700e068",
+    "crates/ryo/crates/execution/src/application/file_dag/program/native_join/lease/service/dispatch/service.rs": "bb492e1f39efad20feae9eaef5cac353d2d6c2b4ac0a4ed7ec1409741d409014",
+    "crates/ryo/crates/execution/src/application/file_dag/program/native_walk.rs": "9b8d65f7cdfaa2dc597ea6aaaeeec2090c13a4293d48adc697ce1be12a83e2d3",
+    "crates/ryo/crates/execution/src/application/file_dag/program/native_walk/lease/mod.rs": "9d326f2358de2c8f9196516f8c4e728b3e33ae322da2de16e2e4a1b9eb2695a1",
+    "crates/ryo/crates/execution/src/application/file_dag/program/native_walk/lease/service.rs": "8403c058fa5271df0f69e021d4503868ffaf261d11e95ef1268d8973ccf98593",
+    "crates/ryo/crates/execution/src/application/file_dag/program/project_population/types.rs": "6e1e83ea49395da46c868ec7c7062c35ea92c4fac66a4e2ab3b3a4427e943765",
+    "crates/ryo/crates/execution/src/application/file_dag/program/runtime/service.rs": "306d7f0ddf78fc0a9955cdd060965679138a74b64d11a673c7a48f2340701537",
+    "crates/ryo/crates/execution/src/application/file_dag/program/runtime/service/lifecycle/fixtures.rs": "5e09f307d32bd1eafdd5825eacb5f4a552006fb7f7eaf395faf2f2cdac9c7be6",
+    "crates/ryo/crates/execution/src/application/file_dag/program/runtime/service/lifecycle/inputs/fixtures.rs": "af1069215189be1063185806ff97e55c9e7a14ada6350b0a7e8b10504b199134",
+    "crates/ryo/crates/execution/src/application/file_dag/program/runtime/types.rs": "6c6733ed5acfceaa51284f9a8409fcd2d9e942498ce41fbbbfb695e00da1fa14",
+    "crates/ryo/crates/execution/src/application/file_dag/program/selection.rs": "46df7722f82ea48f9694db97455b0b1856ec17bc52dbf2cd2cf1180e89534c37",
+    "crates/ryo/crates/execution/src/application/file_dag/relations.rs": "bb757f0afcb0dca50137b882bc182d495e1e00acd65fe384a5391aa220da346a",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/admission/mod.rs": "5e419784564130844516b98522ecb838899d4d126c71657eb73372476df64432",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/admission/service.rs": "707ea33698a6b90447f39ad5c1009a6904a89808434a499943918e72c2edc16a",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/admission/service/issuance/mod.rs": "587755d1516dd16cee51e1eee006863c371e3cdbaab69f5c9c4b194b9ba7228a",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/admission/service/issuance/service.rs": "ddd8436ae30384a0eac9755f778f5ea06b379380beb25442c7b47c7843d144ad",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/generation/mod.rs": "5589c6f9689830023f8dc1ee32ab605dc3b90b5c88aa576246ecc2307fb581d2",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/generation/service.rs": "b9ed102f00b818210deb4c03e3ee20b47618515b83dcb83952cb3a6104ec1cf3",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/handle/mod.rs": "adb94a27054fe58f4b86c08682c5de98f728d4abab419f6790e9fa949ab582a2",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/handle/service.rs": "3d6e58650f5dd1a60c47fbd58438323ae4b9715604d96c7ef95b12ec43cdefe8",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/identity.rs": "24601d448117c6926438cabd8026c3fb07ffd784f707b11431326545ee4e5223",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/number/mod.rs": "5e419784564130844516b98522ecb838899d4d126c71657eb73372476df64432",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/number/service.rs": "fbb882d395f4f33fb3165240f5289fe587dd0a6d1f6f0eb08a8eac12a9437902",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/number/service/issuance/mod.rs": "587755d1516dd16cee51e1eee006863c371e3cdbaab69f5c9c4b194b9ba7228a",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/number/service/issuance/service.rs": "313da6229e4be8fd4491985c3175fb4f9d3d2d46a6ce0b68d46011d08bf117a4",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/number/service/test.rs": "5200ed9fd96754907e74035b6eb6f0d170279a711917193229580a08137dcd40",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/owner_test.rs": "4dc149e3ae3ec2bb755a5a2c9f295e8eb7e26ee9c9bfc5daac8dc690c2600543",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/packed/mod.rs": "5e419784564130844516b98522ecb838899d4d126c71657eb73372476df64432",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/packed/service.rs": "3cd940e64f8fa5c86a65f62bbd53db25055c1211b0c9f7f0c31a71ff6d9e8d72",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/packed/service/issuance/mod.rs": "587755d1516dd16cee51e1eee006863c371e3cdbaab69f5c9c4b194b9ba7228a",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/packed/service/issuance/service.rs": "48d65b3c247e25cb1bd391bd228f4778b8165252f5b03e722193c8c555b84a0d",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/publication/mod.rs": "3718c299d9ebb8d7437f287b51cef9f6095124edabaa8cdaa88ec13cf9fabe8c",
+    "crates/ryo/crates/execution/src/application/file_dag/relations/publication/types.rs": "775c636f264b1a7c8a618d17b8b2eb9a167484bb170455398b273e284fc04fdd",
+    "crates/ryo/crates/execution/src/application/file_dag/scope.rs": "187c19e49119c688de44634281293707fc847478f91e96db4da948b036343261",
+    "crates/ryo/crates/execution/src/application/file_dag/scope/types.rs": "557659263e85c5592677e6d59da02fce5ea2a69c11fae2630a30ffb2856dda22",
+    "crates/ryo/crates/execution/src/application/file_dag/workspace.rs": "34e9fd2d6bc2b18130cdb00d8068d3d6ed3ad2251e9b5635bfe780468676ad34",
+    "crates/ryo/crates/execution/src/domain/operator/collections/operators/interface.rs": "6b22f6a2379f211ec2c273b33f0a45a0e6312d76d4b8a56b033886670ec1f810",
+    "crates/ryo/crates/execution/src/domain/operator/contract/registration.rs": "2537e2911fbc431925afe3fa7381ffbc3c8f5e9b1e2c390c5412024302c0293d",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/interface.rs": "be67b320ed3f0208af453dd01bab3128d7ea5620eaa4d5280d04906b153abeb9",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/registration.rs": "fa065be08585bb61ec2bc3d2db34bfaeaee080af33dc0584386bf8b0cd8fa53d",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/service.rs": "ff8a8395ce07bd3276e2ce31c7dcfc9a58bae3cf4739b365358c911259daede7",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/service_test.rs": "7f50ce243d09c5af5ff16d62619d37ba9298da2b440d41519fa17b236b1c08f7",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/types.rs": "896382b8b589710939e27094a4aaaa0b224b72211fcd67155a3ab0518c0e42d4",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/types/registered_representation/mod.rs": "2c3f79e3074405b2d0e492b7bd7062fcc1f0163229dfacbc309ff808ee797aa4",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value.rs": "7997f336bae6e2e8e76c803a590909102ee5317eee19f832aeb60910bab5c789",
+    "crates/ryo/crates/execution/src/domain/table_model/collections/representations/types/registered_representation/value_test.rs": "c682d26fbf44f1dd058a95eaf90d6ea39b285587c32ff93140d79f98ca87037e",
+    "crates/ryo/crates/execution/tests/source_boundary/derived/mod.rs": "e8b37b862758e5af619c0915b172b401352637098574dc4d2a175e3cddbe7a20",
+    "crates/ryo/crates/execution/tests/source_boundary/derived/witness/mod.rs": "8d2913e600b6eccd1321fc83b08d73a965a06ab9877ff832a32635dbedc5f0ca",
+    "crates/ryo/crates/execution/tests/source_boundary/test.rs": "8140700957f545dd3b448cbef70a4c247a264cfd4e0dfe630b466b707b19df40",
+    "crates/ryo/docs/contracts/README.md": "205369648b87e40964f248b413c4c296ca1699dcbe9fac02ebcd255dde5f7ba7",
+    "crates/ryo/docs/contracts/audits/2026-11-06-derived/checkpoint.json": "c06d032a22ee0a548401ec2f8b043c24029ce3a1c95da6168e07f692e6e8f4e9",
+    "crates/ryo/tastemaker.toml": "11075eab03cb501fbb9bb7ac6cd977d88be360fd76e5f51481d6a74a1e6aa4b0",
+    "crates/ryo/tastemaker/rules/program-implementation-boundary/0.1.0/rule.toml": "38eb5d65c5d377ddf86ef406de7112f87f0caaa36b24eb41d0e91a5203f80e6d",
+    "crates/ryo/tastemaker/rules/runtime-authority/0.1.0/rule.toml": "0bfb9f17c7e80c5c753fd25a4ef2f7a0d6bce3baa50b47325ba891e09c8f92e2",
+    "crates/ryo/tastemaker/rules/shared-walk-owner/0.1.0/rule.toml": "e98eea8a971beb75a7cad82b3c18209bed2835afa8ec53eb69aeeca67da659ee",
+    "crates/tastemaker/cli/tests/fixtures/replay/roles/package.toml": "e66db8c74177a977c5871c11ace01fc5079db37b26fab9a17544c3350f9c5006",
+    "crates/tastemaker/cli/tests/fixtures/replay/roles/templates/item-test/0.1.0/template.toml": "73cbda47f6a144ebe4515102c943cd8065b1aff9ca40958b983c48540f4d15de",
+    "crates/tastemaker/cli/tests/fixtures/replay/roles/templates/value/0.1.0/template.toml": "73cbda47f6a144ebe4515102c943cd8065b1aff9ca40958b983c48540f4d15de",
+    "crates/tastemaker/cli/tests/replay/imports.rs": "69b0f424c90d094287337d9aff3c654a68cf812c097e01a7ca13fd5a0dafdb7a",
+    "crates/tastemaker/cli/tests/replay/main.rs": "fb12bf6c4a2c8ffaa74668ac7838a5ae23a187a426168506b4dfd84858c1ebed",
+    "crates/tastemaker/crates/core/src/domain/import_rows/constants.rs": "1195ff9a8a081bbc8825c65c9fa89dfb72832ae9f441f38117c401e02a8df48f",
+    "crates/tastemaker/crates/core/src/domain/import_rows/service.rs": "7a7ada6700c07820c7c4bfef0741af0f769882a24f9479b5d662c2e846affcc9",
+    "crates/tastemaker/crates/core/src/domain/import_rows/service_test.rs": "56fa206822ae500945af1e0d46ba036833349a60a506c8174243e9d526395e71",
+    "crates/tastemaker/tastemaker.lock": "c3a89307fc325c261d76beacbe06c15edace9bef179d0296ca57e6e010285d8c",
+    "tastemaker/rules/collection-members/0.1.0/rule.toml": "6b77a9609c09dfdbe00b4280dc7fa4479a5d8ec05be61f1b32930cbdcc734f45",
+    "tastemaker/specs/idiomatic-rust/0.1.1/rules/module-cycles/rule.toml": "a638758951cdc3168efec61a68155d6e9714ae3ca4c2bee461fa2282dc074704"
+  },
+  "evidence_sha256": {
+    "/tmp/ryo-contract-validation302-20261106/commands.json": "990bfb7e7006ecd353b8d6ca52f9b90c426603a6ca08d63d8c60925646855b31",
+    "/tmp/ryo-contract-validation302-20261106/source-format.log": "2d793e581393241958ccfb77427ceeb8eaab0b10c1a13cdaf78d9665abda0065",
+    "/tmp/ryo-contract-validation302-20261106/source-preflight.json": "72c1239a5bf1db63a7f8c02c85fdabe51e8eb9469007aa770eca7ff2bafb423f",
+    "/tmp/ryo-contract-validation302-20261106/source-format-aff157.log": "25896392af0fb27ddd50753ee5daa43f8468489e09e7df1662d359f207a6f8ad",
+    "/tmp/ryo-contract-validation302-20261106/identity.json": "77c9029bd4dd3dc8d331552cdb87fe3927c53c2e5a2ea768d91d2542217d20a5",
+    "/tmp/ryo-contract-validation302-20261106/build.log": "a38768bdee3c66baf3e080c13551b83df9f0833473093c15b7b8a1a5bd5843e8",
+    "/tmp/ryo-contract-validation302-20261106/build.json": "b8a224e1b983463746a990aea78d3cad64c1246c35fff8378347c64434452aef",
+    "/tmp/ryo-contract-validation302-20261106/diagnostics.txt": "0315a1aa5d6d6ef876430566b47b6fe39e81f16d74da310fc2ae9c349cdbee92",
+    "/tmp/ryo-tm-validation303-20261106/commands.json": "8eeb5addec865510a04e8b7207cf9bb8c51f499200ccf4dac7d16a29aa0c7ee7",
+    "/tmp/ryo-tm-validation303-20261106/identity.json": "5357af14738588e5580e7c421f6623d50033d4b53850f3ef100033aafccb8ed9",
+    "/tmp/ryo-tm-validation303-20261106/tm_import_query.log": "ea693f2e7ff54d3c62542917388f8a85d07538b541083f377c0072c01f680a64",
+    "/tmp/ryo-tm-validation303-20261106/tm_import_query.json": "6432e48ce33220f1a3400028d0f2ed4ed2e771d456a8479e84c488611678a49a",
+    "/tmp/ryo-tm-validation303-20261106/tm_import_cli.log": "053e0b1434f71603ab0c927f6662733f7b4c0f969c938173152f0abf934a897b",
+    "/tmp/ryo-tm-validation303-20261106/tm_import_cli.json": "a824fb0f5f737e61b2d3f41dd74c8c74a45ba644e6eb89303d9185e6f5be1103",
+    "/tmp/ryo-route-registration-final-evidence.json": "91a748f644dace3c0538a090b236206fb2091702b5777a1df2c195a8185f3c73",
+    "/tmp/ryo-route-registration-census.json": "d14c6cd691761c16061d582c9d28c5d10f201226dc42ba7b523b67dbe2af75a9",
+    "/tmp/ryo-ownership-scc-final-family-evidence-20261106.json": "0763b62094d41afef3616ae80ec17224ad8866639541b29df575dcd6dbbf622d",
+    "/tmp/ryo-derived-review-34db-paired.json": "c06d032a22ee0a548401ec2f8b043c24029ce3a1c95da6168e07f692e6e8f4e9",
+    "/tmp/ryo-selected-registration-before.json": "a482dcd462bf1d239a58970b361602b4c2c67d7423f8b23b831c42b4ef38d64a"
+  },
+  "manual_judgment": [
+    "TM registration shape must correspond to actual selected dispatch values; arbitrary path references are insufficient. Behavioral kind-to-item mapping still requires real controls.",
+    "SCC proof is limited to resolved source dependency facts; exact AST visibility filtering is justified, unresolved edges/macros/reexports are not thereby proved.",
+    "Project callback is inapplicable to the current interface; legal global-selection/cache filtering and SDK singleton use remain authorized.",
+    "No phase/category closure; ten outside-target SCCs and historical other TM findings remain recorded.",
+    "REG-1 has actual author-executed before-repair TM reproduction for8 negative scenarios; PUB-RAW remains source-derived with full export/caller census confirmed by source author. Neither reviewer ran tests."
+  ],
+  "completed_at": "2026-11-06T04:53:05.022151+00:00"
+}

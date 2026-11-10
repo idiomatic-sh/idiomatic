@@ -1,0 +1,64 @@
+{
+ "checkpoint": "branch:claude/w13-test-practices",
+ "source": "53654c79ba88782c813125fe688e5cb245225f81",
+ "base": "a5db4434879b7c8ed7eddd5a2e959a561ca9e48d",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "checks": [
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "Docs, agent definitions and one run.py check; no contract is asserted from benchmarks/ or languages/; leak-review.md:12 sends product copies of harness capabilities to check 4."
+  },
+  {
+   "id": "2",
+   "verdict": "PASS",
+   "evidence": "The red-then-green record (evidence/checkpoint/README.md:79) names its place: the red_green list in validation.json, entries {test, base_sha, merge_sha} with 40-hex shas; contract-migration.md:69 links it. run.py --check enforces it (red_green_problems at run.py:283, joined into bad at :291). In a git archive copy, baseline exit 0. A good entry and an empty list exit 0. Refused with exit 1 and 'red_green entry <n> ...': missing merge_sha, extra key, 12-char sha, uppercase sha, ref name, empty test, int test, entry as string, entry as list, a good entry followed by a bad one (entry 1), red_green as object, red_green as string. red_green null or a number exits 1 with a TypeError traceback. A blank test ' ' exits 0. Earlier fixes hold: explicit check 2 FAIL condition (leak-review.md:13), fix defined with exemptions (rust-principal-review.md:17)."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "No visibility, manifest or import boundary in the diff."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "The harness rule has one scope (rust-principal-review.md:17, leak-review.md:30, review/README.md:87); 'fix' has one definition; the copy rule is under check 4 (leak-review.md:15) with crates/ryo/crates/benchmark and a capability list that matches the crate."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "No crate source in the diff."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "No cfg(test), feature or fixture seam in the diff."
+  }
+ ],
+ "plants": [
+  {
+   "claim": "run.py --check refuses a malformed red_green entry",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:283",
+   "count": 12,
+   "reverted": true
+  },
+  {
+   "claim": "run.py --check refuses red_green null or a number with a message",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:283",
+   "count": 0,
+   "reverted": true
+  },
+  {
+   "claim": "run.py --check refuses a blank test id",
+   "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py:283",
+   "count": 0,
+   "reverted": true
+  }
+ ],
+ "findings": [
+  "open item: red_green_problems refuses a whitespace-only test (x['test'].strip()) and a red_green that is not a list with a message instead of a TypeError",
+  "open item: red_green problems print under the 'TICKED ROW' prefix (run.py:300); give them their own prefix"
+ ],
+ "date": "2026-11-09"
+}

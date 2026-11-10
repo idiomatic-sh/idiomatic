@@ -1,0 +1,37 @@
+{
+ "checkpoint": 332,
+ "source": "96b5545cb86ce05ed792810006665bd024c03a4f",
+ "base": "f67311c99057245e20ae4ed0da490bf4ee39e885",
+ "previous_source": "f1c9e1c968d443ca0334182c40eacd0eb96a9d8d",
+ "previous_verdict": "PASS",
+ "branch": "claude/w14-tm-import-reading",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "date": "2026-11-09",
+ "checks": [
+  {"id": "1", "verdict": "PASS", "evidence": "The proofs are tastemaker core cases (import_rows/service_test.rs, including the new ModuleAroundBoth, ModuleBesidePath and Unbound cases) and the provider-imports spec scenarios, all on fixtures."},
+  {"id": "2", "verdict": "PASS", "evidence": "Real runs with tm012c, which carries the narrowed SCOPES query (checked in the binary: `kind = \"use\" and text = \"\"`, the syntax-child parent join), on a full archive of 96b5545cb8 with the spec-scenario workspace (deny default, crate `engine` denied). Each row gives provider-imports at the expected line or none. Controls: control 1; inline module after a top-level alias 4; sibling fn 2; cfg(test) module 1. New: a closure-body alias with the path outside it 4; an alias in a nested block with the path after it 3; an impl method alias with the path in a sibling method inside `mod m` 5; module nesting (alias in m, path in n inside m, with an empty sibling mod o) 5; a const-block alias with the path in a sibling fn 2. In scope, none: file top, same block, path two blocks below the alias, and an alias after an empty sibling module with the path in the same module. The scopes query keeps the stmt-list that is the direct parent of a `use`, which is every block a `use` can stand in (fn bodies, nested blocks, closures, const, async and unsafe blocks hold their statements in one StmtList), plus every item-list, so inline modules are all present for the shut test. Blocks without a `use` are never an import's innermost scope, and the edge's module test reads item-lists only, so omitting them changes nothing. Bisect: innermost() takes the latest-starting span that starts at or before the target and ends at or after it. Blocks and item-lists are nested or disjoint, so that is the innermost holder; module nesting and the sibling-module case above confirm it. Memory guard: it now requires exit 1 and at least one reported finding before reading the peak (cli/tests/replay/check.rs), so a refused run (exit 2) or an empty run cannot pass. It is not ignored, and it is red at 4.37 GB until the engine retention bead lands."},
+  {"id": "3", "verdict": "PASS", "evidence": "The import boundary holds by scope in every probe above. Allow entries ryo::link and ryo::reads are unchanged and narrow."},
+  {"id": "4", "verdict": "PASS", "evidence": "Scopes are kept once per file (BTreeMap<RepoPath, Vec<Scope>>), and each import's innermost scope is computed once. One import reader."},
+  {"id": "5", "verdict": "PASS", "evidence": "The change stays in tastemaker core's domain."},
+  {"id": "6", "verdict": "PASS", "evidence": "No test seam in production code."}
+ ],
+ "no_binding_rows": "No change from the pre-branch base for any provider. At f67311c990, keep(Relation::Names) kept every static-import row with a target (import_rows/service.rs:74-75), with no binding column. At 96b5545cb8 the keep condition is again `target` present, with binding Option, so the Names rows equal the base's for every language (Rust globs, JS side-effect and dynamic imports, Python star imports, Go blank imports, and any other row without a binding). Only present bindings drop a use-site path (bindings filter_map on name.binding), so a row without a binding never hides a path. The intermediate state at e196dbe503 and f1c9e1c968 dropped binding-less rows, a regression the earlier reviews missed; this commit closes it, and the Unbound case pins it.",
+ "plants": [
+  {"claim": "control", "file": "demo/src/domain/model.rs:1", "count": 1, "reverted": true},
+  {"claim": "alias in a closure body, path after it in the fn", "file": "demo/src/domain/model.rs:4", "count": 1, "reverted": true},
+  {"claim": "alias in a nested block, path after it", "file": "demo/src/domain/model.rs:3", "count": 1, "reverted": true},
+  {"claim": "alias in one impl method, path in a sibling method inside mod m", "file": "demo/src/domain/model.rs:5", "count": 1, "reverted": true},
+  {"claim": "alias in mod m, path in nested mod n", "file": "demo/src/domain/model.rs:5", "count": 1, "reverted": true},
+  {"claim": "alias in a const block, path in a sibling fn", "file": "demo/src/domain/model.rs:2", "count": 1, "reverted": true},
+  {"claim": "sibling fn, inline module, cfg(test) module (earlier plants, re-run)", "file": "demo/src/domain/model.rs:2", "count": 1, "reverted": true}
+ ],
+ "findings": [],
+ "enforcement_candidates": [
+  {"id": "use-site-binding-matched-file-wide-f7738c58", "class": "use-site-binding-matched-file-wide", "signature": "brought.iter().any(|name| name.binding == *first) in import_rows::service::imports: a use-site path dropped when any import anywhere in the file binds its first segment, without the import's scope", "scope": ["crates/tastemaker/crates/core/src/domain/import_rows/service.rs"], "suggested_mechanism": "strengthen idiomatic.ryo/provider-imports", "instance_status": "fixed",
+   "plants": [{"file": "demo/src/domain/model.rs", "line": 4, "text": "    pub fn work() { engine::run(); }"},
+              {"file": "demo/src/domain/model.rs", "line": 2, "text": "pub fn b() { engine::run(); }"}]},
+  {"id": "provider-alias-resolved-across-blocks-3c609ce6", "class": "provider-alias-resolved-across-blocks", "signature": "through_uses in languages/rust/src/domain/links/service.rs matching a binding by each.enclosing == written.enclosing (module) without the block that holds the use", "scope": ["crates/ryo/languages/rust/src/domain/links/service.rs"], "suggested_mechanism": "new rule", "instance_status": "fixed",
+   "plants": [{"file": "crates/ryo/languages/rust/src/domain/relations/collections/relations/annotates/item.rs", "line": 33, "text": "pub fn plant_b() { let _ = ryo::query::ValidateRequest::default; }"}]}
+ ]
+}

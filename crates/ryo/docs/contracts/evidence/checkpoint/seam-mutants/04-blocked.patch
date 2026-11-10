@@ -1,0 +1,11 @@
+--- a/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/strategies/service.rs
++++ b/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/strategies/service.rs
+@@ -22,7 +22,7 @@
+             .needs()
+             .as_ref()
+             .map_err(|error| InvocationFailure::Semantic(error.clone()))?;
+-        if completion.region_admission(needs)
++        if false && completion.region_admission(needs)
+             == ryo_execution_domain::domain::completion::types::RegionAdmission::Blocked
+         {
+             let last = region

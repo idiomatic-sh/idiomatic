@@ -99,7 +99,7 @@ A manifest is a file the language names (`manifests()`, the last part of the pat
 | how a requirement's target is written | a PEP 508 string, `name[extras] (>=1) ; marker`: the name is normalized and the marker is the `condition` | a module path; a `replace` path names the directory | a package name; `workspace:*` and a `file:` path name a member | a crate name or a `path` |
 | the version requirement, exact | the version specifier as written, after the name and extras and before the marker (`==0.115.0`, `>=1,<2`), empty for a URL or a name alone; exact for a PEP 440 `==` without `.*`, or `===`, in any clause. Poetry's constraint string or `version` key as written, exact for a bare version (Poetry reads `1.2.3` as `==1.2.3`) or a PEP 440 pin, never with `\|\|`; Pipenv's string or `version` key, read as PEP 440 (`*` is no pin); a requirements file line as PEP 508; uv's tables add sources, not requirements | the `require` version as written (`v1.4.0`); never exact: a `require` is the least version minimal version selection accepts | the spec as written (`^4.6.0`, `workspace:*`, `npm:other@1.2.3`), a `catalog:` spec once resolved the range its catalog writes; exact when the version past a `workspace:` or an `npm:` alias is a whole one (`1.2.3`, `=1.2.3`, `v1.2.3`); a directory, a git repository and a URL are not | the `version` as written (the workspace's for one taken from it), empty for a path or git dependency with none; exact for `=` with a major, a minor and a patch in any comparator (a bare `1.2.3` is a caret) |
 | what is not a row | a requirement on a package outside the repository | a module outside it | a package outside it; the `paths` of a `tsconfig.json`, which help `source_dependency` and are no dependency | a crate outside it |
-| `source_dependency.written`: the text from the row's `span` to its end as the file writes it, its whitespace left out | the alias of the import (`workers` of `from . import workers`) | the import spec, its name included (`"example.com/app/internal/greet"`) | the declaration or the expression that imports (`import{helper}from'./lib/helper';`, `require('./lib/util.cjs')`) | the path (`util::double`; a leaf of a `use` tree as the leaf writes it) |
+| `source_dependency.written`: the text from the row's `span` to its end as the file writes it, its whitespace left out | the alias of the import (`workers` of `from . import workers`) | the import spec, its name included (`"example.com/app/internal/greet"`) | the declaration or the expression that imports (`import{helper}from'./lib/helper';`, `require('./lib/util.cjs')`) | the path (`util::double`; a leaf of a `use` tree as the leaf writes it); a path that starts with the crate a dependency on another package of the repository names (the dependency's key when it renames the package, else the library's name) names that library's file (`helper::ready`) |
 
 Python is the first worked case: `pyproject.toml` is read with a TOML parser, each requirement with a PEP 508 parser, and the three relations `package_dependency`, `workspace_member` and `file_package` are read from the packages found (the package a file belongs to is the one whose directory is the nearest above it). The contract's types carry no manifest format: a manifest is a path and a text, what the language works out of the manifests is its own `Derived`, and the rows say Files, names and kinds from the shared words.
 
@@ -111,7 +111,7 @@ The tree is one template followed over and over, so that it is simple to guess a
 
 ```text
 languages/<lang>/
-  Cargo.toml  tastemaker.toml  README.md  benches/performance.rs   (the bench is always there, placed at count 1: the corpus is the workload)
+  Cargo.toml  tastemaker.toml  README.md  benchmarks/provider/bench.rs   (the bench is always there, placed at count 1: the corpus is the workload)
   src/
     lib.rs (link!)  cases.rs
     inbound/contracts/{parse,project}/contract.rs
@@ -287,6 +287,56 @@ A language that would search a file again for each element a reader is given (TO
 ## Per-language notes
 
 - JavaScript and TypeScript follow oxc's source-type defaults: JSX in `.js`, `.jsx` and `.tsx`, `.mjs` is a module, `.cjs` is CommonJS, `.js` is unambiguous. JSX in a `.mjs`, `.cjs`, `.ts`, `.mts` or `.cts` file is a `syntax_error` row, as oxc reports it.
+
+## Semantic syntax projections and advertised optional capabilities
+
+### Semantic syntax projections
+
+`semantic-syntax` and `semantic-child` are explicit projections, separate from
+native lossless syntax. Providers without embedded expressions reuse the shared
+native projection readers. A provider that parses an embedded expression keeps
+its logical token text as owned derived symbols and records its physical source
+mapping independently. `embedded-expression` identifies the carrier, root,
+evaluation context, and mapping fidelity. An embedded occurrence is distinct
+from a macro expansion and from parser-implied syntax.
+
+Every provider inherits conformance checks for native row and field-predicate
+preservation when there are no embeddings, physical span bounds, source-coordinate
+identity, and deterministic retained-table reuse. Field predicates also participate
+in core demand planning: requesting a semantic edge field must request its roles,
+even when that field is filtered out of the final query result.
+
+### Advertised optional capabilities
+
+Every parser explicitly declares its `OptionalCapability` set. The catalog currently includes
+canonical identifiers, qualified-name provenance, embedded expressions, expression shapes,
+static binding events/reads/uses/shadows, implicit symbols, literal properties, interpolated-
+string fragments, language targets, constant keys, and percent-format parse/field facts. Every
+other catalog relation remains the required baseline, including both semantic syntax
+projections. Advertising a capability promises a reader; it cannot return `NotYetRead`.
+Duplicate declarations fail conformance.
+
+An unadvertised optional reader is never invoked. Its absence is `NotYetRead`, and a direct
+read records missing rows rather than a known-empty relation. The conformance run prints
+all unavailable capabilities even when the provider otherwise passes. Retained-reader
+checks exercise unavailable → advertised → unavailable requests; native projections,
+field filtering, source mapping, and reparse checks remain shared requirements.
+
+Current availability is explicit:
+
+| Providers | Optional promises |
+| --- | --- |
+| Python | Its declared semantic, literal, binding, target, constant-key, and percent-format readers |
+| JSON, TOML | Identifier and qualified-name readers |
+| Markdown | Qualified-name reader |
+| CSS, Go, HTML, JavaScript, Rust, TypeScript | None; these optional facts remain unavailable |
+
+Percent-format parsing and conversion-field facts are currently advertised only by Python;
+other providers explicitly report `NotYetRead` for those two relations.
+
+The parser-implied nodes of languages such as HTML retain their explicit absent source
+span in the semantic projection. Shared guards accept that only for an actual implied
+node, require no fabricated source-location row, and still reject unlocated ordinary nodes.
 
 ## The conformance
 

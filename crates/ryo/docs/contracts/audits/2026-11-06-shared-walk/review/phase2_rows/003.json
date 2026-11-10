@@ -1,0 +1,214 @@
+[
+  {
+    "id": "B5.4",
+    "requirement": "Prove internal issuance/dispatch bypasses fail; external privacy tests alone are insufficient.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "authority",
+      "tm281"
+    ],
+    "disposition": "Eight real-source probes now pass for constructor/field/factory boundaries, but P3-1 permits crate-internal raw shared_walk::service::evaluate dispatch outside the rule placement. Entire internal dispatch guarantee remains open."
+  },
+  {
+    "id": "B5.5",
+    "requirement": "Require owner, generation, partition, root and population scope at all lifecycle boundaries.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "authority"
+    ],
+    "disposition": "Scope checks and negatives pass on tested lifecycle routes; full entry-to-retirement owner/generation/partition/root/population boundary census remains open."
+  },
+  {
+    "id": "B5.6",
+    "requirement": "Reject scope rebinding that would retain one scope and index another.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual contradictory producer-scope rebind refuses before alias registration and retains correct release scope."
+  },
+  {
+    "id": "B5.7",
+    "requirement": "Retry delivery only after sink refusal; preserve terminal failures and generation isolation.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "lifecycle",
+      "routes",
+      "runtime280"
+    ],
+    "disposition": "Actual sink refusal retries publication delivery without reevaluation; terminal semantic failures and file generations remain isolated."
+  },
+  {
+    "id": "B5.8",
+    "requirement": "Prove cancellation/error/finish release real leases without premature release.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "lifecycle",
+      "budget"
+    ],
+    "disposition": "Actual Weak/working-byte controls pass for internal consumers, failures and finish. All newly batched/deduplicated external root cancellation/error/finish combinations remain unproven."
+  },
+  {
+    "id": "B5.9",
+    "requirement": "Enforce nu-hex ownership, acyclic boundaries and private implementation; do not widen access.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "tm281"
+    ],
+    "disposition": "Structural findings remain in the current scope; asset scenario PASS or a zero-finding subpath does not close the combined scope."
+  },
+  {
+    "id": "B5.10",
+    "requirement": "Place new concepts/tests and run bad/good TM structural scenarios.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "tm281"
+    ],
+    "disposition": "Structural findings remain in the current scope; asset scenario PASS or a zero-finding subpath does not close the combined scope."
+  },
+  {
+    "id": "B5.11",
+    "requirement": "Run forbidden-access and authorized examples; verify intended failure reasons.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "authority",
+      "runtime280"
+    ],
+    "disposition": "Actual authorized and seven forbidden-source examples executed with intended compiler codes and primary spans. This row proves those executed examples, not future APIs or raw semantic dispatch."
+  },
+  {
+    "id": "B5.12",
+    "requirement": "Register and execute required execution/core/public/domain/contract suites.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "runtime280",
+      "authority"
+    ],
+    "disposition": "The required execution/Core/public/domain/contract suites were registered and executed in the eight-crate all-features library plus public-boundary run. Six Core output/store failures remain explicitly deferred; this row records execution, not a full Core PASS or normal-CI enforcement (B5.13)."
+  },
+  {
+    "id": "B5.13",
+    "requirement": "Require structural/contract gates and valid independent review in normal CI.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "paired",
+      "tm281"
+    ],
+    "disposition": "Trusted normal-CI validation machinery exists; current-source success/failure proof for missing/stale/invalid review and mandatory structural/runtime gates is not supplied."
+  },
+  {
+    "id": "B5.14",
+    "requirement": "Review exact combined source, separating deferred output faults from architectural violations.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "paired"
+    ],
+    "disposition": "Exact combined source was independently reviewed; the completed review has a blocking verdict, not approval."
+  },
+  {
+    "id": "C1",
+    "requirement": "Retain exact full-rule baseline receipts; do not present them as candidate proof.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "historical"
+    ],
+    "disposition": "Historical baseline/full-Django/tiny diagnostic receipts are retained with exact scope and are not represented as candidate acceptance."
+  },
+  {
+    "id": "C2",
+    "requirement": "Retain full-Django failures, workload identity and measured resources.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "historical"
+    ],
+    "disposition": "Historical baseline/full-Django/tiny diagnostic receipts are retained with exact scope and are not represented as candidate acceptance."
+  },
+  {
+    "id": "C3",
+    "requirement": "Retain tiny controls and phase profiles with their limited scope.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "historical"
+    ],
+    "disposition": "Historical baseline/full-Django/tiny diagnostic receipts are retained with exact scope and are not represented as candidate acceptance."
+  },
+  {
+    "id": "C4a",
+    "requirement": "Verify frontier/partition/owner admission contracts on the new scheduler.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "routes",
+      "population",
+      "lifecycle"
+    ],
+    "disposition": "Narrow partition/owner admission controls pass, but complete new-scheduler route coverage remains open. Deferred LP2 output lineage is not being reopened in this phase."
+  },
+  {
+    "id": "C5",
+    "requirement": "Build an immutable combined worker and measure useful workloads with actual work counters.",
+    "implementation_state": "deferred by explicit user instruction",
+    "verification": "deferred",
+    "complete": false,
+    "evidence": [
+      "historical"
+    ],
+    "disposition": "No performance/tuning/benchmark checks during phases2–6. Move this measurement obligation to the later acceptance checkpoint; do not run it to clear current contracts."
+  },
+  {
+    "id": "C6",
+    "requirement": "Retain configured Rust guards and their failures; do not omit rules or raise limits.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "historical"
+    ],
+    "disposition": "Historical Rust guard failures remain recorded; this review did not verify every configured guard/limit unchanged on the current source. No guard run or limit change authorized."
+  },
+  {
+    "id": "C7",
+    "requirement": "Bind compile, contracts, TM, counters, diagnostics and review to the same source.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "runtime280",
+      "tm281",
+      "paired"
+    ],
+    "disposition": "Compile and contract receipts bind to the one-line cfg(test) successor; structural TM remains failing, source verdict blocking, diagnostics/performance deferred. No combined closure."
+  }
+]

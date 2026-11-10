@@ -1,0 +1,71 @@
+{
+ "source": "db950ed280f21d541aa58fc2f1f4fb02e4bc08fb",
+ "baseline_source": "1086daee4b3a4435e60438d2df6ec7a7128dd883",
+ "worker_sha256": {
+  "before": "42f627bb1299d6911644329729278804a751284d72f20f8e8dd9b8afe61b43e9",
+  "after": "74b1f7a4b0c8845d98bf3f44d9686c7848da6e9204d6e90659fb548ccbe2265a"
+ },
+ "staged_digest": "0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df",
+ "before": [
+  {
+   "name": "one file x 413 (django/__init__.py, tests/admin_views/__init__.py, tests/admin_views/urls.py), cold, hyperfine 5 runs",
+   "wall_s": 3.906,
+   "wall_stddev_s": 0.199,
+   "cpu_s": 4.7,
+   "peak_mb": 1038,
+   "peak_kb": 1063736,
+   "load": 2.47
+  },
+  {
+   "name": "100 files x 413, cold, hyperfine 5 runs",
+   "wall_s": 10.305,
+   "wall_stddev_s": 0.141,
+   "cpu_s": 58.27,
+   "peak_mb": 1760,
+   "peak_kb": 1802972,
+   "load": 2.44
+  },
+  {
+   "name": "full Django 413 (2,875 files), cold, /usr/bin/time -v 1 run",
+   "wall_s": 327.8,
+   "cpu_s": 2504.0,
+   "peak_mb": 3398,
+   "peak_kb": 3479668,
+   "load": 2.88
+  }
+ ],
+ "after": [
+  {
+   "name": "one file x 413 (django/__init__.py, tests/admin_views/__init__.py, tests/admin_views/urls.py), cold, hyperfine 5 runs",
+   "wall_s": 3.538,
+   "wall_stddev_s": 0.099,
+   "cpu_s": 3.65,
+   "peak_mb": 892,
+   "peak_kb": 913960,
+   "load": 2.64
+  },
+  {
+   "name": "100 files x 413, cold, hyperfine 5 runs",
+   "wall_s": 4.39,
+   "wall_stddev_s": 0.108,
+   "cpu_s": 9.88,
+   "peak_mb": 1136,
+   "peak_kb": 1163620,
+   "load": 2.94
+  },
+  {
+   "name": "full Django 413 (2,875 files), cold, /usr/bin/time -v 1 run",
+   "wall_s": 115.7,
+   "cpu_s": 813.6,
+   "peak_mb": 2838,
+   "peak_kb": 2906604,
+   "load": 2.56
+  }
+ ],
+ "outputs_sha256_prefix": {
+  "one file": "61039d5c",
+  "100 files": "bfcf3857",
+  "full Django": "53b163f4"
+ },
+ "identical_output": true
+}

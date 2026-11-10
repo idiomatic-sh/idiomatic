@@ -1,0 +1,22 @@
+{
+  "branch": "claude/w13-span-semantics",
+  "source": "dd7c0befdfb340bf94bb912d3a7b5145916b37cd",
+  "base": "b1e81f7242",
+  "verdict": "PASS",
+  "reviewer": "leak-review",
+  "date": "2026-11-09T00:00:00Z",
+  "checks": [
+    {"id": "1", "verdict": "PASS", "evidence": "The span refusal, its acceptance cases and the MixedVertices refusal are proven in query_language planning/service_test.rs. The schema-side vertex check is proven in execution_domain operation_schema/service_test.rs. The harness tests are in cli/tests/replay/recordings.rs, including a_golden_rule_that_is_not_recorded_fails. Nothing rests on benchmarks/ or languages/."},
+    {"id": "2", "verdict": "PASS", "evidence": "refuse_spans_alone fires for all eleven kinds, and the over-refusal cases keep a span with a file key. refuse_mixed_vertices (planning/service.rs:277-302) refuses a located closure or cycles step at compile time (assembling/service.rs:121-122). Harness-leak lens: F1-F5 and L1 are closed. golden_strays (answers.rs:544-556) fails any findings.toml key that names no recording, and is wired into the `names` replay answer (behavior.rs:52). The digest is removed. No remaining path turns a failure into a pass: required files, strict tables and keys, strict counts, exact undecided rows, pending matched to the actual refusal, every row and every golden key tied to a live recording. The all-rules proof is a cross-branch dependency on claude/w13-bench-parity."},
+    {"id": "3", "verdict": "PASS", "evidence": "refuse_spans_alone and refuse_mixed_vertices are pub(crate), LoweringError is pub(crate), and same_vertices is private. The harness helpers are pub(crate) in the cli test fixtures only."},
+    {"id": "4", "verdict": "PASS", "evidence": "Span equality is value equality in every kernel, and held_inside_one_file is the one placement site naming Span. The vertex-kind rule is checked at compile time for a located refusal (refuse_mixed_vertices) and in the engine's schema contract for any plan, hand-built ones included (same_vertices). These are two layers of one shape contract, as with the existing span-operand checks, not two representations of one concept."},
+    {"id": "5", "verdict": "PASS", "evidence": "The new refusal stays in the query_language domain (planning, lowering errors, assembling); compile and typecheck map the error in their inbound services. No layer is crossed."},
+    {"id": "6", "verdict": "PASS", "evidence": "The new tests are cfg(test) or under cli/tests; no production-reachable seam is added."}
+  ],
+  "plants": [],
+  "findings": [
+    "cross-branch dependency: the ruff_parity all-rules proof cited in the query_language README resolves through claude/w13-bench-parity, which must commit or regenerate its staged request and assert that selected_rules equals the 413 configured rules.",
+    "verified closed across the passes: kernel inference W1-W9; union, intersection and difference; over-refusal acceptance for every kind (cycles trivially, since it has no key slot); replay harness leaks H1-H9, F1-F5, L1; digest M1; located vertex refusal M2."
+  ],
+  "recommendation": "B"
+}

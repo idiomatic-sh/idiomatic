@@ -1,0 +1,271 @@
+[
+  {
+    "id": "B4a.9",
+    "requirement": "Release phase ownership on success/error and preserve primary-error precedence.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "budget",
+      "lifecycle"
+    ],
+    "disposition": "Actual success/budget-error cleanup passes, and source preserves primary-error precedence. A dedicated cleanup-failure plus primary-failure control was not identified for the entire conjunction; keep this broad row open."
+  },
+  {
+    "id": "B4a.10",
+    "requirement": "Reject contradictory producer-scope rebinding before mutating indexes.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "lifecycle",
+      "runtime280"
+    ],
+    "disposition": "Actual contradictory producer-scope rebind refuses before alias registration and retains correct release scope."
+  },
+  {
+    "id": "B4b.1",
+    "requirement": "Require complete declared project root sets at the engine entry.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "population",
+      "paired"
+    ],
+    "disposition": "Production ordinary/named callers batch declared task sets, but the entry/structural contract does not establish that every production caller must submit its complete declared set before first execution. Singleton same-queue use remains legitimate; this is not a request to remove it."
+  },
+  {
+    "id": "B4b.2",
+    "requirement": "Group roots by exact engine-issued population and policy identity.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "routes",
+      "budget",
+      "runtime280"
+    ],
+    "disposition": "Current ordinary/named batches group exact admitted identities and use the same readiness queue; actual tests cover shared/distinct groups and listed root shapes."
+  },
+  {
+    "id": "B4b.3",
+    "requirement": "Advance every compatible root group through the common readiness queue.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "routes",
+      "budget",
+      "runtime280"
+    ],
+    "disposition": "Current ordinary/named batches group exact admitted identities and use the same readiness queue; actual tests cover shared/distinct groups and listed root shapes."
+  },
+  {
+    "id": "B4b.4",
+    "requirement": "Migrate ordinary core callers to batch preparation before ordered delivery.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "routes",
+      "budget",
+      "runtime280"
+    ],
+    "disposition": "Current ordinary/named batches group exact admitted identities and use the same readiness queue; actual tests cover shared/distinct groups and listed root shapes."
+  },
+  {
+    "id": "B4b.5",
+    "requirement": "Migrate named producer/consumer stages; keep dependency policy in the engine.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "routes",
+      "budget",
+      "runtime280"
+    ],
+    "disposition": "Current ordinary/named batches group exact admitted identities and use the same readiness queue; actual tests cover shared/distinct groups and listed root shapes."
+  },
+  {
+    "id": "B4b.6",
+    "requirement": "Cover diagnostic, named, direct non-Region, empty and restored roots.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "routes",
+      "budget",
+      "runtime280"
+    ],
+    "disposition": "Current ordinary/named batches group exact admitted identities and use the same readiness queue; actual tests cover shared/distinct groups and listed root shapes."
+  },
+  {
+    "id": "B4b.7",
+    "requirement": "Remove separate per-root depth-first dependency advancement.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "readiness",
+      "paired"
+    ],
+    "disposition": "Separate resolve_dependencies DFS is removed; singleton and batch invoke use prepare_roots."
+  },
+  {
+    "id": "B4b.8",
+    "requirement": "Preserve conditional demand, duplicate obligations, diamonds and failure wakeups.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "readiness",
+      "fileprep",
+      "routes",
+      "runtime280"
+    ],
+    "disposition": "Conditional gates, duplicate/diamond dependencies and terminal failure wakeups pass actual controls."
+  },
+  {
+    "id": "B4b.9",
+    "requirement": "Prove prepared delivery/retry performs no further scheduling, evaluation or provider reads.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "routes",
+      "runtime280"
+    ],
+    "disposition": "Prepared terminal delivery/retry retains counters and provider reads; singleton uses the same queue or validated terminal replay."
+  },
+  {
+    "id": "B4b.10",
+    "requirement": "Settle cancellation, budgets, errors and cleanup across the submitted batch.",
+    "implementation_state": "integrated",
+    "verification": "open",
+    "complete": false,
+    "evidence": [
+      "budget",
+      "lifecycle"
+    ],
+    "disposition": "Budget and primary-error batch controls now pass. Entire cancellation/cleanup-failure combination scope is not independently closed; do not leave budget itself labelled unrun."
+  },
+  {
+    "id": "B4b.11",
+    "requirement": "Expose real project scheduling counts and test shared versus distinct populations.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "runtime280"
+    ],
+    "disposition": "Actual common readiness counters distinguish shared versus distinct admitted populations and remain unchanged on replay."
+  },
+  {
+    "id": "B4b.12",
+    "requirement": "Make singleton entries use the same queue or replay prepared results.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "population",
+      "lifecycle",
+      "routes",
+      "runtime280"
+    ],
+    "disposition": "Prepared terminal delivery/retry retains counters and provider reads; singleton uses the same queue or validated terminal replay."
+  },
+  {
+    "id": "B4c.1",
+    "requirement": "Compile intent-specific root and reader multisets once per request.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "fileprep",
+      "runtime280"
+    ],
+    "disposition": "Request-compiled intent/root multisets and frontier-output map feed sparse ordered per-file state; opening and actual named-output controls pass."
+  },
+  {
+    "id": "B4c.2",
+    "requirement": "Compile frontier-input → named-output lookup once per request.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "fileprep",
+      "runtime280"
+    ],
+    "disposition": "Request-compiled intent/root multisets and frontier-output map feed sparse ordered per-file state; opening and actual named-output controls pass."
+  },
+  {
+    "id": "B4c.3",
+    "requirement": "Build ordered active roots once per file without linear queued.contains searches.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "fileprep",
+      "runtime280"
+    ],
+    "disposition": "Request-compiled intent/root multisets and frontier-output map feed sparse ordered per-file state; opening and actual named-output controls pass."
+  },
+  {
+    "id": "B4c.4",
+    "requirement": "Allocate named-root state only for demanded/readiness-output obligations.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "fileprep",
+      "runtime280"
+    ],
+    "disposition": "Request-compiled intent/root multisets and frontier-output map feed sparse ordered per-file state; opening and actual named-output controls pass."
+  },
+  {
+    "id": "B4c.5",
+    "requirement": "Allocate runtime slots, counters and scratch only for reached regions.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "fileprep",
+      "population",
+      "runtime280"
+    ],
+    "disposition": "Actual reached-only runtime slots/counters and once-per-slot reader initialization controls pass; no population×program slot allocation."
+  },
+  {
+    "id": "B4c.6",
+    "requirement": "Allocate readiness entries only for discovered roots/dependencies; reject invalid IDs.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "readiness",
+      "runtime280"
+    ],
+    "disposition": "Sparse discovered queue with 10M-region bound and invalid dependency negative executes successfully."
+  },
+  {
+    "id": "B4c.7",
+    "requirement": "Apply dormant cancellation obligations without traversing/materializing the unselected graph.",
+    "implementation_state": "integrated",
+    "verification": "verified",
+    "complete": true,
+    "evidence": [
+      "fileprep",
+      "runtime280"
+    ],
+    "disposition": "Compiled selected-root provenance replaces opening traversal/materialization of dormant roots; actual opening and reader-init controls pass."
+  }
+]

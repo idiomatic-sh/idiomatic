@@ -1,0 +1,74 @@
+{
+ "iteration": "p5",
+ "source": "90a0a472b243b2ab9350db0447c1d5b39138a571",
+ "measured_worker_commit": "258a65fe3ec7d1eea22222456250ac471258f6e3",
+ "measured_worker_note": "the worker_sha256 below is the perf 4 after worker, built from 258a65fe3e; the diagnosis measured that head, not source",
+ "worker_sha256": "7f578c5ed9947810450bfd785826a72117b36a43fe053e6df58b7e93cc501b37",
+ "staged_digest": "0132c274d68dc22252b09d0551a36617652fd7ffecaff02a246e5bf0448027df",
+ "workloads": [
+  {
+   "name": "full Django 413, cold, default threads, lifecycle_memory",
+   "wall_s": 321.18,
+   "cpu_s": null,
+   "peak_mb": 6295,
+   "peak_kb": 6446464,
+   "load": 3.89,
+   "frontier_mb": 2053
+  },
+  {
+   "name": "tests/admin_views/tests.py alone x 413",
+   "wall_s": 41.9,
+   "cpu_s": null,
+   "peak_mb": 2650,
+   "load": null
+  }
+ ],
+ "hypotheses": [
+  {
+   "id": "h1",
+   "claim": "Many rules build the project-phase frontier.",
+   "verdict": "refuted",
+   "evidence": "subplans census: 5 of 413 rules have cross-file steps; PLW0406 873 MB, N999 733 MB and I001 447 MB of the 2,053 MB packed frontier. Unbacked: the subplans census events were not kept; only the per-rule frontier lists of I001, N999, PLW0406 and RUF100 survive, so \"5 of 413\" is not re-checkable."
+  },
+  {
+   "id": "h2",
+   "claim": "Each cross-file rule needs every frontier row.",
+   "verdict": "refuted",
+   "evidence": "cross_input_packed and the plans: the suppression fragment's token and source-location tables are gated by per-file steps that match 0 of 2,875 Django files, so about 2.0 of 2.05 GB join with nothing."
+  },
+  {
+   "id": "h3",
+   "claim": "The file-phase maximum is one file's operator evaluation.",
+   "verdict": "confirmed",
+   "evidence": "peak RSS bisection: tests/admin_views/tests.py alone 2.65 GB against 0.94-1.12 GB for its neighbours; the execution stream ranks PYI034's metaclass-fragment Join and distinct Union."
+  },
+  {
+   "id": "h4",
+   "claim": "Sharing identical spill populations across rules shrinks the frontier.",
+   "verdict": "refuted",
+   "evidence": "the five token copies are 1,300 MB of 2,053 MB, but joining the per-file factors before the handover removes them instead (100-file frontier 8.5 MB to 1.0 MB), leaving no duplicate population worth a key change."
+  }
+ ],
+ "levers": [
+  {
+   "id": "l1",
+   "rank": 1,
+   "lever": "Join the per-file factors of a cross-file join inside each file before the handover (regrouping).",
+   "evidence": "subplans and lifecycle_memory: step 135 = Join(101 cross, 134) hands over all 3.93 M token rows per copy; token copies are 63% of the frontier."
+  },
+  {
+   "id": "l2",
+   "rank": 2,
+   "lever": "Move filters into the inputs of a join keyed on the file alone, and narrow the per-file side of a join by the other key's values.",
+   "evidence": "PYI034 metaclass.ryoql lines 27-29: filters on four paths run after the context x name join (about 12 M rows on admin_views); I001 source-location needs only import-block rows of 6.5 M."
+  },
+  {
+   "id": "l3",
+   "rank": 3,
+   "lever": "Stream region publication in the file phase.",
+   "evidence": "jeprof dump 289: Collect rows 1.46 GB and candidate emission 1.17 GB in one region's published output."
+  }
+ ],
+ "reviewer": "perf-diagnosis",
+ "date": "2026-11-08"
+}

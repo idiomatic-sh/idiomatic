@@ -1,0 +1,235 @@
+{
+ "source": "fe4f6f4d1a9a15657c5b668da8d76c6a766811c8",
+ "base": "dcea2ee7df",
+ "branch": "claude/w15-ci",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "date": "2026-11-09",
+ "checks": [
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "fe4f6f4d1a touches .gitleaks.toml:21, asymptote.toml:82 and :101, the two ci check tests, and run.py/run_test.py; no engine, core or SDK contract is asserted from benchmarks/ or languages/."
+  },
+  {
+   "id": "2",
+   "verdict": "PASS",
+   "evidence": "All three open variants are closed. (c) run.py test_results records CRASHED, which no row owns, for a binary that cargo's `error: test failed, to rerun pass` line follows with no `test result:` line or no failed test. Planted over the committed record, a ryo_core binary that overflowed its stack beside the owned ryo_benchmark reds gave finish() 1 (it was 0 at 67c935ac39), and a crash after a FAILED test also records CRASHED. A green harness = false target prints no rerun line, so the exemption cannot hide a red one: a red one is followed by the rerun line and goes CRASHED, unowned. (b) asymptote.toml:82/:101: shallow clones are refused and the refs resolved with rev-parse --verify as their own statements. Depth-1 clone: commitizen 2, gitleaks-history 2. --single-branch clone: gitleaks-history 128. Unknown baseline: commitizen 128. Full clone: 14 and 1. (a) .gitleaks.toml:21: the relation id's last part is [a-z0-9]+(-[a-z0-9]+)*. vault/prod/jwt_secret, stripe/live/api_key and aws/prod/secret_access_key in a record folder now exit 1, while a real relation id and a .rs digest still exit 0. The branch's whole history (fe4f6f4d1a) scanned with the new config gives 0 findings."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "No visibility, allowlist or package boundary changed in fe4f6f4d1a."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "The ci tests read the run lines from asymptote.toml; run_test.py drives run.py's own test_results and finish."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "No Rust change in fe4f6f4d1a."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "No Rust change in fe4f6f4d1a; no test seam added."
+  }
+ ],
+ "plants": [
+  {
+   "claim": "run.py CRASHED (test_results), crash after an ok test beside owned reds",
+   "file": "tests libraries ryo_core: `test t::fine ... ok`, stack overflow, rerun line, SIGABRT",
+   "count": 1,
+   "reverted": true,
+   "note": "finish() exit 1, RED libraries owned by no row; baseline without the plant 0"
+  },
+  {
+   "claim": "run.py CRASHED, crash after a FAILED test",
+   "file": "tests libraries ryo_core: `test t::owned_then ... FAILED`, abort, rerun line",
+   "count": 1,
+   "reverted": true,
+   "note": "CRASHED recorded beside the failed test; exit 1"
+  },
+  {
+   "claim": "run.py, cargo killed with a truncated log (advisory)",
+   "file": "tests libraries ryo_core: `test t::fine ... ok` then end of log; libraries exit -9",
+   "count": 0,
+   "reverted": true,
+   "note": "finish() exit 0, RED libraries exit -9 owned by the CLOSE row"
+  },
+  {
+   "claim": "commitizen (asymptote.toml:82)",
+   "file": "commit message 'not a conventional message'",
+   "count": 1,
+   "reverted": true,
+   "note": "full clone 14, depth-1 2, --single-branch 14, unknown baseline 128"
+  },
+  {
+   "claim": "gitleaks-history (asymptote.toml:101)",
+   "file": "crates/ryo/docs/contracts/evidence/branches/x.json jwt_secret committed",
+   "count": 1,
+   "reverted": true,
+   "note": "full clone 1, depth-1 2, --single-branch 128"
+  },
+  {
+   "claim": "gitleaks allowlist (.gitleaks.toml:21)",
+   "file": "crates/ryo/docs/contracts/evidence/branches/x.json:2 staged",
+   "count": 1,
+   "reverted": true,
+   "note": "vault/prod/jwt_secret, stripe/live/api_key, aws/prod/secret_access_key, jwt.secret, stripe/api_key: exit 1 each. python/ruff/sequence-index-accesses and crates/core/src/key.rs: 0. vault/prod/jwt-secret: 0 (advisory)"
+  },
+  {
+   "claim": "run_test.py and ci/scripts/checks tests",
+   "file": "archive copy of fe4f6f4d1a",
+   "count": 1,
+   "reverted": true,
+   "note": "run_test.py 23 OK; gitleaks_test.py + commitizen_test.py 18 passed"
+  }
+ ],
+ "findings": [
+  "fixed: crashed binary hidden behind an owned red (CRASHED in test_results)",
+  "fixed: range ref fails open (shallow refused, rev-parse --verify)",
+  "fixed: relation-id key last part restricted to lowercase-hyphen",
+  "advisory: a red command with a truncated log (cargo itself killed, exit -9, no rerun line) is still owned by the failed tests recorded before the cut; refusing ownership when exit != 101 would close it. Planted: finish() exit 0",
+  "advisory: a kebab-case three-part key (vault/prod/jwt-secret) with 64 hex in a record folder is indistinguishable from a relation id and passes; anchoring the first part to the language names would close it",
+  "known, not scored: run.py --check exits 1 on the committed record until the next validation records the core_allocation id"
+ ],
+ "enforcement_candidates": [
+  {
+   "id": "secret-allowlist-unscoped-by-path-2ff533be",
+   "class": "secret-allowlist-unscoped-by-path",
+   "signature": "[[allowlists]] in .gitleaks.toml carrying regexes (regexTarget = \"line\") and no paths, so it applies to every file of the repository",
+   "scope": [
+    ".gitleaks.toml"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": ".gitleaks.toml",
+     "line": 13,
+     "text": "regexes = ["
+    }
+   ]
+  },
+  {
+   "id": "lint-range-against-every-remote-3613f7e4",
+   "class": "lint-range-against-every-remote",
+   "signature": "git rev-list ... HEAD --not --remotes as the range of a lint tool run line in asymptote.toml",
+   "scope": [
+    "asymptote.toml"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": "asymptote.toml",
+     "line": 83,
+     "text": "run = [\"bash\", \"-c\", \"set -e; first=$(git rev-list --reverse HEAD --not --remotes | head -n 1); ...\"]"
+    },
+    {
+     "file": "asymptote.toml",
+     "line": 93,
+     "text": "run = [\"bash\", \"-c\", \"... [ -z \\\"$(git rev-list HEAD --not --remotes)\\\" ] || gitleaks git ...\"]"
+    }
+   ]
+  },
+  {
+   "id": "red-owned-by-coarse-key-9a5b6f2b",
+   "class": "red-owned-by-coarse-key",
+   "signature": "an OWNERS lookup in checkpoint/run.py keyed by a command name (if name in OWNERS: return [OWNERS[name]]) or by a whole test binary (OWNERS.get(binary.removeprefix('ryo_')+'_library'))",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 298,
+     "text": " if name in OWNERS: return [OWNERS[name]]"
+    },
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 300,
+     "text": " owners=[OWNERS.get(test) or OWNERS.get(binary.removeprefix('ryo_')+'_library') for binary,test in failed]"
+    }
+   ]
+  },
+  {
+   "id": "crashed-binary-hidden-behind-owned-red-ce18d982",
+   "class": "crashed-binary-hidden-behind-owned-red",
+   "signature": "owners=[RED_OWNERS.get((name,binary,test)) for binary,t in tests.get(name,{}).items() for test in t[\"failed\"]] with no check that each binary cargo reported failing (error: test failed, to rerun pass ...) or that ran without a test result: line recorded a failed test",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 313,
+     "text": " owners=[RED_OWNERS.get((name,binary,test)) for binary,t in tests.get(name,{}).items() for test in t['failed']]"
+    }
+   ]
+  },
+  {
+   "id": "lint-range-fails-open-on-missing-ref-6b69463f",
+   "class": "lint-range-fails-open-on-missing-ref",
+   "signature": "[ -z \"$(git rev-list <ref>..HEAD)\" ] || <scan> in an asymptote.toml run line, where a rev-list error on an absent ref gives an empty range and exit 0",
+   "scope": [
+    "asymptote.toml"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": "asymptote.toml",
+     "line": 81,
+     "text": "run = [\"bash\", \"-c\", \"set -e; base=dcea2ee7df7c02711f42c332cbc403ff7b84a034; [ -z \\\"$(git rev-list \\\"$base..HEAD\\\")\\\" ] || cz check --rev-range \\\"$base..HEAD\\\"\"]"
+    },
+    {
+     "file": "asymptote.toml",
+     "line": 99,
+     "text": "run = [\"bash\", \"-c\", \"set -e; [ -z \\\"$(git rev-list origin/main..HEAD)\\\" ] || gitleaks git --redact --no-banner --log-opts=origin/main..HEAD .\"]"
+    }
+   ]
+  },
+  {
+   "id": "secret-allowlist-key-last-part-unrestricted-4be7069e",
+   "class": "secret-allowlist-key-last-part-unrestricted",
+   "signature": "an allowlist regex in .gitleaks.toml whose key last part is [\\w-]+ (any credential name) before \":\\s*\"[0-9a-f]{64}\"",
+   "scope": [
+    ".gitleaks.toml"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "fixed",
+   "plants": [
+    {
+     "file": ".gitleaks.toml",
+     "line": 21,
+     "text": "  '''^\\s*\"[a-z]+/[a-z]+/[\\w-]+\":\\s*\"[0-9a-f]{64}\",?\\s*$''',"
+    }
+   ]
+  },
+  {
+   "id": "red-owned-despite-truncated-log-1456be1a",
+   "class": "red-owned-despite-truncated-log",
+   "signature": "command_owners in checkpoint/run.py owning a red command whose exit is not cargo's test-failure 101 (a killed cargo, exit -9) from the failed tests recorded before the log ends",
+   "scope": [
+    "crates/ryo/docs/contracts/evidence/checkpoint/run.py"
+   ],
+   "suggested_mechanism": "new rule",
+   "instance_status": "open",
+   "plants": [
+    {
+     "file": "crates/ryo/docs/contracts/evidence/checkpoint/run.py",
+     "line": 323,
+     "text": " return sorted(set(owners)) if owners and all(owners) else []"
+    }
+   ]
+  }
+ ]
+}

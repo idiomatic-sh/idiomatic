@@ -1,0 +1,113 @@
+{
+  "rust": {
+    "parse_contract": {
+      "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+      "line": 1,
+      "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+    },
+    "project_contract": {
+      "path": "crates/ryo/languages/rust/src/inbound/contracts/project/contract.rs",
+      "line": 1,
+      "blob_sha256": "74c59a8b988bddb94caef4f72ec0716946a5d7b451994bfc5c99846185838eb8"
+    },
+    "file_model": "()",
+    "capabilities": [],
+    "capability_anchor": {
+      "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+      "line": 59,
+      "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+    },
+    "completion_requirement": "Independent (common default)",
+    "semantic_session": "None (common trait default)",
+    "read_tree": {
+      "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+      "line": 89,
+      "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+    },
+    "complete": {
+      "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+      "line": 100,
+      "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+    },
+    "file_model_anchor": {
+      "path": "crates/ryo/languages/rust/src/inbound/contracts/parse/contract.rs",
+      "line": 67,
+      "blob_sha256": "57577e2c7111b99f67530f7c68c66bc522c2b76511f0cf587b775398e2db588a"
+    }
+  },
+  "toml": {
+    "parse_contract": {
+      "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+      "line": 1,
+      "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+    },
+    "project_contract": {
+      "path": "crates/ryo/languages/toml/src/inbound/contracts/project/contract.rs",
+      "line": 1,
+      "blob_sha256": "1112ebb5497e16ff3ebd577a109bc176958f65eb6cc554fa21edec0fc96fb631"
+    },
+    "file_model": "Model",
+    "capabilities": [
+      "Identifier",
+      "QualifiedName"
+    ],
+    "capability_anchor": {
+      "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+      "line": 44,
+      "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+    },
+    "completion_requirement": "Independent (common default)",
+    "semantic_session": "None (common trait default)",
+    "read_tree": {
+      "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+      "line": 79,
+      "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+    },
+    "complete": {
+      "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+      "line": 88,
+      "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+    },
+    "file_model_anchor": {
+      "path": "crates/ryo/languages/toml/src/inbound/contracts/parse/contract.rs",
+      "line": 55,
+      "blob_sha256": "da8a2b64f487ec0e844263fe15905e1626a445500efe31db2d4926feb85d21ba"
+    }
+  },
+  "typescript": {
+    "parse_contract": {
+      "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+      "line": 1,
+      "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+    },
+    "project_contract": {
+      "path": "crates/ryo/languages/typescript/src/inbound/contracts/project/contract.rs",
+      "line": 1,
+      "blob_sha256": "9933a61636537a4443bef2e59ea465f582568e1ab05cc2583e30001a71f43889"
+    },
+    "file_model": "()",
+    "capabilities": [],
+    "capability_anchor": {
+      "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+      "line": 76,
+      "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+    },
+    "completion_requirement": "Independent (common default)",
+    "semantic_session": "None (common trait default)",
+    "read_tree": {
+      "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+      "line": 120,
+      "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+    },
+    "complete": {
+      "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+      "line": 167,
+      "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+    },
+    "file_model_anchor": {
+      "path": "crates/ryo/languages/typescript/src/inbound/contracts/parse/contract.rs",
+      "line": 84,
+      "blob_sha256": "ad1521ee525b534ceb8d853c7b888dc9d327f395f5719d3de210ba0231dfa2de"
+    }
+  }
+}

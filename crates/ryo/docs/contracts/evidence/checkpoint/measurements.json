@@ -1,0 +1,58 @@
+{
+  "scope": "Single N999, full pinned Django, cold cache; direction only. No performance fix or matched baseline.",
+  "source": "7752021acd629a408c7e4a996350704ea8bde291",
+  "corpus_pin": "36b5f39d9372147f0e758f590e35ee2b2bc317dd",
+  "source_files": 2875,
+  "auxiliary_files": 4111,
+  "rule_ids": [
+    "N999"
+  ],
+  "wall_seconds": 11.716442623,
+  "cpu_seconds": 11.70912,
+  "peak_rss_bytes": 1045807104,
+  "coverage": {
+    "selected": 2875,
+    "evaluated": 2875,
+    "skipped": 0,
+    "unknown_or_unread": 0
+  },
+  "process_exit": 0,
+  "timed_out": false,
+  "diagnostics": 112,
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "environment_overrides": [],
+  "worker_sha256": "c9700608fdfafd5636caa57fc83c76ee67479ed259acb7a7108b995f908ce0d7",
+  "collector_sha256": "ca34dfa520dc47f874bd8c3151252f1689a54a149d9db36c698dc76fb50c53a3",
+  "request_sha256": "47ce15fa23b3c7270ef106a6a743ce3b2fb61b8402360e59b3add899c2dc7c96",
+  "query_and_profile_sha256": "3075cb19c4b9f79826d2c013c66e994482e49d48f3aa4f993e599bec01c88596",
+  "build_command": [
+    "cargo",
+    "bench",
+    "--manifest-path",
+    "crates/ryo/Cargo.toml",
+    "--no-run",
+    "--locked",
+    "--offline",
+    "-j6",
+    "--target-dir",
+    "/workspaces/idiomatic-benchmark-guards/target",
+    "-p",
+    "idiomatic-sh-ryo-python",
+    "--bench",
+    "ruff",
+    "--message-format=json"
+  ],
+  "optimized_build_seconds": 94.10344791412354,
+  "correctness_limit": "Complete worker coverage, not reference-output parity certification; this does not establish full413 Django performance."
+}

@@ -1,0 +1,10 @@
+--- a/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/invocation/service.rs
++++ b/crates/ryo/crates/execution_runtime/src/application/file_dag/program/runtime/service/invocation/service.rs
+@@ -227,6 +227,7 @@
+         context: &mut OperatorContext<'_>,
+         row: &[Value],
+     ) -> Result<(), OperatingError> {
++        let _ = continuation(self.invocation, self.region, self.at, KernelInput::Continuation(row), self.kernels, context, self.scratch, self.output);
+         continuation(
+             self.invocation,
+             self.region,
