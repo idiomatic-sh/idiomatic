@@ -10,7 +10,7 @@ fn select(flags: &[&str]) -> Result<ShardPartition, String> {
         .iter()
         .map(|flag| CaseArgument((*flag).to_owned()))
         .collect::<Vec<_>>();
-    SelectCasesUseCaseImpl
+    SelectCasesUseCaseImpl::new()
         .select_cases(&arguments)
         .map(|run| run.shard)
         .map_err(|error| error.to_string())

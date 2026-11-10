@@ -89,7 +89,7 @@ fn subject(arguments: Input) -> Result<Value, Failure> {
         .iter()
         .map(|argument| CaseArgument((*argument).to_owned()))
         .collect::<Vec<_>>();
-    SelectCasesUseCaseImpl
+    SelectCasesUseCaseImpl::new()
         .select_cases(&arguments)
         .map(chosen)
         .map_err(|error| match error {

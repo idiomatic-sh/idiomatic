@@ -139,7 +139,7 @@ pub(super) fn verify_cases(
     let flags = args
         .map(|argument| CaseArgument(argument.0))
         .collect::<Vec<_>>();
-    let run = ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl
+    let run = ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new()
         .select_cases(&flags)?;
     let suite_source: Arc<dyn SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());

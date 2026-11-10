@@ -159,13 +159,6 @@ pub enum ShardPartition {
     Shard(CaseShard),
 }
 
-/// Durable identity of one registered case.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CaseId(
-    /// The case's durable ID text.
-    pub String,
-);
-
 /// The rule cohort of an invocation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CohortSelection {
