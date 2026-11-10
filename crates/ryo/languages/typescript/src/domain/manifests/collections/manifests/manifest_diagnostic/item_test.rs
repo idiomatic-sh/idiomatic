@@ -7,10 +7,10 @@ use crate::fixtures::projects::{WORKSPACE, read, shown};
 
 type Files = &'static [(&'static str, &'static str)];
 
-/// A package and a nested manifest that is not JSON.
+/// A nested manifest that is not JSON and a package; the request lists its files by path, so the nested manifest is file 0.
 const NOT_JSON: Files = &[
-    ("package.json", r#"{"name":"root"}"#),
     ("lib/package.json", "{"),
+    ("package.json", r#"{"name":"root"}"#),
 ];
 
 /// A requirement on a catalog the repository does not write.
@@ -37,7 +37,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || NOT_JSON,
         expect: Expect::Value(
-            "1 0..0 file-origin parse package.json unreadable-manifest EOF while parsing an object at line 1 column 1",
+            "0 0..0 file-origin parse package.json unreadable-manifest EOF while parsing an object at line 1 column 1",
         ),
     },
     Case {
