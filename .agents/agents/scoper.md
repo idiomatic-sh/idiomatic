@@ -45,8 +45,10 @@ Write it concretely enough that two builders would produce the same structure.
   statement that no second implementation remains.
 - The isolation test. The files that replacing the implementation behind each
   seam would touch, and the files that adding the next concept here (for
-  example a new language or analysis) would touch. Both lists must be short;
-  say how this design makes them shorter than today. The expected change to
+  example a new language or analysis) would touch. Neither list may be longer
+  than today's for the same area, and the replace list stays within the
+  goal's footprint target where it sets one; say how this design shortens
+  them. The expected change to
   each census row; any rise is a redesign.
 - The contract tests. The seam tests by name: what each asserts, using only
   the contract. The mutation table: each behaviour, the planted bug, and the
