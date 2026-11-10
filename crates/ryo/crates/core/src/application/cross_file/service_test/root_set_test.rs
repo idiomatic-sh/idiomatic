@@ -19,7 +19,6 @@ use std::sync::Arc;
 
 pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
 -> Result<(), RuleRequestsError> {
-    
     use std::sync::atomic::Ordering;
     for order in [[0, 1, 0], [1, 0, 1]] {
         let calls = Arc::new(ProjectCalls::default());
@@ -76,7 +75,6 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
 
 pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
 -> Result<(), RuleRequestsError> {
-    
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
     use std::sync::atomic::Ordering;
     for order in [[0, 1], [1, 0]] {

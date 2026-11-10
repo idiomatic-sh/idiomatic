@@ -17,11 +17,8 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use std::sync::Arc;
 
-
-
 fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
 -> Result<(), RuleRequestsError> {
-    
     use std::sync::atomic::Ordering;
     for order in [[0, 1, 0], [1, 0, 1]] {
         let calls = Arc::new(ProjectCalls::default());
@@ -90,11 +87,11 @@ fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
 }
 #[test]
 fn project_root_set_prepares_shared_publications_once_before_ordered_delivery_counted() {
-    project_root_set_prepares_shared_publications_once_before_ordered_delivery().expect("the counted case runs");
+    project_root_set_prepares_shared_publications_once_before_ordered_delivery()
+        .expect("the counted case runs");
 }
 fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
 -> Result<(), RuleRequestsError> {
-    
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
     use std::sync::atomic::Ordering;
     for order in [[0, 1], [1, 0]] {
@@ -169,5 +166,6 @@ fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
 }
 #[test]
 fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders_counted() {
-    project_root_set_preserves_distinct_actual_population_policy_in_both_orders().expect("the counted case runs");
+    project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
+        .expect("the counted case runs");
 }

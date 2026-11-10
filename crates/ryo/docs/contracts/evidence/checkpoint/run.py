@@ -706,7 +706,7 @@ LOCK=p.parents[3]/'.asymptote'/'operations'
 # in the source, which the zero baseline allows).
 LOCK_KEPT=('version','parents','perf','suppressed')
 def lock_problems(lock=LOCK,replaced=None):
- """The zero baseline, scoped by the owner's choice: an accepted finding in Asymptote's lock (crates/ryo/.asymptote) is allowed only for
+ """The zero baseline, scoped by owner decision (option A): an accepted finding in Asymptote's lock (crates/ryo/.asymptote) is allowed only for
  a file of rewrite-replaced.toml; a record for any other file fails. Removals cancel the records they name."""
  import tomllib
  replaced=replaced_set() if replaced is None else replaced

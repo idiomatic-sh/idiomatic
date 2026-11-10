@@ -17,11 +17,11 @@ use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
-use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::rule_requests::service::failed;
 use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::Bucket;
 
 pub(super) fn completed_batch<T>(

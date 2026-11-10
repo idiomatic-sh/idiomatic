@@ -17,9 +17,6 @@ use ryo_values::domain::plans::types::PlanStep;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use std::sync::Arc;
 
-
-
-
 fn many_distinct_project_populations_allocate_only_reached_region_state()
 -> Result<(), RuleRequestsError> {
     use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
@@ -95,5 +92,6 @@ fn many_distinct_project_populations_allocate_only_reached_region_state()
 }
 #[test]
 fn many_distinct_project_populations_allocate_only_reached_region_state_counted() {
-    many_distinct_project_populations_allocate_only_reached_region_state().expect("the counted case runs");
+    many_distinct_project_populations_allocate_only_reached_region_state()
+        .expect("the counted case runs");
 }
