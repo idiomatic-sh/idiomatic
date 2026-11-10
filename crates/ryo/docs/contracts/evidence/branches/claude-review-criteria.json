@@ -1,0 +1,15 @@
+{"checkpoint": "branch:claude/review-criteria", "source": "b9fc93cf21c3bf51bdee2a1942f4c84c8534c3a3", "verdict": "FAIL",
+ "checks": [
+  {"id": "1", "verdict": "PASS", "evidence": "Docs-only diff e75e47b059..b9fc93cf21 (5 files under .agents/agents/); no engine, core or SDK contract is asserted or proved anywhere in it."},
+  {"id": "2", "verdict": "PASS", "evidence": "The diff cites no Tastemaker rule, compile_fail probe or lint and touches no test or runner; shape() in ci/contract_review/service.py:28-53 accepts any non-empty string check id, so the new ids 10/15/16/17/18/19/21 validate (this file uses 16-18)."},
+  {"id": "3", "verdict": "PASS", "evidence": "No Rust visibility, package allowlist or import boundary in the diff; .agents/agents/{*agents} is an unchecked placement (tastemaker.toml:19), so the new file needs no placement."},
+  {"id": "4", "verdict": "FAIL", "evidence": "review-criteria.md:2 claims to be the one definition of what every reviewer grades, but the mappings route items to checks whose FAIL text stays the operative, narrower definition: rust-principal-review.md:20 maps item 1 -> 12, 13, 14 and 7 -> 12 while rust-principal-review.md:60-75 keeps naming, conversions, error types, docs and semver advisory and says at :69 they never change the verdict; contract-review.md:18 maps Enforced boundaries (:14) -> item 1 and Clear ownership and flow (:15) -> item 2, neither of which states item 1's footprint/census check or item 2's old-code-deleted check; two definitions of the same check disagree, so parts of owned items are graded by nobody."},
+  {"id": "5", "verdict": "PASS", "evidence": "No crate or code touched; no layer direction to break."},
+  {"id": "6", "verdict": "PASS", "evidence": "No feature, cfg(test) or test helper touched; docs-only diff."},
+  {"id": "16", "verdict": "PASS", "evidence": "No dependency, manifest or lockfile in the diff (git diff --stat e75e47b059..b9fc93cf21 lists five .md files)."},
+  {"id": "17", "verdict": "PASS", "evidence": "No code or tool pin in the diff; nothing platform- or order-dependent added."},
+  {"id": "18", "verdict": "PASS", "evidence": "No mechanism, parser, runner or checker added; the diff is prose in .agents/agents/."}
+ ],
+ "plants": [],
+ "enforcement_candidates": [],
+ "reviewer": "leak-review", "date": "2026-11-10T00:00:00Z"}
