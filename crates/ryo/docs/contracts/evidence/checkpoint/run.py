@@ -300,11 +300,13 @@ RED_OWNERS_ALL_FEATURES={
  ('cli_cost','replay','cost::a_cold_run_over_ruff_holds_the_peak_ratchet'):OWNERS['cli_cost'],
  ('cli_cost','replay','cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets'):OWNERS['cli_cost'],
  ('cli_cost','replay','cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff'):OWNERS['cli_cost'],
- ('core_allocation','allocation','per_file_path::allocates_as_the_parser_library_does'):OWNERS['core_allocation'],
+ ('core_allocation','allocation','allocation::core::reading_allocates_as_the_parser_library_does'):OWNERS['core_allocation'],
 }
 RED_OWNERS={**RED_OWNERS_ALL_FEATURES,
  # default_features runs the same tests without --all-features: each red it shares with a command above has that command's owner.
  **{('default_features',binary,test):RED_OWNERS_ALL_FEATURES[(command,binary,test)] for command,binary,test in RED_OWNERS_ALL_FEATURES if command in ('libraries','cli_tests','cli_cost','core_allocation')},
+ # The python language's allocation runner reports its case by id (the SDK's harness_case); red under every feature set, as core's is.
+ ('default_features','allocation','allocation::python::reading_allocates_as_the_parser_library_does'):RUST_REGRESSIONS,
  **{('sdk_api','semver-checks',lint):SDK_RELEASE for lint in ('constructible_struct_adds_field','enum_missing','enum_no_repr_variant_discriminant_changed','struct_missing')},
 }
 # A command that cannot run on this machine says so on its first output line (`not available: <why>`) and exits non-zero; the row

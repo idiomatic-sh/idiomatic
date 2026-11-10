@@ -120,7 +120,7 @@ class Check(unittest.TestCase):
   self.assertEqual(run.red_commands(v)[0],('libraries',101,[]))
  def test_the_allocation_runner_reports_its_case_as_cargo_does_and_its_red_is_owned_by_that_id(self):
   source=(Path(run.__file__).parents[4]/'crates/core/tests/allocation.rs').read_text()
-  case=re.search(r'const CASE: &str = "([^"]+)";',source).group(1)
+  case=re.search(r'harness_case\(\s*"([^"]+)"',source).group(1)
   log=Path(self.raw.name)/'core_allocation.log'
   log.write_text('     Running tests/allocation.rs (/t/debug/deps/allocation-7c079f4def874c49)\n\nrunning 1 test\nthread \'main\' panicked at measures.rs:115:5:\nassertion failed\ntest '+case+' ... FAILED\n\nfailures:\n    '+case+'\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n')
   tests={'core_allocation':run.test_results(log)}
@@ -169,13 +169,13 @@ class Check(unittest.TestCase):
  def test_a_crash_of_a_binary_named_as_a_sibling_that_failed_is_never_absorbed_by_its_red(self):
   log=Path(self.raw.name)/'default_features.log'
   log.write_text('     Running tests/allocation.rs (/t/debug/deps/allocation-dbad9cc50945775a)\n\nrunning 1 test\n'
-   'test per_file_path::allocates_as_the_parser_library_does ... FAILED\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n\n'
+   'test allocation::core::reading_allocates_as_the_parser_library_does ... FAILED\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n\n'
    'error: test failed, to rerun pass `-p idiomatic-sh-ryo-core --test allocation`\n'
    '     Running tests/allocation.rs (/t/debug/deps/allocation-c55105ba40b13c97)\n\n'
    "thread 'main' panicked at samples.rs:68:5:\nreading allocated 40 blocks\n"
    'error: test failed, to rerun pass `-p idiomatic-sh-ryo-python --test allocation`\n')
   tests={'default_features':run.test_results(log)}
-  self.assertEqual(list(tests['default_features']['allocation']['failed']),['per_file_path::allocates_as_the_parser_library_does',run.CRASHED])
+  self.assertEqual(list(tests['default_features']['allocation']['failed']),['allocation::core::reading_allocates_as_the_parser_library_does',run.CRASHED])
   self.assertEqual(run.command_owners('default_features',{'exit':101},tests),[])
  def test_every_command_needs_a_result_for_the_validated_source_that_checked_something(self):
   raw=Path(self.raw.name)
@@ -247,7 +247,7 @@ class Check(unittest.TestCase):
    alone=dict(committed,**refused)
    crashed=run.loaded(json.loads((Path(run.__file__).parent/'tests.json').read_text()))
    crashed['libraries']['ryo_core']={'passed':[],'ignored':[],'not_run':[],'failed':{run.CRASHED:{'rows':[],'collected':False}}}
-   crashed['core_allocation']={'allocation':{'passed':[],'ignored':[],'not_run':[],'failed':{'per_file_path::allocates_as_the_parser_library_does':{'rows':[],'collected':False}}}}
+   crashed['core_allocation']={'allocation':{'passed':[],'ignored':[],'not_run':[],'failed':{'allocation::core::reading_allocates_as_the_parser_library_does':{'rows':[],'collected':False}}}}
    run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
    v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':self.owned_record(),'checks':alone,'tests':crashed,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
    with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(v),1)
