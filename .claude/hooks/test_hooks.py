@@ -57,6 +57,26 @@ class GuardShell(unittest.TestCase):
         self.assertEqual(shell(LOCK + "cargo build -C " + self.integration, self.builder), 2)
         self.assertEqual(shell(LOCK + "cargo build", "/workspaces/ryo-perf-x"), 0)
 
+    def test_cargo_in_heredoc_body_text_is_not_a_command(self):
+        message = "git commit -F - <<'EOF'\nfix: x\n\ncargo test -p x is the integrator's (y; cargo build).\nEOF"
+        self.assertEqual(shell(message, self.builder), 0)
+        self.assertEqual(shell("cat > notes.md <<-EOF\n\tcargo build\n\tEOF\ncargo build", self.builder), 2)
+        self.assertEqual(shell("bash <<'EOF'\ncargo build\nEOF", self.builder), 2)
+
+    def test_clippy_runs_only_in_a_reviewers_archive_copy_with_its_own_target(self):
+        copy = tempfile.mkdtemp(prefix="ryo-review-", dir="/tmp")
+        self.addCleanup(shutil.rmtree, copy)
+        clippy = "cargo clippy --workspace --all-targets --target-dir "
+        self.assertEqual(shell(LOCK + clippy + copy + "/target", copy), 0)
+        self.assertEqual(shell(LOCK + clippy + "target", copy), 0)
+        self.assertEqual(shell(clippy + copy + "/target", copy), 2)
+        self.assertEqual(shell(LOCK + clippy + "/workspaces/idiomatic-target/ryo-333", copy), 2)
+        self.assertEqual(shell(LOCK + "cargo clippy --workspace", copy), 2)
+        self.assertEqual(shell(LOCK + "cargo build --target-dir " + copy + "/target", copy), 2)
+        self.assertEqual(shell(LOCK + clippy + copy + "/target", self.builder), 2)
+        worktree = repo(copy, "tree", "claude/p1-x")
+        self.assertEqual(shell(LOCK + clippy + worktree + "/target", worktree), 2)
+
     def test_a_builders_check_behind_one_unwrapping_is_allowed(self):
         check = "cargo check -p x --target-dir /workspaces/idiomatic-check-target/ryo-w5"
         for command in ["timeout 300 " + check, "nice -n 5 " + check, "env RUSTFLAGS=-Dwarnings " + check,
@@ -1503,6 +1523,116 @@ class NoSubagentBuilders(unittest.TestCase):
         result = subprocess.run(["python3", "-I", os.path.join(HERE, "no_subagent_builders.py")],
                                 input="not json", capture_output=True, text=True, check=False)
         self.assertEqual(result.returncode, 0)
+
+
+def scope_rows(failing=()):
+    return [{"id": row, "result": "FAIL" if row in failing else "PASS", "reason": "x.rs:1 holds"}
+            for row in ["S1", "S2", "S2b", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]]
+
+
+class ScopeGate(unittest.TestCase):
+    MAIN = "/home/u/.claude/projects/p/s1.jsonl"
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.tree = repo(self.dir.name, "tree", "claude/p1-scoped")
+        self.env = dict(os.environ, CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
+
+    def scope(self, first, review):
+        path = os.path.join(self.dir.name, "scope-ryo-x.md")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(first + "\n\n## Scope review\nS1 PASS\n")
+        with open(os.path.join(self.dir.name, "scope-review-ryo-x.json"), "w", encoding="utf-8") as handle:
+            json.dump(review, handle)
+        return path
+
+    def launch(self, prompt, kind="builder"):
+        payload = {"tool_name": "Agent", "transcript_path": self.MAIN,
+                   "tool_input": {"subagent_type": kind, "prompt": prompt}}
+        return run_hook("no_subagent_builders.py", payload, env=self.env)
+
+    def brief(self, extra):
+        return "BEAD: ryo-x\nWORKTREE: " + self.tree + "\n" + extra + "\nR1 ..."
+
+    def test_refuses_a_builder_without_a_scope(self):
+        result = self.launch(self.brief(""))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("SCOPE=<path", result.stderr)
+
+    def test_refuses_a_scope_whose_review_failed(self):
+        path = self.scope("PROCEED: do it", {"rows": scope_rows({"S2"}), "verdict": "FAIL"})
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+
+    def test_refuses_a_failed_row_under_a_pass_verdict(self):
+        path = self.scope("PROCEED: do it", {"rows": scope_rows({"S5"}), "verdict": "PASS"})
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+
+    def test_refuses_a_dropped_scope(self):
+        path = self.scope("DROP: the rewrite deletes this code", {"rows": scope_rows(), "verdict": "PASS"})
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+
+    def test_allows_a_passed_proceed_or_reshape(self):
+        for verdict in ("PROCEED", "RESHAPE: one crate, not two"):
+            with self.subTest(verdict=verdict):
+                path = self.scope(verdict, {"rows": scope_rows(), "verdict": "PASS"})
+                self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
+
+    def test_allows_a_followup_only_on_a_branch_launched_with_a_passed_scope(self):
+        self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped")).returncode, 2)
+        path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
+        self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped")).returncode, 0)
+        self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p2-other")).returncode, 2)
+
+    def test_other_agents_need_no_scope(self):
+        self.assertEqual(self.launch("review sha x", kind="leak-review").returncode, 0)
+
+
+class ScopeReviewStop(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.scope = os.path.join(self.dir.name, "scope-ryo-x.md")
+        self.review = os.path.join(self.dir.name, "scope-review-ryo-x.json")
+
+    def write(self, review, age=0):
+        with open(self.review, "w", encoding="utf-8") as handle:
+            handle.write(review if isinstance(review, str) else json.dumps(review))
+        if age:
+            stamp = os.path.getmtime(self.review) - age
+            os.utime(self.review, (stamp, stamp))
+
+    def stop(self, report="Scope reviewed."):
+        transcript = os.path.join(self.dir.name, "agent.jsonl")
+        clock = __import__("datetime")
+        now = clock.datetime.now(clock.timezone.utc) - clock.timedelta(seconds=60)
+        rows = [{"type": "user", "timestamp": now.isoformat(),
+                 "message": {"role": "user", "content": "Review SCOPE=" + self.scope + "."}},
+                {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": report}]}}]
+        with open(transcript, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(json.dumps(r) for r in rows))
+        env = dict(os.environ, CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
+        return run_hook("acceptance_on_stop.py", {"agent_type": "scope-review", "agent_id": "a1",
+                                                  "agent_transcript_path": transcript}, env)
+
+    def test_held_until_a_valid_review_is_written_this_run(self):
+        self.assertEqual(self.stop().returncode, 2)
+        for name, review, age in [("stale", {"rows": scope_rows(), "verdict": "PASS"}, 3600),
+                                  ("not json", "{x", 0),
+                                  ("a row missing", {"rows": scope_rows()[:2] + scope_rows()[3:], "verdict": "PASS"}, 0),
+                                  ("verdict against its rows", {"rows": scope_rows({"S3"}), "verdict": "PASS"}, 0)]:
+            with self.subTest(name=name):
+                self.write(review, age)
+                self.assertEqual(self.stop().returncode, 2)
+
+    def test_stops_on_a_valid_review_of_either_verdict_or_on_blocked(self):
+        for review in ({"rows": scope_rows(), "verdict": "PASS"}, {"rows": scope_rows({"S8"}), "verdict": "FAIL"}):
+            with self.subTest(verdict=review["verdict"]):
+                self.write(review)
+                self.assertEqual(self.stop().returncode, 0)
+        os.remove(self.review)
+        self.assertEqual(self.stop(report="BLOCKED: which goal?").returncode, 0)
 
 
 class CheckInOnStop(unittest.TestCase):

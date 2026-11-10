@@ -144,6 +144,49 @@ def reviewer_stop(data, agent):
     return hold(problem) if problem else 0
 
 
+def gate_module():
+    """no_subagent_builders.py beside this hook, loaded by path: the one validator of scope-review-<bead>.json."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("no_subagent_builders",
+                                                  os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                               "no_subagent_builders.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def scope_review_stop(data):
+    """A scope review stops only after writing a valid scope-review-<bead>.json beside the SCOPE= report its prompt
+    names, during its run, or on BLOCKED: <question>."""
+    path = data.get("agent_transcript_path") or data.get("transcript_path")
+    if not path or not os.path.exists(path):
+        return hold("its transcript is unreadable, so the run's start is unknown")
+    first, last = read_transcript(path)
+    last = data.get("last_assistant_message") or last
+    if last.strip().startswith("BLOCKED:"):
+        return 0
+    scope, since = token(first, "SCOPE"), started_at(path)
+    if since is None:
+        return hold("its transcript has no timestamp, so the run's start is unknown")
+    try:
+        gate = gate_module()
+    except Exception as error:  # a missing or broken gate holds the stop, never releases it
+        return hold("no_subagent_builders.py failed to load (" + type(error).__name__ + ": " + str(error) + ")")
+    review_path = gate.review_path(scope) if scope else None
+    if review_path is None:
+        return hold("the prompt must name SCOPE=<path to scope-<bead>.md> once")
+    try:
+        if os.path.getmtime(review_path) < since:
+            return hold(review_path + " was not written during this run")
+    except OSError:
+        return hold(review_path + " does not exist")
+    review, problem = gate.load(review_path)
+    if problem:
+        return hold(problem)
+    problem = gate.scope_review_problem(review)
+    return hold(review_path + " " + problem) if problem else 0
+
+
 def hold(why):
     print("Review not finished: " + why + ". Write the verdict file (the review evidence schema, reviewer and source "
           "set) the moment the verdict is decided, then the write-up; or reply BLOCKED: <one question>.", file=sys.stderr)
@@ -207,6 +250,8 @@ def success(bead):
 
 def main():
     data = json.load(sys.stdin)
+    if data.get("agent_type") == "scope-review":
+        return scope_review_stop(data)
     if data.get("agent_type") in REVIEWERS:
         return reviewer_stop(data, data["agent_type"])
     path = data.get("transcript_path")
