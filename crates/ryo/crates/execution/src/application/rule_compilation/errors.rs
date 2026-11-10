@@ -1,0 +1,38 @@
+//! Refusals owned by rule compilation before file evaluation can begin.
+use ryo_values::domain::program::types::RefusedQuery;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
+
+/// A malformed program, rule identity, or parameter binding.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum RuleCompilationError {
+    /// Named-root dependency configuration is rejected before any file is read.
+    #[error(transparent)]
+    Observations(#[from] ryo_execution_domain::domain::rule_intent::errors::RuleIntentError),
+    /// Rule identities and request bindings retain their domain refusal.
+    #[error(transparent)]
+    Rules(#[from] RuleRequestsError),
+    /// Query compilation preserves its owning rule and exact source diagnostic.
+    #[error("rule `{id}`: {error}")]
+    Query {
+        /// Owning rule ID.
+        id: String,
+        /// Typed compiler diagnostic with original source provenance.
+        error: RefusedQuery,
+    },
+    /// A rule writes a word for a kind no linked language has: refused before any file is read.
+    #[error("rule `{}`: {}", .id.0, .reason.0)]
+    UnknownKind {
+        /// The rule that writes the word.
+        id: ryo_values::domain::runs::types::RuleId,
+        /// What the kind check says of the word.
+        reason: ryo_execution_domain::domain::kind_check::types::KindMessage,
+    },
+    /// A rule index the compiler reports names no rule of the request: refused rather than reported under an empty id.
+    #[error("rule index {index} names no rule of the {rules} in the request")]
+    UnknownRuleIndex {
+        /// The index the compiler reported.
+        index: usize,
+        /// How many rules the request holds.
+        rules: usize,
+    },
+}
