@@ -1,0 +1,54 @@
+[package]
+name = "idiomatic-sh-ryo-execution-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = true
+description = "Ryo execution runtime: the compiled program's scheduling, admission, readiness, permits, source admission and restore, and the ports they call"
+autobenches = false
+
+[lib]
+name = "ryo_execution_runtime"
+
+[dependencies]
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.3" }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.3" }
+ryo_derived = { package = "idiomatic-sh-ryo-derived", path = "../derived", version = "0.1.3" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3" }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.1.3" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.1.3" }
+thiserror.workspace = true
+blake3.workspace = true
+rustc-hash.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+idiomatic-sh-ryo-execution-runtime = { path = ".", features = ["fixtures"] }
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.1.3", features = ["fixtures"] }
+ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "../execution_store", version = "0.1.3", features = ["fixtures"] }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3", features = ["fixtures"] }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3", features = ["fixtures"] }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3", features = ["fixtures"] }
+divan.workspace = true
+tempfile.workspace = true
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+required-features = ["fixtures"]
+
+[features]
+# Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
+fixtures = ["ryo_execution_domain/fixtures", "ryo_execution_store/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
+diagnostic-row-progress = ["ryo_execution_domain/diagnostic-row-progress", "ryo_execution_store/diagnostic-row-progress"]
+
+[lints]
+workspace = true
+
+[package.metadata.cargo-machete]
+ignored = ["idiomatic-sh-ryo-execution-runtime"]
