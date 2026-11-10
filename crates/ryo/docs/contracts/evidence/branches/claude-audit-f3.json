@@ -1,0 +1,36 @@
+{
+  "source": "1b5d83ba0b6a100a74b5c6a2df8c9188f834302c",
+  "verdict": "PASS",
+  "reviewer": "leak-review",
+  "date": "2026-11-10T01:20:00Z",
+  "checks": [
+    {"id": "1", "verdict": "PASS", "evidence": "Delta a6fd8d8254..1b5d83ba0b touches 3 files, none under benchmarks/ or languages/: execution_store/src/application/file_dag/workspace/test.rs:145,168 still proves the inspection count in the owning crate; ci/scripts/checks/sdk_api.py is unchanged from the reviewed a6fd8d8254, whose sdk_api_test.py:232-240 proves the gate beside its script."},
+    {"id": "2", "verdict": "PASS", "evidence": "The delta adds no enforcement claim and changes no harness: ci/, tastemaker/, crates/ryo/Cargo.toml and sdk/Cargo.toml are byte-identical to a6fd8d8254, so the three sdk_api.py plants of the a6fd8d8254 review (sdk_api.py:155,172,222, each count 1, reverted) stand. The only test edit renames inspections() to admitted_inspections() at workspace/test.rs:145,168 and rewords the message; the assertion (delta == 1) is unchanged and can still fail (a second admission makes it 2). No new plant was possible here: the guard hook refuses cargo rustdoc outside an integration worktree."},
+    {"id": "3", "verdict": "PASS", "evidence": "sdk/src/resources/languages/contract.rs:76-78 re-exports ryo_language's ParseEngine and ProjectEngine from ryo::resources::languages::contract, under the allow prefix ryo::resources::languages (crates/ryo/Cargo.toml:17-20). sdk_api.py:101-105 adds every `use` id whose parent module path starts with an allowed prefix to `surface`, and :126 skips targets in surface, so Language::parse_engine and Language::project (sdk/src/domain/language/types.rs:119-130) no longer report. Default surface unchanged: the contract module is declared #[cfg(feature = \"fixtures\")] (sdk/src/resources/languages.rs:3-4) and sdk/Cargo.toml:40-43 has no default feature, so a default build exports neither trait and semver-checks (default features, sdk_api.py:220-224) sees nothing new. Proved by reading, not by running: the guard hook refused the rustdoc build."},
+    {"id": "4", "verdict": "PASS", "evidence": "No new type or loop: the re-exports reuse the one ParseEngine/ProjectEngine definitions in ryo_language (parse/types.rs:145, project/types.rs:183); admitted_inspections() at execution_store/.../relations.rs:75-80 still derives from the existing checks+reuses counters."},
+    {"id": "5", "verdict": "PASS", "evidence": "The re-exports sit in the SDK's inbound resource module (resources/languages/contract.rs), the same place as contract::read, which already takes &dyn ParseEngine; admitted_inspections stays #[cfg(test)] pub(super) (relations.rs:77-78), read only by the sibling workspace/test.rs."},
+    {"id": "6", "verdict": "PASS", "evidence": "Both new re-exports are only reachable with the `fixtures` feature (resources/languages.rs:3), switched on only by dev-dependencies (languages/python/Cargo.toml:34 normal without it, :38 dev); admitted_inspections is #[cfg(test)] (relations.rs:77). No other file changed in the delta (git diff --stat: 3 files, +9/-5)."}
+  ],
+  "findings": [
+    "closed: the a6fd8d8254 check 3 FAIL (Language::parse_engine / Language::project handing out unexported ryo_language traits) is closed by contract.rs:76-78, fixtures-gated, adding nothing to the default surface.",
+    "advisory (gate, not a leak): sdk/api.txt is not regenerated in this delta and lists no ryo::resources::languages::contract item, while sdk_api.py:171 records the listing with --all-features; the sdk-api step fails loudly on the listing comparison until `cargo +nightly-2026-08-01 public-api -ss -p idiomatic-sh-ryo-sdk --all-features` is recorded. The integrator must regenerate it before the landing.",
+    "carried open item: the fixtures-feature / workspace-fixtures-feature plants were not re-run (guard refuses builds outside an integration worktree); settle with tm check on a languages/python/Cargo.toml:34 plant adding features = [\"fixtures\"].",
+    "carried open item: semver-checks runs on default features only; a future non-test feature gating SDK items would escape it. Today only `fixtures` gates SDK items."
+  ],
+  "plants": [
+    {"claim": "sdk-api leak check reads all features (carried from the a6fd8d8254 review; sdk_api.py unchanged)", "file": "ci/scripts/checks/sdk_api.py:155", "count": 1, "reverted": true},
+    {"claim": "sdk-api listing reads all features (carried; unchanged)", "file": "ci/scripts/checks/sdk_api.py:172", "count": 1, "reverted": true},
+    {"claim": "semver-checks stays on default features (carried; unchanged)", "file": "ci/scripts/checks/sdk_api.py:222", "count": 1, "reverted": true}
+  ],
+  "enforcement_candidates": [
+    {"id": "feature-gated-sdk-method-hands-out-an-internal-trait-1090d557", "class": "feature-gated SDK method hands out an internal trait",
+     "signature": "#[cfg(feature = \"fixtures\")] pub fn <name>(&self) -> Arc<dyn <ryo_language trait not re-exported by ryo::resources::languages or its contract module>>",
+     "scope": ["crates/ryo/crates/sdk/src"],
+     "suggested_mechanism": "strengthen sdk-api",
+     "instance_status": "fixed",
+     "plants": [
+       {"file": "crates/ryo/crates/sdk/src/domain/language/types.rs", "line": 121, "text": "    pub fn parse_engine(&self) -> Arc<dyn ParseEngine> {"},
+       {"file": "crates/ryo/crates/sdk/src/domain/language/types.rs", "line": 128, "text": "    pub fn project(&self) -> Arc<dyn ProjectEngine> {"}
+     ]}
+  ]
+}
