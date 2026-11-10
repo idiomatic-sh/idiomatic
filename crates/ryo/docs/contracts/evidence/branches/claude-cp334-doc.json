@@ -1,0 +1,41 @@
+{
+ "checkpoint": 334,
+ "source": "36c1524724ec225fb3578aa88529fe0ba2139ed2",
+ "verdict": "PASS",
+ "checks": [
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "No contract is asserted from benchmarks/ or languages/: all 51 new doctests live on the items they document in execution_domain, execution_runtime and execution_store src (git diff dee086491c..36c1524724 --stat: 24 files, all under those three crates' src/), and none reads a product rule set or corpus."
+  },
+  {
+   "id": "2",
+   "verdict": "PASS",
+   "evidence": "The diff cites no Tastemaker rule, compile_fail probe or lint (nothing to plant). The doctests cannot pass vacuously: no ignore/no_run/text/should_panic fence (102 bare ``` fences = 51 blocks), V and S blocks assert results of real calls (e.g. crates/ryo/crates/execution_store/src/application/file_dag/relations/generation/service.rs `same` asserts Err(NotRead) across two owners; crates/ryo/crates/execution_runtime/src/outbound/observer/factory.rs asserts counting() totals). Run at 36c1524724 with --all-features --doc per package: domain 23 passed (base 2, +21), runtime 19+12 passed (base 1+12, +18), store 13+4 passed (base 1+4, +12), 0 failed, exit 0. run.py doc_problems at the sha leaves exactly one line: crates/ryo/crates/execution_store/src/application/file_dag/relations/interface.rs:40 pub trait RelationStore (the other branch's item)."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "No visibility, manifest or import changes: every added line is a /// doc line except the ignore comment at crates/ryo/crates/execution_domain/src/domain/observation_schedule/service/link.rs:1; no '-' lines in the diff. Store examples reach `fixtures::program_derived_port` and `RelationOwner::fixture` only through the crate's own dev-dependency with features=[\"fixtures\"] (crates/ryo/crates/execution_store/Cargo.toml [dev-dependencies]), so no fixture path is opened to production."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "Doc examples add no type, loop or data shape; the T stubs and the local `struct Uniform` in crates/ryo/crates/execution_domain/src/domain/source_partitions/types.rs (ProducerPartitions example) are doctest-local illustrations, not copies of production logic."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "No item moved or changed signature (doc-only diff); examples import only public paths of the documented crate and its existing dependencies (ryo_values, ryo_relations, ryo_execution_domain), no inbound or application item newly crosses a crate."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "Doctests compile only under cargo test; the fixture-using store examples (rows 42-49) rely on the self dev-dependency with `fixtures`, which a production build never enables (execution_store/Cargo.toml features comment: only a dev-dependency or the crate's own `fixtures` switches it on). No new feature, cfg(test) bypass or pub helper."
+  }
+ ],
+ "plants": [],
+ "enforcement_candidates": [],
+ "reviewer": "leak-review",
+ "date": "2026-11-10T00:00:00Z"
+}
