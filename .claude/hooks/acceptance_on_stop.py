@@ -171,13 +171,14 @@ def scope_review_check(data):
     last = data.get("last_assistant_message") or last
     if last.strip().startswith("BLOCKED:"):
         return 0
-    scope, since = token(first, "SCOPE"), started_at(path)
+    since = started_at(path)
     if since is None:
         return scope_hold("its transcript has no timestamp, so the run's start is unknown")
     try:
         gate = gate_module()
     except Exception as error:  # a missing or broken gate holds the stop, never releases it
         return scope_hold("no_subagent_builders.py failed to load (" + type(error).__name__ + ": " + str(error) + ")")
+    scope = gate.brief_scope(first)
     review_path = gate.review_path(scope) if scope else None
     if review_path is None:
         return scope_hold("the prompt must name SCOPE=<path to scope-<stem>.md> once")
@@ -303,25 +304,30 @@ def main():
     if not path or not os.path.exists(path):
         return 0
     first, last = read_transcript(path)
-    bead = re.search(r"BEAD:\s*(ryo-[\w.]+)", first)
-    tree = re.search(r"WORKTREE:\s*(/\S+)", first)
-    if not bead or not tree:
+    try:
+        gate = gate_module()
+    except Exception as error:  # the brief cannot be read without the gate's parser; hold, never release
+        print("Stop held: no_subagent_builders.py failed to load (" + type(error).__name__ + ": " + str(error) +
+              "); repair it, then stop again.", file=sys.stderr)
+        return 2
+    beads, tree = gate.brief_beads(first), gate.brief_worktree(first)
+    if not beads or not tree:
         return 0
-    bead, tree = bead.group(1), tree.group(1)
     if last.startswith("BLOCKED:"):
-        return success(bead)
+        return max(success(bead) for bead in beads)
     if not last.startswith("DONE:"):
-        return failure(bead, "Report must start with DONE: or BLOCKED:")
-    script = acceptance_script(bead)
-    if script is None:
-        return failure(bead, "Acceptance failed for %s: no ACCEPTANCE: ... END ACCEPTANCE block in the bead notes. "
-                       "Reply BLOCKED: <one question>." % bead)
-    passed, output = run(script, tree)
-    if passed:
-        return success(bead)
-    tail = "\n".join(output.splitlines()[-40:])
-    return failure(bead, "Acceptance failed for %s: %s. Fix and run it again, or reply BLOCKED: <one question>."
-                   % (bead, tail))
+        return failure(beads[0], "Report must start with DONE: or BLOCKED:")
+    for bead in beads:  # every bead the brief carries passes its own acceptance block
+        script = acceptance_script(bead)
+        if script is None:
+            return failure(bead, "Acceptance failed for %s: no ACCEPTANCE: ... END ACCEPTANCE block in the bead "
+                           "notes. Reply BLOCKED: <one question>." % bead)
+        passed, output = run(script, tree)
+        if not passed:
+            tail = "\n".join(output.splitlines()[-40:])
+            return failure(bead, "Acceptance failed for %s: %s. Fix and run it again, or reply BLOCKED: <one "
+                           "question>." % (bead, tail))
+    return max(success(bead) for bead in beads)
 
 
 sys.exit(main())

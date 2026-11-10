@@ -1368,6 +1368,20 @@ class Acceptance(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("DONE: or BLOCKED:", result.stderr)
 
+    def test_every_bead_of_the_brief_passes_its_own_acceptance(self):
+        path = os.path.join(self.bin, "bd")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write('#!/bin/sh\nif [ "$2" = ryo-t2 ]; then script=false; else script=true; fi\n'
+                         'printf \'[{"id": "%s", "notes": "ACCEPTANCE:\\\\n%s\\\\nEND ACCEPTANCE"}]\\n\' "$2" "$script"\n')
+        os.chmod(path, 0o755)
+        work = "\nWORKTREE: " + self.work + "\nDo the work."
+        self.assertEqual(self.stop("BEAD: ryo-t1" + work, "DONE: ok").returncode, 0)
+        for brief in ("BEAD: ryo-t1 ryo-t2" + work, "BEAD: ryo-t1\nBEAD: ryo-t2" + work):
+            with self.subTest(brief=brief):
+                result = self.stop(brief, "DONE: ok")
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("Acceptance failed for ryo-t2", result.stderr)
+
     def test_a_gate_that_fails_to_load_holds_the_builder(self):
         copy = os.path.join(self.dir.name, "copy")
         os.makedirs(os.path.join(copy, ".claude", "hooks"))
@@ -1663,6 +1677,23 @@ class ScopeGate(unittest.TestCase):
             with self.subTest(top=top):
                 path = self.scope(top, passed, beads=None)
                 self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+
+    def test_a_brief_with_several_beads_needs_every_one_scoped(self):
+        both = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"}, beads="ryo-x ryo-y")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + both)).returncode, 0)  # records ryo-x only
+        for beads in ("ryo-x ryo-y", "ryo-x\nBEAD: ryo-y"):
+            with self.subTest(followup=beads):
+                self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped", bead=beads)).returncode, 2)
+        one = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"}, beads="ryo-x")
+        for beads in ("ryo-x ryo-y", "ryo-x\nBEAD: ryo-y"):
+            with self.subTest(scope="ryo-x", beads=beads):
+                self.assertEqual(self.launch(self.brief("SCOPE=" + one, bead=beads)).returncode, 2)
+        both = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"}, beads="ryo-x ryo-y")
+        for beads in ("ryo-x ryo-y", "ryo-x\nBEAD: ryo-y"):
+            with self.subTest(scope="ryo-x ryo-y", beads=beads):
+                self.assertEqual(self.launch(self.brief("SCOPE=" + both, bead=beads)).returncode, 0)
+                self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped", bead=beads)).returncode, 0)
+        self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped", bead="ryo-x ryo-z")).returncode, 2)
 
     def test_a_scope_that_is_not_utf8_is_judged_not_crashed(self):
         path = os.path.join(self.dir.name, "scope-ryo-x.md")

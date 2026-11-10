@@ -16,15 +16,35 @@ SCOPED = os.path.join(STATE, "scoped-branches")
 RUBRIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".agents", "agents", "scope-review.md")
 ROW = re.compile(r"^\|\s*(S\w+)\s", re.MULTILINE)
 DEFERRAL = re.compile(r"For a DEFER or DROP report,[^.]*")
-SCOPE = re.compile(r"(?<![A-Za-z0-9_])SCOPE=(\S+)")
 FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
 GATED = {"builder", "contract-migration"}  # the agents that edit code launch only on a passed scope
-WORKTREE = re.compile(r"^WORKTREE:\s*(\S+)", re.MULTILINE)
-BEAD = re.compile(r"^BEAD:\s*(\S+)", re.MULTILINE)
+TRAILING = ".,;:)]}>'\"`"
 NEEDS = ("a builder needs SCOPE=<path to scope-<stem>.md>, a report whose first line starts PROCEED or RESHAPE and "
-         "whose second line is exactly `BEADS: <id> ...` listing the brief's BEAD, with scope-review-<stem>.json beside it holding the report's scope_sha256, verdict PASS "
-         "and every rubric row PASS; a review-fix round carries FOLLOWUP=<branch> instead, from a WORKTREE on that "
-         "branch, for the bead and branch an earlier builder launched with a passed scope")
+         "whose second line is exactly `BEADS: <id> ...` listing every bead of the brief's BEAD: lines, with "
+         "scope-review-<stem>.json beside it holding the report's scope_sha256, verdict PASS and every rubric row "
+         "PASS; a review-fix round carries FOLLOWUP=<branch> instead, from a WORKTREE on that branch, for beads an "
+         "earlier builder launched on that branch with a passed scope")
+
+
+def brief_beads(prompt):
+    """Every bead a brief names: each token of each `BEAD:` line, in order, once. The stop hook reads it here too."""
+    beads = []
+    for line in re.findall(r"^BEAD:[ \t]*(.*)$", prompt, re.MULTILINE):
+        beads += [word for word in line.split() if word not in beads]
+    return beads
+
+
+def brief_worktree(prompt):
+    """The path of the brief's `WORKTREE:` line, or None."""
+    found = re.search(r"^WORKTREE:[ \t]*(\S+)", prompt, re.MULTILINE)
+    return found.group(1) if found else None
+
+
+def brief_scope(prompt):
+    """The value of the brief's `SCOPE=<path>` token, trailing punctuation stripped; None when it is absent or given
+    with two different values."""
+    found = {v.rstrip(TRAILING) for v in re.findall(r"(?<![A-Za-z0-9_])SCOPE=(\S+)", prompt)}
+    return found.pop() if len(found) == 1 else None
 
 
 def review_path(scope):
@@ -114,20 +134,21 @@ def load(path):
         return None, path + " is not JSON"
 
 
-def scope_problem(scope, bead):
+def scope_problem(scope, beads):
     if scope_verdict(scope) not in ("PROCEED", "RESHAPE"):
         return "the scope report " + scope + " does not start with PROCEED or RESHAPE"
     path = review_path(scope)
     if path is None:
         return "the scope report " + scope + " is not named scope-<stem>.md"
-    if not bead:
+    if not beads:
         return "the brief names no BEAD: <id>"
     lines = scope_lines(scope) or []
     second = lines[1] if len(lines) > 1 else ""
     listed = second[len("BEADS: "):].split(" ") if re.fullmatch(r"BEADS:( \S+)+", second) else []
-    if bead not in listed:
-        return ("line 2 of the scope report " + scope + " is not exactly `BEADS: <id> ...` listing the brief's bead "
-                + bead)
+    missing = [bead for bead in beads if bead not in listed]
+    if missing:
+        return ("line 2 of the scope report " + scope + " is not exactly `BEADS: <id> ...` listing the brief's beads "
+                "(missing " + ", ".join(missing) + ")")
     review, problem = load(path)
     if problem:
         return problem
@@ -149,27 +170,26 @@ def scoped_branches():
 
 
 def worktree_branch(prompt):
-    found = WORKTREE.search(prompt)
-    if not found:
+    worktree = brief_worktree(prompt)
+    if not worktree:
         return None
-    result = subprocess.run(["git", "-C", found.group(1), "branch", "--show-current"], capture_output=True,
+    result = subprocess.run(["git", "-C", worktree, "branch", "--show-current"], capture_output=True,
                             text=True, check=False)
     return result.stdout.strip() or None
 
 
 def builder_problem(prompt):
-    bead = BEAD.search(prompt)
-    bead = bead.group(1) if bead else None
-    scope = SCOPE.search(prompt)
+    beads = brief_beads(prompt)
+    scope = brief_scope(prompt)
     if scope:
-        found = scope_problem(scope.group(1), bead)
+        found = scope_problem(scope, beads)
         if found:
             return found + "; " + NEEDS
         branch = worktree_branch(prompt)
         if branch:
             os.makedirs(STATE, exist_ok=True)
             with open(SCOPED, "a", encoding="utf-8") as handle:
-                handle.write(branch + " " + bead + "\n")
+                handle.write("".join(branch + " " + bead + "\n" for bead in beads))
         return None
     followup = FOLLOWUP.search(prompt)
     if not followup:
@@ -177,8 +197,11 @@ def builder_problem(prompt):
     branch = worktree_branch(prompt)
     if branch != followup.group(1):
         return ("FOLLOWUP=" + followup.group(1) + " but the WORKTREE is on " + repr(branch) + "; " + NEEDS)
-    if (branch, bead) not in scoped_branches():
-        return "no builder was launched on " + branch + " for " + str(bead) + " with a passed scope; " + NEEDS
+    scoped = scoped_branches()
+    missing = [bead for bead in beads if (branch, bead) not in scoped]
+    if not beads or missing:
+        return ("no builder was launched on " + branch + " for " + (", ".join(missing) or "a bead") +
+                " with a passed scope; " + NEEDS)
     return None
 
 
