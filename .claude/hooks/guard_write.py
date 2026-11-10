@@ -24,7 +24,9 @@ FALLBACK = re.compile(r"(tastemaker|closed_for_extension)\.toml|ignore:\s*idioma
 ENTRY_ARRAYS = ("templates", "rules", "specs")
 ENTRY = "<entry>"
 TIGHTENING_LISTS = ("exclude", "except", "allow", "rules-exclude")
-SCRIPT_SUFFIXES = (".py", ".sh", ".pl", ".rb", ".js")
+SCRIPT_SUFFIXES = (".py", ".pl", ".rb", ".js")
+SHELL_SUFFIXES = (".sh", ".bash", ".zsh")
+SHELL_SHEBANG = re.compile(r"#!\S*/(env\s+)?(ba|z|da|k)?sh\b")
 
 
 def new_texts(given):
@@ -143,13 +145,17 @@ def ignore_additions(shell, before, after):
 
 
 def content_problem(shell, path, text):
-    """A diff naming a closed file, or a script that names one and writes a file."""
+    """A diff naming a closed file, or a script that names one and writes a file: a shell script by any shell
+    writer (guard_shell's WRITER), any other script by an interpreter's write."""
     names = any(name in text for name in shell.CLOSED_FILES)
     if names and any(line.startswith(("+++ ", "--- ")) and any(n in line for n in shell.CLOSED_FILES)
                      for line in text.split("\n")):
         return path + " is a patch touching a closed file; edit the manifest itself with the Edit tool"
-    script = path.endswith(SCRIPT_SUFFIXES) or text.startswith("#!")
-    if script and names and shell.PY_WRITE.search(text):
+    if names and (path.endswith(SHELL_SUFFIXES) or SHELL_SHEBANG.match(text)):
+        writes = shell.WRITER.search(text)
+    else:
+        writes = (path.endswith(SCRIPT_SUFFIXES) or text.startswith("#!")) and shell.PY_WRITE.search(text)
+    if names and writes:
         return path + " is a script that writes a closed file; edit the manifest itself with the Edit tool"
     return None
 
@@ -260,9 +266,10 @@ def closed_problem(shell, tool, given, full, path):
             return full + ": old_string not found; the hook cannot diff this edit. Read the file and match its text"
         return None
     entries = allowlist(shell, os.path.dirname(os.path.abspath(__file__)))
-    if name in shell.CLOSED_FILES:
-        return manifest_problem(full, before, after, entries.get("manifest") if isinstance(entries.get("manifest"), list) else [])
     lines = entries.get("ignore") if isinstance(entries.get("ignore"), list) else []
+    if name in shell.CLOSED_FILES:
+        changes = entries.get("manifest") if isinstance(entries.get("manifest"), list) else []
+        return manifest_problem(full, before, after, changes) or ignore_problem(shell, full, before, after, lines)
     return ignore_problem(shell, full, before, after, lines) or content_problem(shell, full, after)
 
 

@@ -17,7 +17,8 @@ Tastemaker manifests are closed for extension. `guard_write.py` diffs a `tastema
 `rules[<id>]`, `templates[<id> as <alias>]`, `specs[<id>]`, dotted key path, list positions erased) and refuses every
 added fact and every removal that loosens: an agent may only remove an `exclude`, `except`, `allow` or `rules-exclude`
 element or a single-file template placement, and edit descriptions, comments and order. It refuses an added
-`ignore: idiomatic.` line in any file, a patch naming a manifest and a script that writes one, and every write to
+`ignore: idiomatic.` line in any file, manifests included, a patch naming a manifest, a script that writes one (a
+shell script, by suffix or shebang, through any shell writer), and every write to
 `closed_for_extension.toml`, the owner's allowlist beside the hooks in idiomatic-internal, which the owner edits by
 hand (absent or unparsable, it admits nothing; each refusal prints the block that would admit it, and an entry admits
 only with its `reason`). `guard_shell.py` refuses every shell write of a manifest or the allowlist (edit manifests with
