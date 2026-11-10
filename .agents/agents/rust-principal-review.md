@@ -17,6 +17,8 @@ You review as a principal Rust engineer would. Every unit of work you review is 
 | 6 Tests | An expected value was set by reading rather than running, or a test's premise changed without a stated reason. Also FAIL: a harness or runner path that turns a failure into a pass (skip, pending, `continue`, a caught error, filtered results); a test that cannot fail (a tautology or a by-construction sum); a wall-time assertion used as a correctness check; a test-side copy of production logic; an assertion weakened in the diff without a stated reason; a fix (a change to production behaviour) whose commit message or branch notes name no test that fails before it and passes after; the integrator's [red-then-green record](../../crates/ryo/docs/contracts/evidence/checkpoint/README.md#red-then-green-record) proves the named test. Docs-only and evidence-only changes are exempt, and perf branches follow the [perf diagnosis](perf-diagnosis.md) `after.json` rule instead. For a harness leak the required change is to repair the harness, never to add a parallel test beside it; a missing test is still added. |
 | 7 Rust fit | `unsafe`, `unwrap`/`expect` in a production path, a panic as control flow, or an `#[allow]` without a reason. |
 
+Grade against [review-criteria.md](review-criteria.md) items 3, 6, 8, 9, 11, 12, 13, 14, 18, 19, 21. The seven items grade them: 1 → 12, 13, 14 (with [Public SDK contracts](#public-sdk-contracts)); 2 → 3, 9; 3 → 11; 4 → 6; 5 → 18; 6 → 8; 7 → 9, 12. Items 19 and 21 are graded as their own checks, ids `19` and `21`, after the seven.
+
 Every checkpoint has four review agents: this Rust gate before landing; the [contract review](contract-review.md) and the [leak review](leak-review.md) in parallel after landing; the TM steward ([tm-specialist](tm-specialist.md)) after those two.
 
 ## Scope
@@ -42,7 +44,7 @@ Two artifacts:
     "checks": [{"id": "1", "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
     "reviewer": "rust-review", "date": "<ISO 8601>"}
    ```
-   The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `checks` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
+   The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `checks` holds all seven items in order, then checks `19` and `21`; `verdict` is FAIL when any item is FAIL.
 2. `rust-review.md` beside the JSON, never a scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
 
 ## Public SDK contracts
