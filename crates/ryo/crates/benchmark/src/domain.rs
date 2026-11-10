@@ -1,0 +1,19 @@
+//! Benchmark values independent of any particular linter.
+pub mod candidate_rules;
+pub(crate) mod canonical_text;
+pub(crate) mod corpus_discrepancy;
+pub mod diagnostics;
+pub(crate) mod discrepancy;
+pub mod input_metadata;
+pub(crate) mod inventory_comparison;
+pub(crate) mod inventory_receipts;
+pub(crate) mod invocation_identity;
+pub mod measurements;
+pub mod observations;
+pub(crate) mod process_failure;
+pub mod process_output;
+pub(crate) mod process_receipts;
+pub mod project_inputs;
+pub(crate) mod registered_inputs;
+pub mod rule_context;
+pub mod suite;

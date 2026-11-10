@@ -1,0 +1,83 @@
+//! Certification owns the workflow over suite, linter and execution contracts.
+use super::interface::CertifyUseCase;
+use crate::domain::suite::types::certificate::value::Certificate;
+use crate::outbound::{
+    execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
+};
+use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use std::sync::Arc;
+/// Establish independent correctness evidence for the selected execution profile.
+pub struct CertifyUseCaseImpl {
+    /// Artifact validation and exact content fingerprinting boundary.
+    suite: Arc<dyn SuitePort>,
+    /// Case receipt recording boundary.
+    receipts: Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
+    /// Sealed disk context validation and fingerprinting boundary.
+    context: Arc<dyn crate::outbound::context::interface::ContextPort>,
+    /// Pinned reference tool preparation and decoding boundary.
+    reference: Arc<dyn LinterPort>,
+    /// Candidate tool preparation and decoding boundary.
+    candidate: Arc<dyn LinterPort>,
+    /// Process launch and resource observation boundary.
+    execution: Arc<dyn ExecutionPort>,
+    inventory: Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
+}
+impl CertifyUseCaseImpl {
+    /// Bind the four independently replaceable boundaries.
+    pub fn new(
+        suite: Arc<dyn SuitePort>,
+        receipts: Arc<dyn crate::outbound::receipts::interface::ReceiptsPort>,
+        context: Arc<dyn crate::outbound::context::interface::ContextPort>,
+        reference: Arc<dyn LinterPort>,
+        candidate: Arc<dyn LinterPort>,
+        execution: Arc<dyn ExecutionPort>,
+        inventory: Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
+    ) -> Self {
+        Self {
+            suite,
+            receipts,
+            context,
+            reference,
+            candidate,
+            execution,
+            inventory,
+        }
+    }
+}
+impl CertifyUseCase for CertifyUseCaseImpl {
+    fn certify(
+        &self,
+        directory: &std::path::Path,
+        workload: &std::path::Path,
+        reference_executable: &std::path::Path,
+        candidate_executable: &std::path::Path,
+        selected_rules: &std::path::Path,
+        scratch: &std::path::Path,
+        scope: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
+        cases: &ryo_benchmark_contracts::domain::requests::types::CertificationCases,
+    ) -> Result<Certificate, Error> {
+        super::service::certify(
+            self.suite.as_ref(),
+            self.receipts.as_ref(),
+            self.context.as_ref(),
+            self.reference.as_ref(),
+            self.candidate.as_ref(),
+            self.execution.as_ref(),
+            self.inventory.as_ref(),
+            directory,
+            workload,
+            reference_executable,
+            candidate_executable,
+            selected_rules,
+            scratch,
+            scope,
+            cases,
+        )
+    }
+}
+impl std::fmt::Debug for CertifyUseCaseImpl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(std::any::type_name::<Self>())
+            .finish_non_exhaustive()
+    }
+}
