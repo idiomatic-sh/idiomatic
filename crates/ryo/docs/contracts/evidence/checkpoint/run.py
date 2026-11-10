@@ -23,6 +23,14 @@ validation_json=p/'validation.json'
 tests_json=p/'tests.json'
 commands_json=p/'commands.json'
 TM_TARGETS=('tm_source','tm_cli_source')
+def raw_dir(v):
+ """The validation's raw directory: `raw_identity` names it under `{temp}`, the system temporary directory of the machine reading it,
+ so the record carries no machine path."""
+ return Path(str(v.get('raw_identity') or '/nonexistent').replace('{temp}',tempfile.gettempdir()))
+def raw_identity(out_dir):
+ """`out_dir` as the record names it: under `{temp}` when it is in the system temporary directory, else as given."""
+ temp=Path(tempfile.gettempdir()).resolve(); out=Path(out_dir).resolve()
+ return '{temp}/'+out.relative_to(temp).as_posix() if out.is_relative_to(temp) else str(out_dir)
 # The record's blocks that hold one item per command or per proof: each item is one line of validation.json, so the record grows by a
 # line per command and per red_green entry and stays a file of one screenful per block.
 ONE_LINE_ITEMS=('checks','red_green')
@@ -83,7 +91,7 @@ def fmt(x):
  if isinstance(x,list): return str(len(x))+': '+'; '.join('`'+str(y)+'`' for y in x) if x else '0'
  return str(x)
 def render(v):
- rows=[('Source','`'+v['source'][:10]+'`'),('Validation','validation'+str(v['validation'])+' (raw logs in the directory named `'+Path(v['raw_identity']).name+'`, kept outside the repository)')]
+ rows=[('Source','`'+v['source'][:10]+'`'),('Validation','validation'+str(v['validation'])+' (raw logs in the directory named `'+raw_dir(v).name+'`, kept outside the repository)')]
  rows+=[(k.replace('_',' '),fmt(x)) for k,x in v['results'].items()]
  for n,t in v.get('tm_targets',{}).items():
   rows.append((n+' findings',str(t['findings'])+' ('+str(t['production'])+' production, '+str(t['test'])+' test), '+str(t['suppressed'])+' suppressed, '+str(len(t['scoped_directories']))+' scoped directories'))
@@ -279,7 +287,7 @@ def reruns_without_log(texts,v):
  for where,text in texts:
   if not RERUN.search(text): continue
   logs=re.findall(r'[\w.-]+\.log\b',text)
-  if not logs or not all((Path(v['raw_identity'])/x).is_file() for x in logs): bad.append(where+': cites a rerun with no raw log in '+v['raw_identity']+': '+text[:110])
+  if not logs or not all((raw_dir(v)/x).is_file() for x in logs): bad.append(where+': cites a rerun with no raw log in '+str(raw_dir(v))+': '+text[:110])
  return bad
 RUST_REGRESSIONS='Measure full-Django cold/warm/edit and Rust regressions; meet final objective.'
 CLOSE='Close full TM, contracts, independent review and normal CI.'
@@ -514,7 +522,7 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
  """Each commit of the checkpoint not reachable from the baseline that changes production code (a merge by its own changes), other than a perf commit (which needs an after.json with identical_output true), names a test in its message that a red_green entry over it (its base_sha excluded, its merge_sha included) proves: the entry names that test, its red log shows it fail and its green log shows it pass."""
  repo=repo or p; base=base or checkpoint_base(repo)
  if not base: return [NO_BASE]
- bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}; proven=set(); unproven={}; merges={}
+ bad=[]; raw=raw_dir(v); ranges={}; proven=set(); unproven={}; merges={}
  before=['^'+baseline] if baseline and git(repo,'cat-file','-e',baseline+'^{commit}') is not None else []
  for sha in (git(repo,'rev-list',base+'..'+head,*before) or '').split():
   message=git(repo,'show','-s','--format=%B',sha) or ''
@@ -1086,7 +1094,7 @@ def validate():
   if name=='build' and r.returncode: break
  print('BATCH COMPLETE',flush=True)
  v=json.loads(validation_json.read_text())
- v.update({'source':head,'validation':v['validation']+1,'raw_identity':str(out_dir)})
+ v.update({'source':head,'validation':v['validation']+1,'raw_identity':raw_identity(out_dir)})
  record(v,commands,out_dir)
  record_tests(v,commands,out_dir)
  validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')

@@ -207,6 +207,11 @@ class Check(unittest.TestCase):
   self.assertEqual(json.loads(text),v)
   self.assertEqual(len([l for l in text.splitlines() if '"one": ' in l]),1); self.assertEqual(len([l for l in text.splitlines() if '"merge_sha"' in l]),1)
   self.assertIn('"merge_sha": "'+'c'*40+'"}',text)
+ def test_the_raw_directory_is_named_under_temp_and_read_back_on_any_machine(self):
+  inside=Path(tempfile.gettempdir())/'ryo-contract-validation-x'
+  self.assertEqual(run.raw_identity(inside),'{temp}/ryo-contract-validation-x')
+  self.assertEqual(run.raw_dir({'raw_identity':'{temp}/ryo-contract-validation-x'}),inside)
+  self.assertEqual(run.raw_identity('/srv/raw'),'/srv/raw'); self.assertEqual(run.raw_dir({'raw_identity':'/srv/raw'}),Path('/srv/raw'))
  def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
   v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
   self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])
