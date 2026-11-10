@@ -79,6 +79,10 @@ pub(super) fn number_origins(
                 return None;
             }
             let operation = &plan.steps.get(at)?.operation;
+            #[expect(
+                clippy::wildcard_enum_match_arm,
+                reason = "the trace follows only selection, projection, a plain join and the set operations; every other operation declines the proof"
+            )]
             let (from, column) = match operation {
                 Operation::Select { from, kept, .. } => (
                     *from,
@@ -125,25 +129,7 @@ pub(super) fn number_origins(
                     }
                     return Some(origins);
                 }
-                Operation::Extend { .. }
-                | Operation::GroupCount { .. }
-                | Operation::GroupDigest { .. }
-                | Operation::Capture { .. }
-                | Operation::Rank { .. }
-                | Operation::Replace { .. }
-                | Operation::OrderedMatch { .. }
-                | Operation::Words { .. }
-                | Operation::Axis { .. }
-                | Operation::Closure { .. }
-                | Operation::OrderedDfs { .. }
-                | Operation::Cycles { .. }
-                | Operation::Rows { .. }
-                | Operation::Hosted { .. }
-                | Operation::SpanBetween { .. }
-                | Operation::SourceMatches { .. }
-                | Operation::RenderSyntax { .. }
-                | Operation::FitsRendered { .. }
-                | Operation::SpanBounds { .. } => return None,
+                _ => return None,
             };
             number_origins(plan, from, column, StepPlace(at))
         }

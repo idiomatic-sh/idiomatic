@@ -145,44 +145,13 @@ impl PreparedWalk {
         if first.logical() != instruction.logical() {
             return None;
         }
-        use ryo_values::domain::{plan_parts::types::RepeatedRows, plans::types::Operation};
-        let (relation, comparisons, kept) = match &instruction.operation() {
-            Operation::Select {
-                from: Input::Relation(relation),
-                comparisons,
-                kept,
-            } => (relation, comparisons.as_slice(), kept),
-            Operation::Project {
-                from: Input::Relation(relation),
-                columns,
-                distinct: RepeatedRows::Kept,
-            } => (relation, &[][..], columns),
-            Operation::Select { .. }
-            | Operation::Project { .. }
-            | Operation::Extend { .. }
-            | Operation::Join { .. }
-            | Operation::Union { .. }
-            | Operation::Intersection { .. }
-            | Operation::Difference { .. }
-            | Operation::Antijoin { .. }
-            | Operation::GroupCount { .. }
-            | Operation::GroupDigest { .. }
-            | Operation::Capture { .. }
-            | Operation::Rank { .. }
-            | Operation::Replace { .. }
-            | Operation::OrderedMatch { .. }
-            | Operation::Words { .. }
-            | Operation::Axis { .. }
-            | Operation::Closure { .. }
-            | Operation::OrderedDfs { .. }
-            | Operation::Cycles { .. }
-            | Operation::Rows { .. }
-            | Operation::Hosted { .. }
-            | Operation::SpanBetween { .. }
-            | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
-            | Operation::SpanBounds { .. } => return None,
+        let crate::domain::step_classes::types::PureSelection {
+            from,
+            comparisons,
+            kept,
+        } = crate::domain::step_classes::service::pure_selection(instruction.operation())?;
+        let Input::Relation(relation) = from else {
+            return None;
         };
         if kept.iter().any(|column| {
             !usize::try_from(column.0).is_ok_and(|at| {

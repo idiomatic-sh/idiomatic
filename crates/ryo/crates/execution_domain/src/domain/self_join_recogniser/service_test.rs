@@ -1,7 +1,7 @@
 //! The `self_join_recogniser` service's cases, on values alone.
 
-use super::service::compile;
-use super::types::{Decline, Extremum, Program};
+use super::service::{compile, number_origins};
+use super::types::{Decline, Extremum, Program, StoredNumberOrigin};
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, Relation},
@@ -21,6 +21,9 @@ enum Scenario {
     ViewedJoin,
     NaturalOrder,
     NativeOrigin,
+    /// A number of a stored relation's selection, read through one operation over that selection: given the number's
+    /// column in the selection, the operation and the number's column in its answer.
+    Traced(Through),
 }
 type Input = Scenario;
 type Value = ();
@@ -108,14 +111,97 @@ fn prepared(plan: &Plan, schema: &[CellKind]) -> Program {
     compile(plan, &|id| (id == StepId(0)).then_some(schema))
 }
 
+/// One operation over the selection, built from the number's column there, with the number's column in its answer.
+type Through = fn(ColumnIndex) -> (Operation, ColumnIndex);
+/// The origins of the number the second step answers, when that step is `through` over the first step's selection of a
+/// stored relation.
+fn traced(through: Through) -> Result<Vec<StoredNumberOrigin>, Failure> {
+    let (mut plan, _) = fixture(Relation::SourceLocation);
+    let Operation::Join { output, .. } = &plan.steps[1].operation else {
+        panic!("the fixture's second step is the join");
+    };
+    let (operation, column) = through(output[0].column);
+    plan.steps.truncate(1);
+    plan.steps.push(PlanStep {
+        operation,
+        scope: StepScope::PerFile,
+    });
+    number_origins(
+        &plan,
+        Source::Step(StepId(1)),
+        column,
+        crate::domain::operator::types::StepPlace(2),
+    )
+    .ok_or(Decline::UnprovenNumberOrigin)
+}
+fn project(number: ColumnIndex) -> (Operation, ColumnIndex) {
+    (
+        Operation::Project {
+            from: Source::Step(StepId(0)),
+            columns: vec![number],
+            distinct: RepeatedRows::Kept,
+        },
+        ColumnIndex(0),
+    )
+}
+fn join(number: ColumnIndex) -> (Operation, ColumnIndex) {
+    (
+        Operation::Join {
+            left: Source::Step(StepId(0)),
+            right: Source::Step(StepId(0)),
+            left_on: vec![ColumnIndex(0)],
+            right_on: vec![ColumnIndex(0)],
+            output: vec![JoinColumn {
+                side: Side::Left,
+                column: number,
+            }],
+            filter: vec![],
+            view: vec![],
+            reach: None,
+        },
+        ColumnIndex(0),
+    )
+}
+fn antijoin(number: ColumnIndex) -> (Operation, ColumnIndex) {
+    (
+        Operation::Antijoin {
+            left: Source::Step(StepId(0)),
+            right: Source::Step(StepId(0)),
+            left_on: vec![ColumnIndex(0)],
+            right_on: vec![ColumnIndex(0)],
+        },
+        number,
+    )
+}
+fn union(number: ColumnIndex) -> (Operation, ColumnIndex) {
+    (
+        Operation::Union {
+            left: Source::Step(StepId(0)),
+            right: Source::Step(StepId(0)),
+        },
+        number,
+    )
+}
+
 fn subject(scenario: Input) -> Result<Value, Failure> {
+    if let Scenario::Traced(through) = scenario {
+        assert_eq!(
+            traced(through)?,
+            [StoredNumberOrigin {
+                relation: Relation::SourceLocation,
+                column: ColumnIndex(3),
+            }]
+        );
+        return Ok(());
+    }
     let (mut plan, schema) = fixture(match scenario {
         Scenario::NativeOrigin => Relation::SyntaxChild,
         Scenario::Eligible
         | Scenario::ExtraConsumer
         | Scenario::FilteredJoin
         | Scenario::ViewedJoin
-        | Scenario::NaturalOrder => Relation::SourceLocation,
+        | Scenario::NaturalOrder
+        | Scenario::Traced(_) => Relation::SourceLocation,
     });
     match scenario {
         Scenario::Eligible => {}
@@ -139,7 +225,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 comparisons[0].test = Test::NaturalLessThan;
             }
         }
-        Scenario::NativeOrigin => {}
+        Scenario::NativeOrigin | Scenario::Traced(_) => {}
     }
     let found = prepared(&plan, &schema);
     if let Some(declined) = found.declines.first() {
@@ -201,6 +287,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::NativeOrigin,
         expect: Expect::Error(Decline::UnprovenNumberOrigin),
+    },
+    Case {
+        name: CaseName("a_number_traced_through_a_projection_keeps_its_relation_origin"),
+        word: Word::Succeeds,
+        input: || Scenario::Traced(project),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_number_traced_through_a_plain_join_keeps_its_relation_origin"),
+        word: Word::Succeeds,
+        input: || Scenario::Traced(join),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_number_traced_through_an_antijoin_keeps_its_relation_origin"),
+        word: Word::Succeeds,
+        input: || Scenario::Traced(antijoin),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_number_traced_through_a_union_keeps_its_relation_origin"),
+        word: Word::Succeeds,
+        input: || Scenario::Traced(union),
+        expect: Expect::Value(()),
     },
 ];
 

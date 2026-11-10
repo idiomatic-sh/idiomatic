@@ -28,43 +28,22 @@ pub(crate) fn prepare(
             }
         }
         Union | Intersection | Difference => first(Lifetime::Invocation, output.clone()),
-        Join => match operation {
-            Operation::Join {
+        Join => {
+            if let Operation::Join {
                 reach: Some(reach), ..
-            } => first(
-                Lifetime::PrimaryRow,
-                crate::domain::operation_schema::service::reach_kinds(
-                    inputs.get(1).map_or(&[], |input| input.kinds),
-                    reach,
-                ),
-            ),
-            Operation::Join { .. }
-            | Operation::Select { .. }
-            | Operation::Project { .. }
-            | Operation::Extend { .. }
-            | Operation::Union { .. }
-            | Operation::Intersection { .. }
-            | Operation::Difference { .. }
-            | Operation::Antijoin { .. }
-            | Operation::GroupCount { .. }
-            | Operation::GroupDigest { .. }
-            | Operation::Capture { .. }
-            | Operation::Rank { .. }
-            | Operation::Replace { .. }
-            | Operation::OrderedMatch { .. }
-            | Operation::Words { .. }
-            | Operation::Axis { .. }
-            | Operation::Closure { .. }
-            | Operation::OrderedDfs { .. }
-            | Operation::Cycles { .. }
-            | Operation::Rows { .. }
-            | Operation::Hosted { .. }
-            | Operation::SpanBetween { .. }
-            | Operation::SourceMatches { .. }
-            | Operation::RenderSyntax { .. }
-            | Operation::FitsRendered { .. }
-            | Operation::SpanBounds { .. } => WorkspaceProgram::None,
-        },
+            } = operation
+            {
+                first(
+                    Lifetime::PrimaryRow,
+                    crate::domain::operation_schema::service::reach_kinds(
+                        inputs.get(1).map_or(&[], |input| input.kinds),
+                        reach,
+                    ),
+                )
+            } else {
+                WorkspaceProgram::None
+            }
+        }
         Select | Antijoin | Extend | Replace | Capture | Rank | Words | OrderedMatch
         | GroupCount | GroupDigest | Closure | Cycles | OrderedDfs | Axis | Rows | Hosted
         | SourceMatches | RenderSyntax | FitsRendered | SpanBounds | SpanBetween => {

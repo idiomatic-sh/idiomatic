@@ -50,6 +50,10 @@ impl PreparedMatchers {
     pub fn from_operations<'a>(operations: impl IntoIterator<Item = &'a Operation>) -> Self {
         let mut prepared = Self::default();
         for operation in operations {
+            #[expect(
+                clippy::wildcard_enum_match_arm,
+                reason = "only Select, Join and Axis carry literal comparisons and only Replace and SourceMatches a literal pattern; every other operation declares no literal key"
+            )]
             let comparisons = match operation {
                 Operation::Select { comparisons, .. } => comparisons.as_slice(),
                 Operation::Join { filter, .. } => filter.as_slice(),
@@ -61,27 +65,7 @@ impl PreparedMatchers {
                     );
                     continue;
                 }
-                Operation::Project { .. }
-                | Operation::Extend { .. }
-                | Operation::Union { .. }
-                | Operation::Intersection { .. }
-                | Operation::Difference { .. }
-                | Operation::Antijoin { .. }
-                | Operation::GroupCount { .. }
-                | Operation::GroupDigest { .. }
-                | Operation::Capture { .. }
-                | Operation::Rank { .. }
-                | Operation::OrderedMatch { .. }
-                | Operation::Words { .. }
-                | Operation::Closure { .. }
-                | Operation::OrderedDfs { .. }
-                | Operation::Cycles { .. }
-                | Operation::Rows { .. }
-                | Operation::Hosted { .. }
-                | Operation::SpanBetween { .. }
-                | Operation::RenderSyntax { .. }
-                | Operation::FitsRendered { .. }
-                | Operation::SpanBounds { .. } => continue,
+                _ => continue,
             };
             for comparison in comparisons {
                 if let Operand::Literal(QueryLiteral::Text(pattern)) = &comparison.right {
