@@ -119,7 +119,8 @@ def scope_problem(scope, bead):
         return "the brief names no BEAD: <id>"
     with open(scope, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
-    listed = {word.rstrip(".,;") for line in re.findall(r"^BEADS:(.*)$", text, re.MULTILINE) for word in line.split()}
+    prose = re.sub(r"^(```|~~~).*?^\1[^\n]*$", "", text, flags=re.MULTILINE | re.DOTALL)  # code fences are examples
+    listed = {word.rstrip(".,;") for line in re.findall(r"^BEADS:(.*)$", prose, re.MULTILINE) for word in line.split()}
     own = os.path.basename(scope) == "scope-" + bead + ".md" and names(text, bead)
     if not own and bead not in listed:
         return ("the scope report " + scope + " is neither scope-" + bead + ".md naming the bead nor a checkpoint "

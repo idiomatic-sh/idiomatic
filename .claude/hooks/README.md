@@ -2,7 +2,7 @@
 
 `guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent:
 no subagent spawns another, and a `builder` launch needs `SCOPE=<path>`, a report naming its bead, with a passing
-`scope-review-<bead>.json` that carries the report's sha256),
+`scope-review-<report stem>.json` that carries the report's sha256),
 `acceptance_on_stop.py` (SubagentStop) and `check_in_on_stop.py` (Stop). `test_hooks.py` holds their cases; run it with
 `python3 -m unittest test_hooks` in this directory.
 
@@ -16,6 +16,10 @@ grades a hook escape only for a spelling an agent would plausibly write by accid
 The census in `run.py --census` reads Rust source with a hand-written scanner until it is replaced by ryo queries over
 the source (after the checkpoint-loop PR). A further edge case of that scanner is owned by that
 replacement: a leak review reports it as an advisory, not a check 2 failure, unless the shape occurs in the real tree.
+
+A here-document body is read as commands, like every other line: telling data from commands there was tried and
+each attempt hid later lines from the guards. The cost is a refusal when a heredoc's text mentions `cargo` or a push;
+write such text with the Write tool and pass the file (`git commit -F <file>`).
 
 ## Known non-goals
 These reach past the guards and are left out on purpose; none is a spelling an agent writes by accident:

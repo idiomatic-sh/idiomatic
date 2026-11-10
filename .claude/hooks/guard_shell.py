@@ -59,95 +59,6 @@ def segments(text):
     return out
 
 
-HEREDOC = re.compile(r"(?<!<)<<(-?)[ \t]*\\?(['\"]?)([A-Za-z_][\w.-]*)\2")
-SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "fish", "eval", "source", "."}
-SUDO_VALUES = {"-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T", "--user", "--group", "--chdir"}
-
-
-def logical_line(text, i):
-    """The command line starting at i, up to the newline that ends it, and the here-document operators it holds.
-    Quotes carry across newlines, a backslash-newline continues the line, and comments and arithmetic `((...))` are
-    skipped, so a `<<` inside any of them is not an operator. Returns (end index, operators)."""
-    quote, operators, depth = None, [], 0
-    while i < len(text):
-        c = text[i]
-        if c == "\\" and quote != "'" and i + 1 < len(text):
-            i += 2
-            continue
-        if quote:
-            quote = None if c == quote else quote
-        elif c in "'\"":
-            quote = c
-        elif c == "#" and depth == 0 and (i == 0 or text[i - 1] in " \t\n;|&()"):
-            end = text.find("\n", i)
-            return (len(text) if end < 0 else end), operators
-        elif text.startswith("((", i):
-            depth += 1
-            i += 2
-            continue
-        elif depth and text.startswith("))", i):
-            depth -= 1
-            i += 2
-            continue
-        elif c == "\n":
-            return i, operators
-        elif text.startswith("<<<", i):
-            i += 3  # a here-string: its word is on this line, and no body follows
-            continue
-        elif depth == 0 and text.startswith("<<", i):
-            found = HEREDOC.match(text, i)
-            if found:
-                operators.append(found)
-                i = found.end()
-                continue
-        i += 1
-    return i, operators
-
-
-def shell_word(words):
-    """True when the command behind every wrapper, sudo included, is a shell that reads its input."""
-    words = peel(words)
-    while words and os.path.basename(words[0]) == "sudo":
-        words = words[1:]
-        while words and words[0].startswith("-"):
-            words = words[2:] if words[0] in SUDO_VALUES else words[1:]
-        words = peel(words)
-    return bool(words) and os.path.basename(words[0]) in SHELLS
-
-
-def shell_reads(line):
-    """True when anything on the line could hand a here-document body to a shell: any command of any of its pipelines
-    or substitutions is a shell, or the line ends in a pipe or an operator whose reader is on a later line."""
-    if re.search(r"(\|\|?|&&|\\)\s*$", line):
-        return True
-    return any(shell_word(tokens(segment)) for segment in segments(line.replace("\\\n", " ")))
-
-
-def without_heredoc_bodies(text):
-    """text with each here-document body dropped: its lines are data, not commands, unless a shell can read them
-    (shell_reads); then the body is kept and read as commands, as before."""
-    out, i = [], 0
-    while i < len(text):
-        end, operators = logical_line(text, i)
-        line = text[i:end]
-        out.append(line)
-        i = end + 1
-        if not operators or shell_reads(line):
-            out.append("\n")
-            continue
-        for found in operators:
-            dash, delimiter = found.group(1) == "-", found.group(3)
-            while i < len(text):
-                stop = text.find("\n", i)
-                stop = len(text) if stop < 0 else stop
-                body, i = text[i:stop], stop + 1
-                if (body.lstrip("\t") if dash else body) == delimiter:
-                    break
-        out.append("\n")
-    result = "".join(out)
-    return result[:-1] if result.endswith("\n") and not text.endswith("\n") else result
-
-
 WRAPPERS = {"env", "time", "exec", "nohup", "command", "nice", "timeout", "stdbuf", "xargs", "flock", "ionice",
             "unbuffer", "script", "watch"}
 WRAPPER_VALUES = {"env": {"-u", "-n", "-C", "--unset", "--chdir"}, "nice": {"-n", "--adjustment"},
@@ -1224,7 +1135,7 @@ def evidence_writes(segment, words, here):
 
 
 def reason(command, cwd=None):
-    clean = COMMENT.sub("", without_heredoc_bodies(command))
+    clean = COMMENT.sub("", command)
     if re.search(r"\b(while|until|for)\b", clean) and re.search(r"\b(pgrep|pkill)\b[^;&|\n]*\s-[A-Za-z]*f", clean):
         return "self-matching wait loop (pgrep/pkill -f in a loop); use pid files or pgrep -x"
     if has_cargo_command(clean) and not all(integration_tree(d) for d in working_dirs(clean, cwd)):

@@ -57,9 +57,7 @@ class GuardShell(unittest.TestCase):
         self.assertEqual(shell(LOCK + "cargo build -C " + self.integration, self.builder), 2)
         self.assertEqual(shell(LOCK + "cargo build", "/workspaces/ryo-perf-x"), 0)
 
-    def test_cargo_in_heredoc_body_text_is_not_a_command(self):
-        message = "git commit -F - <<'EOF'\nfix: x\n\ncargo test -p x is the integrator's (y; cargo build).\nEOF"
-        self.assertEqual(shell(message, self.builder), 0)
+    def test_cargo_in_a_heredoc_body_is_read_as_a_command(self):
         self.assertEqual(shell("cat > notes.md <<-EOF\n\tcargo build\n\tEOF\ncargo build", self.builder), 2)
         self.assertEqual(shell("bash <<'EOF'\ncargo build\nEOF", self.builder), 2)
         body = "\ncargo build\nEOF"
@@ -74,10 +72,12 @@ class GuardShell(unittest.TestCase):
                         "cat <<EOF | source /dev/stdin" + body, "cat <<EOF | . /dev/stdin" + body]:
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 2)
-        for command in ["cat > notes.md <<'EOF'\ncargo build\nEOF", "tee notes.md <<EOF >/dev/null\ncargo build\nEOF",
-                        "cat <<EOF | tee notes.md\ncargo build\nEOF", "git commit -F - <<'EOF'\nfix(x): y # z\ncargo build\nEOF"]:
+        push = "\ngit push origin HEAD:main"
+        for command in ["x=$(cat <<EOF\nhi\nEOF)" + push, "x=$(cat <<'EOF'\nhi\nEOF)" + push,
+                        "echo \"$(printf '%s' \"the <<EOF form\")\"" + push,
+                        "git commit -m \"$(printf '%s' \"the <<EOF form\")\"" + push, "let x=1<<y" + push]:
             with self.subTest(command=command):
-                self.assertEqual(shell(command, self.builder), 0)
+                self.assertEqual(shell(command, self.builder), 2)
 
     def test_a_here_string_hides_no_later_line(self):
         self.assertEqual(shell("read -r base <<<\"main\"\ngit push origin HEAD:main", self.builder), 2)
@@ -1659,6 +1659,8 @@ class ScopeGate(unittest.TestCase):
         path = self.scope("PROCEED", passed, bead="cp334", names="cp334\nBEADS: ryo-a ryo-b")
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
         path = self.scope("PROCEED", passed, bead="cp334", names="cp334; ryo-x is mentioned\nBEADS: ryo-a")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        path = self.scope("PROCEED", passed, bead="cp334", names="cp334\n```\nBEADS: ryo-x\n```\nBEADS: ryo-a")
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
 
     def test_refuses_a_scope_changed_after_its_review(self):
