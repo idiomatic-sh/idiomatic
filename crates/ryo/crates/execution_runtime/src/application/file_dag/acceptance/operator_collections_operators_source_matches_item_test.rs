@@ -73,9 +73,11 @@ fn evaluate(
     Ok(output
         .cells
         .chunks_exact(2)
-        .map(|row| match row[1] {
-            Value::Span(span) => span,
-            _ => panic!("typed occurrence span required"),
+        .map(|row| {
+            let Value::Span(span) = row[1] else {
+                panic!("typed occurrence span required");
+            };
+            span
         })
         .collect())
 }

@@ -47,6 +47,10 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 /// # Panics
 ///
 /// When the implementation changes ordered projection or its refusal.
+#[expect(
+    clippy::expect_used,
+    reason = "a contract fixture: a projection that writes other than three cells is the change it reports by failing"
+)]
 pub fn check(adapter: &impl OperatorsPort) {
     let subject = |(row, columns): Input| {
         let mut output = Vec::new();
@@ -56,7 +60,11 @@ pub fn check(adapter: &impl OperatorsPort) {
             target: &mut output,
         })? {
             OperatorAnswer::Written => Ok(output.try_into().expect("three projected cells")),
-            _ => panic!("project must write a row"),
+            OperatorAnswer::Selected(_)
+            | OperatorAnswer::Rank(_)
+            | OperatorAnswer::ValueHash(_)
+            | OperatorAnswer::SpanBounds(_)
+            | OperatorAnswer::SpanBetween(_) => panic!("project must write a row"),
         }
     };
     run(CASES, Word::Succeeds, subject);

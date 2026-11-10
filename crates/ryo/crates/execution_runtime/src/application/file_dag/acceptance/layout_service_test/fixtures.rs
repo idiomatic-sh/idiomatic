@@ -31,7 +31,9 @@ pub(super) fn plan(steps: Vec<PlanStep>, frontier: Vec<Input>) -> Plan {
         observations: vec![],
         parameters: vec![],
         emit: Emit {
-            step: StepId(steps.len().saturating_sub(1) as u32),
+            step: StepId(
+                u32::try_from(steps.len().saturating_sub(1)).expect("a step number fits in u32"),
+            ),
             subject: ColumnIndex(0),
             key: vec![],
             headings: vec![],
