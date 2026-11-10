@@ -26,8 +26,6 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-# The crates a product's SDK wraps: no type defined in one of them may be reachable from the SDK's public API.
-INTERNAL = ("ryo_core", "ryo_language", "ryo_relations", "ryo_values", "ryo_query_language")
 
 # The one trait implementation allowed to name an internal crate's type: `From<Language> for LanguageConnection`, which the command line
 # and the tests of the products compose the engine with. It is `doc(hidden)` and stays public because the SDK's composition and the
@@ -64,7 +62,15 @@ def allowed_impl(document: dict, impl: dict, leaked: str) -> bool:
     return leaked == implemented_for and implemented_for in ALLOWED_IMPLS
 
 
-def leaks(document: dict, allowed: list[str]) -> list[str]:
+def internal_crates(manifest: Path) -> tuple[str, ...]:
+    """The crates a product's SDK wraps, read from the SDK's own manifest: each `[dependencies]` entry with a `path`, by the name its
+    code uses. No type defined in one of them may be reachable from the SDK's public API; a path dependency the SDK gains is held
+    to that at once, with no second list to keep."""
+    dependencies = tomllib.loads(manifest.read_text()).get("dependencies", {})
+    return tuple(sorted(name for name, spec in dependencies.items() if isinstance(spec, dict) and "path" in spec))
+
+
+def leaks(document: dict, allowed: list[str], internal: tuple[str, ...]) -> list[str]:
     """The public items of the crate in rustdoc's JSON `document`, `doc(hidden)` ones included, that name a type defined in an
     internal crate, each as `<path of the item> -> <path of the type>`, except the items whose path starts with an allowed one
     and the types the crate itself re-exports from an allowed module. A method's path is its type's, then its name."""
@@ -125,7 +131,7 @@ def leaks(document: dict, allowed: list[str]) -> list[str]:
             continue
         for target in sorted(named - surface):
             entry = paths.get(str(target))
-            if entry and entry["crate_id"] != 0 and external.get(entry["crate_id"], "").replace("idiomatic_sh_", "") in INTERNAL:
+            if entry and entry["crate_id"] != 0 and external.get(entry["crate_id"], "").replace("idiomatic_sh_", "") in internal:
                 if impl is not None and allowed_impl(document, impl, "::".join(entry["path"])):
                     continue
                 leaked.append(f"{where} -> {'::'.join(entry['path'])}")
@@ -165,7 +171,8 @@ def check(directory: Path) -> None:
     )
     target = Path(metadata["target_directory"])
     document = json.loads((target / "doc" / f"{api['library']}.json").read_text())
-    found = leaks(document, api.get("allow", []))
+    sdk_manifest = Path(next(each["manifest_path"] for each in metadata["packages"] if each["name"] == package))
+    found = leaks(document, api.get("allow", []), internal_crates(sdk_manifest))
     if found:
         raise RuntimeError("the SDK's public API reaches an internal crate's type:\n  " + "\n  ".join(found))
     listing = subprocess.run(

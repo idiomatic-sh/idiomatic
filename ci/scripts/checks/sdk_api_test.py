@@ -17,6 +17,9 @@ sdk_api = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(sdk_api)
 leaks = sdk_api.leaks
 
+# The internal crates the leak cases are judged against, as the ryo SDK's manifest gave them before the execution crates joined it.
+INTERNAL = ("ryo_core", "ryo_language", "ryo_query_language", "ryo_relations", "ryo_values")
+
 MANIFEST = """[workspace.metadata.api]
 package = "demo-sdk"
 library = "demo"
@@ -37,16 +40,16 @@ def document(name: str, crate: str) -> dict:
 
 
 def test_a_public_item_naming_an_internal_crates_type_is_a_leak() -> None:
-    assert leaks(document("lint", "ryo_core"), []) == ["demo::lint -> ryo_core::types::Thing"]
-    assert leaks(document("lint", "idiomatic_sh_ryo_language"), []) == ["demo::lint -> idiomatic_sh_ryo_language::types::Thing"]
+    assert leaks(document("lint", "ryo_core"), [], INTERNAL) == ["demo::lint -> ryo_core::types::Thing"]
+    assert leaks(document("lint", "idiomatic_sh_ryo_language"), [], INTERNAL) == ["demo::lint -> idiomatic_sh_ryo_language::types::Thing"]
 
 
 def test_a_type_of_another_crate_is_no_leak() -> None:
-    assert leaks(document("lint", "serde"), []) == []
+    assert leaks(document("lint", "serde"), [], INTERNAL) == []
 
 
 def test_an_allowed_path_is_not_reported() -> None:
-    assert leaks(document("old", "ryo_core"), ["demo::old"]) == []
+    assert leaks(document("old", "ryo_core"), ["demo::old"], INTERNAL) == []
 
 
 def method(crate: str, exported: bool) -> dict:
@@ -78,11 +81,11 @@ def method(crate: str, exported: bool) -> dict:
 
 
 def test_a_hidden_method_of_an_allowed_type_naming_an_internal_type_is_a_leak() -> None:
-    assert leaks(method("ryo_language", False), ["demo::old"]) == ["demo::old::Handle::engine -> ryo_language::types::Thing"]
+    assert leaks(method("ryo_language", False), ["demo::old"], INTERNAL) == ["demo::old::Handle::engine -> ryo_language::types::Thing"]
 
 
 def test_a_method_naming_a_type_the_allowed_module_exports_is_no_leak() -> None:
-    assert leaks(method("ryo_language", True), ["demo::old"]) == []
+    assert leaks(method("ryo_language", True), ["demo::old"], INTERNAL) == []
 
 
 def trait_impl(implemented_for: list[str], argument: list[str]) -> dict:
@@ -118,16 +121,16 @@ HANDLES = ["ryo_core", "outbound", "language", "adapters", "use_case", "connecti
 
 
 def test_a_trait_impl_for_an_internal_type_that_is_not_the_listed_one_is_a_leak() -> None:
-    assert leaks(trait_impl(["ryo_core", "types", "Thing"], ["demo", "Language"]), []) == ["an impl -> ryo_core::types::Thing"]
+    assert leaks(trait_impl(["ryo_core", "types", "Thing"], ["demo", "Language"]), [], INTERNAL) == ["an impl -> ryo_core::types::Thing"]
 
 
 def test_the_listed_trait_impl_is_no_leak() -> None:
     assert sdk_api.ALLOWED_IMPLS == ("::".join(HANDLES),)
-    assert leaks(trait_impl(HANDLES, ["demo", "Language"]), []) == []
+    assert leaks(trait_impl(HANDLES, ["demo", "Language"]), [], INTERNAL) == []
 
 
 def test_the_listed_impl_naming_another_internal_type_leaks_that_type() -> None:
-    assert leaks(trait_impl(HANDLES, ["ryo_core", "types", "Thing"]), []) == ["an impl -> ryo_core::types::Thing"]
+    assert leaks(trait_impl(HANDLES, ["ryo_core", "types", "Thing"]), [], INTERNAL) == ["an impl -> ryo_core::types::Thing"]
 
 
 def test_a_product_that_names_no_api_passes_without_running_anything(tmp_path, monkeypatch) -> None:
@@ -150,6 +153,11 @@ def run_check(
     (tmp_path / "crates/demo").mkdir(parents=True, exist_ok=True)
     (tmp_path / "crates/demo/Cargo.toml").write_text(MANIFEST)
     (tmp_path / "crates/demo/api.txt").write_text("pub fn demo::lint()\n")
+    # The SDK's manifest, whose path dependencies are the internal crates the leak check holds the surface to.
+    (tmp_path / "crates/demo/sdk").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "crates/demo/sdk/Cargo.toml").write_text(
+        '[package]\nname = "demo-sdk"\n\n[dependencies]\n' + "".join(f'{name} = {{ path = "../{name}" }}\n' for name in INTERNAL)
+    )
     (tmp_path / "target/doc").mkdir(parents=True, exist_ok=True)
     (tmp_path / "target/doc/demo.json").write_text(json.dumps(rustdoc))
     calls = []
@@ -259,3 +267,23 @@ def test_the_top_level_is_asked_of_git_without_the_variables_a_hook_exports(tmp_
     (tmp_path / "product").mkdir()
     monkeypatch.setenv("GIT_DIR", str(tmp_path / ".git"))
     assert sdk_api.toplevel(tmp_path / "product").resolve() == tmp_path.resolve()
+
+
+def test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks(tmp_path: Path) -> None:
+    manifest = tmp_path / "Cargo.toml"
+    manifest.write_text(
+        '[package]\nname = "demo-sdk"\n\n[dependencies]\n'
+        'ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", version = "0.1.3" }\n'
+        'ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.1.3" }\n'
+        'serde = { version = "1" }\n'
+        'thiserror = "2"\n'
+    )
+    assert sdk_api.internal_crates(manifest) == ("ryo_core", "ryo_execution")
+    assert leaks(document("run", "ryo_execution"), [], sdk_api.internal_crates(manifest)) == ["demo::run -> ryo_execution::types::Thing"]
+    assert leaks(document("run", "serde"), [], sdk_api.internal_crates(manifest)) == []
+
+
+def test_the_ryo_sdk_manifest_names_the_execution_crates_internal() -> None:
+    manifest = Path(__file__).parents[3] / "crates/ryo/crates/sdk/Cargo.toml"
+    internal = sdk_api.internal_crates(manifest)
+    assert {"ryo_execution", "ryo_execution_runtime", "ryo_operators", "ryo_matching", "ryo_core"} <= set(internal)
