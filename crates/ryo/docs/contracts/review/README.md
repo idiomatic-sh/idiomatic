@@ -114,32 +114,46 @@ One definition validates this shape: `shape` in `ci/contract_review/service.py`.
 
 ## Known red
 
-Each is named with its reason and owner in `validation.json` (`results`, the final checkpoint 333 run, validated source
-`563c0bc69b`) and in the checkpoint 333 integration record in [the matrix](../README.md).
+Written by `run.py` from `validation.json` (validation335, validated source `333641a62a`); a run rewrites it, so it
+names exactly the red commands `run.py --check` prints, each red test by its exact id, and their owners.
 
-- `core_allocation` (core `allocation` test, exit 101): a Phase 7 measurement.
-- Benchmark library 229 / 1: `verify_cases` `process_capture::test::succeeds`, one red row.
-- Cli `replay` target: 96 passed / 3 failed, each owned: import-fan-in's false `derive_message_formats.rs` edge, an
-  `error-variant-never-constructed` row for a variant `?` constructs through `#[from]`, and the warm peak.
-- Cli `cli_cost`: 4 / 3, the three unseeded ruff ratchet rows; the Django rows answer not available without a preflight worker.
-- Asymptote check group, beyond the rows above: javascript and typescript `manifest_diagnostic` `item_test::succeeds` (the not-JSON row expects
-  file 1 for the manifest the fixture lists first), `correctness-python-ruff` (a stale native descriptor digest) and the python
-  `allocation` target; each red before 333 and owned.
-- Tastemaker workspace 264 / 4: three red since 331 (two `scaffold` replays and one `validate` bound) and the cold check of
-  crates/ryo over its memory guard (4,424,456 KiB against 1,331,200): the project phase's row retention, recorded red by owner
-  decision and owned by the fused rewrite.
+- `RED sdk_api exit 1, owned by "The next SDK release is breaking (semver 0.x major, i.e. 0.2.0), owner-started via release-plz."`
+  - `semver-checks` `constructible_struct_adds_field`
+  - `semver-checks` `enum_missing`
+  - `semver-checks` `enum_no_repr_variant_discriminant_changed`
+  - `semver-checks` `struct_missing`
+- `RED default_features exit 101, owned by "Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, Rust regression guards within bounds."; "Close full TM, contracts, independent review and normal CI."; "Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass."; "Measure full-Django cold/warm/edit and Rust regressions; meet final objective."`
+  - `allocation` `allocation::core::reading_allocates_as_the_parser_library_does`
+  - `allocation` `allocation::python::reading_allocates_as_the_parser_library_does`
+  - `replay` `behavior::ruff_findings_equal_the_expected_findings`
+  - `replay` `behavior::every_recorded_rule_gives_the_recorded_rows`
+  - `replay` `cost::a_cold_run_over_ruff_holds_the_peak_ratchet`
+  - `replay` `cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets`
+  - `replay` `cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff`
+  - `replay` `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound`
+  - `ryo_benchmark` `inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds`
+- `RED libraries exit 101, owned by "Close full TM, contracts, independent review and normal CI."`
+  - `ryo_benchmark` `inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds`
+- `RED core_allocation exit 101, owned by "Measure full-Django cold/warm/edit and Rust regressions; meet final objective."`
+  - `allocation` `allocation::core::reading_allocates_as_the_parser_library_does`
+- `RED cli_tests exit 101, owned by "Close full TM, contracts, independent review and normal CI."; "Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass."`
+  - `replay` `behavior::ruff_findings_equal_the_expected_findings`
+  - `replay` `behavior::every_recorded_rule_gives_the_recorded_rows`
+  - `replay` `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound`
+- `RED cli_cost exit 101, owned by "Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, Rust regression guards within bounds."`
+  - `replay` `cost::a_cold_run_over_ruff_holds_the_peak_ratchet`
+  - `replay` `cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets`
+  - `replay` `cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff`
+- `tastemaker_workspace` 264 / 4: rerun at 333641a62a (rerun_333641a62a_tastemaker_workspace.log): cargo test --workspace --all-features in crates/tastemaker, 264 / 4 as at 333. Red, each owned: the cold check of crates/ryo under its memory guard (4,348,400 KiB against 1,331,200), recorded red by owner decision and owned by the fused rewrite; and, red at 331 too, replay scaffold a_captured_nested_item_is_written_and_held, scaffold a_fresh_language_compiles_and_lacks_no_part and validate validating_the_repository_s_definitions_stays_within_its_bounds; owned by "Close full TM, contracts, independent review and normal CI."
 
 ## Verification limits
 
-Not covered by the latest validation (`validation.json`, validated source `563c0bc69b`, the final checkpoint 333 run; "not full
-product acceptance"):
+The latest validation, validation335 at `333641a62a`, is not full product acceptance. It leaves out:
 
-- Whole-tree TM over crates/ryo is measured with tm 0.1.2 rebuilt from the validated head on a fresh store, outside the
-  validation set; the scoped `tm_source` run is 0. The root and Tastemaker workspaces keep tm 0.1.0, their pin, until the owner
-  releases tastemaker 0.1.2.
-- The Django receipt was taken at `e0a566da62`; the repair pass after it changes no code the receipt worker runs (an exhaustive
-  match with the same answers, version numbers, test fixtures and the checkpoint harness).
-- Language conformance targets print no pass count; exit 0 is the receipt.
+- Whole-tree TM over crates/ryo, which is measured outside the validation set: tm 0.1.2, built from the checkout, gives 0 findings in tracked files at `a33f361f7a` (`tm_whole_tree` in `validation.json`). The scoped `tm_source` run is 0. The root and the Tastemaker workspaces keep tm 0.1.0, their pin, until the owner releases tastemaker 0.1.2.
+- The full Django receipt, which `django334.sh` takes after the batch at the same head: exit 0, unknown or unread 0, output `f50bb571`, 89.8 s wall at load 1.89. The commits after `333641a62a` change the record, the checkpoint harness, `sdk_api.py` and two test lines, none of which the receipt worker runs.
+- `sdk_api`, re-run alone at `56169f083f` after its leak set became every workspace member the SDK reaches. That run has no leak and the same four owned semver lints.
+- The language conformance targets and the four other tools `run.py` names `NO COUNT`, which print no count of what they checked, so exit 0 is their receipt.
 
 Links: [matrix](../README.md), [execution plan](../execution-plan.md),
 [reviewer instructions](../../../../../.agents/agents/contract-review.md),
