@@ -1,0 +1,10 @@
+version = 1
+parents = ["2d8415ec9aac527e3b9e7ad536bda8533d32b93161883c423d9736c5982767bd"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_domain/src/domain/observation_schedule/service/link.rs", level = "error", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/ryo/crates/execution_domain/src/domain/observation_schedule/service/link.rs` has 429 lines, over the file-length limit", since_rev = "2a8ee439536e6bfbab54185234fe12fc09ec03c8", since = "2026-11-10" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/no-silent-skip", path = "crates/core/tests/allocation.rs", level = "error", fingerprint = "d3b54c05a410426b" },
+]
