@@ -91,6 +91,22 @@ pub(crate) mod sealed {
 ///     fn release(&self) {}
 /// }
 /// ```
+///
+/// # Examples
+///
+/// The generation a store issues stays the same until the store releases it; a release ends it.
+/// ```
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+/// use ryo_execution_store::application::file_dag::relations::{
+///     interface::RelationStore, types::ReuseEligibility, RelationOwner,
+/// };
+/// let store = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+/// let resident = store.generation();
+/// assert!(resident.same(&store.generation()).is_ok());
+/// store.release();
+/// assert!(matches!(resident.same(&store.generation()), Err(OperatingError::NotRead)));
+/// ```
 pub trait RelationStore: sealed::Sealed {
     /// The resident population's generation.
     fn generation(&self) -> ResidentGeneration;
