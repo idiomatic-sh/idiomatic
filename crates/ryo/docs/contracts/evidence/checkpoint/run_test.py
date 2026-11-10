@@ -1,6 +1,6 @@
 # ignore: idiomatic.arch/file-length - the fixture cases of run.py, the one validation script of this directory: one test module per script, as the directory has no other test file role
 """Fixture cases of `run.py --check`: a ticked row (a `[x]` box or a `☑` cell) stays ticked only when it cites a test, every test it cites passed in the recorded logs, and it does not say its review is pending."""
-import importlib.util,json,re,subprocess,tempfile,tomllib,unittest
+import importlib.util,json,os,re,subprocess,sys,tempfile,tomllib,unittest
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('run',Path(__file__).resolve().parent/'run.py'); run=importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
 LOG='''     Running unittests src/lib.rs (/target/debug/deps/ryo_values-0123abcd)
@@ -614,4 +614,8 @@ class Modes(unittest.TestCase):
    with self.subTest(mode=mode):
     done=subprocess.run(['python3','-I',str(Path(run.__file__)),mode],capture_output=True,text=True)
     self.assertIn(done.returncode,(0,1),done.stderr); self.assertNotIn('Traceback',done.stderr)
+ def test_a_second_start_without_tree_sitter_stops_with_the_install_hint(self):
+  # -S leaves out site-packages, so this Python cannot import tree_sitter: a start already relaunched once must stop, never relaunch again.
+  done=subprocess.run([sys.executable,'-I','-S',str(Path(run.__file__)),'--census'],capture_output=True,text=True,env=dict(os.environ,RYO_RUN_REEXEC='1'),timeout=120)
+  self.assertEqual((done.returncode,done.stdout,done.stderr),(1,'','run tools/install.py first\n'))
 if __name__=='__main__': unittest.main()

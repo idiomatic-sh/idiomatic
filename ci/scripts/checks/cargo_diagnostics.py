@@ -1,31 +1,66 @@
 #!/usr/bin/env python3
 """Forward Cargo JSON while printing compiler errors to stderr for retained CI diagnostics.
 
-The clippy tools run with `--cap-lints warn`, so a denied lint is a warning here: the tool forwards a lint diagnostic only when
-its code is set to `deny` or `forbid` in the workspace's own lint tables (`[workspace.lints.rust]` and `[workspace.lints.clippy]`
-of the Cargo.toml in the working directory, read at run time: one definition), and only when its primary span is a file of the
-workspace, not a toolchain source. Compiler errors and every non-diagnostic message pass unchanged. Asymptote's lock then judges
-the denied findings; warnings stay outside it."""
+The clippy tools run with `--cap-lints warn`, so a denied lint is a warning here. The level a lint had before the cap is in the
+compiler's own level note, which rustc attaches to the first diagnostic of each lint and level source in a package: "`-D x`
+implied by `-D clippy::correctness`", "requested on the command line with `-D x`", "`#[deny(x)]` on by default", or "the lint
+level is defined here" on the attribute's span. A default level is the one note the cap rewrites (every default reads
+`#[warn(x)]` on by default), so for it the level is the toolchain's own default, read once from `rustc -W help` and
+`clippy-driver -W help`. The tool forwards a lint diagnostic when its package has shown the lint at deny or
+forbid, and also, with one line on stderr, when no level for it has been read (a note in a shape this tool does not know fails
+the lock visibly instead of dropping the finding); in both cases only when its primary span is a file of the workspace, not a
+toolchain source. Compiler errors and every non-diagnostic message pass unchanged. Asymptote's lock then judges the denied
+findings; warnings stay outside it."""
 
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 import sys
-import tomllib
-from pathlib import Path
 from typing import TextIO
 
+# The level of the first flag or attribute in a level note: `-D x`, `-W x implied by -W group`, `#[deny(x)]` on by default.
+LEVEL = re.compile(r"(?<![\w-])(-D|-F|-W|-A|--force-warn)\s|#\[(deny|forbid|warn|allow|expect)\(")
+FLAGS = {"-D": "deny", "-F": "forbid", "-W": "warn", "-A": "allow", "--force-warn": "warn"}
+DEFINED_HERE = "the lint level is defined here"
+NOTE_SHAPES = ("implied by", "requested on the command line")
+ON_BY_DEFAULT = "on by default"
+# A row of the toolchain's lint table: `    arithmetic-overflow  deny     arithmetic operation overflows`.
+DEFAULT_LEVEL = re.compile(r"^\s+([\w:-]+)\s+(allow|warn|deny|forbid)\s", re.M)
 
-def denied_codes(manifest: Path) -> set[str]:
-    """The lint codes the workspace's Cargo.toml sets to deny or forbid: rust lints by name, clippy lints as `clippy::<name>`."""
-    tables = tomllib.loads(manifest.read_text(encoding="utf-8")).get("workspace", {}).get("lints", {})
-    found = set()
-    for tool, prefix in (("rust", ""), ("clippy", "clippy::")):
-        for name, value in tables.get(tool, {}).items():
-            level = value if isinstance(value, str) else value.get("level") if isinstance(value, dict) else None
-            if level in ("deny", "forbid"):
-                found.add(prefix + name)
+
+def default_levels() -> dict[str, str]:
+    """Each lint's default level, by code, from the toolchain's own tables; empty when neither command can be run."""
+    found = {}
+    for command in (["rustc", "-W", "help"], ["clippy-driver", "-W", "help"]):
+        try:
+            table = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False).stdout
+        except (OSError, subprocess.SubprocessError):
+            continue
+        found.update({name.replace("-", "_"): level for name, level in DEFAULT_LEVEL.findall(table)})
     return found
+
+
+def level_of(diagnostic: dict) -> str | None:
+    """The lint level the diagnostic's level note gives, read before the cap: `default` for a default level, which the cap rewrites;
+    None when it carries no note this tool can read."""
+    for child in diagnostic.get("children") or []:
+        if not isinstance(child, dict) or child.get("level") != "note":
+            continue
+        note = str(child.get("message", ""))
+        if note == DEFINED_HERE:
+            texts = [str(part.get("text", "")) for span in child.get("spans") or [] if isinstance(span, dict)
+                     for part in span.get("text") or [] if isinstance(part, dict)]
+            note = " ".join(texts)
+        elif ON_BY_DEFAULT in note:
+            return "default"
+        elif not any(shape in note for shape in NOTE_SHAPES):
+            continue
+        found = LEVEL.search(note)
+        if found:
+            return FLAGS[found.group(1)] if found.group(1) else found.group(2)
+    return None
 
 
 def in_workspace(diagnostic: dict) -> bool:
@@ -34,9 +69,11 @@ def in_workspace(diagnostic: dict) -> bool:
     return bool(spans) and all(not str(span.get("file_name", "")).startswith(("/", "..")) for span in spans)
 
 
-def forward(messages: TextIO, cargo_json: TextIO, diagnostics: TextIO, denied: set[str] | None = None) -> None:
-    """Pass every Cargo message through but the lint diagnostics outside the denied set (or outside the workspace), rendering
-    compiler errors on the separate diagnostic stream. With no denied set every message passes."""
+def forward(messages: TextIO, cargo_json: TextIO, diagnostics: TextIO) -> None:
+    """Pass every Cargo message through but the lint diagnostics whose package has not denied their lint (or outside the
+    workspace), rendering compiler errors on the separate diagnostic stream."""
+    seen: dict[tuple[object, str], set[str]] = {}
+    defaults: dict[str, str] | None = None
     for line in messages:
         try:
             message = json.loads(line)
@@ -57,13 +94,28 @@ def forward(messages: TextIO, cargo_json: TextIO, diagnostics: TextIO, denied: s
             diagnostics.flush()
             continue
         code = (diagnostic.get("code") or {}).get("code") if isinstance(diagnostic.get("code"), dict) else None
-        if denied is None or (code in denied and in_workspace(diagnostic)):
+        if not isinstance(code, str):
+            continue
+        levels = seen.setdefault((message.get("package_id"), code), set())
+        level = level_of(diagnostic)
+        if level == "default":
+            defaults = default_levels() if defaults is None else defaults
+            level = defaults.get(code)
+        if level is not None:
+            levels.add(level)
+        if not in_workspace(diagnostic):
+            continue
+        if not levels:
+            cargo_json.write(line)
+            diagnostics.write(f"cargo_diagnostics.py: forwarded {code}, whose lint level the compiler's notes do not give\n")
+            diagnostics.flush()
+        elif levels & {"deny", "forbid"}:
             cargo_json.write(line)
     cargo_json.flush()
 
 
 def self_test() -> None:
-    """Hold the stream filter to one rendered error and an unchanged Cargo stream."""
+    """Hold the stream filter to one rendered error, a dropped warning that is no lint, and an unchanged rest of the stream."""
     from io import StringIO
 
     error = json.dumps(
@@ -77,14 +129,14 @@ def self_test() -> None:
         }
     ) + "\n"
     warning = json.dumps(
-        {"reason": "compiler-message", "message": {"level": "warning", "message": "not an error"}}
+        {"reason": "compiler-message", "message": {"level": "warning", "message": "1 warning emitted"}}
     ) + "\n"
     other = json.dumps({"reason": "build-finished", "success": False}) + "\n"
     source = StringIO(error + warning + other)
     forwarded = StringIO()
     rendered = StringIO()
     forward(source, forwarded, rendered)
-    assert forwarded.getvalue() == error + warning + other
+    assert forwarded.getvalue() == error + other
     assert rendered.getvalue() == "error[E0001]: synthetic failure\n"
 
 
@@ -94,4 +146,4 @@ if __name__ == "__main__":
     elif sys.argv[1:]:
         raise SystemExit("usage: cargo_diagnostics.py [--self-test]")
     else:
-        forward(sys.stdin, sys.stdout, sys.stderr, denied_codes(Path("Cargo.toml")))
+        forward(sys.stdin, sys.stdout, sys.stderr)
