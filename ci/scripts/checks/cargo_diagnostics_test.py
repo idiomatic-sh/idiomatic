@@ -71,9 +71,21 @@ def test_a_denied_lint_is_forwarded_and_a_warned_lint_an_error_or_a_toolchain_pa
 
 
 def test_a_default_deny_lint_is_forwarded_and_a_default_warn_lint_is_dropped() -> None:
-    denied = lint("arithmetic_overflow", "crates/values/src/a.rs", "`#[deny(arithmetic_overflow)]` on by default")
+    """Under the cap rustc writes every default level as `#[warn(..)]` on by default (clippy-driver 1.97.1 printed this for
+    arithmetic_overflow, which is deny by default): the default level is the toolchain's own, from `rustc -W help`."""
+    denied = lint("arithmetic_overflow", "crates/values/src/a.rs", "`#[warn(arithmetic_overflow)]` on by default")
     warned = lint("unused_comparisons", "crates/values/src/a.rs", "`#[warn(unused_comparisons)]` on by default")
     assert run(denied + warned)[0] == denied
+
+
+def test_a_default_level_the_toolchain_does_not_give_is_forwarded(tmp_path) -> None:
+    """With no rustc or clippy-driver to read the default levels from, an `on by default` lint is forwarded, never dropped."""
+    denied = lint("arithmetic_overflow", "crates/values/src/a.rs", "`#[warn(arithmetic_overflow)]` on by default")
+    warned = lint("unused_comparisons", "crates/values/src/a.rs", "`#[warn(unused_comparisons)]` on by default")
+    script = Path(__file__).with_name("cargo_diagnostics.py")
+    done = subprocess.run([sys.executable, "-I", str(script)], input=denied + warned, cwd=tmp_path, capture_output=True,
+                          text=True, check=False, env={"PATH": str(tmp_path)})
+    assert (done.returncode, done.stdout) == (0, denied + warned)
 
 
 def test_a_later_diagnostic_without_a_note_takes_its_lints_level_in_that_package() -> None:
