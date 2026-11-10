@@ -13,7 +13,7 @@ No file under `benchmarks/` or `languages/` is touched. `execution_store/benches
 
   No skip, filter, caught error, `continue` or weakened assertion was added.
 - **Compiler plant.** A `CoverageState::Planted` variant at `completion/types.rs:16` gave E0004 at `frontier_coverage/service.rs:20`, the arm this branch named, and at 5 other exhaustive sites. Plant reverted; copy and target deleted.
-- **Clippy lints.** `guard_shell.py` refused the reviewer's clippy run in the `git archive` copy, because clippy runs only in an integration worktree. I did not work around the hook. Instead, the capped clippy run of the real tree at the base (`/tmp/ryo-contract-validation334/clippy-capped-at-877275be9e.log`) reports at the exact lines the planned plants restored:
+- **Clippy lints.** `guard_shell.py` refused the reviewer's clippy run in the `git archive` copy, because clippy runs only in an integration worktree. I did not work around the hook. Instead, the capped clippy run of the real tree at the base (`the checkpoint validation directory's clippy-capped-at-877275be9e.log`) reports at the exact lines the planned plants restored:
   - `as_conversions` at `trust/service.rs:92` and `replay/service.rs:49`
   - `wildcard_enum_match_arm` at `frontier_coverage/service.rs:18`
   - `missing_errors_doc` at `replay/service.rs:37`

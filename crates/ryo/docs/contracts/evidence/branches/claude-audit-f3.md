@@ -1,12 +1,12 @@
 # Leak review: claude/audit-f3 at 3b08375797
 
-Base `85ca33800e`. The delta is one commit, which closes the 9 SDK API reaches the sdk-api step reported at the base (`/tmp/ryo-contract-validation334/sdk-api-red-at-85ca33800e.log`).
+Base `85ca33800e`. The delta is one commit, which closes the 9 SDK API reaches the sdk-api step reported at the base (`the checkpoint validation directory's sdk-api-red-at-85ca33800e.log`).
 
 ## 1 Proof where the contract lives: PASS
 The one benchmark edit, `benchmark/src/outbound/engine/adapters/local/schemas_test.rs:48`, still asserts the benchmark worker's own module text. It now reads it through `RyoQlQuery`'s public `AsRef<str>` (`sdk/src/domain/query/types.rs:125-129`, which returns the same `root_text`), so the assertion is just as strong. The four permission variants stay proven in the SDK at `lint/fixtures/permission.rs:60-69`.
 
 ## 2 Every enforcement claim fires: PASS
-- **The real-tree violation:** I ran the head's `leaks()` (`sdk_api.py:72-132`) over the base tree's own rustdoc JSON (`/workspaces/ryo-334/target/doc/ryo.json`, written by the red run). It reports **8**. That is the base's 9 minus `From<Language> for LanguageConnection`, which the corrected `ALLOWED_IMPLS` (`sdk_api.py:35`) now admits. The base script reported all 9.
+- **The real-tree violation:** I ran the head's `leaks()` (`sdk_api.py:72-132`) over the base tree's own rustdoc JSON (`the integration tree's target/doc/ryo.json`, written by the red run). It reports **8**. That is the base's 9 minus `From<Language> for LanguageConnection`, which the corrected `ALLOWED_IMPLS` (`sdk_api.py:35`) now admits. The base script reported all 9.
 - **The unit tests:** `sdk_api_test.py` passes 16/16. Tests `:120` and `:129` still catch an impl for an unlisted internal type, and an internal type that the listed impl names.
 - **No path turns a failure into a pass:** the edit changes only the allowlist string, which is matched by exact tuple membership (`:65`).
 - **No plant at the head:** the guard hook refuses `cargo rustdoc` outside an integration worktree. The head does compile in a `git archive` copy: the SDK on default features, the SDK with `--all-features --tests`, and the benchmark with `--all-features --tests`.

@@ -48,7 +48,7 @@ No contract is asserted. The hook tests prove hook behaviour on temp fixtures.
 **A here-doc whose terminator never matches hides every later line from every guard, the push guard included** (`guard_shell.py:140-145`, `without_heredoc_bodies`). When a `<<WORD` operator's delimiter line never appears exactly, the body skip runs to the end of the command. Every later line is then dropped before any guard reads it.
 
 The three spellings below exit 2 at `e75e47b059`, with `git push origin HEAD:main` or `cargo build` on the next line. They exit 0 at `9b42116ff3`, at `73649ab28b` and at this sha. The class has been there since the heredoc change (`7203127513`), and the earlier passes missed it.
-- `x=$(cat <<EOF` / `hi` / `EOF)` (also with `<<'EOF'`). Bash 5.2 accepts this: it warns "delimited by end-of-file", ends the substitution at `)`, then runs the next line. An agent can easily write `EOF)` on one line by accident.
+- `x=$(cat <<EOF` / `hi` / `EOF)` (also with `<<'EOF'`). Bash 5.2 accepts this: it warns "delimited by end-of-file", ends the substitution at `)`, then runs the next line. A builder can easily write `EOF)` on one line by accident.
 - `echo "$(printf '%s' "the <<EOF form")"` and the same shape inside `git commit -m "$(…)"`. `logical_line` does not model quotes nested in `$(…)`, so a literal `<<EOF` inside the inner quotes reads as an operator.
 - `let x=1<<y`, where a shift reads as an operator.
 
