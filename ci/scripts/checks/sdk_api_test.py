@@ -20,6 +20,26 @@ leaks = sdk_api.leaks
 # The internal crates the leak cases are judged against, as the ryo SDK's manifest gave them before the execution crates joined it.
 INTERNAL = ("ryo_core", "ryo_language", "ryo_query_language", "ryo_relations", "ryo_values")
 
+
+def graph(direct: tuple[str, ...], *, manifest_path: str = "sdk/Cargo.toml", forwarded: dict[str, tuple[str, ...]] | None = None) -> dict:
+    """The `workspace_members`, `packages` and `resolve` of a `cargo metadata` answer: the workspace member `demo-sdk` depends on each
+    member of `direct`, each member on the members `forwarded` names, every member on the registry crate `serde`, and `demo-sdk` on
+    the member `demo-bench` as a dev-dependency only."""
+    forwarded = forwarded or {}
+    names = set(direct) | {n for each in forwarded.values() for n in each} | {"demo_bench"}
+    def member(name: str) -> str:
+        return f"path+file:///w/{name}#0.1.0"
+    def edge(pkg: str, kind: str | None) -> dict:
+        return {"pkg": pkg, "dep_kinds": [{"kind": kind, "target": None}]}
+    serde = "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.0"
+    packages = [{"id": member("demo_sdk"), "name": "demo-sdk", "manifest_path": manifest_path, "targets": [{"name": "demo", "kind": ["lib"]}]}]
+    packages += [{"id": member(n), "name": n.replace("_", "-"), "manifest_path": f"/w/{n}/Cargo.toml", "targets": [{"name": n, "kind": ["lib"]}]} for n in sorted(names)]
+    packages.append({"id": serde, "name": "serde", "manifest_path": "/r/serde/Cargo.toml", "targets": [{"name": "serde", "kind": ["lib"]}]})
+    nodes = [{"id": member("demo_sdk"), "deps": [edge(member(n), None) for n in direct] + [edge(member("demo_bench"), "dev"), edge(serde, None)]}]
+    nodes += [{"id": member(n), "deps": [edge(member(f), None) for f in forwarded.get(n, ())] + [edge(serde, None)]} for n in sorted(names)]
+    nodes.append({"id": serde, "deps": []})
+    return {"workspace_members": [member("demo_sdk")] + [member(n) for n in sorted(names)], "packages": packages, "resolve": {"nodes": nodes}}
+
 MANIFEST = """[workspace.metadata.api]
 package = "demo-sdk"
 library = "demo"
@@ -153,11 +173,6 @@ def run_check(
     (tmp_path / "crates/demo").mkdir(parents=True, exist_ok=True)
     (tmp_path / "crates/demo/Cargo.toml").write_text(MANIFEST)
     (tmp_path / "crates/demo/api.txt").write_text("pub fn demo::lint()\n")
-    # The SDK's manifest, whose path dependencies are the internal crates the leak check holds the surface to.
-    (tmp_path / "crates/demo/sdk").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "crates/demo/sdk/Cargo.toml").write_text(
-        '[package]\nname = "demo-sdk"\n\n[dependencies]\n' + "".join(f'{name} = {{ path = "../{name}" }}\n' for name in INTERNAL)
-    )
     (tmp_path / "target/doc").mkdir(parents=True, exist_ok=True)
     (tmp_path / "target/doc/demo.json").write_text(json.dumps(rustdoc))
     calls = []
@@ -176,9 +191,7 @@ def run_check(
             out = json.dumps(
                 {
                     "target_directory": str(tmp_path / "target"),
-                    "packages": [
-                        {"name": "demo-sdk", "manifest_path": str(tmp_path / "crates/demo/sdk/Cargo.toml")},
-                    ],
+                    **graph(INTERNAL, manifest_path=str(tmp_path / "crates/demo/sdk/Cargo.toml")),
                 }
             )
         elif "public-api" in argv:
@@ -269,21 +282,11 @@ def test_the_top_level_is_asked_of_git_without_the_variables_a_hook_exports(tmp_
     assert sdk_api.toplevel(tmp_path / "product").resolve() == tmp_path.resolve()
 
 
-def test_every_path_dependency_of_the_sdk_manifest_is_internal_so_an_execution_crates_type_in_a_signature_leaks(tmp_path: Path) -> None:
-    manifest = tmp_path / "Cargo.toml"
-    manifest.write_text(
-        '[package]\nname = "demo-sdk"\n\n[dependencies]\n'
-        'ryo_execution = { package = "idiomatic-sh-ryo-execution", path = "../execution", version = "0.1.3" }\n'
-        'ryo_core = { package = "idiomatic-sh-ryo-core", path = "../core", version = "0.1.3" }\n'
-        'serde = { version = "1" }\n'
-        'thiserror = "2"\n'
-    )
-    assert sdk_api.internal_crates(manifest) == ("ryo_core", "ryo_execution")
-    assert leaks(document("run", "ryo_execution"), [], sdk_api.internal_crates(manifest)) == ["demo::run -> ryo_execution::types::Thing"]
-    assert leaks(document("run", "serde"), [], sdk_api.internal_crates(manifest)) == []
 
-
-def test_the_ryo_sdk_manifest_names_the_execution_crates_internal() -> None:
-    manifest = Path(__file__).parents[3] / "crates/ryo/crates/sdk/Cargo.toml"
-    internal = sdk_api.internal_crates(manifest)
-    assert {"ryo_execution", "ryo_execution_runtime", "ryo_operators", "ryo_matching", "ryo_core"} <= set(internal)
+def test_a_type_a_member_forwards_through_another_members_reexport_is_internal_and_leaks() -> None:
+    metadata = graph(("ryo_core", "ryo_execution"), forwarded={"ryo_execution": ("ryo_execution_domain",)})
+    internal = sdk_api.internal_crates(metadata, "demo-sdk")
+    assert internal == ("ryo_core", "ryo_execution", "ryo_execution_domain")
+    assert leaks(document("run", "ryo_execution_domain"), [], internal) == ["demo::run -> ryo_execution_domain::types::Thing"]
+    assert leaks(document("run", "serde"), [], internal) == []
+    assert leaks(document("run", "demo_bench"), [], internal) == []

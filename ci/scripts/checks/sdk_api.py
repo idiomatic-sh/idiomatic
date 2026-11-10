@@ -62,12 +62,23 @@ def allowed_impl(document: dict, impl: dict, leaked: str) -> bool:
     return leaked == implemented_for and implemented_for in ALLOWED_IMPLS
 
 
-def internal_crates(manifest: Path) -> tuple[str, ...]:
-    """The crates a product's SDK wraps, read from the SDK's own manifest: each `[dependencies]` entry with a `path`, by the name its
-    code uses. No type defined in one of them may be reachable from the SDK's public API; a path dependency the SDK gains is held
-    to that at once, with no second list to keep."""
-    dependencies = tomllib.loads(manifest.read_text()).get("dependencies", {})
-    return tuple(sorted(name for name, spec in dependencies.items() if isinstance(spec, dict) and "path" in spec))
+def internal_crates(metadata: dict, package: str) -> tuple[str, ...]:
+    """The crates a product's SDK wraps: every workspace member the SDK reaches through normal dependencies in `cargo metadata`'s
+    resolve graph, directly or through another member, by its library's name. No type defined in one of them may be reachable from
+    the SDK's public API, whether the SDK names it or a member it depends on re-exports it; a member the SDK comes to reach is held
+    to that at once, with no list to keep."""
+    members = set(metadata["workspace_members"])
+    packages = {each["id"]: each for each in metadata["packages"]}
+    nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
+    start = next(each["id"] for each in metadata["packages"] if each["name"] == package and each["id"] in members)
+    reached, pending = set(), [start]
+    while pending:
+        for dependency in nodes[pending.pop()]["deps"]:
+            normal = any(kind["kind"] is None for kind in dependency["dep_kinds"])
+            if dependency["pkg"] in members and normal and dependency["pkg"] not in reached:
+                reached.add(dependency["pkg"])
+                pending.append(dependency["pkg"])
+    return tuple(sorted(target["name"] for each in reached for target in packages[each]["targets"] if "lib" in target["kind"]))
 
 
 def leaks(document: dict, allowed: list[str], internal: tuple[str, ...]) -> list[str]:
@@ -166,13 +177,12 @@ def check(directory: Path) -> None:
     )
     metadata = json.loads(
         subprocess.run(
-            ["cargo", "metadata", "--format-version", "1", "--no-deps"], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
+            ["cargo", "metadata", "--format-version", "1", "--locked"], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
         ).stdout
     )
     target = Path(metadata["target_directory"])
     document = json.loads((target / "doc" / f"{api['library']}.json").read_text())
-    sdk_manifest = Path(next(each["manifest_path"] for each in metadata["packages"] if each["name"] == package))
-    found = leaks(document, api.get("allow", []), internal_crates(sdk_manifest))
+    found = leaks(document, api.get("allow", []), internal_crates(metadata, package))
     if found:
         raise RuntimeError("the SDK's public API reaches an internal crate's type:\n  " + "\n  ".join(found))
     listing = subprocess.run(
@@ -216,7 +226,7 @@ def check(directory: Path) -> None:
         )
     # The SDK's own manifest, from the workspace's metadata: semver-checks otherwise finds a package by name anywhere
     # beneath the directory, a fixture crate of the same name included.
-    manifest = next(each["manifest_path"] for each in metadata["packages"] if each["name"] == package)
+    manifest = next(each["manifest_path"] for each in metadata["packages"] if each["name"] == package and each["id"] in metadata["workspace_members"])
     # The baseline is the workspace as it was at `baseline-rev`, without its asset folder (`tastemaker/`, named `canonical/`
     # in a baseline from before the product was renamed): the fixture crates in it may
     # carry the SDK's own name, which semver-checks cannot tell from the SDK when it finds a package by name in a clone.
