@@ -482,6 +482,13 @@ class Diff(unittest.TestCase):
   loud=commit(self.repo,{'a/src/three.rs':base.replace('pub struct One','pub(crate) struct One').replace('pub fn one','pub(super) fn one').replace('    1','    2')},'fix(a): one answers two')
   found=self.fixes([])
   self.assertFalse(any(seal[:10] in x for x in found),found); self.assertTrue(any(loud[:10] in x for x in found),found)
+ def test_a_refactor_is_proven_by_the_same_answer_before_and_after_it_and_not_by_a_different_one(self):
+  refactor=commit(self.repo,{'a/src/four.rs':'pub fn four() -> u8 {\n    4\n}\n'},'refactor(a): four in its own file')
+  (Path(self.raw)/'before.log').write_text('{"census": 1}\n'); (Path(self.raw)/'after.log').write_text('{"census": 1}\n'); (Path(self.raw)/'other.log').write_text('{"census": 2}\n')
+  same=[{'test':'run.py --census identical before.log after.log','base_sha':self.base,'merge_sha':refactor}]
+  self.assertFalse(any(refactor[:10] in x for x in self.fixes(same)),self.fixes(same))
+  for text in ('run.py --census identical before.log other.log','run.py --census identical before.log before.log','run.py --census identical before.log missing.log'):
+   self.assertTrue(any(refactor[:10] in x for x in self.fixes([dict(same[0],test=text)])),text)
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])

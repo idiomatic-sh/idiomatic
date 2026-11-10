@@ -518,6 +518,8 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   tables=[t for x in entries for t in [table_of(x,raw)] if t is not None]
   # A range proven by a validation command (gate:<command>, red then green): every commit the entry covers is proven by it.
   if any(gate_proves(x,raw) for x in entries): proven.add(sha); continue
+  # A range with no possible red (a refactor of the harness) is proven by the same answer before and after it (identical_proves).
+  if any(identical_proves(x,raw) for x in entries): proven.add(sha); continue
   # A range proven by a table: a commit naming no test is covered by the whole table, one naming tests by a row of it.
   # A commit of the range with no possible red (a move behind the seam, no behaviour change) is covered by a table entry that says
   # so and cites the logs that show its guard green before and after.
@@ -585,6 +587,14 @@ def gate_proves(entry,raw):
  text=entry.get('test','') if isinstance(entry,dict) else ''
  m=GATE_NAMED.search(text)
  return bool(m) and proves(entry,m.group(1),raw)
+IDENTICAL=re.compile(r'\bidentical ([\w.-]+\.log) ([\w.-]+\.log)\b')
+def identical_proves(entry,raw):
+ """The entry says `identical <before>.log <after>.log`: two distinct, non-empty logs in the validation directory with the same bytes,
+ the answer of the code before the range and of the code after it to one question over one tree (a refactor's proof: no red exists)."""
+ m=IDENTICAL.search(entry.get('test','') if isinstance(entry,dict) else '')
+ if not m or m.group(1)==m.group(2): return False
+ a,b=raw/m.group(1),raw/m.group(2)
+ return a.is_file() and b.is_file() and a.stat().st_size>0 and a.read_bytes()==b.read_bytes()
 def validated_status(v,test):
  """'failed' or 'passed' for a test the validation's recorded tests hold (by its path or a suffix of it), else None."""
  found=None
@@ -653,7 +663,9 @@ def visibility_only(repo,sha,path,own):
  if not path.endswith('.rs') or own[1]=='--cc': return False
  before=git(repo,'show',sha+'^:'+path); after=git(repo,'show',sha+':'+path)
  if before is None or after is None: return False
- plain=lambda text:[VISIBILITY.sub('',x) for x in LINT_ATTRIBUTE.sub('',text).splitlines() if not RUST_COMMENT.match(x)]
+ def plain(text):
+  quiet=quiet_lines(text)
+  return [VISIBILITY.sub('',x) for n,x in enumerate(text.split('\n')) if n not in quiet]
  return plain(before)==plain(after)
 def patch_id(repo,sha):
  """The commit's `git patch-id --stable`, or None for a commit with no diff against its first parent."""
