@@ -5,10 +5,12 @@
 use std::collections::BTreeMap;
 
 use ryo::linter::{
-    CaseSource, Cell, Corpus as Reads, FlagState, Glob, HostColumn, HostColumnName, HostKind,
-    HostNumber, HostRelation, HostRelationName, HostRow, HostText, LintError, LintReport,
-    LintRequest, ParameterCell, ParameterName, ParameterNumber, ParameterNumbers, ParameterTable,
-    ParameterText, ParameterValue, RelativePath, Rule, RuleId, Slot, SourceText,
+    CaseSource, Cell, Corpus as Reads, ExecutablePermission, FlagState, GivenProjectInventory,
+    Glob, HostColumn, HostColumnName, HostKind, HostNumber, HostRelation, HostRelationName,
+    HostRow, HostText, LintError, LintReport, LintRequest, ParameterCell, ParameterName,
+    ParameterNumber, ParameterNumbers, ParameterTable, ParameterText, ParameterValue,
+    ProjectInventoryCompleteness, ProjectSearchScope, RelativePath, Rule, RuleApplicability,
+    RuleId, Slot, SourceLanguage, SourceText,
 };
 
 use super::constants::{PLACED, PLACED_COLUMNS, RYO_STORE, SPAN_TEXT};
@@ -527,9 +529,11 @@ pub(super) fn cache(store: &crate::domain::settings::types::Store) -> ryo::linte
     }
 }
 
-/// The SDK's source for a file the core gives with its text.
+/// The SDK's source for a file the core gives with its text. The core hands text alone, never a file mode, so the
+/// executable bit is not observed.
 fn source(file: crate::outbound::analysis::types::GivenFile) -> CaseSource {
     CaseSource {
+        executable: ExecutablePermission::Unknown,
         path: RelativePath(file.path.0),
         text: SourceText(file.text.0),
     }
@@ -567,7 +571,12 @@ fn convert_request(request: AnalysisRequest) -> Result<LintRequest, AnalysisErro
             rules.insert(
                 id,
                 Rule {
+                    // A definition binds no other rule's output: its query reads the relations it names.
+                    observations: Vec::new(),
                     query,
+                    // A rule runs on every file it governs, as it did before the SDK could hold one back to the syntax
+                    // its language accepted.
+                    applicability: RuleApplicability::Always,
                     parameters: rule
                         .parameters
                         .iter()
@@ -580,7 +589,18 @@ fn convert_request(request: AnalysisRequest) -> Result<LintRequest, AnalysisErro
         );
     }
     Ok(LintRequest {
+        // The core names no language: each file is read by the language that recognises its path.
+        source_language: SourceLanguage::Recognized,
         root: std::path::PathBuf::from(&*request.root.0),
+        // The core declares no import roots, which are a language's own: project membership stays the language's to
+        // prove, and unknown where it cannot.
+        project_search_scope: ProjectSearchScope::Undeclared,
+        // A given corpus is the files of a case and nothing else: no entry is observed beside them, so an entry the
+        // files do not hold stays unknown, never absent.
+        given_project_inventory: GivenProjectInventory {
+            entries: Vec::new(),
+            completeness: ProjectInventoryCompleteness::Partial,
+        },
         rules,
         files: Vec::new(),
         hosted: std::iter::once(placed(&request.placed))
