@@ -493,19 +493,31 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   elif failing: unproven[sha]='merge '+short+': the validated tree fails a test its merged commits name ('+', '.join(failing[:4])+')'
  return bad+list(unproven.values())
 TABLE=re.compile(r'\btable ([\w.-]+\.json)\b')
+REPO=p.parents[4]
+TABLE_STATUSES=('caught','equivalent','unobservable')
 def table_of(entry,raw):
  """The tests a range entry's table proves, or None: the entry names `table <file>.json` in the validation directory, a list of
- rows {semantic, test, red, green}, and every row's red log shows its test fail and its green log shows it pass."""
+ rows {semantic, status, ...} accounting for every mutant. A `caught` row names a test whose red log shows it fail under its planted
+ bug and whose green log shows it pass on the landed code; an `equivalent` or `unobservable` row carries a non-empty argument and
+ the review evidence that accepted it (a file of the repository or of the validation directory)."""
  m=TABLE.search(entry.get('test','') if isinstance(entry,dict) else '')
  if not m or not (raw/m.group(1)).is_file(): return None
  try: rows=json.loads((raw/m.group(1)).read_text())
  except ValueError: return None
  if not isinstance(rows,list) or not rows: return None
+ caught=set()
  for row in rows:
-  if not (isinstance(row,dict) and all(isinstance(row.get(k),str) for k in ('semantic','test','red','green'))): return None
+  status=row.get('status','caught') if isinstance(row,dict) else None
+  if status not in TABLE_STATUSES or not isinstance(row.get('semantic'),str): return None
+  if status!='caught':
+   evidence=row.get('evidence')
+   if not (isinstance(row.get('argument'),str) and row['argument'].strip() and isinstance(evidence,str) and evidence and ((REPO/evidence).is_file() or (raw/evidence).is_file())): return None
+   continue
+  if not all(isinstance(row.get(k),str) for k in ('test','red','green')): return None
   if not ((raw/row['red']).is_file() and (raw/row['green']).is_file()): return None
   if log_status(raw/row['red'],row['test'])!='failed' or log_status(raw/row['green'],row['test'])!='passed': return None
- return {row['test'] for row in rows}
+  caught.add(row['test'])
+ return caught
 def validated_status(v,test):
  """'failed' or 'passed' for a test the validation's recorded tests hold (by its path or a suffix of it), else None."""
  found=None

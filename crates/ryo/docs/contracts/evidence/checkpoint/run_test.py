@@ -301,15 +301,22 @@ class Diff(unittest.TestCase):
   failing={'cli':{'b':{'passed':[],'failed':{'domain::service_test::two_answers':{}}}}}
   found=run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw),'tests':failing},repo=self.repo,base=self.base)
   self.assertEqual(len(found),1); self.assertIn('fails a test its merged commits name',found[0])
- def test_a_range_proven_by_a_seam_table_covers_its_commits(self):
+ def test_a_range_proven_by_a_seam_table_accounting_for_every_mutant_covers_its_commits(self):
   quiet=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'refactor(a): behind the seam')
   named=commit(self.repo,{'a/src/lib.rs':'pub fn one() {  }\n'},'fix(a): `service_test::one_answers`')
   other=commit(self.repo,{'a/src/lib.rs':'pub fn one() { let _ = 1; }\n'},'fix(a): `service_test::elsewhere_answers`')
   self.logs(red=RED,green=GREEN)
-  (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'red.log','green':'green.log'}]))
+  (self.raw/'review.md').write_text('accepted by reading the code\n')
+  (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'red.log','green':'green.log'},
+      {'semantic':'two','status':'equivalent','argument':'both branches answer the same coverage','evidence':'review.md'},
+      {'semantic':'three','status':'unobservable','argument':'only a counter behind the seam differs','evidence':'review.md'}]))
   entry={'test':'the port (table seam.json)','base_sha':self.base,'merge_sha':other}
   found=run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)
   self.assertEqual([x[4:14] for x in found],[other[:10]])
+  (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'red.log','green':'green.log'},{'semantic':'two','status':'equivalent','argument':'','evidence':'review.md'}]))
+  self.assertEqual(len(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),3)
+  (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'red.log','green':'green.log'},{'semantic':'two','status':'equivalent','argument':'same','evidence':'missing.md'}]))
+  self.assertEqual(len(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),3)
   (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'green.log','green':'green.log'}]))
   self.assertEqual(len(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),3)
  def test_a_nextest_line_with_its_counter_names_its_test(self):
