@@ -1,0 +1,11 @@
+--- a/crates/ryo/crates/execution_runtime/src/application/file_dag/program/kernel_session/evaluation/service.rs
++++ b/crates/ryo/crates/execution_runtime/src/application/file_dag/program/kernel_session/evaluation/service.rs
+@@ -168,7 +168,7 @@
+                     let meaning = &contract.semantics;
+                     let mut resources = if matches!(meaning.shape, InputMode::Row { .. })
+                     && meaning.acquisition
+-                        == ryo_execution_domain::domain::operator::contract::types::AcquisitionBoundary::FirstRow
++                        == ryo_execution_domain::domain::operator::contract::types::AcquisitionBoundary::BeforeRows
+                 {
+                     None
+                 } else {

@@ -1,0 +1,11 @@
+--- a/crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs
++++ b/crates/ryo/crates/execution_store/src/application/file_dag/relations/number/service/issuance/service.rs
+@@ -52,7 +52,7 @@
+                         }
+                         RepresentationKind::Computed => {
+                             let cells = source.rows.0.checked_mul(source.kinds.len());
+-                            source.storage.get(1).map(|span| Some(span.length.0)) != Some(cells)
++                            cells.is_some()
+                         }
+                         _ => true,
+                     }

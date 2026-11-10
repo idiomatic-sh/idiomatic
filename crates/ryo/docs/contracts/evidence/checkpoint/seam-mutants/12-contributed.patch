@@ -1,0 +1,13 @@
+--- a/crates/ryo/crates/execution_domain/src/domain/completion/service.rs
++++ b/crates/ryo/crates/execution_domain/src/domain/completion/service.rs
+@@ -215,7 +215,9 @@
+             }
+         }
+     }
+-    if partial {
++    if !inapplicable.is_empty() {
++        Ok(CoverageState::Inapplicable { files: inapplicable })
++    } else if partial {
+         affected.extend(inapplicable.into_iter().map(|file| FileLacks {
+             file: Some(file),
+             missing: MissingRows::Any,

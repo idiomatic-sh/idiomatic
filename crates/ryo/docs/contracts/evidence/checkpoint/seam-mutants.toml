@@ -1,5 +1,7 @@
 # The runtime port seam suite's planted mutants, as the suite builder ran them at f9a294ed54 (its final4 run): the table of
-# the port's range proof accounts for every one, caught, equivalent or unobservable.
+# the port's range proof accounts for every one, caught, equivalent or unobservable. Each is `seam-mutants/<id>.patch`, which
+# applies with `git apply` to the tree at f9a294ed54; the suite then runs, from crates/ryo, as
+# `cargo nextest run -p idiomatic-sh-ryo-execution --no-fail-fast --test boundary_contract`.
 mutants = [
   "01-demand-order",
   "02-schema-first",

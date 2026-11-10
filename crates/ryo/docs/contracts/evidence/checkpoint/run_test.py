@@ -1,6 +1,6 @@
 # ignore: idiomatic.arch/file-length - the fixture cases of run.py, the one validation script of this directory: one test module per script, as the directory has no other test file role
 """Fixture cases of `run.py --check`: a ticked row (a `[x]` box or a `☑` cell) stays ticked only when it cites a test, every test it cites passed in the recorded logs, and it does not say its review is pending."""
-import importlib.util,json,re,subprocess,tempfile,unittest
+import importlib.util,json,re,subprocess,tempfile,tomllib,unittest
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('run',Path(__file__).resolve().parent/'run.py'); run=importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
 LOG='''     Running unittests src/lib.rs (/target/debug/deps/ryo_values-0123abcd)
@@ -155,6 +155,11 @@ class Check(unittest.TestCase):
   self.assertEqual(run.command_owners('sdk_api',{'exit':1},tests),[])
   del tests['sdk_api']['semver-checks']['failed']['brand_new_lint']
   self.assertEqual(run.command_owners('sdk_api',{'exit':1},tests),[run.SDK_RELEASE])
+ def test_each_planted_seam_mutant_is_one_patch_beside_its_manifest(self):
+  here=Path(run.__file__).parent
+  listed=tomllib.loads((here/'seam-mutants.toml').read_text())['mutants']
+  self.assertEqual(sorted(listed),sorted(x.stem for x in (here/'seam-mutants').iterdir()))
+  self.assertTrue(all((here/'seam-mutants'/(x+'.patch')).read_text().startswith('--- a/crates/ryo/') for x in listed))
  def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
   v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
   self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])
