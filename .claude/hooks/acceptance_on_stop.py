@@ -156,7 +156,14 @@ def gate_module():
 
 def scope_review_stop(data):
     """A scope review stops only after writing a valid scope-review-<report stem>.json beside the SCOPE= report its prompt
-    names, during its run, or on BLOCKED: <question>."""
+    names, during its run, or on BLOCKED: <question>. Any error on the way holds the stop."""
+    try:
+        return scope_review_check(data)
+    except Exception as error:
+        return scope_hold("the check failed (" + type(error).__name__ + ": " + str(error) + ")")
+
+
+def scope_review_check(data):
     path = data.get("agent_transcript_path") or data.get("transcript_path")
     if not path or not os.path.exists(path):
         return scope_hold("its transcript is unreadable, so the run's start is unknown")

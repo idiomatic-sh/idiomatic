@@ -1,7 +1,7 @@
 # Harness hooks
 
 `guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent:
-no subagent spawns another, and a `builder` launch needs `SCOPE=<path>`, a report naming its bead, with a passing
+no subagent spawns another, and a `builder` or `contract-migration` launch needs `SCOPE=<path>`, a report naming its bead, with a passing
 `scope-review-<report stem>.json` that carries the report's sha256),
 `acceptance_on_stop.py` (SubagentStop) and `check_in_on_stop.py` (Stop). `test_hooks.py` holds their cases; run it with
 `python3 -m unittest test_hooks` in this directory.

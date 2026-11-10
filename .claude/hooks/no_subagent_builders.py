@@ -1,5 +1,5 @@
 """PreToolUse hook for Agent: refuses a subagent spawning further subagents, and a builder launched without a scope
-report the scope review passed. scope_review_problem is the one validator of scope-review-<report stem>.json; the
+report the scope review passed (and a contract-migration launch, which edits code, the same way). scope_review_problem is the one validator of scope-review-<report stem>.json; the
 SubagentStop hook loads it by path."""
 
 import hashlib
@@ -18,6 +18,7 @@ ROW = re.compile(r"^\|\s*(S\w+)\s", re.MULTILINE)
 DEFERRAL = re.compile(r"For a DEFER or DROP report,[^.]*")
 SCOPE = re.compile(r"(?<![A-Za-z0-9_])SCOPE=(\S+)")
 FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
+GATED = {"builder", "contract-migration"}  # the agents that edit code launch only on a passed scope
 WORKTREE = re.compile(r"^WORKTREE:\s*(\S+)", re.MULTILINE)
 BEAD = re.compile(r"^BEAD:\s*(\S+)", re.MULTILINE)
 NEEDS = ("a builder needs SCOPE=<path to scope-<bead>.md>, a report naming the brief's BEAD (or a checkpoint scope "
@@ -36,7 +37,7 @@ def rubric_rows(deferral=False):
     """The row ids scope-review.md grades, in order: every `| S<id> ...` row of its rubric table, or for a DEFER or
     DROP report the rows its "For a DEFER or DROP report, ..." sentence names. The rubric is the one definition."""
     try:
-        with open(RUBRIC, encoding="utf-8") as handle:
+        with open(RUBRIC, encoding="utf-8", errors="replace") as handle:
             text = handle.read()
     except OSError:
         return []
@@ -51,7 +52,7 @@ def rubric_rows(deferral=False):
 def scope_verdict(scope):
     """The first word of the scope report's first non-blank line (PROCEED, RESHAPE, DEFER, DROP), or None."""
     try:
-        with open(scope, encoding="utf-8") as handle:
+        with open(scope, encoding="utf-8", errors="replace") as handle:
             first = next((line for line in handle if line.strip()), "")
     except OSError:
         return None
@@ -69,6 +70,8 @@ def scope_review_problem(review, scope):
     if not isinstance(review, dict) or not isinstance(review.get("rows"), list):
         return "holds no rows list"
     digest = scope_sha256(scope)
+    if digest is None:
+        return "cannot be judged: the scope report " + scope + " cannot be read"
     if review.get("scope_sha256") != digest:
         return ("has scope_sha256 " + repr(review.get("scope_sha256")) + ", not the sha256 of " + scope + " as it is now ("
                 + str(digest) + "): the report changed after its review, or the review graded another report")
@@ -121,9 +124,11 @@ def scope_problem(scope, bead):
         text = handle.read()
     lines = text.splitlines()
     second = lines[1] if len(lines) > 1 else ""  # a BEADS: line counts only directly under the verdict line
-    listed = {word.rstrip(".,;") for word in second[len("BEADS:"):].split()} if second.startswith("BEADS:") else set()
-    own = os.path.basename(scope) == "scope-" + bead + ".md" and names(text, bead)
-    if not own and bead not in listed:
+    if second.startswith("BEADS:"):  # then it is the whole list, whatever the file name
+        admitted = bead in {word.rstrip(".,;") for word in second[len("BEADS:"):].split()}
+    else:
+        admitted = os.path.basename(scope) == "scope-" + bead + ".md" and names(text, bead)
+    if not admitted:
         return ("the scope report " + scope + " is neither scope-" + bead + ".md naming the bead nor a checkpoint "
                 "scope listing it on a BEADS: line directly under the verdict line")
     review, problem = load(path)
@@ -192,8 +197,11 @@ def main():
         print(MESSAGE, file=sys.stderr)
         return 2
     tool_input = data.get("tool_input") or {}
-    if tool_input.get("subagent_type") == "builder":
-        found = builder_problem(str(tool_input.get("prompt") or ""))
+    if tool_input.get("subagent_type") in GATED:
+        try:
+            found = builder_problem(str(tool_input.get("prompt") or ""))
+        except Exception as error:  # a gate that breaks refuses, never lets the launch through
+            found = "the scope gate failed (" + type(error).__name__ + ": " + str(error) + ")"
         if found:
             print("Blocked: " + found, file=sys.stderr)
             return 2

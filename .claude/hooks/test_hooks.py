@@ -1657,6 +1657,21 @@ class ScopeGate(unittest.TestCase):
             with self.subTest(first=first):
                 path = self.scope(first, passed, bead="cp334", names="cp334; ryo-x is mentioned\nBEADS: ryo-x")
                 self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, code)
+        path = self.scope("PROCEED\nBEADS: ryo-c2 ryo-c3", passed)
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+
+    def test_a_scope_that_is_not_utf8_is_judged_not_crashed(self):
+        path = os.path.join(self.dir.name, "scope-ryo-x.md")
+        with open(path, "wb") as handle:
+            handle.write(b"PROCEED\n\nBead ryo-x, \xff\xfe not UTF-8.\n")
+        with open(os.path.join(self.dir.name, "scope-review-ryo-x.json"), "w", encoding="utf-8") as handle:
+            json.dump(with_digest({"rows": scope_rows(), "verdict": "PASS"}, path), handle)
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
+
+    def test_a_contract_migration_launch_needs_a_scope_like_a_builder(self):
+        self.assertEqual(self.launch(self.brief(""), kind="contract-migration").returncode, 2)
+        path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path), kind="contract-migration").returncode, 0)
 
     def test_refuses_a_scope_changed_after_its_review(self):
         path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})
@@ -1751,6 +1766,22 @@ class ScopeReviewStop(unittest.TestCase):
                 self.assertEqual(self.stop().returncode, 0)
         os.remove(self.review)
         self.assertEqual(self.stop(report="BLOCKED: which goal?").returncode, 0)
+
+    def test_a_missing_report_or_digest_holds(self):
+        self.write({"rows": scope_rows(), "verdict": "PASS", "scope_sha256": None})
+        self.assertEqual(self.stop().returncode, 2)
+        os.remove(self.scope)
+        self.write({"rows": scope_rows(), "verdict": "PASS", "scope_sha256": None})
+        self.assertEqual(self.stop().returncode, 2)
+        with open(self.review, "w", encoding="utf-8") as handle:
+            json.dump({"rows": scope_rows(), "verdict": "PASS"}, handle)
+        self.assertEqual(self.stop().returncode, 2)
+
+    def test_a_scope_that_is_not_utf8_stops_on_a_valid_review(self):
+        with open(self.scope, "wb") as handle:
+            handle.write(b"PROCEED\n\nBead ryo-x, \xff\xfe not UTF-8.\n")
+        self.write({"rows": scope_rows(), "verdict": "PASS"})
+        self.assertEqual(self.stop().returncode, 0)
 
     def test_a_defer_or_drop_review_grades_s1_and_s10_only(self):
         short = [r for r in scope_rows({"S10"}) if r["id"] in ("S1", "S10")]
