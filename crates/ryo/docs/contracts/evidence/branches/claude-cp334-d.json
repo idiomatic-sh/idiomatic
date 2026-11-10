@@ -1,0 +1,80 @@
+{
+ "checkpoint": 334,
+ "source": "bb1468438a0ba99e5ec46f09306e86e9b09b8a4f",
+ "branch": "claude/cp334-d",
+ "base": "752cc02c32",
+ "verdict": "PASS",
+ "checks": [
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:184-246 holds harness_case and its seam tests (crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples_test.rs:19-87) in ryo_language, the owner of the allocation row; no proof rests on benchmarks/ or a product rule set. The core (core/tests/allocation.rs:18-23) and SDK (sdk/src/resources/languages/contract.rs:215-228) callers only use it."
+  },
+  {
+   "id": "2",
+   "verdict": "PASS",
+   "evidence": "No failure becomes a pass. crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:241 resume_unwind after the FAILED report: a planted red in language/tests/allocation.rs:275 printed `test allocation::language::... FAILED`, `test result: FAILED` and exited 101. Re-planted 4 of the 6 recorded bugs, each red under its named test (drop resume_unwind: 2 red; --list runs the body; --exact matches all; --ignored unread). The listing behaves like libtest for every form nextest and cargo test send (--list [--format terse|=terse], --list --ignored, <name> --exact --nocapture, substring filter, --skip, --skip --exact, --include-ignored, --test-threads N). The value options crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:201 are libtest's complete list, so no option value becomes a filter. run.py passes no filter to any allocation target (commands.json default_features, core_allocation). The python red is FAILED by id (exit 101; run.py test_results gives failed allocation::python::..., not CRASHED). Core's red is unchanged (measures.rs:115 assertion), now FAILED as allocation::core::reading_allocates_as_the_parser_library_does. no-silent-skip fires 1 on the old core runner with the ignore removed (:35 return), and tm 0.1.2 gives 0 errors, 0 suppressed on the five touched files."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "harness_case is pub inside `#[cfg(any(test, feature = \"fixtures\"))] pub mod fixtures` (language/src/inbound/use_cases/parse.rs:10-11); case_by_arguments and report are private (crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:190,227). The SDK caller sits in `#[cfg(feature = \"fixtures\")] pub mod contract` (sdk/src/resources/languages.rs:3-4). No manifest changes, so no new edge: core and the SDK already depend on ryo_language with fixtures forwarded (core/Cargo.toml:31,64; sdk/Cargo.toml:24,43)."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "One report implementation: core's hand-written harness lines (base core/tests/allocation.rs:16-41) are deleted, and git grep 'test result: ' over *.rs at bb1468438a finds only crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs and crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples_test.rs. All 12 allocation runners report through crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:184 (ten languages via contract.rs:215, plus language/tests/allocation.rs:271 and core/tests/allocation.rs:19). The seam tests call the production case_by_arguments, not a copy."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "The callers keep their existing direction: SDK resources -> ryo_language inbound fixtures (contract.rs:8 `parse_samples`), and core's test target -> ryo_language inbound fixtures (core/tests/allocation.rs:8). Nothing in language's domain or application imports the fixture."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "Every new item sits behind the fixtures/test gate (parse.rs:10, languages.rs:3). The samples_test module is `#[cfg(test)]` ({S}:246-248). The fixtures feature is switched on only by dev-dependencies or a crate's own fixtures feature (language/Cargo.toml:43-44, unchanged), so no production build reaches harness_case (criterion 20)."
+  }
+ ],
+ "plants": [
+  {
+   "claim": "a_panicking_case_still_panics_after_its_report / a_filter_that_names_the_case_runs_it (resume_unwind dropped)",
+   "file": "crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:241",
+   "count": 2,
+   "reverted": true
+  },
+  {
+   "claim": "a_listing_names_the_case_without_running_it (--list runs the body)",
+   "file": "crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:221",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "a_filter_that_names_another_case_runs_nothing (--exact matches every name)",
+   "file": "crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:210",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "a_listing_of_the_ignored_cases_names_none (--ignored unread)",
+   "file": "crates/ryo/crates/language/src/inbound/use_cases/parse/fixtures/samples.rs:197",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "harness_case exits 101 with a FAILED line on a red body (language allocation runner)",
+   "file": "crates/ryo/crates/language/tests/allocation.rs:275",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "idiomatic.arch/no-silent-skip on core's old runner without its ignore",
+   "file": "crates/ryo/crates/core/tests/allocation.rs:35",
+   "count": 1,
+   "reverted": true
+  }
+ ],
+ "enforcement_candidates": [],
+ "reviewer": "leak-review",
+ "date": "2026-11-10T05:05:00Z"
+}
