@@ -173,6 +173,24 @@ fn antijoin(number: ColumnIndex) -> (Operation, ColumnIndex) {
         number,
     )
 }
+fn difference(number: ColumnIndex) -> (Operation, ColumnIndex) {
+    (
+        Operation::Difference {
+            left: Source::Step(StepId(0)),
+            right: Source::Step(StepId(0)),
+        },
+        number,
+    )
+}
+fn intersection(number: ColumnIndex) -> (Operation, ColumnIndex) {
+    (
+        Operation::Intersection {
+            left: Source::Step(StepId(0)),
+            right: Source::Step(StepId(0)),
+        },
+        number,
+    )
+}
 fn union(number: ColumnIndex) -> (Operation, ColumnIndex) {
     (
         Operation::Union {
@@ -304,6 +322,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_number_traced_through_an_antijoin_keeps_its_relation_origin"),
         word: Word::Succeeds,
         input: || Scenario::Traced(antijoin),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_number_traced_through_a_difference_keeps_its_relation_origin"),
+        word: Word::Succeeds,
+        input: || Scenario::Traced(difference),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_number_traced_through_an_intersection_keeps_its_relation_origin"),
+        word: Word::Succeeds,
+        input: || Scenario::Traced(intersection),
         expect: Expect::Value(()),
     },
     Case {

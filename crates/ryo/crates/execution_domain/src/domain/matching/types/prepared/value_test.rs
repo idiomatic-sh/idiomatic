@@ -39,6 +39,8 @@ enum Scenario {
     Undeclared,
     /// One operation of a kind that filters by its own comparisons, the literal's pattern in its filter.
     Filtered(fn(PlanComparison) -> Operation),
+    /// One replacement, its literal pattern the only literal of the request.
+    Replaced,
 }
 type Input = Scenario;
 type Value = ();
@@ -226,6 +228,19 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 "the filter's literal is declared before any worker runs"
             );
         }
+        Scenario::Replaced => {
+            let slots = prepared(&[Operation::Replace {
+                from: Source::Relation(Relation::Function),
+                text: ColumnIndex(0),
+                pattern: LiteralText("α+".into()),
+                replacement: LiteralText("$1".into()),
+            }]);
+            assert_eq!(slots.builds.load(Ordering::Relaxed), 0);
+            assert!(
+                slots.regex(TextView("α+"), matcher()).is_some(),
+                "the replacement's pattern is declared before any worker runs"
+            );
+        }
     }
     Ok(())
 }
@@ -264,6 +279,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("axis_literals_are_declared_before_any_worker"),
         word: Word::Succeeds,
         input: || Scenario::Filtered(axis),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("replace_literals_are_declared_before_any_worker"),
+        word: Word::Succeeds,
+        input: || Scenario::Replaced,
         expect: Expect::Value(()),
     },
 ];
