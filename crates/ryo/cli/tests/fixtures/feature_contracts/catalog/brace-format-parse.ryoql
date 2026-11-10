@@ -1,0 +1,2 @@
+let witness = select * from "brace-format-parse";
+emit witness subject file key(id);

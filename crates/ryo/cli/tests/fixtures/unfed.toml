@@ -1,5 +1,7 @@
 # The features of the language that ruff does not feed 1,000 rows, each with why. A feature listed here that is fed 1,000 rows or more
 # fails the replay, so the list only shrinks; a feature not listed and fed fewer fails it too (plan-trace: migration row 12,).
+# A feature is fed the rows of each plan step that has it: every comparison of a step, fused selections included, is credited with
+# all the rows fed to that step, not only the rows that reach the comparison.
 
 [feature]
 
@@ -11,9 +13,6 @@ why = "read only by `macro-paths-hygienic`, which is not among the recorded rule
 
 [feature."family:EndsWith"]
 why = "no recorded rule uses it."
-
-[feature."family:FloatTextGreaterThanOrEqual"]
-why = "used by `lossy-float-literals` only; 0 rows reach the comparison over ruff."
 
 [feature."family:NotGlobAny"]
 why = "no recorded rule uses it."
@@ -36,14 +35,8 @@ why = "770 rows; read only by `repeated-bound-strings`."
 [feature."relation:Comment"]
 why = "no recorded rule reads the relation; `todo-comments`, `unsafe-without-safety` and `duplicate-function-bodies` read the comment tokens of the tree."
 
-[feature."relation:Entry"]
-why = "read only by `dependency-feature-sprawl`, recorded as pending: the Rust language of ryo does not provide `sequence-element`, `entry` and `mapping`."
-
 [feature."relation:FilePackage"]
 why = "added by the declarations batch; no recorded rule reads it yet."
-
-[feature."relation:Mapping"]
-why = "no recorded rule reads it."
 
 [feature."relation:Directive"]
 why = "no recorded rule reads it; ruff's files are Python and Rust, which have no build directive in source."
@@ -54,11 +47,8 @@ why = "no recorded rule reads it; it was added for the comparison of a template 
 [feature."relation:Mention"]
 why = "added by the declarations batch; no recorded rule reads it yet."
 
-[feature."relation:PackageDependency"]
-why = "read only by `crate-dependency-cycles`, `crate-dependency-depth` and `layer-order`, recorded as pending: they read package-dependency, which the Rust language of ryo did not provide when they were recorded."
-
 [feature."relation:SequenceElement"]
-why = "no recorded rule reads it."
+why = "read only by `dependency-feature-sprawl`, over the few sequences of ruff's Cargo manifests: 268 rows."
 
 [feature."relation:SyntaxError"]
 why = "read only by `parse-errors`; 0 rows over ruff."
@@ -77,3 +67,60 @@ why = "added by the call-argument relation; no recorded rule reads it yet."
 
 [feature."relation:Resolves"]
 why = "added by the resolves relation; no recorded rule reads it yet."
+
+# Added by the Python rules of the benchmark (the ruff linter's queries, not the recorded rules of the ruff repository): no recorded
+# rule's query names any of these, so over ruff they are fed what the recorded rules feed them, nothing or almost nothing.
+
+[feature."family:NaturalLessThan"]
+why = "no recorded rule uses `natural_lt`; the Python I001 query does."
+
+[feature."operation:FitsRendered"]
+why = "no recorded rule uses `fits-rendered`; the Python I001 query does."
+
+[feature."operation:GroupDigest"]
+why = "no recorded rule uses `group-digest`."
+
+[feature."operation:OrderedDfs"]
+why = "no recorded rule uses `ordered-dfs`; only the operator feature contracts do."
+
+[feature."operation:OrderedMatch"]
+why = "no recorded rule uses `ordered-match`; the Python suppression fragments do."
+
+[feature."operation:RenderSyntax"]
+why = "no recorded rule uses `render-syntax`."
+
+[feature."operation:SourceMatches"]
+why = "no recorded rule uses `source-matches`; the Python I001 query does."
+
+[feature."operation:SpanBounds"]
+why = "no recorded rule uses `span-bounds`; the Python suppression fragments do."
+
+[feature."relation:AnalyzedSource"]
+why = "read only by `orphan-rust-files` (undecided on ruff, so it feeds nothing) and `crate-dependency-depth` (recorded as pending)."
+
+[feature."relation:BytesLiteral"]
+why = "2 rows; no recorded rule reads it."
+
+[feature."relation:FilesystemExecutable"]
+why = "no recorded rule reads it; the Python EXE rules do."
+
+[feature."relation:FilesystemReadFailure"]
+why = "no recorded rule reads it."
+
+[feature."relation:FormatSpecification"]
+why = "29 rows; no recorded rule reads it."
+
+[feature."relation:ManifestDiagnostic"]
+why = "no recorded rule reads it."
+
+[feature."relation:ProjectNamespaceMembership"]
+why = "no recorded rule reads it; the Python I001 query does."
+
+[feature."relation:StandardLibraryImport"]
+why = "no recorded rule reads it; the Python I001 query does."
+
+[feature."relation:TokenLink"]
+why = "no recorded rule reads it."
+
+[feature."relation:Annotates"]
+why = "regions only rules absent on a file reach are not run there: the rules that read `annotates` cannot match most of ruff's files, so it is fed only where they can (31 rows)."

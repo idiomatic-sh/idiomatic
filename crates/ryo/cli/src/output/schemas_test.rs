@@ -4,14 +4,15 @@
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
-use ryo_core::outbound::rows::errors::RowsError;
-use ryo_core::outbound::rows::interface::RowsPort as _;
-use ryo_core::outbound::rows::types::{LentCell, Summary};
+use ryo_core::outbound::row_sink::errors::RowSinkError;
+use ryo_core::outbound::row_sink::interface::RowSinkPort as _;
+use ryo_core::outbound::row_sink::types::{AnswerCounts, LentCell};
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::constants::NO_SPAN;
-use ryo_language::domain::relations::types::{Integer, Offset, Span};
+use ryo_relations::domain::relations::constants::NO_SPAN;
+use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::plan_parts::types::Heading;
-use ryo_values::domain::records::types::{Cell, CellText, RowTotal, Unread, Unreadable};
+use ryo_values::domain::records::types::{Unread, Unreadable};
+use ryo_values::domain::row_texts::types::{Cell, CellText, RowTotal};
 use ryo_values::domain::stored_facts::types::ReadFailure;
 
 use super::super::Format;
@@ -79,7 +80,7 @@ enum Offered {
     Cell(Option<Cell<CellText<'static>>>),
     /// The rows of an answer of two columns and one row, written in a format to a stream that does something with them, with a
     /// summary.
-    Rows(Format, Reader, Summary),
+    Rows(Format, Reader, AnswerCounts),
 }
 
 /// What a row gives the schemas.
@@ -87,7 +88,7 @@ type Input = Offered;
 /// What was written: the cell's text, then a line break, then its JSON; or the whole answer.
 type Value = String;
 /// Why the answer could not be written.
-type Failure = RowsError;
+type Failure = RowSinkError;
 
 /// A span value from `start` to `end`.
 const fn span(start: u32, end: u32) -> Cell<CellText<'static>> {
@@ -98,8 +99,8 @@ const fn span(start: u32, end: u32) -> Cell<CellText<'static>> {
 }
 
 /// A summary of `total` rows of which `shown` were written.
-const fn summary(total: u64, shown: u64) -> Summary {
-    Summary {
+const fn summary(total: u64, shown: u64) -> AnswerCounts {
+    AnswerCounts {
         total: RowTotal(total),
         shown: RowTotal(shown),
     }
@@ -177,7 +178,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 summary(1, 1),
             )
         },
-        expect: Expect::Error(RowsError::Closed),
+        expect: Expect::Error(RowSinkError::Closed),
     },
     Case {
         name: CaseName("a_stream_that_fails_fails_the_answer"),
@@ -189,7 +190,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 summary(1, 1),
             )
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, RowsError::Failed { .. }))),
+        expect: Expect::Refusal(|error| selects(matches!(error, RowSinkError::Failed { .. }))),
     },
     Case {
         name: CaseName("a_reader_that_left_before_the_flush_closes_the_answer"),
@@ -201,7 +202,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 summary(1, 1),
             )
         },
-        expect: Expect::Error(RowsError::Closed),
+        expect: Expect::Error(RowSinkError::Closed),
     },
     Case {
         name: CaseName("a_flush_that_fails_fails_the_answer"),
@@ -213,7 +214,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 summary(1, 1),
             )
         },
-        expect: Expect::Refusal(|error| selects(matches!(error, RowsError::Failed { .. }))),
+        expect: Expect::Refusal(|error| selects(matches!(error, RowSinkError::Failed { .. }))),
     },
 ];
 

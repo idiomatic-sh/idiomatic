@@ -1,64 +1,14 @@
-//! The steps of a plan that read only the tree of a file run over the positions of its elements (the `fragment` concept of the
-//! core), and not as operators: every rule gives the rows it gave as operators, over ruff.
+//! The rows of HTML's DOM order, its scalar values and its missing locations are the same on every run. Engine determinism over
+//! owned rules is proved by the SDK (`a_shared_linter_gives_what_fresh_linters_give`), not over a corpus here.
+#![cfg(feature = "html")]
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake;
 
-use crate::counting;
-
-/// The rows of every live rule over ruff, with the lowering on or off.
-fn rows_of(unlowered: bool) -> BTreeMap<String, Vec<Vec<String>>> {
-    counting::UNLOWERED.store(unlowered, Ordering::Relaxed);
-    let rules: Vec<_> = counting::runnable()
-        .into_iter()
-        .map(|(_, rule)| rule)
-        .collect();
-    let run = counting::lint_counting(
-        &crate::base::snapshot::ruff(),
-        rules,
-        Arc::new(ryo_core::outbound::lint_store::factory::memory()),
-    );
-    counting::UNLOWERED.store(false, Ordering::Relaxed);
-    let mut by_rule: BTreeMap<String, Vec<Vec<String>>> = BTreeMap::new();
-    for row in run.expect("the rules run").rows {
-        by_rule
-            .entry(row.first().cloned().unwrap_or_default())
-            .or_default()
-            .push(row);
-    }
-    for rows in by_rule.values_mut() {
-        rows.sort();
-    }
-    by_rule
-}
-
+/// Native DOM order, scalar values and missing locations must survive every run.
 #[test]
-fn every_rule_gives_the_rows_the_operators_give_when_its_tree_steps_are_lowered() {
-    let _alone = crate::alone();
-    let operators = rows_of(true);
-    let lowered = rows_of(false);
-    let differing: Vec<&String> = operators
-        .keys()
-        .chain(lowered.keys())
-        .filter(|rule| operators.get(*rule) != lowered.get(*rule))
-        .collect();
-    assert!(
-        differing.is_empty(),
-        "the lowering changes the rows of {differing:?}"
-    );
-    assert!(
-        operators.values().map(Vec::len).sum::<usize>() > 10_000,
-        "the rules give the rows of ruff"
-    );
-}
-
-/// Native DOM order, scalar values and missing locations must survive both execution paths.
-#[cfg(feature = "html")]
-#[test]
-fn html_dom_and_absent_locations_match_ordinary_operators() -> Result<(), Box<dyn std::error::Error>>
+fn html_dom_and_absent_locations_are_stable_across_runs() -> Result<(), Box<dyn std::error::Error>>
 {
     let _alone = crate::alone();
     let directory = tempfile::tempdir()?;
@@ -77,8 +27,7 @@ fn html_dom_and_absent_locations_match_ordinary_operators() -> Result<(), Box<dy
         ),
     ];
     let mut answers = Vec::new();
-    for ordinary in [true, false] {
-        crate::base::UNLOWERED.store(ordinary, Ordering::Relaxed);
+    for _run in 0..2 {
         let store = tempfile::tempdir()?;
         let html = ryo_html::linked();
         let result = crate::base::lint_report_with_languages(
@@ -87,17 +36,14 @@ fn html_dom_and_absent_locations_match_ordinary_operators() -> Result<(), Box<dy
                 .iter()
                 .map(|(name, query)| crate::rule_from_query(name, query, &["**/*.html".to_owned()]))
                 .collect(),
-            Arc::new(ryo_core::outbound::facts::factory::spill(
+            Arc::new(ryo_execution_runtime::outbound::facts::factory::spill(
                 store.path().to_path_buf(),
             )),
             Arc::new(LintStoreFake::default()),
             Vec::new(),
             false,
-            vec![ryo_core::outbound::language::types::LanguageHandles::from(
-                html,
-            )],
+            vec![ryo_core::outbound::language::factory::LanguageConnection::from(html)],
         );
-        crate::base::UNLOWERED.store(false, Ordering::Relaxed);
         let (mut rows, report) = result?;
         assert!(report.unread.is_empty(), "HTML is actually read");
         rows.sort();

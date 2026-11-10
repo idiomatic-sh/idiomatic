@@ -4,7 +4,7 @@ use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
 use ryo_core::inbound::use_cases::lint::types::{LintRequest, Rule};
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::records::types::RowTotal;
+use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::AnswerShape;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::runs::types::{Budget, Session};
@@ -35,6 +35,7 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
         &crate::resources::edge_at(
             RootPath(".".into()),
             RootPath(".".into()),
+            ryo_values::domain::runs::types::MachineWorkers(1),
             crate::output::Format::Terminal,
         ),
         ryo_core::outbound::lint_store::types::Store::default(),
@@ -43,16 +44,21 @@ fn the_walk_does_not_enter_the_directories_the_linked_languages_declare() {
         ryo_values::domain::runs::types::WorkersAsked(0),
     )
     .lint(LintRequest {
+        source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         session: Session {
+            search_scope: Default::default(),
+            given_inventory: Default::default(),
             repository: ryo_language::inbound::use_cases::project::types::Repository::Disk,
             root: RootPath(directory.path().to_str().expect("a utf-8 path").into()),
         },
         files: Vec::new(),
         rules: vec![Rule {
+            observations: Vec::new(),
             id: RuleId("1".into()),
-            query: QueryText(
-                "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");".into(),
+            query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
+                "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");".into()),
             ),
+            applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),

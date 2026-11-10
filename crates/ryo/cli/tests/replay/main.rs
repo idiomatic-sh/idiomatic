@@ -39,6 +39,11 @@ mod answers;
 mod base;
 #[path = "../fixtures/replay/counting.rs"]
 mod counting;
+#[cfg(feature = "python")]
+#[path = "../fixtures/replay/feature_contracts.rs"]
+mod feature_contracts;
+#[path = "../fixtures/replay/ratchet.rs"]
+mod ratchet;
 #[path = "../fixtures/replay/ruff.rs"]
 mod ruff;
 #[path = "../fixtures/replay/stores.rs"]
@@ -47,17 +52,20 @@ mod stores;
 mod tables;
 #[path = "../fixtures/replay/tools.rs"]
 mod tools;
+#[path = "../fixtures/replay/workload.rs"]
+mod workload;
 
 mod behavior;
 mod cache;
+mod cost;
 mod coverage;
 mod damage;
 mod filesystem;
 mod finish;
 mod frontier;
+mod goldens;
 mod governing;
 mod interface;
-mod linear;
 mod linking;
 mod lowering;
 mod manifests;
@@ -73,6 +81,7 @@ mod manifests_pnpm;
 #[cfg(feature = "python")]
 mod manifests_uv;
 mod peak;
+mod recordings;
 mod rule_fixtures;
 mod sdk;
 mod snapshot;
@@ -88,8 +97,10 @@ use ryo_values::domain::runs::types::RuleId;
 #[must_use]
 pub fn rule_from_query(id: &str, query: &str, include: &[String]) -> Rule {
     Rule {
+        observations: Vec::new(),
         id: RuleId(id.into()),
-        query: QueryText(query.into()),
+        query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(query.into())),
+        applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
         parameters: Vec::new(),
         include: include
             .iter()

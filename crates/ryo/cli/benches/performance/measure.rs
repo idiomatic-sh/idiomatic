@@ -15,6 +15,7 @@ pub(crate) fn quiet_edge(start: &str) -> ryo_cli::edge::Edge {
     ryo_cli::resources::edge_at(
         ryo_language::inbound::use_cases::project::types::RootPath(start.into()),
         ryo_language::inbound::use_cases::project::types::RootPath(".".into()),
+        ryo_values::domain::runs::types::MachineWorkers(1),
         ryo_cli::output::Format::Quiet,
     )
 }

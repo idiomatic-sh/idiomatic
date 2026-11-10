@@ -1,0 +1,2 @@
+let witness = select * from "binding-event";
+emit witness subject file key(occurrence, ordinal);

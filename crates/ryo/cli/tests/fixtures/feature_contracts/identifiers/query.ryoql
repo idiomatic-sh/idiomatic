@@ -1,0 +1,12 @@
+let names = select id, name, file, span from "identifier";
+let whitespace = select id from names where matches(name, "\s");
+let cleaned = replace(from=names, text="name", pattern="\s+", replacement="", output="cleaned");
+let changed = select id from cleaned where name != cleaned;
+let locations = select l.id as id, l.file as file, r."start-byte" as begin, r."end-byte" as finish from names as l join "source-location" as r on l.id = r.id;
+let paired = ordered-match(left=locations, right=locations, left-on=["file", "id"], right-on=["file", "id"], left-order="begin", right-order="finish", output={id: [left,id]});
+let missing = antijoin(left=names, right=paired, left-on=["id"], right-on=["id"]);
+let missing_ids = select id from missing;
+let changed_or_whitespace = union(left=changed, right=whitespace);
+let invalid_ids = union(left=changed_or_whitespace, right=missing_ids);
+let invalid = select l.file as file, l.span as span from names as l join invalid_ids as r on l.id = r.id;
+emit invalid subject file key(span);

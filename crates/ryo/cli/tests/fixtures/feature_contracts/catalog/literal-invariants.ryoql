@@ -1,0 +1,11 @@
+let literals = select id, kind, boolean, file, span from "literal-properties";
+let inconsistent_boolean = select id, file, span from literals where boolean = "true" and kind != "boolean";
+let constants = select id, key, file, span from "constant-key";
+let nodes = select id, file from "semantic-syntax";
+let absent_constants = antijoin(left=constants, right=nodes, left-on=["id", "file"], right-on=["id", "file"]);
+let absent_representatives = antijoin(left=constants, right=nodes, left-on=["key", "file"], right-on=["id", "file"]);
+let a = select id, file, span from absent_constants;
+let b = select id, file, span from absent_representatives;
+let missing = union(left=a, right=b);
+let violations = union(left=inconsistent_boolean, right=missing);
+emit violations subject file key(id, span);

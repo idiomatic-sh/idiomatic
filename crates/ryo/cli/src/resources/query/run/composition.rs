@@ -32,13 +32,13 @@ pub(crate) fn build(
     use ryo_core::application::file_analysis::service::FileAnalysis;
     use ryo_core::inbound::use_cases::lint::use_case::LintUseCaseImpl;
     use ryo_core::outbound::corpus::interface::CorpusPort;
-    use ryo_core::outbound::digest::interface::DigestPort;
     use ryo_core::outbound::language::interface::LanguagePort;
     use ryo_core::outbound::lint_store::interface::LintStorePort;
     use ryo_core::outbound::memory::interface::MemoryPort;
-    use ryo_core::outbound::{
-        corpus, digest, facts, lint_store, matching, memory, query_language, scheduler,
-    };
+    use ryo_core::outbound::{corpus, lint_store, memory, scheduler};
+    use ryo_execution::outbound::{matching, query_language};
+    use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+    use ryo_execution_runtime::outbound::{digest, facts};
     use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
     use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
     use std::sync::Arc;
@@ -65,6 +65,9 @@ pub(crate) fn build(
     let digests: Arc<dyn DigestPort> = Arc::new(digest::factory::blake3());
     let memory: Arc<dyn MemoryPort> = Arc::new(memory::factory::sysinfo(budget));
     let store: Arc<dyn LintStorePort> = Arc::new(lint_store::factory::postcard(kept_in));
+    let started = scheduler::types::WorkerCount(
+        ryo_values::domain::runs::service::workers_to_start(workers, edge.machine).0,
+    );
     compose(QueryRunParts {
         service: LintUseCaseImpl::new(
             FileAnalysis::new(
@@ -73,15 +76,19 @@ pub(crate) fn build(
                 Arc::clone(&digests),
                 Arc::clone(&memory),
             ),
-            CrossFile::new(Arc::clone(&files)),
+            CrossFile::new(Arc::clone(&files), std::sync::Arc::new(ryo_execution::inbound::use_cases::publication::use_case::PublicationUseCaseImpl::new())),
             Arc::clone(&files),
             Arc::new(facts::factory::memory()),
             language,
             Arc::new(matching::factory::globset()),
             Arc::new(query_language::factory::use_case(compile, typecheck)),
             memory,
-            Arc::new(scheduler::factory::rayon(scheduler::factory::pool(workers))),
-            scheduler::factory::workers(workers),
+            Arc::new(ryo_execution_runtime::outbound::operators::factory::use_case(
+                ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(std::sync::Arc::new(ryo_operators::outbound::matching::factory::use_case())),
+            )),
+ryo_execution::derived(),
+            Arc::new(scheduler::factory::rayon(started)),
+            started,
             Arc::new(crate::output::schemas::rows(out, edge.format)),
             digests,
             store,
