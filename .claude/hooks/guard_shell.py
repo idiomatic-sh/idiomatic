@@ -1031,6 +1031,71 @@ EVIDENCE_TAIL = "/crates/ryo/docs/contracts/evidence/"
 CHECKPOINT_BRANCH = re.compile(r"claude/checkpoint-\d+")
 WRITE_REDIRECT = re.compile(r"(?<![<&0-9])\d?>>?\s*(?!&)(\"[^\"]+\"|'[^']+'|[^\s;&|<>()]+)")
 
+# Closed for extension: Tastemaker manifests and the owner's allowlist are never written from the shell, and no shell
+# writer adds an in-source ignore comment. guard_write diffs edits made with the Write and Edit tools.
+CLOSED_FILES = ("tastemaker.toml", "closed_for_extension.toml")
+IGNORE_MARK = re.compile(r"ignore:\s*idiomatic\.")
+PY_WRITE = re.compile(r"open\([^)]*['\"][wa]b?\+?['\"]|json\.dump|write_text|write_bytes")
+IN_PLACE_FLAG = r"-[0-9A-Za-z]*i"
+IN_PLACE = re.compile(r"\b(sed|perl)\b[^\n;|&]*\s" + IN_PLACE_FLAG + r"|--in-place")
+DRIVEN = re.compile(r"\bxargs\b|\s-exec(dir)?\s")
+WRITER = re.compile(r"(?<![<&0-9])\d?>>?\s*(?!&|/dev/null(?![^\s;&|<>()]))[^\s;&|<>()]"
+                    r"|\b(tee|sponge|dd|cp|mv|install|rsync|ln)\b|" + IN_PLACE.pattern + "|" + PY_WRITE.pattern +
+                    r"|\bnode\s+(-e|--eval)\b|\bdeno\s+eval\b")
+ALLOWLIST = "closed_for_extension.toml"
+FILE_ROUTE = ("; for a commit message or PR body, write it with the Write tool and pass the file: "
+              "`git commit -F <file>`, `gh pr create --body-file <file>` (a message names a rule id without the "
+              "`ignore:` prefix)")
+
+
+def closed_write_problem(path):
+    """The refusal when path is a Tastemaker manifest or the owner's allowlist, else None."""
+    name = os.path.basename(str(path).strip("'\""))
+    if name == ALLOWLIST:
+        return (path + " is the owner's allowlist of changes admitted to closed files; agents never write it, "
+                "the owner edits it by hand in idiomatic-internal")
+    if name in CLOSED_FILES:
+        return (path + " is a Tastemaker manifest, closed for extension; edit manifests with the Edit or Write tool, "
+                "which diffs them and refuses any extension or loosening")
+    return None
+
+
+def closed_text_problem(command):
+    """The refusal when the raw command text writes a closed file, adds an ignore comment, or drives an in-place
+    editor with xargs or find -exec; else None. Read on the raw text, so heredoc bodies and quoted text count."""
+    text = str(command)
+    writes = WRITER.search(text) is not None
+    if writes and any(name in text for name in CLOSED_FILES):
+        return ("a command naming " + " or ".join(CLOSED_FILES) + " also writes (a redirect, tee, cp, mv, an in-place "
+                "editor, an interpreter's write); edit manifests with the Edit or Write tool, which diffs them, and "
+                "read them with the Read tool" + FILE_ROUTE)
+    if writes and IGNORE_MARK.search(text):
+        return ("a shell writer next to an `ignore: idiomatic.` mark adds or rewrites an in-source ignore comment; "
+                "make the edit with the Edit tool, which diffs it" + FILE_ROUTE)
+    if IN_PLACE.search(text) and DRIVEN.search(text):
+        return "an in-place editor driven by xargs or find -exec edits files unseen; edit each file with the Edit tool"
+    return None
+
+
+def patch_problem(words):
+    """patch, git apply and git am write files no guard reads; refused outright."""
+    if words and (os.path.basename(words[0]) == "patch" or git_verb(words, "apply") or git_verb(words, "am")):
+        return "patch, git apply and git am are refused: they write files no guard diffs; edit with the Edit tool"
+    return None
+
+
+def tm_manifest_problem(words):
+    """tm add, init and update write tastemaker.toml entries and versions, which are the owner's."""
+    if not words or os.path.basename(words[0]) != "tm":
+        return None
+    rest = words[1:]
+    while rest and rest[0].startswith("-"):
+        rest = rest[2:] if rest[0] == "--root" else rest[1:]
+    if rest and rest[0] in ("add", "init", "update"):
+        return ("tm " + rest[0] + " writes a tastemaker.toml, which is closed for extension; the owner runs it. "
+                "tm check, validate, explain, list, scaffold and create are open")
+    return None
+
 
 def evidence_write_problem(path, here):
     """The refusal when path is a review-evidence file outside a claude/checkpoint-N worktree's evidence directory.
@@ -1065,14 +1130,15 @@ def written_paths(segment, words):
     source's file name under that directory)."""
     found = [m.group(1).strip("'\"") for m in WRITE_REDIRECT.finditer(segment)]
     if len(words) > 2 and words[0] == "git" and "show" in words[1:3] and any(re.match(r"[^\s:]+:\S", w) for w in words[2:]):
-        found = []  # git show <rev>:<committed path> > file is a read copy of committed content
+        # git show <rev>:<committed path> > file is a read copy of committed content, except into a closed file
+        found = [p for p in found if os.path.basename(p) in CLOSED_FILES]
     for inner in unwrapped(words):
         if not inner:
             continue
         operands = [a for a in inner[1:] if not a.startswith("-")]
         if inner[0] == "tee":
             found += operands
-        elif inner[0] in ("sed", "perl") and any(re.fullmatch(r"-[A-Za-z]*i\S*", a) for a in inner[1:]) or "--in-place" in inner:
+        elif inner[0] in ("sed", "perl") and any(re.fullmatch(IN_PLACE_FLAG + r"\S*", a) for a in inner[1:]) or "--in-place" in inner:
             found += operands
         elif inner[0] == "sponge":
             found += operands
@@ -1080,7 +1146,7 @@ def written_paths(segment, words):
             found += [a[3:] for a in inner[1:] if a.startswith("of=")]
         elif inner[0] in ("python", "python3") and "-c" in inner:
             code = inner[inner.index("-c") + 1] if inner.index("-c") + 1 < len(inner) else ""
-            if re.search(r"open\([^)]*['\"][wa]b?\+?['\"]|json\.dump|write_text|write_bytes", code):
+            if PY_WRITE.search(code):
                 found += [m.group(2) for m in re.finditer(r"(['\"])([^'\"]+)\1", code)]
         elif inner[0] in ("cp", "mv", "install", "rsync", "ln") and operands:
             target = operands[-1]
@@ -1129,8 +1195,16 @@ def reason(command, cwd=None):
                 found = gate(inner, here)
                 if found:
                     return found
+        for inner in unwrapped(words):
+            found = patch_problem(inner) or tm_manifest_problem(inner)
+            if found:
+                return found
+        for path in written_paths(segment, words):
+            found = closed_write_problem(path)
+            if found:
+                return found
         before += segment + " "
-    return None
+    return closed_text_problem(command)
 
 
 def main():
@@ -1143,8 +1217,9 @@ def main():
         found = reason(command, data.get("cwd"))
     except Exception as error:
         # Claude Code treats a hook crash as non-blocking, so a guard that breaks on a git push, merge or pull
-        # must refuse it. The scan is plain text and cannot raise; any other command keeps the crash.
-        if gated_text(command):
+        # must refuse it, and so must one naming a closed file or an ignore mark. The scans are plain text and cannot
+        # raise; any other command keeps the crash.
+        if gated_text(command) or any(name in str(command) for name in CLOSED_FILES) or IGNORE_MARK.search(str(command)):
             print("Blocked: guard failed closed: " + type(error).__name__ + ": " + str(error), file=sys.stderr)
             return 2
         raise

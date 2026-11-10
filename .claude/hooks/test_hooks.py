@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import tomllib
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -2166,32 +2167,52 @@ class ClosedForExtension(unittest.TestCase):
         self.assertIn(old, before)
         return {"Write": self.write(path, before.replace(old, new, 1)), "Edit": self.edit(path, old, new)}
 
-    def assert_codes(self, code, changes, path=None):
+    def assert_codes(self, code, changes, path=None, named=()):
         for old, new in changes:
             for tool, done in self.both(old, new, path).items():
                 with self.subTest(tool=tool, old=old, new=new):
                     self.assertEqual(done.returncode, code, done.stderr)
+                    printed = self.printed_changes(done)
+                    for change in named:
+                        self.assertIn(change, printed, done.stderr)
 
-    def refused(self, *changes, path=None):
-        self.assert_codes(2, changes, path)
+    def refused(self, *changes, path=None, named=()):
+        """Each change is refused by Write and by Edit, and every change in named is among the printed refusals."""
+        self.assert_codes(2, changes, path, named)
 
     def allowed(self, *changes, path=None):
         self.assert_codes(0, changes, path)
 
-    def assert_commands(self, code, commands):
+    def assert_commands(self, code, commands, says=None):
         for command in commands:
             with self.subTest(command=command):
                 done = self.bash(command)
                 self.assertEqual(done.returncode, code, done.stderr)
+                if says:
+                    self.assertIn(says, done.stderr)
+
+    def printed_blocks(self, done):
+        """The [[manifest]] or [[ignore]] blocks a refusal prints for the owner to paste."""
+        return re.findall(r"^\[\[(?:manifest|ignore)\]\]\n(?:[a-z]+ = .*\n?)+", done.stderr, re.MULTILINE)
+
+    def printed_changes(self, done):
+        """(change, fact, value) of every [[manifest]] block a refusal prints."""
+        return [(e["change"], e["fact"], e["value"]) for b in self.printed_blocks(done)
+                for e in tomllib.loads(b).get("manifest", [])]
 
     # refused
 
     def test_an_added_literal_template_placement_is_refused(self):
-        self.refused((ADAPTER, ADAPTER + '  { template = "idiomatic.rust/adapter", file = "src/myname.rs" },\n'))
+        self.refused((ADAPTER, ADAPTER + '  { template = "idiomatic.rust/adapter", file = "src/myname.rs" },\n'),
+                     named=[("added", "templates[idiomatic.rust/adapter]", "<entry>"),
+                            ("added", "templates[idiomatic.rust/adapter].file", "src/myname.rs")])
 
     def test_an_added_glob_template_placement_is_refused(self):
         self.refused((ADAPTER, ADAPTER + '  { template = "idiomatic.rust/adapter", file = "src/*.rs" },\n'),
-                     (ADAPTER, ADAPTER + '  { template = "idiomatic.rust/adapter", file = "src/myname.r[s]" },\n'))
+                     named=[("added", "templates[idiomatic.rust/adapter]", "<entry>"),
+                            ("added", "templates[idiomatic.rust/adapter].file", "src/*.rs")])
+        self.refused((ADAPTER, ADAPTER + '  { template = "idiomatic.rust/adapter", file = "src/myname.r[s]" },\n'),
+                     named=[("added", "templates[idiomatic.rust/adapter].file", "src/myname.r[s]")])
 
     def test_an_added_include_is_refused(self):
         self.refused(('include = ["src/**", "tests/**"]', 'include = ["src/**", "tests/**", "benches/**"]'))
@@ -2211,10 +2232,12 @@ class ClosedForExtension(unittest.TestCase):
         self.refused(('["pkg-a", "pkg-b"]', '["pkg-a", "pkg-b", "pkg-c"]'))
 
     def test_a_new_rule_entry_is_refused(self):
-        self.refused((SECOND, SECOND + '  { rule = "idiomatic.arch/third", include = ["src/**"] },\n'))
+        self.refused((SECOND, SECOND + '  { rule = "idiomatic.arch/third", include = ["src/**"] },\n'),
+                     named=[("added", "rules[idiomatic.arch/third]", "<entry>")])
 
     def test_a_new_spec_entry_is_refused(self):
-        self.refused(("specs = [\n", 'specs = [\n  { spec = "idiomatic.arch/other", include = ["."] },\n'))
+        self.refused(("specs = [\n", 'specs = [\n  { spec = "idiomatic.arch/other", include = ["."] },\n'),
+                     named=[("added", "specs[idiomatic.arch/other]", "<entry>")])
 
     def test_a_loosened_params_scalar_is_refused(self):
         self.refused(("max-lines = 400", "max-lines = 800"))
@@ -2223,7 +2246,7 @@ class ClosedForExtension(unittest.TestCase):
         self.assertEqual(self.write(os.path.join(self.tree, "crates", "y", "tastemaker.toml"), MANIFEST).returncode, 2)
 
     def test_a_removed_rule_entry_is_refused(self):
-        self.refused((SECOND, ""))
+        self.refused((SECOND, ""), named=[("removed", "rules[idiomatic.arch/second]", "<entry>")])
 
     def test_a_removed_include_is_refused(self):
         self.refused(('include = ["src/**", "tests/**"]', 'include = ["src/**"]'))
@@ -2242,7 +2265,8 @@ class ClosedForExtension(unittest.TestCase):
         self.refused(('members = ["crates/a", "crates/b"]', 'members = ["crates/a"]'))
 
     def test_a_removed_spec_entry_is_refused(self):
-        self.refused(("specs = [\n" + SPEC, "specs = [\n  # " + SPEC))
+        self.refused(("specs = [\n" + SPEC, "specs = [\n  # " + SPEC),
+                     named=[("removed", "specs[idiomatic.arch/concept]", "<entry>")])
 
     def test_a_removed_glob_template_placement_is_refused(self):
         self.refused((MODULE, ""))
@@ -2280,6 +2304,12 @@ class ClosedForExtension(unittest.TestCase):
             "python3 -c \"open('crates/x/tastemaker.toml', 'w').write('')\"",
             "python3 - <<'EOF'\nopen('crates/x/tastemaker.toml', 'w').write('')\nEOF",
             "git show HEAD:crates/x/tastemaker.toml > crates/x/tastemaker.toml"])
+        # the shell writes the hook reads as written paths name the manifest in their refusal
+        self.assert_commands(2, [
+            "sed -i s/a/b/ crates/x/tastemaker.toml", "perl -pi -e 's/a/b/' crates/x/tastemaker.toml",
+            "echo x | tee crates/x/tastemaker.toml", "python3 -c \"open('crates/x/tastemaker.toml', 'w').write('')\"",
+            "git show HEAD:crates/x/tastemaker.toml > crates/x/tastemaker.toml"],
+            says="crates/x/tastemaker.toml is a Tastemaker manifest")
 
     def test_digit_bundled_in_place_flags_are_refused(self):
         self.assert_commands(2, [
@@ -2361,10 +2391,6 @@ class ClosedForExtension(unittest.TestCase):
         self.put(self.allowlist, ADMIT_EXCLUDE)
         self.allowed(('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/gen/**", "src/old/**", "src/new/**"]'))
         self.refused(('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/gen/**", "src/old/**", "src/other/**"]'))
-
-    def printed_blocks(self, done):
-        """The [[manifest]] or [[ignore]] blocks a refusal prints for the owner to paste."""
-        return re.findall(r"^\[\[(?:manifest|ignore)\]\]\n(?:[a-z]+ = .*\n?)+", done.stderr, re.MULTILINE)
 
     def test_an_allowlisted_manifest_removal_is_allowed(self):
         done = self.edit(self.manifest, SECOND, "")

@@ -13,6 +13,19 @@ unless it replies BLOCKED, and any error holds the stop; it reads the agent's ow
 main session's own `transcript_path`). `test_hooks.py` holds their cases; run it with
 `python3 -m unittest test_hooks` in this directory.
 
+Tastemaker manifests are closed for extension. `guard_write.py` diffs a `tastemaker.toml` edit as TOML facts (scope
+`rules[<id>]`, `templates[<id> as <alias>]`, `specs[<id>]`, dotted key path, list positions erased) and refuses every
+added fact and every removal that loosens: an agent may only remove an `exclude`, `except`, `allow` or `rules-exclude`
+element or a single-file template placement, and edit descriptions, comments and order. It refuses an added
+`ignore: idiomatic.` line in any file, a patch naming a manifest and a script that writes one, and every write to
+`closed_for_extension.toml`, the owner's allowlist beside the hooks in idiomatic-internal, which the owner edits by
+hand (absent or unparsable, it admits nothing; each refusal prints the block that would admit it, and an entry admits
+only with its `reason`). `guard_shell.py` refuses every shell write of a manifest or the allowlist (edit manifests with
+the Edit or Write tool), a writer next to an ignore mark, an in-place editor driven by xargs or find -exec, `patch`,
+`git apply`, `git am`, and `tm add`, `tm init` and `tm update`. Its text rules read the raw command, so a commit
+message or PR body naming a manifest beside a writer word is refused: write it with the Write tool and pass the file
+(`git commit -F <file>`, `gh pr create --body-file <file>`).
+
 ## Threat model
 The hooks stop **honest mistakes by our own agents**: the command an agent writes by habit, by copying an old brief or
 by not knowing the rule, such as a workspace-wide test from a builder tree, a push to `main`, a missing build lock or a
@@ -42,4 +55,8 @@ These reach past the guards and are left out on purpose; none is a spelling an a
 - a bare tracker id with no digit and no child number (`ryo-abcd` standing alone), which reads like a package name
   (`idiomatic-sh-ryo-sdk`); one in parentheses or after "bead" is reported. The review evidence validator (`ci/contract_review/service.py`) reads its tracker-id globs from that placement in
   the newest `idiomatic-project` spec, so the rule and the validator hold one definition;
-- `gh pr merge`. Server-side branch protection on `main` is the complete fix for every push to it.
+- `gh pr merge`. Server-side branch protection on `main` is the complete fix for every push to it;
+- manifest content that arrives committed (`git merge`, `cherry-pick`, `checkout <ref> -- <file>`), an interpreter
+  given a command string that builds a closed file's name at run time, a `python3 -c` open with mode `r+`, and a
+  list element moved between two entries of the same scope (two unaliased entries of one rule), which keeps the
+  fact counts equal.
