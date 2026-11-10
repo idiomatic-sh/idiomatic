@@ -49,8 +49,6 @@ struct SourceViews {
 
 /// The relation owner of one file generation: it publishes relations, admits borrowed inputs and issues the generation they are bound to.
 pub struct RelationOwner {
-    #[cfg(test)]
-    pub(super) identity_checks: Cell<CheckCount>,
     derived: super::derived::owner::DerivedOwner,
     next_population: Cell<PopulationId>,
     producer_populations: RefCell<FxHashMap<ProducerKey, ProducerPopulation>>,
@@ -73,6 +71,12 @@ impl RelationOwner {
     /// The route profile the opening scope handed down, for this owner's work to record into.
     pub fn routes(&self) -> &super::route_counts::types::RouteProfile {
         &self.routes
+    }
+    /// The admitted inputs this owner has inspected, built or reused: one per input a view checked against the resident population
+    /// and found current. A refused inspection (a stale or mismatched input) is not counted.
+    #[cfg(test)]
+    pub(super) fn admitted_inspections(&self) -> CheckCount {
+        CheckCount(self.checks.get().0 + self.reuses.get().0)
     }
     #[cfg(test)]
     pub(crate) fn derived_mut(&mut self) -> &mut super::derived::owner::DerivedOwner {
@@ -133,8 +137,6 @@ impl RelationOwner {
                 .saturating_mul(ryo_derived::domain::request::types::DerivedKind::ALL.len()),
         );
         Self {
-            #[cfg(test)]
-            identity_checks: Cell::new(CheckCount(0)),
             derived: super::derived::owner::DerivedOwner::new(
                 max_derived,
                 semantic,

@@ -41,9 +41,6 @@ impl RelationOwner {
         result: &RelationResult,
         input: RepresentationInput<'_>,
     ) -> Sameness {
-        #[cfg(test)]
-        self.identity_checks
-            .set(CheckCount(self.identity_checks.get().0 + 1));
         // publish_selection verifies its source epoch; private fields preserve
         // that invariant, so the selected chain shares the checked outer epoch.
         if result.normalized.get().is_some_and(|table| {

@@ -142,7 +142,11 @@ def test_a_product_that_names_no_api_passes_without_running_anything(tmp_path, m
 CHECKED: list[str] = []
 
 
-def run_check(tmp_path: Path, monkeypatch, listing: str, rustdoc: dict, *, rustdoc_exit: int = 0) -> list:
+def run_check(
+    tmp_path: Path, monkeypatch, listing: str, rustdoc: dict, *, rustdoc_exit: int = 0, gated_listing: str = "", gated_rustdoc: dict | None = None
+) -> list:
+    """Runs the check against faked tools. `gated_listing` and `gated_rustdoc` are what the tools answer only when a feature is
+    switched on, `--all-features`, as an item behind `#[cfg(feature = "fixtures")]` is."""
     (tmp_path / "crates/demo").mkdir(parents=True, exist_ok=True)
     (tmp_path / "crates/demo/Cargo.toml").write_text(MANIFEST)
     (tmp_path / "crates/demo/api.txt").write_text("pub fn demo::lint()\n")
@@ -156,6 +160,8 @@ def run_check(tmp_path: Path, monkeypatch, listing: str, rustdoc: dict, *, rustd
         out = ""
         if "rustdoc" in argv and rustdoc_exit:
             raise subprocess.CalledProcessError(rustdoc_exit, argv)
+        if "rustdoc" in argv and gated_rustdoc is not None and "--all-features" in argv:
+            (tmp_path / "target/doc/demo.json").write_text(json.dumps(gated_rustdoc))
         if argv[:2] == ["git", "rev-parse"]:
             out = f"{tmp_path}\n"
         elif argv[:2] == ["cargo", "metadata"]:
@@ -168,7 +174,7 @@ def run_check(tmp_path: Path, monkeypatch, listing: str, rustdoc: dict, *, rustd
                 }
             )
         elif "public-api" in argv:
-            out = listing
+            out = listing + (gated_listing if "--all-features" in argv else "")
         elif argv[:2] == ["git", "archive"]:
             with tarfile.open(argv[argv.index("-o") + 1], "w") as tar:
                 for name in ("crates/demo/Cargo.toml", "crates/demo/tastemaker/specs/Cargo.toml"):
@@ -221,6 +227,17 @@ def test_a_listing_that_is_not_the_recorded_one_fails_the_check(
     assert metadata["actual_sha256"] == hashlib.sha256((evidence / "actual.txt").read_bytes()).hexdigest()
     assert metadata["comparison"] == "mismatch"
     assert metadata["nightly"] == "nightly-2026-08-01"
+
+
+def test_a_feature_gated_item_is_on_the_recorded_surface(tmp_path, monkeypatch) -> None:
+    with pytest.raises(RuntimeError, match="not the one recorded"):
+        run_check(tmp_path, monkeypatch, "pub fn demo::lint()\n", document("lint", "serde"), gated_listing="pub mod demo::fixtures\n")
+    assert "+pub mod demo::fixtures" in (tmp_path / "crates/demo/target/sdk-api/diff.txt").read_text()
+
+
+def test_a_feature_gated_item_naming_an_internal_type_is_a_leak(tmp_path, monkeypatch) -> None:
+    with pytest.raises(RuntimeError, match="demo::fixture -> ryo_core::types::Thing"):
+        run_check(tmp_path, monkeypatch, "pub fn demo::lint()\n", document("lint", "serde"), gated_rustdoc=document("fixture", "ryo_core"))
 
 
 def test_an_early_tool_failure_cannot_upload_a_stale_comparison(
