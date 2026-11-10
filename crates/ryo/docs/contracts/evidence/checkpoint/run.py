@@ -1,5 +1,5 @@
 # ignore: idiomatic.arch/file-length - the checkpoint evidence directory holds one validation script, run.py, beside its fixture cases in run_test.py; the census and the checkpoint diff checks are modes of it over the same validation.json, commits and raw logs, and a second script would be a file role the directory does not have.
-import json,os,re,subprocess,sys,time,fcntl,tomllib
+import json,os,re,subprocess,sys,tempfile,time,fcntl,tomllib
 from datetime import date
 from pathlib import Path
 p=Path(__file__).resolve().parent
@@ -868,9 +868,19 @@ def census(product):
   'ratcheted':RATCHETED,'informational':INFORMATIONAL}
 if __name__=='__main__' and sys.argv[1:]==['--census']: print(json.dumps(census(p.parents[3]),indent=1)); sys.exit(0)
 if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {}),check=True))
+def placed(word,places):
+ """One word of a listed command with each place (`{target}`, `{temp}`, `{worktree}`) replaced by its value on this machine."""
+ for name,value in places.items(): word=word.replace(name,value)
+ return word
 def validate():
  """Runs every command of commands.json at a frozen head, records its results and tests, and checks the matrix."""
- locks=[open('/workspaces/.cargo-build.lock','a'),open('/tmp/ryo-cargo-serial.lock','a')]
+ # Every machine path a command needs is derived from where the tree is checked out, never written in commands.json: `{target}`
+ # is the tree's own target directory, idiomatic-target/<tree name> beside the checkout (cargo judges freshness by source mtimes, so a
+ # target shared across worktrees served validation327 units another tree built), `{temp}` the system temporary directory, and the
+ # build locks sit beside the checkout, where every worktree of the mount takes them.
+ top=Path(subprocess.check_output(['git','rev-parse','--show-toplevel'],text=True).strip()); temp=Path(tempfile.gettempdir())
+ places={'{target}':str(top.parent/'idiomatic-target'/top.name),'{temp}':str(temp),'{worktree}':top.name}
+ locks=[open(top.parent/'.cargo-build.lock','a'),open(temp/'ryo-cargo-serial.lock','a')]
  def locked(run):
   """Runs one command under the build locks, so other agents' short runs interleave between this batch's commands."""
   for lock in locks: fcntl.flock(lock,fcntl.LOCK_EX)
@@ -888,17 +898,14 @@ def validate():
    owner=[x for x in scoped if finding['path'].startswith('crates/ryo/'+x+'/') or finding['path']=='crates/ryo/'+x]
    by_directory[owner[0]]['test' if is_test_file(finding['path']) else 'production']+=1
   return {'total':len(found['findings']),'suppressed':len(found['suppressed']),'production':sum(v['production'] for v in by_directory.values()),'test':sum(v['test'] for v in by_directory.values()),'by_directory':by_directory}
- # Each worktree builds into its own target directory, idiomatic-target/<worktree name> in the workspace mount: cargo judges
- # freshness by source mtimes, so a target shared across worktrees served validation327 units another tree built.
- tree=Path(subprocess.check_output(['git','rev-parse','--show-toplevel'],text=True).strip()).name
- # What is committed names the commands as commands.json lists them: the expanded worktree name is a machine path, and a
- # worktree named for its checkpoint reads as tracker text in the committed identity and checks.
+ # What is committed names the commands as commands.json lists them: an expanded place is a machine path, and a worktree named
+ # for its checkpoint reads as tracker text in the committed identity and checks.
  listed=dict(json.loads((p/'commands.json').read_text()))
- commands=[[n,[w.replace('{worktree}',tree) for w in c]] for n,c in listed.items()]
+ commands=[[n,[placed(w,places) for w in c]] for n,c in listed.items()]
  (p/'identity.json').write_text(dumps({'source':head,'commands':[[n,c] for n,c in listed.items()]})+'\n')
  # Raw outputs (.log/.json per command) never live in the repository: they go to the directory given as the first argument,
  # by default a directory named for the source head and the date under the system temporary directory.
- out_dir=Path(sys.argv[1]) if len(sys.argv)>1 else Path('/tmp/ryo-contract-validation-'+head[:10]+'-'+date.today().strftime('%Y%m%d'))
+ out_dir=Path(sys.argv[1]) if len(sys.argv)>1 else temp/('ryo-contract-validation-'+head[:10]+'-'+date.today().strftime('%Y%m%d'))
  out_dir.mkdir(parents=True,exist_ok=True)
  for name,cmd in commands:
   print('START '+name,flush=True)

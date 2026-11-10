@@ -1,8 +1,8 @@
 # The checkpoint workflow on GitHub Actions, its thin edge, started only by hand on the ref to validate (no paid CI: it starts on no
 # pull request, push or schedule; the local gates stay the per-change gate). The `checks` job runs the repository root's lint and
 # check groups, which run every product's tools of those groups too. The `validation` job runs the root's `checkpoint` group: the ryo
-# checkpoint validation (crates/ryo/docs/contracts/evidence/checkpoint/run.py over its commands.json), whose commands build in
-# the workspace mount they name (/workspaces), made here. Each job uploads what its tools left: the validation job, validation.json,
+# checkpoint validation (crates/ryo/docs/contracts/evidence/checkpoint/run.py over its commands.json), whose commands build
+# beside the checkout, in places run.py derives from it. Each job uploads what its tools left: the validation job, validation.json,
 # identity.json and tests.json as run.py wrote them, with every command's log and exit.
 name: checkpoint
 on:
@@ -107,10 +107,6 @@ jobs:
         run: uv run --script tools/install.py
         env:
           GH_TOKEN: ${{ github.token }}
-      # run.py takes its build locks in /workspaces and builds into /workspaces/idiomatic-target/<worktree>, the dev container's
-      # workspace mount; the runner has none.
-      - name: The workspace mount the checkpoint commands build in
-        run: sudo install -d -o "$(id -un)" -g "$(id -gn)" /workspaces
       - run: asymptote check --root . --groups checkpoint
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()

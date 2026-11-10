@@ -155,6 +155,12 @@ class Check(unittest.TestCase):
   self.assertEqual(run.command_owners('sdk_api',{'exit':1},tests),[])
   del tests['sdk_api']['semver-checks']['failed']['brand_new_lint']
   self.assertEqual(run.command_owners('sdk_api',{'exit':1},tests),[run.SDK_RELEASE])
+ def test_a_listed_command_names_no_machine_path_and_each_place_is_derived_where_it_runs(self):
+  listed=(Path(run.__file__).parent/'commands.json').read_text()
+  self.assertNotIn('/workspaces',listed); self.assertNotIn('/tmp',listed)
+  places={'{target}':'/w/idiomatic-target/t','{temp}':'/x','{worktree}':'t'}
+  self.assertEqual(run.placed('--target-dir={target}',places),'--target-dir=/w/idiomatic-target/t')
+  self.assertEqual(run.placed('o={temp}/ryo-ruff-parity-{worktree}',places),'o=/x/ryo-ruff-parity-t')
  def test_each_planted_seam_mutant_is_one_patch_beside_its_manifest(self):
   here=Path(run.__file__).parent
   listed=tomllib.loads((here/'seam-mutants.toml').read_text())['mutants']
