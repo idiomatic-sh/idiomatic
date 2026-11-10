@@ -1,0 +1,173 @@
+{
+ "branch": "claude/prune",
+ "source": "8a43781af7b211283ada0b8c8d722da4bd7cabf4",
+ "base": "a6e880e1d7",
+ "verdict": "PASS",
+ "reviewer": "leak-review",
+ "checks": [
+  {
+   "id": "1",
+   "verdict": "PASS",
+   "evidence": "The delta f5e6647370..8a43781af7 deletes the --case-selection chain from the shared harness (crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/service.rs:20-38, crates/ryo/crates/benchmark_contracts/src/domain/requests/types.rs:147-150) and the complete-full-report mode from the bench (crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py:74-176); it asserts no engine, core or SDK contract from benchmarks/ or languages/, and the only product-side Rust edit (crates/ryo/languages/python/benchmarks/linters/ruff/composition/commands.rs:142, :203) drops wiring."
+  },
+  {
+   "id": "2",
+   "verdict": "PASS",
+   "evidence": "Plants in a git archive of 8a43781af7 with the profile_staging.py hash re-pinned in prepared.json: crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py:117 (was :118) disabled -> verify_profiles.py --self-test exit 1, \"shape missing-rule refusal did not fail before candidate work\"; :140 (was :147) disabled -> exit 1, \"shape oracle refusal did not fail before candidate work\". Both are planted by guards_9 against shape-110 (crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_guard_proof_tests.py:140-151, :165), which requires exit 2, the named message and no marker; it raises on an unknown kind (:150-151) and restores overlay and oracle bytes per kind (:166-172). The :131 count refusal is deleted with the mode. Unplanted --self-test exit 0, --self-test-native-standalone exit 0. Staleness confirmed: expanded-defaults benchmark_sha256 is 6aae2bb5 in prepared.json while its benchmark.toml hashes to 2755ee70 at both a6e880e1d7 and 8a43781af7, so crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py:82-83 refuses it before any overlay logic. Rust: the case_selection test keeps its Succeeds rows with an Infallible failure (crates/ryo/crates/benchmark/src/application/case_selection/service_test.rs:69-89); the contract row that replaced WriteAndSelect reads back 13 real bytes through write_text and source_text (crates/ryo/crates/benchmark/src/outbound/suite/fixtures/contract.rs:169-173, :339-345). No skip, caught error or weakened assertion added."
+  },
+  {
+   "id": "3",
+   "verdict": "PASS",
+   "evidence": "The flag without a producer is gone: git grep at 8a43781af7 finds no CaseId, IdSelection, SelectedIds, SelectedName, CASE_SELECTION, case-selection, SuitePort::selection or selection::schemas outside docs/contracts/evidence; --case-selection now falls to the unknown-flag refusal (crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/service.rs:32). CaseSelection keeps only shard (crates/ryo/crates/benchmark_contracts/src/domain/requests/types.rs:147-150). SelectCasesUseCaseImpl is a unit struct with pub const fn new() (crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/use_case.rs:9-15), no wider than before. The ruff bench package compiles against the narrowed API (nextest --no-run exit 0)."
+  },
+  {
+   "id": "4",
+   "verdict": "PASS",
+   "evidence": "The delta adds no loop, type or data shape; it deletes IdSelection, CaseId, SelectedIds, SelectedName and the selection schema. Carried from the review of f5e6647370: The diff is 137 insertions and 450,576 deletions; it adds no second loop, type or data shape. Python edits remove branches (crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_shards.py, verification_cli.py, profile_staging.py:74-190, rule_registration.py:41) and copy no shared benchmark capability into the product directory."
+  },
+  {
+   "id": "5",
+   "verdict": "PASS",
+   "evidence": "The delta now touches Rust. select_cases (inbound) no longer reaches into outbound::suite: SuitePort and ArtifactPath imports are removed (crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/service.rs:1-15, use_case.rs:1-8), and application/case_selection drops its ReportsError dependency (crates/ryo/crates/benchmark/src/application/case_selection/service.rs:1-27). No import is added in any direction."
+  },
+  {
+   "id": "6",
+   "verdict": "PASS",
+   "evidence": "No test seam is added. The bdd acceptance stops importing outbound::suite::fixtures::fake::SuiteFake (crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/acceptance.rs:1-17), and SuiteFake loses its selection forwarding (crates/ryo/crates/benchmark/src/outbound/suite/fixtures/fake.rs:132-135). No feature, cfg(test) bypass or pub helper is added."
+  },
+  {
+   "id": "16",
+   "verdict": "PASS",
+   "evidence": "No manifest or lock change in f5e6647370..8a43781af7. Carried from the review of f5e6647370: No Cargo.toml, Cargo.lock, pyproject or tool manifest changes in a6e880e1d7..f5e6647370; no dependency added or removed."
+  },
+  {
+   "id": "17",
+   "verdict": "PASS",
+   "evidence": "Reproduced from a git archive of 8a43781af7 with its own target the review's own target directory under flock: cargo nextest run -p idiomatic-sh-ryo-benchmark: 228 run, 227 passed, 1 failed, inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds, a pre-existing owned red (RED_OWNERS row in crates/ryo/docs/contracts/evidence/checkpoint/tm-steward-334.md:14), whose code is untouched in a6e880e1d7..8a43781af7. By id, the only removed tests are application::case_selection::service_test::refuses and outbound::suite::adapters::local::selection::schemas::tests::{succeeds,refuses}; the contract rows WriteAndSelect/SelectMissing become WriteAndRead, and the select_cases rows are unchanged. verify_profiles.py --self-test and --self-test-native-standalone exit 0; verify_files: 1774 pins, 0 mismatches, set equals manifest_paths."
+  },
+  {
+   "id": "18",
+   "verdict": "PASS",
+   "evidence": "No new tool, parser or format in the delta. Carried from the review of f5e6647370: No new parser, runner, format or checker; the change only deletes data and code paths."
+  },
+  {
+   "id": "brief-deleted-data-readers",
+   "verdict": "PASS",
+   "evidence": "git grep at 8a43781af7 for every file the delta deletes (F821/cases-expanded.toml, the 10 source-handoffs files, EXE001_2.py, EXE001_3.py, three .snap files) finds no code reader. The remaining hits are the benchmark-linter spec placements with count min 0 (crates/ryo/tastemaker/specs/benchmark-linter/0.2.2/spec.toml:132-136, :569), other profiles' own cases-expanded.toml pinned in prepared.json, EXE001 cases.toml inline sources and the honest pruned note in crates/ryo/languages/python/benchmarks/linters/ruff/profiles/EXE001/evidence/upstream-identity.json:24."
+  },
+  {
+   "id": "brief-kept-without-reader",
+   "verdict": "PASS",
+   "evidence": "Every file the prior FAIL named is deleted at 8a43781af7. A scan of all 1153 files under crates/ryo/languages/python/benchmarks/linters/ruff/profiles and crates/ryo/languages/python/benchmarks/linters/ruff/results finds each named by path, basename or sha256 in another tracked file, except 5 top-level standard results (correctness.json, environment.txt, fixtures.json, profile.json, profile.txt), which the benchmark-linter spec places (crates/ryo/tastemaker/specs/benchmark-linter/0.2.2/spec.toml:623-628) and the prune did not touch."
+  },
+  {
+   "id": "brief-status-guard",
+   "verdict": "PASS",
+   "evidence": "profile_proofs.py is unchanged in the delta; the P-T plant result stands. Carried from the review of f5e6647370: crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_proofs.py:135-136 refuses any combined descriptor whose validation_status is not archived-historical (absent key included); plant P-T fires (exit 1, guard message) per check 2."
+  },
+  {
+   "id": "brief-dead-code",
+   "verdict": "PASS",
+   "evidence": "The --case-selection chain is deleted end to end (see check 3). The complete-full-report branches are gone from crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py. The worker docstring now reads \"Reuse the frozen executable...\" (crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_worker.py:136). The Rust build of the benchmark crate and the ruff bench package compiles with no new unused-item warning on a delta line."
+  },
+  {
+   "id": "brief-prepared-pins",
+   "verdict": "PASS",
+   "evidence": "Independent run in the archive: profile_proofs.verify_files ok; 1774 pins, 0 sha256 mismatches, set(files) == manifest_paths; the three re-pinned authoring hashes match (prepared.json:11379-11387)."
+  },
+  {
+   "id": "brief-docs-honesty",
+   "verdict": "PASS",
+   "evidence": "A scan of every tracked .md at 8a43781af7 finds no markdown link into a path deleted in a6e880e1d7..8a43781af7. All 4 code-span references to pruned paths carry the pruned-after-a6e880e1d7 note: crates/ryo/languages/python/benchmarks/linters/ruff/results/report.md:181 and :246, crates/ryo/languages/python/benchmarks/linters/ruff/rules/RUF019/README.md:7 and crates/ryo/languages/python/benchmarks/linters/ruff/rules/RUF200/README.md:7. README.md:3 links the kept summary and states that the other receipts were pruned. EXE001/README.md:3 no longer claims that copies are retained."
+  }
+ ],
+ "plants": [
+  {
+   "claim": "shape-110 missing-rule self-test catches a disabled expected-finding refusal",
+   "file": "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py:117",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "shape-110 oracle self-test catches a disabled sealed-oracle refusal",
+   "file": "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py:140",
+   "count": 1,
+   "reverted": true
+  },
+  {
+   "claim": "status guard P-T (planted at f5e6647370; profile_proofs.py unchanged since)",
+   "file": "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_proofs.py:135",
+   "count": 1,
+   "reverted": true
+  }
+ ],
+ "enforcement_candidates": [
+  {
+   "id": "untested-refusal-1d8a82b3",
+   "class": "untested refusal",
+   "signature": "raise ValueError(f'...<message>') in a ruff authoring module whose <message> no authoring test module names",
+   "scope": [
+    "crates/ryo/languages/python/benchmarks/linters/ruff/authoring"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py",
+     "line": 118,
+     "text": "raise ValueError(f'invalid {profile_name} expected finding: {key}')"
+    },
+    {
+     "file": "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py",
+     "line": 131,
+     "text": "raise ValueError(f'{profile_name} complete expected inventory count mismatch')"
+    },
+    {
+     "file": "crates/ryo/languages/python/benchmarks/linters/ruff/authoring/profile_staging.py",
+     "line": 147,
+     "text": "raise ValueError(f'{profile_name} overlay diagnostics differ from the sealed oracle: {key}')"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "flag-without-producer-070501e7",
+   "class": "flag without producer",
+   "signature": "const NAME: &str = \"--<flag>=\"; whose string literal occurs nowhere else in the tree outside tests",
+   "scope": [
+    "crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/crates/benchmark/src/inbound/use_cases/select_cases/constants.rs",
+     "line": 3,
+     "text": "pub(super) const CASE_SELECTION: &str = \"--case-selection=\";"
+    }
+   ],
+   "instance_status": "fixed"
+  },
+  {
+   "id": "dangling-doc-link-ff109134",
+   "class": "dangling doc link",
+   "signature": "[text](relative/path) in a tracked .md file where relative/path resolves to no tracked file or directory",
+   "scope": [
+    "crates/ryo/languages"
+   ],
+   "suggested_mechanism": "new rule",
+   "plants": [
+    {
+     "file": "crates/ryo/languages/python/benchmarks/linters/ruff/results/report.md",
+     "line": 181,
+     "text": "The [sealed memory batch](memory-ownership-measurements-2026-11-01.json), worker `88ea33d2`, ..."
+    },
+    {
+     "file": "crates/ryo/languages/python/benchmarks/linters/ruff/results/report.md",
+     "line": 246,
+     "text": "The latest [immutable 324-rule replay](correctness-324-final-2026-11-01.json) completed ..."
+    }
+   ],
+   "instance_status": "fixed"
+  }
+ ],
+ "date": "2026-11-10T17:03:28+00:00"
+}
