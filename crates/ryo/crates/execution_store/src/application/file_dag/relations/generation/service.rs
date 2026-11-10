@@ -37,10 +37,34 @@ impl GenerationLease {
     }
 }
 /// The generation of a resident population: the lease the owner issued for it. A proof keeps it and presents it back.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+/// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+/// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+/// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+/// let generation = owner.generation();
+/// assert!(generation.same(&owner.generation()).is_ok());
+/// ```
 #[derive(Clone, Debug)]
 pub struct ResidentGeneration(pub(crate) std::sync::Arc<GenerationLease>);
 impl ResidentGeneration {
     /// Whether `other` is this generation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_domain::domain::operating::errors::OperatingError;
+    /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+    /// let a = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+    /// let b = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+    /// assert!(a.generation().same(&a.generation()).is_ok());
+    /// assert!(matches!(a.generation().same(&b.generation()), Err(OperatingError::NotRead)));
+    /// ```
     ///
     /// # Errors
     ///
@@ -57,11 +81,35 @@ impl ResidentGeneration {
         }
     }
     /// The generation's address, for diagnostics to correlate events of one generation; never an authority.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+    /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+    /// let generation = owner.generation();
+    /// assert_eq!(generation.diagnostic_address(), generation.clone().diagnostic_address());
+    /// ```
     #[must_use]
     pub fn diagnostic_address(&self) -> *const () {
         std::sync::Arc::as_ptr(&self.0).cast::<()>()
     }
     /// Whether the generation is still live.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+    /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+    /// let generation = owner.generation();
+    /// assert!(generation.live().is_ok());
+    /// owner.release();
+    /// assert!(generation.live().is_err());
+    /// ```
     ///
     /// # Errors
     ///

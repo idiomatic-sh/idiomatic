@@ -12,6 +12,16 @@ pub struct RequestDerived {
 }
 /// What one rule of a request needs of the derived views: the relations it reads per file, each once in the order first read, and
 /// whether it walks a graph.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission;
+/// use ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds;
+/// use ryo_relations::domain::relations::types::Relation;
+/// let needs = RuleDerivedNeeds { relations: Box::new([Relation::Function]), graph: GraphAdmission::Disabled };
+/// assert_eq!(needs.relations.len(), 1);
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuleDerivedNeeds {
     /// The relations the rule reads per file.
@@ -21,6 +31,22 @@ pub struct RuleDerivedNeeds {
 }
 impl RequestDerived {
     /// The derived needs of a request, one per rule in rule order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission;
+    /// use ryo_execution_store::application::file_dag::derived::prepared::{RequestDerived, RuleDerivedNeeds};
+    /// use ryo_relations::domain::relations::types::Relation;
+    /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+    /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+    /// let needs = RuleDerivedNeeds { relations: Box::new([Relation::Function]), graph: GraphAdmission::Disabled };
+    /// let request = RequestDerived::new(Box::new([needs]));
+    /// owner.derived().prepare_program_file(&request, &[], &[])?;
+    /// # Ok::<(), ryo_execution_domain::domain::operating::errors::OperatingError>(())
+    /// ```
     #[must_use]
     pub fn new(needs: Box<[RuleDerivedNeeds]>) -> Self {
         let graph_rules = needs

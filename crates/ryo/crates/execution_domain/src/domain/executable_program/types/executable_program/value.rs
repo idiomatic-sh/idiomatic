@@ -89,6 +89,18 @@ impl ExecutableProgram {
         self
     }
     /// The request's literal pattern slots: one per authored pattern of the program, each compiled at most once per run.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // A program is built only by compiling a request, and this crate has no fixture path to one: the call's types, checked.
+    /// use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+    /// use ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers;
+    /// use std::sync::Arc;
+    /// fn slots(program: &ExecutableProgram) -> &Arc<PreparedMatchers> {
+    ///     program.matchers()
+    /// }
+    /// ```
     pub fn matchers(
         &self,
     ) -> &std::sync::Arc<crate::domain::matching::types::prepared::value::PreparedMatchers> {

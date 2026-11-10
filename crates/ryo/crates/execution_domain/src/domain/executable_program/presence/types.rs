@@ -65,6 +65,16 @@ pub struct PresenceTable {
 }
 
 /// The span columns of one per-file provider relation that a file's rows must hold valid spans in.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::presence::types::SpanCheck;
+/// use ryo_relations::domain::relations::types::Relation;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// let check = SpanCheck { relation: Relation::Function, columns: Box::new([ColumnIndex(0)]) };
+/// assert_eq!(check.columns.len(), 1);
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpanCheck {
     /// The relation.

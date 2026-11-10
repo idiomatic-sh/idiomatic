@@ -7,6 +7,13 @@ use ryo_execution_domain::domain::stored_graph::types::{ExaminedVertices, Expand
 use ryo_relations::domain::relations::types::Relation;
 
 /// Whether an eligible graph consumer may request bounded adjacency admission.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission;
+/// assert_ne!(GraphAdmission::Enabled, GraphAdmission::Disabled);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GraphAdmission {
     /// It may not: the rule walks no graph.

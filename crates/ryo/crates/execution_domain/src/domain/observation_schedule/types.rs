@@ -3,6 +3,14 @@
 use ryo_values::domain::plans::types::Plan;
 
 /// A linked request owns its remapped plans and typed producer references. Cached plans are untouched.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::types::LinkedObservationPlans;
+/// let linked = LinkedObservationPlans { plans: Vec::new(), bindings: vec![Vec::new()] };
+/// assert_eq!(linked.bindings.len(), 1);
+/// ```
 #[derive(Debug)]
 pub struct LinkedObservationPlans {
     /// The plans, with their observation references remapped.
@@ -12,6 +20,18 @@ pub struct LinkedObservationPlans {
 }
 
 /// Ordinary requests need no named-root traversal allocation.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::observation_schedule::types::RuleSchedule;
+/// let schedule = RuleSchedule::Dependencies {
+///     order: vec![RuleIndex(1), RuleIndex(0)],
+///     batches: vec![vec![RuleIndex(1)], vec![RuleIndex(0)]],
+/// };
+/// assert_ne!(schedule, RuleSchedule::Independent);
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RuleSchedule {
     /// Preserve the existing independent original-index traversal.
@@ -26,6 +46,16 @@ pub enum RuleSchedule {
 }
 
 /// A producer identity resolved once during request compilation.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::observation_schedule::types::ResolvedObservationProducer;
+/// use ryo_values::domain::records::types::ObservationIndex;
+/// let producer = ResolvedObservationProducer::Output { rule: RuleIndex(0), output: ObservationIndex(1) };
+/// assert!(matches!(producer, ResolvedObservationProducer::Output { .. }));
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ResolvedObservationProducer {
     /// An actual named root in a compiled producer plan.
@@ -43,6 +73,26 @@ pub enum ResolvedObservationProducer {
 }
 
 /// A resolved consumer input in its stable local slot.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::observation_schedule::types::{ResolvedObservationBinding, ResolvedObservationProducer};
+/// use ryo_values::domain::observations::types::{BoundObservationInput, ObservationBindingName};
+/// use ryo_values::domain::plan_parts::types::{ObservationBindingId, StepScope};
+/// use ryo_values::domain::records::types::ObservationIndex;
+/// let binding = ResolvedObservationBinding {
+///     input: ObservationBindingId(0),
+///     schema: BoundObservationInput {
+///         name: ObservationBindingName("calls".into()),
+///         columns: Vec::new(),
+///         scope: StepScope::PerFile,
+///     },
+///     producers: vec![ResolvedObservationProducer::Output { rule: RuleIndex(0), output: ObservationIndex(0) }],
+/// };
+/// assert_eq!(binding.producers.len(), 1);
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedObservationBinding {
     /// Local compiled input identity.
@@ -54,6 +104,14 @@ pub struct ResolvedObservationBinding {
 }
 
 /// Compile-time descriptors and their resolved graph references travel together.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::types::PreparedObservationInputs;
+/// let prepared = PreparedObservationInputs { schemas: Vec::new(), bindings: Vec::new() };
+/// assert_eq!(prepared.schemas.len(), prepared.bindings.len());
+/// ```
 #[derive(Debug)]
 pub struct PreparedObservationInputs {
     /// Compiler declarations in original local input order.
@@ -63,6 +121,16 @@ pub struct PreparedObservationInputs {
 }
 
 /// The resolved request dependency contract borrowed by the existing file/cross graph owners.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::types::ObservationRequest;
+/// use ryo_values::domain::records::types::ObservationReadinessLayout;
+/// use ryo_values::domain::stored_facts::types::Digest;
+/// let bound = ObservationRequest::Bound { layout: ObservationReadinessLayout(Digest([0; 16])), bindings: &[] };
+/// assert!(matches!(bound, ObservationRequest::Bound { .. }));
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub enum ObservationRequest<'a> {
     /// No bound named roots: keep independent scheduling and no observation state.
@@ -77,6 +145,17 @@ pub enum ObservationRequest<'a> {
 }
 
 /// A persisted named root uses an existing frontier bucket, not another row store.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
+/// use ryo_values::domain::plan_parts::types::InputNumber;
+/// use ryo_values::domain::records::types::ObservationIndex;
+/// let root = ObservedFrontierRoot { producer: RuleIndex(0), output: ObservationIndex(0), frontier: InputNumber(2) };
+/// assert_eq!(root.frontier, InputNumber(2));
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct ObservedFrontierRoot {
     /// The producing rule.

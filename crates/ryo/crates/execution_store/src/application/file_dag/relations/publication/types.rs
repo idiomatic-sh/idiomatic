@@ -80,6 +80,20 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 
 /// What one publication publishes: a source's rows, a supplied compact or flat source, a computed table, or packed words with the
 /// arenas they reference.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody;
+/// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+/// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+/// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+/// use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
+/// use ryo_values::domain::rows::types::{RowCount, Table};
+/// let table = Table { kinds: vec![CellKind::File], cells: vec![Value::File(FileId(0))], count: RowCount(1) };
+/// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+/// assert!(owner.publish(PublicationBody::Computed(table)).is_ok());
+/// ```
 pub enum PublicationBody<'a> {
     /// The rows of a source relation.
     Source {

@@ -21,6 +21,14 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// Resolve only declared dependency edges. No providers or operators are executed here.
 ///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::{service::schedule, types::RuleSchedule};
+/// assert_eq!(schedule(&[])?, RuleSchedule::Independent);
+/// # Ok::<(), ryo_execution_domain::domain::rule_intent::errors::RuleIntentError>(())
+/// ```
+///
 /// # Errors
 ///
 /// The first [`RuleIntentError`] of the declared edges: a duplicate binding, an unknown producer, a self dependency,
@@ -93,6 +101,31 @@ pub fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, RuleIntentError> {
 }
 
 /// Infer actual schemas/phases after earlier producer plans compiled, without renumbering rule IDs.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::service::schemas;
+/// use ryo_values::domain::plan_parts::types::QueryText;
+/// use ryo_values::domain::plans::types::Plan;
+/// use ryo_values::domain::query_tokens::types::QueryBundle;
+/// use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
+/// use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+/// let rule = RuleSpec {
+///     id: RuleId("reads-nothing".into()),
+///     query: QueryBundle::from(QueryText("".into())),
+///     applicability: RuleApplicability::Always,
+///     given: Vec::new(),
+///     observations: Vec::new(),
+///     spelled: RuleParameters("".into()),
+///     include: Vec::new(),
+///     exclude: Vec::new(),
+/// };
+/// let prepared = schemas(&rule, std::slice::from_ref(&rule), &[None::<Plan>])?;
+/// assert!(prepared.schemas.is_empty());
+/// assert!(prepared.bindings.is_empty());
+/// # Ok::<(), ryo_execution_domain::domain::rule_intent::errors::RuleIntentError>(())
+/// ```
 ///
 /// # Errors
 ///
@@ -176,6 +209,18 @@ pub fn schemas<P: std::borrow::Borrow<Plan>>(
 }
 
 /// A bound request cannot silently fall back to independent execution.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::service::request;
+/// use ryo_execution_domain::domain::observation_schedule::types::{ObservationRequest, RuleSchedule};
+/// use ryo_values::domain::records::types::ObservationReadinessLayout;
+/// use ryo_values::domain::stored_facts::types::Digest;
+/// let layout = ObservationReadinessLayout(Digest([0; 16]));
+/// let independent = request(&RuleSchedule::Independent, &[], layout);
+/// assert!(matches!(independent, Ok(ObservationRequest::Independent)));
+/// ```
 ///
 /// # Errors
 ///

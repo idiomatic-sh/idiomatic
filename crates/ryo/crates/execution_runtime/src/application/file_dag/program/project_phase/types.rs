@@ -117,6 +117,17 @@ impl std::fmt::Debug for PhaseOccurrences<'_> {
 }
 /// What one project phase evaluates: one occurrence of each rule given, in order, the corpus they are scoped over and the facts
 /// their frontiers are read from.
+///
+/// # Examples
+///
+/// ```
+/// // It borrows a run's corpus, coverage and facts worker, which no public constructor builds: the field's type, checked.
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseRules;
+/// fn rules<'a>(phase: &PhaseRules<'a>) -> &'a [RuleIndex] {
+///     phase.rules
+/// }
+/// ```
 pub struct PhaseRules<'a> {
     /// The rule of each occurrence, in declaration order; a rule may occur more than once.
     pub rules: &'a [RuleIndex],

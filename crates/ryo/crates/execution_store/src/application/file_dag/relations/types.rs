@@ -44,9 +44,23 @@ pub enum ReuseEligibility {
 }
 
 /// One producer of the runtime's program, as the store keys its population: the runtime names it, the store only compares it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::relations::types::ProducerId;
+/// assert_ne!(ProducerId(1), ProducerId(0));
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ProducerId(pub usize);
 
 /// How many producers one program owner holds.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::relations::types::ProducerCapacity;
+/// assert_eq!(ProducerCapacity(4).0, 4);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ProducerCapacity(pub usize);

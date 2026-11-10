@@ -84,6 +84,13 @@ pub enum FrontierPurpose {
 }
 
 /// Whether a rule renders syntax and so needs the semantic session.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
+/// assert_ne!(SemanticNeed::Required, SemanticNeed::NotRequired);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SemanticNeed {
     /// It renders syntax, so it needs the semantic session.

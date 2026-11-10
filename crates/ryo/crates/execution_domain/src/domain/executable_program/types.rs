@@ -133,6 +133,14 @@ pub struct StepOrigin {
     pub place: Option<StepSite>,
 }
 /// Where one compiled instruction is: its region and its place among that region's instructions.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::{InstructionPlace, RegionId, StepSite};
+/// let site = StepSite { region: RegionId(0), instruction: InstructionPlace(2) };
+/// assert_eq!(site.instruction, InstructionPlace(2));
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StepSite {
     /// The region the instruction is in.
@@ -141,6 +149,13 @@ pub struct StepSite {
     pub instruction: InstructionPlace,
 }
 /// An instruction of a region, by its place among the region's instructions.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::types::InstructionPlace;
+/// assert_eq!(InstructionPlace(3).0, 3);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InstructionPlace(pub usize);
 /// One rule's part of the executable program: its root readers and where each of its original steps is.
