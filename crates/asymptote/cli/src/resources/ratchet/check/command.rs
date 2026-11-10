@@ -88,6 +88,8 @@ pub(super) fn answer(
 
 /// Runs `check`: runs the tools, judges them against the lock, prints each finding and the summary in the format
 /// `--format` chose; ends as a failure when something is new or resolved, and as an error when a tool failed.
+/// Full failed-tool streams are retained in each product's `.asymptote/cache/check.failures.json`, bound to the
+/// exact store digest and check head. JSON output also includes them; terminal summaries keep their concise tails.
 pub fn run(
     arguments: CheckArguments,
     edge: &crate::edge::Edge,

@@ -63,6 +63,8 @@ pub enum Reuse {
 /// One tool's run in this check.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ToolRun {
+    /// Complete failure streams, when this run retained them.
+    pub failure_output: crate::domain::reports::types::FailureOutput,
     /// The run.
     pub run: Run,
     /// Whether it ran now.
