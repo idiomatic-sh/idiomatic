@@ -45,13 +45,17 @@ pub fn identity(bindings: &[ObservationBinding]) -> ObservationIdentityBytes {
     }
     bytes
 }
+#[expect(
+    clippy::expect_used,
+    reason = "a declaration count is a usize, and a usize fits in u64 on every target ryo builds for: as at 333, a count that does not is a crash, never a sentinel in the identity"
+)]
 fn tally<I: IntoIterator>(bytes: &mut ObservationIdentityBytes, items: I)
 where
     I::IntoIter: ExactSizeIterator,
 {
     bytes.0.extend_from_slice(
         &u64::try_from(items.into_iter().len())
-            .unwrap_or(u64::MAX)
+            .expect("a declaration count fits in u64 on every target ryo builds for")
             .to_le_bytes(),
     );
 }
@@ -69,12 +73,9 @@ pub fn new_frontiers(
         version: super::constants::READINESS_VERSION,
         layout,
         slots,
-        complete: crate::domain::records::types::ReadinessBits(vec![
-            0;
-            usize::try_from(slots.0)
-                .map_or(0, |slots| slots
-                    .div_ceil(64))
-        ]),
+        complete: crate::domain::records::types::ReadinessBits(
+            (0..slots.0.div_ceil(64)).map(|_| 0).collect(),
+        ),
         skipped: crate::domain::records::types::ReadinessBits(Vec::new()),
         refusals: Vec::new(),
     }
@@ -232,11 +233,12 @@ fn bit(
     words: &crate::domain::records::types::ReadinessBits,
     slot: crate::domain::records::types::ObservationReadinessSlot,
 ) -> ReadinessBit {
-    if words
-        .0
-        .get(usize::try_from(slot.0 / 64).unwrap_or(usize::MAX))
-        .is_some_and(|word| word & (1_u64 << (slot.0 % 64)) != 0)
-    {
+    if usize::try_from(slot.0 / 64).is_ok_and(|at| {
+        words
+            .0
+            .get(at)
+            .is_some_and(|word| word & (1_u64 << (slot.0 % 64)) != 0)
+    }) {
         ReadinessBit::Set
     } else {
         ReadinessBit::Clear

@@ -83,10 +83,8 @@ fn decode_combined_status(
                 Some(kind) if !had_kinds => combined.kinds.push(kind),
                 Some(kind) => {
                     if mode == DecodeMode::Complete
-                        && usize::try_from(column)
-                            .ok()
-                            .and_then(|at| combined.kinds.get(at))
-                            != Some(&kind)
+                        && !usize::try_from(column)
+                            .is_ok_and(|at| combined.kinds.get(at) == Some(&kind))
                     {
                         complete = false;
                     }
@@ -97,7 +95,8 @@ fn decode_combined_status(
                 }
             }
         }
-        if mode == DecodeMode::Complete && u64::try_from(combined.kinds.len()).ok() != Some(columns)
+        if mode == DecodeMode::Complete
+            && !u64::try_from(combined.kinds.len()).is_ok_and(|count| count == columns)
         {
             complete = false;
         }

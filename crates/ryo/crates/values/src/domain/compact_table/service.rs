@@ -55,7 +55,7 @@ pub fn admit_compact(
                 Some(kind) if !had_kinds => kinds.push(kind),
                 Some(kind) => {
                     if mode == DecodeMode::Complete
-                        && usize::try_from(column).ok().and_then(|at| kinds.get(at)) != Some(&kind)
+                        && !usize::try_from(column).is_ok_and(|at| kinds.get(at) == Some(&kind))
                     {
                         complete = false;
                     }
@@ -66,7 +66,9 @@ pub fn admit_compact(
                 }
             }
         }
-        if mode == DecodeMode::Complete && u64::try_from(kinds.len()).ok() != Some(columns) {
+        if mode == DecodeMode::Complete
+            && !u64::try_from(kinds.len()).is_ok_and(|count| count == columns)
+        {
             complete = false;
         }
         if readable && decode_places(&mut cursor, places).is_none() {
@@ -222,9 +224,8 @@ pub fn compact_read<'a>(
         row,
         ColumnCount(input.kinds.len()),
         |column, value| {
-            if let Some(cell) = usize::try_from(column.0)
-                .ok()
-                .and_then(|at| scratch.get_mut(at))
+            if let Ok(at) = usize::try_from(column.0)
+                && let Some(cell) = scratch.get_mut(at)
             {
                 *cell = value;
             }
@@ -233,12 +234,12 @@ pub fn compact_read<'a>(
     Some(&scratch[..input.kinds.len()])
 }
 pub fn compact_cell(input: &CompactTable, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-    let Some(at) = usize::try_from(column.0)
-        .ok()
-        .filter(|at| *at < input.kinds.len())
-    else {
+    let Ok(at) = usize::try_from(column.0) else {
         return None;
     };
+    if at >= input.kinds.len() {
+        return None;
+    }
     let mut found = None;
     compact_values(input, row, ColumnCount(at + 1), |_, value| {
         found = Some(value)
