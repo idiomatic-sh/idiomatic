@@ -288,6 +288,7 @@ impl FileWalk {
         total.result_slots.0 = total.result_slots.0.saturating_add(counts.result_slots.0);
         total
     }
+    #[cfg(any(test, feature = "fixtures"))]
     pub(super) fn counts(&self) -> WalkCounts {
         self.batches
             .borrow()

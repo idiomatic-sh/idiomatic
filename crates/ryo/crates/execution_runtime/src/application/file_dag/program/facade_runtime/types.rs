@@ -210,6 +210,7 @@ pub(crate) struct PublicationScope {
     pub(super) decodes: crate::application::file_dag::frontiers::types::FrontierDecodes,
 }
 impl PublicationScope {
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn readiness_counts(
         &self,
     ) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
@@ -234,6 +235,7 @@ impl PublicationScope {
         self.decodes.count()
     }
 
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn state_counts(
         &self,
     ) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {

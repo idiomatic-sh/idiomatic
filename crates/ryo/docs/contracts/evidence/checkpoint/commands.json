@@ -4,6 +4,10 @@
     ["sh", "-c", "set -e; cargo build --manifest-path crates/tastemaker/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 -p idiomatic-sh-tastemaker --bin tm; cargo build --manifest-path crates/ryo/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 --all-features -p idiomatic-sh-ryo --bin ryo"]
   ],
   [
+    "sdk_without_fixtures",
+    ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "-p", "idiomatic-sh-ryo-sdk", "--no-run"]
+  ],
+  [
     "libraries",
     ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "--all-features", "-p", "idiomatic-sh-ryo-execution", "-p", "idiomatic-sh-ryo-execution-domain", "-p", "idiomatic-sh-ryo-execution-store", "-p", "idiomatic-sh-ryo-execution-runtime", "-p", "idiomatic-sh-ryo-core", "-p", "idiomatic-sh-ryo-sdk", "-p", "idiomatic-sh-ryo-values", "-p", "idiomatic-sh-ryo-query_language", "-p", "idiomatic-sh-ryo-operators", "-p", "idiomatic-sh-ryo-matching", "-p", "idiomatic-sh-ryo-derived", "--lib", "--no-fail-fast", "-p", "idiomatic-sh-ryo-benchmark", "--", "--test-threads=6"]
   ],

@@ -6,6 +6,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 impl ProgramExecution {
     /// Consume the generation once no invocation can remain active. Dropping
     /// its slots releases only engine-held storage; transferred leases own theirs.
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn state_counts(
         &self,
     ) -> ryo_execution_domain::domain::readiness::types::InvocationStateCounts {
@@ -72,6 +73,7 @@ impl ProgramExecution {
             },
         )
     }
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn readiness_counts(
         &self,
     ) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {

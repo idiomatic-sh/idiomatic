@@ -245,11 +245,13 @@ impl FileRun<'_> {
         self.execution
             .region_observation(self.execution.file_state(), *region)
     }
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn readiness_counts(
         &self,
     ) -> ryo_execution_domain::domain::readiness::types::ReadinessCounts {
         self.execution.readiness_counts()
     }
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn walk_counts(
         &self,
     ) -> ryo_execution_domain::domain::shared_walk::types::WalkCounts {

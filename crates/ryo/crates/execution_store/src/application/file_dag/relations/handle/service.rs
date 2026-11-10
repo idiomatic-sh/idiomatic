@@ -100,7 +100,8 @@ impl Publication {
             _ => Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead),
         }
     }
-    /// The publication of a relation.
+    /// The publication of a relation: what the store's tests and fixtures hand a workspace directly.
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn of(input: PublishedInput) -> Self {
         Self(PublicationHold::Relation(input))
     }
