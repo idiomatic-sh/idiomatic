@@ -383,6 +383,30 @@ def write_block(text,v):
  start=next(i for i,l in enumerate(lines) if l.startswith('### Current ownership checkpoint'))
  end=next(i for i in range(start+1,len(lines)) if lines[i].startswith('- ['))
  return ''.join(lines[:start])+render(v)+''.join(lines[end:])
+def red_line(name,code,owners):
+ """A red command as `--check` prints it."""
+ return 'RED '+name+' exit '+str(code)+(', owned by '+'; '.join('"'+x+'"' for x in owners) if owners else ', owned by no row')
+# The results measured by a run outside commands.json (a rerun the record cites by its log), which the Known red section lists after the
+# red commands.
+RERUN_RESULTS=('tastemaker_workspace',)
+def known_red(v):
+ """The review README's `## Known red` section, from the validation alone: each red command as `--check` prints it with its red tests
+ by exact id, then each result of RERUN_RESULTS that records a failure, with its note."""
+ out=['## Known red\n','\n','Written by `run.py` from `validation.json` (validation'+str(v['validation'])+', validated source `'+v['source'][:10]+'`); a run rewrites it, so it\n','names exactly the red commands `run.py --check` prints, each red test by its exact id, and their owners.\n','\n']
+ for name,code,owners in red_commands(v):
+  out.append('- `'+red_line(name,code,owners)+'`\n')
+  for binary,t in sorted(v.get('tests',{}).get(name,{}).items()):
+   for test in t.get('failed',{}): out.append('  - `'+binary+'` `'+test+'`\n')
+ for key in RERUN_RESULTS:
+  x=v.get('results',{}).get(key)
+  if isinstance(x,dict) and x.get('failed'): out.append('- `'+key+'` '+str(x.get('passed',0))+' / '+str(x['failed'])+': '+x['note']+'\n')
+ return out
+def write_known_red(text,v):
+ """Replace the review README's `## Known red` section, up to the next `## ` heading, with known_red(v)."""
+ lines=text.splitlines(keepends=True)
+ start=next(i for i,l in enumerate(lines) if l.startswith('## Known red'))
+ end=next((i for i in range(start+1,len(lines)) if lines[i].startswith('## ')),len(lines))
+ return ''.join(lines[:start])+''.join(known_red(v))+'\n'+''.join(lines[end:])
 def count_problems(v):
  """Each result of a cargo test command that gives counts must be what its recorded tests give: passed, failed and not run, so a
  test that printed `not available` and measured nothing is counted as not run, never as passed."""
@@ -804,8 +828,12 @@ def finish(v,check=False):
  for name,code,owners in red_commands(v):
   reason=v['checks'][name].get('not_available')
   if reason: print('NOT RUN '+name+': '+NOT_RUN.get(name,name+' not run')+': '+reason)
-  print('RED '+name+' exit '+str(code)+(', owned by '+'; '.join('"'+x+'"' for x in owners) if owners else ', owned by no row'))
+  print(red_line(name,code,owners))
   if not owners: unowned.append(name)
+ review=contracts/'review'/'README.md'
+ if review.exists():
+  before=review.read_text(); after=write_known_red(before,v)
+  if after!=before: review.write_text(after); changed.append('review/README.md')
  stale=result_problems(v)
  for line in stale: print('RESULT '+line)
  for line in diff: print(line)

@@ -212,6 +212,17 @@ class Check(unittest.TestCase):
   self.assertEqual(run.raw_identity(inside),'{temp}/ryo-contract-validation-x')
   self.assertEqual(run.raw_dir({'raw_identity':'{temp}/ryo-contract-validation-x'}),inside)
   self.assertEqual(run.raw_identity('/srv/raw'),'/srv/raw'); self.assertEqual(run.raw_dir({'raw_identity':'/srv/raw'}),Path('/srv/raw'))
+ def test_the_known_red_section_names_every_red_command_as_check_prints_it_with_its_red_tests(self):
+  v={'source':'a'*40,'validation':335,'checks':{'cli_cost':{'exit':101},'boundary':{'exit':0}},
+     'tests':{'cli_cost':{'replay':{'passed':[],'ignored':[],'not_run':[],'failed':{'cost::a_cold_run_over_ruff_holds_the_peak_ratchet':{'rows':[],'collected':False}}}}},
+     'results':{'tastemaker_workspace':{'passed':264,'failed':4,'note':'owned by the rewrite'}}}
+  text='# Review\n\n## Known red\n\n- stale: cli_cost 4 / 3\n\n## Verification limits\n\nkept\n'
+  written=run.write_known_red(text,v)
+  self.assertNotIn('stale',written); self.assertIn('## Verification limits\n\nkept\n',written)
+  self.assertIn('- `'+run.red_line('cli_cost',101,run.command_owners('cli_cost',v['checks']['cli_cost'],v['tests']))+'`\n',written)
+  self.assertIn('  - `replay` `cost::a_cold_run_over_ruff_holds_the_peak_ratchet`\n',written)
+  self.assertIn('- `tastemaker_workspace` 264 / 4: owned by the rewrite\n',written)
+  self.assertNotIn('boundary',written)
  def test_a_red_command_that_recorded_no_failed_test_is_unowned_whatever_its_name(self):
   v={'tests':{},'checks':{'tm_import_cli':{'exit':101},'core_allocation':{'exit':101}}}
   self.assertEqual(run.red_commands(v),[('tm_import_cli',101,[]),('core_allocation',101,[])])
