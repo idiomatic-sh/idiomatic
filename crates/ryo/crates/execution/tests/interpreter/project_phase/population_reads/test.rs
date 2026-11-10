@@ -147,7 +147,7 @@ fn a_deferred_project_root_feeds_no_file_step_and_its_frontier_walks_the_source_
         assert_eq!(file.fixture_walk_counts().passes.0, 1);
         assert_eq!(
             file.fixture_walk_counts().source_rows.0,
-            table.count.0 as u64
+            u64::try_from(table.count.0).expect("a row count fits in u64")
         );
         assert_eq!(file.fixture_counts(RuleIndex(0)).unwrap().fed[1].0, [0; 3]);
         file.finish()

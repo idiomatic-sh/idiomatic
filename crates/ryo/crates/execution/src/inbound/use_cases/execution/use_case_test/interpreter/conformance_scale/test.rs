@@ -225,8 +225,8 @@ fn visits(
     let fed = file
         .fixture_counts(RuleIndex(0))
         .expect("the rule's counts")
-        .fed[emit.0 as usize]
-        .0[..inputs.len()]
+        .fed[usize::from(emit)]
+    .0[..inputs.len()]
         .to_vec();
     let _finished = file.finish();
     request.finish();
