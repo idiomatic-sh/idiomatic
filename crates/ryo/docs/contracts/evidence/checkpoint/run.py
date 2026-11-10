@@ -494,7 +494,7 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   # A merge's own changes are the files its result changes against every parent (the combined diff).
   own=['diff-tree','--cc','--no-commit-id','--name-only',sha] if len((git(repo,'rev-list','--parents','-n1',sha) or '').split())>2 else ['diff-tree','--root','--no-commit-id','-r','--name-only',sha]
   files=(git(repo,*own) or '').split()
-  if not any(is_production(f) and not comment_only(repo,sha,f,own) and not test_only(repo,sha,f,own) for f in files): continue
+  if not any(is_production(f) and not comment_only(repo,sha,f,own) and not test_only(repo,sha,f,own) and not visibility_only(repo,sha,f,own) for f in files): continue
   short=sha[:10]+' '+message.splitlines()[0][:70]
   if PERF.match(message):
    if not perf_identical(repo,base,head,sha): bad.append('perf '+short+': no evidence/perf/*/after.json added or changed in the checkpoint with identical_output true and a source built on it')
@@ -611,6 +611,17 @@ def test_only(repo,sha,path,own):
  before=git(repo,'show',sha+'^:'+path); after=git(repo,'show',sha+':'+path)
  if before is None or after is None: return False
  plain=lambda text:[x for x in LINT_ATTRIBUTE.sub('',split_tests(text)[0]).splitlines() if not RUST_COMMENT.match(x)]
+ return plain(before)==plain(after)
+# A visibility modifier: `pub`, `pub(crate)`, `pub(super)`, `pub(in path)`.
+VISIBILITY=re.compile(r'\bpub(?:\s*\([^)]*\))?\s+')
+def visibility_only(repo,sha,path,own):
+ """A Rust file whose change in the commit is only visibility modifiers (a seal, `pub` to `pub(crate)`, or its reverse), comments
+ and lint attributes aside: what compiles runs the same, so FIX does not count it; the compiler decides whether the seal holds.
+ A merge is judged by its combined diff instead (comment_only)."""
+ if not path.endswith('.rs') or own[1]=='--cc': return False
+ before=git(repo,'show',sha+'^:'+path); after=git(repo,'show',sha+':'+path)
+ if before is None or after is None: return False
+ plain=lambda text:[VISIBILITY.sub('',x) for x in LINT_ATTRIBUTE.sub('',text).splitlines() if not RUST_COMMENT.match(x)]
  return plain(before)==plain(after)
 def patch_id(repo,sha):
  """The commit's `git patch-id --stable`, or None for a commit with no diff against its first parent."""

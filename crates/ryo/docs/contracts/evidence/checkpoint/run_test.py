@@ -475,6 +475,13 @@ class Diff(unittest.TestCase):
   loud=commit(self.repo,{'a/src/two.rs':base.replace('pub kept: u8','pub kept: u16')},'fix(a): a wider field')
   found=self.fixes([])
   self.assertFalse(any(quiet[:10] in x for x in found),found); self.assertTrue(any(loud[:10] in x for x in found),found)
+ def test_a_visibility_only_seal_is_no_fix_and_a_body_change_beside_one_still_is(self):
+  base='pub struct One;\npub fn one() -> u8 {\n    1\n}\n'
+  commit(self.repo,{'a/src/three.rs':base},'feat(a): three')
+  seal=commit(self.repo,{'a/src/three.rs':base.replace('pub struct One','pub(crate) struct One').replace('pub fn one','pub(super) fn one')},'refactor(a): seal one')
+  loud=commit(self.repo,{'a/src/three.rs':base.replace('pub struct One','pub(crate) struct One').replace('pub fn one','pub(super) fn one').replace('    1','    2')},'fix(a): one answers two')
+  found=self.fixes([])
+  self.assertFalse(any(seal[:10] in x for x in found),found); self.assertTrue(any(loud[:10] in x for x in found),found)
  def test_without_a_base_both_checks_refuse(self):
   self.assertEqual(run.fix_problems({'red_green':[]},repo=self.repo),[run.NO_BASE])
   self.assertEqual(run.doc_problems(repo=self.repo),[run.NO_BASE])
