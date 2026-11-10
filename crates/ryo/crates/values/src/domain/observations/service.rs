@@ -55,7 +55,7 @@ where
 {
     bytes.0.extend_from_slice(
         &u64::try_from(items.into_iter().len())
-            .expect("a declaration count fits in u64 on every target ryo builds for")
+            .expect(super::constants::COUNT_FITS_MESSAGE)
             .to_le_bytes(),
     );
 }
