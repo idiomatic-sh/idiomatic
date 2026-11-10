@@ -1,0 +1,105 @@
+
+[[cases]]
+name = "multiple"
+files = { "case.pyi" = "def function():\n    x = 1\n    return x\n" }
+expected = [{ "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "async"
+files = { "case.pyi" = "async def function():\n    x = 1\n    return x\n" }
+expected = [{ "file" = "case.pyi", "start" = 10, "end" = 18 }]
+
+[[cases]]
+name = "docstring"
+files = { "case.pyi" = "def function():\n    \"doc\"\n    ...\n" }
+expected = [{ "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "single-block"
+files = { "case.pyi" = "def function():\n    if ready:\n        x = 1\n        return x\n" }
+expected = []
+
+[[cases]]
+name = "empty"
+files = { "case.pyi" = "def function(): ...\n" }
+expected = []
+
+[[cases]]
+name = "class"
+files = { "case.pyi" = "class C:\n    x: int\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "unicode"
+files = { "case.pyi" = "def caf\u00e9():\n    x = 1\n    return x\n" }
+expected = [{ "file" = "case.pyi", "start" = 4, "end" = 9 }]
+
+[[cases]]
+name = "runtime"
+files = { "case.py" = "def function():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.pyi" = "def function(): # noqa\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.pyi" = "def function(): # noqa: PYI048\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.pyi" = "def function(): # noqa: F401\n    x = 1\n    return x\n" }
+expected = [{ "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.pyi" = "# ruff: noqa\ndef function():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "decorated"
+files = { "case.pyi" = "@decorate\ndef function():\n    pass\n    pass\n" }
+expected = [{ "file" = "case.pyi", "start" = 14, "end" = 22 }]
+
+[[cases]]
+name = "multiline-header"
+files = { "case.pyi" = "def function(\n    x: int,\n):\n    pass\n    pass\n" }
+expected = [{ "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "multiline-header-noqa"
+files = { "case.pyi" = "def function(\n    x: int,\n): # noqa: PYI048\n    pass\n    pass\n" }
+expected = [{ "file" = "case.pyi", "start" = 4, "end" = 12 }]
+
+[[cases]]
+name = "multiline-header-initial-noqa"
+files = { "case.pyi" = "def function( # noqa: PYI048\n    x: int,\n):\n    pass\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.pyi" = "# ruff: disable[PYI048]\ndef function():\n    x = 1\n    return x\n\n# ruff: enable[PYI048]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.pyi" = "# ruff: disable[PYI048]\n# ruff: enable[PYI048]\ndef function():\n    x = 1\n    return x\n" }
+expected = [{ file = "case.pyi", start = 51, end = 59 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.pyi" = "# ruff: disable[PYI048]\ndef function():\n    x = 1\n    return x\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.pyi" = "# ruff: disable[E501]\ndef function():\n    x = 1\n    return x\n" }
+expected = [{ file = "case.pyi", start = 26, end = 34 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.pyi" = "# ruff: file-ignore[PYI048]\ndef function():\n    x = 1\n    return x\n" }
+expected = []

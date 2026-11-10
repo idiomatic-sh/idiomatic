@@ -1,0 +1,55 @@
+{
+  "schema": "pinned-reference-control/v1",
+  "tool": "ruff",
+  "version": "ruff 0.16.5",
+  "executable_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "invocation": [
+    "ruff",
+    "check",
+    "--isolated",
+    "--select",
+    "I001",
+    "--output-format",
+    "json",
+    "input.py"
+  ],
+  "configuration": "Ruff isolated defaults; root/input.py, root/src/acme.py, and root/src/acme/billing/__init__.py are staged for each case",
+  "cases": [
+    {
+      "name": "module_directory_first",
+      "source": "import acme.billing\nimport numpy\n",
+      "source_sha256": "9ce8338364103cf06cc56e0054f1f7d33eb4dda64ec0800cbbd63b11de5c64c3",
+      "context": {
+        "src/acme.py": "",
+        "src/acme/billing/__init__.py": ""
+      },
+      "exit_code": 1,
+      "stderr": "",
+      "diagnostics": [
+        {
+          "code": "I001",
+          "start": {
+            "column": 1,
+            "row": 1
+          },
+          "end": {
+            "column": 13,
+            "row": 2
+          }
+        }
+      ]
+    },
+    {
+      "name": "module_directory_second",
+      "source": "import numpy\n\nimport acme.billing\n",
+      "source_sha256": "a9bcc4e37f31baaccfc9455164d3b05cb3d65a804bd64aa516b8a5142c728f7b",
+      "context": {
+        "src/acme.py": "",
+        "src/acme/billing/__init__.py": ""
+      },
+      "exit_code": 0,
+      "stderr": "",
+      "diagnostics": []
+    }
+  ]
+}

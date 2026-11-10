@@ -1,0 +1,10 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "source_sha256": "1a81d042cb9fed3039660d6a4d462f41cae1a79c139d876ac900602f97f6d77c",
+  "raw_annotation": "T",
+  "resolved_module": "pathlib",
+  "resolved_name": "Path",
+  "has_readlines": false,
+  "has_iter": false,
+  "scope": "Exact authored source compiled without inherited future flags; function body not invoked. The result establishes declared type only, not runtime argument enforcement."
+}

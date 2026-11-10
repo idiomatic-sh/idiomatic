@@ -1,0 +1,204 @@
+{
+  "policy": "Each nonlocal name conflicting with a global declaration in the same lexical scope receives one validation diagnostic at its original name token. AST syntax acceptance remains Accepted, diagnostic phase Validation and tree impact Preserved. CPython proves compiler invalidity, not this multi-error reporting policy. Compiler diagnostics survive lint noqa suppression.",
+  "cases": [
+    {
+      "rule": "PLE0115",
+      "case": "each-nonlocal-declaration-retains-diagnostic-multiplicity",
+      "source_sha256": "12b446a1df117654c382d6132f451f56ea7f29dda560d14ec132d74113d9788a",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 22,
+          "end": 27
+        },
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 41,
+          "end": 46
+        }
+      ],
+      "original_lint_multiset": [
+        {
+          "end": 63,
+          "file": "case.py",
+          "rule": "PLE0115",
+          "start": 58
+        },
+        {
+          "end": 63,
+          "file": "case.py",
+          "rule": "PLE0115",
+          "start": 58
+        }
+      ]
+    },
+    {
+      "rule": "PLE0115",
+      "case": "global-then-nonlocal",
+      "source_sha256": "6e94c4900d4745fd6108470f59644d1208627a21f06d852132053c5e22e309a3",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 39,
+          "end": 44
+        }
+      ],
+      "original_lint_multiset": [
+        {
+          "end": 25,
+          "file": "case.py",
+          "rule": "PLE0115",
+          "start": 20
+        }
+      ]
+    },
+    {
+      "rule": "PLE0115",
+      "case": "latest-global-declaration-is-reported",
+      "source_sha256": "50c832f1d28498f6ece2ab65ed25dacf8fb1165bfce1ebb5ed06db804c1be18c",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 56,
+          "end": 61
+        }
+      ],
+      "original_lint_multiset": [
+        {
+          "end": 42,
+          "file": "case.py",
+          "rule": "PLE0115",
+          "start": 37
+        }
+      ]
+    },
+    {
+      "rule": "PLE0115",
+      "case": "nonlocal-then-global",
+      "source_sha256": "e311dfafdcad3572dea7d9c4bf73fe0e344348992f5a583423e54b9518effcec",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 22,
+          "end": 27
+        }
+      ],
+      "original_lint_multiset": [
+        {
+          "end": 44,
+          "file": "case.py",
+          "rule": "PLE0115",
+          "start": 39
+        }
+      ]
+    },
+    {
+      "rule": "PLE0115",
+      "case": "noqa-suppresses-conflicting-declaration",
+      "source_sha256": "434576953680cfcad9a011971c0e2c2c304cd77b75b737fcf224e2b2bf7cc4eb",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 56,
+          "end": 61
+        }
+      ],
+      "original_lint_multiset": []
+    },
+    {
+      "rule": "PLE0117",
+      "case": "crossrule-PLE0115-each-nonlocal-declaration-retains-diagnostic-multiplicity",
+      "source_sha256": "12b446a1df117654c382d6132f451f56ea7f29dda560d14ec132d74113d9788a",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 22,
+          "end": 27
+        },
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 41,
+          "end": 46
+        }
+      ],
+      "original_lint_multiset": [
+        {
+          "end": 27,
+          "file": "case.py",
+          "rule": "PLE0117",
+          "start": 22
+        },
+        {
+          "end": 46,
+          "file": "case.py",
+          "rule": "PLE0117",
+          "start": 41
+        }
+      ]
+    },
+    {
+      "rule": "PLE0117",
+      "case": "crossrule-PLE0115-global-then-nonlocal",
+      "source_sha256": "6e94c4900d4745fd6108470f59644d1208627a21f06d852132053c5e22e309a3",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 39,
+          "end": 44
+        }
+      ],
+      "original_lint_multiset": [
+        {
+          "end": 44,
+          "file": "case.py",
+          "rule": "PLE0117",
+          "start": 39
+        }
+      ]
+    },
+    {
+      "rule": "PLE0117",
+      "case": "crossrule-PLE0115-noqa-suppresses-conflicting-declaration",
+      "source_sha256": "434576953680cfcad9a011971c0e2c2c304cd77b75b737fcf224e2b2bf7cc4eb",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 56,
+          "end": 61
+        }
+      ],
+      "original_lint_multiset": [
+        {
+          "end": 61,
+          "file": "case.py",
+          "rule": "PLE0117",
+          "start": 56
+        }
+      ]
+    },
+    {
+      "rule": "PLE0117",
+      "case": "own-global-conflict-with-real-outer-binding",
+      "source_sha256": "59f90ba4098679846530ffd6d2d81944e265127fef5df31fa968b4721c0a3ed6",
+      "independently_derived_validation_spans": [
+        {
+          "rule": "invalid-syntax",
+          "file": "case.py",
+          "start": 80,
+          "end": 85
+        }
+      ],
+      "original_lint_multiset": []
+    }
+  ]
+}

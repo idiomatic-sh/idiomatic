@@ -1,0 +1,2807 @@
+[
+  {
+    "name": "upstream-full-TC007.py",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py"
+    ],
+    "source_sha256": "5c41e560f797677bbe7002e7884ef04f306607566b230b4c635c2b890b30ac60",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 15
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 19,
+                "row": 15
+              },
+              "location": {
+                "column": 16,
+                "row": 15
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 15
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 15,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 16
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | None\"",
+              "end_location": {
+                "column": 26,
+                "row": 16
+              },
+              "location": {
+                "column": 16,
+                "row": 16
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 16
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 16,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 22,
+          "row": 17
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"OptStr\"",
+              "end_location": {
+                "column": 22,
+                "row": 17
+              },
+              "location": {
+                "column": 16,
+                "row": 17
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 17
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 17,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 18
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Bar\"",
+              "end_location": {
+                "column": 19,
+                "row": 18
+              },
+              "location": {
+                "column": 16,
+                "row": 18
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 18
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 18,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 19
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Bar\"",
+              "end_location": {
+                "column": 25,
+                "row": 19
+              },
+              "location": {
+                "column": 16,
+                "row": 19
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 19
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 19,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 25,
+          "row": 19
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Bar\"",
+              "end_location": {
+                "column": 25,
+                "row": 19
+              },
+              "location": {
+                "column": 16,
+                "row": 19
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 22,
+          "row": 19
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 19,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 20
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo[str]\"",
+              "end_location": {
+                "column": 24,
+                "row": 20
+              },
+              "location": {
+                "column": 16,
+                "row": 20
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 20
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 20,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 21
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Bar\"",
+              "end_location": {
+                "column": 8,
+                "row": 22
+              },
+              "location": {
+                "column": 17,
+                "row": 21
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 21
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 21,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 8,
+          "row": 22
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Bar\"",
+              "end_location": {
+                "column": 8,
+                "row": 22
+              },
+              "location": {
+                "column": 17,
+                "row": 21
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 5,
+          "row": 22
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 22,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "upstream-full-TC007.py",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py"
+    ],
+    "source_sha256": "5c41e560f797677bbe7002e7884ef04f306607566b230b4c635c2b890b30ac60",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 15
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 19,
+                "row": 15
+              },
+              "location": {
+                "column": 16,
+                "row": 15
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 15
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 15,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 16
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | None\"",
+              "end_location": {
+                "column": 26,
+                "row": 16
+              },
+              "location": {
+                "column": 16,
+                "row": 16
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 16
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 16,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 22,
+          "row": 17
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"OptStr\"",
+              "end_location": {
+                "column": 22,
+                "row": 17
+              },
+              "location": {
+                "column": 16,
+                "row": 17
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 17
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 17,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 18
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Bar\"",
+              "end_location": {
+                "column": 19,
+                "row": 18
+              },
+              "location": {
+                "column": 16,
+                "row": 18
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 18
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 18,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 19
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Bar\"",
+              "end_location": {
+                "column": 25,
+                "row": 19
+              },
+              "location": {
+                "column": 16,
+                "row": 19
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 19
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 19,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 25,
+          "row": 19
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Bar\"",
+              "end_location": {
+                "column": 25,
+                "row": 19
+              },
+              "location": {
+                "column": 16,
+                "row": 19
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 22,
+          "row": 19
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 19,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 19,
+          "row": 20
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo[str]\"",
+              "end_location": {
+                "column": 24,
+                "row": 20
+              },
+              "location": {
+                "column": 16,
+                "row": 20
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 16,
+          "row": 20
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 20,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 21
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Bar\"",
+              "end_location": {
+                "column": 8,
+                "row": 22
+              },
+              "location": {
+                "column": 17,
+                "row": 21
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 21
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 21,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 8,
+          "row": 22
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Bar\"",
+              "end_location": {
+                "column": 8,
+                "row": 22
+              },
+              "location": {
+                "column": 17,
+                "row": 21
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 5,
+          "row": 22
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 22,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "invalid-syntax",
+        "end_location": {
+          "column": 5,
+          "row": 24
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": null,
+        "location": {
+          "column": 1,
+          "row": 24
+        },
+        "message": "Cannot use `type` alias statement on Python 3.10 (syntax was added in Python 3.12)",
+        "name": "invalid-syntax",
+        "noqa_row": null,
+        "severity": "error",
+        "url": null
+      },
+      {
+        "cell": null,
+        "code": "invalid-syntax",
+        "end_location": {
+          "column": 5,
+          "row": 25
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": null,
+        "location": {
+          "column": 1,
+          "row": 25
+        },
+        "message": "Cannot use `type` alias statement on Python 3.10 (syntax was added in Python 3.12)",
+        "name": "invalid-syntax",
+        "noqa_row": null,
+        "severity": "error",
+        "url": null
+      },
+      {
+        "cell": null,
+        "code": "invalid-syntax",
+        "end_location": {
+          "column": 5,
+          "row": 26
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": null,
+        "location": {
+          "column": 1,
+          "row": 26
+        },
+        "message": "Cannot use `type` alias statement on Python 3.10 (syntax was added in Python 3.12)",
+        "name": "invalid-syntax",
+        "noqa_row": null,
+        "severity": "error",
+        "url": null
+      },
+      {
+        "cell": null,
+        "code": "invalid-syntax",
+        "end_location": {
+          "column": 5,
+          "row": 27
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": null,
+        "location": {
+          "column": 1,
+          "row": 27
+        },
+        "message": "Cannot use `type` alias statement on Python 3.10 (syntax was added in Python 3.12)",
+        "name": "invalid-syntax",
+        "noqa_row": null,
+        "severity": "error",
+        "url": null
+      },
+      {
+        "cell": null,
+        "code": "invalid-syntax",
+        "end_location": {
+          "column": 5,
+          "row": 28
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": null,
+        "location": {
+          "column": 1,
+          "row": 28
+        },
+        "message": "Cannot use `type` alias statement on Python 3.10 (syntax was added in Python 3.12)",
+        "name": "invalid-syntax",
+        "noqa_row": null,
+        "severity": "error",
+        "url": null
+      },
+      {
+        "cell": null,
+        "code": "invalid-syntax",
+        "end_location": {
+          "column": 5,
+          "row": 29
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": null,
+        "location": {
+          "column": 1,
+          "row": 29
+        },
+        "message": "Cannot use `type` alias statement on Python 3.10 (syntax was added in Python 3.12)",
+        "name": "invalid-syntax",
+        "noqa_row": null,
+        "severity": "error",
+        "url": null
+      },
+      {
+        "cell": null,
+        "code": "invalid-syntax",
+        "end_location": {
+          "column": 5,
+          "row": 30
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/00/TC007.py",
+        "fix": null,
+        "location": {
+          "column": 1,
+          "row": 30
+        },
+        "message": "Cannot use `type` alias statement on Python 3.10 (syntax was added in Python 3.12)",
+        "name": "invalid-syntax",
+        "noqa_row": null,
+        "severity": "error",
+        "url": null
+      }
+    ]
+  },
+  {
+    "name": "guarded-class",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/01/case.py"
+    ],
+    "source_sha256": "816f97ee26b9c1eb37cd377cc71c87991c138d7b2a712a66cbcbe6c7bef1a023",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/01/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "guarded-class",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/01/case.py"
+    ],
+    "source_sha256": "816f97ee26b9c1eb37cd377cc71c87991c138d7b2a712a66cbcbe6c7bef1a023",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/01/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "guarded-import",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/02/case.py"
+    ],
+    "source_sha256": "bdf2e22966cb4b5f2694019b30d9dcbae824574a3f0b0bed96574c20286cc61a",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/02/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "guarded-import",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/02/case.py"
+    ],
+    "source_sha256": "bdf2e22966cb4b5f2694019b30d9dcbae824574a3f0b0bed96574c20286cc61a",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/02/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "guard-alias",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/03/case.py"
+    ],
+    "source_sha256": "579baf903eda30ae0215e9e5ca82ca328dbfbcc4fc9b1248bffa9887cc97997b",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 13,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/03/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 13,
+                "row": 4
+              },
+              "location": {
+                "column": 10,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 10,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "guard-alias",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/03/case.py"
+    ],
+    "source_sha256": "579baf903eda30ae0215e9e5ca82ca328dbfbcc4fc9b1248bffa9887cc97997b",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 13,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/03/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 13,
+                "row": 4
+              },
+              "location": {
+                "column": 10,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 10,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "qualified-guard",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/04/case.py"
+    ],
+    "source_sha256": "1109bb7465a6bd048331e4c28c5413871679beb8ae82c38ce4ddf0977f1ca82d",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 22,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/04/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 22,
+                "row": 4
+              },
+              "location": {
+                "column": 19,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 19,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "qualified-guard",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/04/case.py"
+    ],
+    "source_sha256": "1109bb7465a6bd048331e4c28c5413871679beb8ae82c38ce4ddf0977f1ca82d",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 22,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/04/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 22,
+                "row": 4
+              },
+              "location": {
+                "column": 19,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 19,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "repeated-union",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/05/case.py"
+    ],
+    "source_sha256": "ab9fc7f1d90b79ff775080196ef591311867e8ed5eeafa67d80acb51ea80c486",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/05/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Foo\"",
+              "end_location": {
+                "column": 26,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 26,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/05/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Foo\"",
+              "end_location": {
+                "column": 26,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 23,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "repeated-union",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/05/case.py"
+    ],
+    "source_sha256": "ab9fc7f1d90b79ff775080196ef591311867e8ed5eeafa67d80acb51ea80c486",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/05/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Foo\"",
+              "end_location": {
+                "column": 26,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      },
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 26,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/05/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo | Foo\"",
+              "end_location": {
+                "column": 26,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 23,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "quoted-alias",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/06/case.py"
+    ],
+    "source_sha256": "35b4fe48d5ffb588538733f3d46ed2a72bc16ed4b8c518b91eb4c008f9f0e6ab",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "quoted-alias",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/06/case.py"
+    ],
+    "source_sha256": "35b4fe48d5ffb588538733f3d46ed2a72bc16ed4b8c518b91eb4c008f9f0e6ab",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "quoted-generic-argument",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/07/case.py"
+    ],
+    "source_sha256": "3c86977c2e8c0ea8f02b7edc6ffe5612359981ffb01e506300516f121adaa70d",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "quoted-generic-argument",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/07/case.py"
+    ],
+    "source_sha256": "3c86977c2e8c0ea8f02b7edc6ffe5612359981ffb01e506300516f121adaa70d",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "unquoted-generic-argument",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/08/case.py"
+    ],
+    "source_sha256": "d718db0fde73cc7d958dd651a9b2e18ddcb4e3ba98d2727b6d09d81786f27193",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 25,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/08/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"list[Foo]\"",
+              "end_location": {
+                "column": 26,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 22,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "unquoted-generic-argument",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/08/case.py"
+    ],
+    "source_sha256": "d718db0fde73cc7d958dd651a9b2e18ddcb4e3ba98d2727b6d09d81786f27193",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 25,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/08/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"list[Foo]\"",
+              "end_location": {
+                "column": 26,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 22,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "literal-value",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/09/case.py"
+    ],
+    "source_sha256": "77159f2134e4c955cd078aa89616a22fbbe2c872bd9ebcd730cc3afb49d17dee",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "literal-value",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/09/case.py"
+    ],
+    "source_sha256": "77159f2134e4c955cd078aa89616a22fbbe2c872bd9ebcd730cc3afb49d17dee",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "annotated-metadata",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/10/case.py"
+    ],
+    "source_sha256": "dc8f0f2cf8b79f1265365c3871a0e51c652bf53a3205fd333ae6e67b5d281583",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "annotated-metadata",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/10/case.py"
+    ],
+    "source_sha256": "dc8f0f2cf8b79f1265365c3871a0e51c652bf53a3205fd333ae6e67b5d281583",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "annotated-type",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/11/case.py"
+    ],
+    "source_sha256": "c1a380bb36793b5dd6be6aea46a94042c6364e8a900baf3117865f59b7bde1c7",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 30,
+          "row": 5
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/11/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Annotated[Foo, 'metadata']\"",
+              "end_location": {
+                "column": 42,
+                "row": 5
+              },
+              "location": {
+                "column": 17,
+                "row": 5
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 27,
+          "row": 5
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "annotated-type",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/11/case.py"
+    ],
+    "source_sha256": "c1a380bb36793b5dd6be6aea46a94042c6364e8a900baf3117865f59b7bde1c7",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 30,
+          "row": 5
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/11/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Annotated[Foo, 'metadata']\"",
+              "end_location": {
+                "column": 42,
+                "row": 5
+              },
+              "location": {
+                "column": 17,
+                "row": 5
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 27,
+          "row": 5
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "guarded-literal-constructor",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/12/case.py"
+    ],
+    "source_sha256": "bb06f2ac20eae34bf763430390d5c720e5581f13019a63cc7da4f95ecdfe1adc",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 24,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/12/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Literal['x']\"",
+              "end_location": {
+                "column": 29,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "guarded-literal-constructor",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/12/case.py"
+    ],
+    "source_sha256": "bb06f2ac20eae34bf763430390d5c720e5581f13019a63cc7da4f95ecdfe1adc",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 24,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/12/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Literal['x']\"",
+              "end_location": {
+                "column": 29,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "alias-under-guard",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/13/case.py"
+    ],
+    "source_sha256": "3ae573c5a3ef3e6ff72d6d5962b928355c09699dc4edaedf68027e9b5da55d10",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "alias-under-guard",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/13/case.py"
+    ],
+    "source_sha256": "3ae573c5a3ef3e6ff72d6d5962b928355c09699dc4edaedf68027e9b5da55d10",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "runtime-fallback",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/14/case.py"
+    ],
+    "source_sha256": "4b8dc39bd357ef2438993a182a420439a66096f259631d1769cf8370bb98564f",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "runtime-fallback",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/14/case.py"
+    ],
+    "source_sha256": "4b8dc39bd357ef2438993a182a420439a66096f259631d1769cf8370bb98564f",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "runtime-fallback-deleted",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/15/case.py"
+    ],
+    "source_sha256": "532da8c9e77fe909beeef1228930a8773b9762adc9dde81f1ed5fa18a8751cb1",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "runtime-fallback-deleted",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/15/case.py"
+    ],
+    "source_sha256": "532da8c9e77fe909beeef1228930a8773b9762adc9dde81f1ed5fa18a8751cb1",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "runtime-binding-after-alias",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/16/case.py"
+    ],
+    "source_sha256": "87f48de33d68ff1417b4d133218ea510906da1c63f8c465eea7155acdecde816",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/16/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "runtime-binding-after-alias",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/16/case.py"
+    ],
+    "source_sha256": "87f48de33d68ff1417b4d133218ea510906da1c63f8c465eea7155acdecde816",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/16/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "forward-runtime-class",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/17/case.py"
+    ],
+    "source_sha256": "047be06c39174dcc38c7f1629aeebe262b99160874534506ffc239de9745afb3",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "forward-runtime-class",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/17/case.py"
+    ],
+    "source_sha256": "047be06c39174dcc38c7f1629aeebe262b99160874534506ffc239de9745afb3",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "unknown-name",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/18/case.py"
+    ],
+    "source_sha256": "098ce12c2b440577ce68c57b3aabe8411336154b59bb662ef82aa90bacc80090",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "unknown-name",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/18/case.py"
+    ],
+    "source_sha256": "098ce12c2b440577ce68c57b3aabe8411336154b59bb662ef82aa90bacc80090",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "annotation-only-name",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/19/case.py"
+    ],
+    "source_sha256": "186a19651ba37e85b4be670cc29fca83c40d1f20c953676c00b8c42703be6ca8",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "annotation-only-name",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/19/case.py"
+    ],
+    "source_sha256": "186a19651ba37e85b4be670cc29fca83c40d1f20c953676c00b8c42703be6ca8",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "function-local-shadow",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/20/case.py"
+    ],
+    "source_sha256": "d93c0a6490b64b0021095c030987bfa029a60264d8c3d9959db80eec3c075723",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "function-local-shadow",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/20/case.py"
+    ],
+    "source_sha256": "d93c0a6490b64b0021095c030987bfa029a60264d8c3d9959db80eec3c075723",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "class-global-fallback",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/21/case.py"
+    ],
+    "source_sha256": "a1d2f8721877e105d9ff81f1f920d50da72a17ea3a71672ad265c8bd2a5637f4",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "class-global-fallback",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/21/case.py"
+    ],
+    "source_sha256": "a1d2f8721877e105d9ff81f1f920d50da72a17ea3a71672ad265c8bd2a5637f4",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "builtin-fallback",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/22/case.py"
+    ],
+    "source_sha256": "8e411e876adc32d58c870693d6ac32c9f67e0ec6ab6883bff5e23c6d7f589767",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "builtin-fallback",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/22/case.py"
+    ],
+    "source_sha256": "8e411e876adc32d58c870693d6ac32c9f67e0ec6ab6883bff5e23c6d7f589767",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "function-local-builtin-shadow",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/23/case.py"
+    ],
+    "source_sha256": "760725c6551fe4b205070e2b82dd522c4f6ebe79903e9d546f9910d001e6f349",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "function-local-builtin-shadow",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/23/case.py"
+    ],
+    "source_sha256": "760725c6551fe4b205070e2b82dd522c4f6ebe79903e9d546f9910d001e6f349",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "shadowed-true-guard",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/24/case.py"
+    ],
+    "source_sha256": "6f19a266d79276c3f86416aa11e311b411e060249d0f6a5305c8942ba7c22104",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 5
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/24/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 5
+              },
+              "location": {
+                "column": 17,
+                "row": 5
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 5
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "shadowed-true-guard",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/24/case.py"
+    ],
+    "source_sha256": "6f19a266d79276c3f86416aa11e311b411e060249d0f6a5305c8942ba7c22104",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 5
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/24/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 5
+              },
+              "location": {
+                "column": 17,
+                "row": 5
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 5
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 5,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "stub-mode",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/25/case.pyi"
+    ],
+    "source_sha256": "816f97ee26b9c1eb37cd377cc71c87991c138d7b2a712a66cbcbe6c7bef1a023",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "stub-mode",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/25/case.pyi"
+    ],
+    "source_sha256": "816f97ee26b9c1eb37cd377cc71c87991c138d7b2a712a66cbcbe6c7bef1a023",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "value-call",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/26/case.py"
+    ],
+    "source_sha256": "535e13ae80ca92bc964dd933911929888d49cff222454824f916697fd3cd2bc4",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "value-call",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/26/case.py"
+    ],
+    "source_sha256": "535e13ae80ca92bc964dd933911929888d49cff222454824f916697fd3cd2bc4",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "suppressed",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/27/case.py"
+    ],
+    "source_sha256": "e4e939f568d05d0e08159322a5a7d9d0db0bc530e6dce243c1513f548bf4e60f",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "suppressed",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/27/case.py"
+    ],
+    "source_sha256": "e4e939f568d05d0e08159322a5a7d9d0db0bc530e6dce243c1513f548bf4e60f",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "unrelated-noqa",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/28/case.py"
+    ],
+    "source_sha256": "c54aefba8ee889cca289942d05e769b1a8609003c2280af987f466ebc43ccb8d",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/28/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "unrelated-noqa",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/28/case.py"
+    ],
+    "source_sha256": "c54aefba8ee889cca289942d05e769b1a8609003c2280af987f466ebc43ccb8d",
+    "exit": 1,
+    "diagnostics": [
+      {
+        "cell": null,
+        "code": "TC007",
+        "end_location": {
+          "column": 20,
+          "row": 4
+        },
+        "filename": "/tmp/tc007-8234-replay-v1-20261103/reference/28/case.py",
+        "fix": {
+          "applicability": "unsafe",
+          "edits": [
+            {
+              "content": "\"Foo\"",
+              "end_location": {
+                "column": 20,
+                "row": 4
+              },
+              "location": {
+                "column": 17,
+                "row": 4
+              }
+            }
+          ],
+          "message": "Add quotes"
+        },
+        "location": {
+          "column": 17,
+          "row": 4
+        },
+        "message": "Add quotes to type alias",
+        "name": "unquoted-type-alias",
+        "noqa_row": 4,
+        "severity": "error",
+        "url": "https://docs.astral.sh/ruff/rules/unquoted-type-alias"
+      }
+    ]
+  },
+  {
+    "name": "ordinary-annotation",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/29/case.py"
+    ],
+    "source_sha256": "45a1435f0ddad45283fa30dcb6dd6c6748ec681733aa6cb46c1701360d27b9bf",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "ordinary-annotation",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/29/case.py"
+    ],
+    "source_sha256": "45a1435f0ddad45283fa30dcb6dd6c6748ec681733aa6cb46c1701360d27b9bf",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "not-an-explicit-alias",
+    "target": "py312",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py312",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/30/case.py"
+    ],
+    "source_sha256": "0d6bbe411051f10ac720eee197dd34729703ae14808c7665dd1d71acd18230a1",
+    "exit": 0,
+    "diagnostics": []
+  },
+  {
+    "name": "not-an-explicit-alias",
+    "target": "py310",
+    "args": [
+      "/home/vscode/.local/bin/ruff",
+      "check",
+      "--isolated",
+      "--target-version",
+      "py310",
+      "--select",
+      "TC007",
+      "--output-format",
+      "json",
+      "/tmp/tc007-8234-replay-v1-20261103/reference/30/case.py"
+    ],
+    "source_sha256": "0d6bbe411051f10ac720eee197dd34729703ae14808c7665dd1d71acd18230a1",
+    "exit": 0,
+    "diagnostics": []
+  }
+]

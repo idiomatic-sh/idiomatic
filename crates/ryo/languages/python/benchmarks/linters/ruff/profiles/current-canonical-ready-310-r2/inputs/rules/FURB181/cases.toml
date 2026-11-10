@@ -1,0 +1,283 @@
+# Exact Ruff 0.16.5 tag 9e4938c4a60bed3e87a11ee1e1db1bd23f4d964a; target py310; shipped default settings.
+
+[[cases]]
+name = "upstream-pinned-fixture-0"
+comparison = "full"
+files = { "case.py" = "import hashlib\nfrom hashlib import (\n    blake2b,\n    blake2s,\n    md5,\n    sha1,\n    sha3_224,\n    sha3_256,\n    sha3_384,\n    sha3_512,\n    sha224,\n)\nfrom hashlib import sha256\nfrom hashlib import sha256 as hash_algo\nfrom hashlib import sha384, sha512, shake_128, shake_256\n\n# these will match\n\nblake2b().digest().hex()\nblake2s().digest().hex()\nmd5().digest().hex()\nsha1().digest().hex()\nsha224().digest().hex()\nsha256().digest().hex()\nsha384().digest().hex()\nsha3_224().digest().hex()\nsha3_256().digest().hex()\nsha3_384().digest().hex()\nsha3_512().digest().hex()\nsha512().digest().hex()\nshake_128().digest(10).hex()\nshake_256().digest(10).hex()\n\nhashlib.sha256().digest().hex()\n\nsha256(b\"text\").digest().hex()\n\nhash_algo().digest().hex()\n\n# not yet supported\nh = sha256()\nh.digest().hex()\n\n\n# these will not\n\nsha256().digest()\nsha256().digest().hex(\"_\")\nsha256().digest().hex(bytes_per_sep=4)\nsha256().hexdigest()\n\nclass Hash:\n    def digest(self) -> bytes:\n        return b\"\"\n\n\nHash().digest().hex()\n\n\nhashed = (\n    sha512(b\"some data\")\n    .digest(\n        # text\n    )\n    .hex()\n)" }
+expected = [{ rule = "FURB181", file = "case.py", start = 297, end = 321 }, { rule = "FURB181", file = "case.py", start = 322, end = 346 }, { rule = "FURB181", file = "case.py", start = 347, end = 367 }, { rule = "FURB181", file = "case.py", start = 368, end = 389 }, { rule = "FURB181", file = "case.py", start = 390, end = 413 }, { rule = "FURB181", file = "case.py", start = 414, end = 437 }, { rule = "FURB181", file = "case.py", start = 438, end = 461 }, { rule = "FURB181", file = "case.py", start = 462, end = 487 }, { rule = "FURB181", file = "case.py", start = 488, end = 513 }, { rule = "FURB181", file = "case.py", start = 514, end = 539 }, { rule = "FURB181", file = "case.py", start = 540, end = 565 }, { rule = "FURB181", file = "case.py", start = 566, end = 589 }, { rule = "FURB181", file = "case.py", start = 590, end = 618 }, { rule = "FURB181", file = "case.py", start = 619, end = 647 }, { rule = "FURB181", file = "case.py", start = 649, end = 680 }, { rule = "FURB181", file = "case.py", start = 682, end = 712 }, { rule = "FURB181", file = "case.py", start = 714, end = 740 }, { rule = "FURB181", file = "case.py", start = 1021, end = 1086 }]
+
+[[cases]]
+name = "hash-constructor-0"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.md5(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 49 }]
+
+[[cases]]
+name = "hash-constructor-1"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha1(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 50 }]
+
+[[cases]]
+name = "hash-constructor-2"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha224(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 52 }]
+
+[[cases]]
+name = "hash-constructor-3"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha256(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 52 }]
+
+[[cases]]
+name = "hash-constructor-4"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha384(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 52 }]
+
+[[cases]]
+name = "hash-constructor-5"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha512(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 52 }]
+
+[[cases]]
+name = "hash-constructor-6"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.blake2b(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 53 }]
+
+[[cases]]
+name = "hash-constructor-7"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.blake2s(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 53 }]
+
+[[cases]]
+name = "hash-constructor-8"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha3_224(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 54 }]
+
+[[cases]]
+name = "hash-constructor-9"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha3_256(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 54 }]
+
+[[cases]]
+name = "hash-constructor-10"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha3_384(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 54 }]
+
+[[cases]]
+name = "hash-constructor-11"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha3_512(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 54 }]
+
+[[cases]]
+name = "hash-constructor-12"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.shake_128(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 55 }]
+
+[[cases]]
+name = "hash-constructor-13"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.shake_256(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 55 }]
+
+[[cases]]
+name = "hash-constructor-14"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.new(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "hash-constructor-15"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.scrypt(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "hash-constructor-16"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.pbkdf2_hmac(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "hash-constructor-17"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha512_256(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "hash-constructor-18"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.unknown(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "digest-arguments-0"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.shake_128(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 55 }]
+
+[[cases]]
+name = "digest-arguments-1"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.shake_128(data).digest(16).hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 57 }]
+
+[[cases]]
+name = "digest-arguments-2"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.shake_128(data).digest(length=16).hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 64 }]
+
+[[cases]]
+name = "digest-arguments-3"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.shake_128(data).digest(*args).hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 60 }]
+
+[[cases]]
+name = "digest-arguments-4"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.shake_128(data).digest(**kwargs).hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 63 }]
+
+[[cases]]
+name = "digest-arguments-5"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.shake_128(data).digest(bad,wrong=True).hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 69 }]
+
+[[cases]]
+name = "hex-arguments-0"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha256(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 52 }]
+
+[[cases]]
+name = "hex-arguments-1"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha256(data).digest().hex(\" \")\n" }
+expected = []
+
+[[cases]]
+name = "hex-arguments-2"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha256(data).digest().hex(sep=\" \")\n" }
+expected = []
+
+[[cases]]
+name = "hex-arguments-3"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha256(data).digest().hex(*[])\n" }
+expected = []
+
+[[cases]]
+name = "hex-arguments-4"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha256(data).digest().hex(**{})\n" }
+expected = []
+
+[[cases]]
+name = "constructor-arguments-unrestricted"
+comparison = "full"
+files = { "case.py" = "import hashlib\nhashlib.sha256().digest().hex()\nhashlib.sha256(*args,**kwargs).digest().hex()\nhashlib.sha256(data,unknown=True).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 15, end = 46 }, { rule = "FURB181", file = "case.py", start = 47, end = 92 }, { rule = "FURB181", file = "case.py", start = 93, end = 141 }]
+
+[[cases]]
+name = "import-aliases"
+comparison = "full"
+files = { "case.py" = "import hashlib as h\nfrom hashlib import sha256 as S\nx=h.sha256(data).digest().hex()\ny=S(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 54, end = 83 }, { rule = "FURB181", file = "case.py", start = 86, end = 108 }]
+
+[[cases]]
+name = "unknown-receiver"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hash.digest().hex()\ny=get_hash().digest().hex()\nh=hashlib.sha256(data)\nz=h.digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "wrong-call-chain"
+comparison = "full"
+files = { "case.py" = "import hashlib\nhashlib.sha256(data).hexdigest().hex()\nhashlib.sha256(data).digest.hex()\nhashlib.sha256(data).digest().hex\nhashlib.sha256(data).digest().upper().hex()\n" }
+expected = []
+
+[[cases]]
+name = "no-import"
+comparison = "full"
+files = { "case.py" = "x=hashlib.sha256(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-hashlib"
+comparison = "full"
+files = { "case.py" = "import hashlib\ndef f(hashlib):\n    return hashlib.sha256(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "assignment-alias"
+comparison = "full"
+files = { "case.py" = "from hashlib import sha256\nS=sha256\nx=S(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "non-hashlib"
+comparison = "full"
+files = { "case.py" = "from other import sha256\nx=sha256(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "unicode-methods"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.sha256(data).ｄｉｇｅｓｔ().ｈｅｘ()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 70 }]
+
+[[cases]]
+name = "multiline-unicode"
+comparison = "full"
+files = { "case.py" = "import hashlib\né=(\n    hashlib.sha256(\"🙂é\".encode())\n    .digest( # comment\n    )\n    .hex()\n)\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 24, end = 97 }]
+
+[[cases]]
+name = "parenthesized"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=((hashlib.sha256)(data)).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 56 }]
+
+[[cases]]
+name = "inline-suppression"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.md5(data).digest().hex()  # noqa: FURB181\n" }
+expected = []
+
+[[cases]]
+name = "blanket-suppression"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.md5(data).digest().hex()  # noqa\n" }
+expected = []
+
+[[cases]]
+name = "file-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: FURB181\nimport hashlib\nx=hashlib.md5(data).digest().hex()\n" }
+expected = []
+
+[[cases]]
+name = "wrong-code-unsuppressed"
+comparison = "full"
+files = { "case.py" = "import hashlib\nx=hashlib.md5(data).digest().hex()  # noqa: F401\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 17, end = 49 }]
+
+[[cases]]
+name = "block-suppression"
+comparison = "full"
+files = { "case.py" = "# ruff: disable[FURB181]\nimport hashlib\nx=hashlib.md5(data).digest().hex()\n# ruff: enable[FURB181]\nimport hashlib\nx=hashlib.md5(data).digest().hex()\n" }
+expected = [{ rule = "FURB181", file = "case.py", start = 116, end = 148 }]

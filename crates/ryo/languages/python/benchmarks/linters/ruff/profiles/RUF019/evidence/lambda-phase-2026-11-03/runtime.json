@@ -1,0 +1,558 @@
+{
+  "cases": [
+    {
+      "builtin_container": "set",
+      "container": "out",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "out=set()\nif (lambda: factory()) in out:\n    out.remove((lambda: factory()))\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 76,
+          "file": "case.py",
+          "rule": "FURB132",
+          "start": 10
+        }
+      ],
+      "name": "effect-policy-12",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "FURB132",
+      "source_sha256": "fd3d7e78b18780f7a31a29cae7466d57ae671a764f1054f4ddce08c08d8d86e3"
+    },
+    {
+      "builtin_container": "set",
+      "container": "out",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "out=set()\nif (lambda: effect()) in out:\n    out.remove((lambda: effect()))\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 74,
+          "file": "case.py",
+          "rule": "FURB132",
+          "start": 10
+        }
+      ],
+      "name": "lambda-phase-body-call",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "FURB132",
+      "source_sha256": "7ff31310f9ce844343a100ccf214bbe876e0cb2fcddd1702d82bcc9b982c6fe9"
+    },
+    {
+      "builtin_container": "set",
+      "container": "out",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "out=set()\nif (lambda: values[0]) in out:\n    out.remove((lambda: values[0]))\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 76,
+          "file": "case.py",
+          "rule": "FURB132",
+          "start": 10
+        }
+      ],
+      "name": "lambda-phase-body-subscript",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "FURB132",
+      "source_sha256": "562c798f162f080df9bbc454961ae94ddb44542c8979b5dcd5a0e3c87f8422a0"
+    },
+    {
+      "builtin_container": "set",
+      "container": "out",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": [
+          "call"
+        ]
+      },
+      "files": {
+        "case.py": "out=set()\nif (lambda x=effect(): x) in out:\n    out.remove((lambda x=effect(): x))\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [],
+      "name": "lambda-phase-default-call",
+      "original": {
+        "container_size": 0,
+        "events": [
+          "call"
+        ]
+      },
+      "rule": "FURB132",
+      "source_sha256": "e1d5e35b937d8944fa76c662caf00d8879307d6ffc7a5782d9516dacba550a06"
+    },
+    {
+      "builtin_container": "set",
+      "container": "out",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": [
+          "subscript"
+        ]
+      },
+      "files": {
+        "case.py": "out=set()\nif (lambda *, x=values[0]: x) in out:\n    out.remove((lambda *, x=values[0]: x))\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [],
+      "name": "lambda-phase-keyword-default-subscript",
+      "original": {
+        "container_size": 0,
+        "events": [
+          "subscript"
+        ]
+      },
+      "rule": "FURB132",
+      "source_sha256": "a33692e09e2b37a475e05c1fdb088050f6607eea813378bbd08f798367e16ad6"
+    },
+    {
+      "builtin_container": "set",
+      "container": "out",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "out=set()\nif (lambda x=(lambda: effect()): x) in out:\n    out.remove((lambda x=(lambda: effect()): x))\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 102,
+          "file": "case.py",
+          "rule": "FURB132",
+          "start": 10
+        }
+      ],
+      "name": "lambda-phase-nested-deferred-default",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "FURB132",
+      "source_sha256": "08e6ac3ea270d2661189616df33d47fc3aa709197ff5db2d8c0256d22838e170"
+    },
+    {
+      "builtin_container": "set",
+      "container": "out",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": [
+          "call"
+        ]
+      },
+      "files": {
+        "case.py": "out=set()\nif (lambda x=(lambda y=effect(): y): x) in out:\n    out.remove((lambda x=(lambda y=effect(): y): x))\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [],
+      "name": "lambda-phase-nested-eager-default",
+      "original": {
+        "container_size": 0,
+        "events": [
+          "call"
+        ]
+      },
+      "rule": "FURB132",
+      "source_sha256": "a49745e9f8d55ba5ca04d9708f09ce0e569915a98243e2c65f8b69fcd5ea1209"
+    },
+    {
+      "builtin_container": "set",
+      "container": "out",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "out=set()\nif (lambda: lambda: effect()) in out:\n    out.remove((lambda: lambda: effect()))\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 90,
+          "file": "case.py",
+          "rule": "FURB132",
+          "start": 10
+        }
+      ],
+      "name": "lambda-phase-nested-body-root",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "FURB132",
+      "source_sha256": "a48b375910bb67ae70ff2683492ce72617f78fa4ca08328e42bb999029122ee4"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "if (lambda:make()) in data and data[lambda:make()]: ...\n"
+      },
+      "injected_container_namespace": true,
+      "intended_full_findings": [
+        {
+          "end": 50,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 3
+        }
+      ],
+      "name": "ruf019-lambda-effect",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "f326cd224363bbd55a4c9a80c33e07b8949575eb0e489b9c8aff3e2175d67ed0"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "if (lambda: effect()) in data and data[(lambda: effect())]: ...\n"
+      },
+      "injected_container_namespace": true,
+      "intended_full_findings": [
+        {
+          "end": 58,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 3
+        }
+      ],
+      "name": "lambda-phase-body-call",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "dd8f00765982e2e4bc7b4f3d057bf61a81f1a182a4e3c3c52de5c1e46662aa0c"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "if (lambda: values[0]) in data and data[(lambda: values[0])]: ...\n"
+      },
+      "injected_container_namespace": true,
+      "intended_full_findings": [
+        {
+          "end": 60,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 3
+        }
+      ],
+      "name": "lambda-phase-body-subscript",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "a781112037341d1f021225dfe3f17f9fc7e81e98d7e93f8de254cc2704b1e10f"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": [
+          "call"
+        ]
+      },
+      "files": {
+        "case.py": "if (lambda x=effect(): x) in data and data[(lambda x=effect(): x)]: ...\n"
+      },
+      "injected_container_namespace": true,
+      "intended_full_findings": [],
+      "name": "lambda-phase-default-call",
+      "original": {
+        "container_size": 0,
+        "events": [
+          "call"
+        ]
+      },
+      "rule": "RUF019",
+      "source_sha256": "00ccb9c8d3d3263b07158e8db6b10030e64bfcd7c5d01c0182a77c98684fb8ae"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": [
+          "subscript"
+        ]
+      },
+      "files": {
+        "case.py": "if (lambda *, x=values[0]: x) in data and data[(lambda *, x=values[0]: x)]: ...\n"
+      },
+      "injected_container_namespace": true,
+      "intended_full_findings": [],
+      "name": "lambda-phase-keyword-default-subscript",
+      "original": {
+        "container_size": 0,
+        "events": [
+          "subscript"
+        ]
+      },
+      "rule": "RUF019",
+      "source_sha256": "52c24650f9f299007754e98bd5aa2a912bfb9d2833611e2caa0a3a1d51da9a3a"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "if (lambda x=(lambda: effect()): x) in data and data[(lambda x=(lambda: effect()): x)]: ...\n"
+      },
+      "injected_container_namespace": true,
+      "intended_full_findings": [
+        {
+          "end": 86,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 3
+        }
+      ],
+      "name": "lambda-phase-nested-deferred-default",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "1163e7c6bf1e83636006521b3aa04d27d0b476893e6233a2c3255695e01f0b51"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": [
+          "call"
+        ]
+      },
+      "files": {
+        "case.py": "if (lambda x=(lambda y=effect(): y): x) in data and data[(lambda x=(lambda y=effect(): y): x)]: ...\n"
+      },
+      "injected_container_namespace": true,
+      "intended_full_findings": [],
+      "name": "lambda-phase-nested-eager-default",
+      "original": {
+        "container_size": 0,
+        "events": [
+          "call"
+        ]
+      },
+      "rule": "RUF019",
+      "source_sha256": "1426fd10c1e6a2561abc1d7625ff9dee36944fddd03421d089cca54a69db7864"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "if (lambda: lambda: effect()) in data and data[(lambda: lambda: effect())]: ...\n"
+      },
+      "injected_container_namespace": true,
+      "intended_full_findings": [
+        {
+          "end": 74,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 3
+        }
+      ],
+      "name": "lambda-phase-nested-body-root",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "9389c19507e305aea10886b466c60c6e84d79ae8217bfde53a12f7fafe6ae335"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "data = {}\nif (lambda:make()) in data and data[lambda:make()]: ...\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 60,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 13
+        }
+      ],
+      "name": "explicit-dict-ruf019-lambda-effect",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "557a80079f7d3c49551d1897da5582d5e2bfcbc6c16e0a83c19f1e44e9e27485"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "data = {}\nif (lambda: effect()) in data and data[(lambda: effect())]: ...\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 68,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 13
+        }
+      ],
+      "name": "explicit-dict-lambda-phase-body-call",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "f8d59ac6c1f9d080422d3be023cb36325a13cdcf19554057bb87b1298966916e"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "data = {}\nif (lambda: values[0]) in data and data[(lambda: values[0])]: ...\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 70,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 13
+        }
+      ],
+      "name": "explicit-dict-lambda-phase-body-subscript",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "953afc7c9dab13ca853261e016046558db2b22ab57ced5f86ecabf2c926d449b"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "data = {}\nif (lambda: lambda: effect()) in data and data[(lambda: lambda: effect())]: ...\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 84,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 13
+        }
+      ],
+      "name": "explicit-dict-lambda-phase-nested-body-root",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "4028a8f7ecd01ad2a4c256f1c967ceb6c84d794c540415973da0cf877594d786"
+    },
+    {
+      "builtin_container": "dict",
+      "container": "data",
+      "discard_or_get_control": {
+        "container_size": 0,
+        "events": []
+      },
+      "files": {
+        "case.py": "data = {}\nif (lambda x=(lambda: effect()): x) in data and data[(lambda x=(lambda: effect()): x)]: ...\n"
+      },
+      "injected_container_namespace": false,
+      "intended_full_findings": [
+        {
+          "end": 96,
+          "file": "case.py",
+          "rule": "RUF019",
+          "start": 13
+        }
+      ],
+      "name": "explicit-dict-lambda-phase-nested-deferred-default",
+      "original": {
+        "container_size": 0,
+        "events": []
+      },
+      "rule": "RUF019",
+      "source_sha256": "7b08a95725df0a544641c6e22cade57c16b9c6223efff9682b8e31fc7eecc68d"
+    }
+  ],
+  "program_sha256": "40ee1f82009a9fa4e77e0820da4b79e02f4c56ed89adfa9ca26046a06b0cd5db",
+  "python": "/home/vscode/.local/share/uv/python/cpython-3.10.19-linux-aarch64-gnu/bin/python3.10",
+  "python_sha256": "2c2bf2087b89419f609369de36aa7ba7ae9f8e67bd8ae495e51afb964cd9db27",
+  "python_version": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "scope": "Exact supplied sources under documented built-in set/dict prerequisites; unknown custom protocols and universal rewrite safety are not established."
+}

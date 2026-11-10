@@ -1,0 +1,128 @@
+[
+  {
+    "name": "guarded-class",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n class Foo: ...\nAlias:TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "guarded-import",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n from external import Foo\nAlias:TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "guard-alias",
+    "source": "from typing import TYPE_CHECKING as TC, TypeAlias as TA\nif TC:\n class Foo: ...\nAlias:TA=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "qualified-guard",
+    "source": "import typing as t\nif t.TYPE_CHECKING:\n class Foo: ...\nAlias:t.TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "repeated-union",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n class Foo: ...\nAlias:TypeAlias=Foo | Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "quoted-alias",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n class Foo: ...\nAlias:TypeAlias=\"Foo\"\n",
+    "canonical_source_unchanged": true,
+    "expected_error": null
+  },
+  {
+    "name": "quoted-generic-argument",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n class Foo: ...\nAlias:TypeAlias=list[\"Foo\"]\n",
+    "canonical_source_unchanged": true,
+    "expected_error": null
+  },
+  {
+    "name": "unquoted-generic-argument",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n class Foo: ...\nAlias:TypeAlias=list[Foo]\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "annotated-type",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n class Foo: ...\nfrom typing import Annotated\nAlias:TypeAlias=Annotated[Foo,\"metadata\"]\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "guarded-literal-constructor",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n from typing import Literal\nAlias:TypeAlias=Literal[\"x\"]\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "alias-under-guard",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n class Foo: ...\n Alias:TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": null
+  },
+  {
+    "name": "runtime-fallback",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nclass Foo: ...\nif TYPE_CHECKING:\n from external import Foo\nAlias:TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": null
+  },
+  {
+    "name": "runtime-fallback-deleted",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nclass Foo: ...\ndel Foo\nif TYPE_CHECKING:\n from external import Foo\nAlias:TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "runtime-binding-after-alias",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n class Foo: ...\nAlias:TypeAlias=Foo\nFoo=int\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "forward-runtime-class",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nAlias:TypeAlias=Foo\nclass Foo: ...\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "annotation-only-name",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nFoo:int\nAlias:TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": "NameError"
+  },
+  {
+    "name": "function-local-shadow",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nclass Foo: ...\ndef outer():\n if TYPE_CHECKING:\n  from external import Foo\n Alias:TypeAlias=Foo\nouter()\n",
+    "canonical_source_unchanged": false,
+    "expected_error": "UnboundLocalError"
+  },
+  {
+    "name": "class-global-fallback",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nclass Foo: ...\nclass C:\n if TYPE_CHECKING:\n  from external import Foo\n Alias:TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": null
+  },
+  {
+    "name": "builtin-fallback",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nif TYPE_CHECKING:\n from external import int\nAlias:TypeAlias=int\n",
+    "canonical_source_unchanged": true,
+    "expected_error": null
+  },
+  {
+    "name": "function-local-builtin-shadow",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\ndef outer():\n if TYPE_CHECKING:\n  from external import int\n Alias:TypeAlias=int\nouter()\n",
+    "canonical_source_unchanged": false,
+    "expected_error": "UnboundLocalError"
+  },
+  {
+    "name": "shadowed-true-guard",
+    "source": "from typing import TYPE_CHECKING, TypeAlias\nTYPE_CHECKING=True\nif TYPE_CHECKING:\n class Foo: ...\nAlias:TypeAlias=Foo\n",
+    "canonical_source_unchanged": true,
+    "expected_error": null
+  }
+]

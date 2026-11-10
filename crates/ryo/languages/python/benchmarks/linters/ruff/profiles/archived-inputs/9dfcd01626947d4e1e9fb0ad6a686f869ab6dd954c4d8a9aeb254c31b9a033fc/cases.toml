@@ -1,0 +1,79 @@
+[[cases]]
+name = "direct"
+files = { "case.py" = "value = (lambda: 1)()\n" }
+expected = [{ file = "case.py", start = 8, end = 21 }]
+
+[[cases]]
+name = "arguments"
+files = { "case.py" = "value = (lambda x: x + 1)(2)\n" }
+expected = [{ file = "case.py", start = 8, end = 28 }]
+
+[[cases]]
+name = "lambda-value"
+files = { "case.py" = "value = lambda: 1\n" }
+expected = []
+
+[[cases]]
+name = "named-call"
+files = { "case.py" = "value = function()\n" }
+expected = []
+
+[[cases]]
+name = "nested"
+files = { "case.py" = "def f():\n    return (lambda: 1)()\n" }
+expected = [{ file = "case.py", start = 20, end = 33 }]
+
+[[cases]]
+name = "parentheses"
+files = { "case.py" = "value = ((lambda: 1))()\n" }
+expected = [{ file = "case.py", start = 8, end = 23 }]
+
+[[cases]]
+name = "attribute"
+files = { "case.py" = "value = (lambda: 1).__call__()\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "value = (lambda: 1)() # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "value = (lambda: 1)() # noqa: PLC3002\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "value = (lambda: 1)() # noqa: F401\n" }
+expected = [{ file = "case.py", start = 8, end = 21 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\nvalue = (lambda: 1)()\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[PLC3002]\nvalue = (lambda: 1)()\n\n# ruff: enable[PLC3002]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[PLC3002]\n# ruff: enable[PLC3002]\nvalue = (lambda: 1)()\n" }
+expected = [{ file = "case.py", start = 57, end = 70 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[PLC3002]\nvalue = (lambda: 1)()\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\nvalue = (lambda: 1)()\n" }
+expected = [{ file = "case.py", start = 30, end = 43 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[PLC3002]\nvalue = (lambda: 1)()\n" }
+expected = []

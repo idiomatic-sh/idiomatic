@@ -1,0 +1,35 @@
+[[cases]]
+name = "module-attribute"
+comparison = "full"
+files = { "case.py" = "import six\nsix.PY3\n" }
+expected = [{ rule = "YTT202", file = "case.py", start = 11, end = 18 }]
+
+[[cases]]
+name = "module-alias"
+comparison = "full"
+files = { "case.py" = "import six as s\ns.PY3\n" }
+expected = [{ rule = "YTT202", file = "case.py", start = 16, end = 21 }]
+
+[[cases]]
+name = "from-import"
+comparison = "full"
+files = { "case.py" = "from six import PY3\nPY3\n" }
+expected = [{ rule = "YTT202", file = "case.py", start = 20, end = 23 }]
+
+[[cases]]
+name = "other-attribute"
+comparison = "full"
+files = { "case.py" = "import other\nother.PY3\n" }
+expected = []
+
+[[cases]]
+name = "py2"
+comparison = "full"
+files = { "case.py" = "import six\nsix.PY2\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+comparison = "full"
+files = { "case.py" = "import six\nsix.PY3  # noqa: YTT202\n" }
+expected = []

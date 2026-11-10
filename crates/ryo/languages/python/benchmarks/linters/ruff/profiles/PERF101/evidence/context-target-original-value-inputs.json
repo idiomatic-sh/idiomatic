@@ -1,0 +1,152 @@
+[
+  {
+    "name": "ruf051-function-definition",
+    "comparison": "full",
+    "files": {
+      "case.py": "def d()->dict: ...\nif key in d: del d[key]\n"
+    },
+    "expected": [
+      {
+        "rule": "RUF051",
+        "file": "case.py",
+        "start": 32,
+        "end": 42
+      }
+    ]
+  },
+  {
+    "name": "ruf051-future-parameter-shadow",
+    "comparison": "full",
+    "files": {
+      "case.py": "from __future__ import annotations\ndef f(d:dict,dict):\n if key in d: del d[key]\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "ruf051-eager-module-rebind",
+    "comparison": "full",
+    "files": {
+      "case.py": "def f(d:dict):\n if key in d: del d[key]\ndict=custom\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "ruf051-future-body-earlier-bind",
+    "comparison": "full",
+    "files": {
+      "case.py": "from __future__ import annotations\ndef f(d:dict):\n dict=custom\n if key in d: del d[key]\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "ruf051-future-type-parameter",
+    "comparison": "full",
+    "files": {
+      "case.py": "from __future__ import annotations\ndef f[dict](d:dict):\n if key in d: del d[key]\n"
+    },
+    "expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 40,
+        "end": 46
+      }
+    ]
+  },
+  {
+    "name": "ruf051-with-target",
+    "comparison": "full",
+    "files": {
+      "case.py": "with {} as d:\n if key in d: del d[key]\n"
+    },
+    "expected": [
+      {
+        "rule": "RUF051",
+        "file": "case.py",
+        "start": 28,
+        "end": 38
+      }
+    ]
+  },
+  {
+    "name": "ruf051-async-with-target",
+    "comparison": "full",
+    "files": {
+      "case.py": "async def f():\n async with {} as d:\n  if key in d: del d[key]\n"
+    },
+    "expected": [
+      {
+        "rule": "RUF051",
+        "file": "case.py",
+        "start": 51,
+        "end": 61
+      }
+    ]
+  },
+  {
+    "name": "ruf051-eager-module-rebind-unseen-later-function",
+    "comparison": "full",
+    "files": {
+      "case.py": "def f(d:dict):\n if key in d: del d[key]\ndef g():\n import builtins\ndict=custom\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "ruf051-builtin-variable-name-shadow",
+    "comparison": "full",
+    "files": {
+      "case.py": "dict={}\nif key in dict: del dict[key]\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "ruf051-constructor-before-current-rebind",
+    "comparison": "full",
+    "files": {
+      "case.py": "d=dict()\ndef f():\n if key in d: del d[key]\ndict=custom\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "ruf051-function-type-parameter-return-fast",
+    "comparison": "full",
+    "files": {
+      "case.py": "def d[dict]()->dict: ...\nif key in d: del d[key]\n"
+    },
+    "expected": [
+      {
+        "rule": "RUF051",
+        "file": "case.py",
+        "start": 38,
+        "end": 48
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 5,
+        "end": 11
+      }
+    ]
+  },
+  {
+    "name": "ruf051-future-function-generic-return-slow",
+    "comparison": "full",
+    "files": {
+      "case.py": "from __future__ import annotations\nimport builtins\ndef d[dict]()->dict: ...\nif key in d: del d[key]\n"
+    },
+    "expected": [
+      {
+        "rule": "RUF051",
+        "file": "case.py",
+        "start": 89,
+        "end": 99
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 56,
+        "end": 62
+      }
+    ]
+  }
+]

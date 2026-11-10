@@ -1,0 +1,104 @@
+[[cases]]
+name = "bare"
+files = { "case.py" = "def f():\n    work()\n    return\n" }
+expected = [{ file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "none"
+files = { "case.py" = "def f():\n    work()\n    return None\n" }
+expected = [{ file = "case.py", start = 24, end = 35 }]
+
+[[cases]]
+name = "only-return"
+files = { "case.py" = "def f():\n    return\n" }
+expected = []
+
+[[cases]]
+name = "doc-return"
+files = { "case.py" = "def f():\n    \"doc\"\n    return\n" }
+expected = []
+
+[[cases]]
+name = "typed"
+files = { "case.py" = "def f() -> int:\n    work()\n    return\n" }
+expected = []
+
+[[cases]]
+name = "none-annotation"
+files = { "case.py" = "def f() -> None:\n    work()\n    return\n" }
+expected = [{ file = "case.py", start = 32, end = 38 }]
+
+[[cases]]
+name = "value"
+files = { "case.py" = "def f():\n    work()\n    return 1\n" }
+expected = []
+
+[[cases]]
+name = "two-returns"
+files = { "case.py" = "def f():\n    if condition:\n        return\n    return\n" }
+expected = []
+
+[[cases]]
+name = "nested-function"
+files = { "case.py" = "def f():\n    def g():\n        return 1\n    return\n" }
+expected = [{ file = "case.py", start = 43, end = 49 }]
+
+[[cases]]
+name = "generator"
+files = { "case.py" = "def f():\n    yield 1\n    return\n" }
+expected = [{ file = "case.py", start = 25, end = 31 }]
+
+[[cases]]
+name = "not-last"
+files = { "case.py" = "def f():\n    return\n    work()\n" }
+expected = []
+
+[[cases]]
+name = "quoted-annotation"
+files = { "case.py" = "def f() -> \"None\":\n    work()\n    return\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "def f():\n    work()\n    return # noqa\n" }
+expected = []
+
+[[cases]]
+name = "code-noqa"
+files = { "case.py" = "def f():\n    work()\n    return # noqa: PLR1711\n" }
+expected = []
+
+[[cases]]
+name = "other-code"
+files = { "case.py" = "def f():\n    work()\n    return # noqa: F401\n" }
+expected = [{ file = "case.py", start = 24, end = 30 }]
+
+[[cases]]
+name = "file-noqa"
+files = { "case.py" = "# ruff: noqa\ndef f():\n    work()\n    return\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-suppressed"
+files = { "case.py" = "# ruff: disable[PLR1711]\ndef f():\n    work()\n    return\n\n# ruff: enable[PLR1711]\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-reenabled"
+files = { "case.py" = "# ruff: disable[PLR1711]\n# ruff: enable[PLR1711]\ndef f():\n    work()\n    return\n" }
+expected = [{ file = "case.py", start = 73, end = 79 }]
+
+[[cases]]
+name = "shared-block-unmatched-disable"
+files = { "case.py" = "# ruff: disable[PLR1711]\ndef f():\n    work()\n    return\n" }
+expected = []
+
+[[cases]]
+name = "shared-block-wrong-code"
+files = { "case.py" = "# ruff: disable[E501]\ndef f():\n    work()\n    return\n" }
+expected = [{ file = "case.py", start = 46, end = 52 }]
+
+[[cases]]
+name = "shared-file-ignore"
+files = { "case.py" = "# ruff: file-ignore[PLR1711]\ndef f():\n    work()\n    return\n" }
+expected = []

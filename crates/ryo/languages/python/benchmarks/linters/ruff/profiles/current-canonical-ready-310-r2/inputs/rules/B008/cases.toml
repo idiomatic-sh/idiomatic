@@ -1,0 +1,109 @@
+[[cases]]
+name = "call_in_default"
+files = { "case.py" = "def f(value=make()):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 12, end = 18 }]
+
+[[cases]]
+name = "call_in_nested_default"
+files = { "case.py" = "def f(value=wrap(make())):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 12, end = 24 }, { rule = "B008", file = "case.py", start = 17, end = 23 }]
+
+[[cases]]
+name = "constant_default"
+files = { "case.py" = "def f(value=1):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "lambda_body_call_is_not_eager_default_call"
+files = { "case.py" = "def f(value=lambda: make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable_annotation_skips_call_default"
+files = { "case.py" = "def f(value: tuple = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "typing_tuple_annotation_skips_call_default"
+files = { "case.py" = "import typing\ndef f(value: typing.Tuple[int, ...] = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "shadowed_tuple_annotation_does_not_skip_call_default"
+files = { "case.py" = "tuple = custom\ndef f(value: tuple = make()):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 36, end = 42 }]
+
+[[cases]]
+name = "only_matching_parameter_is_suppressed"
+files = { "case.py" = "def f(a: tuple = make(), b=other()):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 27, end = 34 }]
+
+[[cases]]
+name = "right_aligned_default_keeps_its_annotation"
+files = { "case.py" = "def f(a, b: tuple = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "keyword_only_immutable_annotation_skips_default"
+files = { "case.py" = "def f(*, value: tuple = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "typing_tuple_import_alias_skips_default"
+files = { "case.py" = "from typing import Tuple\ndef f(value: Tuple[int, ...] = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "positional_only_immutable_annotation_skips_default"
+files = { "case.py" = "def f(value: tuple = make(), /):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "positional_only_annotation_does_not_skip_other_default"
+files = { "case.py" = "def f(value: tuple = make(), /, other=other_call()):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 38, end = 50 }]
+
+[[cases]]
+name = "immutable-non-generic"
+files = { "case.py" = "from typing import Sized\ndef f(value: int = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable-collections-sequence"
+files = { "case.py" = "from collections.abc import Sequence\ndef f(value: Sequence[int] = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable-union-recursive"
+files = { "case.py" = "from typing import Union\ndef f(value: Union[int, str] = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable-optional-annotated"
+files = { "case.py" = "from typing import Optional, Annotated\ndef f(value: Optional[Annotated[int, list]] = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "immutable-pep604"
+files = { "case.py" = "def f(value: int | None = make()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "mutable-union-member"
+files = { "case.py" = "from typing import Union\ndef f(value: Union[int, list] = make()):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 57, end = 63 }]
+
+[[cases]]
+name = "mutable-optional-member"
+files = { "case.py" = "from typing import Optional\ndef f(value: Optional[list] = make()):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 58, end = 64 }]
+
+[[cases]]
+name = "mutable-pep604-member"
+files = { "case.py" = "def f(value: int | list = make()):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 26, end = 32 }]
+
+[[cases]]
+name = "mutable-annotated-base"
+files = { "case.py" = "from typing import Annotated\ndef f(value: Annotated[list, int] = make()):\n    pass\n" }
+expected = [{ rule = "B008", file = "case.py", start = 65, end = 71 }]

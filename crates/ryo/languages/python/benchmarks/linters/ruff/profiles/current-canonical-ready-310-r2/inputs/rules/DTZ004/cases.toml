@@ -1,0 +1,99 @@
+[[cases]]
+name = "module"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0)\n" }
+expected = [{ file = "case.py", start = 16, end = 53 }]
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "import datetime as alias\nalias.datetime.utcfromtimestamp(0)\n" }
+expected = [{ file = "case.py", start = 25, end = 59 }]
+
+[[cases]]
+name = "from-import"
+files = { "case.py" = "from datetime.datetime import utcfromtimestamp as target\ntarget(0)\n" }
+expected = [{ file = "case.py", start = 57, end = 66 }]
+
+[[cases]]
+name = "unimported"
+files = { "case.py" = "datetime.datetime.utcfromtimestamp(0)\n" }
+expected = []
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "import datetime\ndef f(datetime):\n    datetime.datetime.utcfromtimestamp(0)\n" }
+expected = []
+
+[[cases]]
+name = "rebound"
+files = { "case.py" = "import datetime\ndatetime = other\ndatetime.datetime.utcfromtimestamp(0)\n" }
+expected = []
+
+[[cases]]
+name = "before-import"
+files = { "case.py" = "datetime.datetime.utcfromtimestamp(0)\nimport datetime\n" }
+expected = []
+
+[[cases]]
+name = "deferred-body"
+files = { "case.py" = "def f():\n    datetime.datetime.utcfromtimestamp(0)\nimport datetime\n" }
+expected = [{ file = "case.py", start = 13, end = 50 }]
+
+[[cases]]
+name = "ordinary-call"
+files = { "case.py" = "import datetime\ndef f(x):\n    x()\n    datetime.datetime.utcfromtimestamp(0)\n" }
+expected = [{ file = "case.py", start = 38, end = 75 }]
+
+[[cases]]
+name = "attribute-only"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp\n" }
+expected = []
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0) # noqa: DTZ004\n" }
+expected = []
+
+[[cases]]
+name = "range"
+files = { "case.py" = "import datetime\n# ruff: disable[DTZ004]\ndatetime.datetime.utcfromtimestamp(0)\n# ruff: enable[DTZ004]\n" }
+expected = []
+
+[[cases]]
+name = "converted"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "timezone-attribute"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).astimezone\n" }
+expected = []
+
+[[cases]]
+name = "replace-chain"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).replace(hour=1).replace(minute=2).astimezone()\n" }
+expected = []
+
+[[cases]]
+name = "replace-only"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).replace(hour=1)\n" }
+expected = [{ file = "case.py", start = 16, end = 53 }]
+
+[[cases]]
+name = "wrong-chain"
+files = { "case.py" = "import datetime\ndatetime.datetime.utcfromtimestamp(0).other().astimezone()\n" }
+expected = [{ file = "case.py", start = 16, end = 53 }]
+
+[[cases]]
+name = "argument-not-receiver"
+files = { "case.py" = "import datetime\nobj.replace(datetime.datetime.utcfromtimestamp(0).replace).astimezone()\n" }
+expected = [{ file = "case.py", start = 28, end = 65 }]
+
+[[cases]]
+name = "wrapped"
+files = { "case.py" = "import datetime\nwrapper(datetime.datetime.utcfromtimestamp(0)).astimezone()\n" }
+expected = [{ file = "case.py", start = 24, end = 61 }]
+
+[[cases]]
+name = "parenthesized"
+files = { "case.py" = "import datetime\n(datetime.datetime.utcfromtimestamp(0)).astimezone()\n" }
+expected = []

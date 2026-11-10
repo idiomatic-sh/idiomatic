@@ -1,0 +1,206 @@
+{
+  "python": "3.10.19 (main, Feb 12 2026, 00:42:24) [Clang 21.1.4 ]",
+  "executable": "/home/vscode/.local/share/uv/python/cpython-3.10.19-linux-aarch64-gnu/bin/python3.10",
+  "configuration": "python-target=3.10",
+  "scope": "Independent standard-library type/interface and operation equivalence observations. No Ruff checker or Ryo output is used.",
+  "classes": {
+    "io.IOBase": {
+      "is_io_base": true,
+      "mro": [
+        "io.IOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.RawIOBase": {
+      "is_io_base": true,
+      "mro": [
+        "io.RawIOBase",
+        "_io._RawIOBase",
+        "io.IOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.BufferedIOBase": {
+      "is_io_base": true,
+      "mro": [
+        "io.BufferedIOBase",
+        "_io._BufferedIOBase",
+        "io.IOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.TextIOBase": {
+      "is_io_base": true,
+      "mro": [
+        "io.TextIOBase",
+        "_io._TextIOBase",
+        "io.IOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.BytesIO": {
+      "is_io_base": true,
+      "mro": [
+        "_io.BytesIO",
+        "_io._BufferedIOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.StringIO": {
+      "is_io_base": true,
+      "mro": [
+        "_io.StringIO",
+        "_io._TextIOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.BufferedReader": {
+      "is_io_base": true,
+      "mro": [
+        "_io.BufferedReader",
+        "_io._BufferedIOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.BufferedWriter": {
+      "is_io_base": true,
+      "mro": [
+        "_io.BufferedWriter",
+        "_io._BufferedIOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.BufferedRandom": {
+      "is_io_base": true,
+      "mro": [
+        "_io.BufferedRandom",
+        "_io._BufferedIOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.BufferedRWPair": {
+      "is_io_base": true,
+      "mro": [
+        "_io.BufferedRWPair",
+        "_io._BufferedIOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.TextIOWrapper": {
+      "is_io_base": true,
+      "mro": [
+        "_io.TextIOWrapper",
+        "_io._TextIOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    },
+    "io.FileIO": {
+      "is_io_base": true,
+      "mro": [
+        "_io.FileIO",
+        "_io._RawIOBase",
+        "_io._IOBase",
+        "builtins.object"
+      ],
+      "readlines": true,
+      "writelines": true
+    }
+  },
+  "paths": {
+    "pathlib.Path": {
+      "is_io_base": false,
+      "has_open": true,
+      "has_readlines": false
+    },
+    "pathlib.PosixPath": {
+      "is_io_base": false,
+      "has_open": true,
+      "has_readlines": false
+    },
+    "pathlib.WindowsPath": {
+      "is_io_base": false,
+      "has_open": true,
+      "has_readlines": false
+    },
+    "pathlib.PurePath": {
+      "is_io_base": false,
+      "has_open": false,
+      "has_readlines": false
+    },
+    "pathlib.PurePosixPath": {
+      "is_io_base": false,
+      "has_open": false,
+      "has_readlines": false
+    },
+    "pathlib.PureWindowsPath": {
+      "is_io_base": false,
+      "has_open": false,
+      "has_readlines": false
+    }
+  },
+  "os_open": {
+    "type": "int",
+    "is_io_base": false,
+    "has_readlines": false
+  },
+  "os_fdopen": {
+    "is_io_base": true,
+    "lines": [
+      "first\n",
+      "second\n"
+    ]
+  },
+  "path_open": {
+    "is_io_base": true,
+    "lines": [
+      "first\n",
+      "second\n"
+    ]
+  },
+  "os_Path_exists": false,
+  "os_PathLike_is_io": false,
+  "memory_streams": {
+    "StringIO": {
+      "readlines_matches_iteration": true,
+      "length": 2
+    },
+    "BytesIO": {
+      "readlines_matches_iteration": true,
+      "length": 2
+    }
+  },
+  "write_loop_matches_writelines": true
+}

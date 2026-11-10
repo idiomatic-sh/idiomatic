@@ -1,0 +1,102 @@
+{
+  "list-string-index": {
+    "source": "items[\"x\"]\n",
+    "expected": []
+  },
+  "string-float-index": {
+    "source": "\"hello\"[1.5]\n",
+    "expected": [
+      {
+        "rule": "RUF016",
+        "file": "case.py",
+        "start": 8,
+        "end": 11
+      }
+    ]
+  },
+  "bytes-list-index": {
+    "source": "b\"abc\"[[]]\n",
+    "expected": [
+      {
+        "rule": "RUF016",
+        "file": "case.py",
+        "start": 7,
+        "end": 9
+      }
+    ]
+  },
+  "list-bool-index": {
+    "source": "items[True]\n",
+    "expected": []
+  },
+  "list-int-index": {
+    "source": "items[1]\n",
+    "expected": []
+  },
+  "list-slice-valid": {
+    "source": "items[1:None:False]\n",
+    "expected": []
+  },
+  "list-slice-bad-lower": {
+    "source": "items[\"x\":2]\n",
+    "expected": []
+  },
+  "list-slice-bad-upper": {
+    "source": "items[1:2.5]\n",
+    "expected": []
+  },
+  "list-slice-bad-step": {
+    "source": "items[1:2:[]]\n",
+    "expected": []
+  },
+  "list-slice-multiple-bad": {
+    "source": "items[\"x\":{}:lambda: 1]\n",
+    "expected": []
+  },
+  "list-slice-omitted": {
+    "source": "items[:]\n",
+    "expected": []
+  },
+  "other-value": {
+    "source": "mapping[\"x\"]\n",
+    "expected": []
+  },
+  "list-comprehension-value": {
+    "source": "[x for x in xs][\"a\"]\n",
+    "expected": [
+      {
+        "rule": "RUF016",
+        "file": "case.py",
+        "start": 16,
+        "end": 19
+      }
+    ]
+  },
+  "joined-string-value": {
+    "source": "f\"value\"[\"a\"]\n",
+    "expected": [
+      {
+        "rule": "RUF016",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      }
+    ]
+  },
+  "complex-index": {
+    "source": "items[1j]\n",
+    "expected": []
+  },
+  "none-index": {
+    "source": "items[None]\n",
+    "expected": []
+  },
+  "noqa": {
+    "source": "items[\"x\"] # noqa: RUF016\n",
+    "expected": []
+  },
+  "file-noqa": {
+    "source": "# ruff: noqa: RUF016\nitems[\"x\"]\n",
+    "expected": []
+  }
+}

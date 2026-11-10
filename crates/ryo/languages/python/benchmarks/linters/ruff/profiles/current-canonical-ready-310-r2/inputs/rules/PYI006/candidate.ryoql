@@ -1,0 +1,14 @@
+import suppress from "python/ruff/suppress";
+let comparisons = select id, file, span from "semantic-syntax" where kind = "compare";
+let left_edges = select parent, child from "semantic-child" where field = "left";
+let version_info = select id, file from "qualified-name" where path = "sys.version_info";
+let left_rows = select l.parent as comparison, l.child as left, r.file as file from left_edges as l join comparisons as r on l.parent = r.id;
+let version_rows = select l.comparison as comparison, l.left as left, l.file as file from left_rows as l join version_info as r on l.left = r.id and l.file = r.file;
+let op_edges = select parent, child from "semantic-child" where field = "ops";
+let op_tokens = select id from "semantic-syntax" where text = "==" or text = "!=";
+let invalid_ops = select l.parent as comparison from op_edges as l join op_tokens as r on l.child = r.id;
+let valid_comparisons = select l.comparison as comparison, l.file as file from version_rows as l join invalid_ops as r on l.comparison = r.comparison;
+let reportable = select l.comparison as id, r.file as file, r.span as span from valid_comparisons as l join comparisons as r on l.comparison = r.id and l.file = r.file;
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
+let violations = suppress(candidates=candidate_locations, inline-pattern="^[\\s,]*(?:[A-Z]+[0-9]+[\\s,]*)*PYI006(?:$|[\\s,#]|[A-Z])", range-pattern="(?:^|,)(?:PYI006)(?:,|$)");
+emit violations subject file key(id);

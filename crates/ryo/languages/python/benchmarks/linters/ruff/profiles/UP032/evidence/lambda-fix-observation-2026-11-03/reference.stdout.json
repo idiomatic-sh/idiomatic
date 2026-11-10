@@ -1,0 +1,37 @@
+[
+  {
+    "cell": null,
+    "code": "UP032",
+    "end_location": {
+      "column": 32,
+      "row": 1
+    },
+    "filename": "/tmp/lambda-allocation-evidence-20261103/function-repr/case.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "f\"{lambda: 0!r}|{lambda: 0!r}\"",
+          "end_location": {
+            "column": 32,
+            "row": 1
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          }
+        }
+      ],
+      "message": "Convert to f-string"
+    },
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Use f-string instead of `format` call",
+    "name": "f-string",
+    "noqa_row": 1,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/f-string"
+  }
+]

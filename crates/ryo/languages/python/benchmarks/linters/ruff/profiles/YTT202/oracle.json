@@ -1,0 +1,65 @@
+{
+  "ruff_version": "0.16.5",
+  "ruff_binary_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "target_version": "py310",
+  "mode": "isolated selected-rule full report",
+  "cases": [
+    {
+      "rule": "YTT202",
+      "case": "module-attribute",
+      "source_sha256": "f5e7a349e1bbe2e9d6e465b5b60f77bd124777f9f991b54b24d55ac477c0fb95",
+      "diagnostics": [
+        {
+          "rule": "YTT202",
+          "file": "case.py",
+          "start": 11,
+          "end": 18
+        }
+      ]
+    },
+    {
+      "rule": "YTT202",
+      "case": "module-alias",
+      "source_sha256": "1c2911c53e88a9f6624cb32a14fb84989a75562630c92491cf097325f63931b7",
+      "diagnostics": [
+        {
+          "rule": "YTT202",
+          "file": "case.py",
+          "start": 16,
+          "end": 21
+        }
+      ]
+    },
+    {
+      "rule": "YTT202",
+      "case": "from-import",
+      "source_sha256": "14c05d2efa898d4064b76041c236ffb5719c9b69652dd77d559c2389559e4324",
+      "diagnostics": [
+        {
+          "rule": "YTT202",
+          "file": "case.py",
+          "start": 20,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "rule": "YTT202",
+      "case": "other-attribute",
+      "source_sha256": "a8dd0d491a09312a040b3837fa58536a08dd353a17e29c33a8975c2106d7fb4a",
+      "diagnostics": []
+    },
+    {
+      "rule": "YTT202",
+      "case": "py2",
+      "source_sha256": "d4a6c0ff7bac88f37783aecd02492282241b2817791c40db8d9fefbb5e463d82",
+      "diagnostics": []
+    },
+    {
+      "rule": "YTT202",
+      "case": "noqa",
+      "source_sha256": "d017b09f4e98ed715895fd6b31c3ec2e8dd08ebab51f3e38920a09a16301dc3d",
+      "diagnostics": []
+    }
+  ]
+}

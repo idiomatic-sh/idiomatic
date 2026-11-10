@@ -1,0 +1,442 @@
+{
+  "reference": "Ruff 0.16.5; pinned official linux x86_64 executable",
+  "reference_sha256": "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8",
+  "invocation": {
+    "check": true,
+    "isolated": true,
+    "no_cache": true,
+    "target_version": "py310",
+    "output_format": "json",
+    "selected_rules": [
+      "SIM220"
+    ]
+  },
+  "cases": [
+    {
+      "rule": "SIM220",
+      "name": "same-name",
+      "case_source_sha256": "e1a7ccb02452f8ed8fef65014c1781e654a9c334cb702723a6f2f1b853ff216b",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 11,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 12,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "duplicate-pairs",
+      "case_source_sha256": "2d61278607d6c70d295e500cba40a8cb51fba094222d50d2bb37017a8a356b2d",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 21,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 22,
+            "row": 1
+          }
+        },
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 21,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 22,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "builtin-empty-list-is-pure",
+      "case_source_sha256": "c666ef36df54a1536b6acfa9190bd36795b294d4e7d4a90f319ff1bd0689deab",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 22,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 23,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "builtin-empty-tuple-is-pure",
+      "case_source_sha256": "289314004aa145550255d720ad36b14daa8625bda898fe87a1351578c9f3a218",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 23,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 24,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "shadowed-list-is-effectful",
+      "case_source_sha256": "49adca53d23ffd2ef637bd2c21a0018d970379b78a58259e2fbbb074c8a90ed6",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "call-is-effectful",
+      "case_source_sha256": "dfce916eb34355b80c57a3f96e32db7385912c63de1347bcbb6844702c122de0",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "literal-binop-is-pure",
+      "case_source_sha256": "632fdacbfd6d8140c3e931b7a1fca947d09dc633642ca69f055b42aecef5744e",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 23,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 24,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "name-binop-is-effectful",
+      "case_source_sha256": "83e38d6de6eac1dd5cec72267b99bf6762483bc5f9bb6bfce4fa09b2c9d83364",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "named-expression-is-effectful",
+      "case_source_sha256": "5dc10a49bdefb6127f0f6d7c0501a494303cd047c69e720ff1d41a533cafc475",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "subscript-is-effectful",
+      "case_source_sha256": "0943867c524613c0823755e44814271f90e6203f0f544096e5cd8cfbdcd215ce",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "f-string-name-is-not-effectful",
+      "case_source_sha256": "36351e66501cb3e9ce635596754ae3416c4cb047d8dfca5f7f7f6d8d75e78ac5",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 22,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 23,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "f-string-call-is-effectful",
+      "case_source_sha256": "6de28a9335baf574cf3ef56678c0849ac4b154ccc258a467f8b4e83a608995d5",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "inline-noqa",
+      "case_source_sha256": "825987b584caff46ce2a7cce7378e8c9fc60d6d1a1d3d0a16d7dd57d5922d154",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 15,
+          "end": 26,
+          "ruff_location": {
+            "column": 1,
+            "row": 2
+          },
+          "ruff_end_location": {
+            "column": 12,
+            "row": 2
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "file-noqa",
+      "case_source_sha256": "1fc545082061a397f39ada47df163413b1fe445edaae1ecbbb667953612bf6d9",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "all-pairs-keep-multiplicity",
+      "case_source_sha256": "c54c0180988a2595dd217b26c6c2b31aeb66b804a206aa63ed3bcdaae7c28e54",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 27,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 28,
+            "row": 1
+          }
+        },
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 27,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 28,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "lambda-body-call-is-effectful",
+      "case_source_sha256": "913c78f6f5e4541023ad8969f3803f74a48a5cca264679cb0fd0c9d8dc184893",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "imported-alias-empty-constructor-is-call",
+      "case_source_sha256": "eb8d315e4d5650aed1abf2f26f55fb2609942d91bec0c01dbfc3c4660e9c0874",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "qualified-builtins-attribute-is-call",
+      "case_source_sha256": "a8a56f938967257ca1a409be21e012bff9ec883524584e4c5cc72552733a3ebf",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "inner-lambda-shadow-does-not-change-enclosing-builtin-check",
+      "case_source_sha256": "a39347e13e98446fe97f790b04cce5eb4209de668f8bbfba18fa00e8728966a5",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 0,
+          "end": 37,
+          "ruff_location": {
+            "column": 1,
+            "row": 1
+          },
+          "ruff_end_location": {
+            "column": 38,
+            "row": 1
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "enclosing-function-shadow-applies-inside-lambda",
+      "case_source_sha256": "3c05ab5f04dbb3bd594a591e58a48293a220b91f17775d21fb2b8c64ce730cc3",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "lambda-body-ordinary-call-is-effectful",
+      "case_source_sha256": "523d61a0fef4ff5fdce20651ccdf60e041b28bef9adc18ea157ff04609fabd6d",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "conditional-shadow-before-check",
+      "case_source_sha256": "22a6c871647262e3ee97eed60b32bc38b6e11a0f1381be3d7091b334a2ec92ca",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "annotation-before-check-is-skipped",
+      "case_source_sha256": "678e7e080c361a8b8cf12d7d47a85fa49e77b7afaae4f5d6c55f769149c24cc1",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 13,
+          "end": 24,
+          "ruff_location": {
+            "column": 1,
+            "row": 2
+          },
+          "ruff_end_location": {
+            "column": 38,
+            "row": 2
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "delete-before-check-blocks-builtin",
+      "case_source_sha256": "9338a6ba39f9f779d8205d9a97f53fe513e319bbf17ce2c0decd733bdbf24254",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "function-local-assignment-after-check",
+      "case_source_sha256": "29d61bed7934fd9e447421ee8492994335fa9667889dccaef89e4b0712748743",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 13,
+          "end": 24,
+          "ruff_location": {
+            "column": 5,
+            "row": 2
+          },
+          "ruff_end_location": {
+            "column": 42,
+            "row": 2
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "module-binding-after-function-before-deferred-check",
+      "case_source_sha256": "a77689763d6354420ca0bd153aab09fa5f309f59249c0ba204795386afcfd249",
+      "comparison": "full",
+      "expected": []
+    },
+    {
+      "rule": "SIM220",
+      "name": "nested-class-skips-outer-class-binding",
+      "case_source_sha256": "858662ea43d2c906b4410b2599bba0e7df1f576235b985ac2161aaf40ab05a70",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 56,
+          "end": 67,
+          "ruff_location": {
+            "column": 9,
+            "row": 4
+          },
+          "ruff_end_location": {
+            "column": 46,
+            "row": 4
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "function-in-class-skips-class-binding",
+      "case_source_sha256": "ea8df4ad247c8cd2077b6a47dc77fb1232211c9cb0846a66b84eb269eb9514e5",
+      "comparison": "full",
+      "expected": [
+        {
+          "rule": "SIM220",
+          "file": "case.py",
+          "start": 52,
+          "end": 63,
+          "ruff_location": {
+            "column": 9,
+            "row": 4
+          },
+          "ruff_end_location": {
+            "column": 46,
+            "row": 4
+          }
+        }
+      ]
+    },
+    {
+      "rule": "SIM220",
+      "name": "current-class-binding-is-visible",
+      "case_source_sha256": "63e86057c105fcf47c6ae49d91d816a2fc40fcd931ad13c8cfa759a7c9c75eaa",
+      "comparison": "full",
+      "expected": []
+    }
+  ]
+}

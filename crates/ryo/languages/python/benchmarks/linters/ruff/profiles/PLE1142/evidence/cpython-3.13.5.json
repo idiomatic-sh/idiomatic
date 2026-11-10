@@ -1,0 +1,108 @@
+{
+  "implementation": "cpython",
+  "version": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "executable": "/usr/bin/python3.13",
+  "rows": [
+    {
+      "name": "lambda-in-generator",
+      "source": "def f():\n    return ((lambda: await g()) for x in xs)\n",
+      "source_sha256": "782f2f0540c867b8924398f029dd5681611c4c0b0705320a9e1522aa9c6bb615",
+      "compile_mode": "exec",
+      "dont_inherit": true,
+      "outcome": {
+        "accepted": false,
+        "type": "SyntaxError",
+        "message": "'await' outside async function",
+        "lineno": 2,
+        "offset": 22,
+        "end_lineno": 2,
+        "end_offset": 31
+      }
+    },
+    {
+      "name": "lambda-in-async-function",
+      "source": "async def f():\n    return lambda: await g()\n",
+      "source_sha256": "f90227fb5f151131371cabed91ac7b4b064de9f69a22238449d1102f25b7102f",
+      "compile_mode": "exec",
+      "dont_inherit": true,
+      "outcome": {
+        "accepted": false,
+        "type": "SyntaxError",
+        "message": "'await' outside async function",
+        "lineno": 2,
+        "offset": 20,
+        "end_lineno": 2,
+        "end_offset": 29
+      }
+    },
+    {
+      "name": "lambda-in-sync-function",
+      "source": "def f():\n    return lambda: await g()\n",
+      "source_sha256": "2bda2b40f95f7940f4640fecac08074b2d4aa4e93bb26b575b08a8afdf55ae8e",
+      "compile_mode": "exec",
+      "dont_inherit": true,
+      "outcome": {
+        "accepted": false,
+        "type": "SyntaxError",
+        "message": "'await' outside async function",
+        "lineno": 2,
+        "offset": 20,
+        "end_lineno": 2,
+        "end_offset": 29
+      }
+    },
+    {
+      "name": "class-base-yield-from-async",
+      "source": "async def f():\n    class C((yield from xs)): pass\n",
+      "source_sha256": "64f3f4ea665e5fc75c976a29218e1bb4536c966030459cff986bfdf2280aa72f",
+      "compile_mode": "exec",
+      "dont_inherit": true,
+      "outcome": {
+        "accepted": false,
+        "type": "SyntaxError",
+        "message": "'yield from' inside async function",
+        "lineno": 2,
+        "offset": 14,
+        "end_lineno": 2,
+        "end_offset": 27
+      }
+    },
+    {
+      "name": "class-base-yield-from-sync",
+      "source": "def f():\n    class C((yield from xs)): pass\n",
+      "source_sha256": "d9a36ab5f1e6cb3dda592e0cada4cf5044412d0c4d73eacdc0dcaa967d7786af",
+      "compile_mode": "exec",
+      "dont_inherit": true,
+      "outcome": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "class-base-await-async",
+      "source": "async def f():\n    class C(await g()): pass\n",
+      "source_sha256": "26ae8f456344b3278e8d134c321126c720506e4fc2a344f70bbb30d2662f7a4b",
+      "compile_mode": "exec",
+      "dont_inherit": true,
+      "outcome": {
+        "accepted": true
+      }
+    },
+    {
+      "name": "quoted-await-annotation",
+      "source": "def f(x: \"await g()\"): pass\n",
+      "source_sha256": "97924aa39bae10b985b4881b4ef98f6c0655efdf6c7e5c3ea364e8e616e80572",
+      "compile_mode": "exec",
+      "dont_inherit": true,
+      "outcome": {
+        "accepted": true
+      }
+    }
+  ],
+  "probe_sha256": "b1e939629c7f344e6fa8c14be9be7348b847d3ccd36664711a464b3508044734",
+  "interpreter_sha256": "bd241b38381974ae27d7d5098a6d0e6dda0a744b5e9fdd6fe3a1ae632588961e",
+  "argv": [
+    "/usr/bin/python3.13",
+    "-I",
+    "/tmp/ruff-worker-a-third-20261102/independent.py"
+  ]
+}

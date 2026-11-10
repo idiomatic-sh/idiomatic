@@ -1,0 +1,881 @@
+[
+  {
+    "rule": "F821",
+    "name": "cross-PYI034-metaclass-function-annotation-typescope",
+    "files": {
+      "case.pyi": "from typing import TypeVar\nT=TypeVar(\"T\")\nclass A(type): ...\ndef outer(x:(A:=unknown)):\n class Subject(A):\n  def __enter__(self)->Subject: ...\n"
+    },
+    "reference_expected": [
+      {
+        "end": 84,
+        "file": "case.pyi",
+        "rule": "F821",
+        "start": 77
+      },
+      {
+        "end": 84,
+        "file": "case.pyi",
+        "rule": "invalid-syntax",
+        "start": 74
+      }
+    ],
+    "independent_intended": [
+      {
+        "end": 84,
+        "file": "case.pyi",
+        "rule": "F821",
+        "start": 77
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-class-scoped-import",
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 55,
+        "end": 68
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-early-definition",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-function-scoped-import",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 63,
+        "end": 76
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-later-definition",
+    "files": {
+      "case.py": "def early(x:(value:=object)): pass\nfrom __future__ import annotations\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 83,
+        "end": 96
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-nested-future-blocks-type-scope-walrus",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def f(x:(value:=object)):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 59,
+        "end": 72
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 102,
+        "end": 107
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-relative-future-flag",
+    "files": {
+      "case.py": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 45,
+        "end": 58
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "F821",
+    "name": "future-scope-stub-remains-postponed",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)): ...\nfrom __future__ import annotations\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "cross-PLE0117-own-global-conflict-with-real-outer-binding",
+    "files": {
+      "case.py": "def outer():\n    value=1\n    def inner():\n        global value\n        nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 80,
+        "end": 85
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-class-scoped-import",
+    "files": {
+      "case.py": "class C:\n from __future__ import annotations\n def f(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 55,
+        "end": 68
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-function-scoped-import",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def inner(x:(value:=object)): pass\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 63,
+        "end": 76
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-later-definition",
+    "files": {
+      "case.py": "def early(x:(value:=object)): pass\nfrom __future__ import annotations\ndef later(x:(other:=object)): pass\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 83,
+        "end": 96
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-nested-future-blocks-type-scope-walrus",
+    "files": {
+      "case.py": "def outer():\n from __future__ import annotations\n def f(x:(value:=object)):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 85,
+        "end": 90
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 59,
+        "end": 72
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 85,
+        "end": 90
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 102,
+        "end": 107
+      }
+    ],
+    "candidate_matches_independent": false,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-relative-future-flag",
+    "files": {
+      "case.py": "from .__future__ import annotations\ndef f(x:(value:=object)): ...\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 45,
+        "end": 58
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "future-scope-stub-remains-postponed",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)): ...\nfrom __future__ import annotations\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ],
+    "independent_intended": [],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-annotation-outer",
+    "files": {
+      "case.py": "def outer():\n value:int\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 60,
+        "end": 65
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-class-type-parameter",
+    "files": {
+      "case.py": "class C[T]:\n def f(self):\n  global T\n  nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 7,
+        "end": 10
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 7,
+        "end": 10
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 48,
+        "end": 49
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-default-real-binding",
+    "files": {
+      "case.py": "def outer():\n def inner(x=(value:=1)):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 65,
+        "end": 70
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-delayed-annotation-keeps-outer-value",
+    "files": {
+      "case.py": "def outer():\n value=1\n value:int\n def inner():\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 73,
+        "end": 78
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-deleted-outer",
+    "files": {
+      "case.py": "def outer():\n value=1\n del value\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 69,
+        "end": 74
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-early-annotation-before-late-future",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\nfrom __future__ import annotations\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-future-annotation-not-visible",
+    "files": {
+      "case.py": "from __future__ import annotations\ndef f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 69,
+        "end": 74
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 44,
+        "end": 57
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 69,
+        "end": 74
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 44,
+        "end": 57
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 85,
+        "end": 90
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-global-no-valid-nonlocal",
+    "files": {
+      "case.py": "def f():\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 17,
+        "end": 22
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 17,
+        "end": 22
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 33,
+        "end": 38
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-invalid-outer-nonlocal",
+    "files": {
+      "case.py": "def outer():\n nonlocal value\n def f():\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 48,
+        "end": 53
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 48,
+        "end": 53
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 65,
+        "end": 70
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-local-stub-class-header-is-late",
+    "files": {
+      "case.pyi": "def outer():\n class C((value:=object)):\n  def f(self):\n   global value\n   nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 65,
+        "end": 70
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 65,
+        "end": 70
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 83,
+        "end": 88
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nearer-function-over-type-parameter",
+    "files": {
+      "case.py": "def outer[T]():\n def middle():\n  T=1\n  def inner():\n   global T\n   nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 76,
+        "end": 77
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nested-function-type-parameter",
+    "files": {
+      "case.py": "def outer[T]():\n def f():\n  global T\n  nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 9,
+        "end": 12
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 48,
+        "end": 49
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-nonlocal-then-global",
+    "files": {
+      "case.py": "def outer():\n value=1\n def f():\n  nonlocal value\n  global value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 58,
+        "end": 63
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.py",
+        "start": 58,
+        "end": 63
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 43,
+        "end": 48
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-skip-class-namespace",
+    "files": {
+      "case.py": "def outer():\n value=1\n class C:\n  value=2\n  def f(self):\n   global value\n   nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 85,
+        "end": 90
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-annotation-py",
+    "files": {
+      "case.py": "def f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-annotation-pyi",
+    "files": {
+      "case.pyi": "def f(x:(value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 9,
+        "end": 22
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-body-py",
+    "files": {
+      "case.py": "class C((value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-body-pyi",
+    "files": {
+      "case.pyi": "class C((value:=object)):\n global value\n nonlocal value\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "PLW0602",
+        "file": "case.pyi",
+        "start": 34,
+        "end": 39
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 50,
+        "end": 55
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-method-py",
+    "files": {
+      "case.py": "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 66,
+        "end": 71
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-class-method-pyi",
+    "files": {
+      "case.pyi": "class C((value:=object)):\n def f(self):\n  global value\n  nonlocal value\n"
+    },
+    "reference_expected": [],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 66,
+        "end": 71
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-parameter-py",
+    "files": {
+      "case.py": "def f[T]():\n global T\n nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 5,
+        "end": 8
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 5,
+        "end": 8
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.py",
+        "start": 32,
+        "end": 33
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  },
+  {
+    "rule": "PLW0602",
+    "name": "nonlocal-policy-type-scope-parameter-pyi",
+    "files": {
+      "case.pyi": "def f[T]():\n global T\n nonlocal T\n"
+    },
+    "reference_expected": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 5,
+        "end": 8
+      }
+    ],
+    "independent_intended": [
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 5,
+        "end": 8
+      },
+      {
+        "rule": "invalid-syntax",
+        "file": "case.pyi",
+        "start": 32,
+        "end": 33
+      }
+    ],
+    "candidate_matches_independent": true,
+    "basis": "Source-identical prior token/AST validity derivation; existing selected-rule lint findings retained unchanged. Independent compiler validates legality, not diagnostic multiplicity."
+  }
+]

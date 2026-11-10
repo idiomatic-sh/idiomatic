@@ -1,0 +1,25 @@
+# Full-report controls for source-kind and future-annotation parser policy.
+
+[[cases]]
+name = "stub-named-expression-preserves-undefined-read"
+comparison = "full"
+files = { "case.pyi" = "def f(x: (a := b)): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.pyi", start = 10, end = 16 }, { rule = "F821", file = "case.pyi", start = 15, end = 16 }]
+
+[[cases]]
+name = "runtime-named-expression-without-future-is-valid"
+comparison = "full"
+files = { "case.py" = "def f(x: (a := b)): ...\n" }
+expected = [{ rule = "F821", file = "case.py", start = 15, end = 16 }]
+
+[[cases]]
+name = "future-annotations-named-expression-preserves-undefined-read"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\ndef f(x: (a := b)): ...\n" }
+expected = [{ rule = "invalid-syntax", file = "case.py", start = 45, end = 51 }, { rule = "F821", file = "case.py", start = 50, end = 51 }]
+
+[[cases]]
+name = "bound-runtime-named-expression-is-not-undefined"
+comparison = "full"
+files = { "case.py" = "b = 1\ndef f(x: (a := b)): ...\n" }
+expected = []

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "future-generic-never",
+    "source": "from __future__ import annotations\nfrom typing import Never,Union\ndef f[Never]()->Never | int: ...\n",
+    "parameter": true
+  },
+  {
+    "name": "native-generic-never",
+    "source": "from typing import Never\ndef f[Never]()->Never | int: ...\n",
+    "parameter": true
+  },
+  {
+    "name": "quoted-generic-never",
+    "source": "from typing import Never\ndef f[Never]()->\"Never | int\": ...\n",
+    "parameter": true
+  },
+  {
+    "name": "generic-union-shadow",
+    "source": "from __future__ import annotations\nfrom typing import Never,Union\ndef f[Union]()->Union[Never,int]: ...\n",
+    "error": "TypeError"
+  },
+  {
+    "name": "generic-module-shadow",
+    "source": "from __future__ import annotations\nimport typing as t\ndef f[t]()->t.Never | int: ...\n",
+    "error": "AttributeError"
+  },
+  {
+    "name": "future-generic-independent-positive",
+    "source": "from __future__ import annotations\nfrom typing import Never,Union\ndef f[T]()->Never | int: ...\n",
+    "bottom": true
+  },
+  {
+    "name": "native-generic-independent-positive",
+    "source": "from typing import Never\ndef f[T]()->Never | int: ...\n",
+    "bottom": true
+  },
+  {
+    "name": "module-vs-enclosing-local",
+    "source": "from __future__ import annotations\nNever=str\ndef outer():\n from typing import Never\n def f()->Never | int: ...\n return f\nf=outer()\n",
+    "resolution_pair": true
+  },
+  {
+    "name": "eager-enclosing-local-positive",
+    "source": "Never=str\ndef outer():\n from typing import Never\n def f()->Never | int: ...\n return f\nf=outer()\n",
+    "bottom": true
+  }
+]
