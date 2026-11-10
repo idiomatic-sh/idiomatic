@@ -259,7 +259,7 @@ fn many_or_alternatives_keep_each_filter_and_bound_union_depth() {
                 unions += 1;
                 let depth_of = |input: &ryo_values::domain::plan_parts::types::Input| match input {
                     ryo_values::domain::plan_parts::types::Input::Step(id) => {
-                        depths[usize::try_from(id.0).unwrap_or(usize::MAX)]
+                        depths[usize::from(*id)]
                     }
                     ryo_values::domain::plan_parts::types::Input::Relation(_)
                     | ryo_values::domain::plan_parts::types::Input::BoundObservation(_) => 0,

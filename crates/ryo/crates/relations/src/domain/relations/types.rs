@@ -27,6 +27,16 @@ pub struct Offset(pub u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Position(pub u32);
 
+impl From<Position> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "an element position is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(position: Position) -> Self {
+        position.0 as Self
+    }
+}
+
 /// The number the element table holds for a kind of node or token, in the language's own numbering.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct KindBits(pub u16);

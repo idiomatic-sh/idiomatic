@@ -38,7 +38,7 @@ pub(crate) fn build(
                 if let Value::Node(node) = value {
                     if node_file(node) == file {
                         if let Some(mark) = marks
-                            .get_mut(usize::try_from(node_position(node).0).unwrap_or(usize::MAX))
+                            .get_mut(usize::from(node_position(node)))
                         {
                             *mark = true;
                         }

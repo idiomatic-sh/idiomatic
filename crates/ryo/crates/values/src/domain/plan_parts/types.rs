@@ -43,9 +43,29 @@ pub struct BindingPlace(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepId(pub u32);
 
+impl From<StepId> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "a step id is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(step: StepId) -> Self {
+        step.0 as Self
+    }
+}
+
 /// A column, by its place in the table that holds it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ColumnIndex(pub u32);
+
+impl From<ColumnIndex> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "a column index is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(column: ColumnIndex) -> Self {
+        column.0 as Self
+    }
+}
 
 /// A parameter, by its place among the plan's parameters.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -280,6 +300,16 @@ impl PartialEq for PlanComparison {
 /// A bound input's stable local position within one compiled consumer plan.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ObservationBindingId(pub u32);
+
+impl From<ObservationBindingId> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "an observation binding id is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(binding: ObservationBindingId) -> Self {
+        binding.0 as Self
+    }
+}
 
 /// Where a step runs: in the worker that has the file, or once after the workers on the rows they
 /// handed over.

@@ -37,7 +37,7 @@ impl OrderedExistenceDriver for Driver {
         }
         self.rows
             .get(row.0)
-            .and_then(|row| row.get(usize::try_from(column.0).unwrap_or(usize::MAX)))
+            .and_then(|row| row.get(usize::from(column)))
             .copied()
             .ok_or(EqualityJoinError::Interrupted)
     }
@@ -49,7 +49,7 @@ impl OrderedExistenceDriver for Driver {
         match self
             .rows
             .get(row.0)
-            .and_then(|row| row.get(usize::try_from(column.0).unwrap_or(usize::MAX)))
+            .and_then(|row| row.get(usize::from(column)))
         {
             Some(ValueCell::Number(value)) => Ok(*value),
             _ => {

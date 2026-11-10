@@ -41,7 +41,7 @@ pub fn hash_row(row: &[Value], on: On<'_>) -> KeyCellsHash {
         On::Columns(columns) => hash_key(
             columns
                 .iter()
-                .map(|column| row.get(usize::try_from(column.0).unwrap_or(usize::MAX))),
+                .map(|column| row.get(usize::from(*column))),
         ),
     }
 }
