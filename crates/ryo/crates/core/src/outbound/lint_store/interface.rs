@@ -5,7 +5,23 @@ use std::sync::Arc;
 
 use super::errors::LintStoreError;
 use super::types::StoreKeeping;
-use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, Stored, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, ReadHanded, Stored};
+
+/// A worker-owned stream of old rows. Postcard may observe a row when its
+/// bounded bucket buffer fills, before the caller asks for that row. The
+/// independent `ReadStore::read_old` contract remains an exact per-call read.
+pub trait OldRowBatch: Send {
+    /// Resolve the next old descriptor in this worker's increasing file order.
+    ///
+    /// # Errors
+    ///
+    /// `Unreadable` when the descriptor's bucket is not in the stream, or its words cannot be read.
+    fn read(
+        &mut self,
+        words: &ryo_values::domain::stores::types::OldWords,
+        into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError>;
+}
 
 /// What every `lint_store` adapter implements.
 pub trait LintStorePort: Send + Sync {
@@ -33,7 +49,51 @@ pub trait ReadStore: Send + Sync + std::fmt::Debug {
     /// # Errors
     ///
     /// `Unreadable` when the place cannot be read.
-    fn handed(&self, wanted: &BucketsWanted) -> Result<StoredHanded, LintStoreError>;
+    fn handed(&self, wanted: &BucketsWanted) -> Result<ReadHanded, LintStoreError>;
+
+    /// Resolve one old row from this exact snapshot into reusable caller-owned storage.
+    ///
+    /// # Errors
+    ///
+    /// Foreign identities, overflow, invalid row framing and requested read failures are refused.
+    fn read_old(
+        &self,
+        _words: &ryo_values::domain::stores::types::OldWords,
+        _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError>;
+
+    /// Open a worker-owned bounded stream over the already-open snapshot.
+    /// `None` retains the direct per-row path for adapters without batching.
+    ///
+    /// # Errors
+    ///
+    /// `NothingRead` when no snapshot is open, `Unreadable` when the snapshot cannot be read.
+    fn begin_old_rows(
+        &self,
+        _wanted: &BucketsWanted,
+    ) -> Result<Option<Box<dyn OldRowBatch>>, LintStoreError>;
+
+    /// Retain successfully normalized fresh words until this run keeps or drops its snapshot.
+    /// Custom in-memory stores may keep inline representation; no IO is required.
+    ///
+    /// # Errors
+    ///
+    /// Staging creation/write failures are propagated, never replaced with an empty row.
+    fn stage_words(
+        &self,
+        words: ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<ryo_values::domain::records::types::RecordWords, LintStoreError>;
+
+    /// Resolve only this snapshot's descriptor into reusable caller-owned storage.
+    ///
+    /// # Errors
+    ///
+    /// Foreign/stale descriptors and span/read/flush failures are refused.
+    fn read_staged(
+        &self,
+        _words: &ryo_values::domain::records::types::StagedWords,
+        _into: &mut ryo_values::domain::stored_facts::types::PackedWords,
+    ) -> Result<(), LintStoreError>;
 
     /// Keeps `stored` in place of what was kept: its words are those of the files the run read; the words of the buckets
     /// `kept.unchanged` are kept as they were, and in every other bucket the words of each file of `kept.file_again` are kept as they

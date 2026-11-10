@@ -2,20 +2,41 @@
 
 use super::types::ProviderFault;
 use crate::domain::budget::errors::BudgetError;
-use crate::domain::rules::errors::RulesError;
 use crate::domain::visit::errors::VisitError;
 use crate::outbound::corpus::errors::CorpusError;
-use crate::outbound::facts::errors::FactsError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::lint_store::errors::LintStoreError;
 use crate::outbound::memory::errors::MemoryError;
-use crate::outbound::rows::errors::RowsError;
+use crate::outbound::row_sink::errors::RowSinkError;
 use crate::outbound::scheduler::errors::SchedulerError;
-use ryo_values::domain::plan_parts::types::RefusedQuery;
+use ryo_execution_runtime::outbound::facts::errors::FactsError;
+use ryo_values::domain::program::types::RefusedQuery;
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
 /// Why `lint` failed.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum LintError {
+    /// Required application execution dependencies were inconsistent.
+    #[error("execution: {reason}")]
+    Execution {
+        /// Why the execution scope could not be established.
+        reason: String,
+    },
+    /// A required observation publication could not be admitted during execution.
+    #[error("observation execution failed: {reason}")]
+    ObservationExecution { reason: String },
+    /// The explicitly declared named-output dependency contract is invalid.
+    #[error("invalid observation bindings: {reason}")]
+    ObservationBindings {
+        /// Configuration failure before file execution.
+        reason: String,
+    },
+    /// An explicitly selected source provider is not linked at this request edge.
+    #[error("explicit source provider `{name}` must name exactly one linked provider")]
+    SourceLanguage {
+        /// The exact provider name supplied by the caller.
+        name: String,
+    },
     /// A rule's query is wrong, or cannot be run.
     #[error("rule `{id}`: {reason}")]
     Rule {
@@ -128,17 +149,17 @@ pub enum LintError {
     OutputClosed,
 }
 
-impl From<RulesError> for LintError {
-    fn from(error: RulesError) -> Self {
+impl From<RuleRequestsError> for LintError {
+    fn from(error: RuleRequestsError) -> Self {
         match error {
-            RulesError::BlankRuleId => Self::BlankRuleId,
-            RulesError::DuplicateRuleId { id } => Self::DuplicateRuleId {
+            RuleRequestsError::BlankRuleId => Self::BlankRuleId,
+            RuleRequestsError::DuplicateRuleId { id } => Self::DuplicateRuleId {
                 id: id.0.to_string(),
             },
-            RulesError::MissingParameter { id } => Self::MissingParameter {
+            RuleRequestsError::MissingParameter { id } => Self::MissingParameter {
                 id: id.0.to_string(),
             },
-            RulesError::Failed { id, reason } => Self::Rule {
+            RuleRequestsError::Failed { id, reason } => Self::Rule {
                 id: id.0.to_string(),
                 reason,
             },
@@ -224,11 +245,11 @@ impl From<LanguageError> for LintError {
     }
 }
 
-impl From<RowsError> for LintError {
-    fn from(error: RowsError) -> Self {
+impl From<RowSinkError> for LintError {
+    fn from(error: RowSinkError) -> Self {
         match error {
-            RowsError::Closed => Self::OutputClosed,
-            RowsError::Failed { reason } => Self::Output { reason },
+            RowSinkError::Closed => Self::OutputClosed,
+            RowSinkError::Failed { reason } => Self::Output { reason },
         }
     }
 }
@@ -237,6 +258,16 @@ impl From<crate::application::file_analysis::errors::FileAnalysisError> for Lint
     fn from(error: crate::application::file_analysis::errors::FileAnalysisError) -> Self {
         use crate::application::file_analysis::errors::FileAnalysisError;
         match error {
+            FileAnalysisError::Execution(error) => Self::Execution {
+                reason: error.to_string(),
+            },
+            FileAnalysisError::ProjectObservationMismatch => Self::Language {
+                reason: "project entry observation receipt did not match the engine batch"
+                    .to_owned(),
+            },
+            FileAnalysisError::SourceLanguage { name } => Self::SourceLanguage { name },
+            FileAnalysisError::Store(error) => error.into(),
+            FileAnalysisError::Corpus(error) => error.into(),
             FileAnalysisError::Provider { provider, code } => Self::Provider {
                 provider,
                 code: code.into(),
@@ -259,5 +290,56 @@ impl std::fmt::Display for ProviderFault {
             ProviderFault::NodeOfAnotherFile => "a node is of another file",
             ProviderFault::FileNotVisited => "a cell names a file that is not the one visited",
         })
+    }
+}
+
+impl From<ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError>
+    for LintError
+{
+    fn from(
+        error: ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError,
+    ) -> Self {
+        match error {
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::Observations(
+                reason,
+            ) => Self::ObservationBindings {
+                reason: reason.to_string(),
+            },
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::Rules(reason) => {
+                reason.into()
+            }
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::Query {
+                id,
+                error,
+            } => Self::Query { id, error },
+            ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::UnknownKind {
+                id,
+                reason,
+            } => Self::UnknownKind {
+                id: id.0.to_string(),
+                reason: reason.0.into(),
+            },
+            error @ ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompilationError::UnknownRuleIndex {
+                ..
+            } => Self::Execution {
+                reason: error.to_string(),
+            },
+        }
+    }
+}
+
+impl From<crate::application::cross_file::errors::CrossFileError> for LintError {
+    fn from(error: crate::application::cross_file::errors::CrossFileError) -> Self {
+        use crate::application::cross_file::errors::CrossFileError;
+        match error {
+            CrossFileError::Operating(error) => Self::ObservationExecution {
+                reason: error.to_string(),
+            },
+            CrossFileError::Rules(error) => error.into(),
+            CrossFileError::Facts(error) => error.into(),
+            CrossFileError::Scheduler(error) => error.into(),
+            CrossFileError::Budget(error) => error.into(),
+            CrossFileError::Memory(error) => error.into(),
+        }
     }
 }

@@ -2,7 +2,7 @@
 
 pub(crate) mod constants;
 pub(crate) mod service;
-pub mod types;
+pub(crate) mod types;
 
 #[cfg(test)]
 mod service_test;

@@ -4,7 +4,7 @@ use super::service::every_file;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::workers::types::Fresh;
 use ryo_language::domain::files::types::FilePath;
-use ryo_values::domain::files::types::{CorpusEntry, FileSize, Nanoseconds};
+use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
 
 /// What a row of the cases does.
 #[derive(Clone, Copy)]
@@ -21,6 +21,7 @@ type Failure = ();
 
 fn entry(path: &str) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(1),
         modified: Nanoseconds(2),
@@ -30,7 +31,7 @@ fn entry(path: &str) -> CorpusEntry {
 fn subject(scenario: Input) -> Value {
     match scenario {
         Scenario::Ungoverned => {
-            let files = [entry("a.txt"), entry("b.txt")];
+            let files = [entry("a.txt"), entry("b.txt")].map(CorpusInput::Available);
             every_file(&files, Fresh::default(), &[FilePath("b.txt".into())]).len()
         }
     }

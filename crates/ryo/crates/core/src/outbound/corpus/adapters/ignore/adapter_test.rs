@@ -1,30 +1,16 @@
-// ignore: idiomatic.arch/file-length - the one test file the adapter template places for the ignore adapter: its walk, stamp, listing and skip scenarios share one table and one subject, and a split would be a file no adapter template places
 //! The ignore adapter of the corpus port: the port's contract rows run through it, then the cases specific to it.
 
-use super::adapter::{CorpusIgnoreAdapter, agree};
+use super::adapter::agree;
+use super::fixtures::{inventory, listed, permissions, reading, walking::walking};
 use super::types::{BytesRead, Stability, Stamp};
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::corpus::fixtures::contract::check;
 use crate::outbound::corpus::interface::CorpusPort as _;
-use crate::outbound::corpus::types::SkippedDirectories;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::inbound::use_cases::project::types::RootPath;
 use ryo_values::domain::files::service::with_separator;
-use ryo_values::domain::files::types::{
-    CorpusEntry, CorpusFile, CorpusListing, FileBytes, FileSize, Nanoseconds, NativeSeparator,
-    PlatformPath,
-};
-
-/// The adapter that walks the root and is given nothing.
-fn walking(root: RootPath) -> CorpusIgnoreAdapter {
-    CorpusIgnoreAdapter::new(
-        root,
-        CorpusListing::Walked,
-        Vec::new(),
-        SkippedDirectories::default(),
-    )
-}
+use ryo_values::domain::files::types::{FileSize, Nanoseconds, NativeSeparator, PlatformPath};
 
 /// What the system said of a file of 9 bytes.
 const STAMP: Stamp = Stamp {
@@ -76,6 +62,8 @@ enum Scenario {
     /// Walks a repository whose file `kept.rs` only the user's global git excludes file names: it is listed, since only the
     /// repository's own ignore files apply.
     GlobalExcludes,
+    /// Changes the execute bits of a file and reads them back through the stat and the inventory.
+    ExecuteBits,
 }
 
 /// What a row of the cases asks of the adapter.
@@ -86,7 +74,7 @@ type Failure = CorpusError;
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
-        Scenario::Inventory => inventory(),
+        Scenario::Inventory => inventory::inventory(),
         Scenario::Separator => {
             let written = |text: &'static str, native: char| {
                 with_separator(PlatformPath(text), NativeSeparator(native))
@@ -100,29 +88,18 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Stable(before, after, read) => Ok(usize::from(
             agree(&before, &after, BytesRead(read)) == Stability::Stable,
         )),
-        Scenario::TooLarge => {
-            let root = tempfile::tempdir().expect("a temporary directory");
-            let file = std::fs::File::create(root.path().join("big.bin")).expect("a file");
-            file.set_len(u64::from(u32::MAX) + 1)
-                .expect("a sparse file");
-            let entry = CorpusEntry {
-                path: FilePath("big.bin".into()),
-                size: FileSize(u64::from(u32::MAX) + 1),
-                modified: Nanoseconds(0),
-            };
-            walking(RootPath(root.path().to_str().expect("a utf-8 path").into()))
-                .read(&entry, &mut FileBytes::default())
-                .map(|()| 0)
-        }
+        Scenario::TooLarge => reading::too_large(),
         Scenario::MissingRoot => walking(RootPath(
             "/this/root/is/missing/for/the/disk/adapter".into(),
         ))
         .inventory()
         .map(|entries| entries.0.len()),
-        Scenario::Listed => listed(),
+        Scenario::Listed => listed::listed(),
         Scenario::GlobalExcludes => global_excludes(),
-        Scenario::SkipsDeclared => skipping(&["node_modules", ".venv", "target"], &["src/a.ts"]),
-        Scenario::SkipsOfUnlinkedLanguages => skipping(
+        Scenario::SkipsDeclared => {
+            inventory::skipping(&["node_modules", ".venv", "target"], &["src/a.ts"])
+        }
+        Scenario::SkipsOfUnlinkedLanguages => inventory::skipping(
             &["node_modules"],
             &[
                 ".venv/lib/y.py",
@@ -131,117 +108,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 "target/z.rs",
             ],
         ),
-        Scenario::SkipsAPath => skipping(&["./target"], WITHOUT_ROOT_TARGET),
-        Scenario::GivenOverDisk => {
-            let root = tempfile::tempdir().expect("a temporary directory");
-            std::fs::write(root.path().join("a.rs"), "fn a() {}").expect("a file");
-            let adapter = CorpusIgnoreAdapter::new(
-                RootPath(root.path().to_str().expect("a utf-8 path").into()),
-                CorpusListing::Walked,
-                vec![CorpusFile {
-                    path: FilePath("a.rs".into()),
-                    bytes: FileBytes(b"fn given() {}".to_vec()),
-                }],
-                SkippedDirectories::default(),
-            );
-            let entries = adapter.inventory()?.0;
-            let mut bytes = FileBytes::default();
-            adapter.read(&entries[0], &mut bytes)?;
-            Ok(usize::from(
-                entries.len() == 1 && bytes.0 == b"fn given() {}",
-            ))
-        }
-        Scenario::MissingFile => {
-            let root = tempfile::tempdir().expect("a temporary directory");
-            let entry = CorpusEntry {
-                path: FilePath("gone.rs".into()),
-                size: FileSize(9),
-                modified: Nanoseconds(0),
-            };
-            let adapter = walking(RootPath(root.path().to_str().expect("a utf-8 path").into()));
-            match adapter.read(&entry, &mut FileBytes::default()) {
-                Err(error @ CorpusError::Unreadable { .. }) => {
-                    Ok(error.to_string().matches("gone.rs").count())
-                }
-                other => other.map(|()| 0),
-            }
-        }
-        Scenario::Whole => {
-            let root = tempfile::tempdir().expect("a temporary directory");
-            std::fs::write(root.path().join("a.rs"), "fn a() {}").expect("a file");
-            let entry = CorpusEntry {
-                path: FilePath("a.rs".into()),
-                size: FileSize(9),
-                modified: Nanoseconds(0),
-            };
-            let mut bytes = FileBytes::default();
-            walking(RootPath(root.path().to_str().expect("a utf-8 path").into()))
-                .read(&entry, &mut bytes)?;
-            Ok(bytes.0.len())
-        }
+        Scenario::SkipsAPath => inventory::skipping(&["./target"], inventory::WITHOUT_ROOT_TARGET),
+        Scenario::GivenOverDisk => reading::given_over_disk(),
+        Scenario::MissingFile => reading::missing_file(),
+        Scenario::Whole => reading::whole(),
+        Scenario::ExecuteBits => permissions::execute_bits(),
     }
-}
-
-/// The walk lists the files under the root, sized and dated, and leaves out the repository's own directory.
-fn inventory() -> Result<Value, Failure> {
-    let root = tempfile::tempdir().expect("a temporary directory");
-    std::fs::create_dir_all(root.path().join("sub")).expect("a subdirectory");
-    std::fs::create_dir_all(root.path().join(".git")).expect("a git directory");
-    std::fs::write(root.path().join("b.rs"), "fn b() {}").expect("a file");
-    std::fs::write(root.path().join("a.rs"), "fn a() {}").expect("a file");
-    std::fs::write(root.path().join("sub/c.txt"), "c").expect("a file");
-    std::fs::write(root.path().join(".git/config"), "x").expect("a file");
-    let mut entries = walking(RootPath(root.path().to_str().expect("a utf-8 path").into()))
-        .inventory()?
-        .0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
-    let found: Vec<(&str, u64)> = entries
-        .iter()
-        .map(|entry| (&*entry.path.0, entry.size.0))
-        .collect();
-    // A file the system dates carries the date, so an edit shows without a read.
-    let dated = entries.iter().all(|entry| entry.modified.0 > 0);
-    Ok(usize::from(
-        found == [("a.rs", 9), ("b.rs", 9), ("sub/c.txt", 1)] && dated,
-    ))
-}
-
-/// What the walk lists when only `./target` is skipped.
-const WITHOUT_ROOT_TARGET: &[&str] = &[
-    ".venv/lib/y.py",
-    "node_modules/x.js",
-    "pkg/node_modules/v.js",
-    "pkg/target/w.rs",
-    "src/a.ts",
-];
-
-/// A walk of a repository with no `.gitignore`, holding `node_modules/x.js`, `pkg/node_modules/v.js`, `.venv/lib/y.py`,
-/// `target/z.rs`, `pkg/target/w.rs` and `src/a.ts`, lists the files `expected` names when the directories named `skipped` are
-/// skipped.
-fn skipping(skipped: &[&str], expected: &[&str]) -> Result<Value, Failure> {
-    let root = tempfile::tempdir().expect("a temporary directory");
-    for file in [
-        "node_modules/x.js",
-        "pkg/node_modules/v.js",
-        ".venv/lib/y.py",
-        "target/z.rs",
-        "pkg/target/w.rs",
-        "src/a.ts",
-    ] {
-        let path = root.path().join(file);
-        std::fs::create_dir_all(path.parent().expect("a directory")).expect("directories");
-        std::fs::write(path, "x").expect("a file");
-    }
-    let adapter = CorpusIgnoreAdapter::new(
-        RootPath(root.path().to_str().expect("a utf-8 path").into()),
-        CorpusListing::Walked,
-        Vec::new(),
-        SkippedDirectories(skipped.iter().map(|name| (*name).into()).collect()),
-    );
-    let mut entries = adapter.inventory()?.0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
-    let found: Vec<&str> = entries.iter().map(|entry| &*entry.path.0).collect();
-    Ok(usize::from(found == expected))
 }
 
 /// The name of the repository the global excludes case walks: the argument that names it makes a run of this test binary
@@ -255,9 +127,9 @@ const WALKED: &str = "global-excludes-repository";
 fn global_excludes() -> Result<Value, Failure> {
     if let Some(repository) = std::env::args().find(|argument| argument.ends_with(WALKED)) {
         let entries = walking(RootPath(repository.into())).inventory()?.0;
-        return Ok(usize::from(
-            entries.iter().any(|entry| &*entry.path.0 == "kept.rs"),
-        ));
+        return Ok(usize::from(entries.iter().any(|entry| {
+            &*ryo_values::domain::files::service::input_path(entry).0 == "kept.rs"
+        })));
     }
     let scratch = tempfile::tempdir().expect("a temporary directory");
     let repository = scratch.path().join(WALKED);
@@ -285,29 +157,6 @@ fn global_excludes() -> Result<Value, Failure> {
         .output()
         .expect("this test binary runs");
     Ok(usize::from(walked.status.success()))
-}
-
-/// A listing lists only the named files that are there, and the given ones.
-fn listed() -> Result<Value, Failure> {
-    let root = tempfile::tempdir().expect("a temporary directory");
-    std::fs::write(root.path().join("a.rs"), "fn a() {}").expect("a file");
-    std::fs::write(root.path().join("unlisted.rs"), "fn u() {}").expect("a file");
-    let adapter = CorpusIgnoreAdapter::new(
-        RootPath(root.path().to_str().expect("a utf-8 path").into()),
-        CorpusListing::Listed(vec![FilePath("a.rs".into()), FilePath("gone.rs".into())]),
-        vec![CorpusFile {
-            path: FilePath("given/b.rs".into()),
-            bytes: FileBytes(b"fn b() {}".to_vec()),
-        }],
-        SkippedDirectories::default(),
-    );
-    let mut entries = adapter.inventory()?.0;
-    entries.sort_by(|left, right| left.path.cmp(&right.path));
-    let found: Vec<(&str, u64)> = entries
-        .iter()
-        .map(|entry| (&*entry.path.0, entry.size.0))
-        .collect();
-    Ok(usize::from(found == [("a.rs", 9), ("given/b.rs", 9)]))
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -400,16 +249,26 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
+        name: CaseName("each_posix_execute_bit_is_observed_without_changing_bytes_or_mtime"),
+        word: Word::Succeeds,
+        input: || Scenario::ExecuteBits,
+        expect: Expect::Value(1),
+    },
+    Case {
         name: CaseName("a_root_that_is_not_there_is_refused"),
         word: Word::Refuses,
         input: || Scenario::MissingRoot,
-        expect: Expect::Refusal(|error| selects(matches!(error, CorpusError::Unreadable { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, CorpusError::Unreadable { .. })))
+        }),
     },
     Case {
         name: CaseName("a_file_the_engine_cannot_number_is_refused_before_it_is_read"),
         word: Word::Refuses,
         input: || Scenario::TooLarge,
-        expect: Expect::Refusal(|error| selects(matches!(error, CorpusError::TooLarge { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects(Matched(matches!(error, CorpusError::TooLarge { .. })))
+        }),
     },
 ];
 

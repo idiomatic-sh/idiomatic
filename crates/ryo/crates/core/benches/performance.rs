@@ -3,9 +3,6 @@
 #[path = "performance/corpus/bench.rs"]
 mod corpus;
 
-#[path = "performance/facts/bench.rs"]
-mod facts;
-
 #[path = "performance/lint_store/bench.rs"]
 mod lint_store;
 

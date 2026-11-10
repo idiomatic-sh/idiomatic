@@ -1,0 +1,1 @@
+let a = replace(from="function", text="name", pattern="r", replacement="R", output="label"); emit a subject file key(label);

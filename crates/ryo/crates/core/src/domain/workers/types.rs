@@ -1,28 +1,31 @@
 //! The types of the `workers` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::coverage::types::{Covered, Partial, Unknown};
 use crate::domain::finish::types::LineStarts;
-use crate::domain::operating::types::Memo;
-use crate::domain::operator::types::{Pool, RowsFed};
-use crate::domain::placement::types::{Mask, PlacedScopes};
 use crate::domain::render::types::{Answering, Rendered};
-use crate::domain::table_model::types::ParameterBinding;
-use crate::domain::table_scratch::types::OperatorScratch;
-use crate::domain::trust::types::Needs;
 use crate::domain::visit::types::{Keeping, Noting, RoleRead};
+use ryo_execution::inbound::use_cases::metadata::interface::Needs;
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    Bearing, Blocking, CoverageScope, Governing, Message, Recovery, RelationRead, RuleIndex,
+};
+use ryo_execution::inbound::use_cases::metadata::interface::{Covered, Partial, Unknown};
+use ryo_execution::inbound::use_cases::metadata::interface::{Mask, PlacedScopes};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::types::{NamePlace, Relation, Words, WorkerNumber};
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::terms::types::UnknownName;
+use ryo_relations::domain::relations::types::{NamePlace, Relation, Words, WorkerNumber};
+use ryo_relations::domain::terms::types::UnknownName;
 use ryo_values::domain::files::types::{FileBytes, Hits};
-use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::{Kept, Record, RowTotal, Unread};
+use ryo_values::domain::records::types::{Kept, Record, Unread};
+use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::runs::types::MemoryBytes;
+use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::runs::types::RuleNumber;
+use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::PackedWords;
+use ryo_values::domain::stored_facts::types::ReadInPart;
 use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, FileNotes, LanguageNumber};
-use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredHanded};
+use ryo_values::domain::stores::types::{BucketsWanted, ReadHanded, Stored};
 
 /// A file, by its place among the files in the order of their paths.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,13 +61,54 @@ pub(crate) struct PlacedNotes {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FreshNotes(pub Vec<PlacedNotes>);
 
-/// What a run uses again of a file the store kept, when it does not read it.
+/// Where the words of one handed bucket are: in the record, or held by the store under a descriptor only the store resolves.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Held<'a> {
+    /// The words are here.
+    Words(&'a PackedWords),
+    /// A fresh staged descriptor of the same run.
+    Staged(&'a ryo_values::domain::records::types::StagedWords),
+    /// A descriptor into the words the last run kept.
+    Old(&'a ryo_values::domain::stores::types::OldWords),
+}
+
+/// What a file used again hands the steps that read across files, however the record or the store holds it: the one shape both a
+/// file read this run and a file the store kept are handed from.
+#[derive(Debug)]
+pub(crate) struct Ready<'a> {
+    /// The text its names made.
+    pub text: &'a ArenaBytes,
+    /// What its language noted of it for the project, when it noted something.
+    pub notes: Option<&'a FileNotes>,
+    /// The rules that govern it.
+    pub governing: &'a ryo_values::domain::records::types::GoverningRules,
+    /// The relations of it read in part.
+    pub partials: &'a [ryo_values::domain::stored_facts::types::StoredPartial],
+    /// The readiness of its named frontiers.
+    pub observations:
+        Option<&'a std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
+    /// Each bucket it hands, with the proof of its words and where they are.
+    pub buckets: Vec<ReadyBucket<'a>>,
+}
+
+/// One bucket a file used again hands: the proof of its words and where they are.
+#[derive(Debug)]
+pub(crate) struct ReadyBucket<'a> {
+    /// The bucket.
+    pub bucket: Bucket,
+    /// The proof of its words.
+    pub proof: &'a ryo_values::domain::records::types::FrontierProof,
+    /// Where its words are.
+    pub held: Held<'a>,
+}
+
+/// Whether a rule of the run can be gated by the acceptance of the syntax of a file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Replaying {
-    /// Its findings: the steps that read across files are not made again.
-    Findings,
-    /// Its findings, and what it hands the steps that read across files and the project, which are made again.
-    FindingsAndHanded,
+pub(crate) enum Gating {
+    /// A rule can be gated, or the applicability metadata of the rules is incomplete, so every rule is taken to be.
+    MayGate,
+    /// No rule is gated: every rule runs on every file.
+    NeverGates,
 }
 
 /// Whether a visit reads the memory the process holds.
@@ -79,6 +123,12 @@ pub(crate) enum Checking {
 /// What one worker owns, which no other worker touches while the jobs run: its element table, the bytes of the file it reads,
 /// the rules that govern it, its tables of the store and the room it computes in.
 pub(crate) struct Tables {
+    /// Current file's demanded named frontier readiness; empty ordinary path allocates nothing.
+    pub current_observations:
+        Option<std::sync::Arc<ryo_values::domain::records::types::FrontierReadiness>>,
+    /// Actual fresh/replayed readiness accumulated for the existing cross handover.
+    pub observations:
+        Vec<ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness>,
     /// The worker's number.
     pub number: WorkerNumber,
     /// The elements of the file being read.
@@ -97,12 +147,6 @@ pub(crate) struct Tables {
     pub words: Words,
     /// The words of the table being handed over, packed as they are kept.
     pub packed: PackedWords,
-    /// What a comparison has decided about a name.
-    pub memo: Vec<Memo>,
-    /// The room the operators sort rows in.
-    pub scratch: OperatorScratch,
-    /// The tables the rules compute in.
-    pub pool: Pool,
     /// Where the lines of the file start.
     pub starts: LineStarts,
     /// The text the names of the files made.
@@ -129,17 +173,15 @@ pub(crate) struct Tables {
     pub covered: Vec<Covered>,
     /// What the rules could not decide in the files this worker visited.
     pub unknowns: Vec<Unknown>,
-    /// The steps of the rules that select from the elements of a file, merged to be decided in one pass over them.
-    pub shared: crate::domain::shared_walk::types::MergedWalk,
+    /// Rules explicitly skipped for files whose syntax they require was rejected.
+    pub skipped: Vec<Skipped>,
 }
 
 /// What a visit of a file reads that is the same for every file.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct VisitSetting<'a> {
-    /// The plans of the rules.
-    pub plans: &'a [Plan],
-    /// What each rule binds its parameters to.
-    pub bindings: &'a [Vec<ParameterBinding>],
+    /// Pure source and accounting facts extracted once before executable plans are consumed.
+    pub metadata: &'a [ryo_values::domain::run_metadata::types::RuleRunMetadata],
     /// The relations the languages are asked to walk the files for.
     pub wanted: &'a [Relation],
     /// The path of each file of the run.
@@ -148,16 +190,20 @@ pub(crate) struct VisitSetting<'a> {
     pub first_bucket: &'a [Bucket],
     /// The ids of the rules.
     pub ids: &'a [RuleId],
+    /// Whether each rule runs on every file or only after syntax acceptance.
+    pub applicability: &'a [RuleApplicability],
+    /// Whether any rule can be gated or its applicability metadata is incomplete.
+    pub applicability_can_gate: Gating,
     /// Which rule governs which file.
     pub placed: &'a PlacedScopes,
     /// What the store kept of each file, by the file's place among the files.
     pub records: &'a [Option<&'a Record>],
     /// What the run uses again of a file the store kept and the run does not read.
-    pub replaying: Replaying,
+    pub reuse: &'a ryo_values::domain::stores::types::Reuse,
     /// What the last run kept, which what a file it does not read handed is taken from.
     pub stored: &'a Stored,
     /// What the files of the last run handed, read when the run makes the cross-file steps again.
-    pub handed: &'a StoredHanded,
+    pub handed: &'a ReadHanded,
     /// The buckets the cross-file steps made again read.
     pub wanted_buckets: &'a BucketsWanted,
     /// The most memory the process may hold while it runs.
@@ -179,6 +225,8 @@ pub(crate) struct VisitSetting<'a> {
 /// What the workers made, once they have met: their text, the files they could not read and what the rules could not decide.
 #[derive(Debug, Default)]
 pub(crate) struct WorkersMet {
+    pub observations:
+        Vec<ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness>,
     /// The text each worker made, in the order of the workers.
     pub arenas: Vec<ArenaBytes>,
     /// The files no language read.
@@ -189,14 +237,14 @@ pub(crate) struct WorkersMet {
     pub covered: Vec<Covered>,
     /// What the rules could not decide.
     pub unknowns: Vec<Unknown>,
+    /// Rules explicitly skipped for files whose syntax they require was rejected.
+    pub skipped: Vec<Skipped>,
     /// What the workers made of the files they read, in no order.
     pub fresh: Vec<FreshRecord>,
     /// What the languages wrote of the files read now.
     pub notes: FreshNotes,
     /// How many files were read, not counting those the store kept.
     pub read: FilesRead,
-    /// How many rows each step of each rule was fed: by the workers over the files, then by the cross-file finish.
-    pub fed: Vec<Vec<RowsFed>>,
 }
 
 /// The records this run made, with each one's place among the files, in the order of the files.
@@ -231,10 +279,45 @@ pub(crate) struct ProjectHandle<W> {
 
 /// What the rules that cross files read when they are made again: what the files handed over and the text of the workers.
 pub(crate) struct CrossReading<'a, W> {
+    /// Actual fresh/replayed per-file named-root readiness.
+    pub observations:
+        &'a [ryo_execution::inbound::use_cases::metadata::interface::FileObservationReadiness],
     /// The text of the workers.
     pub arenas: &'a mut Vec<ArenaBytes>,
     /// What each rule covered.
     pub covered: &'a [Covered],
+    /// Files explicitly skipped because syntax was rejected.
+    pub skipped: &'a [Skipped],
+    /// The files each rule was refused on, by rule: acceptance undetermined or applicability metadata unavailable.
+    pub refused: &'a std::collections::BTreeMap<RuleId, std::collections::BTreeSet<FilePath>>,
+    /// The files no language read, and why.
+    pub unread: &'a [ryo_values::domain::records::types::Unread],
     /// The store's handle of each worker.
     pub workers: Vec<W>,
+}
+
+/// What the domain asks of the rules of a run: where they are placed, whom they govern and what a partial read leaves unknown.
+/// The application hands it down; the domain implements none of it and calls no use case.
+pub(crate) trait RunDecisions {
+    /// The id of the rule at this place.
+    fn rule_id(&self, ids: &[RuleId], rule: RuleIndex) -> RuleId;
+    /// Marks in the mask the rules the scopes place on this path.
+    fn place(&self, placed: &PlacedScopes, path: &FilePath, mask: &mut Mask, hits: &mut Hits);
+    /// Whether this rule governs the file the mask was made for.
+    fn governs(&self, mask: &Mask, rule: RuleNumber) -> Governing;
+    /// Whether any rule governs the file the mask was made for.
+    fn governed(&self, mask: &Mask) -> Governing;
+    /// The partials a language's partial reads leave.
+    fn partial_of(
+        &self,
+        said: &[ReadInPart],
+        recovery: Recovery,
+        wanted: &[Relation],
+    ) -> Vec<Partial>;
+    /// Whether a partial bears on a read.
+    fn matters(&self, read: &RelationRead, partial: &Partial) -> Bearing;
+    /// What a partial leaves unknown, said for its scope.
+    fn unknown_message(&self, partial: &Partial, scope: CoverageScope<'_>) -> Message;
+    /// Whether the partials block these reads.
+    fn blocked(&self, needs: &[RelationRead], partial: &[Partial]) -> Blocking;
 }

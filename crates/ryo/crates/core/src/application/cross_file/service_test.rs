@@ -1,33 +1,30 @@
-// ignore: idiomatic.arch/file-length - the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
-//! The `crossing` service's cases, on values alone.
+// the cases share one injected dependency scenario to prove retained-data loading, resident lookups, ordered output, and each required port failure; keeping the fixtures and the complete case table beside the application operation makes the same boundary visible in every case.
+//! The `cross_file` service's cases, on values alone.
 
-use super::service::CrossFile;
+use super::fixtures::{counting_plan, fed_steps, frontier_rows, todo, world};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use crate::domain::answering::types::Todo;
-use crate::domain::coverage::types::{Covered, FilePartial, Lacking, Partial, RuleIndex};
-use crate::domain::crossing::service::{partials_for, placeable};
-use crate::domain::crossing::types::{CrossingInput, Placeability};
-use crate::domain::frontiers::service::decode_input;
-use crate::domain::rules::errors::RulesError;
-use crate::domain::table_model::service::push_row;
-use crate::domain::table_model::types::{Frontier, ParameterBinding, Table};
-use crate::domain::table_words::service::{encode_table, pack};
-use crate::domain::table_words::types::WordSlice;
-use crate::domain::trust::types::{Needs, RelationRead};
-use ryo_language::domain::relations::types::{
-    CellKind, FileId, Name, NamePlace, Offset, Origin, PlaceNumber, Relation, TextHash,
-    Value as Cell, Words, WorkerNumber,
-};
-use ryo_language::domain::symbols::service::places_mut;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as PlanInput, RepeatedRows, StepId,
-};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep, StepScope};
-use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::stored_facts::types::PartialCause;
-use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords};
+use ryo_values::domain::rule_requests::errors::RuleRequestsError;
+
+#[cfg(test)]
+mod batch_test;
+#[cfg(test)]
+mod budget_test;
+#[cfg(test)]
+mod generation_test;
+#[cfg(test)]
+mod interpreter;
+#[cfg(test)]
+mod partials_test;
+#[cfg(test)]
+mod population_test;
+#[cfg(test)]
+mod rendering_test;
+#[cfg(test)]
+mod root_set_test;
+#[cfg(test)]
+mod single_rule_test;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
@@ -40,273 +37,112 @@ enum Scenario {
     Placeable,
     /// Files and the project that read a relation in part which a rule trusts.
     Partials,
-    /// The names two files handed over, counted.
+    /// The nodes two files handed over, counted.
     CrossCounts,
     /// A rule the plans lack.
     CrossNoRule,
-    /// A present plan without its bindings cannot run.
-    CrossNoBinding,
-    /// Two names of one hash spelled two ways.
-    CrossSpellings,
     /// A cross-file step that reads what nobody handed over.
     CrossNothingHanded,
+    /// The roots of the current project keep the original two-group, four-cell result.
+    CurrentRoots,
+    /// Rejected syntax blocks the cross-file complements without inventing a partial diagnostic.
+    RejectedSyntax,
+    /// Ordinary project rules share one preparation and reject another generation.
+    SharedPreparation,
+    /// An ordinary phase keeps the populations and the partiality of its rules separate.
+    SeparatePopulations,
+    /// Equal policies do not alias distinct admitted frontier payloads.
+    DistinctPayloads,
+    /// Many distinct project populations allocate only the state of the region they reach.
+    ReachedRegions,
+    /// A project root set prepares shared publications once, before the ordered delivery.
+    SharedPublications,
+    /// A project root set keeps the distinct actual population policy in both orders.
+    DistinctPolicies,
+    /// The budget stops a later population after actual work and releases the phase.
+    LaterPopulation,
+    /// A refused frontier ordinal keeps its compiled source in each cohort.
+    RefusedOrdinal,
+    /// The ordinary phase keeps each refusal with its occurrence, in declaration order.
+    OrdinaryOrder,
 }
 
 /// What a row of the cases asks of the service.
 type Input = Scenario;
 /// Up to three numbers a row answers; a place a row has no number for holds zero.
 type Value = [usize; 3];
-type Failure = RulesError;
-
-/// What the cross-file steps of every rule read, owned.
-struct World {
-    plans: Vec<Plan>,
-    bindings: Vec<Vec<ParameterBinding>>,
-    ids: Vec<RuleId>,
-    needs: Vec<Needs>,
-    arenas: Vec<ArenaBytes>,
-    covered: Vec<Covered>,
-    project: Vec<Partial>,
-}
-
-/// A plan that counts across files the names a per-file step handed over, and emits the column `subject` of the counts.
-fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
-    Plan {
-        parameters: Vec::new(),
-        steps: vec![
-            PlanStep {
-                operation: Operation::Project {
-                    from: PlanInput::Relation(Relation::Function),
-                    columns: vec![ColumnIndex(0)],
-                    distinct: RepeatedRows::Dropped,
-                },
-                scope: StepScope::PerFile,
-            },
-            PlanStep {
-                operation: Operation::GroupCount {
-                    from: PlanInput::Step(StepId(0)),
-                    keys: vec![ColumnIndex(0)],
-                    distinct: None,
-                },
-                scope: StepScope::CrossFile,
-            },
-        ],
-        emit: Emit {
-            step: StepId(1),
-            subject: ColumnIndex(subject),
-            key,
-            headings: Vec::new(),
-        },
-        frontier: vec![PlanInput::Step(StepId(0))],
-    }
-}
-
-fn world(plan: Plan) -> World {
-    World {
-        plans: vec![plan],
-        bindings: vec![Vec::new()],
-        ids: vec![RuleId("rule".into())],
-        needs: vec![Needs::default()],
-        arenas: Vec::new(),
-        covered: Vec::new(),
-        project: Vec::new(),
-    }
-}
-
-fn crossing(world: &World) -> CrossingInput<'_> {
-    CrossingInput {
-        unknown: &[],
-        plans: &world.plans,
-        bindings: &world.bindings,
-        ids: &world.ids,
-        needs: &world.needs,
-        paths: &[],
-        arenas: &world.arenas,
-        files: &[],
-        covered: &world.covered,
-        project: &world.project,
-        hosted: &[],
-        answering: &crate::domain::render::types::Answering::Findings,
-    }
-}
-
-fn todo(rule: usize) -> Todo {
-    Todo {
-        rule: RuleIndex(rule),
-        id: RuleId("rule".into()),
-    }
-}
-
-fn partial(relation: Relation) -> Partial {
-    Partial {
-        relation,
-        cause: PartialCause("a construct the reader cannot represent".into()),
-        lacking: Lacking::Any,
-        at: None,
-    }
-}
-
-fn name(hash: u64, place: u32) -> Cell {
-    Cell::Name(Name {
-        hash: TextHash(hash),
-        place: PlaceNumber(place),
-    })
-}
-
-/// The words of a table of one column of names, one row for each of the given places and hashes.
-fn words_of(names: &[(u64, u32)]) -> KeptWords {
-    let mut table = Table {
-        kinds: vec![CellKind::Symbol],
-        ..Table::default()
-    };
-    for (hash, place) in names {
-        push_row(&mut table, &[name(*hash, *place)]);
-    }
-    let mut words = Words::default();
-    encode_table(&table, &[], &mut words);
-    KeptWords(pack(WordSlice(&words.0)))
-}
-
-/// The rows the files handed to the first input of a counting plan: two files handed over the name hashed 1, a third another name.
-fn handed_over(cross: &mut Symbols) -> Vec<Frontier> {
-    let table = decode_input(&words_of(&[(1, 0), (1, 0), (2, 0)]), cross);
-    vec![Frontier {
-        input: PlanInput::Step(StepId(0)),
-        table,
-    }]
-}
-
-/// The file of `partial`, as a number: the repository as a whole is the number past every file, as the store writes it; 0
-/// when there is no such partial.
-fn file_number(partial: Option<&FilePartial>) -> usize {
-    partial.map_or(0, |each| {
-        usize::try_from(each.file.map_or(u32::MAX, |file| file.0)).unwrap_or(0)
-    })
-}
-
-/// The partials of a rule that reads what the project wrote: the files that cover it, in order.
-fn partials_found() -> Value {
-    let mut rules = world(counting_plan(1, Vec::new()));
-    rules.needs = vec![Needs {
-        cross: vec![RelationRead {
-            relation: Relation::Function,
-            kinds: Vec::new(),
-        }],
-        ..Needs::default()
-    }];
-    rules.project = vec![
-        partial(Relation::Function),
-        partial(Relation::PackageDependency),
-    ];
-    rules.covered = vec![
-        Covered {
-            file: FileId(2),
-            rules: vec![RuleIndex(0)],
-            partial: vec![partial(Relation::Function)],
-        },
-        Covered {
-            file: FileId(3),
-            rules: vec![RuleIndex(1)],
-            partial: vec![partial(Relation::Function)],
-        },
-    ];
-    let found = partials_for(&crossing(&rules), RuleIndex(0)).entries;
-    [
-        found.len(),
-        file_number(found.first()),
-        file_number(found.get(1)),
-    ]
-}
-
-fn placing_outcomes() -> Value {
-    let table = Table {
-        kinds: vec![CellKind::Symbol, CellKind::Number],
-        ..Table::default()
-    };
-    let says = |emitted, key| {
-        usize::from(placeable(&counting_plan(emitted, key), &table) == Placeability::Placeable)
-    };
-    [
-        says(0, Vec::new()),
-        says(1, Vec::new()),
-        says(1, vec![ColumnIndex(0)]),
-    ]
-}
+type Failure = RuleRequestsError;
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    Ok(match scenario {
-        Scenario::Substitution => [
-            usize::from(source_text(b"one", false) == "one"),
-            usize::from(source_text(b"two", false) == "two"),
+    match scenario {
+        Scenario::Substitution => Ok([
+            usize::from(rendering_test::source_text(b"one", false) == "one"),
+            usize::from(rendering_test::source_text(b"two", false) == "two"),
             0,
-        ],
-        Scenario::Unreadable => [usize::from(source_text(b"one", true).is_empty()), 0, 0],
-        Scenario::Placeable => placing_outcomes(),
-        Scenario::Partials => partials_found(),
+        ]),
+        Scenario::Unreadable => Ok([
+            usize::from(rendering_test::source_text(b"one", true).is_empty()),
+            0,
+            0,
+        ]),
+        Scenario::Placeable => Ok(partials_test::placing_outcomes()),
+        Scenario::Partials => Ok(partials_test::partials_found()),
         Scenario::CrossCounts => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
-            let frontier = handed_over(&mut cross);
-            let done = service().evaluate(&crossing(&rules), &todo(0), &frontier, &mut cross)?;
-            [
-                done.rendered.order.len(),
-                done.fed.len(),
-                done.rendered.cells.len(),
-            ]
-        }
-        Scenario::CrossNoBinding => {
-            let mut rules = world(counting_plan(1, Vec::new()));
-            rules.bindings.clear();
-            let done =
-                service().evaluate(&crossing(&rules), &todo(0), &[], &mut Symbols::default())?;
-            [
-                usize::from(done.rendered != crate::domain::render::types::Rendered::default()),
-                done.fed.len(),
-                0,
-            ]
+            let phase = rules.request.project_phase().expect("one project phase");
+            let done = batch_test::evaluate_fixture(&rules, &todo(0), &frontier_rows(), &rules.covered, &mut cross, &phase)?;
+            Ok([
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
+                fed_steps(&rules, 0),
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.cells.len()),
+            ])
         }
         Scenario::CrossNoRule => {
             let rules = world(counting_plan(1, Vec::new()));
-            let done =
-                service().evaluate(&crossing(&rules), &todo(3), &[], &mut Symbols::default())?;
-            [done.rendered.order.len(), done.fed.len(), 0]
-        }
-        Scenario::CrossSpellings => {
-            let mut rules = world(counting_plan(1, Vec::new()));
-            rules.arenas = vec![ArenaBytes(b"ab".to_vec())];
             let mut cross = Symbols::default();
-            for (start, end) in [(0, 1), (1, 2)] {
-                places_mut(&mut cross).push(NamePlace {
-                    origin: Origin::Derived(WorkerNumber(0)),
-                    file: FileId(0),
-                    start: Offset(start),
-                    end: Offset(end),
-                });
-            }
-            let table = decode_input(&words_of(&[(1, 0), (1, 1)]), &mut Symbols::default());
-            let frontier = [Frontier {
-                input: PlanInput::Step(StepId(0)),
-                table,
-            }];
-            let done = service().evaluate(&crossing(&rules), &todo(0), &frontier, &mut cross)?;
-            [done.rendered.order.len(), 0, 0]
+            let phase = rules.request.project_phase().expect("one project phase");
+            let done = batch_test::evaluate_fixture(&rules, &todo(3), &frontier_rows(), &rules.covered, &mut cross, &phase)?;
+            Ok([
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
+                fed_steps(&rules, 3),
+                0,
+            ])
         }
         Scenario::CrossNothingHanded => {
             let rules = world(counting_plan(1, Vec::new()));
-            let done =
-                service().evaluate(&crossing(&rules), &todo(0), &[], &mut Symbols::default())?;
-            [done.rendered.order.len(), 0, 0]
+            let mut cross = Symbols::default();
+            let phase = rules.request.project_phase().expect("one project phase");
+            let done = batch_test::evaluate_fixture(&rules, &todo(0), &[], &rules.covered, &mut cross, &phase)?;
+            Ok([
+                done.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered.order.len()),
+                0,
+                0,
+            ])
         }
-    })
+        Scenario::CurrentRoots => single_rule_test::current_project_roots_keep_the_original_two_group_four_cell_result().map(|()| [0; 3]),
+        Scenario::RejectedSyntax => single_rule_test::rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics().map(|()| [0; 3]),
+        Scenario::SharedPreparation => generation_test::ordinary_project_rules_share_one_preparation_and_reject_another_generation().map(|()| [0; 3]),
+        Scenario::SeparatePopulations => population_test::ordinary_phase_keeps_valid_rule_populations_and_partiality_separate().map(|()| [0; 3]),
+        Scenario::DistinctPayloads => population_test::equal_policies_do_not_alias_distinct_admitted_frontier_payloads().map(|()| [0; 3]),
+        Scenario::ReachedRegions => population_test::many_distinct_project_populations_allocate_only_reached_region_state().map(|()| [0; 3]),
+        Scenario::SharedPublications => root_set_test::project_root_set_prepares_shared_publications_once_before_ordered_delivery().map(|()| [0; 3]),
+        Scenario::DistinctPolicies => root_set_test::project_root_set_preserves_distinct_actual_population_policy_in_both_orders().map(|()| [0; 3]),
+        Scenario::LaterPopulation => budget_test::project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase().map(|()| [0; 3]),
+        Scenario::RefusedOrdinal => budget_test::refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort().map(|()| [0; 3]),
+        Scenario::OrdinaryOrder => budget_test::ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order().map(|()| [0; 3]),
+    }
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_plan_without_bindings_produces_no_cross_file_work"),
-        word: Word::Succeeds,
-        input: || Scenario::CrossNoBinding,
-        expect: Expect::Value([0, 0, 0]),
-    },
     Case {
         name: CaseName("substituting_the_injected_corpus_changes_source_spelling"),
         word: Word::Succeeds,
@@ -335,24 +171,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
-            "the_names_two_files_handed_over_are_counted_into_two_findings_of_five_cells",
+            "the_nodes_two_files_handed_over_are_counted_into_two_findings_of_five_cells",
         ),
         word: Word::Succeeds,
         input: || Scenario::CrossCounts,
         expect: Expect::Value([2, 2, 10]),
     },
     Case {
-        name: CaseName("a_rule_the_plans_lack_crosses_to_nothing"),
-        word: Word::Succeeds,
-        input: || Scenario::CrossNoRule,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName("one_hash_spelled_two_ways_fails_the_rule"),
+        name: CaseName("an_unprepared_rule_refuses_the_project_scope"),
         word: Word::Refuses,
-        input: || Scenario::CrossSpellings,
+        input: || Scenario::CrossNoRule,
         expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::Failed { .. }) {
+            if matches!(error, RuleRequestsError::Failed { .. }) {
                 Selection::Matches
             } else {
                 Selection::Differs
@@ -364,12 +194,90 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Scenario::CrossNothingHanded,
         expect: Expect::Refusal(|error| {
-            if matches!(error, RulesError::Failed { .. }) {
+            if matches!(error, RuleRequestsError::Failed { .. }) {
                 Selection::Matches
             } else {
                 Selection::Differs
             }
         }),
+    },
+    Case {
+        name: CaseName("current_project_roots_keep_the_original_two_group_four_cell_result"),
+        word: Word::Succeeds,
+        input: || Scenario::CurrentRoots,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::RejectedSyntax,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "ordinary_project_rules_share_one_preparation_and_reject_another_generation",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::SharedPreparation,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("ordinary_phase_keeps_valid_rule_populations_and_partiality_separate"),
+        word: Word::Succeeds,
+        input: || Scenario::SeparatePopulations,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("equal_policies_do_not_alias_distinct_admitted_frontier_payloads"),
+        word: Word::Succeeds,
+        input: || Scenario::DistinctPayloads,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("many_distinct_project_populations_allocate_only_reached_region_state"),
+        word: Word::Succeeds,
+        input: || Scenario::ReachedRegions,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "project_root_set_prepares_shared_publications_once_before_ordered_delivery",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::SharedPublications,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "project_root_set_preserves_distinct_actual_population_policy_in_both_orders",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::DistinctPolicies,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::LaterPopulation,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName("refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort"),
+        word: Word::Succeeds,
+        input: || Scenario::RefusedOrdinal,
+        expect: Expect::Value([0, 0, 0]),
+    },
+    Case {
+        name: CaseName(
+            "ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::OrdinaryOrder,
+        expect: Expect::Value([0, 0, 0]),
     },
 ];
 
@@ -381,70 +289,4 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
-}
-
-fn service() -> CrossFile {
-    CrossFile::new(std::sync::Arc::new(
-        crate::outbound::corpus::fixtures::fake::CorpusFake::default(),
-    ))
-}
-fn source_text(bytes: &[u8], fails: bool) -> String {
-    use crate::outbound::corpus::fixtures::fake::CorpusFake;
-    use ryo_language::domain::files::types::FilePath;
-    use ryo_values::domain::files::types::CorpusFile;
-    use ryo_values::domain::files::types::{FileSize, Nanoseconds};
-    let corpus = CorpusFake {
-        files: if fails {
-            Vec::new()
-        } else {
-            vec![CorpusFile {
-                path: FilePath("source".into()),
-                bytes: FileBytes(bytes.to_vec()),
-            }]
-        },
-        fails,
-        reads: std::sync::Arc::default(),
-        outside: Vec::new(),
-    };
-    let service = CrossFile::new(std::sync::Arc::new(corpus));
-    let files = [CorpusEntry {
-        path: FilePath("source".into()),
-        size: FileSize(3),
-        modified: Nanoseconds(0),
-    }];
-    let mut symbols = Symbols::default();
-    places_mut(&mut symbols).push(NamePlace {
-        origin: Origin::Source,
-        file: FileId(0),
-        start: Offset(0),
-        end: Offset(3),
-    });
-    let resolving = crate::domain::finish::types::Resolving {
-        unknown: &[],
-        paths: &[],
-        arenas: crate::domain::finish::types::Arenas(&[]),
-        cross: &symbols,
-    };
-    let mut text = ryo_values::domain::records::types::RenderedText::default();
-    let shown = service.show_value(
-        &mut text,
-        name(1, 0),
-        &files,
-        &resolving,
-        &mut crate::domain::finish::types::Loaded::default(),
-    );
-    match shown.map(|kept| {
-        ryo_values::domain::records::service::lent(
-            ryo_values::domain::records::types::RowsTextView(&text),
-            kept,
-        )
-    }) {
-        Some(ryo_values::domain::records::types::Cell::Text(piece)) => piece.0.to_owned(),
-        Some(
-            ryo_values::domain::records::types::Cell::File(_)
-            | ryo_values::domain::records::types::Cell::Number(_)
-            | ryo_values::domain::records::types::Cell::Span(_),
-        )
-        | None => String::new(),
-    }
 }

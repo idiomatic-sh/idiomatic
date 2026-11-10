@@ -2,23 +2,23 @@
 
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_language::domain::terms::types::NameText;
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
 use ryo_language::domain::completion::service::{completion, name_kind};
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::collections::relations::function::item::FunctionRow;
-use ryo_language::domain::relations::service::all;
-use ryo_language::domain::relations::types::RowWriter;
-use ryo_language::domain::relations::types::{KindBits, Offset, Position, Relation, Span};
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::collections::relations::function::item::FunctionRow;
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::RowWriter;
+use ryo_relations::domain::relations::types::{KindBits, Offset, Position, Relation, Span};
 
 use super::super::errors::LanguageError;
 use super::super::interface::LanguagePort;
 use super::super::types::{
-    Absence, FileReading, FileToRead, LinkedName, ManifestReading, ProjectAnswer, ProjectInput,
+    Absence, FileReading, FileToRead, LinkedName, ManifestReading, ProjectAnswer, ProjectToRead,
     RelationAnswer,
 };
 use ryo_language::domain::files::types::FilePath;
@@ -50,6 +50,16 @@ pub struct LanguageFake {
     pub projects: AtomicUsize,
     /// The files it says it read beyond the manifests whenever it reads them, by path from the root.
     pub consulted: Vec<FilePath>,
+    /// Candidate entry paths requested by the fake, including duplicates for engine acquisition controls.
+    pub project_entry_paths: Vec<FilePath>,
+    /// Whether the project answer gives back none of the entry observations it was given: a language whose receipt does not match the batch.
+    pub forgets_entries: bool,
+    /// Paths for which this fake reports rejected syntax; other parsed files are accepted when this or `undetermined_syntax` is
+    /// nonempty.
+    pub rejected_syntax: Vec<FilePath>,
+    /// Paths for which this fake leaves syntax acceptance undetermined; other parsed files are accepted when this or
+    /// `rejected_syntax` is nonempty.
+    pub undetermined_syntax: Vec<FilePath>,
 }
 
 /// What the fake's catalog answers.
@@ -77,7 +87,7 @@ pub const BROKEN: &str = "broken";
 const NODE_KIND: &str = "node";
 
 /// Refuses the manifests when the path of one of them contains the text the fake fails on.
-fn refuse_broken(input: &ProjectInput<'_>) -> Result<(), LanguageError> {
+fn refuse_broken(input: &ProjectToRead<'_>) -> Result<(), LanguageError> {
     if input
         .manifests
         .iter()
@@ -157,6 +167,19 @@ impl LanguagePort for LanguageFake {
             leave_node(&mut builder, Offset(end));
         }
         // A language names every kind its table holds, as the engine reads a kind by its name.
+        if !self.rejected_syntax.is_empty() || !self.undetermined_syntax.is_empty() {
+            let acceptance = if self.rejected_syntax.contains(file.path) {
+                ryo_language::domain::elements::types::SyntaxAcceptance::Rejected
+            } else if self.undetermined_syntax.contains(file.path) {
+                ryo_language::domain::elements::types::SyntaxAcceptance::Undetermined
+            } else {
+                ryo_language::domain::elements::types::SyntaxAcceptance::Accepted
+            };
+            ryo_language::domain::builders::service::set_syntax_acceptance(
+                &mut builder,
+                acceptance,
+            );
+        }
         name_kind(
             &mut completion(table, symbols, ByteSlice(&file.bytes.0), file.file),
             KindBits(0),
@@ -182,7 +205,7 @@ impl LanguagePort for LanguageFake {
                 step
             };
             out.write(FunctionRow {
-                id: ryo_language::domain::relations::service::node_id(file.file, Position(place)),
+                id: ryo_relations::domain::relations::service::node_id(file.file, Position(place)),
                 name,
                 file: file.file,
                 span: Span {
@@ -194,9 +217,13 @@ impl LanguagePort for LanguageFake {
         FileReading::Read(LanguageNumber(0))
     }
 
+    fn project_entries(&self, _input: &ProjectToRead<'_>) -> Vec<FilePath> {
+        self.project_entry_paths.clone()
+    }
+
     fn project(
         &self,
-        input: &ProjectInput<'_>,
+        input: &ProjectToRead<'_>,
         _symbols: &mut Symbols,
         _out: &mut dyn RowWriter,
     ) -> Result<ProjectAnswer, LanguageError> {
@@ -204,6 +231,11 @@ impl LanguagePort for LanguageFake {
         refuse_broken(input)?;
         Ok(ProjectAnswer {
             consulted: self.consulted.clone(),
+            observed_entries: if self.forgets_entries {
+                Vec::new()
+            } else {
+                ryo_language::domain::project_context::service::receipt(input.observed_entries)
+            },
             ..ProjectAnswer::default()
         })
     }

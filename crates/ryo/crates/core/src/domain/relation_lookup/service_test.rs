@@ -1,10 +1,10 @@
 //! The `relation_lookup` service's cases, on values alone.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::errors::RelationLookupError;
 use super::service::resolve;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Matched, Word, run, selects};
 use ryo_values::domain::descriptions::types::RelationName;
 
 /// What a row asks: the relations ryo lists and the text asked for.
@@ -44,7 +44,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "nothing",
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, RelationLookupError::UnknownRelation { .. }))
+            selects(Matched(matches!(
+                error,
+                RelationLookupError::UnknownRelation { .. }
+            )))
         }),
     },
     Case {
@@ -55,14 +58,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "function",
         },
         expect: Expect::Refusal(|error| {
-            selects(matches!(error, RelationLookupError::UnknownRelation { .. }))
+            selects(Matched(matches!(
+                error,
+                RelationLookupError::UnknownRelation { .. }
+            )))
         }),
     },
 ];
 
 fn subject(question: Input) -> Result<Value, Failure> {
     let relation = resolve(question.known, &RelationName(question.text.into()))?;
-    Ok(ryo_language::domain::relations::service::columns(relation).len())
+    Ok(ryo_relations::domain::relations::service::columns(relation).len())
 }
 
 #[test]

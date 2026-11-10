@@ -1,6 +1,6 @@
 //! The types of the `project` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
-use crate::domain::coverage::types::{Partial, Unknown};
+use ryo_execution::inbound::use_cases::metadata::interface::{Partial, Unknown};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::runs::types::ManifestRefused;
 use ryo_values::domain::stores::types::StoredFile;
@@ -18,6 +18,8 @@ pub(crate) enum PlanReads {
 /// read in part.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Projected {
+    /// Exact entry observations consumed by project readers in this run.
+    pub observed_entries: Vec<ryo_language::domain::project_context::types::EntryObservation>,
     /// The relations of the project read in part.
     pub partials: Vec<Partial>,
     /// The manifests the languages' tools refused.

@@ -1,12 +1,12 @@
 //! The `admission` service's cases, on values alone.
 
-use ryo_language::domain::elements::service::{enter_node, leave_node, table_builder};
+use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder};
 use ryo_language::domain::elements::types::Elements;
-use ryo_language::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, FileId, KindBits, Offset,
-};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{
+    CellKind, ColumnsView, FactColumn, FileId, KindBits, Offset,
+};
 use ryo_values::domain::files::types::FileBytes;
 
 use super::errors::AdmissionError;
@@ -68,7 +68,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Implied => {
             let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
             let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(b""));
-            ryo_language::domain::elements::service::enter_implied_node(&mut builder, KindBits(0));
+            ryo_language::domain::builders::service::enter_implied_node(&mut builder, KindBits(0));
             leave_node(&mut builder, Offset(0));
             admit_elements(&elements, &LIMITS).map(|()| 1)
         }

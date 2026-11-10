@@ -1,38 +1,52 @@
-//! Cross-file evaluation and bounded source rendering over injected ports.
-use crate::domain::answering::types::{Crossed, Todo};
-use crate::domain::crossing::service::{cross_rule, placeable};
-use crate::domain::crossing::types::{CrossingInput, Placeability};
-use crate::domain::finish::errors::FinishError;
-use crate::domain::finish::service::{
-    column_cell, founds, line_cell, place_all, shown_cell, source_of,
-};
-use crate::domain::finish::types::{Arenas, FoundRow, HeldFile, Loaded, Resolving, RuleNumber};
-use crate::domain::ordering::service::{order_alike, sort_findings};
-use crate::domain::render::service::{end_row, key_count, next_row};
-use crate::domain::render::types::{
-    AnswerCell, AnswerColumns, Answering, KeyCount, Rendered, RowNumber, RowOrder,
-};
-use crate::domain::reporting::service::order_found;
-use crate::domain::rules::errors::RulesError;
-use crate::domain::rules::service::failed;
-use crate::domain::table_model::service::cell;
-use crate::domain::table_model::types::Frontier;
-use crate::domain::table_texts::types::SourceView;
+//! Cross-file evaluation of the project batches over injected ports.
+use super::completion::service::ProjectCompletion;
+use super::completion::service::collected;
+use super::completion::types::CrossedWithPublications;
+use super::constants::{MISSING_FRONTIER_BUCKET, MISSING_OUTCOME};
+use super::errors::CrossFileError;
+use super::rendering::service::Rendering;
+use super::types::ObservationRun;
+use super::types::ProjectCrossing;
+use crate::domain::answering::service::settle;
+use crate::domain::answering::types::Answered;
+use crate::domain::answering::types::Todo;
+use crate::domain::crossing::service::inapplicable_files;
+use crate::domain::crossing::service::partials_for;
+use crate::domain::crossing::service::partials_for_reads;
+use crate::domain::crossing::service::refused_files;
+use crate::domain::crossing::types::CrossingInput;
+use crate::domain::render::types::Answering;
 use crate::outbound::corpus::interface::CorpusPort;
-use ryo_language::domain::relations::types::{FileId, Value};
-use ryo_language::domain::symbols::service::file_in;
+use ryo_execution::inbound::use_cases::execution::interface::AdmittedOutput;
+use ryo_execution::inbound::use_cases::execution::interface::BatchNumber;
+use ryo_execution::inbound::use_cases::execution::interface::BatchOccurrence;
+use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::Install;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
+use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
+use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
+use ryo_execution::inbound::use_cases::execution::interface::PreparationError;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
+use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
+use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_values::domain::files::types::{CorpusEntry, FileBytes};
-use ryo_values::domain::records::service::keep;
-use ryo_values::domain::records::types::RenderedText;
-use ryo_values::domain::records::types::RowTotal;
-use ryo_values::domain::records::types::{Cell, CellText, TextRange};
-
+use ryo_relations::domain::relations::types::WorkerNumber;
+use ryo_values::domain::rule_requests::service::failed;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::sync::Arc;
+
 /// Cross-file work sharing the caller's corpus resource.
 pub struct CrossFile {
-    /// Reads back the files the findings name.
-    corpus: Arc<dyn CorpusPort>,
+    /// Renders each phase's answer and packs its publications.
+    pub(super) completion: ProjectCompletion,
 }
 
 impl std::fmt::Debug for CrossFile {
@@ -45,237 +59,173 @@ impl std::fmt::Debug for CrossFile {
 impl CrossFile {
     /// Bind source access once at composition.
     #[must_use]
-    pub fn new(corpus: Arc<dyn CorpusPort>) -> Self {
-        Self { corpus }
+    pub fn new(corpus: Arc<dyn CorpusPort>, publication: Arc<dyn PublicationUseCase>) -> Self {
+        Self {
+            completion: ProjectCompletion::new(Rendering::new(corpus), publication),
+        }
     }
-    /// Evaluate, place and render one cross-file rule without publishing it.
-    pub(crate) fn evaluate(
+    /// Completes one evaluated occurrence of a phase: its outcome collected, its answer rendered and its named roots packed into
+    /// the arena of the worker its publication slot reserved.
+    pub(super) fn complete_occurrence(
         &self,
-        crossing: &CrossingInput<'_>,
+        crossing: &ProjectCrossing<'_>,
         todo: &Todo,
-        frontier: &[Frontier],
-        cross: &mut Symbols,
-    ) -> Result<Crossed, RulesError> {
-        let (Some(plan), Some(_)) = (
-            crossing.plans.get(todo.rule.0),
-            crossing.bindings.get(todo.rule.0),
-        ) else {
-            return Ok(Crossed::default());
-        };
-        let evaluated = cross_rule(crossing, todo, frontier, cross)?;
-        let refuse = |reason: &dyn std::fmt::Display| failed(&todo.id, reason);
-        let rule_number = RuleNumber(u32::try_from(todo.rule.0).unwrap_or(u32::MAX));
-        let mut found = founds(rule_number, &evaluated.table, &plan.emit, FileId(u32::MAX))
-            .map_err(|error| refuse(&error))?;
-        found.sort_by_key(|each| each.file);
-        let mut bytes = FileBytes::default();
-        if placeable(plan, &evaluated.table) == Placeability::Placeable {
-            for group in found.chunk_by_mut(|left, right| left.file == right.file) {
-                let Some(entry) = group
-                    .first()
-                    .and_then(|first| file_in(crossing.files, first.file))
-                else {
-                    continue;
-                };
-                if self.corpus.read(entry, &mut bytes).is_ok() {
-                    place_all(group, &plan.emit, SourceView(&bytes.0), cross);
-                }
-            }
-        }
-        let mut rendered = Rendered::default();
-        match crossing.answering {
-            Answering::Findings => self.render_cross(crossing, cross, &found, &mut rendered),
-            Answering::Rows(_) => {
-                order_found(&mut found, crossing.paths);
-                self.render_rows(crossing, cross, &found, &mut rendered);
-                Ok(())
-            }
-        }
-        .map_err(|error| refuse(&error))?;
-        Ok(Crossed {
-            rendered,
-            fed: evaluated.fed,
-        })
-    }
-    /// The cell `value` is in a report, its text kept at the end of `text`, reading the file it is about when it is not the one loaded.
-    pub(super) fn show_value(
-        &self,
-        text: &mut RenderedText,
-        value: Value,
-        files: &[CorpusEntry],
-        resolving: &Resolving<'_>,
-        loaded: &mut Loaded,
-    ) -> Option<Cell<TextRange>> {
-        if let Some(file) = source_of(value, resolving)
-            && loaded.held != HeldFile::File(file)
-        {
-            if let Some(entry) = file_in(files, file) {
-                let mut bytes = FileBytes(std::mem::take(&mut loaded.bytes.0));
-                // A file that can no longer be read shows no text, rather than the last file's.
-                if self.corpus.read(entry, &mut bytes).is_err() {
-                    bytes.0.clear();
-                }
-                loaded.bytes.0 = bytes.0;
-            }
-            loaded.held = HeldFile::File(file);
-        }
-        shown_cell(text, value, resolving, loaded)
-    }
-    /// Renders the findings the cross-file steps gave onto `into`, as the cells of a finding (its rule, its subject, its key, its
-    /// columns, its line and its character), in the order they leave in. Their names are read back from the files they name, one file
-    /// at a time.
-    ///
-    /// # Errors
-    ///
-    /// `NoSuchColumn` when a finding lacks the subject or a key column.
-    fn render_cross(
-        &self,
-        crossing: &CrossingInput<'_>,
-        cross: &Symbols,
-        found: &[FoundRow],
-        into: &mut Rendered,
-    ) -> Result<(), FinishError> {
-        let resolving = Resolving {
-            paths: crossing.paths,
-            arenas: Arenas(crossing.arenas),
-            cross,
-            unknown: crossing.unknown,
-        };
-        let mut loaded = Loaded::default();
-        let (plans, ids, files) = (crossing.plans, crossing.ids, crossing.files);
-        for each in found {
-            let Some(plan) = plans.get(usize::try_from(each.rule.0).unwrap_or(usize::MAX)) else {
-                continue;
-            };
-            let id = ids
-                .get(usize::try_from(each.rule.0).unwrap_or(usize::MAX))
-                .map(|id| keep(&mut into.text, Cell::Text(CellText(&id.0))));
-            into.cells.push(id);
-            let subject = self.show_value(
-                &mut into.text,
-                cell(&each.row, plan.emit.subject)?,
-                files,
-                &resolving,
-                &mut loaded,
-            );
-            into.cells.push(subject);
-            into.cells
-                .push(Some(key_count(KeyCount(plan.emit.key.len()))));
-            for index in &plan.emit.key {
-                let shown = self.show_value(
-                    &mut into.text,
-                    cell(&each.row, *index)?,
-                    files,
-                    &resolving,
-                    &mut loaded,
-                );
-                into.cells.push(shown);
-            }
-            for (heading, value) in plan.emit.headings.iter().zip(&each.row) {
-                let named = keep(&mut into.text, Cell::Text(CellText(&heading.0)));
-                into.cells.push(Some(named));
-                let shown = self.show_value(&mut into.text, *value, files, &resolving, &mut loaded);
-                into.cells.push(shown);
-            }
-            into.cells.push(line_cell(each.place));
-            into.cells.push(column_cell(each.place));
-            let row = next_row(into);
-            end_row(into);
-            into.order.push(RowOrder {
-                rule: each.rule,
-                line: each.place.line,
-                column: each.place.column,
-                row,
-            });
-        }
-        sort_findings(into);
-        Ok(())
+        outcome: RuleOutcome<ProjectOutputOutcome>,
+        worker: Option<WorkerNumber>,
+        symbols: &mut Symbols,
+    ) -> Result<CrossedWithPublications, CrossFileError> {
+        let evaluated =
+            collected(outcome).map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
+        self.completion
+            .complete_phase(crossing, todo, evaluated, symbols, worker)
+            .map_err(CrossFileError::from)
     }
 
-    /// Renders the rows the cross-file steps gave onto `into` as the rule's own columns, in the order of their places, at most as
-    /// many as the answer writes: every row is counted. With more than one rule, the rule's id comes first and each column of the
-    /// answer is the rule's own of that heading, or empty.
-    fn render_rows(
+    /// Execute the declared ready batches and transfer publications before their final consumer retires.
+    pub(crate) fn observations(
         &self,
-        crossing: &CrossingInput<'_>,
-        cross: &Symbols,
-        found: &[FoundRow],
-        into: &mut Rendered,
-    ) {
-        let Answering::Rows(answer) = crossing.answering else {
-            return;
+        run: ObservationRun<'_>,
+        arenas: &mut Vec<ArenaBytes>,
+        answered: &mut Answered,
+        guard: impl FnMut(RuleIndex) -> Result<(), CrossFileError>,
+    ) -> Result<(), CrossFileError> {
+        let stage = run.services.observations(arenas)?;
+        let rules = (0..run.domain.metadata.len())
+            .map(RuleIndex)
+            .collect::<Vec<_>>();
+        // Each authored occurrence in batch order, numbered by its place here; neither repeated batch entries nor repeated
+        // occurrences are deduplicated by rule.
+        let declared = run
+            .batches
+            .iter()
+            .enumerate()
+            .flat_map(|(batch, rules)| {
+                rules.iter().flat_map(move |rule| {
+                    run.todo
+                        .iter()
+                        .filter(move |todo| todo.rule == *rule)
+                        .map(move |todo| (BatchNumber(batch), todo))
+                })
+            })
+            .collect::<Vec<(BatchNumber, &Todo)>>();
+        let occurrences = declared
+            .iter()
+            .map(|(batch, todo)| BatchOccurrence {
+                batch: *batch,
+                rule: todo.rule,
+            })
+            .collect::<Vec<_>>();
+        let readiness = run
+            .domain
+            .observations
+            .iter()
+            .map(|frame| FileObservationReadiness {
+                file: frame.file,
+                root: Arc::clone(&frame.root),
+            })
+            .collect::<Vec<_>>();
+        let inapplicable = inapplicable_files(&MetadataUseCaseImpl, &run.domain);
+        let refused = refused_files(&run.domain);
+        let todo = |occurrence: OccurrenceNumber| {
+            declared
+                .get(occurrence.0)
+                .map(|(_, todo)| *todo)
+                .ok_or(OperatingError::NotRun)
         };
-        let resolving = Resolving {
-            paths: crossing.paths,
-            arenas: Arenas(crossing.arenas),
-            cross,
-            unknown: crossing.unknown,
-        };
-        let mut loaded = Loaded::default();
-        into.total = RowTotal(u64::try_from(found.len()).unwrap_or(u64::MAX));
-        // Every row is rendered and the rows of one place are put in the order of their cells before the limit cuts: which rows of a
-        // place were made first depends on the workers, and the answer must not.
-        let mut starts = Vec::new();
-        let mut before: Option<&FoundRow> = None;
-        for each in found {
-            if before.is_none_or(|last| last.file != each.file || last.place != each.place) {
-                starts.push(RowNumber(
-                    u32::try_from(into.order.len()).unwrap_or(u32::MAX),
-                ));
-            }
-            before = Some(each);
-            let rule = usize::try_from(each.rule.0).unwrap_or(usize::MAX);
-            match &answer.columns {
-                AnswerColumns::One => {
-                    for value in &each.row {
-                        let shown = self.show_value(
-                            &mut into.text,
-                            *value,
-                            crossing.files,
-                            &resolving,
-                            &mut loaded,
-                        );
-                        into.cells.push(shown);
-                    }
-                }
-                AnswerColumns::Many(cells) => {
-                    let cells = cells.get(rule).map_or(&[][..], Vec::as_slice);
-                    let id = crossing
-                        .ids
-                        .get(rule)
-                        .map(|id| keep(&mut into.text, Cell::Text(CellText(&id.0))));
-                    into.cells.push(id);
-                    for each_cell in cells {
-                        let shown = match each_cell {
-                            AnswerCell::Column(place) => match each.row.get(place.0) {
-                                Some(value) => self.show_value(
-                                    &mut into.text,
-                                    *value,
-                                    crossing.files,
-                                    &resolving,
-                                    &mut loaded,
-                                ),
-                                None => None,
-                            },
-                            AnswerCell::Empty => None,
-                        };
-                        into.cells.push(shown);
-                    }
-                }
-            }
-            into.cells.push(line_cell(each.place));
-            into.cells.push(column_cell(each.place));
-            let row = next_row(into);
-            end_row(into);
-            into.order.push(RowOrder {
-                rule: each.rule,
-                line: each.place.line,
-                column: each.place.column,
-                row,
-            });
+        // The retained project execution and every decoded text place share one
+        // live symbol generation across all producer and consumer batches.
+        let mut symbols = Symbols::default();
+        stage.run_batches(
+            ObservationBatches {
+                occurrences: &occurrences,
+                readiness: &readiness,
+                rules: &rules,
+                first: run.first_bucket,
+                corpus: run.domain.files,
+                covered: run.domain.covered,
+                skipped: run.domain.skipped,
+                inapplicable: &inapplicable,
+                refused: &refused,
+                facts: run.facts,
+                project: run.project,
+                project_symbols: run.project_symbols,
+            },
+            &mut symbols,
+            |_| Ok::<(), CrossFileError>(()),
+            |occurrence| phase_partials(&run.program, &run.domain, todo(occurrence)?),
+            guard,
+            |occurrence, outcome, arenas, worker, symbols: &mut Symbols| {
+                let crossing = ProjectCrossing {
+                    arenas,
+                    program: Arc::clone(&run.program),
+                    domain: run.domain.clone(),
+                };
+                self.complete_occurrence(&crossing, todo(occurrence)?, outcome, worker, symbols)
+            },
+            |occurrence, result| {
+                let todo = todo(occurrence)?;
+                deliver(result.map_err(|stop| stopped(todo, stop))?, answered)
+            },
+        )
+    }
+}
+
+/// Settle one delivered occurrence into the answers; what it publishes, the stage installs.
+fn deliver(
+    result: CrossedWithPublications,
+    answered: &mut Answered,
+) -> Result<Option<Install>, CrossFileError> {
+    let Some(transfer) = settle(result.crossed, &mut answered.later, &mut answered.unknowns) else {
+        return Ok(None);
+    };
+    let publications = result
+        .publications
+        .into_iter()
+        .map(|each| AdmittedOutput {
+            output: each.output,
+            publication: each.publication,
+        })
+        .collect();
+    Ok(Some(Install {
+        transfer,
+        publications,
+    }))
+}
+
+/// The partials one occurrence of a phase is evaluated with: those its diagnostic sees, when findings are answered, and those its
+/// publication sees.
+pub(super) fn phase_partials(
+    program: &PreparedExecutionProgram,
+    domain: &CrossingInput<'_>,
+    todo: &Todo,
+) -> Result<PhasePartials, CrossFileError> {
+    let evaluation = match domain.answering {
+        Answering::Findings => partials_for(&MetadataUseCaseImpl, domain, todo.rule),
+        Answering::Rows(_) => Default::default(),
+    };
+    let reads = program
+        .observation_reads(todo.rule)
+        .map_err(|error| CrossFileError::from(failed(&todo.id, &error)))?;
+    let publication = partials_for_reads(&MetadataUseCaseImpl, domain, todo.rule, &reads);
+    Ok(PhasePartials {
+        evaluation,
+        publication,
+    })
+}
+
+/// Why one occurrence has no completed outcome, named for its rule as the phase's steps name it.
+pub(super) fn stopped(todo: &Todo, stop: PhaseStop<CrossFileError>) -> CrossFileError {
+    match stop {
+        PhaseStop::Caller(error) => error,
+        PhaseStop::Operating(error) => CrossFileError::from(failed(&todo.id, &error)),
+        PhaseStop::Frontiers(PreparationError::Facts(error)) => CrossFileError::from(error),
+        PhaseStop::Frontiers(PreparationError::Metadata(error)) => {
+            CrossFileError::from(failed(&todo.id, &error))
         }
-        order_alike(into, &starts);
-        into.order
-            .truncate(usize::try_from(answer.limit.0).unwrap_or(usize::MAX));
+        PhaseStop::MissingFirstBucket => {
+            CrossFileError::from(failed(&todo.id, &MISSING_FRONTIER_BUCKET))
+        }
+        PhaseStop::Unevaluated => CrossFileError::from(failed(&todo.id, &MISSING_OUTCOME)),
+        PhaseStop::Unbound(error) => CrossFileError::from(error),
     }
 }

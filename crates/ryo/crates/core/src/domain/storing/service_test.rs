@@ -1,30 +1,37 @@
-// ignore: idiomatic.arch/file-length - the one service_test.rs a service has holds a row for each decision of the service, and each row its own store; a second test file for one service is a role no spec places
+// the one service_test.rs a service has holds a row for each decision of the service, and each row its own store; a second test file for one service is a role no spec places
 //! The `storing` service's cases, on values alone.
 
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::reasons::types::ToolMessage;
+use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::descriptions::types::LanguageName;
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
-use ryo_values::domain::program::types::ColumnName;
-use ryo_values::domain::records::types::Cell;
 use ryo_values::domain::records::types::{
-    FileOutcome, FindingRows, Handing, PlacedColumn, PlacedLine, PlacedRule, Ran, Record,
-    RuleFrontier, Unreadable,
+    FileOutcome, Handing, Ran, Record, RuleFrontier, Unreadable,
 };
-use ryo_values::domain::runs::types::{ManifestRefused, RuleId};
+use ryo_values::domain::row_texts::types::Cell;
+use ryo_values::domain::row_texts::types::{FindingRows, PlacedColumn, PlacedLine, PlacedRule};
+use ryo_values::domain::runs::types::{ManifestRefused, RuleId, SkipReason, Skipped};
 use ryo_values::domain::stored_facts::types::{Digest, ReadFailure};
+use ryo_values::domain::stored_findings::types::{
+    FindingMade, FindingPlace, StoredFileNumber, StoredFinding, StoredPlace, StoredUnknown,
+    StoredUnread, StoredValue, UnknownText,
+};
 use ryo_values::domain::stores::types::{
-    BucketsWanted, Crossing, FileAgain, FindingMade, FindingPlace, Stored, StoredFile,
-    StoredFileNumber, StoredFinding, StoredFrontier, StoredHanded, StoredPlace, StoredRule,
-    StoredUnknown, StoredUnread, StoredValue, UnknownText,
+    BucketsWanted, Crossing, FileAgain, Stored, StoredFile, StoredFrontier, StoredHanded,
+    StoredRule,
 };
 
-use super::service::{
-    decide, later_from, made_again, records_from, stored_of, unknowns_from, with_fresh,
-};
-use super::types::{Decision, MadeAgain, ToKeep};
+use super::service::{made_again, records_from, stored_of};
+use crate::domain::reporting::service::{later_from, skipped_from, unknowns_from, with_gone};
+use crate::domain::workers::service::with_fresh;
+
+#[cfg(test)]
+mod scenarios_test;
+use super::types::{Decision, ToKeep};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::workers::types::FileOrder;
+use ryo_values::domain::stores::types::MadeAgain;
 
 /// What a row of the cases does; a number packs the answers of the calls it names, first call in the highest digits.
 #[derive(Clone, Copy)]
@@ -36,20 +43,17 @@ enum Scenario {
     DecideAgain,
     /// `decide` over one file changed, and over one whose system time is unknown, while a rule reads across files.
     DecideCheck,
-    /// `made_again` for a file as it was, one whose bytes changed but not its interface, one whose interface changed but not its
-    /// frontier, and one whose frontier of the first rule changed.
-    MadeAgainFrontier,
-    /// `made_again` for a file the store has no row of, a manifest, a file a rule reading across files found something in, one a
-    /// rule could not decide in, and one whose notes changed; the second rule reads the project.
-    MadeAgainHeld,
-    /// What the store kept, made into records and the findings across files and kept again: the same tables.
-    StoreRoundTrip,
     /// `records_from` and `later_from` with a rule the store kept that the run has not.
     UnknownRule,
     /// `with_fresh` of two kept records and two fresh, one of a path kept.
     WithFresh,
     /// `unknowns_from` with one of the two files it holds unknowns of read again.
     UnknownsFrom,
+    /// Explicit skip outcomes are retained only for files not read again.
+    SkippedFrom,
+    /// A file the store kept and the run no longer lists leaves no unknown and no skip of its own behind; a file still listed is
+    /// never gone.
+    GoneFile,
 }
 
 /// What a row of the cases does.
@@ -74,10 +78,21 @@ fn rules(across: bool) -> Vec<StoredRule> {
 /// The file at `path` as the system lists it.
 fn entry(path: &str, size: u64, modified: u64) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(size),
         modified: Nanoseconds(modified),
     }
+}
+
+/// Existing store fixtures have observed metadata; preserve their decision assertions through the input sum type.
+fn decide(stored: &Stored, rules: &[StoredRule], files: &[CorpusEntry]) -> Decision {
+    let inputs: Vec<_> = files
+        .iter()
+        .cloned()
+        .map(ryo_values::domain::files::types::CorpusInput::Available)
+        .collect();
+    super::service::decide(stored, rules, &inputs)
 }
 
 /// The two files of the store, as the system lists them while they are as they were.
@@ -113,6 +128,7 @@ fn finding(file: Option<u32>, subject: &str, line: u32) -> StoredFinding {
 /// what a rule could not decide in `a.rs` and a configuration above the root the project's lookup read.
 fn stored() -> Stored {
     let file = |path: &str, size: u64, modified: u64, tag: u8| StoredFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         digest: Digest([tag; 16]),
         interface: Digest([tag + 1; 16]),
@@ -137,6 +153,7 @@ fn stored() -> Stored {
             rule: RuleId("r".into()),
             path: FilePath("a.rs".into()),
             message: UnknownText("partial".into()),
+            cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
         }],
         frontiers: vec![StoredFrontier {
             file: StoredFileNumber(0),
@@ -152,6 +169,7 @@ fn stored() -> Stored {
 fn plain() -> Stored {
     Stored {
         unknowns: Vec::new(),
+        skipped: Vec::new(),
         ..stored()
     }
 }
@@ -165,6 +183,7 @@ fn ids() -> Vec<RuleId> {
 /// the digest `frontier`.
 fn record(path: &str, digest: u8, interface: u8, noted: u8, frontier: u8) -> Record {
     Record {
+        executable: Default::default(),
         path: FilePath(path.into()),
         size: FileSize(9),
         modified: Nanoseconds(9),
@@ -189,23 +208,6 @@ fn edited(path: &str, digest: u8, interface: u8) -> Record {
     record(path, digest, interface, 12, 5)
 }
 
-/// `record` with no frontier.
-fn unbordered(mut record: Record) -> Record {
-    if let FileOutcome::Read(ran) = &mut record.outcome {
-        ran.frontier.clear();
-    }
-    record
-}
-
-/// What the rules `made_again` names come to as one digit: 1 for none, 9 for every one, else 2 and a bit for each rule.
-fn again(made: &MadeAgain) -> usize {
-    match made {
-        MadeAgain::Nothing => 1,
-        MadeAgain::All => 9,
-        MadeAgain::These(rules) => 2 + rules.iter().map(|rule| 1_usize << rule.0).sum::<usize>(),
-    }
-}
-
 /// The ids of two rules, the second of which reads the project, and its place.
 fn two() -> (Vec<RuleId>, Vec<PlacedRule>) {
     (
@@ -217,32 +219,6 @@ fn two() -> (Vec<RuleId>, Vec<PlacedRule>) {
 /// 1 when `decision` is `expected`.
 fn is(decision: &Decision, expected: &Decision) -> usize {
     usize::from(decision == expected)
-}
-
-/// `MadeAgainFrontier`, as one number.
-fn frontier_changed() -> Value {
-    let (ids, project) = two();
-    let plain = plain();
-    let made = |record: Record| again(&made_again(&plain, &[record], &[], &project, &ids));
-    made(edited("a.rs", 10, 99)) * 1000
-        + made(edited("a.rs", 12, 11)) * 100
-        + made(edited("a.rs", 12, 12)) * 10
-        + made(record("a.rs", 12, 12, 12, 6))
-}
-
-/// `MadeAgainHeld`, as one number.
-fn held_changed() -> Value {
-    let (ids, project) = two();
-    let manifest = [FilePath("a.rs".into())];
-    let plain = plain();
-    let made = |stored: &Stored, record: Record, manifests: &[FilePath]| {
-        again(&made_again(stored, &[record], manifests, &project, &ids))
-    };
-    made(&plain, edited("c.rs", 1, 1), &[]) * 10000
-        + made(&plain, edited("a.rs", 12, 99), &manifest) * 1000
-        + made(&plain, unbordered(record("b.rs", 23, 99, 22, 5)), &[]) * 100
-        + made(&stored(), edited("a.rs", 12, 99), &[]) * 10
-        + made(&plain, record("a.rs", 12, 99, 13, 5), &[])
 }
 
 fn subject(scenario: Input) -> Value {
@@ -288,40 +264,6 @@ fn subject(scenario: Input) -> Value {
                     &Decision::Check(vec![FileOrder(1)]),
                 )
         }
-        Scenario::MadeAgainFrontier => frontier_changed(),
-        Scenario::MadeAgainHeld => held_changed(),
-        Scenario::StoreRoundTrip => {
-            let kept = stored();
-            let records = records_from(&kept, &ids()).unwrap_or_default();
-            let later = later_from(&kept, &ids(), &[]).unwrap_or_default();
-            let unknowns = unknowns_from(&kept, &[]);
-            let again = stored_of(
-                ToKeep {
-                    rules: kept.rules.clone(),
-                    records,
-                    later: &later,
-                    refused: &kept.refused,
-                    unknowns: &unknowns,
-                    consulted: &kept.consulted,
-                    consulted_absent: &kept.consulted_absent,
-                },
-                &kept,
-                &StoredHanded::default(),
-                &BucketsWanted::All,
-                Vec::new(),
-            );
-            // Every file is used again, at its number: its words stay where the store keeps them.
-            let numbers: Vec<FileAgain> = (0..kept.files.len())
-                .map(|place| {
-                    let number = StoredFileNumber(u32::try_from(place).unwrap_or(u32::MAX));
-                    FileAgain {
-                        was: number,
-                        now: number,
-                    }
-                })
-                .collect();
-            usize::from(again.stored == kept && again.kept.file_again == numbers)
-        }
         Scenario::UnknownRule => {
             let other = [RuleId("s".into())];
             usize::from(records_from(&stored(), &other).is_none()) * 10
@@ -344,6 +286,38 @@ fn subject(scenario: Input) -> Value {
             });
             let left = unknowns_from(&kept, &[FilePath("a.rs".into())]);
             left.len() * 10 + usize::from(left.first().is_some_and(|each| &*each.path.0 == "b.rs"))
+        }
+        Scenario::SkippedFrom => {
+            let mut kept = stored();
+            kept.skipped.push(Skipped {
+                rule: RuleId("syntax-only".into()),
+                path: FilePath("a.rs".into()),
+                reason: SkipReason::SyntaxRejected,
+            });
+            let reused = skipped_from(&kept, &[]);
+            let refreshed = skipped_from(&kept, &[FilePath("a.rs".into())]);
+            usize::from(reused == kept.skipped) * 10 + refreshed.len()
+        }
+        Scenario::GoneFile => {
+            let mut kept = stored();
+            kept.unknowns.push(StoredUnknown {
+                path: FilePath("b.rs".into()),
+                ..kept.unknowns[0].clone()
+            });
+            kept.skipped.push(Skipped {
+                rule: RuleId("syntax-only".into()),
+                path: FilePath("a.rs".into()),
+                reason: SkipReason::SyntaxRejected,
+            });
+            let (a, b) = (FilePath("a.rs".into()), FilePath("b.rs".into()));
+            let none_gone = with_gone(Vec::new(), &kept, &[&a, &b]).is_empty();
+            // a.rs is no longer listed: its unknown and its skip go, b.rs keeps its unknown.
+            let read_again = with_gone(Vec::new(), &kept, &[&b]);
+            let left = unknowns_from(&kept, &read_again);
+            usize::from(none_gone) * 1000
+                + left.len() * 100
+                + usize::from(left.first().is_some_and(|each| each.path == b)) * 10
+                + skipped_from(&kept, &read_again).len()
         }
     }
 }
@@ -374,28 +348,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(11),
     },
     Case {
-        name: CaseName(
-            "only_the_rules_whose_frontier_of_a_changed_interface_changed_are_made_again",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::MadeAgainFrontier,
-        expect: Expect::Value(1113),
-    },
-    Case {
-        name: CaseName(
-            "a_new_file_makes_every_rule_again_a_manifest_or_notes_the_project_rules_a_finding_or_unknown_its_rule",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::MadeAgainHeld,
-        expect: Expect::Value(94334),
-    },
-    Case {
-        name: CaseName("what_the_store_kept_used_again_and_kept_again_is_the_same_store"),
-        word: Word::Succeeds,
-        input: || Scenario::StoreRoundTrip,
-        expect: Expect::Value(1),
-    },
-    Case {
         name: CaseName("a_store_kept_for_a_rule_the_run_has_not_is_used_for_nothing"),
         word: Word::Succeeds,
         input: || Scenario::UnknownRule,
@@ -412,6 +364,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::UnknownsFrom,
         expect: Expect::Value(11),
+    },
+    Case {
+        name: CaseName("syntax_rejection_skips_are_replayed_until_their_file_is_read_again"),
+        word: Word::Succeeds,
+        input: || Scenario::SkippedFrom,
+        expect: Expect::Value(10),
+    },
+    Case {
+        name: CaseName("a_file_no_longer_listed_leaves_no_unknown_or_skip_behind"),
+        word: Word::Succeeds,
+        input: || Scenario::GoneFile,
+        expect: Expect::Value(1110),
     },
 ];
 

@@ -31,6 +31,7 @@ type Failure = ();
 
 fn file(path: &str) -> CorpusFile {
     CorpusFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         bytes: FileBytes(b"x".to_vec()),
     }

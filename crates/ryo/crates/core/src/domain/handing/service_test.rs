@@ -9,9 +9,8 @@ use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_facts::types::{
     ArenaBytes, Bucket, Digest, FileNotes, LanguageNumber, NoteBytes,
 };
-use ryo_values::domain::stores::types::{
-    BucketsWanted, Stored, StoredFile, StoredFileNumber, StoredHanded,
-};
+use ryo_values::domain::stored_findings::types::StoredFileNumber;
+use ryo_values::domain::stores::types::{BucketsWanted, Stored, StoredFile, StoredHanded};
 
 use super::service::{hand_into, handed_in, rows_of_file};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -26,6 +25,7 @@ type Failure = Infallible;
 /// A stored file at `path`, its digests blank.
 fn file(path: &str) -> StoredFile {
     StoredFile {
+        executable: Default::default(),
         path: FilePath(path.into()),
         digest: Digest([0; 16]),
         interface: Digest([0; 16]),
@@ -46,14 +46,17 @@ fn stored() -> Stored {
 /// What a file hands: words in the buckets 1 and 2, a text, notes and the rules that govern it.
 fn handed() -> Handed {
     Handed {
+        observations: ryo_values::domain::records::types::HandedReadiness::Unrecorded,
         buckets: vec![
             HandedWords {
                 bucket: Bucket(1),
-                words: PackedWords(vec![1]),
+                proof: crate::outbound::lint_store::fixtures::proof(),
+                handed: PackedWords(vec![1]).into(),
             },
             HandedWords {
                 bucket: Bucket(2),
-                words: PackedWords(vec![2]),
+                proof: crate::outbound::lint_store::fixtures::proof(),
+                handed: PackedWords(vec![2]).into(),
             },
         ],
         text: ArenaBytes(b"name".to_vec()),
@@ -73,6 +76,7 @@ fn gives_back_what_the_file_handed() -> Value {
         StoredFileNumber(1),
         handed(),
         &BucketsWanted::All,
+        &mut Vec::new(),
     );
     // Its words stay where the store keeps them.
     usize::from(
@@ -91,6 +95,7 @@ fn gives_nothing_for_a_file_the_store_has_no_row_of() -> Value {
         StoredFileNumber(1),
         handed(),
         &BucketsWanted::All,
+        &mut Vec::new(),
     );
     usize::from(handed_in(&stored(), &tables, &FilePath("c.rs".into())) == Handed::default())
 }
@@ -102,6 +107,7 @@ fn keeps_only_the_buckets_rebuilt() -> Value {
         StoredFileNumber(0),
         handed(),
         &BucketsWanted::These(vec![Bucket(2)]),
+        &mut Vec::new(),
     );
     tables.frontier.len()
 }
@@ -109,6 +115,65 @@ fn keeps_only_the_buckets_rebuilt() -> Value {
 fn finds_the_rows_of_one_file() -> Value {
     let rows = [0, 1, 1, 2].map(StoredFileNumber);
     rows_of_file(&rows, StoredFileNumber(1), |each| *each).len()
+}
+
+fn moves_staged_descriptors_and_keeps_fresh_order() -> Value {
+    use ryo_values::domain::records::types::{RecordWords, StagedWords, StagingSession};
+    let span = StagedWords {
+        session: StagingSession(7),
+        offset: ryo_values::domain::records::types::PayloadOffset(0),
+        length: ryo_values::domain::records::types::PayloadLength(1024 * 1024),
+    };
+    let handed = Handed {
+        buckets: vec![
+            HandedWords {
+                bucket: Bucket(0),
+                proof: crate::outbound::lint_store::fixtures::proof(),
+                handed: PackedWords(vec![1]).into(),
+            },
+            HandedWords {
+                bucket: Bucket(1),
+                proof: crate::outbound::lint_store::fixtures::proof(),
+                handed: RecordWords::Staged(span),
+            },
+            HandedWords {
+                bucket: Bucket(0),
+                proof: crate::outbound::lint_store::fixtures::proof(),
+                handed: RecordWords::Staged(span),
+            },
+            HandedWords {
+                bucket: Bucket(0),
+                proof: crate::outbound::lint_store::fixtures::proof(),
+                handed: PackedWords(vec![2]).into(),
+            },
+        ],
+        ..Handed::default()
+    };
+    let mut stored = StoredHanded::default();
+    let mut staged = Vec::new();
+    hand_into(
+        &mut stored,
+        StoredFileNumber(2),
+        handed,
+        &BucketsWanted::These(vec![Bucket(0)]),
+        &mut staged,
+    );
+    assert_eq!(
+        stored
+            .frontier
+            .iter()
+            .map(|row| row.words.0.clone())
+            .collect::<Vec<_>>(),
+        [vec![1], vec![2]]
+    );
+    assert_eq!(staged.len(), 1);
+    assert_eq!(
+        staged[0].ordinal,
+        ryo_values::domain::records::types::StagedOrdinal(1)
+    );
+    assert_eq!(staged[0].file, StoredFileNumber(2));
+    assert_eq!(staged[0].words, span);
+    1
 }
 
 /// The rows of this part's cases.
@@ -136,6 +201,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || finds_the_rows_of_one_file,
         expect: Expect::Value(2),
+    },
+    Case {
+        name: CaseName(
+            "staged_descriptors_move_without_reading_unwanted_payloads_and_keep_fresh_order",
+        ),
+        word: Word::Succeeds,
+        input: || moves_staged_descriptors_and_keeps_fresh_order,
+        expect: Expect::Value(1),
     },
 ];
 

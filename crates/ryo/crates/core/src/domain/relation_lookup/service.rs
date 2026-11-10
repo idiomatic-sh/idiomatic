@@ -1,8 +1,8 @@
 //! The `relation_lookup` service: free functions named by verb over the relations ryo owns, with no IO
 //! and no ports. Text becomes a `Relation` here once, and a `Relation` becomes text only to leave.
 
-use ryo_language::domain::relations::service::relation_named;
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::service::relation_named;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::errors::RelationLookupError;
 
@@ -17,7 +17,7 @@ pub(crate) fn resolve(
     known: &[Relation],
     text: &RelationName,
 ) -> Result<Relation, RelationLookupError> {
-    relation_named(ryo_language::domain::relations::types::NameRef(&text.0))
+    relation_named(ryo_relations::domain::labels::types::NameRef(&text.0))
         .filter(|relation| known.contains(relation))
         .ok_or_else(|| RelationLookupError::UnknownRelation {
             name: text.0.to_string(),

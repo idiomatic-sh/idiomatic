@@ -1,18 +1,17 @@
 //! The `visit` service: free functions named by verb that decide what a visit of a file must
 //! build, with no IO and no ports.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
+use super::constants::ROLE_COLUMN_NAME;
 use super::errors::VisitError;
 use super::types::{
     BorrowedBytes, EdgeInput, LineCount, Noting, RoleCompared, RoleNamed, RoleRead, Wants,
 };
-use crate::domain::lowering::constants::EDGE;
-use crate::domain::lowering::types::ElementPart;
 use ryo_values::domain::plan_parts::service::each_column;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::{Operation, Plan};
@@ -66,10 +65,15 @@ pub(crate) fn lines_in(bytes: BorrowedBytes<'_>) -> LineCount {
 
 /// The place of the `field` column among the columns of `syntax-child`.
 fn role_column() -> ColumnIndex {
+    let columns = ryo_relations::domain::relations::service::columns(Relation::SyntaxChild);
     ColumnIndex(
         u32::try_from(
-            EDGE.iter()
-                .position(|each| *each == ElementPart::Role)
+            columns
+                .iter()
+                .position(|column| {
+                    ryo_relations::domain::relations::service::column_name(*column).0
+                        == ROLE_COLUMN_NAME
+                })
                 .unwrap_or(usize::MAX),
         )
         .unwrap_or(u32::MAX),
@@ -78,7 +82,10 @@ fn role_column() -> ColumnIndex {
 
 /// Whether an input of a step is the edges of the tree.
 fn edges(input: Input) -> EdgeInput {
-    if input == Input::Relation(Relation::SyntaxChild) {
+    if matches!(
+        input,
+        Input::Relation(Relation::SyntaxChild | Relation::SemanticChild)
+    ) {
         EdgeInput::Edges
     } else {
         EdgeInput::Elsewhere
@@ -95,7 +102,7 @@ fn names_role(columns: &[ColumnIndex]) -> RoleNamed {
 }
 
 /// Whether a comparison reads the role.
-fn compares_role(comparisons: &[Comparison]) -> RoleCompared {
+fn compares_role(comparisons: &[PlanComparison]) -> RoleCompared {
     let role = role_column();
     let mut compared = false;
     for each in comparisons {
@@ -133,6 +140,8 @@ fn reads_role(operation: &Operation) -> RoleRead {
             output,
             filter,
             view,
+
+            reach: _,
         } => {
             (edges(*right) == EdgeInput::Edges
                 && (view.contains(&role_column())
@@ -172,17 +181,27 @@ fn reads_role(operation: &Operation) -> RoleRead {
                         || *domain_id == role_column()
                         || compares_role(domain_filter) == RoleCompared::Compared))
         }
-        Operation::Extend { from, .. }
+        Operation::SpanBetween { from, .. }
+        | Operation::SpanBounds { from, .. }
+        | Operation::SourceMatches { from, .. }
+        | Operation::RenderSyntax { from, .. }
+        | Operation::FitsRendered { from, .. }
+        | Operation::Replace { from, .. }
+        | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }
         | Operation::GroupDigest { from, .. }
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
         | Operation::Words { from, .. } => edges(*from) == EdgeInput::Edges,
-        Operation::Union { left, right }
+        Operation::OrderedMatch { left, right, .. }
+        | Operation::Union { left, right }
         | Operation::Intersection { left, right }
         | Operation::Difference { left, right } => {
             edges(*left) == EdgeInput::Edges || edges(*right) == EdgeInput::Edges
         }
+        Operation::OrderedDfs {
+            from, edges: graph, ..
+        } => edges(*from) == EdgeInput::Edges || edges(*graph) == EdgeInput::Edges,
         Operation::Closure { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
@@ -221,6 +240,7 @@ pub(crate) fn wants(plans: &[Plan], catalog: &[Relation]) -> Result<Wants, Visit
     let walked = walked(&wanted);
     let noted = if wanted.contains(&Relation::SourceDependency)
         || wanted.contains(&Relation::AnalyzedSource)
+        || wanted.contains(&Relation::ProjectNamespaceMembership)
     {
         Noting::Wanted
     } else {

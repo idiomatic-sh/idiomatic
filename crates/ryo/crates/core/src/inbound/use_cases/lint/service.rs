@@ -1,66 +1,398 @@
 //! The `lint` service: local free-function helpers, private to this use case.
 
-use super::constants::TASK_ANSWERED;
 use super::errors::LintError;
-use crate::domain::reading::service::buckets_of;
-use crate::domain::storing::types::{HandedAgain, MadeAgain, Reuse};
-use crate::outbound::lint_store::interface::ReadStore;
-use ryo_values::domain::files::types::CorpusEntry;
+use super::types::{
+    FeatureFed, LintReport, LintRun, ProjectDependency, ProjectDependencyState, RuleWork,
+    SourceProvider, StepFed, Wanting,
+};
+use crate::application::cross_file::service::CrossFile;
+use crate::application::cross_file::types::{
+    OrdinaryOutcome, PhaseOutcome, PhasePorts, PhaseRun, Settling,
+};
+use crate::application::file_analysis::gating::service::refusals;
+use crate::application::file_analysis::streaming::service::FileVisits;
+use crate::application::file_analysis::types::{
+    FileVisit, ProjectMaking, RequestVisitSetting, StreamRun,
+};
+use crate::application::metadata::service::kernel_metadata;
+use crate::application::persisting::service::kept;
+use crate::application::persisting::types::KeepRun;
+use crate::application::storing::errors::StoringError;
+use crate::application::storing::service::Storing;
+use crate::application::storing::types::RepositoryListing;
+use crate::domain::answering::service::settle;
+use crate::domain::answering::types::Answered;
+use crate::domain::keeping::service::rows_of;
+use crate::domain::listing::service::every_file;
+use crate::domain::memory_diagnostics::constants::{AFTER_FILES, BEFORE_CROSS_CLEANUP};
+use crate::domain::memory_diagnostics::service::{
+    observed_arenas, observed_cross_symbols, observed_notes, observed_records,
+};
+use crate::domain::project::service::{project_rules, reads_any};
+use crate::domain::project::types::{PlanReads, Projected};
+use crate::domain::render::types::Rendered;
+use crate::domain::reporting::service::unknowns_from;
+use crate::domain::reporting::service::{read_outcomes, sort_unique};
+use crate::domain::reporting::types::RowCounts;
+use crate::domain::run_rules::service::{owner_of, scopes_of};
+use crate::domain::storing::types::{Decision, ReadAlone, Reused, ToKeep};
+use crate::domain::visit::service::wants;
+use crate::domain::workers::service::by_step;
+use crate::domain::workers::service::order;
+use crate::domain::workers::types::{CrossReading, ProjectHandle, Visited, WorkersMet};
+use crate::inbound::use_cases::lint::constants::NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY;
+use crate::outbound::corpus::interface::CorpusPort;
+use crate::outbound::language::interface::LanguagePort;
+use crate::outbound::lint_store::types::StoreKeeping;
+use crate::outbound::row_sink::interface::RowSinkPort;
+use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, PlacedScopes};
+use ryo_execution::outbound::matching::interface::MatchingPort;
+use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
+use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
+use ryo_execution_runtime::outbound::observer::types::FedTotals;
+use ryo_language::inbound::use_cases::project::types::ManifestFile;
+use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
+use ryo_values::domain::files::types::Glob;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::Record;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stores::types::{BucketsWanted, StoredHanded};
-use std::sync::Arc;
+use ryo_values::domain::records::types::Freshness;
+use ryo_values::domain::rule_requests::types::RuleSpec;
+use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::stores::types::{MadeAgain, Reuse, StoredRule};
 
-/// What a task's slot holds once the workers are done: its answer.
-///
-/// # Panics
-///
-/// When no worker answered the task: the workers take tasks until none is left, so a slot left empty is a bug that must crash,
-/// never a task quietly dropped from the answer.
-#[expect(
-    clippy::expect_used,
-    reason = "the workers take tasks until none is left; a slot left empty is a bug that must crash, never a task dropped from the answer"
-)]
-pub(super) fn answered<T>(slot: Option<T>) -> T {
-    slot.expect(TASK_ANSWERED)
+/// The provider a request names, when it names one.
+pub(super) fn named_provider(
+    provider: &SourceProvider,
+) -> Option<&ryo_values::domain::descriptions::types::LanguageName> {
+    match provider {
+        SourceProvider::Recognized => None,
+        SourceProvider::Named(name) => Some(name),
+    }
 }
 
-/// The record kept of each of `files`, in their order; none for a file with no record.
-pub(super) fn records_of<'a>(files: &[CorpusEntry], kept: &'a [Record]) -> Vec<Option<&'a Record>> {
-    files
-        .iter()
-        .map(|file| {
-            match kept.binary_search_by(|record| record.path.cmp(&file.path)) {
-                Ok(at) => kept.get(at),
-                // The search answers where the path would go: the file has no record.
-                Err(_) => None,
-            }
-        })
-        .collect()
+/// The failure of the store's listing as the lint answers it: each port's own.
+pub(super) fn from_storing(error: StoringError) -> LintError {
+    match error {
+        StoringError::Corpus(error) => error.into(),
+        StoringError::Store(error) => error.into(),
+        StoringError::Memory(error) => error.into(),
+        StoringError::Budget(error) => error.into(),
+        StoringError::Scheduler(error) => error.into(),
+    }
 }
 
-/// The buckets a run that makes cross-file steps again reads of what the files handed them, those of the rules made again
-/// alone, and what the store kept of them.
-pub(super) fn handed_of(
-    read: Option<&Arc<dyn ReadStore>>,
+/// Which rule governs which file, and which relations the rules read: those the languages are asked for.
+pub(super) fn wanting(
+    matching: &dyn MatchingPort,
+    language: &dyn LanguagePort,
+    rules: &[RuleSpec],
     plans: &[Plan],
-    first_bucket: &[Bucket],
-    again: &Reuse,
-) -> Result<HandedAgain, LintError> {
-    let wanted = match again {
-        Reuse::Cross(MadeAgain::These(made)) => {
-            BucketsWanted::These(buckets_of(plans, first_bucket, Some(made)))
+    ids: &[RuleId],
+) -> Result<Wanting, LintError> {
+    let placement = kernel_metadata().decide(&scopes_of(rules));
+    let matcher = matching
+        .compile(&placement.globs)
+        .map_err(|error| match error {
+            MatchingError::BadGlob { glob, reason } => LintError::Rule {
+                id: owner_of(&placement, &Glob(glob.into()), ids)
+                    .map(|id| id.0.to_string())
+                    .unwrap_or_default(),
+                reason,
+            },
+            MatchingError::InvalidRegex { reason } => LintError::Rule {
+                id: String::new(),
+                reason,
+            },
+        })?;
+    let wants = wants(plans, &language.relations()?.0)?;
+    let placed = PlacedScopes { placement, matcher };
+    Ok(Wanting { placed, wants })
+}
+
+/// What the run uses again of what the last kept: the changed files are read alone once the files the project's lookup consulted
+/// are checked against what the store kept of them.
+pub(super) fn reused(
+    corpus: &dyn CorpusPort,
+    digest: &dyn DigestPort,
+    visits: &FileVisits,
+    setting: &RequestVisitSetting<'_>,
+    listing: &RepositoryListing,
+    manifests: &[ManifestFile],
+    stored_rules: &[StoredRule],
+) -> Result<Reused, LintError> {
+    let decided = Storing::decision(setting.answering, listing, stored_rules);
+    let consulted = match &decided.decision {
+        Decision::Again | Decision::Check(_) if !project_rules(setting.metadata).is_empty() => {
+            let stored = &listing.stored;
+            crate::application::project_context::service::as_it_was(
+                corpus,
+                digest,
+                &stored.consulted,
+                &stored.consulted_absent,
+                &stored.project_observations,
+            )
         }
-        Reuse::Cross(MadeAgain::All | MadeAgain::Nothing) | Reuse::Whole => BucketsWanted::All,
-        Reuse::Again => BucketsWanted::These(Vec::new()),
+        Decision::Again | Decision::Check(_) | Decision::Whole | Decision::Cross => {
+            Freshness::AsItWas
+        }
     };
-    let handed = match again {
-        Reuse::Cross(_) => read
-            .map(|read| read.handed(&wanted))
-            .transpose()?
-            .unwrap_or_default(),
-        Reuse::Whole | Reuse::Again => StoredHanded::default(),
+    let alone = match &decided.decision {
+        Decision::Check(changed) => {
+            visits.read_alone(setting, &listing.files, changed, listing.read.as_deref())?
+        }
+        Decision::Again | Decision::Whole | Decision::Cross => ReadAlone::default(),
     };
-    Ok(HandedAgain { wanted, handed })
+    Ok(Storing::reused(
+        decided,
+        consulted,
+        alone,
+        listing,
+        manifests,
+        setting.metadata,
+        setting.ids,
+    ))
+}
+
+/// Answers the run once the files are read: the project and the rules that cross files, then the report, and what the store keeps.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the answer is made by the visits, the cross-file phase and the ports of the use case it is a stage of, over what the run hands it"
+)]
+pub(super) fn answer(
+    visits: &FileVisits,
+    cross_file: &CrossFile,
+    ports: PhasePorts<'_>,
+    rows: &dyn RowSinkPort,
+    keeps: StoreKeeping,
+    observed: Option<&dyn ObserverPort>,
+    run: &LintRun<'_>,
+    visit: &FileVisit<'_>,
+    project: &mut ProjectHandle<Box<dyn FactsWorker>>,
+) -> Result<LintReport, LintError> {
+    let stream = StreamRun {
+        files: &run.listing.files,
+        answering: run.answering,
+        only: &run.request.files,
+    };
+    let Visited {
+        workers,
+        mut met,
+        counted,
+        total,
+    } = visits.visited(&stream, visit)??;
+    let fresh = order(&mut met);
+    observed_records(AFTER_FILES, &fresh.records);
+    observed_arenas(AFTER_FILES, &met.arenas);
+    observed_notes(AFTER_FILES, &met.notes);
+    let WorkersMet {
+        observations,
+        mut arenas,
+        mut unread,
+        unrecorded,
+        covered,
+        mut unknowns,
+        mut skipped,
+        mut notes,
+        ..
+    } = met;
+    let mut answered = Answered {
+        unknowns: Vec::new(),
+        later: Rendered::default(),
+    };
+    if matches!(run.again, Reuse::Cross(_)) {
+        // What the rules could not decide in the files used again is what the store kept of that.
+        unknowns.extend(unknowns_from(&run.listing.stored, run.read_again));
+        unknowns.extend(run.alone.iter().cloned());
+    }
+    if matches!(run.again, Reuse::Cross(_) | Reuse::Again) {
+        skipped.extend(run.skipped.iter().cloned());
+    }
+    // The rules refused on files, fresh or as the store kept them: their cross-file steps lack those files' input.
+    let refused = refusals(&unknowns);
+    let handed = CrossReading {
+        observations: &observations,
+        arenas: &mut arenas,
+        covered: &covered,
+        skipped: &skipped,
+        refused: &refused,
+        unread: &unread,
+        workers,
+    };
+    // The project is made now when every file was read and a rule reads it, and made again when a rule made again reads it.
+    let made = match &run.again {
+        Reuse::Cross(MadeAgain::These(rules)) => project_rules(run.metadata)
+            .iter()
+            .any(|rule| rules.binary_search_by_key(&rule.0, |each| each.0).is_ok()),
+        Reuse::Again => false,
+        Reuse::Whole | Reuse::Cross(MadeAgain::All | MadeAgain::Nothing) => {
+            reads_any(run.metadata) == PlanReads::Reads
+        }
+    };
+    let made = if made {
+        let making = ProjectMaking {
+            files: &run.listing.files,
+            session: &run.request.session,
+            manifests: run.manifests,
+            wanted: &run.wants.wanted,
+            needs: run.needs,
+            ids: run.ids,
+        };
+        Some(visits.project(&making, project, &mut notes)??)
+    } else {
+        None
+    };
+    let phase = PhaseRun {
+        again: &run.again,
+        stored: &run.listing.stored,
+        ids: run.ids,
+        read_again: run.read_again,
+        alone: run.alone,
+        metadata: run.metadata,
+        needs: run.needs,
+        placed: run.placed,
+        paths: run.paths,
+        files: &run.listing.files,
+        answering: run.answering,
+        program: &run.program,
+        services: run.services,
+        first_bucket: run.first_bucket,
+        budget: run.listing.budget,
+    };
+    let PhaseOutcome {
+        project: now,
+        settling,
+    } = cross_file.phase(&phase, made, handed, project, &mut answered, ports)?;
+    if let Settling::Ordinary(ordinary) = settling {
+        settled(ordinary, &mut answered)?;
+    }
+    let Answered {
+        unknowns: mut observation_unknowns,
+        mut later,
+    } = answered;
+    // The files whose bytes could not be read, before the refused manifests join them: the next run reads them again.
+    let failed = read_outcomes(&mut unread, unrecorded, &now.refused);
+    unknowns.append(&mut observation_unknowns);
+    sort_unique(&mut unknowns);
+    sort_unique(&mut skipped);
+    let files = RowCounts {
+        total,
+        shown: counted,
+    };
+    let summary = visits.write_later(&stream, &mut later, files);
+    rows.end(summary, &unread)?;
+    // What the run found is kept only once its answer is whole: a run that fails leaves the store as it was.
+    let keep = KeepRun {
+        answering: run.answering,
+        again: &run.again,
+        read_again: run.read_again,
+        stored: &run.listing.stored,
+        metadata: run.metadata,
+        first_bucket: run.first_bucket,
+        wanted: run.wanted,
+        handed: run.handed,
+    };
+    let keeping = ToKeep {
+        rules: run.stored_rules.to_vec(),
+        records: every_file(&run.listing.files, fresh, &failed),
+        later: &rows_of(&later),
+        refused: &now.refused,
+        unknowns: &unknowns,
+        skipped: &skipped,
+        consulted: &now.consulted,
+        consulted_absent: &now.consulted_absent,
+        project_observations: &now.observed_entries,
+    };
+    let fed = observed
+        .map(ObserverPort::totals)
+        .transpose()
+        .map_err(|error| LintError::Execution {
+            reason: error.to_string(),
+        })?;
+    kept(keeps, run.listing.read.as_ref(), &keep, keeping)?;
+    Ok(LintReport {
+        dependencies: project_dependencies(&now),
+        unread,
+        unknowns,
+        skipped,
+        features: features_of(fed.as_ref(), run),
+        work: work_of(fed.as_ref(), run),
+    })
+}
+
+/// Settles the outcomes of the ordinary project phase into the answers, keeping an earlier rule or budget failure over a refusal of
+/// the stage's release.
+pub(super) fn settled(ordinary: OrdinaryOutcome, answered: &mut Answered) -> Result<(), LintError> {
+    let OrdinaryOutcome {
+        outcomes,
+        refused,
+        finished,
+        mut symbols,
+    } = ordinary;
+    observed_cross_symbols(BEFORE_CROSS_CLEANUP, &mut symbols);
+    for outcome in outcomes {
+        if settle(
+            outcome.result.map_err(LintError::from)?.crossed,
+            &mut answered.later,
+            &mut answered.unknowns,
+        )
+        .is_some()
+        {
+            return Err(LintError::ObservationBindings {
+                reason: NAMED_PUBLICATION_WAS_NOT_ADMITTED_BY.into(),
+            });
+        }
+    }
+    if let Some(error) = refused {
+        return Err(error.into());
+    }
+    finished.map_err(LintError::from)
+}
+
+/// What the report says each feature of the rules was fed, when the run counts the rows.
+fn features_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<FeatureFed> {
+    match fed {
+        Some(fed) => kernel_metadata()
+            .fed_over(run.metadata, &by_step(&fed.0, run.metadata))
+            .into_iter()
+            .map(FeatureFed::from)
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
+/// What the report says each step of each rule was fed, when the run counts the rows.
+fn work_of(fed: Option<&FedTotals>, run: &LintRun<'_>) -> Vec<RuleWork> {
+    match fed {
+        Some(fed) => kernel_metadata()
+            .work_over(run.metadata, &by_step(&fed.0, run.metadata))
+            .into_iter()
+            .zip(run.rules)
+            .map(|(steps, rule)| RuleWork {
+                rule: RuleId(rule.id.0.clone()),
+                steps: steps
+                    .into_iter()
+                    .map(|each| StepFed {
+                        operation: each.operation,
+                        rows: each.rows,
+                    })
+                    .collect(),
+            })
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
+/// Preserve present and absent project dependencies in the completed report.
+fn project_dependencies(now: &Projected) -> Vec<ProjectDependency> {
+    now.consulted
+        .iter()
+        .map(|dependency| ProjectDependency {
+            path: dependency.path.clone(),
+            state: ProjectDependencyState::Present(dependency.digest),
+        })
+        .chain(now.consulted_absent.iter().map(|path| ProjectDependency {
+            path: path.clone(),
+            state: ProjectDependencyState::Missing,
+        }))
+        .collect()
 }

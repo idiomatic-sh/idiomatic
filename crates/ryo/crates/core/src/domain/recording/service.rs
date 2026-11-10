@@ -1,85 +1,91 @@
 //! The `recording` service: free functions named by verb over what a visit of a file comes to for the store, with no IO and no ports.
 
-use super::types::{BucketWords, Flat, InterfaceBytes};
-use crate::domain::coverage::service::unknown_message;
-use crate::domain::coverage::types::Covered;
-use crate::domain::coverage::types::{
-    CoverageScope, Lacking, LackingKind, Partial, RuleIndex, Unknown,
-};
-use crate::domain::finish::types::RuleNumber;
-use crate::domain::keeping::service::{remap_packed, rendered_of, rows_of};
+use super::constants::PHYSICAL_FACTS_INCOMPLETE;
+use super::types::{BucketWords, Flat, InterfaceBytes, WordCount};
+use crate::domain::handing::service::stored_of;
+use crate::domain::keeping::service::{remap_packed, rows_of};
 use crate::domain::keeping::types::{ArenaStart, Remap};
-use crate::domain::placement::service::governs;
-use crate::domain::placement::types::Governing;
 use crate::domain::render::types::Answering;
-use crate::domain::rules::service::id_at;
-use crate::domain::table_words::service::pack;
-use crate::domain::table_words::types::WordSlice;
-use crate::domain::trust::service::{blocked, matters};
-use crate::domain::trust::types::{Bearing, Blocking};
 use crate::domain::visit::types::{Keeping, Noting};
-use crate::domain::workers::types::{FileOrder, FreshRecord, PlacedNotes, Tables, VisitSetting};
+use crate::domain::workers::types::{
+    FileOrder, FreshRecord, Gating, PlacedNotes, Tables, VisitSetting,
+};
+use ryo_execution::inbound::use_cases::metadata::interface::Covered;
+use ryo_execution::inbound::use_cases::metadata::interface::Governing;
+use ryo_execution::inbound::use_cases::metadata::interface::{Bearing, Blocking};
+use ryo_execution::inbound::use_cases::metadata::interface::{
+    CoverageScope, Partial, RuleIndex, Unknown,
+};
 use ryo_language::domain::elements::service::{notes_of, take_notes};
+use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
-use ryo_language::domain::relations::service::{name, relation_named};
-use ryo_language::domain::relations::types::NameRef;
-use ryo_language::domain::relations::types::{FileId, Words, WorkerNumber};
-use ryo_values::domain::descriptions::types::RelationName;
+use ryo_relations::domain::relations::types::{FileId, Words, WorkerNumber};
 use ryo_values::domain::files::types::{CorpusEntry, FileNumber};
 use ryo_values::domain::records::types::HandedNotes;
-use ryo_values::domain::records::types::Unread;
 use ryo_values::domain::records::types::{
     FileOutcome, GoverningRules, Handed, HandedWords, Handing, Ran, Record,
 };
+use ryo_values::domain::runs::types::RuleApplicability;
+use ryo_values::domain::runs::types::RuleNumber;
 use ryo_values::domain::stored_facts::types::{
-    ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes, PartialAt, PartialCause, PartialKind,
-    PartialScope, StoredPartial,
+    ArenaBase, ArenaBytes, Digest, FileNotes, NoteBytes,
 };
+use ryo_values::domain::table_words::service::{pack, unpacked};
+use ryo_values::domain::table_words::types::WordSlice;
 
-/// The relations a record says were read in part, as the coverage steps take them.
-#[must_use]
-pub(crate) fn partials_of(stored: &[StoredPartial]) -> Vec<Partial> {
-    stored
-        .iter()
-        .filter_map(|each| {
-            relation_named(NameRef(&each.relation_name.0)).map(|relation| Partial {
-                relation,
-                cause: PartialCause(each.cause.0.clone()),
-                at: match each.at {
-                    PartialScope::OneFile(file) => Some(FileId(file.0)),
-                    PartialScope::Repository => None,
-                },
-                lacking: if each.lacking_kind.0.is_empty() {
-                    Lacking::Any
-                } else {
-                    Lacking::Kind(LackingKind(each.lacking_kind.0.clone()))
-                },
-            })
+/// Whether [`cover`] names a rule that reads as `needs` at a file read in part as `partials`: a relation of the file the rule reads
+/// is read in part there, so the rule's unknown at the file is already given with the relation and why.
+pub(crate) fn names_at_file(
+    metadata: &impl RunDecisions,
+    partials: &[Partial],
+    needs: Option<&ryo_execution::inbound::use_cases::metadata::interface::Needs>,
+) -> Bearing {
+    let named = needs.is_some_and(|needs| {
+        partials.iter().any(|partial| {
+            needs
+                .reads
+                .iter()
+                .any(|read| metadata.matters(read, partial) == Bearing::Matters)
         })
-        .collect()
+    });
+    if named {
+        Bearing::Matters
+    } else {
+        Bearing::DoesNotMatter
+    }
 }
 
-/// The relations read in part, as a record keeps them.
-#[must_use]
-pub(crate) fn stored_of(partials: &[Partial]) -> Vec<StoredPartial> {
-    partials
-        .iter()
-        .map(|each| StoredPartial {
-            relation_name: RelationName(name(each.relation).0.into()),
-            cause: PartialCause(each.cause.0.clone()),
-            at: each.at.map_or(PartialScope::Repository, |at| {
-                PartialScope::OneFile(PartialAt(at.0))
-            }),
-            lacking_kind: PartialKind(match &each.lacking {
-                Lacking::Any => Box::default(),
-                Lacking::Kind(kind) => kind.0.clone(),
-            }),
-        })
-        .collect()
+/// What a rule could not decide because the engine answered its root in the file `at` only in part, the partitions still uncertain
+/// being `affected`. When they are this file alone and [`cover`] names the rule at the file, a second unknown without the reason
+/// would report the same uncertainty twice; any other partition (another file, the repository) is uncertainty `cover` does not see
+/// from this file, and the rule says so here.
+pub(crate) fn partial_root(
+    metadata: &impl RunDecisions,
+    unknowns: &mut Vec<Unknown>,
+    partials: &[Partial],
+    setting: &VisitSetting<'_>,
+    rule: RuleIndex,
+    at: FileId,
+    path: &FilePath,
+    affected: &[Option<FileId>],
+) {
+    let own = !affected.is_empty() && affected.iter().all(|file| *file == Some(at));
+    if own && names_at_file(metadata, partials, setting.needs.get(rule.0)) == Bearing::Matters {
+        return;
+    }
+    unknowns.push(Unknown {
+        rule: metadata.rule_id(setting.ids, rule),
+        path: path.clone(),
+        message: ryo_execution::inbound::use_cases::metadata::interface::Message(
+            PHYSICAL_FACTS_INCOMPLETE.into(),
+        ),
+        cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
+    });
 }
 
 /// What the file handed to the cross-file steps with the numbers that differ from run to run taken out, to say whether they are
-/// as they were. Words that point at another file or at another worker's text cannot be used by another run: none then.
+/// as they were, normalized and packed one bucket at a time. Words that point at another file or at another worker's text
+/// cannot be used by another run: none then, before the application makes any digest call.
 #[must_use]
 pub(crate) fn moved_words(
     tables: &Tables,
@@ -95,12 +101,17 @@ pub(crate) fn moved_words(
         to_base: ArenaStart(0),
     };
     let mut moved = Vec::with_capacity(tables.captured.len());
+    // Only the largest single normalized u64 bucket is live; all retained buckets are packed.
+    // Every remap still completes before the application calls the digest port.
+    let mut words = Words::default();
     for each in &tables.captured {
-        let mut words = Words::default();
+        words.0.clear();
         remap_packed(&each.words.0, &plain, &mut words)?;
         moved.push(BucketWords {
             bucket: each.bucket,
-            words,
+            proof: each.proof.clone(),
+            word_count: WordCount(words.0.len()),
+            words: pack(WordSlice(&words.0)),
         });
     }
     Some(moved)
@@ -110,6 +121,8 @@ pub(crate) fn moved_words(
 /// changes only what one rule reads leaves the others' steps as they were.
 pub(crate) fn frontier_flat(
     moved: &[BucketWords],
+    observations: Option<ryo_values::domain::observations::validated::ValidatedFrontiers<'_>>,
+    slots: &[ryo_execution::inbound::use_cases::execution::interface::ObservedFrontierRoot],
     setting: &VisitSetting<'_>,
     rule: RuleIndex,
     flat: &mut Flat,
@@ -119,9 +132,9 @@ pub(crate) fn frontier_flat(
         .get(rule.0)
         .map_or(u32::MAX, |bucket| bucket.0);
     let places = setting
-        .plans
+        .metadata
         .get(rule.0)
-        .map_or(0, |plan| plan.frontier.len());
+        .map_or(0, |rule| rule.frontier_capture.len());
     flat.0.clear();
     for each in moved.iter().filter(|each| {
         each.bucket.0 >= first
@@ -129,9 +142,37 @@ pub(crate) fn frontier_flat(
     }) {
         flat.0.extend([
             u64::from(each.bucket.0),
-            u64::try_from(each.words.0.len()).unwrap_or(u64::MAX),
+            u64::try_from(each.word_count.0).unwrap_or(u64::MAX),
         ]);
-        flat.0.extend_from_slice(&each.words.0);
+        flat.0.extend(unpacked(&each.words).map(|word| word.0));
+    }
+    if let Some(observations) = observations {
+        let start = slots.partition_point(|slot| slot.producer.0 < rule.0);
+        let end = slots.partition_point(|slot| slot.producer.0 <= rule.0);
+        if start != end {
+            use ryo_values::domain::observations::types::ObservationReadinessRange;
+            use ryo_values::domain::records::types::ObservationReadinessCount;
+            use ryo_values::domain::records::types::ObservationReadinessSlot;
+            let identity = ryo_values::domain::observations::service::frontier_identity(
+                observations,
+                ObservationReadinessRange {
+                    start: ObservationReadinessSlot(u32::try_from(start).unwrap_or(u32::MAX)),
+                    length: ObservationReadinessCount(
+                        u32::try_from(end - start).unwrap_or(u32::MAX),
+                    ),
+                },
+            );
+            // A range the prepared layout does not hold has no identity: it is written as an identity of no bytes, which no
+            // valid range has, so it never passes for one.
+            let bytes = identity.map_or_else(|_| Vec::new(), |identity| identity.0);
+            flat.0
+                .extend([u64::MAX, u64::try_from(bytes.len()).unwrap_or(u64::MAX)]);
+            for chunk in bytes.chunks(8) {
+                let mut word = [0; 8];
+                word[..chunk.len()].copy_from_slice(chunk);
+                flat.0.push(u64::from_le_bytes(word));
+            }
+        }
     }
 }
 
@@ -152,11 +193,16 @@ pub(crate) fn made_ran(
         frontier: Vec::new(),
         noted: Digest([0; 16]),
         handed: Handing::Made(Handed {
+            observations: match tables.current_observations.clone() {
+                Some(root) => ryo_values::domain::records::types::HandedReadiness::Recorded(root),
+                None => ryo_values::domain::records::types::HandedReadiness::Unrecorded,
+            },
             buckets: moved
                 .into_iter()
                 .map(|each| HandedWords {
                     bucket: each.bucket,
-                    words: pack(WordSlice(&each.words.0)),
+                    proof: each.proof,
+                    handed: each.words.into(),
                 })
                 .collect(),
             text: ArenaBytes(
@@ -189,21 +235,21 @@ fn hand_the_rest(ran: &mut Ran, notes: Option<&FileNotes>, covered: Option<&Cove
                 .map(|rule| u32::try_from(rule.0).unwrap_or(u32::MAX))
                 .collect(),
         );
-        handed.partials = stored_of(&covered.partial);
+        handed.partials = stored_of(&covered.partial, covered.file);
     }
 }
 
 /// What a file hands the project, as the bytes its interface is the digest of: the language that noted it and what it noted, then
 /// the relations it is read in part.
 #[must_use]
-pub(crate) fn interface_bytes(tables: &Tables) -> InterfaceBytes {
+pub(crate) fn interface_bytes(tables: &Tables, number: FileId) -> InterfaceBytes {
     let mut bytes = Vec::new();
     let notes = &notes_of(&tables.elements).0;
     if let (Some(language), false) = (tables.language, notes.is_empty()) {
         bytes.extend_from_slice(&language.0.to_le_bytes());
         bytes.extend_from_slice(notes);
     }
-    for each in stored_of(&tables.partials) {
+    for each in stored_of(&tables.partials, number) {
         bytes.extend_from_slice(format!("{each:?}").as_bytes());
     }
     InterfaceBytes(bytes)
@@ -211,13 +257,34 @@ pub(crate) fn interface_bytes(tables: &Tables) -> InterfaceBytes {
 
 /// Notes what a file read in part costs the rules: what each could not decide in the file, and the file's coverage for the
 /// cross-file steps that trust the absence of rows of what is partial.
-pub(crate) fn cover(tables: &mut Tables, setting: &VisitSetting<'_>, at: FileId, path: &FilePath) {
+pub(crate) fn cover(
+    metadata: &impl RunDecisions,
+    tables: &mut Tables,
+    setting: &VisitSetting<'_>,
+    at: FileId,
+    path: &FilePath,
+    acceptance: SyntaxAcceptance,
+) {
     if tables.partials.is_empty() {
         return;
     }
     let mut rules = Vec::new();
     for (rule, needs) in setting.needs.iter().enumerate() {
-        if governs(
+        let applicable = if setting.metadata.is_empty()
+            || setting.applicability_can_gate == Gating::NeverGates
+        {
+            true
+        } else {
+            match setting.applicability.get(rule).copied() {
+                Some(RuleApplicability::Always) => true,
+                Some(RuleApplicability::AcceptedSyntax) => acceptance == SyntaxAcceptance::Accepted,
+                None => false,
+            }
+        };
+        if !applicable {
+            continue;
+        }
+        if metadata.governs(
             &tables.mask,
             RuleNumber(u32::try_from(rule).unwrap_or(u32::MAX)),
         ) == Governing::DoesNotGovern
@@ -228,16 +295,17 @@ pub(crate) fn cover(tables: &mut Tables, setting: &VisitSetting<'_>, at: FileId,
             if needs
                 .reads
                 .iter()
-                .any(|read| matters(read, partial) == Bearing::Matters)
+                .any(|read| metadata.matters(read, partial) == Bearing::Matters)
             {
                 tables.unknowns.push(Unknown {
-                    rule: id_at(setting.ids, RuleIndex(rule)),
+                    rule: metadata.rule_id(setting.ids, RuleIndex(rule)),
                     path: path.clone(),
-                    message: unknown_message(partial, CoverageScope::File(path)),
+                    message: metadata.unknown_message(partial, CoverageScope::File(path)),
+                    cause: ryo_values::domain::runs::types::UnknownCause::Undecided,
                 });
             }
         }
-        if blocked(&needs.cross, &tables.partials) == Blocking::Blocked {
+        if metadata.blocked(&needs.cross, &tables.partials) == Blocking::Blocked {
             rules.push(RuleIndex(rule));
         }
     }
@@ -250,51 +318,6 @@ pub(crate) fn cover(tables: &mut Tables, setting: &VisitSetting<'_>, at: FileId,
     }
 }
 
-/// Puts the findings the store kept of a file where the report takes them from.
-fn restore(tables: &mut Tables, ran: &Ran) -> Ran {
-    tables.rendered = rendered_of(&ran.rows);
-    ran.clone()
-}
-
-/// Uses what the store kept of a file again, instead of reading it: its findings leave as they were, renumbered for this run in the
-/// record the run keeps. What the rules could not decide in it is what the store kept of that.
-pub(crate) fn replay(
-    tables: &mut Tables,
-    number: FileId,
-    at: FileOrder,
-    record: &Record,
-    file: &CorpusEntry,
-    digest: Digest,
-) {
-    let renewed = |outcome: FileOutcome| Record {
-        path: record.path.clone(),
-        size: file.size,
-        modified: file.modified,
-        digest,
-        number: FileNumber(number.0),
-        outcome,
-    };
-    tables.partials.clear();
-    let outcome = match &record.outcome {
-        FileOutcome::Unread { reason, ran } => {
-            let renewed_ran = ran.as_ref().map(|ran| restore(tables, ran));
-            tables.unread.push(Unread {
-                path: file.path.clone(),
-                reason: reason.clone(),
-            });
-            FileOutcome::Unread {
-                reason: reason.clone(),
-                ran: renewed_ran,
-            }
-        }
-        FileOutcome::Read(ran) => FileOutcome::Read(restore(tables, ran)),
-    };
-    tables.fresh.push(FreshRecord {
-        place: at,
-        record: renewed(outcome),
-    });
-}
-
 /// Ends the visit of a file: the file's notes wait for the project, and its record for the store, when the run keeps one.
 pub(crate) fn finish_file(
     tables: &mut Tables,
@@ -305,7 +328,6 @@ pub(crate) fn finish_file(
     number: FileNumber,
     outcome: Option<FileOutcome>,
 ) {
-    tables.pool.partial.clear();
     if setting.noted == Noting::Wanted
         && !notes_of(&tables.elements).0.is_empty()
         && let Some(language) = tables.language
@@ -337,6 +359,7 @@ pub(crate) fn finish_file(
             tables.fresh.push(FreshRecord {
                 place: at,
                 record: Record {
+                    executable: file.executable,
                     path: file.path.clone(),
                     size: file.size,
                     modified: file.modified,
@@ -352,47 +375,4 @@ pub(crate) fn finish_file(
     }
 }
 
-/// How the words a file handed the last run move to this run, read by the worker of `tables` as the file `number`: as if the run
-/// had read it, its text after what the worker's arena holds now. Taken before the file's text joins the arena.
-#[must_use]
-pub(crate) fn remap_to(tables: &Tables, number: FileId) -> Remap {
-    Remap {
-        from_file: FileId(0),
-        to_file: number,
-        from_worker: WorkerNumber(0),
-        to_worker: tables.number,
-        from_base: ArenaStart(0),
-        to_base: ArenaStart(u32::try_from(tables.arena.0.len()).unwrap_or(u32::MAX)),
-    }
-}
-
-/// Hands what a file the run does not read handed the last run but its words to the steps that read across files and the project,
-/// as if the run had read it: its text joins the worker's arena, and its notes and what of it is read in part join the worker's.
-pub(crate) fn hand_rest_again(
-    tables: &mut Tables,
-    at: FileOrder,
-    number: FileId,
-    text: &ArenaBytes,
-    notes: Option<&FileNotes>,
-    governing: &GoverningRules,
-    partials: &[StoredPartial],
-) {
-    tables.arena.0.extend_from_slice(&text.0);
-    if let Some(notes) = notes {
-        tables.notes.push(PlacedNotes {
-            place: at,
-            notes: notes.clone(),
-        });
-    }
-    if !governing.0.is_empty() {
-        tables.covered.push(Covered {
-            file: number,
-            rules: governing
-                .0
-                .iter()
-                .map(|rule| RuleIndex(usize::try_from(*rule).unwrap_or(usize::MAX)))
-                .collect(),
-            partial: partials_of(partials),
-        });
-    }
-}
+use crate::domain::workers::types::RunDecisions;
