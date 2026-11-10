@@ -45,4 +45,48 @@ fn subject(path: Input) -> Value {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
+
+fn explicit_primary_roles_distinguish_configuration_from_language_source() {
+    use super::service::primary_role;
+    for path in ["pyproject.toml", "pkg/pyproject.toml", "Pipfile"] {
+        assert_eq!(
+            primary_role(
+                languages::SourcePath(path),
+                &[
+                    languages::ManifestName("Pipfile"),
+                    languages::ManifestName("pyproject.toml")
+                ]
+            ),
+            languages::PrimaryFileRole::Configuration
+        );
+    }
+    for path in [
+        "invalid.py",
+        "input.txt",
+        "module.pyi",
+        "pyproject.toml.py",
+        "other.toml",
+        "poetry.lock",
+    ] {
+        assert_eq!(
+            primary_role(
+                languages::SourcePath(path),
+                &[languages::ManifestName("pyproject.toml")]
+            ),
+            languages::PrimaryFileRole::Source
+        );
+    }
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName("explicit_primary_roles_distinguish_configuration_from_language_source"),
+    word: Word::Succeeds,
+    input: || explicit_primary_roles_distinguish_configuration_from_language_source,
+    expect: Expect::Value(()),
+}];

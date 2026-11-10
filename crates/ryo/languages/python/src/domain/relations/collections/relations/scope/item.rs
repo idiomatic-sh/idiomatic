@@ -16,6 +16,7 @@ ryo::reads! {
         kinds: [
             Kind::Node(Node::Module),
             Kind::Node(Node::FunctionDef),
+            Kind::Node(Node::AsyncFunctionDef),
             Kind::Node(Node::ClassDef),
             Kind::Node(Node::Lambda),
             Kind::Node(Node::ListComp),

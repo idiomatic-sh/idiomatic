@@ -3,7 +3,8 @@
 use super::super::errors::ManifestReadingError;
 use super::super::interface::ManifestReadingPort;
 use super::super::types::Claim;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::selects;
 use ryo::languages::{FilePath, ManifestFile, ManifestText};
 
 /// What a row of the contract asks of an adapter.
@@ -76,9 +77,7 @@ pub(crate) const CASES: &[Case<Ask, Answer, Failure>] = &[
         name: CaseName("a_manifest_it_cannot_read_is_unreadable"),
         word: Word::Refuses,
         input: || Ask::ReadsABrokenFile,
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, ManifestReadingError::Unreadable { .. }))
-        }),
+        expect: Expect::Refusal(|error| selects!(error, ManifestReadingError::Unreadable { .. })),
     },
 ];
 
@@ -102,7 +101,16 @@ where
             path: FilePath((*path).into()),
             text: ManifestText((*written).into()),
         }));
-        build(all).declared(&own).map(|_| Answer::Read)
+        build(all)
+            .read(
+                &own,
+                crate::domain::manifest_validation::types::MetadataDemand::Projection,
+            )
+            .declaration
+            .ok_or_else(|| ManifestReadingError::Unreadable {
+                reason: String::from("a projection read declared nothing"),
+            })?
+            .map(|_| Answer::Read)
     };
     let adapter = build(Vec::new());
     let subject = |ask: Ask| -> Result<Answer, Failure> {

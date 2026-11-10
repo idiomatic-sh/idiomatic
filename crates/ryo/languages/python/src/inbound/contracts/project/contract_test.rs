@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::contract::ProjectContract;
+use super::fixtures;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::language::service::reads;
 use crate::fixtures::projects::notes_of;
@@ -20,6 +21,8 @@ enum Asked {
     Links,
     /// It asks for none.
     Nothing,
+    /// It asks for package dependency projection.
+    Packages,
 }
 
 /// The files a repository holds, each with its path and its text, and what the run asks for.
@@ -42,7 +45,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &[("pyproject.toml", "[project]\nname = \"demo\"\n")],
-                Asked::Nothing,
+                Asked::Packages,
             )
         },
         expect: Expect::Value((1, 1, 0, 0)),
@@ -56,7 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     ("a/pyproject.toml", "[project\nname"),
                     ("pyproject.toml", "[project]\nname = \"demo\"\n"),
                 ],
-                Asked::Nothing,
+                Asked::Packages,
             )
         },
         expect: Expect::Value((1, 1, 1, 0)),
@@ -95,7 +98,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     ("a.py", ""),
                     ("pyproject.toml", "[project]\nname = \"demo\"\n"),
                 ],
-                Asked::Nothing,
+                Asked::Packages,
             )
         },
         expect: Expect::Value((1, 1, 0, 0)),
@@ -108,9 +111,16 @@ fn faked(_available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadingP
 }
 
 fn subject((files, asked): Input) -> Result<Value, Failure> {
-    let contract = ProjectContract::new(faked, Arc::new(postcard()));
+    let contract = ProjectContract::new(
+        faked,
+        Arc::new(postcard()),
+        Arc::new(crate::outbound::module_context::factory::filesystem()),
+    );
     languages::contract::project(&contract);
     let resolved = contract.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath("".into()),
         manifests: files
@@ -134,6 +144,7 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
         wanted: match asked {
             Asked::Links => vec![languages::Relation::SourceDependency],
             Asked::Nothing => Vec::new(),
+            Asked::Packages => vec![languages::Relation::PackageDependency],
         },
     })?;
     Ok((
@@ -147,4 +158,24 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+    run(
+        fixtures::primary_metadata_rejection::CASES,
+        Word::Succeeds,
+        fixtures::primary_metadata_rejection::subject,
+    );
+    run(
+        fixtures::independent_applicability::CASES,
+        Word::Succeeds,
+        fixtures::independent_applicability::subject,
+    );
+    run(
+        fixtures::module_identity_only::CASES,
+        Word::Succeeds,
+        fixtures::module_identity_only::subject,
+    );
+    run(
+        fixtures::namespace_partial::CASES,
+        Word::Succeeds,
+        fixtures::namespace_partial::subject,
+    );
 }

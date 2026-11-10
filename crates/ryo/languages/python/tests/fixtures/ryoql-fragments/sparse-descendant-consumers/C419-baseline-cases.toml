@@ -1,0 +1,69 @@
+[[cases]]
+name = "any-list"
+files = { "case.py" = "any([x for x in values])\n" }
+expected = [{ file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "all-set"
+files = { "case.py" = "all({x for x in values})\n" }
+expected = [{ file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "generator"
+files = { "case.py" = "any(x for x in values)\n" }
+expected = []
+
+[[cases]]
+name = "sum-preview-only"
+files = { "case.py" = "sum([x for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "min-preview-only"
+files = { "case.py" = "min([x for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "extra-positional"
+files = { "case.py" = "any([x for x in values], other)\n" }
+expected = [{ file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "keyword"
+files = { "case.py" = "any([x for x in values], extra=True)\n" }
+expected = []
+
+[[cases]]
+name = "alias"
+files = { "case.py" = "from builtins import any as some\nsome([x for x in values])\n" }
+expected = [{ file = "case.py", start = 38, end = 57 }]
+
+[[cases]]
+name = "shadowed"
+files = { "case.py" = "def f(any):\n    any([x for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "async-generator"
+files = { "case.py" = "async def f():\n    any([x async for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "await-element"
+files = { "case.py" = "async def f():\n    any([await f(x) for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "nested-await-element"
+files = { "case.py" = "async def f():\n    any([f(await g(x)) for x in values])\n" }
+expected = []
+
+[[cases]]
+name = "await-filter"
+files = { "case.py" = "async def f():\n    any([x for x in values if await pred(x)])\n" }
+expected = [{ file = "case.py", start = 23, end = 59 }]
+
+[[cases]]
+name = "noqa"
+files = { "case.py" = "all([x for x in values]) # noqa: C419\n" }
+expected = []

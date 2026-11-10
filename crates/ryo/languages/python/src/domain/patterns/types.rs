@@ -6,7 +6,7 @@ pub(crate) struct Directory<'a>(pub &'a str);
 
 /// A part of a path or a pattern.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Part<'a>(pub &'a str);
+pub(crate) struct PatternPart<'a>(pub &'a str);
 
 /// A pattern of directories: parts separated by `/`, in which `*` is any run of characters inside a part, `?` any one, and a part `**`
 /// any number of parts.

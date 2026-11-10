@@ -1,6 +1,7 @@
 //! The `model` service's cases, on values alone.
 
 use ryo::languages::{Position, Symbol};
+use std::cell::RefCell;
 
 use super::service::redirect_of;
 use super::types::{BindingRedirect, Declarations, ScopeDeclaration};
@@ -36,7 +37,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((scope, name): Input) -> Value {
     let model = Declarations {
-        declared: vec![
+        language_target: crate::domain::standard_library::types::TargetVersion {
+            major: crate::domain::standard_library::types::PythonMajor(3),
+            minor: crate::domain::standard_library::types::PythonMinor(15),
+        },
+        bindings: RefCell::default(),
+        expression_shapes: RefCell::default(),
+        constant_keys: RefCell::default(),
+        format_parsing: RefCell::default(),
+        raw_format: RefCell::default(),
+        literal_expression_parsing: RefCell::default(),
+        brace_format: RefCell::default(),
+        expression_types: RefCell::default(),
+        terminal_flow: RefCell::default(),
+        indentation: RefCell::default(),
+        qualification: RefCell::default(),
+        semantic: RefCell::default(),
+        binding_analysis: RefCell::default(),
+        declared: RefCell::new(vec![
             ScopeDeclaration {
                 scope: Position(3),
                 name: Symbol(1),
@@ -47,7 +65,9 @@ fn subject((scope, name): Input) -> Value {
                 name: Symbol(1),
                 redirect: BindingRedirect::Nonlocal,
             },
-        ],
+        ]),
+        declared_state: std::cell::Cell::default(),
+        bindings_state: std::cell::Cell::default(),
     };
     redirect_of(&model, scope, name)
 }

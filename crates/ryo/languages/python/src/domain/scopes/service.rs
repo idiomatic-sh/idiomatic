@@ -8,7 +8,9 @@ use ryo::languages::{self, Position, Symbol, Tree};
 
 use super::types::{CategoryIndex, Context, Evaluation, Scopeness, Targeting};
 use crate::domain::model::service::redirect_of;
-use crate::domain::model::types::{BindingRedirect, Declarations, ScopeDeclaration};
+use crate::domain::model::types::{
+    BindingRedirect, Declarations, QualificationState, ScopeDeclaration,
+};
 use crate::domain::nodes::types::Category;
 use crate::domain::syntax::service::{category, is_root, kind, name_of, nodes, nodes_of, parent};
 use crate::domain::syntax::types::{Kind, Rootness};
@@ -20,6 +22,7 @@ pub(crate) const fn scopeness(kind: Kind) -> Scopeness {
         kind,
         Kind::Node(
             Node::FunctionDef
+                | Node::AsyncFunctionDef
                 | Node::ClassDef
                 | Node::Lambda
                 | Node::ListComp
@@ -61,7 +64,10 @@ pub(crate) fn nth(
 /// Whether `child`, a child of the scope `scope`, is evaluated inside it.
 fn inside(tree: &Tree<'_>, scope: Position, child: Position) -> Scopeness {
     let of = kind(tree, scope);
-    let within = if matches!(of, Kind::Node(Node::FunctionDef | Node::ClassDef)) {
+    let within = if matches!(
+        of,
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef | Node::ClassDef)
+    ) {
         category(tree, child) == Category::Statement
             || kind(tree, child) == Kind::Extra(Extra::TypeParams)
     } else if of == Kind::Node(Node::Lambda) {
@@ -138,7 +144,7 @@ pub(crate) fn function_of(tree: &Tree<'_>, at: Position) -> Position {
     let mut scope = enclosing(tree, at);
     while !matches!(
         kind(tree, scope),
-        Kind::Node(Node::FunctionDef | Node::Lambda)
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef | Node::Lambda)
     ) && is_root(tree, scope) == Rootness::Inner
     {
         scope = enclosing(tree, scope);
@@ -149,8 +155,10 @@ pub(crate) fn function_of(tree: &Tree<'_>, at: Position) -> Position {
 /// The nearest function around the scope `scope`, or the root: where `nonlocal` binds.
 fn function_around(tree: &Tree<'_>, scope: Position) -> Position {
     let mut around = enclosing(tree, scope);
-    while kind(tree, around) != Kind::Node(Node::FunctionDef)
-        && is_root(tree, around) == Rootness::Inner
+    while !matches!(
+        kind(tree, around),
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef)
+    ) && is_root(tree, around) == Rootness::Inner
     {
         around = enclosing(tree, around);
     }
@@ -165,6 +173,9 @@ pub(crate) fn redirected(
     scope: Position,
     name: Symbol,
 ) -> Position {
+    if model.declared_state.get() == QualificationState::Fresh {
+        declare(tree, model);
+    }
     match redirect_of(model, scope, name) {
         Some(BindingRedirect::Global) => Position(0),
         Some(BindingRedirect::Nonlocal) => function_around(tree, scope),
@@ -234,6 +245,7 @@ pub(crate) fn context(tree: &Tree<'_>, at: Position) -> Context {
             Node::AugAssign
                 | Node::AnnAssign
                 | Node::For
+                | Node::AsyncFor
                 | Node::Comprehension
                 | Node::NamedExpr
                 | Node::TypeAlias
@@ -250,9 +262,11 @@ pub(crate) fn context(tree: &Tree<'_>, at: Position) -> Context {
     clippy::wildcard_enum_match_arm,
     reason = "only `global` and `nonlocal` declare where a name is bound; every other kind declares nothing"
 )]
-/// Refills `model` with the `global` and `nonlocal` names of the file whose tree is `tree`.
-pub(crate) fn declare(tree: &Tree<'_>, model: &mut Declarations) {
-    model.declared.clear();
+/// Refills the scope redirects of the file, on its first redirect lookup; declaration indexing is a separate phase.
+pub(crate) fn declare(tree: &Tree<'_>, model: &Declarations) {
+    model.declared_state.set(QualificationState::Ready);
+    let mut declared = model.declared.borrow_mut();
+    declared.clear();
     for at in languages::positions(tree.elements) {
         let redirect = match kind(tree, at) {
             Kind::Node(Node::Global) => BindingRedirect::Global,
@@ -262,7 +276,7 @@ pub(crate) fn declare(tree: &Tree<'_>, model: &mut Declarations) {
         let scope = enclosing(tree, at);
         for identifier in nodes(tree, at) {
             if let Some(name) = name_of(tree, identifier) {
-                model.declared.push(ScopeDeclaration {
+                declared.push(ScopeDeclaration {
                     scope,
                     name,
                     redirect,

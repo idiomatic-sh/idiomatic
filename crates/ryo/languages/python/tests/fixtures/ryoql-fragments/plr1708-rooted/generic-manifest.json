@@ -1,0 +1,59 @@
+{
+  "worker_sha256": "2ea405976bf51410cea6829c29af140ff7ffbef026213fa7ad3ed5f9ceeb9f58",
+  "query_sha256": "5bdc0859305144a3d4a5e88c88872f899389355a294ebcb072d395c8cf6bf066",
+  "validator_sha256": "d936fa5e23ddb74ad04f8dc2adcb03b597ddb24510078d12c49f10f740bd6741",
+  "cases": [
+    [
+      "filtered-boundaries",
+      {
+        "case.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\n"
+      }
+    ],
+    [
+      "two-real-file-identities",
+      {
+        "a.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\n",
+        "b.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\n"
+      }
+    ],
+    [
+      "unrelated-width-16",
+      {
+        "case.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\nunrelated = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]\n"
+      }
+    ],
+    [
+      "unrelated-width-256",
+      {
+        "case.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\nunrelated = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]\n"
+      }
+    ],
+    [
+      "unrelated-width-1024",
+      {
+        "case.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\nunrelated = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]\n"
+      }
+    ],
+    [
+      "unrelated-depth-4",
+      {
+        "case.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\nunrelated = [[[[0]]]]\n"
+      }
+    ],
+    [
+      "unrelated-depth-16",
+      {
+        "case.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\nunrelated = [[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]\n"
+      }
+    ],
+    [
+      "unrelated-depth-48",
+      {
+        "case.py": "def f():\n    yield outer(deep(1))\n    def inner():\n        yield 2\n        raise StopIteration\n    callback = lambda: (yield 3)\n    annotation: \"StopIteration\"\n    class C:\n        raise StopIteration\n    raise StopIteration\nunrelated = [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]\n"
+      }
+    ]
+  ],
+  "expected_count": "Nonempty counted (root,file,tag,node) membership, with two payloads per real body root",
+  "benchmark_measurement": false,
+  "no_timing_threshold": true
+}

@@ -1,0 +1,2 @@
+'text' f''
+"plain string"

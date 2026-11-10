@@ -3,8 +3,8 @@
 //! Python's `token` module, a keyword being a `NAME`. Both matches have no wildcard arm, so a kind the library gains is a compile
 //! error until it is mapped. Where ruff's tree is not the standard's:
 //!
-//! - one kind for two of the standard's: `async def`, `async for`, `async with` and `except*` are `FunctionDef`, `For`, `With` and
-//!   `Try` with their keyword token, never `AsyncFunctionDef`, `AsyncFor`, `AsyncWith` or `TryStar`;
+//! - async statements share Ruff node types with their sync counterparts, with an `is_async` field; the adapter preserves that
+//!   distinction as `AsyncFunctionDef`, `AsyncFor` and `AsyncWith`. `except*` remains a `Try` with its keyword token;
 //! - six literal kinds of ruff (string, bytes, number, boolean, `None`, `...`) are the standard's one `Constant`, its token saying which;
 //! - an interpolation is a `FormattedValue` in an f-string and an `Interpolation` in a t-string: the adapter says which;
 //! - a literal part of an f-string or a t-string is a `Constant`, and its format spec a `JoinedStr`, as the standard has them;
@@ -12,21 +12,13 @@
 //!   a parameter with its default, type parameter brackets, class pattern arguments and keywords, and the parts of an implicit
 //!   concatenation.
 
-use ruff_python_ast::NodeKind as RuffNode;
-use ruff_python_ast::{StmtImportFrom, StmtTry};
-
-use super::constants::{
-    BRACES, FUTURE, FUTURE_FEATURES, NOT_A_CHANCE, NOT_DEFINED, UNKNOWN_FEATURE,
-};
-use ruff_python_ast::token::{TokenKind, Tokens};
-use ruff_text_size::{Ranged, TextRange};
-
+use super::types::Strings;
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
-
-use super::types::{ParserRefusal, Said, Strings};
+use ruff_python_ast::token::TokenKind;
+use ruff_python_ast::{AnyNodeRef, NodeKind as RuffNode};
 
 /// A kind of node of the library's tree, and the kind of string an interpolation inside it is in.
 pub(super) struct NodeSchema {
@@ -275,70 +267,120 @@ pub(super) fn node_kind(kind: RuffNode, strings: Strings) -> Kind {
     Kind::from(NodeSchema { kind, strings })
 }
 
+/// The language's kind of a concrete node, retaining async statement variants Ruff stores in a flag.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exhaustive upstream node mapping prevents new AST variants from falling through"
+)]
+#[must_use]
+pub(super) fn concrete_node_kind(node: AnyNodeRef<'_>, strings: Strings) -> Kind {
+    match node {
+        AnyNodeRef::StmtFunctionDef(statement) if statement.is_async => {
+            Kind::Node(Node::AsyncFunctionDef)
+        }
+        AnyNodeRef::StmtFor(statement) if statement.is_async => Kind::Node(Node::AsyncFor),
+        AnyNodeRef::StmtWith(statement) if statement.is_async => Kind::Node(Node::AsyncWith),
+        AnyNodeRef::StmtFunctionDef(_) | AnyNodeRef::StmtFor(_) | AnyNodeRef::StmtWith(_) => {
+            node_kind(node.kind(), strings)
+        }
+        AnyNodeRef::ModModule(_)
+        | AnyNodeRef::ModExpression(_)
+        | AnyNodeRef::StmtClassDef(_)
+        | AnyNodeRef::StmtReturn(_)
+        | AnyNodeRef::StmtDelete(_)
+        | AnyNodeRef::StmtTypeAlias(_)
+        | AnyNodeRef::StmtAssign(_)
+        | AnyNodeRef::StmtAugAssign(_)
+        | AnyNodeRef::StmtAnnAssign(_)
+        | AnyNodeRef::StmtWhile(_)
+        | AnyNodeRef::StmtIf(_)
+        | AnyNodeRef::StmtMatch(_)
+        | AnyNodeRef::StmtRaise(_)
+        | AnyNodeRef::StmtTry(_)
+        | AnyNodeRef::StmtAssert(_)
+        | AnyNodeRef::StmtImport(_)
+        | AnyNodeRef::StmtImportFrom(_)
+        | AnyNodeRef::StmtGlobal(_)
+        | AnyNodeRef::StmtNonlocal(_)
+        | AnyNodeRef::StmtExpr(_)
+        | AnyNodeRef::StmtPass(_)
+        | AnyNodeRef::StmtBreak(_)
+        | AnyNodeRef::StmtContinue(_)
+        | AnyNodeRef::StmtIpyEscapeCommand(_)
+        | AnyNodeRef::ExprBoolOp(_)
+        | AnyNodeRef::ExprNamed(_)
+        | AnyNodeRef::ExprBinOp(_)
+        | AnyNodeRef::ExprUnaryOp(_)
+        | AnyNodeRef::ExprLambda(_)
+        | AnyNodeRef::ExprIf(_)
+        | AnyNodeRef::ExprDict(_)
+        | AnyNodeRef::ExprSet(_)
+        | AnyNodeRef::ExprListComp(_)
+        | AnyNodeRef::ExprSetComp(_)
+        | AnyNodeRef::ExprDictComp(_)
+        | AnyNodeRef::ExprGenerator(_)
+        | AnyNodeRef::ExprAwait(_)
+        | AnyNodeRef::ExprYield(_)
+        | AnyNodeRef::ExprYieldFrom(_)
+        | AnyNodeRef::ExprCompare(_)
+        | AnyNodeRef::ExprCall(_)
+        | AnyNodeRef::ExprFString(_)
+        | AnyNodeRef::ExprTString(_)
+        | AnyNodeRef::ExprStringLiteral(_)
+        | AnyNodeRef::ExprBytesLiteral(_)
+        | AnyNodeRef::ExprNumberLiteral(_)
+        | AnyNodeRef::ExprBooleanLiteral(_)
+        | AnyNodeRef::ExprNoneLiteral(_)
+        | AnyNodeRef::ExprEllipsisLiteral(_)
+        | AnyNodeRef::ExprAttribute(_)
+        | AnyNodeRef::ExprSubscript(_)
+        | AnyNodeRef::ExprStarred(_)
+        | AnyNodeRef::ExprName(_)
+        | AnyNodeRef::ExprList(_)
+        | AnyNodeRef::ExprTuple(_)
+        | AnyNodeRef::ExprSlice(_)
+        | AnyNodeRef::ExprIpyEscapeCommand(_)
+        | AnyNodeRef::ExceptHandlerExceptHandler(_)
+        | AnyNodeRef::InterpolatedElement(_)
+        | AnyNodeRef::InterpolatedStringLiteralElement(_)
+        | AnyNodeRef::PatternMatchValue(_)
+        | AnyNodeRef::PatternMatchSingleton(_)
+        | AnyNodeRef::PatternMatchSequence(_)
+        | AnyNodeRef::PatternMatchMapping(_)
+        | AnyNodeRef::PatternMatchClass(_)
+        | AnyNodeRef::PatternMatchStar(_)
+        | AnyNodeRef::PatternMatchAs(_)
+        | AnyNodeRef::PatternMatchOr(_)
+        | AnyNodeRef::TypeParamTypeVar(_)
+        | AnyNodeRef::TypeParamTypeVarTuple(_)
+        | AnyNodeRef::TypeParamParamSpec(_)
+        | AnyNodeRef::InterpolatedStringFormatSpec(_)
+        | AnyNodeRef::PatternArguments(_)
+        | AnyNodeRef::PatternKeyword(_)
+        | AnyNodeRef::Comprehension(_)
+        | AnyNodeRef::Arguments(_)
+        | AnyNodeRef::Parameters(_)
+        | AnyNodeRef::Parameter(_)
+        | AnyNodeRef::ParameterWithDefault(_)
+        | AnyNodeRef::Keyword(_)
+        | AnyNodeRef::Alias(_)
+        | AnyNodeRef::WithItem(_)
+        | AnyNodeRef::MatchCase(_)
+        | AnyNodeRef::Decorator(_)
+        | AnyNodeRef::ElifElseClause(_)
+        | AnyNodeRef::TypeParams(_)
+        | AnyNodeRef::FString(_)
+        | AnyNodeRef::TString(_)
+        | AnyNodeRef::StringLiteral(_)
+        | AnyNodeRef::BytesLiteral(_)
+        | AnyNodeRef::Identifier(_) => node_kind(node.kind(), strings),
+    }
+}
+
 /// The language's kind of a token of the library.
 #[must_use]
 pub(super) fn token_kind(kind: TokenKind) -> Kind {
     Kind::from(TokenSchema(kind))
-}
-
-/// The kind of string a node of the library opens, for the interpolations inside it: an f-string or a format spec, a t-string, or
-/// none. The standard's format spec is a `JoinedStr` in a t-string too: what it interpolates is a `FormattedValue`.
-#[must_use]
-pub(super) const fn opens(kind: RuffNode) -> Option<Strings> {
-    if matches!(kind, RuffNode::ExprTString) {
-        Some(Strings::Template)
-    } else if matches!(
-        kind,
-        RuffNode::ExprFString | RuffNode::InterpolatedStringFormatSpec
-    ) {
-        Some(Strings::Formatted)
-    } else {
-        None
-    }
-}
-
-/// Where `CPython`'s parser refuses a `try` the library reads without an error: an `else` with no `except` before it (`CPython`: "expected
-/// 'except' or 'finally' block", at the `else`). The library refuses a `try` with neither `except` nor `finally`, and nothing else
-/// of this.
-#[must_use]
-pub(super) fn else_without_except(statement: &StmtTry, tokens: &Tokens) -> Option<TextRange> {
-    if !statement.handlers.is_empty() {
-        return None;
-    }
-    let from = statement.body.last().map_or(statement.start(), Ranged::end);
-    let to = statement.orelse.first()?.start();
-    tokens
-        .in_range(TextRange::new(from, to))
-        .iter()
-        .find(|token| token.kind() == TokenKind::Else)
-        .map(Ranged::range)
-}
-
-/// Where `CPython`'s parser refuses a feature of `from __future__ import ...` it does not know, and what it says: each alias whose
-/// name is none of `__future__`'s features. The library reads any name there without an error.
-pub(super) fn unknown_futures(
-    statement: &StmtImportFrom,
-) -> impl Iterator<Item = ParserRefusal> + '_ {
-    let future = statement.level == 0
-        && statement
-            .module
-            .as_ref()
-            .is_some_and(|module| module.as_str() == FUTURE);
-    statement
-        .names
-        .iter()
-        .filter(move |alias| future && !FUTURE_FEATURES.contains(&alias.name.as_str()))
-        .map(|alias| {
-            let said = if alias.name.as_str() == BRACES {
-                NOT_A_CHANCE.to_owned()
-            } else {
-                format!("{UNKNOWN_FEATURE}{}{NOT_DEFINED}", alias.name.as_str())
-            };
-            ParserRefusal {
-                at: alias.name.range(),
-                said: Said(said),
-            }
-        })
 }
 
 #[cfg(test)]

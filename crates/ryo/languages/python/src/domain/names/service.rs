@@ -4,13 +4,14 @@
 use ryo::languages::{self, Position, Symbol, Tree};
 
 use super::constants::DOT;
-use super::types::{Annotation, Assignment, Dottedness, Knownness, Reading, Unresolved, Use};
+use super::types::{Annotation, Assignment, Dottedness, Knownness, NameReading, Unresolved, Use};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::{Category, Node};
 use crate::domain::scopes::service::{context, nth, place_among};
 use crate::domain::scopes::types::{CategoryIndex, Context};
 use crate::domain::syntax::service::{
-    below, child, interpolation, kind, literal, name_of, name_token, nodes, parent, written,
+    below, child, identifier_text, interpolation, kind, literal, name_of, name_token, nodes,
+    parent, written,
 };
 use crate::domain::syntax::types::Kind;
 use crate::domain::syntax::types::{Interpolation, Literal};
@@ -67,7 +68,10 @@ fn push_dotted(tree: &Tree<'_>, symbols: &mut languages::Symbols, at: Position) 
         name_token(tree, at)
     };
     if let Some(token) = named {
-        languages::push_text(symbols, languages::NameText(written(tree, token).0));
+        languages::push_text(
+            symbols,
+            languages::NameText(identifier_text(tree, parent(tree, token)).0),
+        );
     }
 }
 
@@ -185,6 +189,14 @@ pub(crate) fn push_identifier(
     symbols: &mut languages::Symbols,
     identifier: Position,
 ) {
+    if let Some(canonical) = languages::property_at(
+        tree.elements,
+        identifier,
+        crate::domain::syntax::constants::NORMALIZED_IDENTIFIER,
+    ) {
+        languages::push_text(symbols, canonical);
+        return;
+    }
     let mut first = true;
     for token in
         below(tree, identifier).filter(|each| kind(tree, *each) == Kind::Token(Token::Name))
@@ -243,15 +255,15 @@ pub(crate) fn knownness(tree: &Tree<'_>, at: Position) -> Knownness {
 }
 
 /// Whether the expression at `at` is the object of an attribute that is read: part of the longer dotted name the attribute writes.
-fn reading(tree: &Tree<'_>, at: Position) -> Reading {
+fn reading(tree: &Tree<'_>, at: Position) -> NameReading {
     let above = parent(tree, at);
     if kind(tree, above) == Kind::Node(Node::Attribute)
         && place_among(tree, above, at, Category::Expression) == Some(CategoryIndex(0))
         && context(tree, above) == Context::Load
     {
-        Reading::ObjectOfRead
+        NameReading::ObjectOfRead
     } else {
-        Reading::Own
+        NameReading::Own
     }
 }
 
@@ -269,7 +281,7 @@ pub(crate) fn use_of(tree: &Tree<'_>, at: Position) -> Use {
             context(tree, at) == Context::Load && dottedness(tree, at) == Dottedness::Dotted
         }
         _ => false,
-    } && reading(tree, at) == Reading::Own;
+    } && reading(tree, at) == NameReading::Own;
     if used { Use::Reference } else { Use::Other }
 }
 

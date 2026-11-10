@@ -2,8 +2,8 @@
 //! ASDL, pinned in `tests/fixtures/standard/Python.asdl`), in kebab case: `FunctionDef` is `function-def`, `match_case` is
 //! `match-case`. One flat list, each name once; the standard's categories are `category` in the service.
 
-/// A node of the standard. A constructor the language never gives (`AsyncFunctionDef`, an operator) is still a kind, so that the
-/// list is the standard's whole list; `kinds.rs` says why it is never read.
+/// A node of the standard. Constructors the parser does not expose directly (such as operators) remain kinds so the list covers the
+/// standard's whole ASDL; `AsyncFunctionDef`, `AsyncFor` and `AsyncWith` are retained from Ruff's async flags.
 #[derive(
     Clone,
     Copy,

@@ -1,0 +1,266 @@
+{
+  "version": "3.14.0 (main, Nov 19 2025, 22:47:19) [Clang 21.1.4 ]",
+  "cases": [
+    {
+      "name": "module_simple",
+      "future": false,
+      "source": "x: tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [
+        "tick"
+      ],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "module_parenthesized",
+      "future": false,
+      "source": "(x): tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [],
+      "error": null
+    },
+    {
+      "name": "module_attribute",
+      "future": false,
+      "source": "obj.x: tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [],
+      "error": null
+    },
+    {
+      "name": "class_simple",
+      "future": false,
+      "source": "class C:\n x: tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [
+        "tick"
+      ],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "class_attribute",
+      "future": false,
+      "source": "class C:\n obj.x: tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [],
+      "error": null
+    },
+    {
+      "name": "local_annotation",
+      "future": false,
+      "source": "def f():\n x: tick()\nf()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [],
+      "error": null
+    },
+    {
+      "name": "signature",
+      "future": false,
+      "source": "def f(x: tick())->tick():pass\n",
+      "definition_events": [],
+      "after_annotations_access": [
+        "tick",
+        "tick"
+      ],
+      "annotation_keys": [
+        "return",
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "lambda_body",
+      "future": false,
+      "source": "def f(x:(lambda: tick())):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "lambda_default",
+      "future": false,
+      "source": "def f(x:(lambda y=tick():y)):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [
+        "tick"
+      ],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "generator_body",
+      "future": false,
+      "source": "def f(x:(tick() for x in items)):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "generator_first_iterable",
+      "future": false,
+      "source": "def f(x:(x for x in iterable())):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [
+        "iterable"
+      ],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "generator_later_iterable",
+      "future": false,
+      "source": "def f(x:(x for x in items for y in iterable())):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "module_simple",
+      "future": true,
+      "source": "from __future__ import annotations\nx: tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "module_parenthesized",
+      "future": true,
+      "source": "from __future__ import annotations\n(x): tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [],
+      "error": null
+    },
+    {
+      "name": "module_attribute",
+      "future": true,
+      "source": "from __future__ import annotations\nobj.x: tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [],
+      "error": null
+    },
+    {
+      "name": "class_simple",
+      "future": true,
+      "source": "from __future__ import annotations\nclass C:\n x: tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "class_attribute",
+      "future": true,
+      "source": "from __future__ import annotations\nclass C:\n obj.x: tick()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [],
+      "error": null
+    },
+    {
+      "name": "local_annotation",
+      "future": true,
+      "source": "from __future__ import annotations\ndef f():\n x: tick()\nf()\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [],
+      "error": null
+    },
+    {
+      "name": "signature",
+      "future": true,
+      "source": "from __future__ import annotations\ndef f(x: tick())->tick():pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "return",
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "lambda_body",
+      "future": true,
+      "source": "from __future__ import annotations\ndef f(x:(lambda: tick())):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "lambda_default",
+      "future": true,
+      "source": "from __future__ import annotations\ndef f(x:(lambda y=tick():y)):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "generator_body",
+      "future": true,
+      "source": "from __future__ import annotations\ndef f(x:(tick() for x in items)):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "generator_first_iterable",
+      "future": true,
+      "source": "from __future__ import annotations\ndef f(x:(x for x in iterable())):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    },
+    {
+      "name": "generator_later_iterable",
+      "future": true,
+      "source": "from __future__ import annotations\ndef f(x:(x for x in items for y in iterable())):pass\n",
+      "definition_events": [],
+      "after_annotations_access": [],
+      "annotation_keys": [
+        "x"
+      ],
+      "error": null
+    }
+  ]
+}

@@ -18,11 +18,20 @@
 pub(crate) mod inbound;
 pub(crate) mod outbound;
 
+mod application;
 mod domain;
+
+pub mod settings;
 
 /// The Python language, composed over its ports: what an edge links to read Python.
 #[must_use]
 pub fn linked() -> ryo::languages::Language {
+    linked_with_settings(settings::PythonParserSettings::default())
+}
+
+/// The Python language with explicit parser settings.
+#[must_use]
+pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::languages::Language {
     use std::sync::Arc;
 
     use crate::inbound::contracts::parse::contract::ParseContract;
@@ -46,8 +55,12 @@ pub fn linked() -> ryo::languages::Language {
 
     ryo::link!(
         domain::language::constants::NAME,
-        parse: Arc::new(ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()))),
-        project: Arc::new(ProjectContract::new(adapters, Arc::new(postcard()))),
+        parse: Arc::new(ParseContract::new(
+            settings,
+            Arc::new(ruff_python_parser(settings)),
+            Arc::new(postcard()),
+        )),
+        project: Arc::new(ProjectContract::new(adapters, Arc::new(postcard()), Arc::new(outbound::module_context::factory::filesystem()))),
     )
 }
 

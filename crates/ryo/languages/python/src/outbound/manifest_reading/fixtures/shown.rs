@@ -137,7 +137,14 @@ where
         });
     };
     build(all.clone())
-        .declared(own)
+        .read(
+            own,
+            crate::domain::manifest_validation::types::MetadataDemand::Projection,
+        )
+        .declaration
+        .ok_or_else(|| ManifestReadingError::Unreadable {
+            reason: String::from("a projection read declared nothing"),
+        })?
         .map(|declared| shown(&declared))
 }
 

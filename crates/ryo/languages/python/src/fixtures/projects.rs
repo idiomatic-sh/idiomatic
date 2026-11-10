@@ -175,7 +175,13 @@ fn adapters(available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadin
 /// The notes the language's own parse leaves of the file at `path` whose text is `text`; none for a file it does not read.
 #[must_use]
 pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
-    let parse = ParseContract::new(Arc::new(ruff_python_parser()), Arc::new(postcard()));
+    let parse = ParseContract::new(
+        crate::settings::PythonParserSettings::default(),
+        Arc::new(ruff_python_parser(
+            crate::settings::PythonParserSettings::default(),
+        )),
+        Arc::new(postcard()),
+    );
     let (mut elements, mut symbols) = (languages::Elements::default(), Symbols::default());
     let built = languages::contract::build(
         &parse,
@@ -211,6 +217,9 @@ where
     sorted.sort_unstable();
     let paths: Vec<&str> = sorted.iter().map(|(path, _)| *path).collect();
     let request = languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
         repository: languages::Repository::Disk,
         root: languages::RootPath("".into()),
         manifests: files
@@ -233,7 +242,11 @@ where
             languages::Relation::AnalyzedSource,
         ],
     };
-    let contract = ProjectContract::new(adapters, Arc::new(postcard()));
+    let contract = ProjectContract::new(
+        adapters,
+        Arc::new(postcard()),
+        Arc::new(crate::outbound::module_context::factory::filesystem()),
+    );
     let resolved = contract
         .resolve(&request)
         .expect("the manifests are resolved");

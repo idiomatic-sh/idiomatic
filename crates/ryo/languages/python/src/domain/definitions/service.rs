@@ -4,9 +4,9 @@
 use ryo::languages::{self, ParameterKind, Position, Symbol, Tree};
 
 use super::constants::{
-    ASYNC, ASYNC_FUNCTION, ASYNC_METHOD, CLASS, EXCEPTION, FROM_IMPORT, FUNCTION, IMPORT,
-    KEYWORD_ONLY, METHOD, PARAM_SPEC, PATTERN, POSITIONAL_ONLY, POSITIONAL_OR_KEYWORD, TYPE_ALIAS,
-    TYPE_VAR, TYPE_VAR_TUPLE, VAR_KEYWORD, VAR_POSITIONAL, VARIABLE,
+    ASYNC_FUNCTION, ASYNC_METHOD, CLASS, EXCEPTION, FROM_IMPORT, FUNCTION, IMPORT, KEYWORD_ONLY,
+    METHOD, PARAM_SPEC, PATTERN, POSITIONAL_ONLY, POSITIONAL_OR_KEYWORD, TYPE_ALIAS, TYPE_VAR,
+    TYPE_VAR_TUPLE, VAR_KEYWORD, VAR_POSITIONAL, VARIABLE,
 };
 use super::types::{Defined, Definition, ParameterPlace, Refinement};
 use crate::domain::extras::types::Extra;
@@ -15,9 +15,9 @@ use crate::domain::model::types::Declarations;
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::{Imported, Unresolved};
 use crate::domain::nodes::types::{Category, Node};
-use crate::domain::scopes::service::{binding_scope, context, enclosing, nth, place_among};
+use crate::domain::scopes::service::{binding_scope, context, enclosing, place_among};
 use crate::domain::scopes::types::{CategoryIndex, Context};
-use crate::domain::syntax::service::{child, kind, last, name_of, nodes, parent, written};
+use crate::domain::syntax::service::{child, kind, name_of, parent, written};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -37,7 +37,7 @@ pub(crate) fn function_word(tree: &Tree<'_>, function: Position) -> Defined {
     let method = kind(tree, enclosing(tree, function)) == Kind::Node(Node::ClassDef);
     let coroutine = languages::children(tree.elements, function)
         .find(|each| kind(tree, *each) == Kind::Token(Token::Name))
-        .is_some_and(|keyword| written(tree, keyword).0 == ASYNC);
+        .is_some_and(|keyword| written(tree, keyword).0 == crate::domain::syntax::constants::ASYNC);
     match (method, coroutine) {
         (true, true) => defined(languages::DeclarationKind::Method, Refinement(ASYNC_METHOD)),
         (true, false) => defined(languages::DeclarationKind::Method, Refinement(METHOD)),
@@ -139,7 +139,7 @@ pub(crate) fn definition(
 ) -> Option<Definition> {
     use languages::DeclarationKind as Declared;
     match kind(tree, at) {
-        Kind::Node(Node::FunctionDef) => {
+        Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef) => {
             named_by_identifier(tree, model, at, function_word(tree, at))
         }
         Kind::Node(Node::ClassDef) => {
@@ -224,83 +224,4 @@ pub(crate) fn definition(
         }
         _ => None,
     }
-}
-
-/// The names written in the annotation at `annotation`: its name expressions, but not the qualifiers of a dotted one (`a` of `a.B`).
-pub(crate) fn type_names<'a>(
-    tree: &'a Tree<'_>,
-    annotation: Position,
-) -> impl Iterator<Item = Position> + 'a {
-    (annotation.0..=last(tree, annotation).0)
-        .map(Position)
-        .filter(move |each| {
-            kind(tree, *each) == Kind::Node(Node::Name)
-                && kind(tree, parent(tree, *each)) != Kind::Node(Node::Attribute)
-        })
-}
-
-/// What the scope `scope` binds `name` to, when it does: a class, an imported name or a type alias its statements define.
-fn binds(tree: &Tree<'_>, model: &Declarations, scope: Position, name: Symbol) -> Option<Position> {
-    use languages::DeclarationKind as Declared;
-    let named = |each: Position| {
-        definition(tree, model, each).is_some_and(|found| {
-            found.name == name
-                && matches!(
-                    found.defined.kind,
-                    Declared::Class
-                        | Declared::Import
-                        | Declared::TypeAlias
-                        | Declared::TypeParameter
-                )
-        })
-    };
-    nodes(tree, scope).find_map(|statement| match kind(tree, statement) {
-        Kind::Node(Node::ClassDef) => named(statement).then_some(statement),
-        Kind::Node(Node::Import | Node::ImportFrom) => nodes(tree, statement)
-            .find(|each| kind(tree, *each) == Kind::Node(Node::Alias) && named(*each)),
-        Kind::Node(Node::TypeAlias) => {
-            nth(tree, statement, Category::Expression, CategoryIndex(0)).filter(|each| named(*each))
-        }
-        Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => None,
-    })
-}
-
-/// The class, import or type alias that binds `name` where the element at `at` is written: the innermost scope wins.
-#[must_use]
-pub(crate) fn binding_of(
-    tree: &Tree<'_>,
-    model: &Declarations,
-    at: Position,
-    name: Symbol,
-) -> Option<Position> {
-    let mut above = at;
-    loop {
-        if matches!(
-            kind(tree, above),
-            Kind::Node(Node::Module | Node::ClassDef | Node::FunctionDef | Node::AsyncFunctionDef)
-        ) && let Some(found) = binds(tree, model, above, name)
-        {
-            return Some(found);
-        }
-        if parent(tree, above) == above {
-            return None;
-        }
-        above = parent(tree, above);
-    }
-}
-
-/// What holds the element at `at`: the nearest class or function it is written in, else the file.
-#[must_use]
-pub(crate) fn holder(tree: &Tree<'_>, at: Position) -> languages::NodeId {
-    let mut above = at;
-    while parent(tree, above) != above {
-        above = parent(tree, above);
-        if matches!(
-            kind(tree, above),
-            Kind::Node(Node::ClassDef | Node::FunctionDef | Node::AsyncFunctionDef)
-        ) {
-            return languages::node_id(tree.file, above);
-        }
-    }
-    languages::node_id(tree.file, above)
 }

@@ -3,7 +3,7 @@
 use super::super::fixtures::contract::check;
 use super::item::CallArgumentItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::fixtures::reading::{SHOWN, reading};
+use crate::fixtures::reading::{SHOWN, assert_expanded_node_coordinate, reading};
 use ryo::languages::contract::{Reading, want_file, want_name, want_node, want_number, want_span};
 
 /// The source the item reads.
@@ -80,4 +80,40 @@ fn subject(source: Input) -> Value {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CHECKS, Word::Succeeds, |check| {
+        check();
+        Ok(())
+    });
 }
+
+fn quoted_annotation_call_arguments_are_visible_without_string_expression_leakage() {
+    let annotation = "x: \"[data[index] for index,value in enumerate(data)]\"\n";
+    assert_expanded_node_coordinate::<CallArgumentItem>(
+        annotation,
+        (2, 4, 5),
+        want_name("name"),
+        want_span((1, 47), (1, 51)),
+    );
+    let visible = reading::<CallArgumentItem>(annotation);
+    assert!(visible.causes.is_empty());
+    assert_eq!(visible.rows.len(), 1);
+    let row = &visible.rows[0];
+    assert_eq!(row.get(1), Some(&want_number(0)));
+    assert_eq!(row.get(3), Some(&want_name("data")));
+    assert_eq!(row.get(5), Some(&want_span((1, 47), (1, 51))));
+
+    let ordinary_string = "x = \"[data[index] for index,value in enumerate(data)]\"\n";
+    let hidden = reading::<CallArgumentItem>(ordinary_string);
+    assert!(hidden.causes.is_empty());
+    assert!(hidden.rows.is_empty());
+}
+
+/// Each check below states its own source and asserts its own outcome.
+const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+    name: CaseName(
+        "quoted_annotation_call_arguments_are_visible_without_string_expression_leakage",
+    ),
+    word: Word::Succeeds,
+    input: || quoted_annotation_call_arguments_are_visible_without_string_expression_leakage,
+    expect: Expect::Value(()),
+}];

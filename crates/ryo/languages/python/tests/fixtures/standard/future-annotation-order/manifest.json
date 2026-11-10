@@ -1,0 +1,19 @@
+{
+  "status": "language-correction-source-awaiting-integration-validation",
+  "rejected_policy": "rejected-ruff-policy.patch",
+  "language_observations": [
+    "cpython313.json",
+    "cpython315.json"
+  ],
+  "oracle_discrepancy": "exact-ruff-discrepancy.json",
+  "files": {
+    "order-reference-receipts.json": "53c292096f9bfc78ec39b6f7b3741e7b97c15ace5ccc1a34f95cbb1fc282a074",
+    "position-reference-receipts.json": "84b8271448985d3875174df414709cc2732e12f9c802444db17a13d0abf9af07",
+    "README.md": "ba1911d19930d25aff21c7a316fac48bbe1fe2d439715356e3a429071a239239",
+    "rejected-ruff-policy.patch": "cd7b3cc57ecc45d5ffff191acf9ae1bf780f8cf2873b29940c9fa44424d6bc00",
+    "compile_controls.py": "8207fdb62335f046ce52ad7f63cc2d07504d34e23e7c2d28232ea65ba423cc16",
+    "cpython313.json": "4fa2ec1f8045d4cdb814a0e7d4a4fcf441ee76ae68327dfe7c5a3edf84737cab",
+    "cpython315.json": "0b059b9623934b9d9df138965b9722a46ad8390301134600097f98da9be76bdc",
+    "exact-ruff-discrepancy.json": "854679ce180dfe60e21e48db07738221165a34179e3dc26bd67d97e3483f0590"
+  }
+}

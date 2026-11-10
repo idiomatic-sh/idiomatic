@@ -2,28 +2,28 @@
 //! is a glob of path parts: `*` and `?` inside one part, `**` for any number of parts.
 
 use crate::domain::patterns::constants::{ANY_ONE, ANY_PARTS, ANY_RUN, HERE, SEPARATOR};
-use crate::domain::patterns::types::{Directory, Matching, Part, Pattern};
+use crate::domain::patterns::types::{Directory, Matching, Pattern, PatternPart};
 
 /// Whether the directory `directory` is the one the pattern `pattern` names, both from the same place.
 #[must_use]
 pub(crate) fn matches_directory(pattern: &Pattern, directory: Directory<'_>) -> Matching {
-    let wanted: Vec<Part<'_>> = pattern
+    let wanted: Vec<PatternPart<'_>> = pattern
         .0
         .split(SEPARATOR)
         .filter(|part| !part.is_empty() && *part != HERE)
-        .map(Part)
+        .map(PatternPart)
         .collect();
-    let found: Vec<Part<'_>> = directory
+    let found: Vec<PatternPart<'_>> = directory
         .0
         .split(SEPARATOR)
         .filter(|part| !part.is_empty())
-        .map(Part)
+        .map(PatternPart)
         .collect();
     parts_match(&wanted, &found)
 }
 
 /// Whether the parts of a pattern name the parts of a directory one by one.
-fn parts_match(wanted: &[Part<'_>], found: &[Part<'_>]) -> Matching {
+fn parts_match(wanted: &[PatternPart<'_>], found: &[PatternPart<'_>]) -> Matching {
     let Some((first, rest)) = wanted.split_first() else {
         return if found.is_empty() {
             Matching::Matches
@@ -53,7 +53,7 @@ fn parts_match(wanted: &[Part<'_>], found: &[Part<'_>]) -> Matching {
 }
 
 /// Whether `text` is what the pattern `pattern` of one part names.
-fn text_matches(pattern: Part<'_>, text: Part<'_>) -> Matching {
+fn text_matches(pattern: PatternPart<'_>, text: PatternPart<'_>) -> Matching {
     let mut rest = pattern.0.chars();
     let verdict = match rest.next() {
         None => text.0.is_empty(),
@@ -61,15 +61,18 @@ fn text_matches(pattern: Part<'_>, text: Part<'_>) -> Matching {
             let after = rest.as_str();
             (0..=text.0.len())
                 .filter_map(|place| text.0.get(place..))
-                .any(|tail| text_matches(Part(after), Part(tail)) == Matching::Matches)
+                .any(|tail| {
+                    text_matches(PatternPart(after), PatternPart(tail)) == Matching::Matches
+                })
         }
         Some(ANY_ONE) => {
             let mut others = text.0.chars();
             others.next().is_some()
-                && text_matches(Part(rest.as_str()), Part(others.as_str())) == Matching::Matches
+                && text_matches(PatternPart(rest.as_str()), PatternPart(others.as_str()))
+                    == Matching::Matches
         }
         Some(literal) => text.0.strip_prefix(literal).is_some_and(|others| {
-            text_matches(Part(rest.as_str()), Part(others)) == Matching::Matches
+            text_matches(PatternPart(rest.as_str()), PatternPart(others)) == Matching::Matches
         }),
     };
     if verdict {

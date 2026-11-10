@@ -1,5 +1,8 @@
 //! The fake of the `manifest_reading` port: what the language's tests stand in for it with.
 
+use crate::domain::manifest_validation::types::MetadataDemand;
+use crate::outbound::manifest_reading::types::ManifestRead;
+
 use super::super::errors::ManifestReadingError;
 use super::super::interface::ManifestReadingPort;
 use super::super::types::Claim;
@@ -23,27 +26,38 @@ impl ManifestReadingPort for ManifestReadingFake {
         }
     }
 
-    fn declared(&self, manifest: &ManifestFile) -> Result<Declared, ManifestReadingError> {
-        let text = &manifest.text;
-        if text.starts_with("[project\n") {
-            return Err(ManifestReadingError::Unreadable {
-                reason: "the fake was told to fail".to_owned(),
-            });
+    fn read(&self, manifest: &ManifestFile, demand: MetadataDemand) -> ManifestRead {
+        if demand == MetadataDemand::Diagnostics {
+            return ManifestRead {
+                declaration: None,
+                validation: None,
+            };
         }
-        let name = text
-            .strip_prefix("[project]\nname = \"")
-            .and_then(|rest| rest.split('"').next())
-            .map_or(Naming::Unnamed, |name| {
-                Naming::Named(PackageName(name.into()))
-            });
-        Ok(Declared {
-            name,
-            members: Vec::new(),
-            excludes: Vec::new(),
-            requirements: Vec::new(),
-            sources: Vec::new(),
-            overrides: Vec::new(),
-        })
+        ManifestRead {
+            declaration: Some((|| {
+                let text = &manifest.text;
+                if text.starts_with("[project\n") {
+                    return Err(ManifestReadingError::Unreadable {
+                        reason: "the fake was told to fail".to_owned(),
+                    });
+                }
+                let name = text
+                    .strip_prefix("[project]\nname = \"")
+                    .and_then(|rest| rest.split('"').next())
+                    .map_or(Naming::Unnamed, |name| {
+                        Naming::Named(PackageName(name.into()))
+                    });
+                Ok(Declared {
+                    name,
+                    members: Vec::new(),
+                    excludes: Vec::new(),
+                    requirements: Vec::new(),
+                    sources: Vec::new(),
+                    overrides: Vec::new(),
+                })
+            })()),
+            validation: None,
+        }
     }
 }
 

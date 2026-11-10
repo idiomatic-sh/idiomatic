@@ -26,3 +26,15 @@ The standards the language's kinds are named by, pinned. The node kinds are `CPy
 
 CPython `3.15.0rc2` (`3.15.0rc2 (main, Sep  1 2026, 14:16:41) [Clang 22.1.3]`, as `sys.version` gives it), the Python the library reads (`PythonVersion::latest()` of `ruff_python_ast` 0.0.18). Its licence is
 `NOTICE-cpython-LICENSE`, beside this page.
+
+- `builtin_names.txt`: the public names (plus `__build_class__`, `__debug__`, and `__import__`) of
+  `dir(builtins)` from the pinned CPython 3.15.0rc2 interpreter with `-I`, including default `site`
+  additions. The qualification service compares its entire inventory to this independent fixture.
+  Introduction versions follow the Python Library Reference's version annotations; they are
+  numeric facts, not the caller's target version. In particular, `aiter`/`anext` require 3.10,
+  `BaseExceptionGroup`/`ExceptionGroup` require 3.11, and `PythonFinalizationError` requires 3.13.
+
+  Version annotations: https://docs.python.org/3.15/library/functions.html and
+  https://docs.python.org/3.15/library/exceptions.html. The shared builtin inventory test
+  and explicit 3.9/3.10 and 3.10/3.11 cases prevent parser-version availability from being
+  confused with a consumer target. Default-site names follow https://docs.python.org/3.15/library/site.html.

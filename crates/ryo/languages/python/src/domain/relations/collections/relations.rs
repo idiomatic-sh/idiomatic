@@ -2,6 +2,7 @@
 
 pub(crate) mod annotates;
 pub(crate) mod assigns;
+pub(crate) mod bytes_literal;
 pub(crate) mod comment;
 pub(crate) mod decorates;
 pub(crate) mod defines;
@@ -10,6 +11,7 @@ pub(crate) mod inherits;
 pub(crate) mod parameter;
 pub(crate) mod reference;
 pub(crate) mod scope;
+pub(crate) mod standard_library_import;
 pub(crate) mod static_call;
 pub(crate) mod static_import;
 pub(crate) mod string_literal;
@@ -23,3 +25,44 @@ pub(crate) mod resolves;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod fixtures;
+
+pub(crate) mod indent_region;
+
+/// Canonical lexical name provenance.
+pub(crate) mod qualified_name;
+
+/// Canonical lexical identifiers.
+pub(crate) mod identifier;
+
+pub(crate) mod semantic_syntax;
+
+pub(crate) mod semantic_child;
+
+pub(crate) mod embedded_expression;
+
+/// Generic static binding analysis.
+pub(crate) mod binding_event;
+/// Structural expression identity.
+pub(crate) mod expression_shape;
+
+/// Generic static binding analysis.
+pub(crate) mod binding_read;
+
+/// Generic static binding analysis.
+pub(crate) mod binding_use;
+
+/// Generic static binding analysis.
+pub(crate) mod binding_shadow;
+
+pub(crate) mod constant_key;
+pub(crate) mod expression_type;
+pub(crate) mod function_terminal;
+/// Optional builtin inventory independent of Name expressions.
+pub(crate) mod implicit_symbol;
+pub(crate) mod interpolated_string_literal;
+pub(crate) mod language_target;
+pub(crate) mod literal_properties;
+pub(crate) mod numeric_literal;
+
+/// Canonical known module compiler features; absence is not a disabled flag.
+pub(crate) mod compiler_feature;

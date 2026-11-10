@@ -9,6 +9,10 @@ use super::contract::ParseContract;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::notes::fixtures::fake::NotesFake;
 use crate::outbound::syntax::fixtures::fake::SyntaxFake;
+use crate::outbound::syntax::interface::SyntaxPort;
+use crate::outbound::syntax::types::{PythonSourceKind, SourceText};
+use crate::settings::{PythonParserSettings, PythonTargetVersion};
+use std::sync::Mutex;
 
 /// What a row does: reads a file (its path, its bytes and the relations wanted), or runs the language contract.
 #[derive(Clone, Copy)]
@@ -55,7 +59,10 @@ fn subject(given: Input) -> Result<Value, Failure> {
         Given::Read(path, bytes, wanted) => (path, bytes, wanted),
         Given::Contract => {
             let language = ParseContract::new(
-                Arc::new(crate::outbound::syntax::factory::ruff_python_parser()),
+                PythonParserSettings::default(),
+                Arc::new(crate::outbound::syntax::factory::ruff_python_parser(
+                    PythonParserSettings::default(),
+                )),
                 Arc::new(crate::outbound::notes::factory::postcard()),
             );
             parse(&language);
@@ -63,7 +70,11 @@ fn subject(given: Input) -> Result<Value, Failure> {
             return Ok((SAMPLES.len(), language.kind_count().0));
         }
     };
-    let language = ParseContract::new(Arc::new(SyntaxFake), Arc::new(NotesFake));
+    let language = ParseContract::new(
+        PythonParserSettings::default(),
+        Arc::new(SyntaxFake),
+        Arc::new(NotesFake),
+    );
     let mut out = languages::contract::Collect::default();
     let (mut table, mut symbols) = (
         languages::Elements::default(),
@@ -97,12 +108,278 @@ const SAMPLES: &[languages::SourceFile] = &[
     languages::SourceFile { path: languages::SourcePath("broken.py"), bytes: languages::ByteSlice(b"good = 1\ndef broken(\n") },
 ];
 
+/// Which of the file's cases a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Body {
+    /// The case `parse_contract_passes_path_kind_to_syntax_and_keeps_its_settings_identity`.
+    ParseContractPassesPathKindToSyntaxAndKeepsItsSettingsIdentity,
+    /// The case `linked_python_keeps_latest_as_its_default_target`.
+    LinkedPythonKeepsLatestAsItsDefaultTarget,
+    /// The case `explicit_source_selection_preserves_paths_and_default_recognition`.
+    ExplicitSourceSelectionPreservesPathsAndDefaultRecognition,
+    /// The case `byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness`.
+    ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness,
+}
+
+/// The rows of the cases whose bodies assert for themselves.
+const BODIES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("parse_contract_passes_path_kind_to_syntax_and_keeps_its_settings_identity"),
+        word: Word::Succeeds,
+        input: || Body::ParseContractPassesPathKindToSyntaxAndKeepsItsSettingsIdentity,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("linked_python_keeps_latest_as_its_default_target"),
+        word: Word::Succeeds,
+        input: || Body::LinkedPythonKeepsLatestAsItsDefaultTarget,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("explicit_source_selection_preserves_paths_and_default_recognition"),
+        word: Word::Succeeds,
+        input: || Body::ExplicitSourceSelectionPreservesPathsAndDefaultRecognition,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness",
+        ),
+        word: Word::Succeeds,
+        input: || Body::ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs the body of one case.
+fn body(given: Body) -> Result<(), ()> {
+    match given {
+        Body::ParseContractPassesPathKindToSyntaxAndKeepsItsSettingsIdentity => {
+            parse_contract_passes_path_kind_to_syntax_and_keeps_its_settings_identity()
+        }
+        Body::LinkedPythonKeepsLatestAsItsDefaultTarget => {
+            linked_python_keeps_latest_as_its_default_target()
+        }
+        Body::ExplicitSourceSelectionPreservesPathsAndDefaultRecognition => {
+            explicit_source_selection_preserves_paths_and_default_recognition()
+        }
+        Body::ByteLiteralRecoveryUsesOriginalSourceAcceptanceAndDiagnosticReadiness => {
+            byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness()
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn succeeds() {
+    run(BODIES, Word::Succeeds, body);
     run(CASES, Word::Succeeds, subject);
 }
 
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[derive(Clone)]
+struct CapturingSyntax(Arc<Mutex<Vec<PythonSourceKind>>>);
+
+impl SyntaxPort for CapturingSyntax {
+    fn expand_annotations(
+        &self,
+        _source: SourceText<'_>,
+        carriers: &[crate::outbound::syntax::types::DeferredAnnotation],
+        _builder: &mut ryo::languages::TableBuilder<'_>,
+    ) {
+        assert!(
+            carriers.is_empty(),
+            "this syntax fixture supplies no deferred type carrier"
+        );
+    }
+
+    fn read(
+        &self,
+        _text: SourceText<'_>,
+        source_kind: PythonSourceKind,
+        _builder: &mut languages::TableBuilder<'_>,
+    ) {
+        self.0.lock().expect("capture lock").push(source_kind);
+    }
+}
+
+fn parse_contract_passes_path_kind_to_syntax_and_keeps_its_settings_identity() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let settings = PythonParserSettings::new(PythonTargetVersion::Py310);
+    let language = ParseContract::new(
+        settings,
+        Arc::new(CapturingSyntax(Arc::clone(&seen))),
+        Arc::new(NotesFake),
+    );
+
+    for path in ["module.py", "module.pyi"] {
+        let bytes = b"x = 1\n";
+        let request = languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(bytes),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        };
+        let (mut elements, mut symbols) = (
+            languages::Elements::default(),
+            languages::Symbols::default(),
+        );
+        let mut builder =
+            languages::table_builder(&mut elements, &mut symbols, languages::ByteSlice(bytes));
+        language
+            .read_tree(&request, &mut builder)
+            .expect("read tree");
+    }
+
+    assert_eq!(
+        *seen.lock().expect("capture lock"),
+        [PythonSourceKind::Python, PythonSourceKind::Stub]
+    );
+    assert_eq!(language.configuration_identity().0, "python-target=3.10");
+}
+
+fn linked_python_keeps_latest_as_its_default_target() {
+    assert_eq!(
+        crate::linked().configuration_identity().0,
+        "python-target=latest"
+    );
+    assert_eq!(
+        crate::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310))
+            .configuration_identity()
+            .0,
+        "python-target=3.10"
+    );
+}
+
+fn explicit_source_selection_preserves_paths_and_default_recognition() {
+    let provider = crate::linked().parse_engine();
+    for path in ["test.txt", "file-with-dashes"] {
+        let request = languages::ParseRequest {
+            path: languages::SourcePath(path),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(b"# complete comment\nx = 1\n"),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        };
+        assert_eq!(
+            provider.recognition(&request),
+            languages::Recognition::Declines
+        );
+        let (mut elements, mut symbols) = (
+            languages::Elements::default(),
+            languages::Symbols::default(),
+        );
+        let mut out = languages::contract::Collect::default();
+        assert_eq!(
+            provider.read_file(request, &mut elements, &mut symbols, &[], &mut out),
+            Err(languages::ParseError::Unsupported)
+        );
+        provider
+            .read_file_explicit(
+                request,
+                &mut elements,
+                &mut symbols,
+                &[languages::Relation::Comment],
+                &mut out,
+            )
+            .expect("explicitly selected Python source");
+        assert_eq!(out.count(languages::Relation::Comment), 1);
+        assert!(
+            languages::has_incomplete_lexical_stream(&elements)
+                == languages::SyntaxCompleteness::Complete
+        );
+        assert_eq!(request.path.0, path);
+    }
+    let request = languages::ParseRequest {
+        path: languages::SourcePath("test.txt"),
+        file: languages::FileId(0),
+        bytes: languages::ByteSlice(b"x = \xff\n"),
+        notes: languages::NoteRequest::Unwanted,
+        fields: languages::FieldRequest::Unwanted,
+    };
+    let (mut elements, mut symbols) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+    );
+    provider
+        .read_file_explicit(
+            request,
+            &mut elements,
+            &mut symbols,
+            &[],
+            &mut languages::contract::Collect::default(),
+        )
+        .expect("invalid bytes are diagnosed");
+    assert!(
+        languages::has_incomplete_lexical_stream(&elements)
+            == languages::SyntaxCompleteness::Incomplete
+    );
+}
+
+fn byte_literal_recovery_uses_original_source_acceptance_and_diagnostic_readiness() {
+    let provider = ParseContract::new(
+        PythonParserSettings::default(),
+        Arc::new(crate::outbound::syntax::factory::ruff_python_parser(
+            PythonParserSettings::default(),
+        )),
+        Arc::new(crate::outbound::notes::factory::postcard()),
+    );
+    // Preserve invalid original UTF-8 and truncated escapes; an escaped high byte is valid UTF-8 source.
+    for (bytes, incomplete) in [
+        (&b"b'\xff'\n"[..], true),
+        (&b"b'\\x"[..], true),
+        (&b"b'\\xff'\n"[..], false),
+    ] {
+        let (mut elements, mut symbols) = (
+            languages::Elements::default(),
+            languages::Symbols::default(),
+        );
+        let mut out = languages::contract::Collect::default();
+        languages::contract::read(
+            &provider,
+            languages::ParseRequest {
+                path: languages::SourcePath("item.py"),
+                file: languages::FileId(0),
+                bytes: languages::ByteSlice(bytes),
+                notes: languages::NoteRequest::Unwanted,
+                fields: languages::FieldRequest::Wanted,
+            },
+            &mut elements,
+            &mut symbols,
+            &[languages::Relation::BytesLiteral],
+            &mut out,
+        )
+        .expect("recovered original bytes remain readable with honest diagnostic metadata");
+        assert_eq!(
+            languages::has_incomplete_syntax(&elements)
+                == languages::SyntaxCompleteness::Incomplete,
+            incomplete,
+            "{bytes:?}"
+        );
+        assert_eq!(
+            languages::has_incomplete_lexical_stream(&elements)
+                == languages::SyntaxCompleteness::Incomplete,
+            incomplete,
+            "{bytes:?}"
+        );
+        assert_eq!(
+            languages::syntax_acceptance(&elements),
+            if incomplete {
+                languages::SyntaxAcceptance::Rejected
+            } else {
+                languages::SyntaxAcceptance::Accepted
+            },
+            "{bytes:?}"
+        );
+        if !incomplete {
+            assert_eq!(out.count(languages::Relation::BytesLiteral), 1);
+        }
+        // Collect.partials describes reader payloads only. The common engine derives
+        // semantic unknown-absence coverage from the Elements diagnostics above.
+    }
 }

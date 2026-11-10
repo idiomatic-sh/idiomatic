@@ -16,3 +16,12 @@ pub(crate) fn reads(path: languages::SourcePath<'_>) -> languages::Recognition {
         languages::Recognition::Declines
     }
 }
+
+/// Declared Python project inputs belong to the project reader even under explicit source selection.
+#[must_use]
+pub(crate) fn primary_role(
+    path: languages::SourcePath<'_>,
+    manifests: &[languages::ManifestName],
+) -> languages::PrimaryFileRole {
+    languages::primary_role_from_manifests(path, manifests.iter().copied())
+}

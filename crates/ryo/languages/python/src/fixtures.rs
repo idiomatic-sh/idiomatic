@@ -1,7 +1,10 @@
 //! The typed fixtures of the language: what its conformance holds its answers to besides the files of its fixtures: how each kind of
 //! its trees is shown and the typed rows each fixture must give. It reads the manifests of a Python project: the rows they give are the fixture's.
 
+pub mod configuration;
 pub mod contracts;
+#[cfg(not(bless))]
+mod invalid_project;
 pub(crate) mod kinds;
 #[cfg(test)]
 pub(crate) mod projects;
@@ -22,6 +25,18 @@ pub fn expected() -> Fixtures {
         kinds: kinds::shown(),
         relations: stated_relations(),
         manifests: stated_manifests(),
+        semantic: vec![ryo::languages::contract::SemanticExpected {
+            source: ryo::languages::SourceFile {
+                path: ryo::languages::SourcePath("semantics/unsupported.py"),
+                bytes: ryo::languages::ByteSlice(include_bytes!(
+                    "../tests/fixtures/semantics/unsupported.py"
+                )),
+            },
+            start: ryo::languages::Offset(9),
+            end: ryo::languages::Offset(21),
+            context: ryo::languages::RenderContext::AttributeReceiver,
+            outcome: ryo::languages::RenderOutcome::Unsupported(ryo::languages::UnknownReason(24)),
+        }],
         shape: Shape::Walk(library::walk()),
         oracle: library::oracle(),
         unfilled: stated_unfilled(),
@@ -43,7 +58,7 @@ fn stated_relations() -> Vec<ryo::languages::contract::Expected> {
 /// The rows the manifest relations are held to.
 #[cfg(not(bless))]
 fn stated_manifests() -> Vec<ryo::languages::contract::ManifestExpected> {
-    vec![workspace::expected()]
+    vec![invalid_project::expected(), workspace::expected()]
 }
 
 /// The rows the manifest relations are held to: none while the relations' are written (`--bless`).

@@ -4,8 +4,8 @@
 use super::service::dependencies_of;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::packages::types::{
-    Checkout, Declared, Interpreter, Location, ManifestPath, Marker, Naming, Package, PackageName,
-    Packages, Redirect, Reference, Requirement, Revision, Written,
+    Checkout, Declared, Interpreter, ManifestPath, Marker, Naming, Package, PackageLocation,
+    PackageName, Packages, Redirect, Reference, Requirement, Revision, Written,
 };
 use crate::domain::patterns::types::Pattern;
 use ryo::languages::{DependencyKind, DependencyOrigin, Optionality};
@@ -173,7 +173,7 @@ fn subject((text, directory, redirects, overrides, holding): Input) -> Value {
         kind: DependencyKind::Normal,
         optional: Optionality::Required,
         reference: directory.map_or(Reference::Named, |each| {
-            Reference::Located(Location(each.into()))
+            Reference::Located(PackageLocation(each.into()))
         }),
         origin: directory.map_or(DependencyOrigin::Registry, |_| DependencyOrigin::Path),
         specifier: crate::domain::packages::service::specifier_of(&Written(text.into())),
@@ -188,7 +188,7 @@ fn subject((text, directory, redirects, overrides, holding): Input) -> Value {
     for (location, marker, tag) in redirects {
         app.declared.sources.push(Redirect {
             name: PackageName("lib_one".into()),
-            location: location.map(|each| Location(each.into())),
+            location: location.map(|each| PackageLocation(each.into())),
             origin: DependencyOrigin::Path,
             marker: Marker((*marker).into()),
             checkout: Checkout {
