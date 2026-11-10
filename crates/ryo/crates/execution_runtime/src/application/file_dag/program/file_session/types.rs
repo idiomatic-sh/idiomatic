@@ -138,7 +138,7 @@ pub struct FileRules {
 }
 /// Where a rule of a file runs: the rule, the file and the first frontier bucket of every rule.
 #[derive(Clone, Copy)]
-pub struct RuleFile<'a> {
+pub(crate) struct RuleFile<'a> {
     /// The rule.
     pub rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub file: ryo_relations::domain::relations::types::FileId,
