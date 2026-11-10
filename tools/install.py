@@ -125,7 +125,8 @@ TOOLS = {
     "actionlint": {"package": "actionlint-py", "version": "1.7.12.24"},
     "shellcheck": {"package": "shellcheck-py", "version": "0.11.0.1"},
     "cz": {"package": "commitizen", "version": "4.17.0"},
-    "pytest": {"package": "pytest", "version": "9.1.1", "with": ["pyyaml==6.0.3"]},
+    # The checkpoint's run.py runs in this environment too: it reads Rust through tree-sitter-rust, on CI's Python.
+    "pytest": {"package": "pytest", "version": "9.1.1", "python": "3.12", "with": ["pyyaml==6.0.3", "tree-sitter==0.26.1", "tree-sitter-rust==0.24.2"]},
     "ruff": {"package": "ruff", "version": "0.16.5"},
     # The release job builds wheels with maturin.
     "maturin": {"package": "maturin", "version": "1.15.0"},
@@ -240,10 +241,30 @@ def installed_crates() -> dict[str, tuple[str, str]]:
     return found
 
 
-def installed_python() -> dict[str, str]:
-    """The packages `uv tool install` left: package -> version."""
-    listing = run(["uv", "tool", "list"], capture=True).stdout
-    return {m[1]: m[2] for line in listing.splitlines() if (m := re.fullmatch(r"(\S+) v(\S+)", line))}
+def installed_python() -> dict[str, tuple[str, frozenset[str], str]]:
+    """The packages `uv tool install` left: package -> (version, the requirements installed with it, its Python's minor version)."""
+    listing = run(["uv", "tool", "list", "--show-with", "--show-python"], capture=True).stdout
+    found = {}
+    for line in listing.splitlines():
+        matched = re.fullmatch(r"(\S+) v(\S+)(?: \[with: ([^]]*)\])? \[\w+ (\d+\.\d+)\S*\]", line)
+        if matched:
+            found[matched[1]] = (matched[2], frozenset(filter(None, (matched[3] or "").split(", "))), matched[4])
+    return found
+
+
+def stale_tool(tool: dict, installed: dict[str, tuple[str, frozenset[str], str]]) -> str | None:
+    """Why the installed Python tool is not the declared one (its version, what is installed with it, or its Python); None where it is."""
+    have = installed.get(tool["package"])
+    if have is None:
+        return "not installed"
+    version, extras, python = have
+    if version != tool["version"]:
+        return f"installed {version}, declared {tool['version']}"
+    if extras != frozenset(tool.get("with", [])):
+        return f"installed with {', '.join(sorted(extras)) or 'nothing'}, declared with {', '.join(tool.get('with', [])) or 'nothing'}"
+    if "python" in tool and python != tool["python"]:
+        return f"installed on Python {python}, declared {tool['python']}"
+    return None
 
 
 def meets(installed: str, declared: str) -> bool:
@@ -455,10 +476,10 @@ def main(argv: list[str]) -> int:
         print(f"{name}: {done}", flush=True)
     have = installed_python()
     for command, tool in TOOLS.items():
-        why = None if have.get(tool["package"]) == tool["version"] else f"installed {have.get(tool['package'], 'nothing')}, declared {tool['version']}"
-        if why:
+        if stale_tool(tool, have):
             extra = [part for each in tool.get("with", []) for part in ("--with", each)]
-            run(["uv", "tool", "install", "--force", *extra, f"{tool['package']}=={tool['version']}"])
+            python = ["--python", tool["python"]] if "python" in tool else []
+            run(["uv", "tool", "install", "--force", *python, *extra, f"{tool['package']}=={tool['version']}"])
     stale = [f"{command}@{version}" for command, version in NODE_TOOLS.items() if installed_node(command) != version]
     if stale:
         npm = shutil.which("npm")

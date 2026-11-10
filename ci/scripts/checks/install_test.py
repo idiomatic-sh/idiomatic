@@ -264,3 +264,25 @@ def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> N
         run = subprocess.run([sys.executable, "-I", str(ROOT / ".github/scripts/seal_cargo_artifact.py"), str(build), *selection, str(out)], capture_output=True, text=True, check=False)
         # Two artifacts must not become one executable, and no artifact must not pass.
         assert (run.returncode == 0 and out.is_file() and os.access(out, os.X_OK)) == accepted, run.stderr
+
+
+PYTEST_LISTING = (
+    "pytest v9.1.1 [with: pyyaml==6.0.3, tree-sitter==0.26.1, tree-sitter-rust==0.24.2] [CPython 3.12.11]\n- py.test\n- pytest\n"
+    "ruff v0.16.5 [CPython 3.13.5]\n- ruff\n"
+)
+PYTEST = {"package": "pytest", "version": "9.1.1", "python": "3.12", "with": ["pyyaml==6.0.3", "tree-sitter==0.26.1", "tree-sitter-rust==0.24.2"]}
+
+
+def test_a_python_tool_whose_with_list_changed_is_reinstalled(monkeypatch) -> None:
+    listing = PYTEST_LISTING.replace(", tree-sitter==0.26.1, tree-sitter-rust==0.24.2", "")
+    monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, listing, ""))
+    have = install.installed_python()
+    assert install.stale_tool(PYTEST, have) == "installed with pyyaml==6.0.3, declared with pyyaml==6.0.3, tree-sitter==0.26.1, tree-sitter-rust==0.24.2"
+    assert install.stale_tool({"package": "ruff", "version": "0.16.5"}, have) is None
+
+
+def test_a_python_tool_on_another_python_minor_is_reinstalled(monkeypatch) -> None:
+    monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, PYTEST_LISTING.replace("3.12.11", "3.15.0rc2"), ""))
+    assert install.stale_tool(PYTEST, install.installed_python()) == "installed on Python 3.15, declared 3.12"
+    monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, PYTEST_LISTING, ""))
+    assert install.stale_tool(PYTEST, install.installed_python()) is None
