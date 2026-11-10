@@ -854,6 +854,9 @@ class EvidenceWrites(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(shell(command), 2)
 
+    def test_a_digit_bundled_in_place_flag_on_evidence_is_refused(self):
+        self.assertEqual(shell("perl -0pi -e 's/a/b/' " + self.SCRATCH), 2)
+
     def test_a_variable_rooted_path_into_an_evidence_directory_is_allowed_but_an_outside_one_is_refused(self):
         tail = "crates/ryo/docs/contracts/evidence/checkpoint/leak-review.json"
         self.assertEqual(shell('cat > "$INTEGRATION_TREE_UNSET/' + tail + '" <<EOF\n{}\nEOF'), 0)
@@ -2138,16 +2141,29 @@ class ClosedForExtension(unittest.TestCase):
         self.put(self.manifest, MANIFEST)
         self.put(self.source, SOURCE)
         self.put(self.script, SCRIPT)
+        self.state = os.path.join(self.dir.name, "state")
+        tools = os.path.join(self.dir.name, "bin")
+        # a stand-in for tm: `add` appends a top-level fact to the manifest, every other verb writes nothing
+        self.put(os.path.join(tools, "tm"), "#!/bin/sh\nfor a in \"$@\"; do [ \"$a\" = add ] && "
+                 "printf 'extra = [\"x\"]\\n' >> crates/x/tastemaker.toml; done; exit 0\n")
+        os.chmod(os.path.join(tools, "tm"), 0o755)
+        self.env = dict(os.environ, CLAUDE_HOOKS_STATE=self.state, CLAUDE_PROJECT_DIR=self.tree,
+                        PATH=tools + os.pathsep + os.environ.get("PATH", ""))
+        git(self.tree, "config", "user.name", "t")
+        git(self.tree, "config", "user.email", "t@t")
+        git(self.tree, "add", "-A")
+        git(self.tree, "commit", "-q", "-m", "base")
+        self.ids = iter(range(10 ** 6))
 
     def put(self, path, text):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(text)
 
-    def hook(self, name, payload):
-        payload = dict(payload, cwd=self.tree)
+    def hook(self, name, payload, cwd=None):
+        payload = dict(payload, cwd=cwd or self.tree)
         return subprocess.run(["python3", "-I", os.path.join(self.hooks, name)], input=json.dumps(payload),
-                              capture_output=True, text=True, check=False, cwd=self.tree)
+                              capture_output=True, text=True, check=False, cwd=cwd or self.tree, env=self.env)
 
     def write(self, path, content):
         return self.hook("guard_write.py", {"tool_name": "Write", "tool_input": {"file_path": path, "content": content}})
@@ -2156,8 +2172,31 @@ class ClosedForExtension(unittest.TestCase):
         return self.hook("guard_write.py", {"tool_name": "Edit",
                                             "tool_input": {"file_path": path, "old_string": old, "new_string": new}})
 
-    def bash(self, command):
-        return self.hook("guard_shell.py", {"tool_name": "Bash", "tool_input": {"command": command}})
+    def read(self, path):
+        try:
+            with open(path, encoding="utf-8") as handle:
+                return handle.read()
+        except FileNotFoundError:
+            return None
+
+    def effect(self, command, pre=True, cwd=None):
+        """The command run as Claude Code runs it: closed_effect's PreToolUse snapshot, the command, its PostToolUse."""
+        payload = {"tool_name": "Bash", "tool_input": {"command": command}, "session_id": "s",
+                   "tool_use_id": "toolu_" + str(next(self.ids))}
+        if pre:
+            done = self.hook("closed_effect.py", dict(payload, hook_event_name="PreToolUse"), cwd)
+            self.assertEqual(done.returncode, 0, done.stderr)
+        subprocess.run(["bash", "-c", command], cwd=cwd or self.tree, env=self.env, capture_output=True, check=False)
+        return self.hook("closed_effect.py", dict(payload, hook_event_name="PostToolUse"), cwd)
+
+    def assert_reverted(self, command, path, named=()):
+        """The command's effect on path is refused, path is back to its text before, and named changes are printed."""
+        before = self.read(path)
+        done = self.effect(command)
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertEqual(self.read(path), before, done.stderr)
+        for change in named:
+            self.assertIn(change, self.printed_changes(done), done.stderr)
 
     def both(self, old, new, path=None):
         """The Write of the whole changed file and the Edit of the fragment, each run on the unchanged file."""
@@ -2182,14 +2221,6 @@ class ClosedForExtension(unittest.TestCase):
 
     def allowed(self, *changes, path=None):
         self.assert_codes(0, changes, path)
-
-    def assert_commands(self, code, commands, says=None):
-        for command in commands:
-            with self.subTest(command=command):
-                done = self.bash(command)
-                self.assertEqual(done.returncode, code, done.stderr)
-                if says:
-                    self.assertIn(says, done.stderr)
 
     def printed_blocks(self, done):
         """The [[manifest]] or [[ignore]] blocks a refusal prints for the owner to paste."""
@@ -2296,89 +2327,59 @@ class ClosedForExtension(unittest.TestCase):
         self.put(self.allowlist, "# the owner's\n")
         self.assertEqual(self.edit(self.allowlist, "# the owner's\n", ADMIT_EXCLUDE).returncode, 2)
         self.assertEqual(self.write(os.path.join(self.tree, "closed_for_extension.toml"), "").returncode, 2)
-        self.assert_commands(2, ["echo x > " + self.allowlist, "cp a.toml " + self.allowlist,
-                                 "cp a.toml " + self.hooks + "/closed_for_extension.toml"])
 
-    def test_a_bash_write_to_a_manifest_is_refused(self):
-        self.assert_commands(2, [
-            "sed -i s/a/b/ crates/x/tastemaker.toml",
-            "perl -pi -e 's/a/b/' crates/x/tastemaker.toml",
-            "cat > crates/x/tastemaker.toml <<'EOF'\ntastemaker = \"0.1.2\"\nEOF",
-            "echo x | tee crates/x/tastemaker.toml",
-            "python3 -c \"open('crates/x/tastemaker.toml', 'w').write('')\"",
-            "python3 - <<'EOF'\nopen('crates/x/tastemaker.toml', 'w').write('')\nEOF",
-            "git show HEAD:crates/x/tastemaker.toml > crates/x/tastemaker.toml"])
-        # the shell writes the hook reads as written paths name the manifest in their refusal
-        self.assert_commands(2, [
-            "sed -i s/a/b/ crates/x/tastemaker.toml", "perl -pi -e 's/a/b/' crates/x/tastemaker.toml",
-            "echo x | tee crates/x/tastemaker.toml", "python3 -c \"open('crates/x/tastemaker.toml', 'w').write('')\"",
-            "git show HEAD:crates/x/tastemaker.toml > crates/x/tastemaker.toml"],
-            says="crates/x/tastemaker.toml is a Tastemaker manifest")
-
-    def test_digit_bundled_in_place_flags_are_refused(self):
-        self.assert_commands(2, [
-            "perl -0pi -e 's/a/b/' crates/x/tastemaker.toml",
-            "perl -0pi -e 's/$/ # ignore: idiomatic.x/' a.py",
-            "sed -Ei s/a/b/ crates/x/tastemaker.toml",
-            "perl -0pi -e 's/a/b/' /tmp/claude-scratch/leak-review.json"])
-
-    def test_node_and_deno_eval_writes_are_refused(self):
-        self.assert_commands(2, [
-            "node -e \"fs.writeFileSync('crates/x/tastemaker.toml', s)\"",
-            "node --eval \"require('fs').writeFileSync('crates/x/tastemaker.toml', s)\"",
-            "deno eval \"Deno.writeTextFileSync('crates/x/tastemaker.toml', s)\"",
-            "node -e \"fs.appendFileSync('a.rs', '// ignore: idiomatic.x')\""])
-
-    def test_an_in_place_editor_driven_by_xargs_or_find_is_refused(self):
-        self.assert_commands(2, [
-            "git ls-files '*tastemaker.toml' | xargs sed -i s/a/b/",
-            "find . -name tastemaker.toml -exec sed -i s/a/b/ {} +",
-            "git ls-files '*.rs' | xargs sed -i s/a/b/"])
-
-    def test_git_apply_git_am_and_patch_are_refused(self):
-        self.assert_commands(2, ["git apply fix.patch", "git -C t am x.mbox", "patch -p1 < x.diff"])
-
-    def test_a_bash_write_adding_an_ignore_line_is_refused(self):
-        self.assert_commands(2, [
-            "cat >> Cargo.toml <<EOF\n# ignore: idiomatic.x - why\nEOF",
-            "sed -i 's/$/  # ignore: idiomatic.x/' a.py",
-            "echo '// ignore: idiomatic.x' >> a.rs"])
-
-    def test_writing_a_patch_file_naming_a_manifest_is_refused(self):
-        patch = "--- a/crates/x/tastemaker.toml\n+++ b/crates/x/tastemaker.toml\n@@ -1 +1 @@\n-a\n+b\n"
-        self.assertEqual(self.write(os.path.join(self.tree, "fix.patch"), patch).returncode, 2)
-
-    def test_writing_a_script_that_writes_a_manifest_is_refused(self):
-        body = "open('crates/x/tastemaker.toml', 'w').write(text)\n"
-        self.assertEqual(self.write(os.path.join(self.tree, "fix.py"), body).returncode, 2)
-        shell_body = "#!/bin/sh\npython3 -c \"open('crates/x/tastemaker.toml', 'w').write('')\"\n"
-        self.assertEqual(self.write(os.path.join(self.tree, "fix"), shell_body).returncode, 2)
-
-    def test_a_shell_script_writing_a_manifest_with_a_shell_writer_is_refused(self):
-        for name, body in (("fix.sh", "sed -i s/a/b/ crates/x/tastemaker.toml\n"),
-                           ("fix.bash", "echo x | tee crates/x/tastemaker.toml\n"),
-                           ("fix.zsh", "cat > crates/x/tastemaker.toml <<'EOF'\nx = 1\nEOF\n"),
-                           ("fix", "#!/bin/sh\nsed -i s/a/b/ crates/x/tastemaker.toml\n"),
-                           ("fix-env", "#!/usr/bin/env bash\nperl -0pi -e 's/a/b/' crates/x/tastemaker.toml\n")):
-            with self.subTest(name=name):
-                done = self.write(os.path.join(self.tree, name), body)
-                self.assertEqual(done.returncode, 2, done.stderr)
-
-    def test_tm_add_init_and_update_are_refused(self):
-        self.assert_commands(2, [
-            "tm add idiomatic.arch/x --at src/x.rs", "tm add x --at src/x.rs -n", "tm --root d add x --at src/x.rs",
-            "tm --root=d add x --at y", "tm init", "tm --root d init", "tm update", "tm --root d update",
-            "flock l tm update"])
-
-    def test_a_commit_message_naming_a_manifest_and_a_writer_word_is_refused_with_the_file_route_named(self):
-        for command in ["git commit -m \"drop the cp exclude from tastemaker.toml\"",
-                        "git commit -F - <<EOF\nthe # ignore: idiomatic.x -> removed\nEOF",
-                        "gh pr create --body \"the tastemaker.toml exclude, cp of it\""]:
+    def test_a_reviewer_spelling_extending_a_manifest_is_refused_by_effect_and_restored(self):
+        sweep = "sed -i 's#\"vendor/\\*\\*\"\\]#\"vendor/**\", \"crates/new/**\"]#' "
+        rules_exclude = [("added", "workspace.rules-exclude", "crates/new/**")]
+        extra = [("added", "extra", "x")]
+        patch = os.path.join(self.dir.name, "extra.patch")
+        self.put(self.manifest, MANIFEST + 'extra = ["x"]\n')
+        self.put(patch, git(self.tree, "diff") + "\n")
+        self.put(self.manifest, MANIFEST)
+        self.put(os.path.join(self.tree, "fix.py"),
+                 "with open('crates/x/tastemaker.toml', 'a') as f:\n    f.write('extra = [\"x\"]\\n')\n")
+        for command, named in [
+                (sweep + "$(git grep -l rules-exclude -- '*.toml')", rules_exclude),
+                ("for f in $(git ls-files '*tastemaker.toml'); do " + sweep + "\"$f\"; done", rules_exclude),
+                (sweep + "crates/*/tastemaker.toml", rules_exclude),
+                (sweep + "crates/x/tastemaker.toml && git commit -qam sweep", rules_exclude),
+                ("tm --format json add x", extra), ("env tm add x --at y", extra), ("uv run --no-project tm add x", extra),
+                ("python3 fix.py", extra),
+                ("node -e \"require('fs').appendFileSync('crates/x/tastemaker.toml', 'extra = [\\\"x\\\"]\\n')\"", extra),
+                ("git apply " + patch, extra)]:
             with self.subTest(command=command):
-                done = self.bash(command)
-                self.assertEqual(done.returncode, 2, done.stderr)
-                for route in ROUTE:
-                    self.assertIn(route, done.stderr)
+                self.assert_reverted(command, self.manifest, named)
+
+    def test_a_repository_the_command_names_by_absolute_path_is_checked_from_outside_it(self):
+        outside = os.path.join(self.dir.name, "elsewhere")
+        os.makedirs(outside)
+        self.env["CLAUDE_PROJECT_DIR"] = outside
+        before = self.read(self.manifest)
+        done = self.effect("sed -i 's#\"vendor/\\*\\*\"\\]#\"vendor/**\", \"crates/new/**\"]#' " + self.manifest,
+                           cwd=outside)
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertEqual(self.read(self.manifest), before)
+
+    def test_a_loosening_removal_by_bash_is_refused_and_restored(self):
+        self.assert_reverted("sed -i '/idiomatic.arch\\/second/d' crates/x/tastemaker.toml", self.manifest,
+                             [("removed", "rules[idiomatic.arch/second]", "<entry>")])
+
+    def test_a_new_manifest_from_a_directory_copy_is_removed_and_refused(self):
+        self.assert_reverted("cp -r crates/x crates/y", os.path.join(self.tree, "crates", "y", "tastemaker.toml"),
+                             [("added", "rules[idiomatic.arch/second]", "<entry>")])
+
+    def test_an_ignore_line_added_by_bash_is_refused_and_reverted(self):
+        for command, path in [("echo '// ignore: idiomatic.arch/x - why' >> src/lib.rs", self.source),
+                              ("sed -i 's|$|  # ignore: idiomatic.arch/x|' scripts/run.sh", self.script),
+                              ("printf '// ignore: idiomatic.arch/x\\n' > src/new.rs", os.path.join(self.tree, "src", "new.rs")),
+                              ("printf '# ignore: idiomatic.arch/x - why\\n' >> crates/x/tastemaker.toml", self.manifest)]:
+            with self.subTest(command=command):
+                self.assert_reverted(command, path)
+
+    def test_a_bash_write_to_the_allowlist_is_refused_and_restored(self):
+        self.assert_reverted("echo x > " + self.allowlist, self.allowlist)
+        self.put(self.allowlist, "# the owner's\n")
+        self.assert_reverted("cp crates/x/tastemaker.toml " + self.allowlist, self.allowlist)
 
     # passed
 
@@ -2432,50 +2433,116 @@ class ClosedForExtension(unittest.TestCase):
                 self.put(self.allowlist, entry)
                 self.refused(added)
 
-    def test_a_python_read_of_a_manifest_is_allowed(self):
-        self.assert_commands(0, ["python3 -c \"import tomllib; tomllib.load(open('crates/x/tastemaker.toml', 'rb'))\"",
-                                 "grep x crates/x/tastemaker.toml 2>/dev/null"])
+    def test_the_committed_settings_run_the_effect_check_before_and_after_every_bash_command(self):
+        with open(os.path.join(HERE, "..", "settings.json"), encoding="utf-8") as handle:
+            hooks = json.load(handle)["hooks"]
+        for event in ("PreToolUse", "PostToolUse"):
+            found = [e["matcher"] for e in hooks[event] if "closed_effect.py" in json.dumps(e)]
+            self.assertEqual(found, ["Bash"], event)
 
-    def test_a_script_reading_a_manifest_is_allowed(self):
-        body = "import tomllib\nprint(tomllib.load(open('crates/x/tastemaker.toml', 'rb')))\n"
-        self.assertEqual(self.write(os.path.join(self.tree, "check.py"), body).returncode, 0)
-        shell_body = "#!/bin/sh\ngrep -c rule crates/x/tastemaker.toml 2>/dev/null\n"
-        self.assertEqual(self.write(os.path.join(self.tree, "check.sh"), shell_body).returncode, 0)
+    def test_a_tightening_removal_by_bash_is_allowed(self):
+        for command, path in [("sed -i 's#, \"src/old/\\*\\*\"##' crates/x/tastemaker.toml", self.manifest),
+                              ("sed -i '/src\\/adapter.rs/d' crates/x/tastemaker.toml", self.manifest),
+                              ("sed -i '/idiomatic.arch\\/one/d' src/lib.rs", self.source)]:
+            with self.subTest(command=command):
+                before = self.read(path)
+                done = self.effect(command)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertNotEqual(self.read(path), before)
 
-    def test_tm_read_commands_are_allowed(self):
-        self.assert_commands(0, ["tm check", "tm --root d check", "tm explain x", "tm list", "tm validate"])
-
-    def test_the_message_file_route_is_allowed(self):
-        message = "/tmp/claude-scratch/msg.txt"
+    def test_reads_and_commit_messages_naming_a_manifest_are_allowed(self):
+        message = os.path.join(self.dir.name, "msg.txt")
         self.assertEqual(self.write(message, "drop the cp exclude from tastemaker.toml\n").returncode, 0)
-        self.assert_commands(0, ["git commit -F " + message, "gh pr create --body-file " + message])
+        self.put(message, "drop the cp exclude from tastemaker.toml\n")
+        for command in ["python3 -c \"import tomllib; tomllib.load(open('crates/x/tastemaker.toml', 'rb'))\"",
+                        "grep x crates/x/tastemaker.toml > " + os.path.join(self.dir.name, "list.txt"),
+                        "git grep -n 'ignore: idiomatic' > " + os.path.join(self.dir.name, "marks.txt"),
+                        "git commit -q --allow-empty -m \"drop the cp exclude from tastemaker.toml\"",
+                        "git commit -q --allow-empty -F - <<EOF\nthe # ignore: idiomatic.x -> removed\nEOF",
+                        "git commit -q --allow-empty -F " + message, "tm check", "tm --root d check"]:
+            with self.subTest(command=command):
+                done = self.effect(command)
+                self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.read(self.manifest), MANIFEST)
+
+    def test_content_git_brings_from_existing_commits_is_allowed(self):
+        git(self.tree, "checkout", "-q", "-b", "other")
+        self.put(self.manifest, MANIFEST.replace('"src/old/**"]', '"src/old/**", "src/new/**"]'))
+        git(self.tree, "commit", "-qam", "other adds an exclude")
+        git(self.tree, "checkout", "-q", "claude/closed-x")
+        self.put(self.manifest, MANIFEST.replace('"target/**", "vendor/**"', '"target/**"'))
+        git(self.tree, "commit", "-qam", "here drops a rules-exclude glob")
+        for command in ["git merge -q --no-edit other", "git checkout -q other", "git checkout -q -b back HEAD~1"]:
+            with self.subTest(command=command):
+                before = self.read(self.manifest)
+                done = self.effect(command)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertNotEqual(self.read(self.manifest), before)
+
+    def test_resolving_a_manifest_conflict_with_either_side_or_both_is_allowed(self):
+        exclude = '"src/old/**"]'
+        theirs = MANIFEST.replace(exclude, '"src/old/**", "src/theirs/**"]')
+        ours = MANIFEST.replace(exclude, '"src/old/**", "src/ours/**"]')
+        both = MANIFEST.replace(exclude, '"src/old/**", "src/ours/**", "src/theirs/**"]')
+        git(self.tree, "checkout", "-q", "-b", "theirs")
+        self.put(self.manifest, theirs)
+        git(self.tree, "commit", "-qam", "theirs")
+        git(self.tree, "checkout", "-q", "claude/closed-x")
+        self.put(self.manifest, ours)
+        git(self.tree, "commit", "-qam", "ours")
+        done = self.effect("git merge -q theirs")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("<<<<<<<", self.read(self.manifest))
+        conflicted = self.read(self.manifest)
+        for command in ["git checkout --theirs crates/x/tastemaker.toml", "git checkout --ours crates/x/tastemaker.toml"]:
+            with self.subTest(command=command):
+                self.put(self.manifest, conflicted)
+                done = self.effect(command)
+                self.assertEqual(done.returncode, 0, done.stderr)
+        for text in (theirs, both):
+            with self.subTest(write=text):
+                self.put(self.manifest, conflicted)
+                done = self.write(self.manifest, text)
+                self.assertEqual(done.returncode, 0, done.stderr)
+        self.put(self.manifest, conflicted)
+        done = self.write(self.manifest, both.replace('"src/theirs/**"]', '"src/theirs/**", "src/mine/**"]'))
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertIn(("added", "rules[idiomatic.arch/no-language-names].exclude", "src/mine/**"),
+                      self.printed_changes(done))
 
     # fails closed
 
-    def test_the_write_hook_fails_closed_when_guard_shell_fails_to_import(self):
-        with open(os.path.join(self.hooks, "guard_shell.py"), "a", encoding="utf-8") as handle:
-            handle.write("\nraise RuntimeError('injected')\n")
-        self.assertEqual(self.write(self.manifest, MANIFEST).returncode, 2)
-        self.assertEqual(self.write(self.allowlist, "").returncode, 2)
-        self.assertEqual(self.write(os.path.join(self.tree, "src", "new.rs"), "// ignore: idiomatic.arch/x - why\n").returncode, 2)
-        self.assertEqual(self.edit(self.source, "fn a() {}", "fn a() {} // ignore: idiomatic.arch/x - why").returncode, 2)
-        self.assertEqual(self.write(os.path.join(self.tree, "notes.md"), "hi\n").returncode, 0)
-
-    def test_the_shell_hook_fails_closed_on_its_own_error_for_commands_naming_a_closed_file_or_mark(self):
-        path = os.path.join(self.hooks, "guard_shell.py")
+    def test_a_snapshot_error_restores_nothing_and_blocks(self):
+        changed = MANIFEST.replace('"vendor/**"]', '"vendor/**", "crates/new/**"]')
+        command = "sed -i 's#\"vendor/\\*\\*\"\\]#\"vendor/**\", \"crates/new/**\"]#' crates/x/tastemaker.toml"
+        done = self.effect(command, pre=False)
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertIn("Nothing was restored", done.stderr)
+        self.assertEqual(self.read(self.manifest), changed)
+        self.put(self.manifest, MANIFEST)
+        path = os.path.join(self.hooks, "closed_effect.py")
         with open(path, encoding="utf-8") as handle:
             text = handle.read()
-        old = "def segments(text):"
+        old = "def tree_of(root, scratch):\n"
         self.assertIn(old, text)
         with open(path, "w", encoding="utf-8") as handle:
-            handle.write(text.replace(old, "def segments(text):\n    raise RuntimeError('injected')\n\n\ndef _segments(text):", 1))
-        for command in ("sed -i s/a/b/ crates/x/tastemaker.toml", "echo '# ignore: idiomatic.x' >> a.py",
-                        "echo x > closed_for_extension.toml"):
-            with self.subTest(command=command):
-                done = self.bash(command)
-                self.assertEqual(done.returncode, 2, done.stderr)
-                self.assertIn("guard failed closed", done.stderr)
-        self.assertEqual(self.bash("ls").returncode, 1)
+            handle.write(text.replace(old, old + "    raise RuntimeError('injected')\n", 1))
+        done = self.effect(command)
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertIn("RuntimeError: injected", done.stderr)
+        self.assertEqual(self.read(self.manifest), changed)
+
+    def test_the_write_hook_fails_closed_when_a_module_fails_to_import(self):
+        for module in ("guard_shell.py", "closed_effect.py"):
+            with self.subTest(module=module):
+                self.setUp()
+                with open(os.path.join(self.hooks, module), "a", encoding="utf-8") as handle:
+                    handle.write("\nraise RuntimeError('injected')\n")
+                self.assertEqual(self.write(self.manifest, MANIFEST).returncode, 2)
+                self.assertEqual(self.write(self.allowlist, "").returncode, 2)
+                self.assertEqual(self.write(os.path.join(self.tree, "src", "new.rs"), "// ignore: idiomatic.arch/x - why\n").returncode, 2)
+                self.assertEqual(self.edit(self.source, "fn a() {}", "fn a() {} // ignore: idiomatic.arch/x - why").returncode, 2)
+                self.assertEqual(self.write(os.path.join(self.tree, "notes.md"), "hi\n").returncode, 0)
 
     def test_an_unparsable_allowlist_admits_nothing(self):
         self.put(self.allowlist, "[[manifest]\n" + ADMIT_EXCLUDE)
