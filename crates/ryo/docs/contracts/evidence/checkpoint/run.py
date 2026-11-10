@@ -370,7 +370,8 @@ PERF_EVIDENCE='crates/ryo/docs/contracts/evidence/perf/'
 NAMED_TEST=re.compile(r'\b[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:/[a-z][a-z0-9-]*[a-z0-9])+|\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
 def named_tests(message): return [t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
 CARGO_LINE=re.compile(r'^test (\S+) \.\.\. (ok|FAILED)\b')
-NEXTEST_LINE=re.compile(r'^\s*(PASS|FAIL|SIGSEGV|SIGABRT|TIMEOUT)\s+\[[^\]]*\]\s+\S+\s+(\S+)')
+# nextest prints `PASS [ 0.003s] ( 12/153) <binary> <test>`; older versions leave the counter out.
+NEXTEST_LINE=re.compile(r'^\s*(PASS|FAIL|SIGSEGV|SIGABRT|TIMEOUT)\s+\[[^\]]*\]\s+(?:\(\s*\d+/\d+\)\s+)?\S+\s+(\S+)')
 UNITTEST_LINE=re.compile(r'^(\w+) \(([\w.]+)\)\S*.* \.\.\. (ok|FAIL|ERROR)\b')
 UNITTEST_FAILURE=re.compile(r'^(FAIL|ERROR): (\w+) \(([\w.]+)\)')
 # pytest -v: `path::test PASSED` per test, and the short summary's `FAILED path::test` or `ERROR path::test`.
@@ -455,7 +456,7 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
  """Each commit of the checkpoint not reachable from the baseline that changes production code (a merge by its own changes), other than a perf commit (which needs an after.json with identical_output true), names a test in its message that a red_green entry over it (its base_sha excluded, its merge_sha included) proves: the entry names that test, its red log shows it fail and its green log shows it pass."""
  repo=repo or p; base=base or checkpoint_base(repo)
  if not base: return [NO_BASE]
- bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}; proven=set(); unproven={}
+ bad=[]; raw=Path(v.get('raw_identity') or '/nonexistent'); ranges={}; proven=set(); unproven={}; merges={}
  before=['^'+baseline] if baseline and git(repo,'cat-file','-e',baseline+'^{commit}') is not None else []
  for sha in (git(repo,'rev-list',base+'..'+head,*before) or '').split():
   message=git(repo,'show','-s','--format=%B',sha) or ''
@@ -469,6 +470,10 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
    continue
   tests=named_tests(message)
   entries=[x for x in v.get('red_green',[]) if sha in covered(repo,x,ranges)]
+  tables=[t for x in entries for t in [table_of(x,raw)] if t is not None]
+  # A range proven by a table: a commit naming no test is covered by the whole table, one naming tests by a row of it.
+  if tables and (not tests or any(t in rows for rows in tables for t in tests)): proven.add(sha); continue
+  if len((git(repo,'rev-list','--parents','-n1',sha) or '').split())>2: merges[sha]=short; continue
   if not tests: unproven[sha]='fix '+short+': its message names no test that fails before it and passes after'
   elif not entries: unproven[sha]='fix '+short+': no red_green entry has it between its base_sha and merge_sha'
   elif not any(proves(x,t,raw,files) for x in entries for t in tests):
@@ -476,7 +481,41 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   else: proven.add(sha)
  # Identical change, identical proof: a commit whose stable patch-id is that of a proven commit (a reworded or re-applied twin) is proven.
  twins={patch_id(repo,sha) for sha in proven}-{None}
- return bad+[why for sha,why in unproven.items() if patch_id(repo,sha) not in twins]
+ unproven={sha:why for sha,why in unproven.items() if patch_id(repo,sha) not in twins}
+ # A merge is proven when every commit its merged-in parent brings (after the baseline) is proven and the validated tree passes the
+ # tests those commits name that a validation command runs.
+ for sha,short in merges.items():
+  parents=(git(repo,'rev-list','--parents','-n1',sha) or '').split()[1:]
+  brought=(git(repo,'rev-list',*parents[1:],'^'+parents[0],*before) or '').split()
+  named=[t for c in brought for t in named_tests(git(repo,'show','-s','--format=%B',c) or '')]
+  failing=[t for t in named if validated_status(v,t)=='failed']
+  if any(c in unproven for c in brought): unproven[sha]='merge '+short+': a commit it merges in is unproven'
+  elif failing: unproven[sha]='merge '+short+': the validated tree fails a test its merged commits name ('+', '.join(failing[:4])+')'
+ return bad+list(unproven.values())
+TABLE=re.compile(r'\btable ([\w.-]+\.json)\b')
+def table_of(entry,raw):
+ """The tests a range entry's table proves, or None: the entry names `table <file>.json` in the validation directory, a list of
+ rows {semantic, test, red, green}, and every row's red log shows its test fail and its green log shows it pass."""
+ m=TABLE.search(entry.get('test','') if isinstance(entry,dict) else '')
+ if not m or not (raw/m.group(1)).is_file(): return None
+ try: rows=json.loads((raw/m.group(1)).read_text())
+ except ValueError: return None
+ if not isinstance(rows,list) or not rows: return None
+ for row in rows:
+  if not (isinstance(row,dict) and all(isinstance(row.get(k),str) for k in ('semantic','test','red','green'))): return None
+  if not ((raw/row['red']).is_file() and (raw/row['green']).is_file()): return None
+  if log_status(raw/row['red'],row['test'])!='failed' or log_status(raw/row['green'],row['test'])!='passed': return None
+ return {row['test'] for row in rows}
+def validated_status(v,test):
+ """'failed' or 'passed' for a test the validation's recorded tests hold (by its path or a suffix of it), else None."""
+ found=None
+ for binaries in v.get('tests',{}).values():
+  for t in binaries.values():
+   for name in t.get('failed',{}):
+    if name==test or name.endswith('::'+test): return 'failed'
+   for name in t.get('passed',[]):
+    if name==test or name.endswith('::'+test): found='passed'
+ return found
 RUST_COMMENT=re.compile(r'^\s*(//.*)?$')
 # A lint attribute, inner or outer, over one or more lines: `#[expect(clippy::x, reason = "...")]`, `#![deny(y)]`.
 LINT_ATTRIBUTE=re.compile(r'#!?\[\s*(?:expect|allow|warn|deny|forbid)\s*\((?:[^()"]|"(?:[^"\\]|\\.)*"|\((?:[^()"]|"(?:[^"\\]|\\.)*")*\))*\)\s*\]')

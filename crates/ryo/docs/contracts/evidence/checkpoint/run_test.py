@@ -281,19 +281,40 @@ class Diff(unittest.TestCase):
   later=commit(self.repo,{'a/README.md':'later\n'},'docs: later')
   commit(self.repo,{'crates/ryo/docs/contracts/evidence/perf/one/after.json':'{"identical_output": true, "source": "'+later+'"}'},'docs: perf evidence')
   self.assertEqual(self.fixes([]),[])
- def test_a_merges_own_production_change_is_a_fix_and_a_clean_merge_is_not(self):
+ def test_a_merge_is_proven_by_the_commits_it_brings_and_the_validated_tests_they_name(self):
   subprocess.run(['git','-C',self.repo,'checkout','-q','-b','side'],check=True)
   commit(self.repo,{'a/README.md':'side\n'},'docs: side')
   subprocess.run(['git','-C',self.repo,'checkout','-q','claude/checkpoint-9'],check=True)
   subprocess.run(['git','-C',self.repo,'merge','-q','--no-ff','side','-m','Merge side'],check=True)
   self.assertEqual(self.fixes([]),[])
   subprocess.run(['git','-C',self.repo,'checkout','-q','side'],check=True)
-  commit(self.repo,{'a/README.md':'side 2\n'},'docs: side 2')
+  fix=commit(self.repo,{'a/src/two.rs':'pub fn two() {}\n'},'fix(a): two answers, `service_test::two_answers`')
   subprocess.run(['git','-C',self.repo,'checkout','-q','claude/checkpoint-9'],check=True)
   subprocess.run(['git','-C',self.repo,'merge','-q','--no-ff','--no-commit','side'],check=True)
   (Path(self.repo)/'a/src/lib.rs').write_text('pub fn one() { /* resolved in the merge */ }\n')
   subprocess.run(['git','-C',self.repo,'commit','-q','-am','Merge side again'],check=True)
-  self.assertEqual(len(self.fixes([])),1)
+  found=self.fixes([])
+  self.assertTrue(any('merge' in x and 'unproven' in x for x in found),found)
+  self.logs(red=RED.replace('one_answers','two_answers'),green=GREEN.replace('one_answers','two_answers'))
+  entry={'test':'service_test::two_answers (red red.log, green green.log)','base_sha':self.base,'merge_sha':fix}
+  self.assertEqual(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base),[])
+  failing={'cli':{'b':{'passed':[],'failed':{'domain::service_test::two_answers':{}}}}}
+  found=run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw),'tests':failing},repo=self.repo,base=self.base)
+  self.assertEqual(len(found),1); self.assertIn('fails a test its merged commits name',found[0])
+ def test_a_range_proven_by_a_seam_table_covers_its_commits(self):
+  quiet=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'refactor(a): behind the seam')
+  named=commit(self.repo,{'a/src/lib.rs':'pub fn one() {  }\n'},'fix(a): `service_test::one_answers`')
+  other=commit(self.repo,{'a/src/lib.rs':'pub fn one() { let _ = 1; }\n'},'fix(a): `service_test::elsewhere_answers`')
+  self.logs(red=RED,green=GREEN)
+  (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'red.log','green':'green.log'}]))
+  entry={'test':'the port (table seam.json)','base_sha':self.base,'merge_sha':other}
+  found=run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)
+  self.assertEqual([x[4:14] for x in found],[other[:10]])
+  (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'green.log','green':'green.log'}]))
+  self.assertEqual(len(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),3)
+ def test_a_nextest_line_with_its_counter_names_its_test(self):
+  self.logs(next='    Starting 1 test across 1 binary\n        FAIL [   0.010s] (  1/153) pkg::bin domain::service_test::one_answers\n     Summary [   0.1s] 1 test run: 0 passed, 1 failed\n')
+  self.assertEqual(run.log_status(self.raw/'next.log','service_test::one_answers'),'failed')
  def test_a_production_commit_the_baseline_reaches_is_ignored_and_one_after_it_is_checked(self):
   before=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): before the rule')
   after=commit(self.repo,{'a/src/lib.rs':'pub fn one() {  }\n'},'fix(a): after the rule')
