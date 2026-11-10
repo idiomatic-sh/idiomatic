@@ -1,5 +1,10 @@
 //! Injected immutable source rows and the exact file frontier captured by the public owner.
+use ryo_execution::inbound::use_cases::execution::interface::{
+    AdmittedOutput, Install, ObservationBatches, ObservationExecution, OccurrenceNumber,
+    OperatingError, Partials, PhasePartials, PhaseStop, ProjectOutputOutcome, RuleOutcome,
+};
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
+use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;
 use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
@@ -8,6 +13,7 @@ use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
 use ryo_execution_runtime::outbound::facts::types::KeptBucket;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
     types::{CellKind, FileId, Offset, Relation, Span, Value},
@@ -17,12 +23,6 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords, PackedWords};
-use ryo_execution::inbound::use_cases::execution::interface::{
-    AdmittedOutput, Install, ObservationBatches, ObservationExecution, OccurrenceNumber,
-    OperatingError, Partials, PhasePartials, PhaseStop, ProjectOutputOutcome, RuleOutcome,
-};
-use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
-use ryo_language::domain::symbols::types::Symbols;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub(in super::super) struct ProjectFacts {

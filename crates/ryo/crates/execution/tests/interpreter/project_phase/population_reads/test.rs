@@ -145,7 +145,10 @@ fn a_deferred_project_root_feeds_no_file_step_and_its_frontier_walks_the_source_
         let resolved = file_reads.get();
         assert!(resolved > 0);
         assert_eq!(file.fixture_walk_counts().passes.0, 1);
-        assert_eq!(file.fixture_walk_counts().source_rows.0, table.count.0 as u64);
+        assert_eq!(
+            file.fixture_walk_counts().source_rows.0,
+            table.count.0 as u64
+        );
         assert_eq!(file.fixture_counts(RuleIndex(0)).unwrap().fed[1].0, [0; 3]);
         file.finish()
             .expect("file owner finishes without demanding project sources");

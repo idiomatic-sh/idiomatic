@@ -1,6 +1,6 @@
 //! An indexed join counts the matching right-hand visits and does no work on replay.
-use crate::shared_walk::fixtures::{complete, input};
 use crate::boundary_fixture::{authored_request, corpus, demand, engine};
+use crate::shared_walk::fixtures::{complete, input};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -130,7 +130,10 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
         assert_eq!(complete(first), expected);
         let readiness = file.fixture_readiness_counts();
         let again = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-        assert_eq!(file.fixture_counts(RuleIndex(0)).unwrap().fed.as_ref(), counts.as_slice());
+        assert_eq!(
+            file.fixture_counts(RuleIndex(0)).unwrap().fed.as_ref(),
+            counts.as_slice()
+        );
         assert_eq!(complete(again), expected);
         assert_eq!(file.fixture_readiness_counts(), readiness);
         file.finish().unwrap();

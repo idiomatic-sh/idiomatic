@@ -1,7 +1,9 @@
 //! Blocked regions, empty publications and merged coverage, through the public file session.
-use crate::file_intents::{answered, partial};
 use crate::boundary_fixture::{authored_request, engine, source};
-use ryo_execution::inbound::use_cases::execution::interface::{PreparedExecutionProgram, RootOutcome};
+use crate::file_intents::{answered, partial};
+use ryo_execution::inbound::use_cases::execution::interface::{
+    PreparedExecutionProgram, RootOutcome,
+};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::Relation;
@@ -64,8 +66,15 @@ fn a_region_reading_a_partial_relation_is_blocked_before_it_reads() {
     let Ok(RootOutcome::Partial { table, affected }) = outcome else {
         panic!("a blocked region publishes a partial answer")
     };
-    assert_eq!(table.count, RowCount(0), "a blocked region publishes the empty table");
-    assert_eq!(affected, [Some(ryo_relations::domain::relations::types::FileId(0))]);
+    assert_eq!(
+        table.count,
+        RowCount(0),
+        "a blocked region publishes the empty table"
+    );
+    assert_eq!(
+        affected,
+        [Some(ryo_relations::domain::relations::types::FileId(0))]
+    );
     assert_eq!(reads_blocked, 0, "a blocked region reads no relation");
     assert!(reads > 0);
 }
@@ -94,7 +103,9 @@ fn functions_without_comment_relation() -> PreparedExecutionProgram {
         },
     ];
     crate::boundary_fixture::plans(&mut input)[0].emit.step = StepId(1);
-    engine().prepare(input).expect("prepare an antijoin of a step and a relation")
+    engine()
+        .prepare(input)
+        .expect("prepare an antijoin of a step and a relation")
 }
 
 /// S3: an empty left input settles an antijoin at its gate, before its right input is read; the empty table it publishes keeps
@@ -108,13 +119,19 @@ fn an_empty_publication_keeps_the_partial_coverage_of_its_reads() {
     ];
     let (outcome, reads) = answered(&program, &rows, &[], &[]);
     assert!(matches!(outcome, Ok(RootOutcome::Complete(ref table)) if table.count == RowCount(0)));
-    assert_eq!(reads, 2, "the empty left input settles the antijoin before Comment is read");
+    assert_eq!(
+        reads, 2,
+        "the empty left input settles the antijoin before Comment is read"
+    );
     let (outcome, reads) = answered(&program, &rows, &[], &[partial(Relation::Comment)]);
     let Ok(RootOutcome::Partial { table, affected }) = outcome else {
         panic!("an empty answer whose right relation was read in part is partial")
     };
     assert_eq!(table.count, RowCount(0));
-    assert_eq!(affected, [Some(ryo_relations::domain::relations::types::FileId(0))]);
+    assert_eq!(
+        affected,
+        [Some(ryo_relations::domain::relations::types::FileId(0))]
+    );
     assert_eq!(
         reads, 4,
         "the gate settles the antijoin on its empty left input, reading Comment no further"
@@ -157,10 +174,14 @@ fn locations() -> Table {
 /// The first location of each line, by byte: an anti-join of the locations over the self-join of each line's locations. With
 /// `kept` empty the engine recognises it as an ordered existence; keeping `[0, 1]`, the same meaning, declines the shape.
 fn first_of_each_line(kept: Vec<ColumnIndex>) -> PreparedExecutionProgram {
-    engine().prepare(first_of_each_line_plan(kept)).expect("prepare the first location of each line")
+    engine()
+        .prepare(first_of_each_line_plan(kept))
+        .expect("prepare the first location of each line")
 }
 
-fn first_of_each_line_plan(kept: Vec<ColumnIndex>) -> ryo_execution::inbound::use_cases::prepare::types::PrepareRequest {
+fn first_of_each_line_plan(
+    kept: Vec<ColumnIndex>,
+) -> ryo_execution::inbound::use_cases::prepare::types::PrepareRequest {
     use ryo_values::domain::plan_parts::types::{
         ComparisonOrigin, JoinColumn, Operand, PlanComparison, RepeatedRows, Side, Test,
     };
@@ -249,12 +270,20 @@ fn a_recognised_ordered_existence_answers_as_its_declined_twin() {
             !publication.is_empty()
         );
     }
-    let (outcome, _) = answered(&recognised, &rows, &[], &[partial(Relation::SourceLocation)]);
+    let (outcome, _) = answered(
+        &recognised,
+        &rows,
+        &[],
+        &[partial(Relation::SourceLocation)],
+    );
     let Ok(RootOutcome::Partial { affected, .. }) = outcome else {
         panic!("an ordered existence read in part answers in part")
     };
     assert_eq!(
         affected,
-        [None, Some(ryo_relations::domain::relations::types::FileId(0))]
+        [
+            None,
+            Some(ryo_relations::domain::relations::types::FileId(0))
+        ]
     );
 }

@@ -11,6 +11,7 @@ use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
+use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
@@ -20,7 +21,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;

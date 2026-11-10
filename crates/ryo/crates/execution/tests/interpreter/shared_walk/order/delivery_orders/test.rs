@@ -1,8 +1,8 @@
 //! Frontier and callback delivery share one atomic failure and one dependency contract in both orders.
+use crate::boundary_fixture::{authored_request, corpus};
 use crate::interpreter::shared_walk::fixtures::counts;
 use crate::shared_walk::fixtures::*;
 use crate::shared_walk::no_catalog;
-use crate::boundary_fixture::{authored_request, corpus};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;

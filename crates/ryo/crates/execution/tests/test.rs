@@ -226,8 +226,13 @@ fn a_refused_sink_is_retried_from_the_publication_without_another_evaluation() {
             &mut symbols,
         )
         .expect("open the count file");
-    let refused = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| Err(OperatingError::NotRead));
-    assert!(matches!(refused, Err(OperatingError::NotRead)), "the sink refused");
+    let refused = file.emit_rows(RuleIndex(0), &mut symbols, &mut |_| {
+        Err(OperatingError::NotRead)
+    });
+    assert!(
+        matches!(refused, Err(OperatingError::NotRead)),
+        "the sink refused"
+    );
     let mut rows = vec![];
     let _emission = file
         .emit_rows(RuleIndex(0), &mut symbols, &mut |row| {

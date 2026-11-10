@@ -1,13 +1,13 @@
 mod cohort;
-mod fixtures;
 mod compact;
+mod fixtures;
 mod order;
 mod projection;
 mod readiness;
-use crate::interpreter::shared_walk::fixtures::counts;
-use crate::shared_walk::no_catalog;
 use crate::boundary_fixture::{corpus, demand};
+use crate::interpreter::shared_walk::fixtures::counts;
 use crate::shared_walk::fixtures::*;
+use crate::shared_walk::no_catalog;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -265,4 +265,3 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     assert_eq!(semantics.selects(), 0);
     request.finish();
 }
-

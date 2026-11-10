@@ -1,8 +1,6 @@
 //! Observation capture and diagnostic delivery are bound before admission.
 use super::super::*;
 
-
-
 #[test]
 fn diagnostic_delivery_is_bound_before_admission_and_cannot_switch_after_publication() {
     let engine = engine();

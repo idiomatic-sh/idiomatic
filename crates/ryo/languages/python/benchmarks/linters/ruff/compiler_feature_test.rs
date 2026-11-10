@@ -5,8 +5,8 @@ use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
-use super::context_case_test::{ContextCase, check_case, stage_modules};
 use super::authored_queries_test::authored_suppression_cohort_queries_validate_through_public_sdk_contracts;
+use super::context_case_test::{ContextCase, check_case, stage_modules};
 
 fn compiler_features_and_annotation_contexts_follow_the_language_contract() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))

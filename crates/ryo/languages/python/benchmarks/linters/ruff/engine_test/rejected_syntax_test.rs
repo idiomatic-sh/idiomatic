@@ -104,9 +104,9 @@ pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_f
 /// lineage, the one rejected file left all three Unknown at every file.
 pub(super) fn a_rejected_file_leaves_i001_plw0406_and_ruf100_answering_the_valid_file() {
     use super::constants::{
-        BENCHMARK_TOML, CODE, CONFIG_DISABLED, CONFIG_EXTERNAL,
-        CONFIG_SELECTED, DIRECTIVE, EMPTY, FILE, NOQA_MATCHES, PREFIX, QUERY_MODULES,
-        RULES_I001_QUERY_RYOQL, RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES,
+        BENCHMARK_TOML, CODE, CONFIG_DISABLED, CONFIG_EXTERNAL, CONFIG_SELECTED, DIRECTIVE, EMPTY,
+        FILE, NOQA_MATCHES, PREFIX, QUERY_MODULES, RULES_I001_QUERY_RYOQL,
+        RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES,
     };
     use ryo::linter::{
         Cache, CaseSource, Cell, Corpus, ExecutablePermission, GivenProjectInventory, HostColumn,

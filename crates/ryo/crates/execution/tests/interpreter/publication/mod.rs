@@ -1,12 +1,9 @@
 //! Publication policy is enforced by fresh public delivery, never a pre-collected root.
-use crate::publication::{program, rows};
 use super::*;
+use crate::publication::{program, rows};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-
-
-
 
 #[test]
 fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
@@ -111,5 +108,3 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
         request.finish();
     }
 }
-
-

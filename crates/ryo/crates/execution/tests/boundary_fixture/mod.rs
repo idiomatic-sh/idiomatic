@@ -3,6 +3,9 @@ use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    PhasePartials, PhaseRules, PhaseStop,
+};
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
@@ -10,9 +13,6 @@ use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution::inbound::use_cases::execution::interface::{
-    PhasePartials, PhaseRules, PhaseStop,
-};
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;

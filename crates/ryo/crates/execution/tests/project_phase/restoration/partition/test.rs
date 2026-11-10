@@ -6,10 +6,10 @@ use super::fixtures::authored;
 use crate::boundary_fixture::Observed as _;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::Partial;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches, OccurrenceNumber, PhasePartials,
 };
-use ryo_execution::inbound::use_cases::execution::interface::Partial;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
@@ -178,7 +178,16 @@ pub(super) fn exercise_with(
         crate::project_phase::source_facts::fixtures::run_observations_with(
             stage,
             ObservationBatches {
-                occurrences: &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(1) }, BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(2) }],
+                occurrences: &[
+                    BatchOccurrence {
+                        batch: BatchNumber(0),
+                        rule: RuleIndex(1),
+                    },
+                    BatchOccurrence {
+                        batch: BatchNumber(1),
+                        rule: RuleIndex(2),
+                    },
+                ],
                 readiness: &readiness,
                 rules: &[RuleIndex(0), RuleIndex(1), RuleIndex(2)],
                 first: &first,
@@ -232,10 +241,7 @@ pub(super) fn exercise_with(
         outcome: observed, ..
     } = outcome.observations.pop().unwrap();
     match (mode, observed) {
-        (
-            Mode::Current | Mode::CurrentRekey { .. },
-            ProjectObservation::Partial { table, .. },
-        ) => {
+        (Mode::Current | Mode::CurrentRekey { .. }, ProjectObservation::Partial { table, .. }) => {
             if matches!(mode, Mode::CurrentRekey { .. }) {
                 assert_eq!(
                     table.count,

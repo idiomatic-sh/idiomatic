@@ -238,7 +238,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 0, true, 1)),
     },
     Case {
-        name: CaseName("a_changed_exclusion_and_changed_hosted_rows_change_what_a_retained_store_answers"),
+        name: CaseName(
+            "a_changed_exclusion_and_changed_hosted_rows_change_what_a_retained_store_answers",
+        ),
         word: Word::Succeeds,
         input: || Given {
             linter: Linting::Scenario(configured_scope),

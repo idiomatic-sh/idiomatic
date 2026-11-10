@@ -97,12 +97,16 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
         (Relation::Function, one_row(Relation::Function)),
         (Relation::Comment, one_row(Relation::Comment)),
     ];
-    let partial = [ryo_execution::inbound::use_cases::execution::interface::Partial {
-        relation: Relation::Comment,
-        cause: ryo_values::domain::stored_facts::types::PartialCause("a reader stopped".into()),
-        lacking: ryo_execution::inbound::use_cases::metadata::interface::Lacking::Any,
-        at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(0)),
-    }];
+    let partial = [
+        ryo_execution::inbound::use_cases::execution::interface::Partial {
+            relation: Relation::Comment,
+            cause: ryo_values::domain::stored_facts::types::PartialCause("a reader stopped".into()),
+            lacking: ryo_execution::inbound::use_cases::metadata::interface::Lacking::Any,
+            at: ryo_execution::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(
+                0,
+            )),
+        },
+    ];
     let mut answers = vec![];
     for read_in_part in [false, true] {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
@@ -144,7 +148,8 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
             &Partials::default(),
             &mut symbols,
         );
-        let Ok(RootOutcome::Partial { table, affected }) = outcome.map(|outcome| outcome.emit) else {
+        let Ok(RootOutcome::Partial { table, affected }) = outcome.map(|outcome| outcome.emit)
+        else {
             panic!("a rule skipped in file 1 answers in part")
         };
         assert_eq!(table.cells, [Value::File(FileId(0))]);

@@ -53,7 +53,12 @@ fn three_rules_over_three_files_answer_the_recorded_file_rules() {
             worker.as_ref(),
         );
         for (rule, ran) in ran.iter().enumerate() {
-            writeln!(answered, "file {file} rule {rule}: {}; {}", ran.emitted, ran.after).unwrap();
+            writeln!(
+                answered,
+                "file {file} rule {rule}: {}; {}",
+                ran.emitted, ran.after
+            )
+            .unwrap();
         }
         writeln!(answered, "file {file}: {end}").unwrap();
     }

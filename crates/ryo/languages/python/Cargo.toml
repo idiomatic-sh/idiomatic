@@ -71,4 +71,3 @@ ignored = ["dhat"]
 schema = "divan-timing/v1"
 workloads = { generated_every_relation = [2500, 10000] }
 metrics = ["median-ns"]
-

@@ -1,6 +1,10 @@
 //! The interpreter's own counters of the project phase's file runs.
-#![allow(unused_imports, reason = "the copied prelude of the project phase suite; each test reads part of it")]
+#![allow(
+    unused_imports,
+    reason = "the copied prelude of the project phase suite; each test reads part of it"
+)]
 use crate::boundary_fixture::{authored_request, corpus, demand, engine, source};
+use crate::project_phase::mixed_program;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -18,12 +22,12 @@ use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
-use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
+use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -47,6 +51,5 @@ use ryo_values::domain::{
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use crate::project_phase::mixed_program;
 mod applicability;
 mod population_reads;

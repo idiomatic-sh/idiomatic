@@ -25,9 +25,9 @@ pub use lint::schemas::RuleIdSchemaError;
 
 pub use lint::types::Cache;
 
-pub use lint::types::CaseSource;
 /// Edge-observed POSIX executable-bit knowledge, independent of file content.
 pub use crate::domain::file::types::ExecutablePermission;
+pub use lint::types::CaseSource;
 
 pub use lint::types::SourceText;
 

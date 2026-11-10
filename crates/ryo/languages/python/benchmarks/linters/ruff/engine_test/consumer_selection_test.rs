@@ -14,8 +14,7 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
     let root = tempfile::tempdir().unwrap();
     let store = tempfile::tempdir().unwrap();
     let authored = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("rules/I001/query.ryoql"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("rules/I001/query.ryoql"),
     )
     .unwrap();
     let emission = authored.rfind("emit ").expect("actual I001 emission");
@@ -26,8 +25,7 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
     );
     let profile: toml::Value = toml::from_str(
         &std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("benchmark.toml"),
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmark.toml"),
         )
         .unwrap(),
     )
@@ -40,8 +38,7 @@ pub(super) fn actual_i001_mixed_namespace_observation_stays_unknown_on_cold_and_
             ryo::query::QueryModuleSource::try_new(
                 name,
                 &std::fs::read_to_string(
-                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .join(path.as_str().unwrap()),
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(path.as_str().unwrap()),
                 )
                 .unwrap(),
             )

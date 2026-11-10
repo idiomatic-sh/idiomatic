@@ -28,8 +28,8 @@ ser = "ser"
 # A hash written straight after a word (`source6bf638e1f...`) has no word
 # boundary before it.
 # A Python test source's `café`, escaped in a recorded JSON string (`caf\u00e9`), reads as the word `caf`. A review verdict's plural
-# (`ALLOWs`) splits into `ALLO` and `Ws`.
-extend-ignore-re = ['\b[0-9a-f]{7,40}\b', '[0-9a-f]{10,}', '\bcatch-alls\b', 'caf\\u00e9', '\bALLOWs\b']
+# (`ALLOWs`) splits into `ALLO` and `Ws`. A perf diagnosis says a predicate is `ANDed` across a Union, which splits into `AN` and `Ded`.
+extend-ignore-re = ['\b[0-9a-f]{7,40}\b', '[0-9a-f]{10,}', '\bcatch-alls\b', 'caf\\u00e9', '\bALLOWs\b', '\bANDed\b']
 
 # RyoQL tests misspell a field ("colums") and an operation ("projct", "selekt") on
 # purpose, to prove the reader refuses an unknown one; typos rewrote them, which made each
@@ -50,6 +50,9 @@ extend-ignore-re = ['"[^"\n]*(\n[^"\n]*){0,6}"', '\bp[0-9in]\b']
 [files]
 extend-exclude = [
   "crates/ryo/languages/*/tests/fixtures/standard/**",
+  # The modularity inventory's raw query answers keep each `use` path's source text with its spaces taken out
+  # (`FileRootDemand as DemandRoot` is `FileRootDemandasDemandRoot`), which reads as a misspelling of "demands".
+  "crates/ryo/docs/contracts/evidence/inventory/raw/**",
   # A language's pinned suite is its test files byte for byte.
   "crates/ryo/languages/*/tests/fixtures/suite/**",
   # A refusal fixture's manifest is unreadable on purpose.

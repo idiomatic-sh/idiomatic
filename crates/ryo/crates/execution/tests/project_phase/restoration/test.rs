@@ -168,7 +168,10 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
         let (ran, delivered) = crate::project_phase::source_facts::fixtures::run_observations(
             stage,
             ObservationBatches {
-                occurrences: &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(1) }],
+                occurrences: &[BatchOccurrence {
+                    batch: BatchNumber(0),
+                    rule: RuleIndex(1),
+                }],
                 readiness: &readiness,
                 rules: &[RuleIndex(0), RuleIndex(1)],
                 first: &[Bucket(0), Bucket(10)],

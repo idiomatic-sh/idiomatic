@@ -44,14 +44,20 @@ pub enum ExecutablePermission {
 
 impl ExecutablePermission {
     /// The engine's permission state of the same observation.
-    pub(crate) const fn into_engine(self) -> ryo_values::domain::files::types::ExecutablePermission {
+    pub(crate) const fn into_engine(
+        self,
+    ) -> ryo_values::domain::files::types::ExecutablePermission {
         match self {
             Self::Unknown => ryo_values::domain::files::types::ExecutablePermission::Unknown,
-            Self::Unsupported => ryo_values::domain::files::types::ExecutablePermission::Unsupported,
+            Self::Unsupported => {
+                ryo_values::domain::files::types::ExecutablePermission::Unsupported
+            }
             Self::PosixNotExecutable => {
                 ryo_values::domain::files::types::ExecutablePermission::PosixNotExecutable
             }
-            Self::PosixExecutable => ryo_values::domain::files::types::ExecutablePermission::PosixExecutable,
+            Self::PosixExecutable => {
+                ryo_values::domain::files::types::ExecutablePermission::PosixExecutable
+            }
         }
     }
 }

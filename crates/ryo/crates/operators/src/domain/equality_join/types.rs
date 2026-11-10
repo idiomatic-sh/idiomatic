@@ -11,7 +11,7 @@ pub trait JoinDriver {
     ///
     /// # Errors
     ///
-    /// [`EqualityJoinError::Interrupted`](super::errors::EqualityJoinError::Interrupted) when the engine interrupts the join.
+    /// [`EqualityJoinError::Interrupted`] when the engine interrupts the join.
     fn next(
         &mut self,
         key: &[ryo_relations::domain::relations::types::Value],
@@ -25,7 +25,7 @@ pub trait JoinDriver {
     ///
     /// # Errors
     ///
-    /// [`EqualityJoinError::Interrupted`](super::errors::EqualityJoinError::Interrupted) when the engine interrupts the join.
+    /// [`EqualityJoinError::Interrupted`] when the engine interrupts the join.
     fn emit(
         &mut self,
         row: &[ryo_relations::domain::relations::types::Value],
@@ -67,7 +67,7 @@ pub trait PositionJoinDriver {
     ///
     /// # Errors
     ///
-    /// [`EqualityJoinError::Interrupted`](super::errors::EqualityJoinError::Interrupted) when the engine interrupts the join.
+    /// [`EqualityJoinError::Interrupted`] when the engine interrupts the join.
     fn next(&mut self) -> Result<Advance, EqualityJoinError>;
     /// File-local position slots of the current already matching RHS row.
     fn right_positions(&self) -> PositionSlots<'_>;

@@ -1,6 +1,6 @@
 //! Hosted ordered dependencies use the same scheduler for both delivery modes.
-use crate::scheduler::physical::test::{ordered};
 use crate::boundary_fixture::{corpus, demand, engine};
+use crate::scheduler::physical::test::ordered;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -18,7 +18,6 @@ use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value};
 use ryo_values::domain::rows::types::{RowCount, Table};
-
 
 #[test]
 fn ordered_hosted_inputs_are_scheduled_once_before_collected_or_forwarded_delivery() {

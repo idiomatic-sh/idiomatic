@@ -1,7 +1,9 @@
 //! Actual public file-owner readiness bounds and terminal failure replay.
-use crate::shared_walk::readiness::test::{readiness_intent, readiness_chain, readiness_hosted, readiness_budget, readiness_expected};
-use crate::shared_walk::{fixtures::*, no_catalog};
 use crate::boundary_fixture::{authored_request, corpus, demand};
+use crate::shared_walk::readiness::test::{
+    readiness_budget, readiness_chain, readiness_expected, readiness_hosted, readiness_intent,
+};
+use crate::shared_walk::{fixtures::*, no_catalog};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;

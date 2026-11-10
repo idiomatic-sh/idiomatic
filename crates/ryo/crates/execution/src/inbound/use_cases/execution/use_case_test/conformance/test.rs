@@ -83,15 +83,7 @@ pub(crate) fn compare_delivery_with_port(
     let schema = schema(operation, inputs, bindings);
     let authored = author(operation, inputs, bindings, symbols);
     deliver(
-        authored,
-        schema,
-        bindings,
-        source,
-        symbols,
-        stop,
-        semantic,
-        refusal,
-        port,
+        authored, schema, bindings, source, symbols, stop, semantic, refusal, port,
     )
 }
 

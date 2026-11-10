@@ -72,9 +72,9 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::wanted::{
 pub use ryo_language::inbound::use_cases::parse::fixtures::{collect::Collect, contract::Discard};
 pub use ryo_language::inbound::use_cases::parse::service::{build, read, walk};
 pub use ryo_language::inbound::use_cases::parse::types::KindSample;
-pub use ryo_language::inbound::use_cases::project::service::project as read_project;
 /// The engine-side interfaces `Language::parse_engine` and `Language::project` hand a language's own tests.
 pub use ryo_language::inbound::use_cases::parse::types::ParseEngine;
+pub use ryo_language::inbound::use_cases::project::service::project as read_project;
 pub use ryo_language::inbound::use_cases::project::types::ProjectEngine;
 
 use super::{CatalogRelation, Parse, Project, ReadItem, SourceFile, SourcePath};

@@ -1,6 +1,6 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
-use crate::scheduler::sources::test::{named};
 use crate::boundary_fixture::{corpus, engine, source};
+use crate::scheduler::sources::test::named;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -33,7 +33,6 @@ use ryo_values::domain::{
     table_words::fixtures::decode_complete,
 };
 use std::cell::Cell;
-
 
 #[test]
 fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery() {

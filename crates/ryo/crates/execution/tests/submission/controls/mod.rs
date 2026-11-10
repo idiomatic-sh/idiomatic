@@ -18,14 +18,15 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
-use ryo_execution::inbound::use_cases::execution::interface::{BatchNumber, BatchOccurrence, ObservationBatches};
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectBatch;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RefusedFiles;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    BatchNumber, BatchOccurrence, ObservationBatches,
+};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
@@ -33,6 +34,7 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_language::domain::symbols::types::Symbols;
 use std::collections::BTreeSet;
 
 /// What a method does with a root set: refuse an incomplete, extra or undeclared one, or
@@ -48,9 +50,9 @@ pub(super) fn control(method: Method) -> Control {
         Method::RequestOpenFile => Control::Refuses(file_route),
         Method::RequestRunFile => Control::Refuses(run_file_route),
         Method::RequestObservations => Control::Refuses(observations_need_a_named_program),
-        Method::RequestProjectPhase => Control::AcceptsNoRoot(
-            "opens the phase; its roots are declared through evaluate_rules",
-        ),
+        Method::RequestProjectPhase => {
+            Control::AcceptsNoRoot("opens the phase; its roots are declared through evaluate_rules")
+        }
         Method::RootsEvaluateRules => Control::Refuses(occurrence_of_an_undeclared_rule),
         Method::ObservedRunBatches => Control::Refuses(observed_undeclared_rule),
         Method::FileEmitRows
@@ -245,7 +247,8 @@ fn stage_batches<'a>(
     inapplicable: &'a [InapplicableFiles],
     refused: &'a [RefusedFiles],
 ) -> ObservationBatches<'a> {
-    static PROJECT_SYMBOLS: std::sync::LazyLock<Symbols> = std::sync::LazyLock::new(Symbols::default);
+    static PROJECT_SYMBOLS: std::sync::LazyLock<Symbols> =
+        std::sync::LazyLock::new(Symbols::default);
     ObservationBatches {
         occurrences,
         readiness: &[],
@@ -291,7 +294,13 @@ pub(super) fn observed_undeclared_rule() {
     };
     assert!(
         matches!(
-            run(&[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(3) }], 0),
+            run(
+                &[BatchOccurrence {
+                    batch: BatchNumber(0),
+                    rule: RuleIndex(3)
+                }],
+                0
+            ),
             Err(OperatingError::NotRun)
         ),
         "an occurrence of an undeclared rule"

@@ -1,8 +1,10 @@
 //! Closed empty declarations remain typed populations; absent declarations remain refusals.
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::{BatchNumber, BatchOccurrence, ObservationBatches};
 use ryo_execution::inbound::use_cases::execution::interface::RuleIntentError;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    BatchNumber, BatchOccurrence, ObservationBatches,
+};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
@@ -136,11 +138,15 @@ fn declared_empty_observation_defers_in_file_and_publishes_typed_empty_in_projec
     let partials = Partials::default();
     let inapplicable =
         [ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default()];
-    let refusals = [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()];
+    let refusals =
+        [ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default()];
     let (ran, delivered) = crate::project_phase::source_facts::fixtures::run_observations(
         stage,
         ObservationBatches {
-            occurrences: &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(0) }],
+            occurrences: &[BatchOccurrence {
+                batch: BatchNumber(0),
+                rule: RuleIndex(0),
+            }],
             readiness: &[],
             rules: &[RuleIndex(0)],
             first: &[Bucket(0)],
@@ -208,7 +214,10 @@ fn project_refuses(input: PrepareRequest, expected: &str) {
     let (ran, mut delivered) = crate::project_phase::source_facts::fixtures::run_observations(
         stage,
         ObservationBatches {
-            occurrences: &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(0) }],
+            occurrences: &[BatchOccurrence {
+                batch: BatchNumber(0),
+                rule: RuleIndex(0),
+            }],
             readiness: &[],
             rules: &[RuleIndex(0)],
             first: &[Bucket(0)],

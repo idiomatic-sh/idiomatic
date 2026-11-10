@@ -5,6 +5,7 @@ use super::rules::{ordinary, rule_id};
 use super::shared_calls::shared;
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::capacity::types::WorkerPool;
+use crate::domain::file::types::ExecutablePermission;
 use crate::domain::file::types::RelativePath;
 use crate::domain::language::types::Languages;
 use crate::resources::linter::lint::entry::lint_with;
@@ -15,7 +16,6 @@ use crate::resources::linter::lint::types::LintRequest;
 use crate::resources::linter::lint::types::Linter;
 use crate::resources::linter::lint::types::SourceText;
 use crate::resources::linter::lint::types::Workers;
-use crate::domain::file::types::ExecutablePermission;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 

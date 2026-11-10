@@ -17,7 +17,7 @@ pub trait ClosureParts {
     ///
     /// # Errors
     ///
-    /// The [`OperatingError`](crate::domain::operating::errors::OperatingError) of a place outside the partitions,
+    /// The [`OperatingError`] of a place outside the partitions,
     /// or of a partition that cannot be read.
     fn get(
         &self,

@@ -197,7 +197,8 @@ fn committed_rows_keep_order_and_delivery_refusal_remains_retryable() {
 }
 
 /// A store of its own, through the store port's fixture, over the store's derived semantics.
-pub(crate) fn store() -> impl ryo_execution_store::application::file_dag::relations::interface::RelationStore {
+pub(crate) fn store()
+-> impl ryo_execution_store::application::file_dag::relations::interface::RelationStore {
     use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
     ryo_execution_store::application::file_dag::relations::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,

@@ -1,6 +1,8 @@
 //! S11: a binding fed by two producers routes each member to its own producer, in the project and in a file.
 use super::super::*;
-use ryo_execution::inbound::use_cases::execution::interface::{BatchNumber, BatchOccurrence, ObservationBatches};
+use ryo_execution::inbound::use_cases::execution::interface::{
+    BatchNumber, BatchOccurrence, ObservationBatches,
+};
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -8,7 +10,6 @@ use ryo_values::domain::observations::types::{
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::stored_facts::types::Digest;
-
 
 /// S11: a binding fed by two producers routes each member to its own producer's publication: the consumer reads both producers'
 /// rows, each once.
@@ -47,7 +48,9 @@ fn each_member_of_a_binding_reads_its_own_producer() {
                 scope: StepScope::CrossFile,
                 operation: Operation::Extend {
                     from: Input::Step(StepId(0)),
-                    values: vec![Operand::Literal(QueryLiteral::Text(LiteralText(code.into())))],
+                    values: vec![Operand::Literal(QueryLiteral::Text(LiteralText(
+                        code.into(),
+                    )))],
                 },
             },
         ];
@@ -87,7 +90,9 @@ fn each_member_of_a_binding_reads_its_own_producer() {
     });
     authored.observations =
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([64; 16])));
-    let prepared = engine.prepare(authored).expect("two producers and one consumer");
+    let prepared = engine
+        .prepare(authored)
+        .expect("two producers and one consumer");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
     let covered = [Covered {
@@ -105,10 +110,8 @@ fn each_member_of_a_binding_reads_its_own_producer() {
             ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default();
             3
         ];
-    let refusals = vec![
-            ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default();
-            3
-        ];
+    let refusals =
+        vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
     let mut arenas = vec![];
     let stage = request.observations(&mut arenas).unwrap();
     let mut symbols = Symbols::default();
@@ -141,7 +144,11 @@ fn each_member_of_a_binding_reads_its_own_producer() {
         panic!("the consumer completes")
     };
     assert_eq!(table.count, RowCount(2), "one row from each producer");
-    let codes = table.cells.chunks_exact(2).map(|row| row[1]).collect::<Vec<_>>();
+    let codes = table
+        .cells
+        .chunks_exact(2)
+        .map(|row| row[1])
+        .collect::<Vec<_>>();
     assert!(
         matches!(codes.as_slice(), [Value::Name(a), Value::Name(b)] if a != b),
         "the two rows carry their own producer's code: {codes:?}"
@@ -171,7 +178,9 @@ fn each_member_of_a_file_binding_reads_its_own_producer() {
             scope: StepScope::PerFile,
             operation: Operation::Extend {
                 from: Input::Step(StepId(0)),
-                values: vec![Operand::Literal(QueryLiteral::Text(LiteralText(code.into())))],
+                values: vec![Operand::Literal(QueryLiteral::Text(LiteralText(
+                    code.into(),
+                )))],
             },
         });
         plan.emit.step = StepId(1);
@@ -209,7 +218,9 @@ fn each_member_of_a_file_binding_reads_its_own_producer() {
     });
     authored.observations =
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([65; 16])));
-    let prepared = engine.prepare(authored).expect("two file producers and one consumer");
+    let prepared = engine
+        .prepare(authored)
+        .expect("two file producers and one consumer");
     let produce = FileRuleIntent::Run {
         diagnostic: DiagnosticDelivery::Collected,
         observations: ObservationDemand::Required,
@@ -232,7 +243,11 @@ fn each_member_of_a_file_binding_reads_its_own_producer() {
         panic!("the consumer of two file producers completes")
     };
     assert_eq!(table.count, RowCount(2), "one row from each producer");
-    let codes = table.cells.chunks_exact(2).map(|row| row[1]).collect::<Vec<_>>();
+    let codes = table
+        .cells
+        .chunks_exact(2)
+        .map(|row| row[1])
+        .collect::<Vec<_>>();
     assert!(
         matches!(codes.as_slice(), [Value::Symbol(a), Value::Symbol(b)] if a != b),
         "the two rows carry their own producer's code: {codes:?}"

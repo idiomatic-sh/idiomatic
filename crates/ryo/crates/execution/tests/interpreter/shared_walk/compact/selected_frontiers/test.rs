@@ -1,7 +1,7 @@
 //! A selected join shares work, keeps counts and exports owned frontiers.
-use crate::shared_walk::compact::selected_frontiers::test::{selected_join, functions};
-use crate::shared_walk::fixtures::{complete, input};
 use crate::boundary_fixture::{authored_request, corpus, demand, engine};
+use crate::shared_walk::compact::selected_frontiers::test::{functions, selected_join};
+use crate::shared_walk::fixtures::{complete, input};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -125,7 +125,10 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
             for rule in [RuleIndex(0), RuleIndex(1)] {
                 let before_delivery = reads.get();
                 let outcome = file.rule(rule, demand(), &mut symbols).unwrap();
-                assert_eq!(file.fixture_counts(rule).unwrap().fed.as_ref(), counts.as_slice());
+                assert_eq!(
+                    file.fixture_counts(rule).unwrap().fed.as_ref(),
+                    counts.as_slice()
+                );
                 assert_eq!(complete(outcome), expected);
                 assert_eq!(
                     reads.get(),
@@ -160,7 +163,10 @@ fn selected_join_shares_work_preserves_counts_and_exports_owned_frontiers() {
                     "capture cannot reevaluate the selection or Join"
                 );
                 assert_eq!(file.fixture_walk_counts(), walks);
-                assert_eq!(file.fixture_counts(rule).unwrap().fed.as_ref(), counts.as_slice());
+                assert_eq!(
+                    file.fixture_counts(rule).unwrap().fed.as_ref(),
+                    counts.as_slice()
+                );
                 escaped.extend(captures.into_iter().map(|capture| capture.outcome.unwrap()));
             }
             assert_eq!(

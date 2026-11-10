@@ -1,6 +1,6 @@
 //! Dormant declarations cannot allocate cohort scratch or retained result slots.
-use crate::shared_walk::{fixtures::*, no_catalog};
 use crate::boundary_fixture::{authored_request, corpus, demand};
+use crate::shared_walk::{fixtures::*, no_catalog};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
@@ -77,8 +77,14 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
             assert_eq!(semantics.selects(), 0);
             let replay = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
             assert_eq!(complete(replay), expected(FileId(0), &elements, &[1, 3]));
-            assert_eq!(file.fixture_walk_counts().scratch_classes, measured.scratch_classes);
-            assert_eq!(file.fixture_walk_counts().result_slots, measured.result_slots);
+            assert_eq!(
+                file.fixture_walk_counts().scratch_classes,
+                measured.scratch_classes
+            );
+            assert_eq!(
+                file.fixture_walk_counts().result_slots,
+                measured.result_slots
+            );
             file.finish().unwrap();
         }
         request.finish();

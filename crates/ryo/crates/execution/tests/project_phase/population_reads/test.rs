@@ -231,9 +231,11 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     let prepared = mixed_program_with(
         &engine,
         relation,
-        ObservationIdentity::Named(ryo_values::domain::records::types::ObservationReadinessLayout(
-            ryo_values::domain::stored_facts::types::Digest([33; 16]),
-        )),
+        ObservationIdentity::Named(
+            ryo_values::domain::records::types::ObservationReadinessLayout(
+                ryo_values::domain::stored_facts::types::Digest([33; 16]),
+            ),
+        ),
     );
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
@@ -277,9 +279,14 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     )
     .expect("the ordinary population answers");
     phase.finish().unwrap();
-    let after_ordinary = (stored.reads.load(Ordering::SeqCst), project.reads.load(Ordering::SeqCst));
+    let after_ordinary = (
+        stored.reads.load(Ordering::SeqCst),
+        project.reads.load(Ordering::SeqCst),
+    );
     let mut arenas = vec![];
-    let stage = request.observations(&mut arenas).expect("a named program opens its stage");
+    let stage = request
+        .observations(&mut arenas)
+        .expect("a named program opens its stage");
     let (ran, mut delivered) = crate::project_phase::source_facts::fixtures::run_observations(
         stage,
         ObservationBatches {
@@ -304,8 +311,15 @@ fn an_observed_population_is_a_separate_acquisition_with_the_same_answer() {
     );
     ran.expect("the stage runs the observed population");
     let (_, observed) = delivered.pop().unwrap();
-    let after_observed = (stored.reads.load(Ordering::SeqCst), project.reads.load(Ordering::SeqCst));
-    assert_eq!(after_ordinary, (1, 1), "the ordinary population acquires the frontier and the provider once");
+    let after_observed = (
+        stored.reads.load(Ordering::SeqCst),
+        project.reads.load(Ordering::SeqCst),
+    );
+    assert_eq!(
+        after_ordinary,
+        (1, 1),
+        "the ordinary population acquires the frontier and the provider once"
+    );
     assert_eq!(
         after_observed,
         (2, 2),

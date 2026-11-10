@@ -66,7 +66,10 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
     let observer: Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort> =
         shared;
     let observed = run(Some(observer));
-    assert_eq!(observed, unobserved, "the observer changes nothing the run answers");
+    assert_eq!(
+        observed, unobserved,
+        "the observer changes nothing the run answers"
+    );
     assert!(matches!(observed.as_slice(), [(Some(_), true)]));
     let totals = counting
         .totals()
@@ -81,7 +84,6 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
         "the head was fed the three source rows; the count, none, since the head kept none"
     );
 }
-
 
 /// S17: a rule's steps fused into one region are each counted for the rows they were fed: the head every row of the tree, its
 /// fused continuation only the rows the head kept, as the counting observer is told through the one-call file route.
@@ -113,7 +115,9 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
         },
     ];
     plan.emit.step = StepId(1);
-    let program = engine.prepare(input).expect("prepare a fused head and child");
+    let program = engine
+        .prepare(input)
+        .expect("prepare a fused head and child");
     let corpus = corpus();
     let counting = Arc::new(ryo_execution_runtime::outbound::observer::factory::counting());
     let shared = Arc::clone(&counting);

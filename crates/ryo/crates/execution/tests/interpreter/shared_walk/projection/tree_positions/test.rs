@@ -1,7 +1,7 @@
 //! Shared tree positions keep native join projection refusal and replay, and pure projections share one scan.
+use crate::boundary_fixture::{authored_request, corpus, demand};
 use crate::shared_walk::fixtures::*;
 use crate::shared_walk::no_catalog;
-use crate::boundary_fixture::{authored_request, corpus, demand};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;

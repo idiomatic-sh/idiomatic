@@ -41,9 +41,8 @@ fn succeeds() {
 /// matches' rows in their file, so the rejected file leaves every rule answering the valid one.
 fn a_rejected_file_leaves_pt020_pt025_pt026_and_ruf100_answering_the_valid_file() {
     use super::constants::{
-        BENCHMARK_TOML, CODE, CONFIG_DISABLED, CONFIG_EXTERNAL,
-        CONFIG_SELECTED, DIRECTIVE, EMPTY, FILE, NOQA_MATCHES, PREFIX, QUERY_MODULES,
-        RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES,
+        BENCHMARK_TOML, CODE, CONFIG_DISABLED, CONFIG_EXTERNAL, CONFIG_SELECTED, DIRECTIVE, EMPTY,
+        FILE, NOQA_MATCHES, PREFIX, QUERY_MODULES, RULES_RUF100_QUERY_RYOQL, SUPPRESSION_MATCHES,
     };
     use ryo::linter::{
         Cache, CaseSource, Cell, Column, Corpus, ExecutablePermission, GivenProjectInventory,

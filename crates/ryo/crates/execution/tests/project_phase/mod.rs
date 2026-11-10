@@ -54,7 +54,10 @@ mod restoration;
 pub(crate) mod source_facts;
 use self::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 
-pub(crate) fn mixed_program(engine: &PrepareUseCaseImpl, relation: Relation) -> PreparedExecutionProgram {
+pub(crate) fn mixed_program(
+    engine: &PrepareUseCaseImpl,
+    relation: Relation,
+) -> PreparedExecutionProgram {
     mixed_program_with(engine, relation, ObservationIdentity::Independent)
 }
 
@@ -163,7 +166,10 @@ pub(crate) fn captured_in_file_0_of<'facts>(
     request: &ryo_execution::inbound::use_cases::execution::interface::RequestExecution,
     read: &dyn Fn(Relation) -> Result<SourceRows<'facts>, OperatingError>,
     symbols: &mut Symbols,
-) -> Vec<(FileId, ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier)> {
+) -> Vec<(
+    FileId,
+    ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier,
+)> {
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut file = request
         .open_file(

@@ -1,7 +1,7 @@
 //! Compact adjacency matches the actual public closure owner without enumerating unrelated roots.
 use super::super::super::fixtures;
-use ryo_derived::domain::vertices::types::VertexId;
 use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_derived::domain::vertices::types::VertexId;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::RowsError;
 

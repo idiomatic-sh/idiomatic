@@ -71,7 +71,11 @@ pub(crate) fn configured_scope() -> Outcome {
         let fresh = lint_with(&engine(Cache::None), request(prefix, exclude)).expect("a report");
         let answer = lint_with(&retained, request(prefix, exclude)).expect("a report");
         assert_eq!(answer, fresh, "prefix={prefix}, exclude={exclude}");
-        assert_eq!(answer.findings.len(), found, "prefix={prefix}, exclude={exclude}");
+        assert_eq!(
+            answer.findings.len(),
+            found,
+            "prefix={prefix}, exclude={exclude}"
+        );
         if exclude {
             assert_eq!(
                 answer.findings[0].subject,

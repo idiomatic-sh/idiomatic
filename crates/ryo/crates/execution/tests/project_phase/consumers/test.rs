@@ -1,7 +1,9 @@
 //! Same producer proof, distinct resolved input slots, one project batch protocol.
 use super::super::*;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::{BatchNumber, BatchOccurrence, ObservationBatches};
+use ryo_execution::inbound::use_cases::execution::interface::{
+    BatchNumber, BatchOccurrence, ObservationBatches,
+};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 
 #[test]
@@ -39,9 +41,18 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         ];
         // The producer publishes in the first batch; both consumers bind their own slots to it in the second, in `order`.
         let occurrences = [
-            BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(0) },
-            BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(order[0]) },
-            BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(order[1]) },
+            BatchOccurrence {
+                batch: BatchNumber(0),
+                rule: RuleIndex(0),
+            },
+            BatchOccurrence {
+                batch: BatchNumber(1),
+                rule: RuleIndex(order[0]),
+            },
+            BatchOccurrence {
+                batch: BatchNumber(1),
+                rule: RuleIndex(order[1]),
+            },
         ];
         let (ran, delivered) = crate::project_phase::source_facts::fixtures::run_observations(
             stage,
@@ -64,7 +75,10 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
         );
         ran.expect("all actual scope/read obligations settle");
         assert_eq!(
-            delivered.iter().map(|(number, _)| number.0).collect::<Vec<_>>(),
+            delivered
+                .iter()
+                .map(|(number, _)| number.0)
+                .collect::<Vec<_>>(),
             [0, 1, 2],
             "every occurrence is delivered in declaration order"
         );
@@ -125,8 +139,10 @@ fn every_callback_numbers_an_occurrence_by_its_place_among_all_declared_occurren
     };
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
-    let inapplicable =
-        vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 3];
+    let inapplicable = vec![
+            ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default();
+            3
+        ];
     let refusals =
         vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
     let seen = RefCell::new(Vec::new());
@@ -137,9 +153,18 @@ fn every_callback_numbers_an_occurrence_by_its_place_among_all_declared_occurren
         .run_batches(
             ObservationBatches {
                 occurrences: &[
-                    BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(0) },
-                    BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(1) },
-                    BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(2) },
+                    BatchOccurrence {
+                        batch: BatchNumber(0),
+                        rule: RuleIndex(0),
+                    },
+                    BatchOccurrence {
+                        batch: BatchNumber(1),
+                        rule: RuleIndex(1),
+                    },
+                    BatchOccurrence {
+                        batch: BatchNumber(1),
+                        rule: RuleIndex(2),
+                    },
                 ],
                 readiness: &[],
                 rules: &[RuleIndex(0), RuleIndex(1), RuleIndex(2)],
@@ -170,9 +195,9 @@ fn every_callback_numbers_an_occurrence_by_its_place_among_all_declared_occurren
                 seen.borrow_mut()
                     .push(("complete", number.0, outcome.observations.len()));
                 match worker {
-                    Some(worker) => {
-                        crate::project_phase::source_facts::fixtures::published(&outcome, arenas, worker, symbols)
-                    }
+                    Some(worker) => crate::project_phase::source_facts::fixtures::published(
+                        &outcome, arenas, worker, symbols,
+                    ),
                     None => Ok(None),
                 }
             },
@@ -223,8 +248,10 @@ fn a_publication_held_past_its_stage_is_refused_by_the_next_stage() {
     };
     let project = ProjectFacts::new(Relation::ModuleIdentity);
     let project_symbols = Symbols::default();
-    let inapplicable =
-        vec![ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default(); 3];
+    let inapplicable = vec![
+            ryo_execution::inbound::use_cases::execution::interface::InapplicableFiles::default();
+            3
+        ];
     let refusals =
         vec![ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default(); 3];
     let held = RefCell::new(None);
@@ -258,14 +285,14 @@ fn a_publication_held_past_its_stage_is_refused_by_the_next_stage() {
                 install.map(|mut install| {
                     if swap {
                         for each in &mut install.publications {
-                            each.publication = held
-                                .borrow()
-                                .clone()
-                                .expect("the first stage published");
+                            each.publication =
+                                held.borrow().clone().expect("the first stage published");
                         }
                     } else {
-                        *held.borrow_mut() =
-                            install.publications.first().map(|each| each.publication.clone());
+                        *held.borrow_mut() = install
+                            .publications
+                            .first()
+                            .map(|each| each.publication.clone());
                     }
                     install
                 })
@@ -275,7 +302,10 @@ fn a_publication_held_past_its_stage_is_refused_by_the_next_stage() {
         .0
     };
     run(false).expect("the first stage publishes and finishes");
-    assert!(held.borrow().is_some(), "the producer handed over its publication");
+    assert!(
+        held.borrow().is_some(),
+        "the producer handed over its publication"
+    );
     assert!(
         matches!(run(true), Err(OperatingError::NotRead)),
         "the held publication's generation ended with its stage"

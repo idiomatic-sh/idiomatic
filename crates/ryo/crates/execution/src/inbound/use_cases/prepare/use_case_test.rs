@@ -6,8 +6,8 @@ use super::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
 use crate::inbound::use_cases::execution::interface::RuleIntentError;
+use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use std::sync::Arc;
 

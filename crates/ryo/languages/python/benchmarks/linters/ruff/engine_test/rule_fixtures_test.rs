@@ -26,8 +26,7 @@ pub(super) fn write_rule_fixtures(
             | EngineScenario::PreservedStubSemanticSyntaxError
             | EngineScenario::OrdinaryAnnotationNamedExpression
     ) {
-        let source =
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let source = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         for path in modules_for(scenario)?.values() {
             let destination = root.join(path);
             let parent = destination

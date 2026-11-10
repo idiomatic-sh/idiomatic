@@ -1,8 +1,10 @@
 //! One project observation union: its members feed the semantic calls, a refused frontier prevents them, and hosted text joins by spelling.
 use super::super::*;
 use super::fixtures::UnionSemanticCalls;
-use ryo_execution::inbound::use_cases::execution::interface::{BatchNumber, BatchOccurrence, ObservationBatches};
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    BatchNumber, BatchOccurrence, ObservationBatches,
+};
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -185,9 +187,21 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
     // The producer publishes in the first batch and the union consumes it in the second; a producer the stage never runs leaves
     // the union's frontier unavailable.
     let occurrences: &[BatchOccurrence] = if refused {
-        &[BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(1) }]
+        &[BatchOccurrence {
+            batch: BatchNumber(1),
+            rule: RuleIndex(1),
+        }]
     } else {
-        &[BatchOccurrence { batch: BatchNumber(0), rule: RuleIndex(0) }, BatchOccurrence { batch: BatchNumber(1), rule: RuleIndex(1) }]
+        &[
+            BatchOccurrence {
+                batch: BatchNumber(0),
+                rule: RuleIndex(0),
+            },
+            BatchOccurrence {
+                batch: BatchNumber(1),
+                rule: RuleIndex(1),
+            },
+        ]
     };
     let (ran, mut delivered) = crate::project_phase::source_facts::fixtures::run_observations(
         stage,

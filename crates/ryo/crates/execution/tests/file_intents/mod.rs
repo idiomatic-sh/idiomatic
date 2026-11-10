@@ -1,18 +1,19 @@
+// ignore: idiomatic.arch/file-length - the seam suite's file-start intent proofs with the request and answer helpers its delivery submodule shares; rustfmt's reflow took it from 388 to 405 lines, and parting the helpers from the proofs that define them would leave two files of one concept
 //! File-start declarations are enforced through every public execution route.
 use super::*;
+use ryo_execution::inbound::use_cases::execution::interface::Demand;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::{
+    Partial, PreparedExecutionProgram, RequestExecution,
+};
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
-use ryo_execution::inbound::use_cases::execution::interface::Demand;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
-use ryo_execution::inbound::use_cases::execution::interface::{
-    Partial, PreparedExecutionProgram, RequestExecution,
-};
 
 pub(crate) fn input<'a, 'facts>(
     intents: &'a [FileRuleIntent],
@@ -58,7 +59,13 @@ pub(crate) fn answered(
         observations: ObservationDemand::NotRequired,
         capture: CaptureIntent::Disabled,
     }];
-    answered_rule(program, rows, (evaluation, publication), &intents, RuleIndex(0))
+    answered_rule(
+        program,
+        rows,
+        (evaluation, publication),
+        &intents,
+        RuleIndex(0),
+    )
 }
 
 /// What `rule` of `program` answered in file 0 opened with `intents`, as [`answered`] says it.
@@ -91,7 +98,9 @@ pub(crate) fn answered_rule(
             &mut symbols,
         )
         .expect("open file 0");
-    let outcome = file.rule(rule, demand(), &mut symbols).map(|outcome| outcome.emit);
+    let outcome = file
+        .rule(rule, demand(), &mut symbols)
+        .map(|outcome| outcome.emit);
     let _finished = file.finish();
     request.finish();
     (outcome, reads.get())
@@ -110,7 +119,10 @@ pub(crate) fn ran_file(
     request: &RequestExecution,
     file: FileId,
     intents: &[FileRuleIntent],
-    (elements, symbols): (&ryo_language::domain::elements::types::Elements, &mut Symbols),
+    (elements, symbols): (
+        &ryo_language::domain::elements::types::Elements,
+        &mut Symbols,
+    ),
     worker: &dyn ryo_execution_runtime::outbound::facts::interface::FactsWorker,
 ) -> (Vec<Ran>, String) {
     use ryo_execution::inbound::use_cases::execution::interface::{
@@ -151,9 +163,15 @@ pub(crate) fn ran_file(
                 EmittedRoot::Delivered(RootOutcome::Partial { table, affected }) => {
                     (None, format!("partial {table:?} {affected:?}"))
                 }
-                EmittedRoot::Delivered(RootOutcome::Failed(error)) => (None, format!("failed {error:?}")),
-                EmittedRoot::Delivered(RootOutcome::Unknown(error)) => (None, format!("unknown {error:?}")),
-                EmittedRoot::Delivered(RootOutcome::Deferred { phase }) => (None, format!("deferred {phase:?}")),
+                EmittedRoot::Delivered(RootOutcome::Failed(error)) => {
+                    (None, format!("failed {error:?}"))
+                }
+                EmittedRoot::Delivered(RootOutcome::Unknown(error)) => {
+                    (None, format!("unknown {error:?}"))
+                }
+                EmittedRoot::Delivered(RootOutcome::Deferred { phase }) => {
+                    (None, format!("deferred {phase:?}"))
+                }
                 EmittedRoot::Delivered(RootOutcome::Skipped(_)) => (None, "skipped".into()),
                 EmittedRoot::Delivered(RootOutcome::NoQuery) => (None, "no query".into()),
                 EmittedRoot::Withheld => (None, "withheld".into()),

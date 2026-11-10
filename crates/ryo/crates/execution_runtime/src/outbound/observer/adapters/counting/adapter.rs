@@ -30,7 +30,9 @@ impl ObserverPort for ObserverCountingAdapter {
         }
         for (total, more) in steps.iter_mut().zip(counts.fed.iter()) {
             for (slot, each) in total.0.iter_mut().zip(more.0) {
-                *slot = slot.checked_add(each).ok_or(OperatingError::ShapeMismatch)?;
+                *slot = slot
+                    .checked_add(each)
+                    .ok_or(OperatingError::ShapeMismatch)?;
             }
         }
         Ok(())

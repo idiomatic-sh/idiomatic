@@ -89,10 +89,16 @@ impl ObservationScope {
 
 impl BoundObservationInput {
     /// Carry the same explicit context through validation and compilation.
-    pub(crate) fn into_engine(self) -> ryo_values::domain::observations::types::BoundObservationInput {
+    pub(crate) fn into_engine(
+        self,
+    ) -> ryo_values::domain::observations::types::BoundObservationInput {
         ryo_values::domain::observations::types::BoundObservationInput {
             name: ryo_values::domain::observations::types::ObservationBindingName(self.name.0),
-            columns: self.columns.into_iter().map(ObservationColumn::into_engine).collect(),
+            columns: self
+                .columns
+                .into_iter()
+                .map(ObservationColumn::into_engine)
+                .collect(),
             scope: self.scope.into_engine(),
         }
     }

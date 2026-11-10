@@ -4,7 +4,9 @@ use crate::boundary_fixture::{authored_request, engine};
 use crate::file_intents::answered;
 use ryo_execution::inbound::use_cases::execution::interface::{OperatingError, RootOutcome};
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_values::domain::hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow};
+use ryo_values::domain::hosted::types::{
+    HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
+};
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, HostedNumber, Input, ParameterId, ParameterName, StepId, StepScope,
 };
@@ -49,8 +51,12 @@ fn unbound_rank(names: &[&str]) -> RootOutcome {
         },
     ];
     plan.emit.step = StepId(1);
-    let program = engine().prepare(input).expect("prepare a rank of hosted names");
-    answered(&program, &[], &[], &[]).0.expect("the rule answers")
+    let program = engine()
+        .prepare(input)
+        .expect("prepare a rank of hosted names");
+    answered(&program, &[], &[], &[])
+        .0
+        .expect("the rule answers")
 }
 
 #[test]
@@ -61,7 +67,10 @@ fn a_first_row_resource_is_acquired_only_when_a_row_reaches_it() {
     };
     assert_eq!(table.count, RowCount(0));
     assert!(
-        matches!(unbound_rank(&["cli"]), RootOutcome::Failed(OperatingError::Unbound)),
+        matches!(
+            unbound_rank(&["cli"]),
+            RootOutcome::Failed(OperatingError::Unbound)
+        ),
         "a row reaches the rank, whose sets nothing binds"
     );
 }
