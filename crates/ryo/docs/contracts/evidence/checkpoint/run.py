@@ -1,7 +1,11 @@
 # ignore: idiomatic.arch/file-length - the checkpoint evidence directory holds one validation script, run.py, beside its fixture cases in run_test.py; the census and the checkpoint diff checks are modes of it over the same validation.json, commits and raw logs, and a second script would be a file role the directory does not have.
 import json,os,re,subprocess,sys,tempfile,time,fcntl,tomllib
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
+from typing import NamedTuple
+# Rust is read through tree-sitter-rust, pinned with its runtime in tools/install.py's pytest environment, which runs this script.
+import tree_sitter,tree_sitter_rust
 p=Path(__file__).resolve().parent
 contracts=p.parents[1]
 readme=contracts/'README.md'
@@ -581,61 +585,102 @@ def validated_status(v,test):
    for name in t.get('passed',[]):
     if name==test or name.endswith('::'+test): found='passed'
  return found
-RUST_COMMENT=re.compile(r'^\s*(//.*)?$')
-# A lint attribute, inner or outer, over one or more lines: `#[expect(clippy::x, reason = "...")]`, `#![deny(y)]`.
-LINT_ATTRIBUTE=re.compile(r'#!?\[\s*(?:expect|allow|warn|deny|forbid)\s*\((?:[^()"]|"(?:[^"\\]|\\.)*"|\((?:[^()"]|"(?:[^"\\]|\\.)*")*\))*\)\s*\]')
+LANGUAGE=tree_sitter.Language(tree_sitter_rust.language())
+RUST=tree_sitter.Parser(LANGUAGE)
+@lru_cache(maxsize=64)
+def parsed(text):
+ """The tree-sitter tree of a Rust text and its UTF-8 bytes, which the tree's offsets index."""
+ src=text.encode(); return RUST.parse(src),src
+def captured(query,node):
+ """The `@n` captures of a tree-sitter query under node, in source order."""
+ return sorted(tree_sitter.QueryCursor(query).captures(node).get('n',[]),key=lambda x:(x.start_byte,-x.end_byte))
+def quiet_lines(text):
+ """The 0-based lines of a Rust text made only of comments, blank space and lint attributes (`#[expect(clippy::x, reason = "...")]`,
+ `#![deny(y)]`, over any number of lines): no other token touches them."""
+ tree,_=parsed(text); loud=set(); stack=[tree.root_node]
+ while stack:
+  n=stack.pop()
+  if n.type in ('line_comment','block_comment') or n.type in ('attribute_item','inner_attribute_item') and n.named_children[0].children[0].text in (b'expect',b'allow',b'warn',b'deny',b'forbid'): continue
+  if n.child_count: stack.extend(n.children)
+  elif n.end_byte>n.start_byte: loud.update(range(n.start_point.row,n.end_point.row+(n.end_point.column>0)))
+ return set(range(text.count('\n')+1))-loud
+HUNK=re.compile(r'^@@+ ((?:-\d+(?:,\d+)? )+)\+(\d+)')
 def comment_only(repo,sha,path,own):
- """A Rust file whose change in the commit adds and removes only comment lines (`//`, `///`, `//!`), blank lines and lint
- attributes (`#[expect(..)]`, `#[allow(..)]`, `#![deny(..)]`, over any number of lines): lint configuration and comments change no
- behaviour, so FIX does not count it. A Cargo.toml lints table is no production file to begin with."""
+ """A Rust file whose change in the commit adds and removes only quiet lines (quiet_lines: comments, blank space, lint attributes), each
+ judged on its side, the commit's file for an added line and the parent it leaves for a removed one: lint configuration and
+ comments change no behaviour, so FIX does not count it. A Cargo.toml lints table is no production file to begin with."""
  if not path.endswith('.rs'): return False
  diff=git(repo,*([x for x in own if x!='--name-only']+['-p','--',':(top)'+path])) or ''
  width=2 if own[1]=='--cc' else 1
- sides={'+':[],'-':[]}
+ sides={}; at=[0]*(width+1); changed=False
  for l in diff.splitlines():
-  if l.startswith(('+++','---')) or len(l)<width: continue
-  mark=l[:width]
-  if mark.strip()=='' : continue
-  if mark.strip('+- ')!='': continue
-  sides['+' if '+' in mark else '-'].append(l[width:])
- if not sides['+'] and not sides['-']: return False
- for lines in sides.values():
-  text='\n'.join(x for x in lines if not RUST_COMMENT.match(x) or x.strip()=='')
-  if LINT_ATTRIBUTE.sub('',text).strip(): return False
- return True
+  if hunk:=HUNK.match(l): at=[int(hunk.group(2))]+[int(x.split(',')[0]) for x in hunk.group(1)[1:].split(' -') if x]; continue
+  if l.startswith(('+++','---')) or len(l)<width or l[:width].strip('+- '): continue
+  mark=l[:width]; removed='-' in mark; side=mark.index('-')+1 if removed else 0
+  if mark.strip():
+   if side not in sides: sides[side]=quiet_lines(git(repo,'show',(sha if side==0 else sha+'^'+str(side))+':'+path) or '')
+   if at[side]-1 not in sides[side]: return False
+   changed=True
+  at=[at[0]+(not removed)]+[x+((c=='-') if removed else (c==' ')) for x,c in zip(at[1:],mark)]
+ return changed
 def test_only(repo,sha,path,own):
  """A Rust file whose production text (split_tests: without its #[cfg(test)] items, the census's one definition) is the same before
- and after the commit, comment and lint-attribute lines aside: the commit changed only its test code. A merge is judged by its
- combined diff instead (comment_only)."""
+ and after the commit, its quiet lines aside: the commit changed only its test code. A merge is judged by its combined diff instead
+ (comment_only)."""
  if not path.endswith('.rs') or own[1]=='--cc': return False
  before=git(repo,'show',sha+'^:'+path); after=git(repo,'show',sha+':'+path)
  if before is None or after is None: return False
- plain=lambda text:[x for x in LINT_ATTRIBUTE.sub('',split_tests(text)[0]).splitlines() if not RUST_COMMENT.match(x)]
+ def plain(text):
+  production=split_tests(text).production; quiet=quiet_lines(production)
+  return [x for n,x in enumerate(production.split('\n')) if n not in quiet]
  return plain(before)==plain(after)
 def patch_id(repo,sha):
  """The commit's `git patch-id --stable`, or None for a commit with no diff against its first parent."""
  diff=subprocess.run(['git','-C',str(repo),'show','--format=','--no-color',sha],capture_output=True)
  found=subprocess.run(['git','-C',str(repo),'patch-id','--stable'],input=diff.stdout,capture_output=True).stdout.decode().split()
  return found[0] if found else None
-# The items the Rust API guidelines give an example (C-EXAMPLE); a `Sealed` supertrait is the seal, not API.
-ITEM=re.compile(r'^(\s*)pub\s+(?:const\s+|async\s+|unsafe\s+)*(fn|struct|enum|trait|type|union)\s+([A-Za-z_]\w*)')
-HEADER=re.compile(r'^(\s*)(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?(impl|mod|trait)\b(.*)')
-def owner(lines,at,indent):
- """The impl type, module or trait that holds an indented item: the nearest header line above it with less indent, else None."""
- for i in range(at-1,-1,-1):
-  m=HEADER.match(lines[i])
-  if m and len(m.group(1))<indent:
-   rest=re.sub(r'<[^<>]*(?:<[^<>]*>[^<>]*)*>','',m.group(3)); rest=rest.split(' for ',1)[1] if ' for ' in rest else rest
-   name=re.findall(r'[A-Za-z_]\w*',rest.split('{')[0].split(' where ')[0])
-   return m.group(2)+' '+(name[-1] if name else '')
-  if lines[i].strip() and not lines[i].startswith((' ','\t')) and not lines[i].lstrip().startswith(('//','#','}')): return None
+# The items the Rust API guidelines give an example (C-EXAMPLE), by node, and by `pub` token in a macro body; a `Sealed` supertrait is the
+# seal, not API.
+ITEM_KINDS={'function_item':'fn','function_signature_item':'fn','struct_item':'struct','enum_item':'enum','trait_item':'trait','type_item':'type','union_item':'union'}
+ITEMS=tree_sitter.Query(LANGUAGE,'['+' '.join('('+x+')' for x in ITEM_KINDS)+'] @n (token_tree "pub" @n)')
+PubItem=NamedTuple('PubItem',[('owner',str|None),('kind',str),('name',str),('line',int),('doc',str)])
+def type_name(node):
+ """The name of a type, its generics, path and reference stripped: `Vec<T>` and `&'a crate::x::Vec<T>` -> Vec."""
+ while node.type in ('generic_type','reference_type','pointer_type','scoped_type_identifier'): node=node.child_by_field_name('name' if node.type=='scoped_type_identifier' else 'type')
+ return node.text.decode()
+def item_owner(node):
+ """The impl type, module or trait that holds an item (`impl Vec`, `mod tests`), or, in a macro body, the header tokens before the
+ nearest `{ }` tree around it (`impl DerivedKind`); None at the top."""
+ while (node:=node.parent) is not None:
+  if node.type in ('impl_item','mod_item','trait_item'): return node.type[:-5]+' '+type_name(node.child_by_field_name('type' if node.type=='impl_item' else 'name'))
+  if node.type=='token_tree' and node.text.startswith(b'{') and node.parent is not None:
+   tokens=node.parent.children; i=tokens.index(node); header=[]
+   while i>0 and tokens[i-1].type not in (';','token_tree'): i-=1; header.insert(0,tokens[i].text.decode())
+   if header[:1]==['impl'] or header[:1] in (['mod'],['trait']): return ' '.join(header)
  return None
+def doc_above(tokens,i,src):
+ """The outer doc comments (`///`) and attributes (`#[..]`, as a node or as tokens) directly above tokens[i] among its siblings, with no
+ blank line between them, top first, one stripped line each."""
+ spans=[]; end=tokens[i].start_byte
+ while i>0:
+  t=tokens[i-1]; first=i-1
+  if t.type=='token_tree' and t.text.startswith(b'['): first-=1+(i>2 and tokens[i-2].type=='!')
+  elif not (t.type in ('attribute_item','inner_attribute_item') or t.type=='line_comment' and t.text.startswith(b'///')): break
+  if first<0 or tokens[first].type!='#' and t.type=='token_tree' or src[t.end_byte:end].count(b'\n')+t.text.endswith(b'\n')>1: break
+  spans.insert(0,src[tokens[first].start_byte:t.end_byte]); end=tokens[first].start_byte; i=first
+ return '\n'.join(x.strip() for span in spans for x in span.decode().split('\n') if x.strip())
 def items(text):
- """(owner, kind, name, line index) of each pub item in a Rust source."""
- lines=text.splitlines(); found=[]
- for n,line in enumerate(lines):
-  m=ITEM.match(line)
-  if m: found.append((owner(lines,n,len(m.group(1))) if m.group(1) else None,m.group(2),m.group(3),n))
+ """Each pub item of a Rust source: its owner, kind, name, 0-based line and doc."""
+ tree,src=parsed(text); found=[]
+ for n in captured(ITEMS,tree.root_node):
+  siblings=n.parent.children if n.parent is not None else [n]
+  if n.type in ITEM_KINDS and (v:=next((c for c in n.children if c.type=='visibility_modifier'),None)) is not None and v.text==b'pub':
+   found.append(PubItem(item_owner(n),ITEM_KINDS[n.type],n.child_by_field_name('name').text.decode(),v.start_point.row,doc_above(siblings,siblings.index(n),src)))
+  elif n.type=='pub':
+   j=siblings.index(n)+1
+   while j<len(siblings) and siblings[j].type in ('const','async','unsafe'): j+=1
+   if j+1<len(siblings) and siblings[j].type in ITEM_KINDS.values() and siblings[j+1].type=='identifier':
+    found.append(PubItem(item_owner(n),siblings[j].type,siblings[j+1].text.decode(),n.start_point.row,doc_above(siblings,siblings.index(n),src)))
  return found
 def published(repo,path,rev):
  """The file's crate is published: its nearest Cargo.toml with a [package] does not say publish = false."""
@@ -651,10 +696,6 @@ def crate_dir(repo,path,rev):
    text=git(repo,'show',rev+':'+'/'.join(parts[:n])+'/Cargo.toml')
    if text is not None and '[package]' in text: CRATES[key]='/'.join(parts[:n]); break
  return CRATES[key]
-def doc_above(lines,at):
- doc=[]; i=at-1
- while i>=0 and (lines[i].strip().startswith(('///','#[','#!['))): doc.append(lines[i]); i-=1
- return '\n'.join(doc)
 def module_path(crate,path):
  """The module path of a source file in its crate: src/a/b.rs, src/a/b/mod.rs -> a::b; src/lib.rs, src/main.rs -> the crate root."""
  parts=path[len(crate)+1:].removesuffix('.rs').split('/')
@@ -666,7 +707,7 @@ def base_items(repo,base,crate):
  return {(module_path(crate,x),)+i[:3] for x in paths for i in items(git(repo,'show',base+':'+x) or '')}
 def has_example(doc):
  """The doc comment has an `# Examples` section holding a fenced code block before the next heading."""
- lines=[l.strip().removeprefix('///').strip() for l in reversed(doc.splitlines())]
+ lines=[l.strip().removeprefix('///').strip() for l in doc.splitlines()]
  if '# Examples' not in lines: return False
  for line in lines[lines.index('# Examples')+1:]:
   if line.startswith('#') and not line.startswith('#['): return False
@@ -681,13 +722,13 @@ def doc_problems(repo=None,base=None,head='HEAD'):
   if is_test_file(path) or '/src/' not in '/'+path or not published(repo,path,head): continue
   crate=crate_dir(repo,path,head)
   if crate not in olds: olds[crate]=base_items(repo,base,crate)
-  lines=(git(repo,'show',head+':'+path) or '').splitlines()
-  for item in items('\n'.join(lines)):
-   if (module_path(crate,path),)+item[:3] in olds[crate] or item[1:3]==('trait','Sealed'): continue
-   n=item[3]; doc=doc_above(lines,n); where=path+':'+str(n+1)+' pub '+item[1]+' '+item[2]
+  text=git(repo,'show',head+':'+path) or ''; lines=text.split('\n')
+  for item in items(text):
+   if (module_path(crate,path),)+item[:3] in olds[crate] or (item.kind,item.name)==('trait','Sealed'): continue
+   n=item.line; doc=item.doc; where=path+':'+str(n+1)+' pub '+item.kind+' '+item.name
    if not has_example(doc): bad.append(where+': no `# Examples` section with a code block')
    signature=' '.join(lines[n:n+12]).split('{')[0].split(';')[0]
-   if item[1]=='fn' and re.search(r'->\s*(?:[\w:]+::)?Result\b',signature) and '# Errors' not in doc: bad.append(where+': returns a Result with no `# Errors` section')
+   if item.kind=='fn' and re.search(r'->\s*(?:[\w:]+::)?Result\b',signature) and '# Errors' not in doc: bad.append(where+': returns a Result with no `# Errors` section')
  return bad
 def finish(v,check=False):
  """Write the matrix numbers block from validation.json, print the scope delta, un-tick each ticked row that cites no test or a test the recorded logs do not prove, check each ticked row cites a validation and each rerun result names its raw log. Returns the exit code, from the validation's results alone: 1 for a red command no row owns, a ticked row the results do not prove, or a record that breaks its own rules. Rewriting the numbers block is what a full run does; under `check` (`--check`, over the committed record) a rewrite means the committed record is stale, which fails with its reason."""
@@ -725,56 +766,75 @@ def census_production(path):
  """A production source of the product: under crates/*/src, cli/src or languages/*/src, and no test file (is_test_file)."""
  return bool(re.match(r'(crates/[^/]+/src|cli/src|languages/[^/]+/src)/',path)) and not is_test_file(path)
 def census_crate(path): return path.split('/')[0] if path.startswith('cli/') else '/'.join(path.split('/')[:2])
-CFG_TEST=re.compile(r'^\s*#\[cfg\(test\)\]',re.M)
-CHAR=re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]+\}|.)|[^\\'])'")
-RAW=re.compile(r'r(#*)"')
-def literal_end(text,i):
- """The index after the comment, string, raw string or char literal starting at i, or None when none starts there (a lifetime is no literal)."""
- if text.startswith('//',i): j=text.find('\n',i); return len(text) if j<0 else j
- if text.startswith('/*',i): j=text.find('*/',i+2); return len(text) if j<0 else j+2
- m=RAW.match(text,i)
- if m and (i==0 or not (text[i-1].isalnum() or text[i-1]=='_')): j=text.find('"'+m.group(1),m.end()); return len(text) if j<0 else j+1+len(m.group(1))
- if text[i]=='"':
-  j=i+1
-  while j<len(text) and text[j]!='"': j+=2 if text[j]=='\\' else 1
-  return j+1
- m=CHAR.match(text,i) if text[i]=="'" else None
- return m.end() if m else None
-def item_end(text,start):
- """The end of the item that starts at start: its body's closing brace, matched; its first `;`, or, for a struct field or enum variant, its `,` or the enclosing `}`. Angle brackets count only in the header, before the body or a top-level `=` (an initializer or discriminant); comments, strings and char literals are skipped."""
- depth=0; header=True; i=start
- while i<len(text):
-  skip=literal_end(text,i) if text[i] in '/"\'r' else None
-  if skip is not None: i=skip; continue
-  c=text[i]
-  if depth==0 and c in ';,': return i+1
-  if header and depth==0 and c=='=' and text[i+1:i+2] not in ('=','>') and text[i-1:i] not in ('=','!','<','>'): header=False
-  if c=='{': depth+=1; header=False
-  elif c in '([' or header and c=='<' and text[i+1:i+2]!='=': depth+=1
-  elif c in ')]' or header and c=='>' and text[i-1:i] not in ('-','='): depth-=1
-  elif c=='}':
-   if depth==0: return i
-   depth-=1
-   if depth==0: return i+1
-  i+=1
- return len(text)
+CFG_TEST=b'#[cfg(test)]'
+CFG_TESTS=tree_sitter.Query(LANGUAGE,'(attribute_item) @n (token_tree "#" @n)')
+# Where a #[cfg(test)] attribute sits beside the item it gates; anywhere else it starts the item that holds it (a field initializer, a
+# match arm).
+CFG_HOLDERS=('source_file','declaration_list','block','field_declaration_list','enum_variant_list','ordered_field_declaration_list','parameters','arguments','array_expression','match_block','ERROR')
+SplitText=NamedTuple('SplitText',[('production',str),('tests',str)])
+def cut_end(attribute,src):
+ """The end of the item a #[cfg(test)] attribute node gates: through its comma, or up to the closing brace of a list it ends."""
+ target=attribute.parent if attribute.parent.type not in CFG_HOLDERS else attribute.next_named_sibling
+ while target is not None and (target.type in ('line_comment','block_comment') or target.type=='attribute_item' and target.parent.type in CFG_HOLDERS): target=target.next_named_sibling
+ if target is None: return attribute.end_byte
+ after=target.next_sibling
+ return after.end_byte if after is not None and after.type==',' else after.start_byte if after is not None and after.type=='}' and src[target.end_byte-1:target.end_byte] not in (b'}',b';') else target.end_byte
+def token_cut_end(hash_token):
+ """The end of the item `#` `[cfg(test)]` tokens gate in a macro body: through the first `;` or `,` outside its header's generics, or its
+ `{ }` body, or up to the closing delimiter of the tree."""
+ tokens=hash_token.parent.children; depth=0; header=True
+ for t in tokens[tokens.index(hash_token)+2:-1]:
+  body=t.type=='token_tree' and t.text.startswith(b'{')
+  if depth==0 and (t.type in (',',';') or body): return t.end_byte
+  if body or t.type=='=' and depth==0: header=False
+  elif header and t.type in ('<','<<'): depth+=len(t.type)
+  elif header and t.type in ('>','>>'): depth-=len(t.type)
+ return tokens[-1].start_byte
 def split_tests(text):
- """A production file's text without its #[cfg(test)] items, and the text of those items: each item's own extent."""
+ """A production file's text without its #[cfg(test)] items, and the text of those items: each item's own extent in the tree-sitter
+ tree (an attribute node beside its item or starting the item that holds it, or `#` `[cfg(test)]` tokens in a macro body), from the
+ start of the attribute's line, the blank lines just above it included."""
+ tree,src=parsed(text); cuts=[]
+ for n in captured(CFG_TESTS,tree.root_node):
+  if n.type=='attribute_item' and n.text==CFG_TEST: end=cut_end(n,src)
+  elif n.type=='#' and (t:=n.next_sibling) is not None and t.text==CFG_TEST[1:]: end=token_cut_end(n)
+  else: continue
+  i=n.start_byte
+  while i>0 and src[i-1:i].isspace(): i-=1
+  line=src.find(b'\n',i,n.start_byte); cuts.append((0 if i==0 else n.start_byte if line<0 else line+1,end))
  production,tests,at=[],[],0
- for m in CFG_TEST.finditer(text):
-  if m.start()<at: continue
-  end=item_end(text,m.end()); production.append(text[at:m.start()]); tests.append(text[m.start():end]); at=end
- return ''.join(production)+text[at:],''.join(tests)
+ for start,end in sorted(cuts):
+  if start<at: continue
+  production.append(src[at:start]); tests.append(src[start:end]); at=end
+ return SplitText(b''.join(production+[src[at:]]).decode(),b''.join(tests).decode())
+USES=tree_sitter.Query(LANGUAGE,'(use_declaration argument: (_) @n)')
+TYPE_ALIASES=tree_sitter.Query(LANGUAGE,'(type_item) @n')
+def path_parts(node):
+ """The segments of a path node, first to last: `a::b::C` -> [a, b, C]; `::a::b` -> [a, b]; `crate::x` -> [crate, x]."""
+ return [node.text.decode()] if node.child_count==0 else [x for c in node.children if c.type!='::' for x in path_parts(c)]
+@lru_cache(maxsize=64)
+def uses(text):
+ """(path, alias) of each path a `use` brings in, its first segment its root: `use a::{b::C as D, *}` -> ([a, b, C], D), ([a, *], None)."""
+ tree,_=parsed(text); found=[]
+ def walk(node,prefix):
+  if node.type=='use_as_clause': found.append((prefix+path_parts(node.child_by_field_name('path')),node.child_by_field_name('alias').text.decode()))
+  elif node.type=='use_wildcard': found.append((prefix+[x for c in node.named_children for x in path_parts(c)]+['*'],None))
+  elif node.type=='scoped_use_list': walk(node.child_by_field_name('list'),prefix+[x for c in node.children if c.type!='use_list' and c.type!='::' for x in path_parts(c)])
+  elif node.type=='use_list': [walk(c,prefix) for c in node.named_children]
+  elif node.is_named: found.append((prefix+path_parts(node),None))
+ for argument in captured(USES,tree.root_node): walk(argument,[])
+ return found
 def operation_variants(text,variants):
  """The distinct Operation variants a text names: through `Operation::`, an alias of Operation (`use ...Operation as X`, `type X = ...Operation;`), or a glob import of its variants."""
- aliases={'Operation'}|set(re.findall(r'\bOperation\s+as\s+([A-Za-z_]\w*)',text))|set(re.findall(r'\btype\s+([A-Za-z_]\w*)\s*=\s*(?:[\w:]*::)?Operation\s*;',text))
+ tree,_=parsed(text)
+ aliases={'Operation'}|{alias for path,alias in uses(text) if alias and path[-1:]==['Operation']}
+ aliases|={n.child_by_field_name('name').text.decode() for n in captured(TYPE_ALIASES,tree.root_node) if n.child_by_field_name('type').type in ('type_identifier','scoped_type_identifier') and type_name(n.child_by_field_name('type'))=='Operation'}
  named=set(re.findall(r'\b(?:'+'|'.join(sorted(aliases))+r')::([A-Z]\w*)',text))
- if re.search(r'\b(?:'+'|'.join(sorted(aliases))+r')::\*|\bOperation::\{[^}]*\*',text): named|={v for v in variants if re.search(r'\b'+v+r'\b',text)}
+ if any(path[-2:]==[a,'*'] for path,_ in uses(text) for a in aliases): named|={v for v in variants if re.search(r'\b'+v+r'\b',text)}
  return named
-USE=re.compile(r'\buse\s+(?:::)?([A-Za-z_]\w*)[^;]*;',re.S)
 def resolves_to_runtime(text,name):
- """A name a file uses is the runtime's unless every `use` that brings it in starts at another crate or at this one (crate, self, super); a name no `use` brings in counts."""
- roots=[m.group(1) for m in USE.finditer(text) if re.search(r'\b'+name+r'\b',m.group(0))]
+ """A name a file uses is the runtime's unless every `use` path that brings it in (names it, or aliases it) starts at another crate or at this one (crate, self, super); a name no `use` brings in counts."""
+ roots=[path[0] for path,alias in uses(text) if path and (name in path or alias==name)]
  return not roots or any(r in ('ryo_execution_runtime','ryo_execution') for r in roots)
 REPLACED_LIST=p/'rewrite-replaced.toml'
 # The two entry functions rev 8 keeps as the declared seam (7.3 L13): `begin` and `prepare`, by path and signature.
@@ -845,8 +905,8 @@ def census(product):
  """Change-amplification counts over the product's tracked Rust files, read statically: what a change of each kind must touch outside its owner. A #[cfg(test)] part of a production file counts as test."""
  files=(git(product,'ls-files','*.rs') or '').split()
  text={f:(Path(product)/f).read_text(errors='replace') for f in files}
- prod_text={f:split_tests(text[f])[0] for f in files if census_production(f)}
- test_text={f:(split_tests(text[f])[1] if f in prod_text else text[f]) for f in files}
+ prod_text={f:split_tests(text[f]).production for f in files if census_production(f)}
+ test_text={f:(split_tests(text[f]).tests if f in prod_text else text[f]) for f in files}
  test_text={f:t for f,t in test_text.items() if t}
  declared=re.compile(r'\bpub (?:struct|enum|trait|type) ([A-Z]\w*)')
  vocabulary={n for f,t in prod_text.items() if f.startswith(EVALUATOR) for n in declared.findall(t)}-{'Demand'}
