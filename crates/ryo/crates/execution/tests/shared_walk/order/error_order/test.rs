@@ -235,35 +235,34 @@ fn the_first_engine_error_of_an_evaluation_is_the_one_reported() {
         std::sync::Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
         std::sync::Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
-    // The boundary request's Select over Function rows is answered natively; a Select over its step is evaluated by the
-    // operators, in row mode.
+    // A Select of the syntax tree is answered by the shared walk; a Select over its step is evaluated by the operators, in row
+    // mode.
     let mut authored = authored_request(1);
-    crate::boundary_fixture::plans(&mut authored)[0]
-        .steps
-        .push(PlanStep {
+    crate::boundary_fixture::plans(&mut authored)[0].steps = vec![
+        PlanStep {
+            scope: StepScope::PerFile,
+            operation: Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: selection(Selector::Kind("word")),
+                kept: vec![],
+            },
+        },
+        PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Step(StepId(0)),
                 comparisons: vec![compared(Test::Equal, 0, Operand::Column(ColumnIndex(0)))],
                 kept: vec![ColumnIndex(0)],
             },
-        });
+        },
+    ];
     crate::boundary_fixture::plans(&mut authored)[0].emit.step = StepId(1);
     let program = engine
         .prepare(authored)
-        .expect("prepare the boundary select");
+        .expect("prepare a select over a select");
     let corpus = corpus();
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
-    let table = crate::boundary_fixture::source();
-    let read = |relation| {
-        if relation == Relation::Function {
-            Ok(ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows::Computed(&table))
-        } else {
-            Err(OperatingError::NotRead)
-        }
-    };
-    let elements = ryo_language::domain::elements::types::Elements::default();
-    let mut symbols = ryo_language::domain::symbols::types::Symbols::default();
+    let (elements, mut symbols) = tree(FileId(0), b"abc");
     let mut file = request
         .open_file(
             input(
@@ -275,11 +274,11 @@ fn the_first_engine_error_of_an_evaluation_is_the_one_reported() {
                     observations: ObservationDemand::NotRequired,
                     capture: CaptureIntent::Disabled,
                 }],
-                &read,
+                &no_catalog,
             ),
             &mut symbols,
         )
-        .expect("open the boundary file");
+        .expect("open the file");
     failed(
         file.rule(RuleIndex(0), demand(), &mut symbols)
             .expect("the rule reports its outcome"),
