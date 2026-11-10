@@ -171,7 +171,7 @@ def guards_6(build_calls, build_identity, build_record_path, build_root, durable
     finally:
         frozen_worker.write_bytes(original_worker_bytes)
     try:
-        profile_worker.validate_output_directory(profile_config.REPOSITORY / 'crates' / 'ryo' / 'unsafe-output', resume=False)
+        profile_worker.validate_output_directory(profile_config.REPOSITORY / 'crates' / 'ryo' / 'unsafe-output')
         print('new output under the Rust source tree was accepted', file=sys.stderr)
         return 1, ()
     except ValueError as error:

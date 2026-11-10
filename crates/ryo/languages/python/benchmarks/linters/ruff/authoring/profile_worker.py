@@ -27,13 +27,11 @@ def run_ryo_command(worker: Path | str, request: dict[str, object], wire: str | 
         raise ValueError('direct worker request bytes disagree with the request')
     return [str(worker), 'run-ryo', wire, configuration]
 
-def command_for(worker: Path, ruff: Path, profile_root: Path, reference_only: bool=False, shard: tuple[int, int] | None=None, case_selection: Path | None=None) -> list[str]:
+def command_for(worker: Path, ruff: Path, profile_root: Path, reference_only: bool=False, shard: tuple[int, int] | None=None) -> list[str]:
     """Invoke the one immutable benchmark executable built for this profile batch."""
     command = [str(worker), 'verify-reference-cases' if reference_only else 'verify-cases', str(ruff), str(profile_root)]
     if shard is not None:
         command.append(f'--shard={shard[0]}/{shard[1]}')
-    if case_selection is not None:
-        command.append(f'--case-selection={case_selection}')
     return command
 
 def audit_worker_protocol(worker: Path, *, runner=subprocess.run) -> tuple[bool, str]:
@@ -140,32 +138,32 @@ def reuse_frozen_worker(output_directory: Path) -> tuple[Path, dict[str, object]
     record = json.loads(record_path.read_text(encoding='utf-8'))
     frozen = record.get('frozen_executable')
     if record.get('status') != 0 or record.get('source_stable_during_build') is not True or record.get('source_before_build') != record.get('source_after_build') or (not isinstance(frozen, dict)) or (not isinstance(frozen.get('path'), str)) or (not isinstance(frozen.get('sha256'), str)):
-        raise ValueError('cannot resume: frozen worker build provenance is invalid')
+        raise ValueError('cannot reuse the frozen worker: frozen worker build provenance is invalid')
     executable = Path(frozen['path'])
     if not executable.is_file() or profile_config.sha256(executable) != frozen['sha256']:
-        raise ValueError('cannot resume: frozen worker executable is missing or changed')
+        raise ValueError('cannot reuse the frozen worker: frozen worker executable is missing or changed')
     build_stdout = output_directory / 'build' / 'stdout.bin'
     try:
         artifact = parse_worker_artifact(build_stdout.read_bytes())
     except (OSError, ValueError) as error:
-        raise ValueError(f'cannot resume: saved Cargo artifact record is invalid: {error}') from error
+        raise ValueError(f'cannot reuse the frozen worker: saved Cargo artifact record is invalid: {error}') from error
     command = record.get('command')
     expected = cargo_worker_build_command()
     six_jobs = expected[:4] + ['-j6'] + expected[4:]
     if record.get('cargo_artifact') != str(artifact) or command not in (expected, six_jobs):
-        raise ValueError('cannot resume: saved Cargo artifact is not the Ruff benchmark target')
+        raise ValueError('cannot reuse the frozen worker: saved Cargo artifact is not the Ruff benchmark target')
     return (executable, record)
 
-def validate_output_directory(output_directory: Path, *, resume: bool) -> None:
+def validate_output_directory(output_directory: Path) -> None:
     """Keep new verifier receipts outside the Rust source identity being built."""
     rust_root = (profile_config.REPOSITORY / 'crates' / 'ryo').resolve()
     resolved = output_directory.resolve()
-    if not resume and resolved.is_relative_to(rust_root):
+    if resolved.is_relative_to(rust_root):
         raise ValueError('new candidate output directories must be outside crates/ryo')
 
 def create_new_output_directory(output_directory: Path) -> None:
     """Refuse an existing raw receipt root before staging or running a worker."""
-    validate_output_directory(output_directory, resume=False)
+    validate_output_directory(output_directory)
     output_directory.mkdir(parents=True, exist_ok=False)
 
 def staged_hashes(root: Path) -> dict[str, str]:

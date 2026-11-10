@@ -14,8 +14,7 @@ def self_test() -> int:
     code, state = profile_guard_tests.guards_2(sample_inventory)
     if code:
         return code
-    partitions, = state
-    code, state = profile_guard_tests.guards_3(partitions)
+    code, state = profile_guard_tests.guards_3()
     if code:
         return code
     case, fake_runner, root, ruff = state
