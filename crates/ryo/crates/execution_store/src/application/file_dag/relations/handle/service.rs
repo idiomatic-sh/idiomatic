@@ -67,6 +67,22 @@ impl PublishedInput {
 }
 
 /// What the store published for a holder: a relation's publication, or packed words it leases. The one handle the runtime holds.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody;
+/// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+/// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+/// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+/// use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
+/// use ryo_values::domain::rows::types::{RowCount, Table};
+/// let table = Table { kinds: vec![CellKind::File], cells: vec![Value::File(FileId(0))], count: RowCount(1) };
+/// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+/// let publication = owner.publish(PublicationBody::Computed(table))?;
+/// assert_eq!(owner.kinds(&publication)?.len(), 1);
+/// # Ok::<(), ryo_execution_domain::domain::operating::errors::OperatingError>(())
+/// ```
 #[derive(Clone, Debug)]
 pub struct Publication(pub(crate) PublicationHold);
 
@@ -83,6 +99,25 @@ impl Publication {
     /// Whether `other` holds the same published record, for the engine's own proofs.
     #[cfg(any(test, feature = "fixtures"))]
     #[must_use]
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_domain::domain::operating::errors::OperatingError;
+    /// use ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody;
+    /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+    /// use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
+    /// use ryo_values::domain::rows::types::{RowCount, Table};
+    /// let table = Table { kinds: vec![CellKind::File], cells: vec![Value::File(FileId(0))], count: RowCount(1) };
+    /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+    /// let publication = owner.publish(PublicationBody::Computed(table.clone()))?;
+    /// assert!(publication.same_record(&publication.clone()).is_ok());
+    /// let other = owner.publish(PublicationBody::Computed(table))?;
+    /// assert!(matches!(publication.same_record(&other), Err(OperatingError::NotRead)));
+    /// # Ok::<(), OperatingError>(())
+    /// ```
     ///
     /// # Errors
     ///
