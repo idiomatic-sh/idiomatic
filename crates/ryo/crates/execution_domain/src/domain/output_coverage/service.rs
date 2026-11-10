@@ -135,6 +135,11 @@ fn transported(
 /// A missing row may affect a different file after a non-file join. Keep exact
 /// scopes only when every emitted file identity is anchored to the uncertain
 /// operand itself or to an explicitly equal file/node key of a relation it reads.
+///
+/// # Errors
+///
+/// [`OperatingError::ObservationIncomplete`] when an input's partial coverage names no affected file, and [`OperatingError::NotRun`] when a
+/// column the operation names is not in its input or output.
 pub fn output_coverage(
     operation: &ryo_values::domain::plans::types::Operation,
     output_kinds: &[ryo_relations::domain::relations::types::CellKind],

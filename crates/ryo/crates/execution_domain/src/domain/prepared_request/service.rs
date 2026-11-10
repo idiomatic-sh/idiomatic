@@ -7,6 +7,11 @@ use ryo_values::domain::{
     plans::types::Plan, query_bindings::types::ParameterBinding, rule_requests::types::RuleSpec,
 };
 /// Assembles the compiled request from its plans, parameter bindings and rules, scheduling their observations.
+///
+/// # Errors
+///
+/// [`RuleIntentError::InvalidReference`] when the plans, bindings and rules differ in number, and the error scheduling,
+/// resolving or linking their observations refuses them with.
 pub fn assemble(
     plans: Vec<Plan>,
     bindings: Vec<Vec<ParameterBinding>>,

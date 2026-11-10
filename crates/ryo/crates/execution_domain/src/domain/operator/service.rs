@@ -8,6 +8,10 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// Read-only contract preparation. This surface cannot evaluate an operation.
+///
+/// # Errors
+///
+/// The [`OperatingError`] the operator registered for `kind` refuses the operation, its input shapes or its bindings with.
 pub fn prepare_operator(
     kind: OperationKind,
     operation: &Operation,
