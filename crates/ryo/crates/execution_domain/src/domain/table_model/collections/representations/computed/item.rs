@@ -53,13 +53,16 @@ impl RepresentationsItem for ComputedItem {
         let RepresentationInput::Computed(table) = input else {
             return Err(OperatingError::WrongOperation);
         };
-        if row.0 >= table.count.0 || (column.0 as usize) >= table.kinds.len() {
+        let Ok(column) = usize::try_from(column.0) else {
+            return Ok(CellRead::MissingPhysical);
+        };
+        if row.0 >= table.count.0 || column >= table.kinds.len() {
             return Ok(CellRead::MissingPhysical);
         }
         let offset = row
             .0
             .checked_mul(table.kinds.len())
-            .and_then(|at| at.checked_add(column.0 as usize));
+            .and_then(|at| at.checked_add(column));
         Ok(offset
             .and_then(|at| table.cells.get(at))
             .copied()

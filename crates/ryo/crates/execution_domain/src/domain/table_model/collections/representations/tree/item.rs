@@ -70,8 +70,8 @@ impl RepresentationsItem for TreeItem {
     ) -> Result<CellRead, OperatingError> {
         let mut decode = [Value::Number(ryo_relations::domain::relations::types::Integer(0)); 5];
         Ok(match self.row(input, row, &mut decode)? {
-            RowRead::Borrowed(values) | RowRead::Decoded(values) => values
-                .get(column.0 as usize)
+            RowRead::Borrowed(values) | RowRead::Decoded(values) => usize::try_from(column.0)
+                .map_or(None, |at| values.get(at))
                 .copied()
                 .map_or(CellRead::MissingPhysical, CellRead::Value),
             RowRead::MissingPhysical => CellRead::MissingPhysical,
@@ -101,7 +101,7 @@ impl RepresentationsItem for TreeItem {
         else {
             return Ok(RowRead::MissingPhysical);
         };
-        if place as usize >= tree.elements.kind.len() {
+        if !usize::try_from(place).is_ok_and(|at| at < tree.elements.kind.len()) {
             return Ok(RowRead::MissingPhysical);
         }
         let at = ryo_relations::domain::relations::types::Position(place);

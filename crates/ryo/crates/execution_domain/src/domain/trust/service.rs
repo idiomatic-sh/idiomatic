@@ -89,7 +89,7 @@ fn input_reads(reads: &[Result<StepReads, OperatingError>], input: &Input) -> Ve
             relation: *relation,
             kinds: Vec::new(),
         }],
-        Input::Step(id) => match reads.get(id.0 as usize) {
+        Input::Step(id) => match usize::try_from(id.0).map_or(None, |at| reads.get(at)) {
             Some(Ok(each)) => each.uses.clone(),
             Some(Err(_)) | None => Vec::new(),
         },
@@ -306,7 +306,7 @@ pub fn observed_reads(plan: &Plan) -> Vec<RelationRead> {
     let mut reads = Vec::new();
     for output in &plan.observations {
         let each = match output.source {
-            Input::Step(step) => match by_step.get(step.0 as usize) {
+            Input::Step(step) => match usize::try_from(step.0).map_or(None, |at| by_step.get(at)) {
                 Some(Ok(reads)) => reads.as_slice(),
                 Some(Err(_)) | None => &[],
             },

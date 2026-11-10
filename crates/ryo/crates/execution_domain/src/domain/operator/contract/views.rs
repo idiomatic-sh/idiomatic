@@ -14,6 +14,11 @@ pub trait ClosureParts {
     /// How many partitions there are.
     fn len(&self) -> PartitionCount;
     /// One partition, by its place.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`](crate::domain::operating::errors::OperatingError) of a place outside the partitions,
+    /// or of a partition that cannot be read.
     fn get(
         &self,
         at: PartitionIndex,
@@ -100,6 +105,10 @@ impl<'a> IntoIterator for ClosureViews<'a> {
 /// schemas, cache keys or upstream scheduling.
 pub trait PredicateProgram {
     /// Whether the predicate holds for a row.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`] of the first comparison that cannot be decided over the row.
     fn holds(
         &mut self,
         row: &[Value],
@@ -154,6 +163,12 @@ fn source_slice<'a>(
 
 /// The source gate of an occurrence search: validates the span, and its base line, before any matcher is
 /// acquired. An absent span suppresses the row's later checks.
+///
+/// # Errors
+///
+/// [`OperatingError::ShapeMismatch`] when the span or base-line cell is of another kind, and
+/// [`OperatingError::InvalidSourceMatchSpan`] for a span out of order, outside the source or off a character
+/// boundary, or a base line that is not positive; a missing column is the row's own refusal.
 pub fn validate<'a>(
     row: &[Value],
     span: ColumnIndex,

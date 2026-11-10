@@ -61,7 +61,27 @@ impl PreparedMatchers {
                     );
                     continue;
                 }
-                _ => continue,
+                Operation::Project { .. }
+                | Operation::Extend { .. }
+                | Operation::Union { .. }
+                | Operation::Intersection { .. }
+                | Operation::Difference { .. }
+                | Operation::Antijoin { .. }
+                | Operation::GroupCount { .. }
+                | Operation::GroupDigest { .. }
+                | Operation::Capture { .. }
+                | Operation::Rank { .. }
+                | Operation::OrderedMatch { .. }
+                | Operation::Words { .. }
+                | Operation::Closure { .. }
+                | Operation::OrderedDfs { .. }
+                | Operation::Cycles { .. }
+                | Operation::Rows { .. }
+                | Operation::Hosted { .. }
+                | Operation::SpanBetween { .. }
+                | Operation::RenderSyntax { .. }
+                | Operation::FitsRendered { .. }
+                | Operation::SpanBounds { .. } => continue,
             };
             for comparison in comparisons {
                 if let Operand::Literal(QueryLiteral::Text(pattern)) = &comparison.right {
@@ -77,7 +97,20 @@ impl PreparedMatchers {
         let slot = match test {
             Test::Matches => PreparedPattern::Regex(OnceLock::new()),
             Test::GlobAny | Test::NotGlobAny => PreparedPattern::Glob(OnceLock::new()),
-            _ => return,
+            Test::Equal
+            | Test::NotEqual
+            | Test::LessThan
+            | Test::LessThanOrEqual
+            | Test::GreaterThan
+            | Test::GreaterThanOrEqual
+            | Test::FloatTextGreaterThanOrEqual
+            | Test::In
+            | Test::NotIn
+            | Test::StartsWith
+            | Test::EndsWith
+            | Test::NumericGreaterThanOrEqual
+            | Test::IntegerSuccessor
+            | Test::NaturalLessThan => return,
         };
         let _slot = self
             .slots
@@ -130,6 +163,10 @@ impl PreparedMatchers {
 }
 
 /// Adapt semantic compilation refusal without changing the engine's cache or error meaning.
+///
+/// # Errors
+///
+/// [`OperatingError::InvalidRegex`] with the matcher's reason when the pattern does not compile.
 pub fn compile_regex(
     pattern: TextView<'_>,
     matcher: PatternMatcher<'_>,

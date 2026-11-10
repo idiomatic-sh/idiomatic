@@ -175,7 +175,7 @@ pub fn evaluate(
     // Ordinary selection remains responsible for its representation-specific error.
     if source_kinds != ryo_relations::domain::relations::service::kinds(relation)
         || matches!(rows, Rows::Tree(tree) if count != 0 && kind_names(tree.elements).is_empty())
-        || count > u32::MAX as usize
+        || u32::try_from(count).is_err()
         || crate::domain::table_model::service::borrowed(rows)
             .validate()
             .is_err()
@@ -191,7 +191,7 @@ pub fn evaluate(
         {
             Some(tree)
         }
-        _ => None,
+        Rows::Tree(_) | Rows::Stored(_) | Rows::Computed(_) | Rows::Compact(_) => None,
     };
 
     let WalkWork {

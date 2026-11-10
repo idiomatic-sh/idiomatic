@@ -117,8 +117,8 @@ fn bfs_nearest_stops_in_edge_encounter_order_and_direct_retains_duplicates() {
             .is_none()
     );
     let mut marks = vec![false; graph.vertices().len()];
-    marks[vertex(&graph, 9).0 as usize] = true;
-    marks[vertex(&graph, 2).0 as usize] = true;
+    marks[usize::try_from(vertex(&graph, 9).0).expect("a vertex id fits in usize")] = true;
+    marks[usize::try_from(vertex(&graph, 2).0).expect("a vertex id fits in usize")] = true;
     let domain = GraphDomain {
         identity: None,
         members: SharedMarks(Arc::new(marks)),
@@ -158,8 +158,8 @@ fn validated_forest_compresses_shared_chains_without_including_the_start() {
             .is_some()
     );
     let mut marks = vec![false; graph.vertices().len()];
-    marks[vertex(&graph, 4).0 as usize] = true;
-    marks[vertex(&graph, 1).0 as usize] = true;
+    marks[usize::try_from(vertex(&graph, 4).0).expect("a vertex id fits in usize")] = true;
+    marks[usize::try_from(vertex(&graph, 1).0).expect("a vertex id fits in usize")] = true;
     let domain = GraphDomain {
         identity: None,
         members: SharedMarks(Arc::new(marks)),

@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the prepared contract and the borrowed ports an operator reads it through, each port method stating its errors; splitting the contract from its ports would split one interface
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
 use super::views::{PredicateProgram, ValidatedSource};
 use crate::domain::operating::errors::OperatingError;
@@ -218,6 +219,10 @@ pub struct OperatorContract {
 /// scheduler, acquisition or release operation crosses this interface.
 pub trait PrimitiveResources {
     /// Checks that every declared resource was acquired, in the common lease's deferred error order.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`] of the first declared resource that cannot be viewed.
     fn validate_declared(&self) -> Result<(), OperatingError>;
     /// The key index of the operation's input, when one was acquired.
     fn index(&self) -> Option<IndexedRows<'_>>;
@@ -226,18 +231,38 @@ pub trait PrimitiveResources {
     /// The literal layers of a rank, when the operation ranks.
     fn rank_layers(&self) -> Option<&[Vec<ryo_values::domain::plan_parts::types::LiteralText>]>;
     /// The prepared axis of the operation, when it walks one.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`] of an acquired axis that cannot be viewed.
     fn axis(&self) -> Result<Option<super::views::PreparedAxis<'_>>, OperatingError>;
     /// The native join lookup, while its derived acquisition is held.
     fn native_join(&self) -> Option<super::views::NativeJoin<'_>>;
     /// The prepared depth-first search, when the operation runs one.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`] of an acquired search that cannot be viewed.
     fn dfs(&self) -> Result<Option<&ryo_derived::domain::dfs::types::PreparedDfs>, OperatingError>;
     /// The cycle adjacency, when the operation reads one.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`] of an acquired adjacency that cannot be viewed.
     fn cycles(
         &self,
     ) -> Result<Option<&ryo_derived::domain::cycle_adjacency::types::CycleGraph>, OperatingError>;
     /// The closure partitions the operation reads.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`] of a current partition that cannot be read.
     fn closure(&self) -> Result<super::views::ClosureViews<'_>, OperatingError>;
     /// The ordered matching of two ordered inputs, when the operation pairs them.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`] of an acquired matching that cannot be viewed.
     fn ordered(
         &self,
     ) -> Result<Option<&ryo_derived::domain::ordered::types::OrderedMatching>, OperatingError>;
@@ -314,6 +339,10 @@ pub struct PrimitiveLease<'a> {
 /// A narrow lease reborrow preserves source/derived symbols while downstream rows run.
 pub trait RowSink {
     /// Delivers one row the primitive emits, with the lease reborrowed for the rows downstream.
+    ///
+    /// # Errors
+    ///
+    /// The [`OperatingError`] a downstream consumer of the row returns; the primitive stops at it.
     fn row(&mut self, lease: &mut PrimitiveLease<'_>, row: &[Value]) -> Result<(), OperatingError>;
 }
 

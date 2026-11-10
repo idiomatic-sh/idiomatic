@@ -11,7 +11,11 @@ impl ryo_derived::domain::row_cells::types::ValueTexts for Texts<'_> {
     ) -> Option<ryo_values::domain::row_texts::types::CellText<'_>> {
         match datum(value, self) {
             Datum::Text(text) => Some(ryo_values::domain::row_texts::types::CellText(text.0)),
-            _ => None,
+            Datum::Unlocated
+            | Datum::Number(_)
+            | Datum::Flag(_)
+            | Datum::Numbers(_)
+            | Datum::Texts(_) => None,
         }
     }
 }

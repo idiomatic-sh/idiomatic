@@ -13,7 +13,9 @@ pub fn filter_contributor_rows(
     rows: &mut ryo_values::domain::rows::types::Table,
 ) {
     for input in inputs {
-        if input.ordinal.0 >= u8::BITS as usize || absence.0 & (1 << input.ordinal.0) == 0 {
+        if !u32::try_from(input.ordinal.0).is_ok_and(|ordinal| ordinal < u8::BITS)
+            || absence.0 & (1 << input.ordinal.0) == 0
+        {
             continue;
         }
         match &input.coverage {

@@ -157,10 +157,37 @@ impl PreparedWalk {
                 columns,
                 distinct: RepeatedRows::Kept,
             } => (relation, &[][..], columns),
-            _ => return None,
+            Operation::Select { .. }
+            | Operation::Project { .. }
+            | Operation::Extend { .. }
+            | Operation::Join { .. }
+            | Operation::Union { .. }
+            | Operation::Intersection { .. }
+            | Operation::Difference { .. }
+            | Operation::Antijoin { .. }
+            | Operation::GroupCount { .. }
+            | Operation::GroupDigest { .. }
+            | Operation::Capture { .. }
+            | Operation::Rank { .. }
+            | Operation::Replace { .. }
+            | Operation::OrderedMatch { .. }
+            | Operation::Words { .. }
+            | Operation::Axis { .. }
+            | Operation::Closure { .. }
+            | Operation::OrderedDfs { .. }
+            | Operation::Cycles { .. }
+            | Operation::Rows { .. }
+            | Operation::Hosted { .. }
+            | Operation::SpanBetween { .. }
+            | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
+            | Operation::SpanBounds { .. } => return None,
         };
         if kept.iter().any(|column| {
-            column.0 as usize >= ryo_relations::domain::relations::service::columns(*relation).len()
+            !usize::try_from(column.0).is_ok_and(|at| {
+                at < ryo_relations::domain::relations::service::columns(*relation).len()
+            })
         }) {
             return None;
         }
@@ -175,7 +202,7 @@ impl PreparedWalk {
             .find(|origin| origin.logical == instruction.logical())?;
         let class = self
             .class_of(instruction.producer())
-            .and_then(|classes| classes.get(original.step.0 as usize))
+            .and_then(|classes| usize::try_from(original.step.0).map_or(None, |at| classes.get(at)))
             .copied()
             .flatten()?;
         let chosen = self.classes().get(class.0)?;
@@ -183,6 +210,11 @@ impl PreparedWalk {
     }
 
     /// Exclude logical classes with no physical consumer of the shared result.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::NotRun`] when the program's regions route one logical step twice or name a step outside the
+    /// program.
     pub fn retain_program_consumers(
         &mut self,
         program: &crate::domain::executable_program::types::executable_program::value::ExecutableProgram,

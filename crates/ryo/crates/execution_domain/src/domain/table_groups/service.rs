@@ -13,6 +13,11 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::{plan_parts::types::ColumnIndex, rows::types::Table};
 
 /// Counts the rows of each group of a table through the operators.
+///
+/// # Errors
+///
+/// [`OperatingError::WrongOperation`] when the operators answer other than written, and the operators' fault mapped
+/// into its [`OperatingError`].
 pub fn count_groups(
     table: &Table,
     on: On<'_>,
@@ -34,6 +39,11 @@ pub fn count_groups(
     written_result(answer, None)
 }
 /// Digests one column of each group of a table through the operators.
+///
+/// # Errors
+///
+/// [`OperatingError::WrongOperation`] when the operators answer other than written, and the operators' fault mapped
+/// into its [`OperatingError`].
 pub fn digest_groups(
     table: &Table,
     keys: &[ColumnIndex],

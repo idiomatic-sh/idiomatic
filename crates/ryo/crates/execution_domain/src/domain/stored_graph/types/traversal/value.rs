@@ -30,15 +30,12 @@ impl<'a> GraphTraversal<'a> {
     /// Direct neighbors retain physical duplicate edges, as Parent/Child axes do.
     pub fn direct(&mut self, root: VertexId, orientation: Orientation) {
         self.begin();
-        self.walk.reached.extend(
-            neighbors(self.graph, root, orientation)
-                .0
-                .iter()
-                .copied()
-                .map(VertexId),
-        );
+        // begin cleared the reached vertices and zeroed the examined count: each neighbor is one of each.
+        for neighbor in neighbors(self.graph, root, orientation).0 {
+            self.walk.reached.push(VertexId(*neighbor));
+            self.walk.examined.0 += 1;
+        }
         self.walk.expanded = ExpandedVertices(1);
-        self.walk.examined = ExaminedVertices(self.walk.reached.len() as u64);
     }
 
     /// Positive-length BFS, optionally stopping before expansion of its first qualifying endpoint.
@@ -53,7 +50,8 @@ impl<'a> GraphTraversal<'a> {
         while let Some(vertex) = self.walk.queue.pop_front() {
             self.walk.reached.push(vertex);
             if nearest.is_some_and(|domain| {
-                domain.members.0.as_slice().get(vertex.0 as usize) == Some(&true)
+                usize::try_from(vertex.0)
+                    .is_ok_and(|at| domain.members.0.as_slice().get(at) == Some(&true))
             }) {
                 return BreadthEnd::Stopped;
             }
@@ -66,6 +64,10 @@ impl<'a> GraphTraversal<'a> {
     }
 
     /// Closure destinations sort by typed Value, independently of Axis encounter order.
+    #[expect(
+        clippy::as_conversions,
+        reason = "a u32 vertex id indexes the graph's own arrays: lossless on every target ryo builds for, and this per-vertex kernel keeps its indexing panic instead of a refusal branch in every visit"
+    )]
     pub fn sort(&mut self) {
         self.walk
             .reached
@@ -73,6 +75,10 @@ impl<'a> GraphTraversal<'a> {
     }
 
     /// Path-compressed nearest ancestry in a previously validated acyclic orientation.
+    #[expect(
+        clippy::as_conversions,
+        reason = "a u32 vertex id indexes the graph's own arrays: lossless on every target ryo builds for, and this per-vertex kernel keeps its indexing panic instead of a refusal branch in every visit"
+    )]
     pub fn nearest(
         &mut self,
         root: VertexId,
@@ -145,6 +151,10 @@ impl<'a> GraphTraversal<'a> {
     }
 
     /// Expand each vertex once, including a root later reached through a real cycle.
+    #[expect(
+        clippy::as_conversions,
+        reason = "a u32 vertex id indexes the graph's own arrays: lossless on every target ryo builds for, and this per-vertex kernel keeps its indexing panic instead of a refusal branch in every visit"
+    )]
     fn follow(&mut self, vertex: VertexId, orientation: Orientation) {
         self.walk.expanded.0 += 1;
         for neighbor in neighbors(self.graph, vertex, orientation).0 {
@@ -169,6 +179,10 @@ pub const fn direction(
 }
 
 /// Original encounter order, including parallel physical edges.
+#[expect(
+    clippy::as_conversions,
+    reason = "a u32 vertex id and edge offset index the graph's own arrays: lossless on every target ryo builds for, and this per-vertex kernel keeps its indexing panic instead of a refusal branch in every visit"
+)]
 pub(crate) fn neighbors(
     graph: &CompactGraph,
     vertex: VertexId,

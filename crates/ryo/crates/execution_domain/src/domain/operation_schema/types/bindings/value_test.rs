@@ -106,7 +106,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let right = match scenario {
                 Scenario::DynamicRegex => Operand::Column(ColumnIndex(0)),
                 Scenario::PredicateBinding => Operand::Parameter(ParameterId(9)),
-                _ => Operand::Parameter(ParameterId(0)),
+                Scenario::InvalidBoundRegex
+                | Scenario::Scalars
+                | Scenario::EmptyLists
+                | Scenario::Keys
+                | Scenario::MissingKey
+                | Scenario::Unbound
+                | Scenario::WrongScalar
+                | Scenario::WrongRows => Operand::Parameter(ParameterId(0)),
             };
             let comparison = PlanComparison {
                 test: Test::Matches,

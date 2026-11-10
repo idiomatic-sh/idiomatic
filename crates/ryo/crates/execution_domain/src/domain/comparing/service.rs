@@ -277,6 +277,10 @@ fn holds_one_bound(
 /// The engine's bound semantic capability, sharing the existing memo/verdict
 /// algorithm with native callers. Symbols and source text are read-only; only
 /// the explicitly supplied comparison workspace can change.
+///
+/// # Errors
+///
+/// The [`OperatingError`] of the first comparison that cannot be decided over the row; no later comparison is tried.
 pub fn holds_bound(
     comparisons: &[PlanComparison],
     row: &[Value],

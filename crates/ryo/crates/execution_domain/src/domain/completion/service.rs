@@ -222,7 +222,9 @@ pub fn contributed<'a>(
         }));
         match partial_of_lacks(affected) {
             partial @ CoverageState::Partial { .. } => Ok(partial),
-            _ => Err(crate::domain::operating::errors::OperatingError::NotRun),
+            CoverageState::Complete | CoverageState::Inapplicable { .. } => {
+                Err(crate::domain::operating::errors::OperatingError::NotRun)
+            }
         }
     } else if inapplicable.is_empty() {
         Ok(CoverageState::Complete)

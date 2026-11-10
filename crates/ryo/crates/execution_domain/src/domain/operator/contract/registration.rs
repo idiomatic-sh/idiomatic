@@ -21,6 +21,11 @@ impl RegisteredOperator {
         super::service::prepare_for(self.kind, operation, inputs, bindings, scope)
     }
     /// Evaluates an operation through the operators' one meaning of its kind.
+    ///
+    /// # Errors
+    ///
+    /// [`OperatingError::WrongOperation`](crate::domain::operating::errors::OperatingError::WrongOperation) when the
+    /// operation is not of this operator's kind, then the first error the evaluation or a downstream row returns.
     pub fn evaluate(
         &self,
         operation: &ryo_values::domain::plans::types::Operation,

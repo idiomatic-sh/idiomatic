@@ -21,6 +21,12 @@ use std::collections::BTreeMap;
 
 /// Normalize local names, preserve real inherited origins, then use the ordinary escape boundary.
 /// The caller owns the table boundary, mutable producer Symbols and destination arena; Emit is not aliased.
+///
+/// # Errors
+///
+/// The [`PublicationReason`] of the first name that cannot be carried across: a reserved worker or a non-empty place
+/// log, a cross name whose hash differs, a place, range or text that is missing or does not match, or a place log
+/// that is full.
 pub fn escape_cross_publication(
     table: &mut Table,
     producer: &mut Symbols,

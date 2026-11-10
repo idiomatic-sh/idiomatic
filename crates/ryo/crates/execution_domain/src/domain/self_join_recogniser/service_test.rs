@@ -32,7 +32,8 @@ fn fixture(relation: Relation) -> (Plan, Vec<CellKind>) {
         schema
             .iter()
             .position(|kind| *kind == CellKind::Number)
-            .expect("typed numeric source") as u32,
+            .map(|at| u32::try_from(at).expect("a relation's column number fits in u32"))
+            .expect("typed numeric source"),
     );
     let source = Operation::Select {
         from: Source::Relation(relation),
@@ -110,16 +111,20 @@ fn prepared(plan: &Plan, schema: &[CellKind]) -> Program {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let (mut plan, schema) = fixture(match scenario {
         Scenario::NativeOrigin => Relation::SyntaxChild,
-        _ => Relation::SourceLocation,
+        Scenario::Eligible
+        | Scenario::ExtraConsumer
+        | Scenario::FilteredJoin
+        | Scenario::ViewedJoin
+        | Scenario::NaturalOrder => Relation::SourceLocation,
     });
     match scenario {
         Scenario::Eligible => {}
         Scenario::ExtraConsumer => plan.frontier.push(Source::Step(StepId(1))),
         Scenario::FilteredJoin => {
-            let comparison = match &plan.steps[2].operation {
-                Operation::Select { comparisons, .. } => comparisons[0].clone(),
-                _ => panic!("the fixture lists every case it builds"),
+            let Operation::Select { comparisons, .. } = &plan.steps[2].operation else {
+                panic!("the fixture lists every case it builds");
             };
+            let comparison = comparisons[0].clone();
             if let Operation::Join { filter, .. } = &mut plan.steps[1].operation {
                 filter.push(comparison);
             }

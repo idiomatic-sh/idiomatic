@@ -87,7 +87,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             .enumerate()
             .flat_map(|(at, text)| {
                 [
-                    CellValue::Node(NodeId(at as u64)),
+                    CellValue::Node(NodeId(
+                        u64::try_from(at).expect("a fixture row number fits in u64"),
+                    )),
                     CellValue::Symbol(valid),
                     CellValue::Symbol(*text),
                     CellValue::File(FileId(0)),

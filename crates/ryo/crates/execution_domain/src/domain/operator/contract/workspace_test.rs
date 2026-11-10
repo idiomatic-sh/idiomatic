@@ -70,7 +70,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let lifetime = match scenario {
         Scenario::Invocation => Lifetime::Invocation,
         Scenario::PrimaryRow => Lifetime::PrimaryRow,
-        _ => return Err(OperatingError::WrongOperation),
+        Scenario::Unprepared | Scenario::DeferredError => {
+            return Err(OperatingError::WrongOperation);
+        }
     };
     let program = WorkspaceProgram::FirstOccurrences {
         lifetime,

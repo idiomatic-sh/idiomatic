@@ -42,6 +42,11 @@ fn same_vertices(
 /// This function cannot read rows, source bytes, symbols or execution scratch.
 /// Binding/table-key and structural errors remain explicit; data errors such as
 /// invalid spans and duplicate order values remain execution's responsibility.
+///
+/// # Errors
+///
+/// The [`OperatingError`] of the first input, column or binding the operation names that the metadata does not hold,
+/// or of an operation whose inputs' schemas do not fit it.
 pub fn schema_of(
     operation: &Operation,
     inputs: &[InputShape<'_>],

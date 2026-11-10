@@ -332,7 +332,20 @@ pub fn tables(operation: &Operation, symbol: Symbol, populated: bool) -> Vec<Tab
         | Operation::Difference { .. }
         | Operation::Antijoin { .. }
         | Operation::OrderedMatch { .. } => vec![first, second],
-        _ => vec![std::mem::take(&mut first)],
+        Operation::Select { .. }
+        | Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::Words { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => vec![std::mem::take(&mut first)],
     };
     if !populated {
         for table in &mut values {

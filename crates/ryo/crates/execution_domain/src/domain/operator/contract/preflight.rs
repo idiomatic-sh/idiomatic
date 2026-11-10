@@ -57,7 +57,30 @@ pub(crate) fn empty_results(operation: &Operation, inputs: &[InputShape<'_>]) ->
             }
             gates
         }
-        _ => Vec::new(),
+        Operation::Select { .. }
+        | Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Words { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => Vec::new(),
     }
 }
 
@@ -127,7 +150,20 @@ pub(crate) fn output_layout(
                 crate::domain::operating::errors::OperatingError::MissingInput { position: 1 },
             );
         }
-        _ => return checked.clone(),
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Cycles { .. }
+        | Operation::Hosted { .. } => return checked.clone(),
     }
     Ok(kinds)
 }

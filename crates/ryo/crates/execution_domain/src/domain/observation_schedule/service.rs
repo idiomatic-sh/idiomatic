@@ -20,6 +20,11 @@ use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Resolve only declared dependency edges. No providers or operators are executed here.
+///
+/// # Errors
+///
+/// The first [`RuleIntentError`] of the declared edges: a duplicate binding, an unknown producer, a self dependency,
+/// a producer without a query, or a cycle.
 pub fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, RuleIntentError> {
     if rules.iter().all(|rule| rule.observations.is_empty()) {
         return Ok(RuleSchedule::Independent);
@@ -88,6 +93,11 @@ pub fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, RuleIntentError> {
 }
 
 /// Infer actual schemas/phases after earlier producer plans compiled, without renumbering rule IDs.
+///
+/// # Errors
+///
+/// The first [`RuleIntentError`] of the consumer's bindings: an unknown or uncompiled producer, a missing output,
+/// producers whose columns disagree, or more outputs than a `u32` numbers.
 pub fn schemas<P: std::borrow::Borrow<Plan>>(
     consumer: &RuleSpec,
     rules: &[RuleSpec],
@@ -166,6 +176,10 @@ pub fn schemas<P: std::borrow::Borrow<Plan>>(
 }
 
 /// A bound request cannot silently fall back to independent execution.
+///
+/// # Errors
+///
+/// [`RuleIntentError::InvalidReference`] when bindings are given to an independent schedule.
 pub fn request<'a>(
     schedule: &'a RuleSchedule,
     bindings: &'a [Vec<ResolvedObservationBinding>],

@@ -26,9 +26,11 @@ impl<'f> JoinCursor<'f> {
         operation: &Operation,
         positions: Vec<Position>,
     ) -> Self {
-        let filtered = match operation {
-            Operation::Join { filter, .. } if !filter.is_empty() => Filtering::Filtered,
-            _ => Filtering::Unfiltered,
+        let filtered = if matches!(operation, Operation::Join { filter, .. } if !filter.is_empty())
+        {
+            Filtering::Filtered
+        } else {
+            Filtering::Unfiltered
         };
         Self {
             native: resources.native_join(),

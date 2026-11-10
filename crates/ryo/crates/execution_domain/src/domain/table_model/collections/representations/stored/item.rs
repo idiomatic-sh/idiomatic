@@ -61,7 +61,9 @@ impl RepresentationsItem for StoredItem {
         let RepresentationInput::Stored(view) = input else {
             return Err(OperatingError::WrongOperation);
         };
-        let at = column.0 as usize;
+        let Ok(at) = usize::try_from(column.0) else {
+            return Ok(CellRead::MissingPhysical);
+        };
         Ok(
             match view
                 .kinds

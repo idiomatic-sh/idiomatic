@@ -17,6 +17,11 @@ use ryo_values::domain::{
 use std::collections::BTreeSet;
 
 /// Follow only roots reachable from Emit or from actually read bound inputs, then remap once.
+///
+/// # Errors
+///
+/// [`RuleIntentError::InvalidReference`] when a step, output or binding a plan names does not exist, and
+/// [`RuleIntentError::TooManyOutputs`] when a pruned plan has more outputs than a `u32` numbers.
 pub fn link(
     mut plans: Vec<Plan>,
     bindings: Vec<Vec<ResolvedObservationBinding>>,
@@ -328,6 +333,10 @@ fn frontier(plan: &Plan) -> Result<Vec<Input>, RuleIntentError> {
 }
 
 /// Actual bound sources beneath each retained cross frontier, including per-file transforms.
+///
+/// # Errors
+///
+/// [`RuleIntentError::InvalidReference`] when a step reads a later step or a binding the plan does not hold.
 pub fn frontier_dependencies(
     plan: &Plan,
 ) -> Result<Vec<Vec<ObservationBindingId>>, RuleIntentError> {
@@ -373,11 +382,18 @@ fn bound_input_dependencies(
 ) -> Result<BTreeSet<ObservationBindingId>, RuleIntentError> {
     match input {
         Input::Relation(_) => Ok(BTreeSet::new()),
-        Input::Step(step) => steps
-            .get(step.0 as usize)
-            .cloned()
-            .ok_or(RuleIntentError::InvalidReference),
-        Input::BoundObservation(id) if (id.0 as usize) < count.0 => Ok(BTreeSet::from([id])),
+        Input::Step(step) => {
+            let Ok(at) = usize::try_from(step.0) else {
+                return Err(RuleIntentError::InvalidReference);
+            };
+            steps
+                .get(at)
+                .cloned()
+                .ok_or(RuleIntentError::InvalidReference)
+        }
+        Input::BoundObservation(id) if usize::try_from(id.0).is_ok_and(|at| at < count.0) => {
+            Ok(BTreeSet::from([id]))
+        }
         Input::BoundObservation(_) => Err(RuleIntentError::InvalidReference),
     }
 }

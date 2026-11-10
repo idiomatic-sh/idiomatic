@@ -238,7 +238,11 @@ impl RowDriver for LeaseDriver<'_, '_> {
                 target.0.push_str(text.0);
                 TextFound::Text
             }
-            _ => TextFound::NotText,
+            Datum::Unlocated
+            | Datum::Number(_)
+            | Datum::Flag(_)
+            | Datum::Numbers(_)
+            | Datum::Texts(_) => TextFound::NotText,
         }
     }
     fn mint(&mut self, text: CellText<'_>) -> Value {
