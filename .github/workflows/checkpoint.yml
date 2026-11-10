@@ -1,0 +1,120 @@
+# The checkpoint workflow on GitHub Actions, its thin edge, started only by hand on the ref to validate (no paid CI: it starts on no
+# pull request, push or schedule; the local gates stay the per-change gate). The `checks` job runs the repository root's lint and
+# check groups, which run every product's tools of those groups too. The `validation` job runs the root's `checkpoint` group: the ryo
+# checkpoint validation (crates/ryo/docs/contracts/evidence/checkpoint/run.py over its commands.json), whose commands build
+# beside the checkout, in places run.py derives from it. Each job uploads what its tools left: the validation job, validation.json,
+# identity.json and tests.json as run.py wrote them, with every command's log and exit.
+name: checkpoint
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checkpoint-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          # No go.mod at the root: there is nothing for the module cache to key on.
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          cache-bin: false
+          shared-key: ubuntu-26.04-checkpoint-checks
+          save-if: true
+          workspaces: |
+            crates/asymptote -> ../../target
+            crates/tastemaker -> ../../target
+            crates/ryo -> ../../target
+      # The installed tools, restored whole while the tool table is unchanged: install.py then leaves every tool at its declared
+      # version as it is.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: The tools the checks run, each at the version declared for it
+        run: uv run --script tools/install.py
+        env:
+          # cargo-binstall asks GitHub for each release: unauthenticated, the rate limit stalls it.
+          GH_TOKEN: ${{ github.token }}
+      - run: asymptote check --root . --groups lint,check
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: checkpoint-checks
+          path: |
+            target/checks/
+            crates/*/target/checks/
+          if-no-files-found: ignore
+  validation:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: rui314/setup-mold@10ca16bf91dc22e05ebdc935cad9c75ea248f621 # v1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-bin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/install.py', 'crates/*/Cargo.toml', 'tools/lints/Cargo.toml') }}
+      - name: The tools the checks run, each at the version declared for it
+        run: uv run --script tools/install.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: asymptote check --root . --groups checkpoint
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: checkpoint-validation
+          path: |
+            target/checks/checkpoint/
+            crates/ryo/docs/contracts/evidence/checkpoint/validation.json
+            crates/ryo/docs/contracts/evidence/checkpoint/identity.json
+            crates/ryo/docs/contracts/evidence/checkpoint/tests.json
+          if-no-files-found: error

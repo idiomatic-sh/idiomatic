@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
+import shlex
 import subprocess
 import sys
 import tomllib
@@ -18,7 +21,8 @@ sys.modules["install"] = install
 SPEC.loader.exec_module(install)
 
 # Commands the machine provides before any tool is installed.
-SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq"}
+# setup-python supplies python3, which the checked-in tool config runs (this container has no bare `python`).
+SYSTEM = {"cargo", "bash", "git", "uv", "sh", "jq", "python3"}
 
 
 def manifest(path: Path, tools: str) -> None:
@@ -48,6 +52,20 @@ def test_the_installed_crates_are_read_from_cargo(monkeypatch) -> None:
     listing = "cargo-deny v0.20.2:\n    cargo-deny\ntm v0.1.0 (/work/crates/tastemaker/cli):\n    tm\n"
     monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, listing, ""))
     assert install.installed_crates() == {"cargo-deny": ("0.20.2", ""), "tm": ("0.1.0", "/work/crates/tastemaker/cli")}
+
+
+def test_a_gh_extension_is_installed_pinned_only_when_missing_or_at_another_tag(monkeypatch) -> None:
+    listing = "gh stack\tgithub/gh-stack\tv0.2.1\n"
+    monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, listing, ""))
+    assert install.installed_gh_extensions() == {"github/gh-stack": "v0.2.1"}
+    calls = recorded(monkeypatch, 0)
+    assert install.install_gh_extensions({"github/gh-stack": "v0.2.1"}) == []
+    assert install.install_gh_extensions({}) == ["github/gh-stack@v0.2.1"]
+    assert install.install_gh_extensions({"github/gh-stack": "v0.1.0"}) == ["github/gh-stack@v0.2.1"]
+    assert calls == [
+        ["gh", "extension", "install", "github/gh-stack", "--pin", "v0.2.1"],
+        ["gh", "extension", "install", "github/gh-stack", "--pin", "v0.2.1", "--force"],
+    ]
 
 
 def test_a_crate_is_stale_when_missing_or_at_another_version() -> None:
@@ -164,6 +182,29 @@ def test_every_machine_the_checks_run_on_has_a_recorded_archive() -> None:
             assert len(tool["assets"][host][1]) == 64
 
 
+def test_an_archive_s_executable_is_its_member_of_that_name_or_the_whole_of_a_gzip() -> None:
+    import gzip
+    import io
+    import tarfile
+    import zipfile
+
+    packed = io.BytesIO()
+    with tarfile.open(fileobj=packed, mode="w:gz") as archive:
+        for member, body in (("LICENSE", b"license"), ("gitleaks", b"scanner")):
+            info = tarfile.TarInfo(member)
+            info.size = len(body)
+            archive.addfile(info, io.BytesIO(body))
+    assert install.unpacked(packed.getvalue(), "linux_x64.tar.gz", "gitleaks") == b"scanner"
+    zipped = io.BytesIO()
+    with zipfile.ZipFile(zipped, "w") as archive:
+        archive.writestr("README.md", b"readme")
+        archive.writestr("gitleaks.exe", b"scanner")
+    assert install.unpacked(zipped.getvalue(), "windows_x64.zip", "gitleaks.exe") == b"scanner"
+    assert install.unpacked(gzip.compress(b"taplo"), "linux-x86_64", "taplo") == b"taplo"
+    with pytest.raises(KeyError):
+        install.unpacked(packed.getvalue(), "linux_x64.tar.gz", "other")
+
+
 def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_its_sha256sums_names(tmp_path, monkeypatch) -> None:
     import hashlib
     import io
@@ -189,3 +230,59 @@ def test_an_own_tool_is_kept_only_when_it_is_the_command_of_the_release_archive_
     (tmp_path / "ryo").write_bytes(b"release")
     with pytest.raises(SystemExit):
         install.verify_release(crate, "x86_64-unknown-linux-gnu", tmp_path)
+
+
+def test_benchmark_collector_selects_only_one_matching_executable(tmp_path) -> None:
+    """The benchmark tool runs the collector its build names: `seal_cargo_artifact.py` takes the one release executable Cargo's
+    compiler-artifact records name, and refuses a build that names none or two."""
+    tools = tomllib.loads((ROOT / "crates/ryo/asymptote.toml").read_text())["tools"]
+    command = next(tool["run"][-1] for tool in tools if "ryo-benchmark-collector --message-format=json" in tool["run"][-1])
+    (sealing,) = [line for line in command.splitlines() if "seal_cargo_artifact.py" in line and "ryo-benchmark-collector" in line]
+    script, _build, *selection, sealed = shlex.split(sealing)[1:]
+    assert script == "../../.github/scripts/seal_cargo_artifact.py"
+    assert selection == ["ryo-benchmark-collector", "bin", "/crates/benchmark/src/main.rs", "false"]
+    assert f'"$PWD/{sealed}"' in command
+    collector = tmp_path / "collector"
+    collector.write_text("#!/bin/sh\nexit 0\n")
+    collector.chmod(0o755)
+    matching = {
+        "reason": "compiler-artifact",
+        "target": {"name": "ryo-benchmark-collector", "kind": ["bin"], "src_path": "/checkout/crates/ryo/crates/benchmark/src/main.rs"},
+        "profile": {"test": False},
+        "executable": str(collector),
+    }
+    cases = (
+        ([matching], True),
+        ([{**matching, "reason": "build-finished"}], False),
+        ([{**matching, "target": {**matching["target"], "name": "other"}}], False),
+        ([matching, matching], False),
+    )
+    for number, (records, accepted) in enumerate(cases):
+        build = tmp_path / f"build-{number}.jsonl"
+        build.write_text("\n".join(json.dumps(record) for record in records) + "\n")
+        out = tmp_path / f"sealed-{number}"
+        run = subprocess.run([sys.executable, "-I", str(ROOT / ".github/scripts/seal_cargo_artifact.py"), str(build), *selection, str(out)], capture_output=True, text=True, check=False)
+        # Two artifacts must not become one executable, and no artifact must not pass.
+        assert (run.returncode == 0 and out.is_file() and os.access(out, os.X_OK)) == accepted, run.stderr
+
+
+PYTEST_LISTING = (
+    "pytest v9.1.1 [with: pyyaml==6.0.3, tree-sitter==0.26.1, tree-sitter-rust==0.24.2] [CPython 3.12.11]\n- py.test\n- pytest\n"
+    "ruff v0.16.5 [CPython 3.13.5]\n- ruff\n"
+)
+PYTEST = {"package": "pytest", "version": "9.1.1", "python": "3.12", "with": ["pyyaml==6.0.3", "tree-sitter==0.26.1", "tree-sitter-rust==0.24.2"]}
+
+
+def test_a_python_tool_whose_with_list_changed_is_reinstalled(monkeypatch) -> None:
+    listing = PYTEST_LISTING.replace(", tree-sitter==0.26.1, tree-sitter-rust==0.24.2", "")
+    monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, listing, ""))
+    have = install.installed_python()
+    assert install.stale_tool(PYTEST, have) == "installed with pyyaml==6.0.3, declared with pyyaml==6.0.3, tree-sitter==0.26.1, tree-sitter-rust==0.24.2"
+    assert install.stale_tool({"package": "ruff", "version": "0.16.5"}, have) is None
+
+
+def test_a_python_tool_on_another_python_minor_is_reinstalled(monkeypatch) -> None:
+    monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, PYTEST_LISTING.replace("3.12.11", "3.15.0rc2"), ""))
+    assert install.stale_tool(PYTEST, install.installed_python()) == "installed on Python 3.15, declared 3.12"
+    monkeypatch.setattr(install, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, PYTEST_LISTING, ""))
+    assert install.stale_tool(PYTEST, install.installed_python()) is None

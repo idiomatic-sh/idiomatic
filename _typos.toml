@@ -27,24 +27,32 @@ ser = "ser"
 # misspelling of "all".
 # A hash written straight after a word (`source6bf638e1f...`) has no word
 # boundary before it.
-extend-ignore-re = ['\b[0-9a-f]{7,40}\b', '[0-9a-f]{10,}', '\bcatch-alls\b']
+# A Python test source's `café`, escaped in a recorded JSON string (`caf\u00e9`), reads as the word `caf`. A review verdict's plural
+# (`ALLOWs`) splits into `ALLO` and `Ws`. A perf diagnosis says a predicate is `ANDed` across a Union, which splits into `AN` and `Ded`.
+extend-ignore-re = ['\b[0-9a-f]{7,40}\b', '[0-9a-f]{10,}', '\bcatch-alls\b', 'caf\\u00e9', '\bALLOWs\b', '\bANDed\b']
 
 # RyoQL tests misspell a field ("colums") and an operation ("projct", "selekt") on
 # purpose, to prove the reader refuses an unknown one; typos rewrote them, which made each
 # replace a no-op and the tests meaningless.
+# A pending recording's query (`selec`) is misspelled on purpose too, to fail on another ground than the one recorded. Test texts
+# are data: the regex matcher's non-matching `"ba"` and the symbol `parseXML_2nd`.
 [type.rust]
-extend-ignore-re = ['"[0-9a-f]{16}:[0-9]+"', '"colums=?"', '\bprojct\b', '\bselekt\b']
+extend-ignore-re = ['"[0-9a-f]{16}:[0-9]+"', '"colums=?"', '\bprojct\b', '\bselekt\b', '\bselec\b', 'SearchText\("ba"\)', '_2nd\b']
 
 # Quotations in Markdown are kept as written, misspellings included; one that wraps
 # across lines in a CHANGELOG may span a few wrapped lines.
+# Math written as indexed points (`p0 < p1 < ... < pn`, `pi`) reads as words.
 [type.md]
-extend-ignore-re = ['"[^"\n]*(\n[^"\n]*){0,6}"']
+extend-ignore-re = ['"[^"\n]*(\n[^"\n]*){0,6}"', '\bp[0-9in]\b']
 
 # The standards a language is pinned to are copied unchanged (crates/ryo/languages/*/tests/fixtures/standard): a typo in them is the
 # standard's own, and correcting it would make the copy something else than the pinned file.
 [files]
 extend-exclude = [
   "crates/ryo/languages/*/tests/fixtures/standard/**",
+  # The modularity inventory's raw query answers keep each `use` path's source text with its spaces taken out
+  # (`FileRootDemand as DemandRoot` is `FileRootDemandasDemandRoot`), which reads as a misspelling of "demands".
+  "crates/ryo/docs/contracts/evidence/inventory/raw/**",
   # A language's pinned suite is its test files byte for byte.
   "crates/ryo/languages/*/tests/fixtures/suite/**",
   # A refusal fixture's manifest is unreadable on purpose.
@@ -53,4 +61,10 @@ extend-exclude = [
   "**/snapshots/**",
   "**/resources/**",
   "crates/ryo/languages/*/tests/fixtures/corpus/**",
+  # The Ruff benchmark's rule inputs, profiles, evidence and results quote Ruff's own test sources (`spawnve`, `CPY`, `withs`) and
+  # are sealed by their sha256 (prepared.json, the proofs and the receipts record each file's digest).
+  "crates/ryo/languages/python/benchmarks/linters/ruff/rules/**",
+  "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/**",
+  "crates/ryo/languages/python/benchmarks/linters/ruff/evidence/**",
+  "crates/ryo/languages/python/benchmarks/linters/ruff/results/**",
 ]

@@ -1,0 +1,22 @@
+# gitleaks (the `gitleaks` tool of asymptote.toml): its default rules, and the allowlist below for what is proven not a secret.
+[extend]
+useDefault = true
+
+[[allowlists]]
+# A content digest in a record: a JSON line mapping a recorded source file (`.py`, `.rs`, `.ryoql` or `.toml`, the extensions the
+# records hold) or a three-part relation id (`python/ruff/sequence-index-accesses`) to its SHA-256. `generic-api-key` reads the word
+# `key`, `token` or `access` in the name as a credential's and the 64 hex digits as its value. Only the record folders that hold
+# these digests are allowed, and only both together (condition AND): 643 of the 645 findings of the whole history scanned on
+# 2026-11-09 are such lines; .gitleaksignore names the other two. Any other key, or any key elsewhere, is still a finding.
+description = "SHA-256 digest of a recorded source file or relation in a record"
+condition = "AND"
+paths = [
+  '''^crates/ryo/languages/python/benchmarks/linters/ruff/(results|profiles)/''',
+  '''^crates/ryo/docs/contracts/(audits|evidence)/''',
+  '''^crates/ryo/languages/python/tests/fixtures/compiler-features/provenance\.json$''',
+]
+regexTarget = "line"
+regexes = [
+  '''^\s*"([\w.@+-]+/)*[\w@+-]+(\.[\w@+-]+)*\.(py|rs|ryoql|toml)":\s*"[0-9a-f]{64}",?\s*$''',
+  '''^\s*"[a-z]+/[a-z]+/[a-z0-9]+(-[a-z0-9]+)*":\s*"[0-9a-f]{64}",?\s*$''',
+]

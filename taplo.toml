@@ -14,11 +14,19 @@ exclude = [
   # A language's syntax_error input is the broken file its conformance reads.
   "crates/ryo/languages/*/tests/fixtures/relations/syntax_error/input.toml",
   "crates/ryo/languages/*/tests/fixtures/refusals/unreadable/Cargo.toml",
+  # A manifests fixture that is malformed on purpose: the manifests tests prove the provider refuses it.
+  "crates/ryo/languages/*/tests/fixtures/manifests/invalid-*/**",
   # An allocation fixture is a standard's own file, pinned byte for byte (toml's cargo-lock.toml is the standard's tree).
   "crates/ryo/languages/*/tests/fixtures/allocation/**",
   # A language's pinned suite and corpus are the language's own test files, invalid on purpose and held byte for byte.
   "crates/ryo/languages/*/tests/fixtures/suite/**",
   "crates/ryo/languages/*/tests/fixtures/corpus/**",
+  # The Ruff benchmark's rule inputs, profiles and evidence are sealed by their sha256: prepared.json, the proofs and the receipts
+  # record each file's digest, and an archived input is named by it. The shared benchmark's fixture rules are copies of them.
+  "crates/ryo/languages/python/benchmarks/linters/ruff/rules/**",
+  "crates/ryo/languages/python/benchmarks/linters/ruff/profiles/**",
+  "crates/ryo/languages/python/benchmarks/linters/ruff/evidence/**",
+  "crates/ryo/crates/benchmark/tests/fixtures/*/rules/**",
 ]
 
 # Formatting keeps the files as they are written: nothing is wrapped or aligned, only indentation, spacing and blank lines are made one.
