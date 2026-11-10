@@ -3,7 +3,7 @@
  "source": "0371fefcf817e9b45ccf60d258bdc4e91dd6a3a6",
  "base": "b537645529f840159a35305190bab662c5e35bcf",
  "branch": "claude/lspan",
- "bead": "ryo-fpg4.21",
+ "bead": "the L-span bead",
  "verdict": "PASS",
  "reviewer": "leak-review",
  "date": "2026-11-09T20:34:27Z",

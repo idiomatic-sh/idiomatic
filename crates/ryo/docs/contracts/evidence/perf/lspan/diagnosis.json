@@ -1,5 +1,5 @@
 {
- "question": "where the presence skip rate drops after the noqa fragment rewrite (89.16% -> 87.76% skipped (file, rule) pairs on full Django), and what L-span (ryo-fpg4.21, conditions L1-L3) changes",
+ "question": "where the presence skip rate drops after the noqa fragment rewrite (89.16% -> 87.76% skipped (file, rule) pairs on full Django), and what L-span (conditions L1-L3) changes",
  "source": "40e49021520d4392d29df28ee5bd2fef739e5d37",
  "measured": "fragment-rewrite design 4.1: the presence diagnostic (presence_file events) of a full Django run, 2,875 files x 413 rules, on the step-2 worker with the rewrite's assets; step 2 alone 1,058,711 of 1,187,375 skipped (89.16%), with the rewrite 1,042,023 (87.76%)",
  "where": {

@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - the cases of one service, worker_request: one table of rows over one subject, which a split would duplicate
 //! Selected missing inputs are prepared once before the SDK adapter receives the request.
 use super::service::{configure, prepare};
 use crate::cases::{Case, CaseName, Expect, Word, run};

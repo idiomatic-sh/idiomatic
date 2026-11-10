@@ -40,7 +40,7 @@ No production code changed.
 There is no new seam. The added code lives only in the `cfg(test)` module (`presence/mod.rs:8`).
 
 ## Advisories
-- **Residual, advisory by the PM ruling.** Plant p7 confirms the builder's residual. Take a new variant given the next free position, with no instance added: R6 passes it. The position fns cannot know how many variants the enum has, so nothing ties the list length to it. The doc comment above the position fn (`:985`) tells an agent to add the instance. The one plausible honest miss is a batch compile repair that fills the four non-exhaustive arms straight from the cargo JSON without reading that comment. The only mechanical close is a variant count derived on the enum, which needs a new derive in production. That choice is for the TM steward, not a check-2 failure.
+- **Residual, advisory by the PM ruling.** Plant p7 confirms the builder's residual. Take a new variant given the next free position, with no instance added: R6 passes it. The position fns cannot know how many variants the enum has, so nothing ties the list length to it. The doc comment above the position fn (`:985`) tells a builder to add the instance. The one plausible honest miss is a batch compile repair that fills the four non-exhaustive arms straight from the cargo JSON without reading that comment. The only mechanical close is a variant count derived on the enum, which needs a new derive in production. That choice is for the TM steward, not a check-2 failure.
 - **Carried from the last round.** `located_proof` (`:938`) is a hand-written declaration of which faults each proof covers. R6 cannot tell when a fault sits in the wrong proof arm. The L1 keeps-failure cases are the evidence for those arms.
 
 ## Enforcement candidates

@@ -1,6 +1,6 @@
 # Leak review: claude/w16-prune (re-review)
 
-Source b5b47621fa2626284d51f006e1403483ad90387d, base e4f1d396eb (claude/checkpoint-333), bead ryo-y95r. This re-review replaces the FAIL at dfc5f15c35.
+Source b5b47621fa2626284d51f006e1403483ad90387d, base e4f1d396eb (claude/checkpoint-333) This re-review replaces the FAIL at dfc5f15c35.
 The review ran read-only. The worktree's HEAD (b5b47621fa) and its clean status were the same before and after. The plants ran in a `git archive` copy, which has since been deleted.
 
 ## What changed since dfc5f15c35

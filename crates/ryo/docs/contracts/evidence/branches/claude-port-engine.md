@@ -6,7 +6,7 @@ Source `cd9878320b4f4b34d3844d254f2c5f3d76938337`, base `ffd0b1b1341e785c80cfd09
 - `execution_store/.../relations/number/service/issuance/service.rs`
 - `execution_store/.../relations/number/service/test.rs`
 
-The reviewed tree (`/workspaces/ryo-port-engine`) was the same before and after: HEAD cd9878320b, clean status. All plants ran in a detached scratch worktree at the same sha with its own target dir. Both were deleted afterwards.
+The reviewed tree (the port-engine worktree) was the same before and after: HEAD cd9878320b, clean status. All plants ran in a detached scratch worktree at the same sha with its own target dir. Both were deleted afterwards.
 
 ## Check 1: proof where the contract lives (PASS)
 All three files are in engine crates. Neither proof uses a product rule set or a corpus: the twin test uses a two-row SourceLocation table, and the store test (`number/service/test.rs:301-310`) uses a one-row computed table.

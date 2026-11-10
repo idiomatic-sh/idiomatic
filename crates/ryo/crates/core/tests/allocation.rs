@@ -30,6 +30,7 @@ fn main() -> std::process::ExitCode {
     .is_ok();
     if passed {
         println!(
+            // ignore: idiomatic.arch/no-silent-skip - cargo's own summary line, which run.py parses: it reports 0 tests ignored, no skip
             "test {CASE} ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
         );
         return std::process::ExitCode::SUCCESS;

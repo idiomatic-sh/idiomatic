@@ -1,4 +1,4 @@
-# Leak re-review: claude/audit-f2 (bead ryo-isbn)
+# Leak re-review: claude/audit-f2
 
 Source `0d6914eef0ee651b933e0fb79f77fd329844f085`. This final re-check covers `fe96c87071..0d6914eef0`, one commit adding one assertion; it closes the only open item (check 2). The review before it was of `fe96c87071` and failed check 2. Before that, the review was of `80fc0634a4` and failed checks 2 and 4. Since `80fc0634a4` there is exactly one commit, and it touches four files:
 - `values/src/domain/rule_requests/errors.rs`
@@ -6,7 +6,7 @@ Source `0d6914eef0ee651b933e0fb79f77fd329844f085`. This final re-check covers `f
 - `values/src/domain/compact_table/service_test.rs`
 - `core/src/inbound/use_cases/lint/errors.rs`
 
-Nothing else changed. The reviewed worktree stayed at HEAD `fe96c87071` and stayed clean. No build was run: the archive copy could not be built because the shell guard requires the shared `ryo-333` target, so the copy was deleted unbuilt. The runner and the assertions were read instead.
+Nothing else changed. The reviewed worktree stayed at HEAD `fe96c87071` and stayed clean. No build was run: the archive copy could not be built because the shell guard requires the shared checkpoint-333 target, so the copy was deleted unbuilt. The runner and the assertions were read instead.
 
 ## Check 1: Proof where the contract lives: PASS
 The fix diff asserts no contract from `benchmarks/` or `languages/`. The earlier PASS stands.

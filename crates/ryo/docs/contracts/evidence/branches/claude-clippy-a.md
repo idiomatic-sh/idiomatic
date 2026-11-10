@@ -1,6 +1,6 @@
 # Leak review: claude/clippy-a at f3e9e08f14 (re-check of c8347684cd)
 
-Scope: the fix commit f3e9e08f14 on top of the FAIL-reviewed c8347684cd (one commit: crates/ryo/Cargo.toml, benchmark/src/outbound/suite/fixtures/fake_test.rs, query_language/src/domain/planning/service.rs; 7+/1-). Closure as in the previous review. Trees unchanged before and after (ryo-clippy-a HEAD f3e9e08f14, clean; ryo-334 HEAD f5d1718a06).
+Scope: the fix commit f3e9e08f14 on top of the FAIL-reviewed c8347684cd (one commit: crates/ryo/Cargo.toml, benchmark/src/outbound/suite/fixtures/fake_test.rs, query_language/src/domain/planning/service.rs; 7+/1-). Closure as in the previous review. Trees unchanged before and after (clippy-a tree HEAD f3e9e08f14, clean; checkpoint-334 tree HEAD f5d1718a06).
 
 ## 1 Proof where the contract lives: PASS
 Unchanged since c8347684cd; the fix adds no proof in benchmarks/ or languages/.

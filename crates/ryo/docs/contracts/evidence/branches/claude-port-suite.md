@@ -2,7 +2,7 @@
 
 This review covers `f9a294ed5493ba65b458159fb9560f3dcd4e885f`, which is stacked on claude/port-engine `cd9878320b` (leak PASS). The round-3 delta is `bf89deded7..f9a294ed54`. It touches three test files in `crates/ryo/crates/execution/tests/` and `crates/ryo/tastemaker.toml:19`. The closure is unchanged from the previous review: execution, plus execution_runtime, execution_store, execution_domain and core's cross_file tests.
 
-Probes ran in a detached worktree at the reviewed sha, with its own target directory. Every plant was reverted. The reviewed tree `/workspaces/ryo-port-suite` was not touched: HEAD stayed at f9a294ed54 and the status stayed clean, before and after.
+Probes ran in a detached worktree at the reviewed sha, with its own target directory. Every plant was reverted. The reviewed tree the port-suite worktree was not touched: HEAD stayed at f9a294ed54 and the status stayed clean, before and after.
 
 ## Check 1: proof where the contract lives (PASS)
 
