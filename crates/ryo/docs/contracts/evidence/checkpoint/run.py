@@ -493,18 +493,26 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   elif failing: unproven[sha]='merge '+short+': the validated tree fails a test its merged commits name ('+', '.join(failing[:4])+')'
  return bad+list(unproven.values())
 TABLE=re.compile(r'\btable ([\w.-]+\.json)\b')
+MANIFEST=re.compile(r'\bmanifest ([\w./-]+\.toml)\b')
 REPO=p.parents[4]
 TABLE_STATUSES=('caught','equivalent','unobservable')
 def table_of(entry,raw):
  """The tests a range entry's table proves, or None: the entry names `table <file>.json` in the validation directory, a list of
- rows {semantic, status, ...} accounting for every mutant. A `caught` row names a test whose red log shows it fail under its planted
+ rows {semantic, status, ...} accounting for every mutant the entry's `manifest <file>.toml` (a repository file, `mutants = [...]`)
+ lists, no more and no fewer. A `caught` row names a test whose red log shows it fail under its planted
  bug and whose green log shows it pass on the landed code; an `equivalent` or `unobservable` row carries a non-empty argument and
  the review evidence that accepted it (a file of the repository or of the validation directory)."""
- m=TABLE.search(entry.get('test','') if isinstance(entry,dict) else '')
- if not m or not (raw/m.group(1)).is_file(): return None
+ text=entry.get('test','') if isinstance(entry,dict) else ''
+ m=TABLE.search(text); listed=MANIFEST.search(text)
+ if not m or not (raw/m.group(1)).is_file() or not listed or not (REPO/listed.group(1)).is_file(): return None
+ import tomllib
+ try: mutants=tomllib.loads((REPO/listed.group(1)).read_text()).get('mutants')
+ except tomllib.TOMLDecodeError: return None
+ if not isinstance(mutants,list) or not mutants: return None
  try: rows=json.loads((raw/m.group(1)).read_text())
  except ValueError: return None
  if not isinstance(rows,list) or not rows: return None
+ if sorted(r.get('semantic') for r in rows if isinstance(r,dict))!=sorted(mutants): return None
  caught=set()
  for row in rows:
   status=row.get('status','caught') if isinstance(row,dict) else None
