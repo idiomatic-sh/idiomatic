@@ -31,9 +31,7 @@ pub(crate) fn build(
             let cells = table
                 .cells
                 .get(row.0.checked_mul(width)?..row.0.checked_add(1)?.checked_mul(width)?)?;
-            cells
-                .get(usize::from(column))
-                .copied()
+            cells.get(usize::from(column)).copied()
         }),
         None => fill(count, columns, &mut out, |row, column| {
             rows.cell(row, column)

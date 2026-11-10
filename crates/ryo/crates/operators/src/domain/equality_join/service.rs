@@ -111,9 +111,11 @@ fn keyed(
     key: &[Value],
     right: &[Value],
 ) -> crate::domain::contract::types::PredicateOutcome {
-    if right_on.iter().zip(key).all(|(column, value)| {
-        right.get(usize::from(*column)) == Some(value)
-    }) {
+    if right_on
+        .iter()
+        .zip(key)
+        .all(|(column, value)| right.get(usize::from(*column)) == Some(value))
+    {
         crate::domain::contract::types::PredicateOutcome::Holds
     } else {
         crate::domain::contract::types::PredicateOutcome::Fails
@@ -216,10 +218,7 @@ fn reach_join(
                 .iter()
                 .zip(key.iter())
                 .all(|(column, value)| {
-                    let Some(logical) = reach
-                        .columns
-                        .get(usize::from(*column))
-                    else {
+                    let Some(logical) = reach.columns.get(usize::from(*column)) else {
                         return false;
                     };
                     let at = usize::from(*logical);

@@ -75,12 +75,8 @@ pub(crate) fn build(
     texts: &dyn ValueTexts,
     buffer: &mut Vec<Value>,
 ) -> Result<OrderedMatching, DerivedFault> {
-    let kind = |input: &dyn RowCells, column: ColumnIndex| {
-        input
-            .kinds()
-            .get(usize::from(column))
-            .copied()
-    };
+    let kind =
+        |input: &dyn RowCells, column: ColumnIndex| input.kinds().get(usize::from(column)).copied();
     if left_on.len() != right_on.len()
         || kind(left, left_order) != Some(CellKind::Number)
         || kind(right, right_order) != Some(CellKind::Number)

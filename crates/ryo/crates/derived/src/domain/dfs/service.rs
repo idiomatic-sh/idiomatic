@@ -120,26 +120,12 @@ pub(crate) fn build(
         .kinds()
         .get(usize::from(root))
         .ok_or(DerivedFault::ShapeMismatch)?;
-    if Some(kind)
-        != edges
-            .kinds()
-            .get(usize::from(source))
-        || Some(kind)
-            != edges
-                .kinds()
-                .get(usize::from(destination))
-        || edges
-            .kinds()
-            .get(usize::from(order))
-            != Some(&CellKind::Number)
+    if Some(kind) != edges.kinds().get(usize::from(source))
+        || Some(kind) != edges.kinds().get(usize::from(destination))
+        || edges.kinds().get(usize::from(order)) != Some(&CellKind::Number)
         || root_keys.len() != edge_keys.len()
         || root_keys.iter().zip(edge_keys).any(|(left, right)| {
-            roots
-                .kinds()
-                .get(usize::from(*left))
-                != edges
-                    .kinds()
-                    .get(usize::from(*right))
+            roots.kinds().get(usize::from(*left)) != edges.kinds().get(usize::from(*right))
         })
     {
         return Err(DerivedFault::ShapeMismatch);
