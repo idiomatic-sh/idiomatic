@@ -367,7 +367,7 @@ def is_production(path):
  return not is_test_file(path) and (path.endswith('.rs') or path.startswith(HARNESS) and path.endswith('.py'))
 PERF=re.compile(r'^perf(\([^)]*\))?!?:')
 PERF_EVIDENCE='crates/ryo/docs/contracts/evidence/perf/'
-NAMED_TEST=re.compile(r'\b[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:/[a-z][a-z0-9-]*[a-z0-9])+|\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
+NAMED_TEST=re.compile(r'\bgate:[a-z][a-z0-9_]*|\b[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:/[a-z][a-z0-9-]*[a-z0-9])+|\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
 def named_tests(message): return [t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
 CARGO_LINE=re.compile(r'^test (\S+) \.\.\. (ok|FAILED)\b')
 # nextest prints `PASS [ 0.003s] ( 12/153) <binary> <test>`; older versions leave the counter out.
@@ -385,6 +385,16 @@ RUNNER_FRAMES=((re.compile(r'(?m)^running \d+ tests?$'),re.compile(r'(?m)^test r
                (re.compile(r'(?m)^=+ test session starts =+$'),re.compile(r'(?m)^=+ .*\b\d+ (passed|failed|error)\b.* in [\d.]+s')))
 def runner_framed(text): return any(head.search(text) and tail.search(text) for head,tail in RUNNER_FRAMES)
 CLIPPY_LINT=re.compile(r'^(?:clippy|rustc)::[a-z_]+$')
+GATE=re.compile(r'^gate:[a-z][a-z0-9_]*$')
+def gate_status(log):
+ """A validation command's status from its raw log: the command's own result beside it (`<log stem>.json`, as validate() writes
+ `{"exit": n}`): 'passed' for exit 0, 'failed' for a non-zero exit whose log holds its refusal, else None."""
+ result=Path(log).with_suffix('.json')
+ try: code=json.loads(result.read_text()).get('exit')
+ except (OSError,ValueError,AttributeError): return None
+ if not isinstance(code,int): return None
+ if code==0: return 'passed'
+ return 'failed' if Path(log).read_text(errors='replace').strip() else None
 TM_RULE=re.compile(r'^[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:/[a-z][a-z0-9-]*)+$')
 def tm_status(text,rule,files):
  """A Tastemaker rule's status in one `tm check --format json` log: 'failed' when a finding of the rule (or of one of its parts,
@@ -414,6 +424,7 @@ def log_status(log,test,files=()):
  failed=passed=False; text=Path(log).read_text(errors='replace')
  if CLIPPY_LINT.match(test): return clippy_status(text,test,files)
  if TM_RULE.match(test): return tm_status(text,test,files)
+ if GATE.match(test): return gate_status(log)
  if not runner_framed(text): return None
  for line in text.splitlines():
   m=CARGO_LINE.match(line)
@@ -471,6 +482,8 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
   tests=named_tests(message)
   entries=[x for x in v.get('red_green',[]) if sha in covered(repo,x,ranges)]
   tables=[t for x in entries for t in [table_of(x,raw)] if t is not None]
+  # A range proven by a validation command (gate:<command>, red then green): every commit the entry covers is proven by it.
+  if any(gate_proves(x,raw) for x in entries): proven.add(sha); continue
   # A range proven by a table: a commit naming no test is covered by the whole table, one naming tests by a row of it.
   if tables and (not tests or any(t in rows for rows in tables for t in tests)): proven.add(sha); continue
   if len((git(repo,'rev-list','--parents','-n1',sha) or '').split())>2: merges[sha]=short; continue
@@ -527,6 +540,13 @@ def table_of(entry,raw):
   if log_status(raw/row['red'],row['test'])!='failed' or log_status(raw/row['green'],row['test'])!='passed': return None
   caught.add(row['test'])
  return caught
+GATE_NAMED=re.compile(r'(?<![\w:])(gate:[a-z][a-z0-9_]*)\b')
+def gate_proves(entry,raw):
+ """The entry names `gate:<command>` with a `red <log>` whose command exited non-zero with its refusal and a `green <log>` whose
+ command exited 0."""
+ text=entry.get('test','') if isinstance(entry,dict) else ''
+ m=GATE_NAMED.search(text)
+ return bool(m) and proves(entry,m.group(1),raw)
 def validated_status(v,test):
  """'failed' or 'passed' for a test the validation's recorded tests hold (by its path or a suffix of it), else None."""
  found=None

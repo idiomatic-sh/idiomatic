@@ -327,6 +327,14 @@ class Diff(unittest.TestCase):
   bare={'test':'the port (table seam.json)','base_sha':self.base,'merge_sha':other}
   self.assertEqual(len(run.fix_problems({'red_green':[bare],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),3)
   run.REPO=saved
+ def test_a_gate_entry_proves_the_commits_it_covers_by_its_command_red_then_green(self):
+  fix=commit(self.repo,{'a/src/lib.rs':'pub fn one() { let _ = 2; }\n'},'fix(a): the surface reaches no internal type')
+  self.logs(gred='RuntimeError: the SDK reaches an internal type\n',ggreen='Summary no semver update required\n')
+  (self.raw/'gred.json').write_text('{"exit": 1}'); (self.raw/'ggreen.json').write_text('{"exit": 0}')
+  entry={'test':'gate:sdk_api (red gred.log, green ggreen.log)','base_sha':self.base,'merge_sha':fix}
+  self.assertEqual(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base),[])
+  (self.raw/'gred.json').write_text('{"exit": 0}')
+  self.assertEqual(len(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),1)
  def test_a_nextest_line_with_its_counter_names_its_test(self):
   self.logs(next='    Starting 1 test across 1 binary\n        FAIL [   0.010s] (  1/153) pkg::bin domain::service_test::one_answers\n     Summary [   0.1s] 1 test run: 0 passed, 1 failed\n')
   self.assertEqual(run.log_status(self.raw/'next.log','service_test::one_answers'),'failed')
