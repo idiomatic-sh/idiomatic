@@ -418,6 +418,7 @@ def clippy_status(text,lint,files):
   spans=[x['file_name'] for x in m['message'].get('spans',[]) if x.get('is_primary')]
   hit|=any(f==x or f.endswith('/'+x.lstrip('./')) for x in spans for f in files)
  return 'failed' if hit else 'passed' if finished else None
+COMPILE_RED=re.compile(r'(?m)^error: could not compile `[^`]+` \((?:lib test|test "[^"]+"|bin test)\)')
 def log_status(log,test,files=()):
  """'failed' when the log shows the test failing, 'passed' when it shows it passing and never failing, else None: cargo test, cargo nextest, unittest -v and pytest -v lines inside the runner's own frame, a test named by its path or a suffix of it; a `clippy::<lint>` test is read from clippy's JSON at the given files (clippy_status)."""
  named=lambda path,sep: path==test or path.endswith(sep+test)
@@ -425,7 +426,8 @@ def log_status(log,test,files=()):
  if CLIPPY_LINT.match(test): return clippy_status(text,test,files)
  if TM_RULE.match(test): return tm_status(text,test,files)
  if GATE.match(test): return gate_status(log)
- if not runner_framed(text): return None
+ # A test that does not build is red: the overlaid test file names what its commit adds (cargo's `could not compile` a test target).
+ if not runner_framed(text): return 'failed' if COMPILE_RED.search(text) else None
  for line in text.splitlines():
   m=CARGO_LINE.match(line)
   if m and named(m.group(1),'::'): failed|=m.group(2)=='FAILED'; passed|=m.group(2)=='ok'; continue
@@ -451,7 +453,10 @@ def proves(entry,test,raw,files=()):
  if not re.search(r'(?<![\w:])'+re.escape(test)+r'(?![\w])',text): return False
  red,green=re.search(r'\bred ([\w.-]+\.log)\b',text),re.search(r'\bgreen ([\w.-]+\.log)\b',text)
  if not red or not green or red.group(1)==green.group(1) or not (raw/red.group(1)).is_file() or not (raw/green.group(1)).is_file(): return False
- return log_status(raw/red.group(1),test,files)=='failed' and log_status(raw/green.group(1),test,files)=='passed'
+ # A cases-table row is proven by its table's test: `<row> (row of <test>; ...)` reads the logs for that test.
+ row=re.search(r'(?<![\w:])'+re.escape(test)+r'\s*\(row of ([\w:]+)',text)
+ target=row.group(1) if row else test
+ return log_status(raw/red.group(1),target,files)=='failed' and log_status(raw/green.group(1),target,files)=='passed'
 def perf_identical(repo,base,head,sha):
  """A perf commit's proof: an after.json under evidence/perf/ added or changed in the checkpoint, with identical_output true and a source that is the perf commit or a commit built on it."""
  for path in (git(repo,'diff','--name-only','--diff-filter=AM',base,head,'--',':(top)'+PERF_EVIDENCE) or '').split():

@@ -335,6 +335,13 @@ class Diff(unittest.TestCase):
   self.assertEqual(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base),[])
   (self.raw/'gred.json').write_text('{"exit": 0}')
   self.assertEqual(len(run.fix_problems({'red_green':[entry],'raw_identity':str(self.raw)},repo=self.repo,base=self.base)),1)
+ def test_a_test_that_does_not_build_is_red_and_a_cases_row_is_proven_by_its_table_test(self):
+  self.logs(cred='error[E0432]: unresolved import `super::service::contributed`\nerror: could not compile `pkg` (lib test) due to 1 previous error\n',
+            lib='error: could not compile `pkg` (lib) due to 1 previous error\n',
+            cgreen='    Starting 1 test across 1 binary\n        PASS [   0.002s] (1/1) pkg domain::completion::service_test::succeeds\n     Summary [   0.1s] 1 test run: 1 passed\n')
+  self.assertEqual([run.log_status(self.raw/'cred.log','completion::service_test::succeeds'),run.log_status(self.raw/'lib.log','completion::service_test::succeeds')],['failed',None])
+  entry={'test':'contributed_rows (row of completion::service_test::succeeds; red cred.log, green cgreen.log)'}
+  self.assertTrue(run.proves(entry,'contributed_rows',self.raw)); self.assertFalse(run.proves({'test':'contributed_rows (red cred.log, green cgreen.log)'},'contributed_rows',self.raw))
  def test_a_nextest_line_with_its_counter_names_its_test(self):
   self.logs(next='    Starting 1 test across 1 binary\n        FAIL [   0.010s] (  1/153) pkg::bin domain::service_test::one_answers\n     Summary [   0.1s] 1 test run: 0 passed, 1 failed\n')
   self.assertEqual(run.log_status(self.raw/'next.log','service_test::one_answers'),'failed')
