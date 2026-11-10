@@ -87,6 +87,28 @@ Checkpoint 334 merges, into the 333 head `40e4902152` and each as a merge commit
   - `core/tests/allocation.rs`, `no-silent-skip`: the runner prints cargo's own `0 ignored` summary line so `run.py` can read its case, and the rule reads that literal as a skip. The rule is wrong for this code, so the fix is a negative fixture in the rule, which goes to the TM steward under "fix rules, not workarounds". It is not done in the integration tree.
   - `execution/tests/file_intents/mod.rs` (406), `file-length`: the seam suite's file-start intent proofs and the request and answer helpers its `delivery` submodule shares. rustfmt's reflow (the root lint group's `cargo fmt`) took it from 388 to 406 lines. Parting the helpers from the proofs that define them would leave two files of one concept.
   - `evidence/checkpoint/run.py` (807), `run_test.py` (481) and `rewrite-replaced.toml` (406), `file-length`: the directory's one validation script, its one test module, and the one replaced-set list that the census and the clippy lock both read. A split would add a file role or a second definition of one set.
+- **Root lint and check (goal exit 5, review item 4):** `asymptote check --root . --groups lint,check` at `dceef687bd`, with the checkout's tm 0.1.2 and ryo first on the path, exits 2. The log and JSON are `asymptote-root-lint-check-at-dceef687bd.*` in the validation directory. The config loads (the `^0` fix). The run before it, at `9e03aa81fe`, found and fixed in `da77293b16` and `1d603ba91f`:
+  - 65 unformatted files (cargo fmt);
+  - 2 TOML files (taplo);
+  - a missing final newline (editorconfig);
+  - two spellings (typos);
+  - 13 redundant doc link targets (cargo doc);
+  - tracker ids and machine paths in this record and the review-criteria evidence.
+
+  In crates/ryo, 174 resolved Tastemaker records were drained and the 24 in-source ignores recorded (`dceef687bd`). The tools that ran and passed (or were reused from the cache at unchanged inputs):
+  - root: taplo, yamllint, editorconfig, merge-conflict, typos, shellcheck, actionlint, commitizen, gitleaks, gitleaks-history, ci-tests;
+  - crates/ryo: cargo-fmt, tastemaker (31 findings judged, 28 accepted, 3 new, all in untracked files), cargo-machete, cargo-deny, test-bdd, test-doc, cargo-doc, and nine of the ten `test-language/*`;
+  - crates/asymptote: cargo-fmt, cargo-machete, cargo-deny, its tests and docs;
+  - crates/tastemaker: cargo-fmt, cargo-machete, cargo-deny, test-core, test-bdd, test-doc, cargo-doc.
+
+  Asymptote reports no count of what a passing tool checked; that gap has its own tracker item. Each red, with its owner:
+  - The root and crates/asymptote `tastemaker` tools: those workspaces pin tm 0.1.0 and crates/ryo pins 0.1.2 (since `e196dbe503`, before 333), so no single tm runs both. Owned by its tracker item, waiting on the owner's Tastemaker 0.1.2 release.
+  - crates/ryo `test-core`: core allocation, owned by "Measure full-Django cold/warm/edit and Rust regressions; meet final objective."
+  - crates/ryo `test-cli`: the replay behaviour and cost tests, owned as in the commands' records.
+  - crates/ryo `test-language/python`: the python allocation runner panics without a case id. Owned by the gate-fix scope that fixes case ids once, in the SDK's allocation contract.
+  - crates/ryo `correctness-python-ruff`: `verify_profiles.py --self-test-native-standalone` refuses with "native source profile identity mismatch". `profiles/native-standalone.json` pins `benchmark.toml` at a sha256 that none of its last twelve revisions has, so the pin was stale before 333. No command regenerates it, so it is not re-pinned by hand. Owned by its tracker item and "Repair every deferred output failure; rerun all 413 and full corpus."
+  - crates/tastemaker `test-cli`: the cold memory guard (4,276,268 KiB against 1,331,200) and two scaffold tests, owned as recorded since 331.
+  - crates/tastemaker's 947 new Tastemaker findings (933 `layer-matrix`) and crates/asymptote's 479, with the stale crates/asymptote `tastemaker.lock` under its pinned tm 0.1.0: refused, not fixed. Tastemaker 0 over those crates is out of scope by the owner's goal text.
 - **Owned pre-existing behaviour:** `run_file` with `CaptureIntent::Disabled` answers `NotRun` for every rule. The port engine's leak review found it; it is identical at `40e4902152`, so it predates the port, and no production path passes `Disabled`. Owned by its own tracker item, filed at 334.
 
 ### Checkpoint 333 integration record
