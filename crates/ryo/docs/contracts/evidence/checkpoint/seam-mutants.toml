@@ -2,6 +2,7 @@
 # the port's range proof accounts for every one, caught, equivalent or unobservable. Each is `seam-mutants/<id>.patch`, which
 # applies with `git apply` to the tree at f9a294ed54; the suite then runs, from crates/ryo, as
 # `cargo nextest run -p idiomatic-sh-ryo-execution --no-fail-fast --test boundary_contract`.
+# An id in `bases` applies at the commit named there instead.
 mutants = [
   "01-demand-order",
   "02-schema-first",
@@ -19,10 +20,14 @@ mutants = [
   "11-member-route",
   "11b-member-supply",
   "12-contributed",
+  "12b-contributed-partial-complete",
   "13-latch-last",
   "14-emit-rerun",
   "15-retire",
+  "15b-release-keeps-generation",
+  "15c-finish-skips-release",
   "16-generation-live",
   "17-counts-head",
   "19-deliver-order",
 ]
+bases = { "12b-contributed-partial-complete" = "10821828c5", "15b-release-keeps-generation" = "10821828c5", "15c-finish-skips-release" = "10821828c5" }
