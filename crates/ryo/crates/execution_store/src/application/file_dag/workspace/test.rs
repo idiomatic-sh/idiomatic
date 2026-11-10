@@ -142,7 +142,7 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
     let mut context = context(&mut symbols, &mut scratch, &mut memo);
     let inputs = [RepresentationInput::from(&rows)];
     let scope = workspace.inputs(&inputs);
-    let before = owner.identity_checks.get();
+    let before = owner.inspections();
     let index = scope.acquire_rows(&equality, &mut context).unwrap();
     let members = scope
         .acquire_derived(
@@ -165,7 +165,7 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
         assert_eq!(values.len(), 2);
     }
     assert_eq!(
-        owner.identity_checks.get().0 - before.0,
+        owner.inspections().0 - before.0,
         1,
         "both actual families use the same admitted input"
     );
