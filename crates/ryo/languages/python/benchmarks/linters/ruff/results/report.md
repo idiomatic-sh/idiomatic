@@ -178,7 +178,7 @@ An intrusive, separately recorded syscall diagnostic on the same owned pinned Ru
 
 ## Memory ownership and cache lifecycle (published 2026-11-02)
 
-The [sealed memory batch](memory-ownership-measurements-2026-11-01.json), worker `88ea33d2`, preserves the frozen 310-rule workload, all 2,875 pinned Django files, Python 3.10 settings and one worker. Cross-file evaluation now takes ownership of its decoded frontiers; schema shaping does not clone their cells. Checked varint sizing replaces the packed-byte reservation estimate, and normalization moves prepared packed words while preserving remap-before-digest order. No provider or rule bytes changed.
+The sealed memory batch (`memory-ownership-measurements-2026-11-01.json`, pruned after `a6e880e1d7`, which keeps it), worker `88ea33d2`, preserves the frozen 310-rule workload, all 2,875 pinned Django files, Python 3.10 settings and one worker. Cross-file evaluation now takes ownership of its decoded frontiers; schema shaping does not clone their cells. Checked varint sizing replaces the packed-byte reservation estimate, and normalization moves prepared packed words while preserving remap-before-digest order. No provider or rule bytes changed.
 
 | Mode | Wall | CPU | Peak RSS | Complete-report comparison |
 |---|---:|---:|---:|---|
@@ -243,7 +243,7 @@ The essential layout/schema checks and source-bound release build passed; full c
 
 ## Scope and correctness
 
-The latest [immutable 324-rule replay](correctness-324-final-2026-11-01.json) completed **7,862/8,086 exact canonical reports**, **224 raw mismatches**, **zero incomplete reports** and **zero unknown/unread pairs**. Its worker is frozen `279a9a19`, with [manifest](correctness-324-manifest-2026-11-01.json), [original worker summary](correctness-324-worker-summary-2026-11-01.json) and [145 distinct source/delta groups](correctness-324-distinct-mismatches-2026-11-01.json). Grouping reduces triage duplication, never the raw mismatch count. Seventeen reference CLI warning records remain separate from JSON diagnostic parity. This is not a correctness certificate for the newer engine/helper changes.
+The latest immutable 324-rule replay (`correctness-324-final-2026-11-01.json`, pruned after `a6e880e1d7`, which keeps it) completed **7,862/8,086 exact canonical reports**, **224 raw mismatches**, **zero incomplete reports** and **zero unknown/unread pairs**. Its worker is frozen `279a9a19`, with [manifest](correctness-324-manifest-2026-11-01.json), [original worker summary](correctness-324-worker-summary-2026-11-01.json) and [145 distinct source/delta groups](correctness-324-distinct-mismatches-2026-11-01.json). Grouping reduces triage duplication, never the raw mismatch count. Seventeen reference CLI warning records remain separate from JSON diagnostic parity. This is not a correctness certificate for the newer engine/helper changes.
 
 Current canonical source presence is **334/413** query-or-candidate assets, with **79 absent**; presence is not parity. The older inventory/prepared-manifest counts below are historical snapshots.
 
