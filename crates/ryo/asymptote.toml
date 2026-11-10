@@ -91,7 +91,7 @@ inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 id = "cargo-clippy-default"
 group = "release-clippy"
 # The same, with the default features: code a feature turns off is compiled and linted as a user builds it.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json -- --cap-lints warn | clippy-sarif"]
+run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
