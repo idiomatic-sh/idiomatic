@@ -1,0 +1,5 @@
+//! The types of the `positions` concept: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// Borrowed membership marks over a dense element space: the bare marks inside are named here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DenseMarks<'a>(pub &'a [bool]);

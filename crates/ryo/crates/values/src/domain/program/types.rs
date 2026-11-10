@@ -1,94 +1,158 @@
 //! The types of the `program` concept: the shape of RyoQL text once it is read. Plain data, public
 //! fields and derives, with no constructor and no inherent impl.
 
-use ryo_language::domain::relations::types::Integer;
-
-/// A place in the query text, counted in bytes from its start.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ByteOffset(pub usize);
-
-/// A stretch of the query text, in bytes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct QuerySpan {
-    /// Where it starts.
-    pub start: ByteOffset,
-    /// Where it ends.
-    pub end: ByteOffset,
-}
-
-/// RyoQL text as the port reads it: borrowed from the host's query.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct QueryView<'a>(pub &'a str);
-
-/// The name of a parameter, as the query writes it.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct WrittenParameter(pub Box<str>);
-
-/// The type of a parameter, as the query writes it: `integer`, `list<string>`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TypeName(pub Box<str>);
-
-/// The name a `let` gives a step, or a step is read under.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct StepName(pub Box<str>);
-
-/// The name of a column, as the query writes it or keeps it.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ColumnName(pub Box<str>);
-
-/// The alias a source is given after `as`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct AliasName(pub Box<str>);
-
-/// The name of a relation, written in quotes.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct WrittenRelation(pub Box<str>);
-
-/// The name of an operation a call applies.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct OperationName(pub Box<str>);
-
-/// The name of an argument of a call.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ArgumentName(pub Box<str>);
-
-/// Text the query wrote between quotes.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct WrittenLiteral(pub Box<str>);
-
-/// A bare word the query wrote: a column, a step or a keyword such as `descendant`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct WordText(pub Box<str>);
-
-/// A name the query wrote, bare or in quotes: how a column or an argument is written.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct WrittenName(pub Box<str>);
-
-/// A bare word as the parsers read it: borrowed from the query text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct BareWord<'a>(pub &'a str);
-
-/// A name as the query spells it, borrowed from the program: a relation, a step, a column or a
-/// parameter, whichever the program wrote in text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct QuerySpelling<'a>(pub &'a str);
+use crate::domain::descriptions::types::ColumnName;
+use crate::domain::query_syntax::types::{ArgumentValue, Expression};
+use crate::domain::query_tokens::types::{
+    Attribution, Linking, QueryOrigin, QuerySourceId, QuerySpan, StepIdentity, StepName, TypeName,
+    WrittenLiteral, WrittenName, WrittenParameter,
+};
+use ryo_relations::domain::relations::types::Span;
+use std::collections::BTreeMap;
 
 /// A whole query: its parameters, its steps and the one `emit`.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Program {
+pub struct WrittenProgram {
+    /// Whether source-local identities and imports have been linked for a complete query bundle.
+    pub linked: Linking,
+    /// The imported modules available to root-level calls.
+    pub imports: Vec<ImportDeclaration>,
+    /// Source attribution for original and linked syntax nodes.
+    pub origins: Vec<QueryOrigin>,
+    /// Typed signatures retained for every linked fragment invocation.
+    pub fragment_contracts: Vec<FragmentContract>,
+    /// Original source and call trace for each linked step definition.
+    pub step_origins: BTreeMap<StepIdentity, QueryOrigin>,
+    /// Original source for the root emit statement.
+    pub emit_origin: Attribution,
     /// The `param` lines.
     pub parameters: Vec<ParameterDeclaration>,
     /// The `let` lines, in order.
     pub steps: Vec<LetStep>,
+    /// Explicit named observation roots, separate from diagnostics.
+    pub observations: Vec<WrittenObservation>,
     /// The `emit` line.
     pub emit: WrittenEmit,
+}
+
+/// A fragment invocation's typed input/output contract after hygienic linking.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentContract {
+    /// The first expanded definition, before which inputs are available.
+    pub first: StepIdentity,
+    /// The returned definition, whose columns must match the declared output.
+    pub result: StepIdentity,
+    /// Inputs bound at the call site.
+    pub inputs: Vec<FragmentContractInput>,
+    /// Declared output relation shape.
+    pub output: RelationSignature,
+    /// Where the output signature is written.
+    pub output_span: QuerySpan,
+    /// Original fragment identity and import/call trace.
+    pub origin: QueryOrigin,
+}
+
+/// One input relation and the source actual bound at its call site.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentContractInput {
+    /// The fragment's input name.
+    pub name: WrittenName,
+    /// The source actual passed to that input.
+    pub value: ArgumentValue,
+    /// The required relation shape.
+    pub relation: RelationSignature,
+    /// Where the input is declared.
+    pub span: QuerySpan,
+}
+
+/// `import suppress from "vendor/tool/suppress";`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportDeclaration {
+    /// The local name of the imported module.
+    pub alias: WrittenName,
+    /// Its logical id in the immutable query bundle.
+    pub module: WrittenLiteral,
+    /// Where the import is written.
+    pub span: QuerySpan,
+}
+
+/// A relation shape written in a fragment signature.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RelationSignature {
+    /// Columns in their declared order.
+    pub columns: Vec<SignatureColumn>,
+    /// Where the `relation<...>` type is written.
+    pub span: QuerySpan,
+}
+
+/// One named column and its RyoQL cell type in a relation signature.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SignatureColumn {
+    /// The column name.
+    pub name: ColumnName,
+    /// The cell type name.
+    pub kind: TypeName,
+    /// Where the name and type are written.
+    pub span: QuerySpan,
+}
+
+/// A fragment input relation declaration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FragmentInput {
+    /// The name the fragment body uses as its relation source.
+    pub name: WrittenName,
+    /// The required relation shape.
+    pub relation: RelationSignature,
+    /// Where the declaration is written.
+    pub span: QuerySpan,
+}
+
+/// A reusable RyoQL fragment module, parsed without treating it as a root query.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentProgram {
+    /// Modules visible to calls from this fragment.
+    pub imports: Vec<ImportDeclaration>,
+    /// Relation-valued inputs.
+    pub inputs: Vec<FragmentInput>,
+    /// Scalar parameters.
+    pub parameters: Vec<ParameterDeclaration>,
+    /// The declared output shape.
+    pub output: RelationSignature,
+    /// Where the output declaration is written.
+    pub output_span: QuerySpan,
+    /// The fragment's local steps.
+    pub steps: Vec<LetStep>,
+    /// The step returned as the fragment result.
+    pub result: FragmentReturn,
+}
+
+/// The modules of one catalog, parsed once and shared by every compile over it: empty when none was parsed yet.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ParsedModules(pub std::sync::Arc<BTreeMap<QuerySourceId, FragmentProgram>>);
+
+/// Parsed root and module syntax before query-language linking runs.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedQueryBundle {
+    /// Parsed root query.
+    pub root: WrittenProgram,
+    /// Parsed module documents keyed by their bundle ids.
+    pub fragments: BTreeMap<QuerySourceId, FragmentProgram>,
+}
+
+/// The step returned by a fragment and the source location of its declaration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FragmentReturn {
+    /// The local result step.
+    pub step: StepName,
+    /// Where the return declaration is written.
+    pub span: QuerySpan,
 }
 
 /// `param max-lines: integer;`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParameterDeclaration {
     /// The parameter's name.
-    pub name: WrittenParameter,
+    pub parameter: WrittenParameter,
     /// Its type, as written: `integer`, `list<string>`.
     pub kind: TypeName,
     /// Where it is written.
@@ -106,251 +170,6 @@ pub struct LetStep {
     pub span: QuerySpan,
 }
 
-/// What a `let` computes.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Expression {
-    /// `select ... from ... join ... where ...`.
-    Select(Select),
-    /// `name(argument=value, ...)`.
-    Call(Call),
-}
-
-/// `select columns from source join source on a = b where filters`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Select {
-    /// The columns kept: every one for `*`, or those listed.
-    pub columns: Columns,
-    /// What it reads.
-    pub from: QuerySource,
-    /// The join, when there is one.
-    pub join: Joining,
-    /// The `where` conditions, all of which must hold.
-    pub filters: Vec<Condition>,
-}
-
-/// One condition of a `where`: a test, or the alternatives an `or` gives.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Condition {
-    /// One test: `name = "main"`.
-    Test(Filter),
-    /// `a or b and c`: at least one alternative holds, each a list of conditions that all hold. There are two or more.
-    Any(Vec<Vec<Condition>>),
-}
-
-/// The columns a `select` keeps.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Columns {
-    /// `*`: every column of what it reads.
-    Every,
-    /// The columns the query lists.
-    Listed(Vec<SelectColumn>),
-}
-
-/// Whether a `select` joins a second source to the one it reads.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Joining {
-    /// It reads one source.
-    Alone,
-    /// It joins this second source.
-    Joined(Join),
-}
-
-/// The name a column of a `select` is kept under.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Renaming {
-    /// It keeps the name it is read under.
-    Unchanged,
-    /// `as` gives it this name.
-    Renamed(ColumnName),
-}
-
-/// Whether the query writes an alias before a column or after a source.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Alias {
-    /// The query writes none.
-    Unwritten,
-    /// The query writes this one.
-    Written(AliasName),
-}
-
-/// One column of a `select`, with the name it is kept under.
-#[derive(Clone, Debug, PartialEq)]
-pub struct SelectColumn {
-    /// The column read.
-    pub column: ColumnReference,
-    /// The name it is kept under.
-    pub rename: Renaming,
-}
-
-/// A column, with the alias of the source it belongs to when the query writes one.
-#[derive(Clone, Debug, PartialEq)]
-pub struct ColumnReference {
-    /// `l` in `l."id"`.
-    pub alias: Alias,
-    /// `id` in `l."id"`.
-    pub column: ColumnName,
-}
-
-/// What a `select` or a `join` reads.
-#[derive(Clone, Debug, PartialEq)]
-pub struct QuerySource {
-    /// The relation or the earlier step.
-    pub reference: SourceReference,
-    /// The alias after `as`.
-    pub alias: Alias,
-    /// Where it is written.
-    pub span: QuerySpan,
-}
-
-/// A name a query reads.
-#[derive(Clone, Debug, PartialEq)]
-pub enum SourceReference {
-    /// A relation, written in quotes: `"syntax-tree"`.
-    Relation(WrittenRelation),
-    /// An earlier step, written bare: `functions`.
-    Step(StepName),
-}
-
-/// `join source on l.a = r.b and l.c = r.d`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Join {
-    /// The right side.
-    pub source: QuerySource,
-    /// The keys the rows are joined on, each a column of each side.
-    pub on: Vec<JoinKey>,
-}
-
-/// One `l.a = r.b` of a join.
-#[derive(Clone, Debug, PartialEq)]
-pub struct JoinKey {
-    /// The left key.
-    pub left: ColumnReference,
-    /// The right key.
-    pub right: ColumnReference,
-}
-
-/// One `where` condition: `left test right`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Filter {
-    /// The left operand.
-    pub left: WrittenOperand,
-    /// How they are compared.
-    pub test: WrittenTest,
-    /// The right operand.
-    pub right: WrittenOperand,
-    /// Where it is written.
-    pub span: QuerySpan,
-}
-
-/// How a filter compares its operands.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WrittenTest {
-    /// `=`.
-    Equal,
-    /// `!=`.
-    NotEqual,
-    /// `<`.
-    LessThan,
-    /// `<=`.
-    LessThanOrEqual,
-    /// `>`.
-    GreaterThan,
-    /// `>=`.
-    GreaterThanOrEqual,
-    /// `in`.
-    In,
-    /// `not in`.
-    NotIn,
-    /// `glob_any(left, right)`.
-    GlobAny,
-    /// `not glob_any(left, right)`.
-    NotGlobAny,
-    /// `float_text_gte(left, right)`: numbers written as text, compared as numbers.
-    FloatTextGreaterThanOrEqual,
-    /// `starts_with(text, prefix)`.
-    StartsWith,
-    /// `ends_with(text, suffix)`.
-    EndsWith,
-}
-
-/// One side of a filter.
-#[derive(Clone, Debug, PartialEq)]
-pub enum WrittenOperand {
-    /// A column.
-    Column(ColumnReference),
-    /// `$name`.
-    Parameter(WrittenParameter),
-    /// `"text"`.
-    Text(WrittenLiteral),
-    /// `42`.
-    Number(Integer),
-    /// `pascal(pkg)`: a function applied to operands.
-    Function(WrittenApplied),
-}
-
-/// A function a filter applies to text.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WrittenFunction {
-    /// `concat(a, b, ...)`.
-    Concat,
-    /// `pascal(text)`.
-    Pascal,
-    /// `camel(text)`.
-    Camel,
-    /// `snake(text)`.
-    Snake,
-    /// `kebab(text)`.
-    Kebab,
-}
-
-/// `concat(pascal(pkg), "Service")`: a function and the operands it is applied to.
-#[derive(Clone, Debug, PartialEq)]
-pub struct WrittenApplied {
-    /// The function.
-    pub function: WrittenFunction,
-    /// Its arguments, in the order written.
-    pub arguments: Vec<WrittenOperand>,
-    /// Where it is written.
-    pub span: QuerySpan,
-}
-
-/// `name(argument=value, ...)`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Call {
-    /// The operation's name.
-    pub name: OperationName,
-    /// Its arguments, in the order written.
-    pub arguments: Vec<Argument>,
-    /// Where it is written.
-    pub span: QuerySpan,
-}
-
-/// `name=value`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Argument {
-    /// The argument's name.
-    pub name: ArgumentName,
-    /// Its value.
-    pub value: ArgumentValue,
-}
-
-/// The value of an argument.
-#[derive(Clone, Debug, PartialEq)]
-pub enum ArgumentValue {
-    /// `"text"`.
-    Text(WrittenLiteral),
-    /// `42`.
-    Number(Integer),
-    /// A bare word: a column, a step or a keyword such as `descendant`.
-    Word(WordText),
-    /// `$name`.
-    Parameter(WrittenParameter),
-    /// `[a, b]`.
-    List(Vec<ArgumentValue>),
-    /// `{key: value}`.
-    Map(Vec<Argument>),
-}
-
 /// `emit step subject column key(columns);`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct WrittenEmit {
@@ -362,4 +181,61 @@ pub struct WrittenEmit {
     pub key: Vec<ColumnName>,
     /// Where it is written.
     pub span: QuerySpan,
+}
+
+/// An explicit top-level named-output declaration. Linking resolves its source identity once.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WrittenObservation {
+    /// The actual source step.
+    pub step: StepName,
+    /// The exported name.
+    pub name: crate::domain::observations::types::ObservationName,
+    /// The complete declaration's source range.
+    pub span: QuerySpan,
+    /// Attribution preserved through hygienic fragment expansion.
+    pub origin: Attribution,
+}
+
+/// Which fault a query text was refused for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RefusedKind {
+    /// The text is not RyoQL.
+    Syntax,
+    /// The query reads a relation ryo does not own.
+    UnknownRelation,
+    /// A comparison puts unlike types side by side.
+    Type,
+    /// The query is wrong in another way.
+    Invalid,
+    /// The catalog of relations could not be read.
+    Catalog,
+}
+
+/// What a refusal says: the relation a query named that is not one, or the reason, as the compiler worded it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RefusalMessage(pub String);
+
+/// A query text that was refused: which fault, what it says, and where in the text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RefusedQuery {
+    /// Which fault.
+    pub kind: RefusedKind,
+    /// What it says.
+    pub message: RefusalMessage,
+    /// Where in the text; empty for a fault that is not in the text.
+    pub span: Span,
+    /// The original query-module source and import/call path, when the refusal came from a fragment.
+    pub origin: Attribution,
+}
+
+impl std::fmt::Display for RefusedQuery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = &self.message.0;
+        match self.kind {
+            RefusedKind::Syntax => write!(f, "{message} at byte {}", self.span.start.0),
+            RefusedKind::UnknownRelation => write!(f, "no relation named `{message}`"),
+            RefusedKind::Type | RefusedKind::Invalid => write!(f, "{message}"),
+            RefusedKind::Catalog => write!(f, "the relation catalog failed: {message}"),
+        }
+    }
 }

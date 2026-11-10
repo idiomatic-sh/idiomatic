@@ -29,11 +29,77 @@ pub struct Session {
     pub root: RootPath,
     /// Where its files are: on the disk below the root, or only those given.
     pub repository: ryo_language::inbound::use_cases::project::types::Repository,
+    /// Explicit ordered project import roots, or an undeclared scope whose absence is unknown.
+    pub search_scope: ryo_language::domain::project_context::types::ProjectSearchScope,
+    /// Host authority for candidate entries when repository files are Given.
+    pub given_inventory: ryo_language::domain::project_context::types::GivenProjectInventory,
 }
 
 /// The id of a rule, as the store keeps it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RuleId(pub Box<str>);
+
+/// Whether a rule runs regardless of parser acceptance or only on accepted syntax trees.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum RuleApplicability {
+    /// Run the rule on every admitted file, as legacy rules do.
+    #[default]
+    Always,
+    /// Run only when the language provider explicitly accepted the file's syntax.
+    AcceptedSyntax,
+}
+
+/// Why a rule was explicitly skipped for one file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SkipReason {
+    /// The language provider explicitly rejected the file's syntax.
+    SyntaxRejected,
+}
+
+/// Why it could not be decided whether a rule applies to a file.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::runs::types::{ApplicabilityRefusal, UnknownCause};
+/// let cause = UnknownCause::Refused(ApplicabilityRefusal::SyntaxUndetermined);
+/// assert_ne!(cause, UnknownCause::Refused(ApplicabilityRefusal::MetadataUnavailable));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ApplicabilityRefusal {
+    /// The file's syntax could not be determined.
+    SyntaxUndetermined,
+    /// The file's metadata is unavailable.
+    MetadataUnavailable,
+}
+
+/// Why a rule could not decide on a file.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::runs::types::{ApplicabilityRefusal, UnknownCause};
+/// // A refusal before the run is a typed cause, never a ran-and-undecided answer.
+/// assert_ne!(UnknownCause::Refused(ApplicabilityRefusal::SyntaxUndetermined), UnknownCause::Undecided);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum UnknownCause {
+    /// It ran, and what it read did not decide it.
+    Undecided,
+    /// It was refused on the file before it ran: whether it applies there could not be decided.
+    Refused(ApplicabilityRefusal),
+}
+
+/// A rule that did not run for a file because its applicability condition was not met.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Skipped {
+    /// The rule.
+    pub rule: RuleId,
+    /// The file.
+    pub path: FilePath,
+    /// Why it was skipped.
+    pub reason: SkipReason,
+}
 
 /// A manifest a language's tools refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -64,5 +130,18 @@ pub enum AnswerShape {
     /// and the places, the rows of the cross-file steps last. With more than one rule, the rule's id comes first and the columns are
     /// every rule's, each empty in the rows of a rule that has none of that heading. At most this many rows are written, and every
     /// row is counted. Nothing is kept for the next run.
-    Rows(crate::domain::records::types::RowTotal),
+    Rows(crate::domain::row_texts::types::RowTotal),
 }
+
+/// A rule, by its place among the rules of a run.
+///
+/// The caller edge chooses no physical strategy: the removed execution options and
+/// the node-result-reuse switch no longer resolve.
+/// ```compile_fail,E0432
+/// use ryo_values::domain::runs::types::ExecutionOptions;
+/// ```
+/// ```compile_fail,E0432
+/// use ryo_values::domain::runs::types::NodeResultReuse;
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RuleNumber(pub u32);

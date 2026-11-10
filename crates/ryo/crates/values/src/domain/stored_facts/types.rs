@@ -1,7 +1,7 @@
 //! The types of the `stored_facts` concept: what a run keeps of the words and the text of a file. Plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::descriptions::types::RelationName;
-use ryo_language::domain::relations::types::{Missing, Relation};
+use ryo_relations::domain::relations::types::{Missing, Relation};
 
 /// Why a relation is read only in part, as the reader said it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -98,12 +98,3 @@ pub struct FileNotes {
 /// The text a file's names made that is in no file, as bytes.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ArenaBytes(pub Vec<u8>);
-
-/// Whether a digest is the blank one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DigestBlankness {
-    /// The blank digest, which a record keeps for what was never digested.
-    Blank,
-    /// A digest that came from bytes.
-    Filled,
-}

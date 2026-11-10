@@ -19,3 +19,6 @@ pub mod domain;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod cases;
+
+#[cfg(test)]
+mod cases_test;

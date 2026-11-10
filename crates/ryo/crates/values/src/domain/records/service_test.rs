@@ -1,12 +1,12 @@
 //! The `records` service's cases, on values alone.
 
 use super::service::{is_as_it_was, keep, lent, owned};
-use super::types::{
-    Cell, CellText, FileOutcome, Freshness, Record, RenderedText, RowsTextAt, RowsTextView,
-    TextRange, Unreadable,
-};
+use super::types::{FileOutcome, Freshness, Record, Unreadable};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::files::types::{CorpusEntry, FileNumber, FileSize, Nanoseconds};
+use crate::domain::row_texts::types::{
+    Cell, CellText, RenderedText, RowsTextAt, RowsTextView, TextRange,
+};
 use crate::domain::stored_facts::types::Digest;
 use ryo_language::domain::files::types::FilePath;
 
@@ -25,6 +25,10 @@ enum Scenario {
     KeptAndLent,
     /// A cell whose range the text does not hold, lent.
     OutOfText,
+    /// A file whose executable bit changed with the size and the timestamp the same.
+    ExecutableChanged,
+    /// Partial frontiers whose scopes and kind lists are sorted and named once, or are not.
+    PartialFrontiers,
 }
 
 /// What a row of the cases asks of the service.
@@ -71,6 +75,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::OutOfText,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("an_executable_observation_invalidates_in_both_directions"),
+        word: Word::Succeeds,
+        input: || Scenario::ExecutableChanged,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName(
+            "a_partial_frontier_with_lacks_is_well_formed_only_when_sorted_distinct_and_named_once_per_scope",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::PartialFrontiers,
+        expect: Expect::Value(1),
+    },
 ];
 
 /// Whether cells kept in one text, lent back and owned, are the cells they were.
@@ -78,10 +96,10 @@ fn kept_and_lent() -> bool {
     let cells = [
         Cell::File(CellText("src/a.rs")),
         Cell::Text(CellText("main")),
-        Cell::Number(ryo_language::domain::relations::types::Integer(-7)),
-        Cell::Span(ryo_language::domain::relations::types::Span {
-            start: ryo_language::domain::relations::types::Offset(3),
-            end: ryo_language::domain::relations::types::Offset(4),
+        Cell::Number(ryo_relations::domain::relations::types::Integer(-7)),
+        Cell::Span(ryo_relations::domain::relations::types::Span {
+            start: ryo_relations::domain::relations::types::Offset(3),
+            end: ryo_relations::domain::relations::types::Offset(4),
         }),
     ];
     let mut text = RenderedText::default();
@@ -95,6 +113,7 @@ fn kept_and_lent() -> bool {
 
 fn record(modified: u64) -> Record {
     Record {
+        executable: Default::default(),
         path: FilePath("a".into()),
         size: FileSize(5),
         modified: Nanoseconds(modified),
@@ -109,10 +128,63 @@ fn record(modified: u64) -> Record {
 
 fn entry(size: u64, modified: u64) -> CorpusEntry {
     CorpusEntry {
+        executable: Default::default(),
         path: FilePath("a".into()),
         size: FileSize(size),
         modified: Nanoseconds(modified),
     }
+}
+
+fn executable_changes_invalidate() -> bool {
+    use crate::domain::files::types::ExecutablePermission::{
+        PosixExecutable, PosixNotExecutable, Unknown, Unsupported,
+    };
+    let mut held = true;
+    for (before, after) in [
+        (PosixNotExecutable, PosixExecutable),
+        (PosixExecutable, PosixNotExecutable),
+        (Unknown, PosixNotExecutable),
+        (PosixNotExecutable, Unknown),
+        (Unsupported, Unknown),
+    ] {
+        let mut kept = record(7);
+        kept.executable = before;
+        let mut file = entry(5, 7);
+        file.executable = before;
+        held &= super::service::is_as_it_was(&kept, &file) == Freshness::AsItWas;
+        file.executable = after;
+        held &= super::service::is_as_it_was(&kept, &file) == Freshness::Changed;
+    }
+    held
+}
+
+/// Whether a partial frontier with lacks is well formed only when sorted, distinct and named once per scope.
+fn partial_frontiers_are_well_formed_only_when_sorted() -> bool {
+    use super::service::is_well_formed;
+    use super::types::{FrontierAffected, FrontierMissing, FrontierShape};
+    use crate::domain::plan_parts::types::ColumnIndex;
+    use crate::domain::stored_facts::types::PartialKind;
+    let kinds = |names: &[&str]| FrontierMissing::Kinds {
+        column: ColumnIndex(2),
+        kinds: names
+            .iter()
+            .map(|name| PartialKind((*name).into()))
+            .collect(),
+    };
+    is_well_formed(&[
+        FrontierAffected::CurrentFile(kinds(&["function", "variable"])),
+        FrontierAffected::Repository(FrontierMissing::Any),
+    ]) == FrontierShape::WellFormed
+        && is_well_formed(&[]) == FrontierShape::Malformed
+        && is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[]))]) == FrontierShape::Malformed
+        && is_well_formed(&[FrontierAffected::CurrentFile(kinds(&[
+            "variable", "function",
+        ]))])
+            == FrontierShape::Malformed
+        && is_well_formed(&[
+            FrontierAffected::CurrentFile(FrontierMissing::Any),
+            FrontierAffected::CurrentFile(kinds(&["variable"])),
+        ]) == FrontierShape::Malformed
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -122,6 +194,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::WrittenSince => is_as_it_was(&record(9), &entry(5, 10)) == Freshness::Changed,
         Scenario::Undated => is_as_it_was(&record(0), &entry(5, 0)) == Freshness::Changed,
         Scenario::KeptAndLent => kept_and_lent(),
+        Scenario::ExecutableChanged => executable_changes_invalidate(),
+        Scenario::PartialFrontiers => partial_frontiers_are_well_formed_only_when_sorted(),
         Scenario::OutOfText => {
             lent(
                 RowsTextView("ab"),

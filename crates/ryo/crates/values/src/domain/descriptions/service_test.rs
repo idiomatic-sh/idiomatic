@@ -2,7 +2,7 @@
 
 use super::service::{describe, summarize};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]

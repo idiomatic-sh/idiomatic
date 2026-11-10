@@ -7,3 +7,30 @@ pub const COLUMNS: &str = "columns";
 pub const COLUMN: &str = "column";
 /// The argument that names the column an operator writes its digest to.
 pub const DIGEST: &str = "digest";
+
+/// Literal replacement text supplied to a text transformation.
+pub const REPLACEMENT: &str = "replacement";
+
+/// Left equality key columns.
+pub const LEFT_ON: &str = "left-on";
+
+/// Right equality key columns.
+pub const RIGHT_ON: &str = "right-on";
+
+/// Explicit output names or projection.
+pub const OUTPUT: &str = "output";
+
+/// The argument that names the relation an operator walks, also a grammar keyword.
+pub const RELATION: &str = "relation";
+
+/// The argument that names the column holding an edge's destination.
+pub const DESTINATION: &str = "destination";
+
+/// A constant matching pattern.
+pub const PATTERN: &str = "pattern";
+
+/// The query operator that selects relation rows, also a grammar keyword.
+pub const SELECT: &str = "select";
+
+/// The operator that keeps named columns and deduplicates equal rows.
+pub const PROJECT: &str = "project";

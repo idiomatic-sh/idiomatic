@@ -1,46 +1,40 @@
 //! The `stored_facts` service's cases, on values alone.
 
-use super::service::blankness_of;
-use super::types::{Digest, DigestBlankness};
+use super::service::frontier_bucket;
+use super::types::Bucket;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::plan_parts::types::InputNumber;
 
-/// What a row of the cases asks of the service.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// The blank digest.
-    Blank,
-    /// A digest that came from bytes.
-    Made,
-}
-
-/// What a row of the cases asks of the service.
-type Input = Scenario;
-/// Whether the digest is blank.
-type Value = usize;
+/// What a row of the cases asks of the service: the rule's first bucket and the frontier input.
+type Input = (u32, usize);
+/// The bucket the input's rows wait in.
+type Value = u32;
 type Failure = ();
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("the_blank_digest_is_blank"),
+        name: CaseName("the_first_input_waits_in_the_first_bucket"),
         word: Word::Succeeds,
-        input: || Scenario::Blank,
-        expect: Expect::Value(1),
+        input: || (7, 0),
+        expect: Expect::Value(7),
     },
     Case {
-        name: CaseName("a_digest_of_bytes_is_not_blank"),
+        name: CaseName("each_later_input_waits_one_bucket_further"),
         word: Word::Succeeds,
-        input: || Scenario::Made,
-        expect: Expect::Value(0),
+        input: || (7, 3),
+        expect: Expect::Value(10),
+    },
+    Case {
+        name: CaseName("a_bucket_past_the_last_stays_at_the_last"),
+        word: Word::Succeeds,
+        input: || (u32::MAX - 1, 5),
+        expect: Expect::Value(u32::MAX),
     },
 ];
 
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    let digest = match scenario {
-        Scenario::Blank => Digest([0; 16]),
-        Scenario::Made => Digest([1; 16]),
-    };
-    Ok(usize::from(blankness_of(&digest) == DigestBlankness::Blank))
+fn subject((first, input): Input) -> Result<Value, Failure> {
+    Ok(frontier_bucket(Bucket(first), InputNumber(input)).0)
 }
 
 #[test]
