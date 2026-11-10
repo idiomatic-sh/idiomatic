@@ -570,7 +570,7 @@ def finish(v,check=False):
  old=readme.read_text(); owners_changed,owner_bad=own(v,old); text=write_block(old,v)
  if owners_changed: validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
  for line in scope_delta(v): print(line)
- bad=list(owner_bad)+open_row_problems(old)+red_green_problems(v)+count_problems(v); diff=['FIX '+x for x in fix_problems(v)]+['DOC '+x for x in doc_problems()]; texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
+ bad=list(owner_bad)+open_row_problems(old)+red_green_problems(v)+count_problems(v)+census_problems(); diff=['FIX '+x for x in fix_problems(v)]+['DOC '+x for x in doc_problems()]; texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
  for part in sorted(contracts.glob('*.md')):
   before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
   if body!=before: part.write_text(body); changed.append(part.name)
@@ -675,6 +675,20 @@ def edit_footprint(prod_text,replaced):
   own=module_of(f)[0]; t=SEAM_ENTRIES.sub('',t)
   if any(re.search(r'\b'+re.escape(c)+'::'+re.escape(m)+r'\b',t) or (c==own and re.search(r'\bcrate::'+re.escape(m)+r'\b',t)) for c,m in roots): hits.append(f)
  return sorted(hits)
+# Exit 7's ratchet (PM decision): the rows measured outside rewrite-replaced.txt never rise between checkpoints; the rows that count
+# files inside it are informational, since the rewrite deletes those files.
+RATCHETED=['rewrite_edit_footprint','cross_crate_tests_outside_the_replaced_set','operation_exhaustive_matches_outside_the_replaced_set','per_file_fact_touch_points']
+INFORMATIONAL=['replace_the_evaluator','operation_exhaustive_matches','cross_crate_tests_naming_runtime_internals']
+census_json=p/'census.json'
+def census_rises(current,previous):
+ """Each ratcheted census row whose file count is above the previous checkpoint's."""
+ return ['census row '+k+' rose from '+str(previous[k]['files'])+' to '+str(current[k]['files'])+' files' for k in RATCHETED if k in previous and k in current and current[k]['files']>previous[k]['files']]
+def census_problems(repo=None,base=None):
+ """The committed census.json against the previous checkpoint's (census.json at the checkpoint base): a ratcheted row may not rise."""
+ repo=repo or p; base=base or checkpoint_base(repo)
+ if not census_json.exists() or not base: return []
+ old=git(repo,'show',base+':./census.json')
+ return census_rises(json.loads(census_json.read_text()),json.loads(old)) if old else []
 def census(product):
  """Change-amplification counts over the product's tracked Rust files, read statically: what a change of each kind must touch outside its owner. A #[cfg(test)] part of a production file counts as test."""
  files=(git(product,'ls-files','*.rs') or '').split()
@@ -704,7 +718,9 @@ def census(product):
  return {'replace_the_evaluator':{'production':count(ev_prod),'test':count(ev_test),'total_files':len(set(ev_prod)|set(ev_test)),'vocabulary':len(vocabulary)},
   'operation_exhaustive_matches':count(exhaustive),'per_file_fact_touch_points':count(fact),'cross_crate_tests_naming_runtime_internals':count(leaking),
   'cross_crate_tests_outside_the_replaced_set':count([f for f in leaking if f not in replaced]),
-  'rewrite_edit_footprint':dict(count(edits),list=edits,replaced_files=len(replaced))}
+  'operation_exhaustive_matches_outside_the_replaced_set':count([f for f in exhaustive if f not in replaced]),
+  'rewrite_edit_footprint':dict(count(edits),list=edits,replaced_files=len(replaced)),
+  'ratcheted':RATCHETED,'informational':INFORMATIONAL}
 if __name__=='__main__' and sys.argv[1:]==['--census']: print(json.dumps(census(p.parents[3]),indent=1)); sys.exit(0)
 if __name__=='__main__' and sys.argv[1:]==['--check']: sys.exit(finish(dict(json.loads(validation_json.read_text()),tests=loaded(json.loads(tests_json.read_text())) if tests_json.exists() else {}),check=True))
 def validate():

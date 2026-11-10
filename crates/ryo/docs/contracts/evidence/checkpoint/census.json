@@ -1,0 +1,54 @@
+{
+ "replace_the_evaluator": {
+  "production": {
+   "files": 42,
+   "crates": 6
+  },
+  "test": {
+   "files": 181,
+   "crates": 7
+  },
+  "total_files": 223,
+  "vocabulary": 72
+ },
+ "operation_exhaustive_matches": {
+  "files": 27,
+  "crates": 6
+ },
+ "per_file_fact_touch_points": {
+  "files": 25,
+  "crates": 14
+ },
+ "cross_crate_tests_naming_runtime_internals": {
+  "files": 69,
+  "crates": 2
+ },
+ "cross_crate_tests_outside_the_replaced_set": {
+  "files": 51,
+  "crates": 2
+ },
+ "operation_exhaustive_matches_outside_the_replaced_set": {
+  "files": 24,
+  "crates": 6
+ },
+ "rewrite_edit_footprint": {
+  "files": 2,
+  "crates": 1,
+  "list": [
+   "crates/execution_domain/src/domain/shared_walk/types/prepared_walk/value.rs",
+   "crates/execution_domain/src/domain/shared_walk/types/walk_route/value.rs"
+  ],
+  "replaced_files": 402
+ },
+ "ratcheted": [
+  "rewrite_edit_footprint",
+  "cross_crate_tests_outside_the_replaced_set",
+  "operation_exhaustive_matches_outside_the_replaced_set",
+  "per_file_fact_touch_points"
+ ],
+ "informational": [
+  "replace_the_evaluator",
+  "operation_exhaustive_matches",
+  "cross_crate_tests_naming_runtime_internals"
+ ]
+}
