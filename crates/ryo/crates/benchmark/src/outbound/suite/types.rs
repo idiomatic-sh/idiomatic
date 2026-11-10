@@ -29,9 +29,6 @@ pub struct ArtifactBytes(pub Vec<u8>);
 /// The SHA256 of the sources of one case, as written.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourceDigest(pub String);
-/// One name a selection file lists.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SelectedName(pub String);
 /// The exact RyoQL source of one rule.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuleQuery(pub String);

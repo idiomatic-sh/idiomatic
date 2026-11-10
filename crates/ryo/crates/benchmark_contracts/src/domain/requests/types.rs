@@ -142,13 +142,11 @@ pub enum CertificationCases {
     },
 }
 
-/// Optional partition and durable case IDs for a verification invocation.
+/// Optional partition for a verification invocation.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct CaseSelection<'a> {
+pub struct CaseSelection {
     /// Globally audited deterministic shard, or all cases.
     pub shard: ShardPartition,
-    /// An explicit subset of IDs assigned to this shard, or the whole shard.
-    pub ids: IdSelection<'a>,
 }
 
 /// Which partition of the case inventory a verification covers.
@@ -160,23 +158,6 @@ pub enum ShardPartition {
     /// Exactly the cases of this shard.
     Shard(CaseShard),
 }
-
-/// Which durable case IDs of the selected shard a verification covers.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum IdSelection<'a> {
-    /// The whole shard.
-    #[default]
-    WholeShard,
-    /// Only these case IDs.
-    Subset(&'a std::collections::BTreeSet<CaseId>),
-}
-
-/// Durable identity of one registered case.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CaseId(
-    /// The case's durable ID text.
-    pub String,
-);
 
 /// The rule cohort of an invocation.
 #[derive(Clone, Debug, PartialEq, Eq)]

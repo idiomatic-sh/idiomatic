@@ -27,13 +27,11 @@ def run_ryo_command(worker: Path | str, request: dict[str, object], wire: str | 
         raise ValueError('direct worker request bytes disagree with the request')
     return [str(worker), 'run-ryo', wire, configuration]
 
-def command_for(worker: Path, ruff: Path, profile_root: Path, reference_only: bool=False, shard: tuple[int, int] | None=None, case_selection: Path | None=None) -> list[str]:
+def command_for(worker: Path, ruff: Path, profile_root: Path, reference_only: bool=False, shard: tuple[int, int] | None=None) -> list[str]:
     """Invoke the one immutable benchmark executable built for this profile batch."""
     command = [str(worker), 'verify-reference-cases' if reference_only else 'verify-cases', str(ruff), str(profile_root)]
     if shard is not None:
         command.append(f'--shard={shard[0]}/{shard[1]}')
-    if case_selection is not None:
-        command.append(f'--case-selection={case_selection}')
     return command
 
 def audit_worker_protocol(worker: Path, *, runner=subprocess.run) -> tuple[bool, str]:
@@ -135,62 +133,37 @@ def build_worker_once(output_directory: Path | None, stack: contextlib.ExitStack
     return (worker_copy, identities)
 
 def reuse_frozen_worker(output_directory: Path) -> tuple[Path, dict[str, object]]:
-    """Resume with the executable whose stable build provenance was saved."""
+    """Reuse the frozen executable whose stable build provenance an earlier run saved."""
     record_path = output_directory / 'build' / 'result.json'
     record = json.loads(record_path.read_text(encoding='utf-8'))
     frozen = record.get('frozen_executable')
     if record.get('status') != 0 or record.get('source_stable_during_build') is not True or record.get('source_before_build') != record.get('source_after_build') or (not isinstance(frozen, dict)) or (not isinstance(frozen.get('path'), str)) or (not isinstance(frozen.get('sha256'), str)):
-        raise ValueError('cannot resume: frozen worker build provenance is invalid')
+        raise ValueError('cannot reuse the frozen worker: frozen worker build provenance is invalid')
     executable = Path(frozen['path'])
     if not executable.is_file() or profile_config.sha256(executable) != frozen['sha256']:
-        raise ValueError('cannot resume: frozen worker executable is missing or changed')
+        raise ValueError('cannot reuse the frozen worker: frozen worker executable is missing or changed')
     build_stdout = output_directory / 'build' / 'stdout.bin'
     try:
         artifact = parse_worker_artifact(build_stdout.read_bytes())
     except (OSError, ValueError) as error:
-        raise ValueError(f'cannot resume: saved Cargo artifact record is invalid: {error}') from error
+        raise ValueError(f'cannot reuse the frozen worker: saved Cargo artifact record is invalid: {error}') from error
     command = record.get('command')
     expected = cargo_worker_build_command()
     six_jobs = expected[:4] + ['-j6'] + expected[4:]
     if record.get('cargo_artifact') != str(artifact) or command not in (expected, six_jobs):
-        raise ValueError('cannot resume: saved Cargo artifact is not the Ruff benchmark target')
+        raise ValueError('cannot reuse the frozen worker: saved Cargo artifact is not the Ruff benchmark target')
     return (executable, record)
 
-def resume_manifest(output_directory: Path, profile_name: str) -> dict[str, object]:
-    """Load the immutable manifest snapshot bound to a prior shard plan."""
-    prepared_path = output_directory / 'prepared.json'
-    plan_path = output_directory / 'profiles' / profile_name / 'shard-plan.json'
-    try:
-        manifest_bytes = prepared_path.read_bytes()
-        manifest = json.loads(manifest_bytes)
-        plan = json.loads(plan_path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(f'cannot resume: saved manifest or shard plan is unreadable: {error}') from error
-    selection = plan.get('global_identity', {}).get('selection', {})
-    if plan.get('profile') != profile_name or selection.get('manifest_sha256') != hashlib.sha256(manifest_bytes).hexdigest() or profile_name not in manifest.get('combined_profiles', {}) or (manifest['combined_profiles'][profile_name].get('validation_status') != 'active-current') or (selection.get('sealed_source_hashes') != manifest.get('files')):
-        raise ValueError('cannot resume: saved manifest does not match the sealed active profile plan')
-    repro = output_directory / 'profiles' / profile_name / 'repro'
-    if not repro.is_dir() or plan.get('staged_inputs') != staged_hashes(repro):
-        raise ValueError('cannot resume: staged profile inputs differ from the saved shard plan')
-    profile_data = tomllib.loads((repro / 'benchmark.toml').read_text(encoding='utf-8'))
-    if profile_data.get('defaults') != manifest['combined_profiles'][profile_name].get('selected_rules'):
-        raise ValueError('cannot resume: profile rule selection differs from the saved manifest')
-    if selection.get('target_version') != profile_data.get('parser-configuration', 'python-target=3.10'):
-        raise ValueError('cannot resume: parser target differs from the saved run identity')
-    if selection.get('selected_rule_applicability') != profile_data.get('rule-applicability', {}):
-        raise ValueError('cannot resume: rule applicability differs from the saved run identity')
-    return manifest
-
-def validate_output_directory(output_directory: Path, *, resume: bool) -> None:
+def validate_output_directory(output_directory: Path) -> None:
     """Keep new verifier receipts outside the Rust source identity being built."""
     rust_root = (profile_config.REPOSITORY / 'crates' / 'ryo').resolve()
     resolved = output_directory.resolve()
-    if not resume and resolved.is_relative_to(rust_root):
+    if resolved.is_relative_to(rust_root):
         raise ValueError('new candidate output directories must be outside crates/ryo')
 
 def create_new_output_directory(output_directory: Path) -> None:
     """Refuse an existing raw receipt root before staging or running a worker."""
-    validate_output_directory(output_directory, resume=False)
+    validate_output_directory(output_directory)
     output_directory.mkdir(parents=True, exist_ok=False)
 
 def staged_hashes(root: Path) -> dict[str, str]:

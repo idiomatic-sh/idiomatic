@@ -14,8 +14,7 @@ def self_test() -> int:
     code, state = profile_guard_tests.guards_2(sample_inventory)
     if code:
         return code
-    partitions, = state
-    code, state = profile_guard_tests.guards_3(partitions)
+    code, state = profile_guard_tests.guards_3()
     if code:
         return code
     case, fake_runner, root, ruff = state
@@ -42,10 +41,6 @@ def self_test() -> int:
             return code
         case, fake_bin, helper, last_profile, last_rule, manifest, marker, pristine_manifest, ruff, temporary_manifest = state
         code, state = profile_guard_proof_tests.guards_9(fake_bin, helper, last_profile, last_rule, manifest, marker, pristine_manifest, root, ruff, temporary_manifest)
-        if code:
-            return code
-        kind, = state
-        code, state = profile_guard_proof_tests.guards_10(case, fake_bin, helper, kind, marker, pristine_manifest, root, ruff, temporary_manifest)
         if code:
             return code
     print('profile selection and hash-mismatch guards passed')

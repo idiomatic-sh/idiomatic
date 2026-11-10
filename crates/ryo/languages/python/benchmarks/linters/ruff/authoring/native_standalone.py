@@ -1,6 +1,5 @@
-"""The native standalone registry manifest and the ready proof assets."""
+"""The native standalone registry manifest."""
 from __future__ import annotations
-import json
 import re
 from pathlib import Path
 import tomllib
@@ -141,25 +140,3 @@ def native_standalone_manifest(manifest: dict[str, object], descriptor: dict[str
     if descriptor['case_count'] != case_count:
         raise ValueError('native total case inventory mismatch')
     return {**manifest, 'profiles': profiles, 'combined_profiles': {}, 'actual_proof_receipts': [], 'native_identity': {'execution_contract': descriptor['execution_contract'], 'historical_certification': False, 'descriptor_path': (profile_config.RUFF_DIR.relative_to(profile_config.REPOSITORY) / 'profiles/native-standalone.json').as_posix(), 'descriptor_sha256': profile_config.sha256(profile_config.NATIVE_DESCRIPTOR_FILE), 'source_profile_sha256': descriptor['source_profile_sha256'], 'source_settings': source_settings, 'query_count': len(profiles), 'case_count': case_count}}
-
-def verify_ready_assets(profile_name: str, descriptor: dict[str, object], manifest: dict[str, object]) -> None:
-    """Compare source-proven READY query/module receipts with the actual staged inputs."""
-    receipt_file = descriptor.get('ready_assets_file')
-    if receipt_file is None:
-        return
-    if receipt_file not in descriptor['input_files']:
-        raise ValueError(f'{profile_name} READY asset receipt is not a sealed input')
-    receipt = json.loads((profile_config.REPOSITORY / receipt_file).read_text(encoding='utf-8'))
-    if receipt.get('schema') != 'ready-query-assets/v1':
-        raise ValueError(f'{profile_name} READY asset receipt has an unsupported schema')
-    for asset in receipt['assets']:
-        path = asset['path']
-        if path not in descriptor['input_files'] or profile_config.sha256(profile_config.REPOSITORY / path) != asset['sha256']:
-            raise ValueError(f'{profile_name} READY query/module bytes differ from receipt: {path}')
-    profile = tomllib.loads((profile_config.REPOSITORY / descriptor['profile_file']).read_text(encoding='utf-8'))
-    registry = descriptor.get('module_files')
-    if registry is None:
-        registry = profile_sources.combined_modules(profile, descriptor['selected_rules'], manifest)
-    required = set(descriptor['query_files'].values()) | {profile_sources.module_path(path) for path in registry.values()}
-    if required - {asset['path'] for asset in receipt['assets']}:
-        raise ValueError(f'{profile_name} READY receipt omits selected candidate queries or modules')

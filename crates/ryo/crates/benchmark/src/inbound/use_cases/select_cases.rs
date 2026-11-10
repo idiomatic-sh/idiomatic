@@ -1,4 +1,4 @@
-//! Read the receipt, shard and case-selection arguments of a verification run.
+//! Read the receipt and shard arguments of a verification run.
 mod constants;
 pub mod interface;
 mod service;

@@ -9,7 +9,6 @@ mod file_metadata;
 mod process;
 mod reference;
 mod rule_cases;
-mod selection;
 mod tool;
 mod writer;
 

@@ -1,7 +1,7 @@
 //! Load and validate the suite's external artifacts.
 use super::types::{
     ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, RetainedDirectory,
-    RuleQuery, SelectedName, SourceDigest,
+    RuleQuery, SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -155,11 +155,6 @@ pub trait SuitePort {
     /// # Errors
     /// Refuses a path that cannot be created.
     fn create_text(&self, file: ArtifactPath<'_>) -> Result<Box<dyn std::io::Write + Send>, Error>;
-    /// The names a selection file lists.
-    ///
-    /// # Errors
-    /// Refuses a missing file or one that is not a list of names.
-    fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<SelectedName>, Error>;
     /// The total size in bytes of these files.
     ///
     /// # Errors

@@ -38,11 +38,9 @@ def full_inventory_settings(rule: str, manifest: dict[str, object], native: dict
         target = prepared[0][1].get('target_version') if len(prepared) == 1 else None
         return (dedicated, target, 'dedicated singleton profile (existing parser default contract)')
     cohorts = [(name, entry) for name, entry in manifest.get('combined_profiles', {}).items() if rule in entry.get('selected_rules', [])]
-    active = [(name, entry) for name, entry in cohorts if entry.get('validation_status') == 'active-current']
-    choices = active or cohorts
     signatures = set()
     resolved = []
-    for name, entry in choices:
+    for name, entry in cohorts:
         path = profile_config.REPOSITORY / entry['profile_file']
         data = tomllib.loads(path.read_text(encoding='utf-8'))
         target = entry.get('target_version', manifest.get('target_version'))

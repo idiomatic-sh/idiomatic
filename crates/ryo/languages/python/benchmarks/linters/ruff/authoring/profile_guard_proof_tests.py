@@ -1,6 +1,5 @@
-"""Profile guards: certified fixtures, active combined profiles and refusals."""
+"""Profile guards: certified fixtures, combined profiles and refusals."""
 from __future__ import annotations
-import collections
 import json
 import os
 import shutil
@@ -119,27 +118,6 @@ def guards_8(case, factory_controls, helper_relative, lambda_controls, manifest,
 
 
 def guards_9(fake_bin, helper, last_profile, last_rule, manifest, marker, pristine_manifest, root, ruff, temporary_manifest) -> tuple[int, tuple]:
-    def later_combined_preflight_failure() -> tuple[bool, str]:
-        trial_manifest = json.loads(json.dumps(pristine_manifest))
-        later_name = next((name for name, descriptor in sorted(trial_manifest['combined_profiles'].items()) if descriptor.get('validation_status') == 'active-current'))
-        for item in trial_manifest['combined_profiles'].values():
-            item['validation_status'] = 'archived-historical'
-        descriptor = trial_manifest['combined_profiles'][later_name]
-        descriptor['validation_status'] = 'active-current'
-        descriptor['case_count'] += 1
-        temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-        marker.unlink(missing_ok=True)
-        preflight_output = root / 'later-preflight-output'
-        check = subprocess.run([sys.executable, str(helper), ruff, '--prepared', '--output-dir', str(preflight_output), '--profile', later_name, 'F401'], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}", 'RYO_RUFF_PREPARED_MANIFEST': str(temporary_manifest)})
-        receipt_path = preflight_output / 'preflight-error.json'
-        receipt = json.loads(receipt_path.read_text(encoding='utf-8')) if receipt_path.is_file() else {}
-        valid = check.returncode == 2 and 'complete expected inventory count mismatch' in check.stderr and (not marker.exists()) and (receipt.get('manifest_path') == temporary_manifest.relative_to(root).as_posix()) and (receipt.get('manifest_sha256') == profile_config.sha256(temporary_manifest))
-        return (valid, check.stderr)
-    later_combined_refused, later_combined_output = later_combined_preflight_failure()
-    if not later_combined_refused:
-        print('later active combined profile did not fail before candidate work', file=sys.stderr)
-        print(later_combined_output, file=sys.stderr)
-        return 1, ()
     temporary_manifest.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     overlay_relative = pristine_manifest['combined_profiles'][profile_config.SHAPE_PROFILE]['expectations_file']
     baseline_overlay = (profile_config.REPOSITORY / overlay_relative).read_bytes()
@@ -157,8 +135,20 @@ def guards_9(fake_bin, helper, last_profile, last_rule, manifest, marker, pristi
         overlay = json.loads(overlay_path.read_text(encoding='utf-8'))
         if kind == 'source-hash':
             overlay['cases'][0]['case_source_sha256'] = '0' * 64
-        else:
+        elif kind == 'case-key':
             overlay['cases'][0]['case'] = 'unknown-case-key'
+        elif kind == 'missing-rule':
+            overlay['cases'][0]['expected'][0].pop('rule')
+        elif kind == 'oracle':
+            oracle_path = root / descriptor['oracle_file']
+            oracle = json.loads(oracle_path.read_text(encoding='utf-8'))
+            first = overlay['cases'][0]
+            entry = next((case for case in oracle['cases'] if (case['rule'], case.get('case', case.get('name'))) == (first['rule'], first['case'])))
+            entry['expected'] = [*entry['expected'], entry['expected'][0]]
+            oracle_path.write_text(json.dumps(oracle, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+            trial_manifest['files'][descriptor['oracle_file']] = profile_config.sha256(oracle_path)
+        else:
+            raise ValueError(f'unknown self-test: {kind}')
         overlay_path.write_text(json.dumps(overlay, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         overlay_hash = profile_config.sha256(overlay_path)
         descriptor['expectations_sha256'] = overlay_hash
@@ -170,87 +160,14 @@ def guards_9(fake_bin, helper, last_profile, last_rule, manifest, marker, pristi
         if not valid:
             print(f'shape guard status={check.returncode}; stderr={check.stderr!r}', file=sys.stderr)
         return valid
-    for kind, message in (('source-hash', 'case source hash mismatch'), ('case-key', 'overlay case is absent')):
+    oracle_relative = pristine_manifest['combined_profiles'][profile_config.SHAPE_PROFILE]['oracle_file']
+    baseline_oracle = (root / oracle_relative).read_bytes()
+    for kind, message in (('source-hash', 'case source hash mismatch'), ('case-key', 'overlay case is absent'), ('missing-rule', f'invalid {profile_config.SHAPE_PROFILE} expected finding'), ('oracle', 'overlay diagnostics differ from the sealed oracle')):
         (root / overlay_relative).write_bytes(baseline_overlay)
+        (root / oracle_relative).write_bytes(baseline_oracle)
         if not shape_preflight_failure(kind, message):
             print(f'shape {kind} refusal did not fail before candidate work', file=sys.stderr)
             return 1, ()
     (root / overlay_relative).write_bytes(baseline_overlay)
-    active_name = next((name for name, item in pristine_manifest['combined_profiles'].items() if item.get('validation_status') == 'active-current'))
-    ready_descriptor = pristine_manifest['combined_profiles'][active_name]
-    ready_file = ready_descriptor.get('ready_assets_file')
-    if ready_file is not None:
-        ready_path = root / ready_file
-        pristine_ready = ready_path.read_bytes()
-        for kind in ('query', 'module'):
-            trial_manifest = json.loads(json.dumps(pristine_manifest))
-            receipt = json.loads(pristine_ready)
-            query_paths = set(ready_descriptor['query_files'].values())
-            asset = next((item for item in receipt['assets'] if (item['path'] in query_paths) == (kind == 'query')))
-            asset['sha256'] = '0' * 64
-            ready_path.write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
-            trial_manifest['files'][ready_file] = profile_config.sha256(ready_path)
-            temporary_manifest.write_text(json.dumps(trial_manifest, indent=2) + '\n', encoding='utf-8')
-            marker.unlink(missing_ok=True)
-            check = subprocess.run([sys.executable, str(helper), ruff, '--output-dir', str(root / f'ready-{kind}-output'), '--profile', active_name], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}"})
-            if check.returncode != 2 or 'READY query/module bytes differ from receipt' not in check.stderr or marker.exists():
-                print(f'READY {kind} receipt disagreement did not fail before candidate work: {check.stderr!r}', file=sys.stderr)
-                return 1, ()
-        ready_path.write_bytes(pristine_ready)
-    return 0, (kind,)
-
-
-def guards_10(case, fake_bin, helper, kind, marker, pristine_manifest, root, ruff, temporary_manifest) -> tuple[int, tuple]:
-    def expanded_preflight_failure(kind: str, expected_error: str) -> bool:
-        trial_manifest = json.loads(json.dumps(pristine_manifest))
-        active_name = next((name for name, item in trial_manifest['combined_profiles'].items() if item.get('validation_status') == 'active-current'))
-        descriptor = trial_manifest['combined_profiles'][active_name]
-        overlay_path = root / descriptor['expectations_file']
-        overlay = json.loads(overlay_path.read_text(encoding='utf-8'))
-        if kind == 'source-hash':
-            overlay['cases'][0]['case_source_sha256'] = '0' * 64
-        elif kind == 'case-key':
-            overlay['cases'][0]['case'] = 'unknown-case-key'
-        elif kind == 'missing-case':
-            overlay['cases'].pop()
-        elif kind == 'missing-rule':
-            item = next((row for row in overlay['cases'] if row['expected']))
-            item['expected'][0].pop('rule')
-        elif kind == 'duplicate':
-            item = duplicate = None
-            for row in overlay['cases']:
-                cases_path = profile_config.REPOSITORY / row['cases_file']
-                source_cases = tomllib.loads(cases_path.read_text(encoding='utf-8'))['cases']
-                canonical = next((case for case in source_cases if case['name'] == row['case']))
-                original = collections.Counter(((finding.get('rule', row['rule']), finding['file'], finding['start'], finding['end']) for finding in canonical['expected']))
-                current = collections.Counter(((finding['rule'], finding['file'], finding['start'], finding['end']) for finding in row['expected']))
-                extra_duplicate = next((key for key, count in current.items() if count > 1 and count > original[key]), None)
-                if extra_duplicate is not None:
-                    item, duplicate = (row, extra_duplicate)
-                    break
-            if item is None or duplicate is None:
-                raise ValueError('no externally added duplicate to exercise')
-            item['expected'].remove(next((finding for finding in item['expected'] if (finding['rule'], finding['file'], finding['start'], finding['end']) == duplicate)))
-            overlay['expected_diagnostic_count'] -= 1
-        else:
-            raise ValueError(f'unknown self-test: {kind}')
-        overlay_path.write_text(json.dumps(overlay, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-        overlay_hash = profile_config.sha256(overlay_path)
-        descriptor['expectations_sha256'] = overlay_hash
-        trial_manifest['files'][descriptor['expectations_file']] = overlay_hash
-        temporary_manifest.write_text(json.dumps(trial_manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-        marker.unlink(missing_ok=True)
-        check = subprocess.run([sys.executable, str(helper), ruff, '--output-dir', str(root / f'active-{kind}-output'), '--profile', active_name], capture_output=True, text=True, check=False, env={**os.environ, 'PATH': f"{fake_bin}:{os.environ['PATH']}"})
-        success = check.returncode == 2 and expected_error in check.stderr and (not marker.exists())
-        if not success:
-            print(f'active {kind}: status={check.returncode}; stderr={check.stderr.strip()!r}; cargo-started={marker.exists()}', file=sys.stderr)
-        return success
-    active_name = next((name for name, item in pristine_manifest['combined_profiles'].items() if item.get('validation_status') == 'active-current'))
-    expanded_overlay_relative = pristine_manifest['combined_profiles'][active_name]['expectations_file']
-    expanded_overlay_bytes = (root / expanded_overlay_relative).read_bytes()
-    for kind, message in (('source-hash', 'case source hash mismatch'), ('case-key', 'overlay case is absent or duplicated'), ('missing-case', 'complete expected inventory count mismatch'), ('missing-rule', f'invalid {active_name} expected finding'), ('duplicate', 'overlay diagnostics differ from the sealed oracle')):
-        (root / expanded_overlay_relative).write_bytes(expanded_overlay_bytes)
-        if not expanded_preflight_failure(kind, message):
-            print(f'active full-report {kind} refusal did not fail before candidate work', file=sys.stderr)
-            return 1, ()
+    (root / oracle_relative).write_bytes(baseline_oracle)
     return 0, ()

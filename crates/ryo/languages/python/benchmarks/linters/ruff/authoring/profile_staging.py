@@ -14,7 +14,6 @@ import tomllib
 from authoring import case_records
 from authoring import profile_config
 from authoring import profile_proofs
-from authoring import native_standalone
 from authoring import profile_sources
 from authoring import profile_worker
 from authoring import reference_discrepancies
@@ -73,9 +72,6 @@ def stage_binding(manifest: dict[str, object], selected: list[str], stack: conte
     return staged
 
 def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: dict[str, object], stack: contextlib.ExitStack, output_directory: Path | None=None) -> tuple[str, Path]:
-    if 'expectations_file' not in descriptor or 'oracle_file' not in descriptor:
-        raise ValueError(f'{profile_name} is a case-preservation baseline only: it seals no expectations or oracle, so it cannot be staged')
-    native_standalone.verify_ready_assets(profile_name, descriptor, manifest)
     profile_path = profile_config.REPOSITORY / descriptor['profile_file']
     profile_data = tomllib.loads(profile_path.read_text(encoding='utf-8'))
     selected_rules = descriptor['selected_rules']
@@ -91,7 +87,6 @@ def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: d
     overlay = json.loads(overlays_path.read_text(encoding='utf-8'))
     oracle_path = profile_config.REPOSITORY / descriptor['oracle_file']
     oracle = json.loads(oracle_path.read_text(encoding='utf-8'))
-    full_report = descriptor.get('expectations_mode') == 'complete-full-report'
     if overlay.get('profile') != profile_name or overlay.get('mode', 'shape-overlay') != descriptor.get('expectations_mode', 'shape-overlay') or overlay.get('reference_sha256') not in manifest['reference_sha256'] or (overlay.get('selection_count') != len(selected_rules)) or (overlay.get('selected_rules_sha256') != hashlib.sha256(json.dumps(sorted(selected_rules), separators=(',', ':')).encode('utf-8')).hexdigest()) or (overlay.get('oracle_sha256') != descriptor['oracle_sha256']) or (overlay.get('oracle_file') != descriptor.get('oracle_file')):
         raise ValueError(f'{profile_name} expectation overlay identity mismatch')
     overlays = {}
@@ -112,7 +107,7 @@ def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: d
         if len(matching) != 1:
             raise ValueError(f'{profile_name} overlay case is absent or duplicated: {key}')
         case = matching[0]
-        if not full_report and case.get('comparison', 'rule') != 'full':
+        if case.get('comparison', 'rule') != 'full':
             raise ValueError(f'{profile_name} overlay requires a full-report case: {key}')
         if case_records.source_hash(case['files']) != item['case_source_sha256']:
             raise ValueError(f'{profile_name} case source hash mismatch: {key}')
@@ -126,14 +121,10 @@ def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: d
         replacement = case_records.diagnostic_multiset(findings)
         if original - replacement:
             raise ValueError(f'{profile_name} overlay drops canonical findings: {key}')
-        if not full_report:
-            added_findings += sum((replacement - original).values())
+        added_findings += sum((replacement - original).values())
         expected_findings += len(findings)
         overlays[key] = (item, case)
-    if full_report:
-        if len(overlays) != descriptor['case_count'] or len(overlays) != overlay['case_count']:
-            raise ValueError(f'{profile_name} complete expected inventory count mismatch')
-    elif len(overlays) != overlay['changed_case_count'] or added_findings != overlay['additional_diagnostic_count']:
+    if len(overlays) != overlay['changed_case_count'] or added_findings != overlay['additional_diagnostic_count']:
         raise ValueError(f'{profile_name} overlay diagnostic totals mismatch')
     if expected_findings != overlay['expected_diagnostic_count']:
         raise ValueError(f'{profile_name} overlay diagnostic totals mismatch')
@@ -143,8 +134,6 @@ def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: d
         if key in oracle_cases:
             raise ValueError(f'{profile_name} oracle has duplicate case identity: {key}')
         oracle_cases[key] = oracle_case
-    if full_report and len(oracle_cases) != descriptor['case_count']:
-        raise ValueError(f'{profile_name} oracle case count mismatch')
     for key, (item, _case) in overlays.items():
         oracle_case = oracle_cases.get(key)
         if oracle_case is None or oracle_case['case_source_sha256'] != item['case_source_sha256'] or case_records.diagnostic_multiset(item['expected']) != case_records.diagnostic_multiset(oracle_case['expected']):
@@ -159,44 +148,15 @@ def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: d
         cases = tomllib.loads(cases_path.read_text(encoding='utf-8'))['cases']
         staged_cases[rule] = cases
         for case in cases:
-            comparison = 'full' if full_report else case.get('comparison', 'rule')
-            inventory.append({'rule': rule, 'name': case['name'], 'comparison': comparison})
-    counts = collections.Counter({'full': len(inventory)}) if full_report else collections.Counter((item.get('comparison', 'rule') for cases in staged_cases.values() for item in cases))
+            inventory.append({'rule': rule, 'name': case['name'], 'comparison': case.get('comparison', 'rule')})
+    counts = collections.Counter((item.get('comparison', 'rule') for cases in staged_cases.values() for item in cases))
     if len(inventory) != descriptor['case_count'] or counts != descriptor['comparison_counts']:
         raise ValueError(f'{profile_name} comparison inventory mismatch')
-    if full_report and set(overlays) != {(item['rule'], item['name']) for item in inventory}:
-        raise ValueError(f'{profile_name} complete expected inventory does not match selected cases')
     inventory_hash = hashlib.sha256(json.dumps(inventory, ensure_ascii=False, separators=(',', ':')).encode('utf-8')).hexdigest()
     if inventory_hash != descriptor['inventory_sha256']:
         raise ValueError(f'{profile_name} inventory hash mismatch')
-    preservation_path = descriptor.get('case_preservation_file')
-    if preservation_path is not None:
-        if preservation_path not in descriptor['input_files']:
-            raise ValueError(f'{profile_name} case-preservation proof is not a sealed input')
-        preservation = json.loads((profile_config.REPOSITORY / preservation_path).read_text(encoding='utf-8'))
-        baseline_name = preservation.get('baseline_profile')
-        baseline = manifest.get('combined_profiles', {}).get(baseline_name)
-        if preservation.get('schema') != 'canonical-case-preservation/v1' or baseline is None or baseline.get('validation_status') != 'archived-historical' or (not set(baseline['selected_rules']) <= set(selected_rules)):
-            raise ValueError(f'{profile_name} case-preservation baseline is invalid')
-        migrations = preservation.get('renamed_identities', {})
-        if not isinstance(migrations, dict):
-            raise ValueError(f'{profile_name} case-preservation migrations are invalid')
-        for rule in baseline['selected_rules']:
-            previous_path = combined_case_path(rule, baseline)
-            current_path = combined_case_path(rule, descriptor)
-            previous_cases = tomllib.loads(previous_path.read_text(encoding='utf-8'))['cases']
-            current_cases = tomllib.loads(current_path.read_text(encoding='utf-8'))['cases']
-            rule_migrations = migrations.get(rule, {})
-            if not isinstance(rule_migrations, dict):
-                raise ValueError(f'{profile_name} case-preservation migrations are invalid for {rule}')
-            profile_proofs.verify_case_inventory_extension(previous_cases, current_cases, rule_migrations)
     destination = stage_directory(profile_name, stack, output_directory)
-    registry = descriptor.get('module_files')
-    if registry is None:
-        registry = profile_sources.combined_modules(profile_data, selected_rules, manifest)
-    else:
-        for source_path in registry.values():
-            combined_input_path(profile_sources.module_path(source_path), descriptor)
+    registry = profile_sources.combined_modules(profile_data, selected_rules, manifest)
     profile_sources.copy_modules(registry, destination)
     target_version = descriptor.get('target_version', 'py310')
     profile_sources.write_staged_profile(profile_path, destination / 'benchmark.toml', registry, profile_sources.parser_configuration(target_version), profile_proofs.selected_rule_applicability(manifest, selected_rules))
@@ -211,10 +171,6 @@ def stage_combined(profile_name: str, descriptor: dict[str, object], manifest: d
             overlay_entry = overlays.get((rule, case['name']))
             if overlay_entry is not None:
                 case['expected'] = overlay_entry[0]['expected']
-            elif full_report:
-                raise ValueError(f"{profile_name} is missing complete expected case: {rule}/{case['name']}")
-            if full_report:
-                case['comparison'] = 'full'
         profile_sources.write_cases(rule_dir / 'cases.toml', cases)
     profile_proofs.check_canonical_standard_suppression(destination / 'benchmark.toml', {rule: combined_query_path(rule, descriptor) for rule in selected_rules})
     return (profile_name, destination)
