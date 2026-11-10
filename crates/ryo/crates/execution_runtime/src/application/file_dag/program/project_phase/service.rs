@@ -215,11 +215,33 @@ impl ProjectPhase<'_> {
         }
     }
     /// The interpreter's readiness counters, for its own tests.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // A project phase exists only inside a running project phase: the call's types, checked.
+    /// use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
+    /// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
+    /// fn readiness(phase: &ProjectPhase<'_>) -> ReadinessCounts {
+    ///     phase.fixture_readiness_counts()
+    /// }
+    /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn fixture_readiness_counts(&self) -> ReadinessCounts {
         self.publication.readiness_counts()
     }
     /// The interpreter's state counters, for its own tests.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // A project phase exists only inside a running project phase: the call's types, checked.
+    /// use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
+    /// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
+    /// fn states(phase: &ProjectPhase<'_>) -> InvocationStateCounts {
+    ///     phase.fixture_state_counts()
+    /// }
+    /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn fixture_state_counts(&self) -> InvocationStateCounts {
         self.publication.state_counts()

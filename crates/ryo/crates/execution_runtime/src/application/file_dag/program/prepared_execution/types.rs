@@ -34,23 +34,62 @@ pub(crate) struct ProgramParts {
     pub(crate) digest: Arc<dyn crate::outbound::digest::interface::DigestPort>,
 }
 /// Whether a rule is wanted by the request, directly or through a named observation.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::Demand;
+/// assert_ne!(Demand::Demanded, Demand::Undemanded);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Demand {
     Demanded,
     Undemanded,
 }
 /// Whether a rule declares or consumes named observations.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::ObservationContract;
+/// assert_ne!(ObservationContract::Declared, ObservationContract::Absent);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObservationContract {
     Declared,
     Absent,
 }
 /// The readiness layout of the named observations and the frontiers that feed them.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::observation_schedule::types::ObservedFrontierRoot;
+/// use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::NamedLayout;
+/// use ryo_values::domain::plan_parts::types::InputNumber;
+/// use ryo_values::domain::records::types::ObservationIndex;
+/// use ryo_values::domain::records::types::ObservationReadinessLayout;
+/// use ryo_values::domain::stored_facts::types::Digest;
+/// let frontiers = [ObservedFrontierRoot { producer: RuleIndex(0), output: ObservationIndex(0), frontier: InputNumber(0) }];
+/// let named = NamedLayout { layout: ObservationReadinessLayout(Digest([0; 16])), frontiers: &frontiers };
+/// assert_eq!(named.frontiers.len(), 1);
+/// ```
 pub struct NamedLayout<'a> {
     pub layout: ObservationReadinessLayout,
     pub frontiers: &'a [ObservedFrontierRoot],
 }
 /// The rules a changed selection reaches and the producer frontiers they read.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::ReplayClosure;
+/// use ryo_values::domain::stored_facts::types::Bucket;
+/// use ryo_values::domain::stores::types::Reuse;
+/// let closure = ReplayClosure { reuse: Reuse::Whole, buckets: vec![Bucket(0)] };
+/// assert_eq!(closure, ReplayClosure { reuse: Reuse::Whole, buckets: vec![Bucket(0)] });
+/// ```
 #[derive(Debug, PartialEq)]
 pub struct ReplayClosure {
     pub reuse: Reuse,

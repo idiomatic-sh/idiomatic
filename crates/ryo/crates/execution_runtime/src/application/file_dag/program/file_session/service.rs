@@ -146,6 +146,17 @@ impl FileSession<'_, '_> {
         self.parts.inner.resource_fixture_counts()
     }
     /// The interpreter's readiness counters of this file, for its own tests.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // A file session exists only inside a running file evaluation, its fields crate-private: the call's types, checked.
+    /// use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
+    /// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+    /// fn readiness(session: &FileSession<'_, '_>) -> ReadinessCounts {
+    ///     session.fixture_readiness_counts()
+    /// }
+    /// ```
     #[must_use]
     pub fn fixture_readiness_counts(
         &self,
@@ -153,6 +164,17 @@ impl FileSession<'_, '_> {
         self.parts.inner.readiness_counts()
     }
     /// The interpreter's shared-walk counters of this file, for its own tests.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // A file session exists only inside a running file evaluation, its fields crate-private: the call's types, checked.
+    /// use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
+    /// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+    /// fn walks(session: &FileSession<'_, '_>) -> WalkCounts {
+    ///     session.fixture_walk_counts()
+    /// }
+    /// ```
     #[must_use]
     pub fn fixture_walk_counts(
         &self,
@@ -160,6 +182,19 @@ impl FileSession<'_, '_> {
         self.parts.inner.walk_counts()
     }
     /// The rows each step of `rule` was fed in this file, for the interpreter's own tests.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // A file session exists only inside a running file evaluation, its fields crate-private: the call's types, checked.
+    /// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+    /// use ryo_execution_domain::domain::operator::types::LogicalCounts;
+    /// use ryo_execution_domain::domain::operating::errors::OperatingError;
+    /// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+    /// fn fed(session: &FileSession<'_, '_>) -> Result<LogicalCounts, OperatingError> {
+    ///     session.fixture_counts(RuleIndex(0))
+    /// }
+    /// ```
     ///
     /// # Errors
     ///
