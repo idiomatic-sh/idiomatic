@@ -15,6 +15,10 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 /// Every listed operator has one nonempty, distinct public description.
+///
+/// # Panics
+///
+/// When a case fails, an operator's description is empty or repeats another's, or the catalog does not list 25 operators.
 pub fn check(subject: &impl MetadataUseCase) -> usize {
     run(CASES, Word::Succeeds, |operator| {
         Ok::<_, Failure>(subject.describe(operator).name.0.len())

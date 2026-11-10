@@ -818,15 +818,15 @@ fn scanning_tiny_old_rows_reads_and_seeks_by_chunks() -> Result<Value, Failure> 
 fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one()
 -> Result<Value, Failure> {
     let count = postcard::to_allocvec(&3_usize).unwrap();
-    let mut at = count.len() as u64;
+    let mut at = u64::try_from(count.len()).unwrap();
     let mut headers = vec![(0, count)];
     let payload = 2 * 1024 * 1024_usize;
     for file in [2_u32, 0, 2] {
         let mut header = postcard::to_allocvec(&file).unwrap();
         header.extend(postcard::to_allocvec(&payload).unwrap());
-        let header_length = header.len() as u64;
+        let header_length = u64::try_from(header.len()).unwrap();
         headers.push((at, header));
-        at += header_length + payload as u64;
+        at += header_length + u64::try_from(payload).unwrap();
     }
     let mut file = Sparse {
         headers,
@@ -869,7 +869,7 @@ fn old_descriptor_enumeration_skips_huge_payloads_and_resolution_reads_one()
     assert_eq!(loaded.0.len(), payload);
     assert!(loaded.0.iter().all(|byte| *byte == 0x5a));
     assert_eq!(
-        file.bytes as u64,
+        u64::try_from(file.bytes).unwrap(),
         descriptor.length.0 + descriptor.offset.0 - descriptor.header.0
     );
     // A tiny requested bucket must not read ahead into an adjacent unrequested section.
@@ -1131,13 +1131,18 @@ impl Read for Sparse {
         into[..length].fill(0x5a);
         for (start, header) in &self.headers {
             let begin = self.at.max(*start);
-            let end = (self.at + length as u64).min(*start + header.len() as u64);
+            let end = (self.at + u64::try_from(length).unwrap())
+                .min(*start + u64::try_from(header.len()).unwrap());
             if begin < end {
-                into[(begin - self.at) as usize..(end - self.at) as usize]
-                    .copy_from_slice(&header[(begin - start) as usize..(end - start) as usize]);
+                into[usize::try_from(begin - self.at).unwrap()
+                    ..usize::try_from(end - self.at).unwrap()]
+                    .copy_from_slice(
+                        &header[usize::try_from(begin - start).unwrap()
+                            ..usize::try_from(end - start).unwrap()],
+                    );
             }
         }
-        self.at += length as u64;
+        self.at += u64::try_from(length).unwrap();
         self.bytes += length;
         Ok(length)
     }

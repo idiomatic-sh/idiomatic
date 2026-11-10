@@ -214,8 +214,11 @@ impl FileAnalysis {
             &mut worker.tables.symbols,
             &mut writer,
         );
-        if let Some(started) = parse_started {
-            tracing::trace!(target: EXECUTION_DIAGNOSTIC, phase = PROVIDER_PARSE, file = number.0, elapsed_ns = started.elapsed().as_nanos() as u64);
+        // A parse longer than u64 nanoseconds (five centuries) is not traced: it has no elapsed_ns to give.
+        if let Some(started) = parse_started
+            && let Ok(elapsed_ns) = u64::try_from(started.elapsed().as_nanos())
+        {
+            tracing::trace!(target: EXECUTION_DIAGNOSTIC, phase = PROVIDER_PARSE, file = number.0, elapsed_ns);
         }
         let mut said: Vec<ReadInPart> = std::mem::take(&mut writer.partials);
         let acceptance = syntax_acceptance(&worker.tables.elements);

@@ -71,7 +71,12 @@ impl FactsFinish for CapturedBuckets {
 fn unanswered(outcome: &RootOutcome) -> String {
     match outcome {
         RootOutcome::Failed(error) => format!("failed: {error}"),
-        _ => "no complete rows".to_owned(),
+        RootOutcome::Complete(_)
+        | RootOutcome::Partial { .. }
+        | RootOutcome::Skipped(_)
+        | RootOutcome::Unknown(_)
+        | RootOutcome::NoQuery
+        | RootOutcome::Deferred { .. } => "no complete rows".to_owned(),
     }
 }
 
@@ -114,7 +119,7 @@ pub(super) fn rows(
             CorpusInput::Available(CorpusEntry {
                 executable: ExecutablePermission::Unknown,
                 path: ryo_language::domain::files::types::FilePath(format!("file-{place}").into()),
-                size: FileSize(SOURCE.len() as u64),
+                size: FileSize(u64::try_from(SOURCE.len()).expect("a source length fits in u64")),
                 modified: Nanoseconds(0),
             })
         })
@@ -184,7 +189,14 @@ pub(super) fn rows(
                     captures.push((file_id, capture.outcome.expect("a complete capture")));
                 }
             }
-            other => return Err(format!("file {place}: {}", unanswered(&other))),
+            other @ (RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::Failed(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. }) => {
+                return Err(format!("file {place}: {}", unanswered(&other)));
+            }
         }
         let _finished = file.finish().expect("release the file");
     }
@@ -226,7 +238,14 @@ pub(super) fn rows(
         .emit;
         match outcome {
             RootOutcome::Complete(table) => answered.extend(written(&table)),
-            other => return Err(format!("after the files: {}", unanswered(&other))),
+            other @ (RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::Failed(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. }) => {
+                return Err(format!("after the files: {}", unanswered(&other)));
+            }
         }
         phase.finish().expect("finish the project phase");
     }

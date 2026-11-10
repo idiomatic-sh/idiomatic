@@ -28,6 +28,10 @@ type Failure = OperatingError;
 #[derive(Debug, Default)]
 struct ContinuesAfterDriverRefusal(std::sync::atomic::AtomicUsize);
 impl OperatorsPort for ContinuesAfterDriverRefusal {
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the audit intercepts the union's evaluation; every other operator call goes to the owner's operators unchanged"
+    )]
     fn operators(
         &self,
         call: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,

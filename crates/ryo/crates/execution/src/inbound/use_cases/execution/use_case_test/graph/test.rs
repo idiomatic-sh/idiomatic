@@ -138,12 +138,18 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
             ))
             .expect("prepared partition");
         let mut traversal = GraphTraversal::new(&graph, &mut walk);
-        let _ = traversal.breadth(VertexId(root as u32), Orientation::Forward, None);
+        let _ = traversal.breadth(
+            VertexId(u32::try_from(root).expect("a vertex number fits in u32")),
+            Orientation::Forward,
+            None,
+        );
         traversal.sort();
         let actual: Vec<_> = walk
             .reached
             .iter()
-            .map(|vertex| graph.vertices()[vertex.0 as usize])
+            .map(|vertex| {
+                graph.vertices()[usize::try_from(vertex.0).expect("a vertex number fits in usize")]
+            })
             .collect();
         let expected: Vec<_> = (0..ordinary.count.0)
             .filter_map(|row| row_in(&ordinary, ryo_values::domain::rows::types::RowIndex(row)))

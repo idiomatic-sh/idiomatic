@@ -70,6 +70,10 @@ fn subject((operator, missing, delivery): Input) -> Result<Value, Failure> {
         cells: vec![],
     };
     let reads = RefCell::new(Vec::new());
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the fake serves the two relations the rule reads; every other relation is not read"
+    )]
     let read = |relation| {
         reads.borrow_mut().push(relation);
         match relation {

@@ -207,6 +207,10 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
     let (engine, prepared) = fixtures::requests::prepared_many(plans, bindings, vec![])
         .expect("an errored rule does not refuse the request: it is refused on its own roots");
     let population = sources();
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the fake serves the one relation both rules read; every other relation is not read"
+    )]
     let read = |relation| match relation {
         Relation::Function => Ok(SourceRows::Computed(&population)),
         _ => Err(OperatingError::NotRead),
@@ -253,14 +257,26 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
         .expect("the sound rule answers");
     match sibling.emit {
         RootOutcome::Complete(rows) => assert_eq!(rows.count, RowCount(2), "the sound rule's rows"),
-        _ => panic!("the sound rule delivers its rows beside an errored sibling"),
+        RootOutcome::Partial { .. }
+        | RootOutcome::Skipped(_)
+        | RootOutcome::Unknown(_)
+        | RootOutcome::Failed(_)
+        | RootOutcome::NoQuery
+        | RootOutcome::Deferred { .. } => {
+            panic!("the sound rule delivers its rows beside an errored sibling")
+        }
     }
     let refused = file.rule(RuleIndex(1), demand(), &mut symbols);
     let delivered = match refused {
         Err(error) => Some(error),
         Ok(answer) => match answer.emit {
             RootOutcome::Failed(error) => Some(error),
-            _ => None,
+            RootOutcome::Complete(_)
+            | RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. } => None,
         },
     };
     assert!(

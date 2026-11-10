@@ -113,7 +113,11 @@ pub(super) fn evaluate_fixture(
     let crossing = crossing(world);
     let refused = |error: CrossFileError| match error {
         CrossFileError::Rules(error) => error,
-        error => failed(&todo.id, &error),
+        error @ (CrossFileError::Budget(_)
+        | CrossFileError::Memory(_)
+        | CrossFileError::Operating(_)
+        | CrossFileError::Facts(_)
+        | CrossFileError::Scheduler(_)) => failed(&todo.id, &error),
     };
     let done = evaluate_one(
         world,

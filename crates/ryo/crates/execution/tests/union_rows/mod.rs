@@ -230,6 +230,10 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
         let left_reads = Cell::new(0);
         let right_reads = Cell::new(0);
         let read_order = std::cell::RefCell::new(Vec::new());
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "the fake serves the union's two sides; any other relation is a read the union never makes"
+        )]
         let read = |relation| {
             read_order.borrow_mut().push(relation);
             match relation {

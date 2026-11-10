@@ -170,7 +170,8 @@ pub(crate) fn author(
                 scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
                 operation: span,
             });
-        a.plan.emit.step = StepId((a.plan.steps.len() - 1) as u32);
+        a.plan.emit.step =
+            StepId(u32::try_from(a.plan.steps.len() - 1).expect("a step number fits in u32"));
         a
     } else {
         inputs::table_inputs(operation.clone(), &refs, bindings, symbols)

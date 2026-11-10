@@ -154,7 +154,7 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
             CorpusInput::Available(CorpusEntry {
                 executable: ExecutablePermission::Unknown,
                 path: ryo_language::domain::files::types::FilePath(format!("file-{place}").into()),
-                size: FileSize(SOURCE.len() as u64),
+                size: FileSize(u64::try_from(SOURCE.len()).expect("a source length fits in u64")),
                 modified: Nanoseconds(0),
             })
         })
@@ -229,7 +229,14 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
                     captures.push((file_id, capture.outcome.expect("a complete capture")));
                 }
             }
-            _ => panic!("a file answers its rows or defers them to after the files"),
+            RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::Failed(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. } => {
+                panic!("a file answers its rows or defers them to after the files")
+            }
         }
         let _finished = file.finish().expect("release the file");
     }

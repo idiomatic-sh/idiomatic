@@ -69,7 +69,9 @@ fn exercise(case: Case) {
     crate::boundary_fixture::plans(&mut authored)[0].steps[0].operation = Operation::Select {
         from: Input::Relation(Relation::Function),
         comparisons: vec![],
-        kept: vec![ColumnIndex(column as u32)],
+        kept: vec![ColumnIndex(
+            u32::try_from(column).expect("a column number fits in u32"),
+        )],
     };
     crate::boundary_fixture::plans(&mut authored)[0]
         .steps
@@ -184,6 +186,10 @@ fn exercise(case: Case) {
         ));
         rejected.finish().unwrap();
     }
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "only the cases that frame another file name its path; every other case skips the rejected file"
+    )]
     let mut skipped = vec![Skipped {
         rule: if matches!(case, Case::WrongRule) {
             RuleId("different-rule".into())
@@ -222,6 +228,10 @@ fn exercise(case: Case) {
             },
         ),
     ];
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "only the two cases with a refused file name it; every other case refuses none"
+    )]
     let refused = [
         ryo_execution::inbound::use_cases::execution::interface::RefusedFiles(match case {
             Case::UndeterminedSyntax => vec![FileId(1)],

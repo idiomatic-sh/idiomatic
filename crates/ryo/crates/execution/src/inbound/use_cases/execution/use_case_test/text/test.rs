@@ -39,7 +39,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::CaptureModule => &["src/lib.rs", "src/deep/mod.rs", "README.md"],
         Scenario::CaptureStarred => &["a/b/languages/py/src/x.rs", "languages/py/x.r", ""],
         Scenario::CaptureSplits => &["x/y/z.rs"],
-        _ => &[],
+        Scenario::MissingWords | Scenario::MissingCapture => &[],
     };
     let mut operations = vec![];
     let hosted = if missing {
@@ -59,7 +59,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let pattern = match input {
         Scenario::CaptureModule => "src/{module}.rs",
         Scenario::CaptureStarred => "{*above}/languages/{name}/{*below}",
-        _ => "{*ancestor}/{*rest}",
+        Scenario::Words
+        | Scenario::NoWords
+        | Scenario::MissingWords
+        | Scenario::CaptureSplits
+        | Scenario::MissingCapture => "{*ancestor}/{*rest}",
     };
     operations.push(if words {
         Operation::Words { from, text }

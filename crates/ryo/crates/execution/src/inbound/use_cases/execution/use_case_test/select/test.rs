@@ -99,7 +99,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     + services(Test::EndsWith, name(), Operand::Column(column(0)))?,
             )
         }
-        _ => {
+        Scenario::Numeric | Scenario::Kept | Scenario::Unbound => {
             let kept = matches!(scenario, Scenario::Kept);
             let mut plan = inputs::plan(vec![
                 Operation::Hosted {

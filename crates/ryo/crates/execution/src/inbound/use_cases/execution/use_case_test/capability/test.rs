@@ -54,6 +54,10 @@ struct ObservedSemantics {
 }
 impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ObservedSemantics {
     fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "the port counts and refuses unions, projections and appends; every other operator call goes to the owner's operators"
+        )]
         let refuse = match &call {
             OperatorCall::Evaluate {
                 operation:
@@ -201,11 +205,18 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
                 assert_eq!(table.count.0, 3);
                 assert_eq!(table.cells, [1, 2, 3].map(|n| Value::Number(Integer(n))));
             }
-            _ => match outcome.emit {
+            Refusal::Union | Refusal::Project | Refusal::Append => match outcome.emit {
                 RootOutcome::Failed(error) => {
                     assert_eq!(error, OperatingError::ShapeMismatch, "{refusal:?}")
                 }
-                _ => panic!("injected {refusal:?} refusal must remain an exact terminal failure"),
+                RootOutcome::Complete(_)
+                | RootOutcome::Partial { .. }
+                | RootOutcome::Skipped(_)
+                | RootOutcome::Unknown(_)
+                | RootOutcome::NoQuery
+                | RootOutcome::Deferred { .. } => {
+                    panic!("injected {refusal:?} refusal must remain an exact terminal failure")
+                }
             },
         }
     }

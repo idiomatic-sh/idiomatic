@@ -62,7 +62,10 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
     let unobserved = run(None);
     use ryo_execution_runtime::outbound::observer::interface::ObserverPort as _;
     let counting = Arc::new(ryo_execution_runtime::outbound::observer::factory::counting());
-    let observed = run(Some(Arc::clone(&counting) as _));
+    let shared = Arc::clone(&counting);
+    let observer: Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort> =
+        shared;
+    let observed = run(Some(observer));
     assert_eq!(observed, unobserved, "the observer changes nothing the run answers");
     assert!(matches!(observed.as_slice(), [(Some(_), true)]));
     let totals = counting
@@ -113,8 +116,10 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     let program = engine.prepare(input).expect("prepare a fused head and child");
     let corpus = corpus();
     let counting = Arc::new(ryo_execution_runtime::outbound::observer::factory::counting());
-    let request =
-        ExecutionUseCaseImpl::new().execution(&program, &corpus, Some(Arc::clone(&counting) as _));
+    let shared = Arc::clone(&counting);
+    let observer: Arc<dyn ryo_execution_runtime::outbound::observer::interface::ObserverPort> =
+        shared;
+    let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, Some(observer));
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let facts = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
     let worker = facts.worker().expect("a fake worker");

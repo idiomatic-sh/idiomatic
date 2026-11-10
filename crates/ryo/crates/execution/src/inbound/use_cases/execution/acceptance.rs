@@ -16,7 +16,9 @@ fn request(world: &mut Behavior, input: String) {
 }
 
 #[when(expr = "execution runs")]
-fn runs(world: &mut Behavior) {
+fn runs(
+    world: &mut Behavior,
+) -> Result<(), ryo_execution::inbound::use_cases::execution::interface::OperatingError> {
     let prepare = PrepareUseCaseImpl::new(
         Arc::new(
             ryo_execution_runtime::outbound::operators::factory::use_case(
@@ -28,22 +30,21 @@ fn runs(world: &mut Behavior) {
         Arc::new(ryo_execution_store::outbound::derived::factory::semantics()),
         Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
     );
-    let prepared = prepare
-        .prepare(PrepareRequest {
-            plans: PlanSource::Authored {
-                plans: vec![],
-                bindings: vec![],
-            },
-            rules: vec![],
-            digests: vec![],
-            hosted: vec![],
-            observations: ObservationIdentity::Independent,
-        })
-        .expect("an empty request is legitimate");
+    let prepared = prepare.prepare(PrepareRequest {
+        plans: PlanSource::Authored {
+            plans: vec![],
+            bindings: vec![],
+        },
+        rules: vec![],
+        digests: vec![],
+        hosted: vec![],
+        observations: ObservationIdentity::Independent,
+    })?;
     ExecutionUseCaseImpl::new()
         .execution(&prepared, &[], None)
         .finish();
     world.answer = "complete".to_owned();
+    Ok(())
 }
 
 #[then(expr = "execution answers {string}")]

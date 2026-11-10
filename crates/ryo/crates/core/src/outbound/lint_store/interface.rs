@@ -12,6 +12,10 @@ use ryo_values::domain::stores::types::{BucketsWanted, KeptRows, ReadHanded, Sto
 /// independent `ReadStore::read_old` contract remains an exact per-call read.
 pub trait OldRowBatch: Send {
     /// Resolve the next old descriptor in this worker's increasing file order.
+    ///
+    /// # Errors
+    ///
+    /// `Unreadable` when the descriptor's bucket is not in the stream, or its words cannot be read.
     fn read(
         &mut self,
         words: &ryo_values::domain::stores::types::OldWords,
@@ -60,6 +64,10 @@ pub trait ReadStore: Send + Sync + std::fmt::Debug {
 
     /// Open a worker-owned bounded stream over the already-open snapshot.
     /// `None` retains the direct per-row path for adapters without batching.
+    ///
+    /// # Errors
+    ///
+    /// `NothingRead` when no snapshot is open, `Unreadable` when the snapshot cannot be read.
     fn begin_old_rows(
         &self,
         _wanted: &BucketsWanted,

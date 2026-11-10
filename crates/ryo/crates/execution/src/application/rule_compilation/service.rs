@@ -125,10 +125,18 @@ impl RuleCompilation {
                 bindings[index.0] = Some(bind(&plan, rule)?);
                 plans[index.0] = Some(plan);
             }
+            #[expect(
+                clippy::expect_used,
+                reason = "schedule refuses a cycle and otherwise orders every rule exactly once, so the loop above fills every slot"
+            )]
             let plans = plans
                 .into_iter()
                 .map(|plan| plan.expect(EVERY_RULE_PLANNED))
                 .collect();
+            #[expect(
+                clippy::expect_used,
+                reason = "schedule refuses a cycle and otherwise orders every rule exactly once, so the loop above fills every slot"
+            )]
             let bindings = bindings
                 .into_iter()
                 .map(|bound| bound.expect(EVERY_RULE_BOUND))

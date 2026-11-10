@@ -48,7 +48,9 @@ fn compare_emptied(
     let mut replaced = Vec::new();
     for (at, source) in sources.iter().enumerate() {
         if emptied.contains(&at) {
-            replaced.push(Input::Step(StepId(authored.plan.steps.len() as u32)));
+            replaced.push(Input::Step(StepId(
+                u32::try_from(authored.plan.steps.len()).expect("a step number fits in u32"),
+            )));
             authored.plan.steps.push(PlanStep {
                 scope: StepScope::PerFile,
                 operation: Operation::Difference {
@@ -66,7 +68,8 @@ fn compare_emptied(
         at += 1;
     });
     authored.plan.steps.push(last);
-    authored.plan.emit.step = StepId((authored.plan.steps.len() - 1) as u32);
+    authored.plan.emit.step =
+        StepId(u32::try_from(authored.plan.steps.len() - 1).expect("a step number fits in u32"));
     super::super::conformance::fixtures::deliver(
         authored,
         schema,
