@@ -74,11 +74,10 @@ marking the proofs only the integrator can run. A builder who needs to change
 the contract stops and asks for a re-scope.
 
 ## Output: scope-<bead>.md
-- First line: PROCEED, RESHAPE, DEFER (until what) or DROP (why).
+- First line: PROCEED, RESHAPE, DEFER (until what) or DROP (why). Second line: `BEADS:` and the beads it proceeds with or reshapes.
 - Sections 1-3, citing evidence (file:line, bead ids, census rows,
   measurements) and criteria by number. Write "unverified" where you infer.
 - Decisions for the PM, each with a recommendation.
-- A checkpoint-wide scope puts a `BEADS:` line, listing the beads it proceeds with or reshapes, directly under the verdict line.
 
 ## Rules
 - No subagents.

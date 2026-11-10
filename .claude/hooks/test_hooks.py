@@ -1593,10 +1593,13 @@ class ScopeGate(unittest.TestCase):
         self.tree = repo(self.dir.name, "tree", "claude/p1-scoped")
         self.env = dict(os.environ, CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
 
-    def scope(self, first, review, bead="ryo-x", names="ryo-x"):
+    def scope(self, first, review, bead="ryo-x", beads="ryo-x"):
+        """scope-<bead>.md: first, then `BEADS: <beads>` as line 2 (or first as written when beads is None), and a
+        body that names ryo-x, so only line 2 can admit a bead."""
         path = os.path.join(self.dir.name, "scope-" + bead + ".md")
         with open(path, "w", encoding="utf-8") as handle:
-            handle.write(first + "\n\nBead " + names + ".\n\n## Scope review\nS1 PASS\n")
+            handle.write(first + ("" if beads is None else "\nBEADS: " + beads) +
+                         "\n\nThe scope of ryo-x.\n\n## Scope review\nS1 PASS\n")
         with open(os.path.join(self.dir.name, "scope-review-" + bead + ".json"), "w", encoding="utf-8") as handle:
             json.dump(with_digest(review, path), handle)
         return path
@@ -1643,27 +1646,28 @@ class ScopeGate(unittest.TestCase):
 
     def test_refuses_a_scope_for_another_bead(self):
         passed = {"rows": scope_rows(), "verdict": "PASS"}
-        path = self.scope("PROCEED", passed, bead="ryo-old", names="ryo-old")
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
-        path = self.scope("PROCEED", passed, names="ryo-old")
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
-        path = self.scope("PROCEED", passed, names="ryo-x.1")
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        for bead, beads in [("ryo-old", "ryo-old"), ("ryo-x", "ryo-old"), ("ryo-x", "ryo-x.1")]:
+            with self.subTest(bead=bead, beads=beads):
+                path = self.scope("PROCEED", passed, bead=bead, beads=beads)
+                self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
 
-    def test_a_checkpoint_scope_names_its_beads_on_a_beads_line(self):
+    def test_a_scope_admits_only_the_beads_of_its_second_line(self):
         passed = {"rows": scope_rows(), "verdict": "PASS"}
-        for first, code in [("PROCEED\nBEADS: ryo-a ryo-x ryo-b", 0), ("PROCEED\nBEADS: ryo-a ryo-b", 2),
-                            ("PROCEED\n\nBEADS: ryo-x", 2), ("PROCEED\nscope of cp334\nBEADS: ryo-x", 2)]:
-            with self.subTest(first=first):
-                path = self.scope(first, passed, bead="cp334", names="cp334; ryo-x is mentioned\nBEADS: ryo-x")
+        for beads, code in [("ryo-x", 0), ("ryo-a ryo-x ryo-b", 0), ("ryo-a ryo-b", 2), ("ryo-c2 ryo-c3", 2)]:
+            with self.subTest(beads=beads):
+                path = self.scope("PROCEED", passed, beads=beads)
                 self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, code)
-        path = self.scope("PROCEED\nBEADS: ryo-c2 ryo-c3", passed)
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        for top in ["PROCEED", "PROCEED\n\nBEADS: ryo-x", "PROCEED\n**BEADS:** ryo-x", "PROCEED\n`BEADS:` ryo-x",
+                    "PROCEED\nBeads: ryo-x", "PROCEED\n  BEADS: ryo-x", "PROCEED\n- BEADS: ryo-x",
+                    "\nPROCEED\nBEADS: ryo-x", "PROCEED\nscope of cp334\nBEADS: ryo-x"]:
+            with self.subTest(top=top):
+                path = self.scope(top, passed, beads=None)
+                self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
 
     def test_a_scope_that_is_not_utf8_is_judged_not_crashed(self):
         path = os.path.join(self.dir.name, "scope-ryo-x.md")
         with open(path, "wb") as handle:
-            handle.write(b"PROCEED\n\nBead ryo-x, \xff\xfe not UTF-8.\n")
+            handle.write(b"PROCEED\nBEADS: ryo-x\n\nThe scope, \xff\xfe not UTF-8.\n")
         with open(os.path.join(self.dir.name, "scope-review-ryo-x.json"), "w", encoding="utf-8") as handle:
             json.dump(with_digest({"rows": scope_rows(), "verdict": "PASS"}, path), handle)
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)

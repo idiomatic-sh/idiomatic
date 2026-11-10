@@ -21,8 +21,8 @@ FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
 GATED = {"builder", "contract-migration"}  # the agents that edit code launch only on a passed scope
 WORKTREE = re.compile(r"^WORKTREE:\s*(\S+)", re.MULTILINE)
 BEAD = re.compile(r"^BEAD:\s*(\S+)", re.MULTILINE)
-NEEDS = ("a builder needs SCOPE=<path to scope-<bead>.md>, a report naming the brief's BEAD (or a checkpoint scope "
-         "listing it on a BEADS: line directly under the verdict line) whose first line starts PROCEED or RESHAPE, with scope-review-<stem>.json beside it holding the report's scope_sha256, verdict PASS "
+NEEDS = ("a builder needs SCOPE=<path to scope-<stem>.md>, a report whose first line starts PROCEED or RESHAPE and "
+         "whose second line is exactly `BEADS: <id> ...` listing the brief's BEAD, with scope-review-<stem>.json beside it holding the report's scope_sha256, verdict PASS "
          "and every rubric row PASS; a review-fix round carries FOLLOWUP=<branch> instead, from a WORKTREE on that "
          "branch, for the bead and branch an earlier builder launched with a passed scope")
 
@@ -49,13 +49,19 @@ def rubric_rows(deferral=False):
     return [row for row in rows if row in named]
 
 
-def scope_verdict(scope):
-    """The first word of the scope report's first non-blank line (PROCEED, RESHAPE, DEFER, DROP), or None."""
+def scope_lines(scope):
+    """The scope report's lines, or None when it cannot be read."""
     try:
         with open(scope, encoding="utf-8", errors="replace") as handle:
-            first = next((line for line in handle if line.strip()), "")
+            return handle.read().splitlines()
     except OSError:
         return None
+
+
+def scope_verdict(scope):
+    """The first word of the scope report's first line (PROCEED, RESHAPE, DEFER, DROP), or None."""
+    lines = scope_lines(scope)
+    first = lines[0] if lines else ""
     found = re.match(r"[A-Z]+", first)
     return found.group(0) if found else None
 
@@ -108,10 +114,6 @@ def load(path):
         return None, path + " is not JSON"
 
 
-def names(text, bead):
-    return re.search(r"(?<![\w.-])" + re.escape(bead) + r"(?![\w-]|\.\w)", text) is not None
-
-
 def scope_problem(scope, bead):
     if scope_verdict(scope) not in ("PROCEED", "RESHAPE"):
         return "the scope report " + scope + " does not start with PROCEED or RESHAPE"
@@ -120,17 +122,12 @@ def scope_problem(scope, bead):
         return "the scope report " + scope + " is not named scope-<stem>.md"
     if not bead:
         return "the brief names no BEAD: <id>"
-    with open(scope, encoding="utf-8", errors="replace") as handle:
-        text = handle.read()
-    lines = text.splitlines()
-    second = lines[1] if len(lines) > 1 else ""  # a BEADS: line counts only directly under the verdict line
-    if second.startswith("BEADS:"):  # then it is the whole list, whatever the file name
-        admitted = bead in {word.rstrip(".,;") for word in second[len("BEADS:"):].split()}
-    else:
-        admitted = os.path.basename(scope) == "scope-" + bead + ".md" and names(text, bead)
-    if not admitted:
-        return ("the scope report " + scope + " is neither scope-" + bead + ".md naming the bead nor a checkpoint "
-                "scope listing it on a BEADS: line directly under the verdict line")
+    lines = scope_lines(scope) or []
+    second = lines[1] if len(lines) > 1 else ""
+    listed = second[len("BEADS: "):].split(" ") if re.fullmatch(r"BEADS:( \S+)+", second) else []
+    if bead not in listed:
+        return ("line 2 of the scope report " + scope + " is not exactly `BEADS: <id> ...` listing the brief's bead "
+                + bead)
     review, problem = load(path)
     if problem:
         return problem
