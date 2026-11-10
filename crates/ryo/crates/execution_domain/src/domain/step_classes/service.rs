@@ -1,6 +1,6 @@
 //! Equivalent typed source predicates and pure projections, with no IO and no ports.
 
-use super::types::{BindingsAgreement, Merge, MergedStep, Rooted, StepClass};
+use super::types::{BindingsAgreement, Merge, MergedStep, PureSelection, Rooted, StepClass};
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::operator::types::StepPlace;
 use crate::domain::step_classes::types::ClassPlace;
@@ -28,45 +28,43 @@ fn over_source(operand: &Operand, columns: &[ColumnIndex]) -> Option<Operand> {
     })
 }
 
-/// Map pure selection/projection predicates and columns to their original relation.
-fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
-    let (from, comparisons, kept) = match operation {
-        Operation::Select {
+/// A selection or a row-keeping projection, as the source, its comparisons and its kept columns; any other operation
+/// is not one.
+pub(crate) fn pure_selection(operation: &Operation) -> Option<PureSelection<'_>> {
+    if let Operation::Select {
+        from,
+        comparisons,
+        kept,
+    } = operation
+    {
+        Some(PureSelection {
             from,
             comparisons,
             kept,
-        } => (from, comparisons.as_slice(), kept),
-        Operation::Project {
+        })
+    } else if let Operation::Project {
+        from,
+        columns,
+        distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
+    } = operation
+    {
+        Some(PureSelection {
             from,
-            columns,
-            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Kept,
-        } => (from, &[][..], columns),
-        Operation::Project { .. }
-        | Operation::Extend { .. }
-        | Operation::Join { .. }
-        | Operation::Union { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Antijoin { .. }
-        | Operation::GroupCount { .. }
-        | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
-        | Operation::Rank { .. }
-        | Operation::Replace { .. }
-        | Operation::OrderedMatch { .. }
-        | Operation::Words { .. }
-        | Operation::Axis { .. }
-        | Operation::Closure { .. }
-        | Operation::OrderedDfs { .. }
-        | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => return None,
-    };
+            comparisons: &[],
+            kept: columns,
+        })
+    } else {
+        None
+    }
+}
+
+/// Map pure selection/projection predicates and columns to their original relation.
+fn rooted(below: &[Option<Rooted>], operation: &Operation) -> Option<Rooted> {
+    let PureSelection {
+        from,
+        comparisons,
+        kept,
+    } = pure_selection(operation)?;
     let (source, mut chosen, columns) = match from {
         Input::Relation(relation) => {
             let Ok(width) =

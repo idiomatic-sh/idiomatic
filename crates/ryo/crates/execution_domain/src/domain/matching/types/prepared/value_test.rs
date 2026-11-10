@@ -37,20 +37,56 @@ enum Scenario {
     InvalidLazy,
     GlobFamilies,
     Undeclared,
+    /// One operation of a kind that filters by its own comparisons, the literal's pattern in its filter.
+    Filtered(fn(PlanComparison) -> Operation),
+    /// One replacement, its literal pattern the only literal of the request.
+    Replaced,
 }
 type Input = Scenario;
 type Value = ();
 type Failure = OperatingError;
+fn literal(test: Test, pattern: &str) -> PlanComparison {
+    PlanComparison {
+        left: Operand::Column(ColumnIndex(0)),
+        right: Operand::Literal(QueryLiteral::Text(LiteralText(pattern.into()))),
+        test,
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+    }
+}
 fn select(test: Test, pattern: &str) -> Operation {
     Operation::Select {
         from: Source::Relation(Relation::Function),
         kept: vec![],
-        comparisons: vec![PlanComparison {
-            left: Operand::Column(ColumnIndex(0)),
-            right: Operand::Literal(QueryLiteral::Text(LiteralText(pattern.into()))),
-            test,
-            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-        }],
+        comparisons: vec![literal(test, pattern)],
+    }
+}
+/// A join whose right input is filtered by `comparison`.
+fn join(comparison: PlanComparison) -> Operation {
+    Operation::Join {
+        left: Source::Relation(Relation::Function),
+        right: Source::Relation(Relation::SyntaxTree),
+        left_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(0)],
+        output: vec![],
+        filter: vec![comparison],
+        view: vec![],
+        reach: None,
+    }
+}
+/// An axis walk whose domain is filtered by `comparison`.
+fn axis(comparison: PlanComparison) -> Operation {
+    Operation::Axis {
+        from: Source::Relation(Relation::Function),
+        edges: Source::Relation(Relation::SyntaxChild),
+        domain: Source::Relation(Relation::SyntaxTree),
+        direction: ryo_values::domain::plan_parts::types::Direction::Child,
+        id: ColumnIndex(0),
+        parent: ColumnIndex(0),
+        child: ColumnIndex(1),
+        domain_id: ColumnIndex(0),
+        domain_filter: vec![comparison],
+        domain_view: vec![],
+        output: vec![],
     }
 }
 fn prepared(operations: &[Operation]) -> PreparedMatchers {
@@ -184,6 +220,27 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 "a separate request cannot acquire another request's literal slot"
             );
         }
+        Scenario::Filtered(operation) => {
+            let slots = prepared(&[operation(literal(Test::Matches, "α+"))]);
+            assert_eq!(slots.builds.load(Ordering::Relaxed), 0);
+            assert!(
+                slots.regex(TextView("α+"), matcher()).is_some(),
+                "the filter's literal is declared before any worker runs"
+            );
+        }
+        Scenario::Replaced => {
+            let slots = prepared(&[Operation::Replace {
+                from: Source::Relation(Relation::Function),
+                text: ColumnIndex(0),
+                pattern: LiteralText("α+".into()),
+                replacement: LiteralText("$1".into()),
+            }]);
+            assert_eq!(slots.builds.load(Ordering::Relaxed), 0);
+            assert!(
+                slots.regex(TextView("α+"), matcher()).is_some(),
+                "the replacement's pattern is declared before any worker runs"
+            );
+        }
     }
     Ok(())
 }
@@ -210,6 +267,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("undeclared_literals_do_not_enter_another_request"),
         word: Word::Succeeds,
         input: || Scenario::Undeclared,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("join_literals_are_declared_before_any_worker"),
+        word: Word::Succeeds,
+        input: || Scenario::Filtered(join),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("axis_literals_are_declared_before_any_worker"),
+        word: Word::Succeeds,
+        input: || Scenario::Filtered(axis),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("replace_literals_are_declared_before_any_worker"),
+        word: Word::Succeeds,
+        input: || Scenario::Replaced,
         expect: Expect::Value(()),
     },
 ];

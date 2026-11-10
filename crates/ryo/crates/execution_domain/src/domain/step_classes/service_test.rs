@@ -3,11 +3,11 @@
 use super::service::merge;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, LiteralText, Operand, PlanComparison, QueryLiteral, StepId,
     Test,
 };
+use ryo_values::domain::plan_parts::types::{RepeatedRows, StepScope};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 /// The kinds the one step of each rule selects, an empty one for the elements with no text.
@@ -66,17 +66,29 @@ pub(super) fn plan(name: &str) -> Plan {
 #[derive(Clone, Copy)]
 enum Scenario {
     Kinds(&'static [&'static str]),
+    /// One rule per entry, each projecting the tree's first column, keeping or dropping the rows that repeat.
+    Projections(&'static [RepeatedRows]),
     Check(fn()),
 }
+/// A plan whose one step projects the tree's first column, keeping or dropping the rows that repeat.
+fn projection(distinct: RepeatedRows) -> Plan {
+    let mut projected = plan("word");
+    projected.steps[0].operation = Operation::Project {
+        from: PlanInput::Relation(Relation::SyntaxTree),
+        columns: vec![ColumnIndex(0)],
+        distinct,
+    };
+    projected
+}
 fn subject(scenario: Input) -> Value {
-    let kinds = match scenario {
-        Scenario::Kinds(kinds) => kinds,
+    let plans = match scenario {
+        Scenario::Kinds(kinds) => kinds.iter().map(|name| plan(name)).collect::<Vec<_>>(),
+        Scenario::Projections(each) => each.iter().copied().map(projection).collect(),
         Scenario::Check(check) => {
             check();
             return "held";
         }
     };
-    let plans = kinds.iter().map(|name| plan(name)).collect::<Vec<_>>();
     let bindings = vec![Vec::new(); plans.len()];
     let merged = merge(&plans, &bindings);
     Box::leak(
@@ -216,6 +228,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Kinds(&["word", "other"]),
         expect: Expect::Value("2 classes, rules [Some(0), Some(1)]"),
+    },
+    Case {
+        name: CaseName("a_row_dropping_projection_is_not_a_pure_projection"),
+        word: Word::Succeeds,
+        input: || Scenario::Projections(&[RepeatedRows::Kept, RepeatedRows::Dropped]),
+        expect: Expect::Value("1 classes, rules [Some(0), None]"),
     },
     Case {
         name: CaseName("comparison_origin_does_not_split_shared_step_classes"),

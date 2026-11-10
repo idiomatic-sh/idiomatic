@@ -17,7 +17,7 @@ pub struct AskedKind {
 
 /// Whether some language has a kind that satisfies a word.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum KindMatch {
+pub(crate) enum KindMatch {
     /// A kind of a language does.
     Names,
     /// No kind of any language does.
@@ -63,4 +63,4 @@ pub struct KindRefusal {
 
 /// The names of the linked languages, as one phrase.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LanguageList(pub Box<str>);
+pub(crate) struct LanguageList(pub Box<str>);

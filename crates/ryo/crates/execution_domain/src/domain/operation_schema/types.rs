@@ -17,7 +17,7 @@ pub struct InputShape<'a> {
 
 /// Which input of a two-input operation a column of the answer was read from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OriginSide {
+pub(crate) enum OriginSide {
     /// The left input.
     Left,
     /// The right input.

@@ -28,6 +28,17 @@ pub struct StepClass {
     pub comparisons: Vec<PlanComparison>,
 }
 
+/// A selection or a row-keeping projection, read as its source, its comparisons and its kept columns.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PureSelection<'a> {
+    /// The input the rows are read from.
+    pub from: &'a ryo_values::domain::plan_parts::types::Input,
+    /// The comparisons every row must satisfy; none for a projection.
+    pub comparisons: &'a [PlanComparison],
+    /// The columns kept, in order.
+    pub kept: &'a [ColumnIndex],
+}
+
 /// A selection chain mapped to its original typed relation and source columns.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Rooted {
