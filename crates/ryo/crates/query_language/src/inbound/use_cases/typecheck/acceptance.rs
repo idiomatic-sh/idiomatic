@@ -6,9 +6,9 @@ use crate::Behavior;
 use std::sync::Arc;
 
 use ryo_query_language::inbound::use_cases::typecheck::interface::TypecheckUseCase as _;
-use ryo_query_language::inbound::use_cases::typecheck::types::TypecheckRequest;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::plans::types::QueryRequest;
 
 /// Names the scene the next `typecheck` step runs.
 #[given(expr = "the typecheck input {string}")]
@@ -30,9 +30,11 @@ fn runs(world: &mut Behavior) {
     };
     let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
     let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
-    world.answer = match TypecheckUseCaseImpl::new(syntax, catalog).typecheck(TypecheckRequest {
-        text: QueryText(text.into()),
+    world.answer = match TypecheckUseCaseImpl::new(syntax, catalog).typecheck(QueryRequest {
+        observations: Vec::new(),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text.into())),
         hosted: Vec::new(),
+        modules: ryo_values::domain::program::types::ParsedModules::default(),
     }) {
         Ok(report) => format!("reads {} relations", report.relations.len()),
         Err(error) => error.to_string(),

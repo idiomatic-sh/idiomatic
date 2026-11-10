@@ -1,10 +1,25 @@
 //! The `compile` use case's failures.
 
-use ryo_values::domain::program::types::QuerySpan;
+use ryo_values::domain::query_tokens::types::{QueryOrigin, QuerySpan};
 
 /// Why `compile` failed: the text `validate` refuses is refused the same way.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum CompileError {
+    /// Required external named-input metadata is invalid; this fault has no query-text span.
+    #[error("invalid observation input contract: {message}")]
+    ObservationInputs { message: String },
+    /// A lower-level refusal attributed to an original module source.
+    #[error(
+        "{error} (from `{source}` at byte {offset})",
+        source = origin.source_id.0,
+        offset = origin.span.start.0
+    )]
+    Located {
+        /// The original source and trace.
+        origin: QueryOrigin,
+        /// The underlying refusal.
+        error: Box<CompileError>,
+    },
     /// The text is not RyoQL.
     #[error("{message} at byte {}", span.start.0)]
     Syntax {

@@ -1,6 +1,6 @@
 //! The names of the `comparing` concept.
 
-use ryo_values::domain::program::types::WrittenFunction;
+use ryo_values::domain::query_syntax::types::WrittenFunction;
 
 /// What separates the words of a closed set when a refusal lists them.
 pub(crate) const WORD_SEPARATOR: &str = ", ";
@@ -33,6 +33,7 @@ pub(crate) fn function_name(function: WrittenFunction) -> &'static str {
         WrittenFunction::Camel => "camel",
         WrittenFunction::Snake => "snake",
         WrittenFunction::Kebab => "kebab",
+        WrittenFunction::Lower => "lower",
     }
 }
 
@@ -45,6 +46,7 @@ pub(crate) fn arity(function: WrittenFunction, count: usize) -> (&'static str, b
         | WrittenFunction::Camel
         | WrittenFunction::Snake
         | WrittenFunction::Kebab => ("one argument", count == 1),
+        WrittenFunction::Lower => ("one argument", count == 1),
     }
 }
 
@@ -53,3 +55,9 @@ pub(crate) const STARTS_WITH: &str = "starts_with";
 
 /// The name of a test that takes two texts, as a refusal writes it.
 pub(crate) const ENDS_WITH: &str = "ends_with";
+
+/// The regular-expression text predicate's query name.
+pub(crate) const MATCHES: &str = "matches";
+
+/// Natural_lt.
+pub(super) const NATURAL_LESS_THAN: &str = "natural_lt";

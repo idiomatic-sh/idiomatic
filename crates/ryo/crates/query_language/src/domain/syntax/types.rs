@@ -2,7 +2,7 @@
 //! and no inherent impl. The operations of the language and the arguments they take are enums;
 //! their outside text is in `constants.rs`.
 
-use ryo_values::domain::plans::types::QueryOperator;
+use ryo_values::domain::query_operators::types::QueryOperator;
 
 /// What an argument of a call is for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,6 +16,52 @@ pub(crate) enum ArgumentRole {
 /// The arguments a call can name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum ArgumentSlot {
+    /// Syntax node whose text is requested.
+    Node,
+    /// Embedding role for rendered syntax.
+    Context,
+    /// Maximum physical display columns.
+    MaxLine,
+    /// Physical tab stop width.
+    TabWidth,
+    /// Ordered rendered text columns for a physical width check.
+    Texts,
+    /// Literal separators around and between the rendered columns.
+    Literals,
+    /// Root entity column.
+    Root,
+    /// Outgoing-edge order column.
+    Order,
+    /// Edge identity column.
+    Edge,
+    /// Span supplying the start.
+    Start,
+    /// Span supplying the end.
+    End,
+    /// Physical source span to search.
+    Span,
+    /// Output name for the span's zero-based start byte.
+    StartOutput,
+    /// Output name for the span's exclusive end byte.
+    EndOutput,
+    /// One-based physical line of an input span's first byte.
+    BaseLine,
+    /// Optional output name for each occurrence's physical start line.
+    LineOutput,
+    /// Named regex group to project from each physical match.
+    CaptureName,
+    /// Output name for the named group's absolute source span.
+    CaptureOutput,
+    /// Optional output name for the group's physical text.
+    CaptureTextOutput,
+    /// Optional output name for the group's start line.
+    CaptureLineOutput,
+    /// Constant replacement text.
+    Replacement,
+    /// Left numeric ordering column.
+    LeftOrder,
+    /// Right numeric ordering column.
+    RightOrder,
     /// `from`.
     From,
     /// `columns`.

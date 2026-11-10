@@ -1,23 +1,23 @@
 //! The `walking` service's cases, on plans written by hand.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::service::fuse_descents;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::plan_parts::types::Input as Reads;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::types::Operand;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use ryo_values::domain::plans::types::StepScope;
 
 /// What a row asks of the service.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -41,22 +41,25 @@ fn column(index: u32) -> ColumnIndex {
 
 fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
     let nodes = if scenario == Scenario::ADescentAndTheJoinsAfterItAreOneWalk {
-        Comparison {
+        PlanComparison {
             test: Test::Equal,
             left: Operand::Column(column(2)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }
     } else {
-        Comparison {
+        PlanComparison {
             test: Test::Equal,
             left: Operand::Column(column(1)),
             right: Operand::Literal(QueryLiteral::Text(LiteralText("fn".into()))),
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         }
     };
-    let tokens = Comparison {
+    let tokens = PlanComparison {
         test: Test::NotEqual,
         left: Operand::Column(column(2)),
         right: Operand::Literal(QueryLiteral::Text(LiteralText(Box::from("")))),
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let left = |at: u32| JoinColumn {
         side: Side::Left,
@@ -97,6 +100,8 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
             output: vec![right(1), left(0), left(2), left(3)],
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         }),
         per_file(Operation::Join {
             left: Reads::Step(StepId(2)),
@@ -106,6 +111,8 @@ fn a_descent_and_the_joins_after_it_are_one_walk(scenario: Scenario) -> usize {
             output: vec![left(1), left(2), left(3), right(0)],
             filter: vec![tokens.clone()],
             view: Vec::new(),
+
+            reach: None,
         }),
     ];
     let fused = fuse_descents(steps);

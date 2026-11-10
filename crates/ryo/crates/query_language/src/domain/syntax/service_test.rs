@@ -2,14 +2,17 @@
 
 use super::service::{operators_used, relations_read, shape_named};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::program::types::{
-    Alias, ByteOffset, Call, ColumnName, Columns, Expression, Joining, LetStep, OperationName,
-    Program, QuerySource, QuerySpan, Select, SourceReference, StepName, WrittenEmit,
-    WrittenRelation,
+use ryo_values::domain::descriptions::types::ColumnName;
+use ryo_values::domain::program::types::{LetStep, WrittenEmit, WrittenProgram};
+use ryo_values::domain::query_syntax::types::{
+    Alias, Call, Columns, Expression, Joining, QuerySource, Select, SourceReference,
+};
+use ryo_values::domain::query_tokens::types::{
+    ByteOffset, OperationName, QuerySpan, StepName, WrittenRelation,
 };
 
 /// A scenario: what a row asks of a program that reads one relation and calls `project`.
-type Input = fn(&Program) -> usize;
+type Input = fn(&WrittenProgram) -> usize;
 /// What a scenario answers: how many things it found.
 type Value = usize;
 type Failure = ();
@@ -21,9 +24,12 @@ fn nowhere() -> QuerySpan {
     }
 }
 
-fn program() -> Program {
+fn program() -> WrittenProgram {
     let read_function = LetStep {
-        name: StepName("functions".into()),
+        name: StepName(
+            "functions".into(),
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Select(Select {
             columns: Columns::Every,
             from: QuerySource {
@@ -37,7 +43,10 @@ fn program() -> Program {
         span: nowhere(),
     };
     let project = LetStep {
-        name: StepName("paths".into()),
+        name: StepName(
+            "paths".into(),
+            ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+        ),
         expression: Expression::Call(Call {
             name: OperationName("project".into()),
             arguments: Vec::new(),
@@ -45,11 +54,21 @@ fn program() -> Program {
         }),
         span: nowhere(),
     };
-    Program {
+    WrittenProgram {
+        linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
+        imports: Vec::new(),
+        origins: Vec::new(),
+        fragment_contracts: Vec::new(),
+        step_origins: std::collections::BTreeMap::new(),
+        observations: Vec::new(),
+        emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
         parameters: Vec::new(),
         steps: vec![read_function, project],
         emit: WrittenEmit {
-            step: StepName("paths".into()),
+            step: StepName(
+                "paths".into(),
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+            ),
             subject: ColumnName("path".into()),
             key: Vec::new(),
             span: nowhere(),
@@ -57,19 +76,19 @@ fn program() -> Program {
     }
 }
 
-fn relations_counted(program: &Program) -> usize {
+fn relations_counted(program: &WrittenProgram) -> usize {
     relations_read(program).len()
 }
 
-fn operators_counted(program: &Program) -> usize {
+fn operators_counted(program: &WrittenProgram) -> usize {
     operators_used(program).len()
 }
 
-fn project_shape_found(_program: &Program) -> usize {
+fn project_shape_found(_program: &WrittenProgram) -> usize {
     usize::from(shape_named(&OperationName("project".into())).is_some())
 }
 
-fn unknown_shape_found(_program: &Program) -> usize {
+fn unknown_shape_found(_program: &WrittenProgram) -> usize {
     usize::from(shape_named(&OperationName("sort".into())).is_some())
 }
 

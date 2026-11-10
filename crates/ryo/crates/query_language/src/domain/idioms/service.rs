@@ -1,8 +1,8 @@
 //! The `idioms` service: the pairs whose two functions have equal sets of texts, said as a comparison of
 //! digests instead of two antijoins.
 
-use ryo_language::domain::relations::types::CellKind;
-use ryo_language::domain::terms::types::Vocabulary;
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::constants::{Added, added};
 use crate::domain::lowering::types::{
@@ -13,12 +13,17 @@ use crate::domain::resolving::service::{column_of, step_of};
 use crate::domain::rewriting::types::SameSets;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::program::types::{self as syntax, QuerySpelling};
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Says the pairs whose two functions have equal sets of texts as a comparison of digests: each
 /// function's texts are reduced in its own file to one digest and one size, and what the files
 /// hand over is those rows, never the texts.
-pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName, idiom: SameSets) {
+pub(crate) fn push_same_sets(
+    builder: &mut Builder<'_>,
+    name: &ryo_values::domain::query_tokens::types::StepName,
+    idiom: SameSets,
+) {
     if push_same_sets_joined(builder, name, idiom) == SameSetsPush::Joined {
         return;
     }
@@ -45,6 +50,8 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
             output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         first_fields.clone(),
     );
@@ -69,14 +76,17 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
             output: both_output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         both_fields.clone(),
     );
     let wide = u32::try_from(pair_fields.len()).unwrap_or(u32::MAX);
-    let same = |left: parts::ColumnIndex, right: parts::ColumnIndex| parts::Comparison {
+    let same = |left: parts::ColumnIndex, right: parts::ColumnIndex| parts::PlanComparison {
         test: parts::Test::Equal,
         left: parts::Operand::Column(left),
         right: parts::Operand::Column(right),
+        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     };
     let equal = pushed(
         builder,
@@ -109,7 +119,7 @@ pub(crate) fn push_same_sets(builder: &mut Builder<'_>, name: &syntax::StepName,
 /// each to be compared after. Answers whether it did.
 pub(crate) fn push_same_sets_joined(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
+    name: &ryo_values::domain::query_tokens::types::StepName,
     idiom: SameSets,
 ) -> SameSetsPush {
     let Some(found) = recognize_same_sets(builder, idiom) else {
@@ -150,6 +160,8 @@ pub(crate) fn push_same_sets_joined(
             output: columns,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         widened,
     );
@@ -167,6 +179,8 @@ pub(crate) fn push_same_sets_joined(
             output,
             filter: Vec::new(),
             view: Vec::new(),
+
+            reach: None,
         },
         met_fields,
     );
@@ -202,7 +216,7 @@ pub(crate) fn push_same_sets_joined(
 /// A column of numbers the digest steps add, open and shared.
 fn number(label: QuerySpelling<'_>) -> PlannedColumn {
     PlannedColumn {
-        name: syntax::ColumnName(Box::from(label.0)),
+        name: ryo_values::domain::descriptions::types::ColumnName(Box::from(label.0)),
         kind: CellKind::Number,
         unique: Uniqueness::Shared,
         words: Vocabulary::Open,
@@ -275,6 +289,8 @@ pub(crate) fn recognize_same_sets(builder: &Builder<'_>, idiom: SameSets) -> Opt
         output,
         filter,
         view,
+
+        reach: None,
     }) = builder
         .steps
         .get(index(met))

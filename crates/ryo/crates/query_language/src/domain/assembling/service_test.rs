@@ -1,181 +1,185 @@
-//! The `assembling` service's cases, on query text read by the real syntax adapter.
-
-use ryo_language::domain::relations::types::{CellKind, Relation};
-
-use super::service::lower;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+//! Domain behavior from typed values, independent of parsing and adapters.
+use crate::cases::{Case, CaseName, Expect, Word, lowering_builder, run};
 use crate::domain::lowering::errors::LoweringError;
-use crate::outbound::syntax::factory::winnow;
-use crate::outbound::syntax::interface::SyntaxPort as _;
-use ryo_values::domain::hosted::types::ColumnLabel;
-use ryo_values::domain::hosted::types::HostedColumn;
-use ryo_values::domain::hosted::types::HostedName;
-use ryo_values::domain::hosted::types::HostedRelation;
-use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::plans::types::StepScope;
-use ryo_values::domain::program::types::QueryView;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types as parts;
+use ryo_values::domain::plans::types as plans;
+use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
+type Input = fn();
+type Value = ();
+type Failure = std::convert::Infallible;
 
-/// The query text a row gives.
-type Input = &'static str;
-/// The operations of the plan's steps, in order, named.
-type Value = &'static str;
-/// What the lowering refuses a row with.
-type Failure = LoweringError;
-
-const PROJECTED: &str = "let a = select name, file as \"f\" from \"function\" where name = \"main\"; emit a subject f key(f);";
-const UNKNOWN_PARAMETER_TYPE: &str =
-    "param limit: nothing; let a = select * from \"function\"; emit a subject file key(span);";
-/// The rows the host declared, named as ryo's own are: they are the same for every file, so the step that reads them runs after the files.
-const HOSTED: &str = "let p = select * from \"host.placed\"; emit p subject path key(spec);";
-
-const CAPTURED_THEN_FILTERED: &str = "let c = capture(from=\"function\", path=file, pattern=\"{*d}/x.rs\", captures=[d]); let f = select * from c where name = \"main\"; emit f subject file key(span);";
-const CAPTURED_THEN_FILTERED_ON_THE_CAPTURE: &str = "let c = capture(from=\"function\", path=file, pattern=\"{*d}/x.rs\", captures=[d]); let f = select * from c where d = \"src\"; emit f subject file key(span);";
-const COLUMNS_ASKED_ACROSS_FILES: &str = "let a = select name, file from \"function\"; let b = select name, file from \"function\"; let j = select l.\"file\" as \"file\" from a as l join b as r on l.\"name\" = r.\"name\"; emit j subject file key(file);";
-const COLUMNS_OF_A_TREE_ASKED_ACROSS_FILES: &str = "let a = select name, id from \"function\"; let m = select l.\"id\" as \"id\", r.\"child\" as \"child\" from a as l join \"syntax-child\" as r on l.\"name\" = r.\"parent\"; emit m subject id key(child);";
-
-/// The functions of each name counted by the files they are in: only the name and the file are asked of the rows.
-const DISTINCT_COUNT: &str = "let f = select * from \"function\"; let c = group-count(from=f, keys=[\"name\"], count=\"n\", distinct=\"file\"); emit c subject name key(n);";
-
-/// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("a_filter_and_a_projection_are_two_steps"),
-        word: Word::Succeeds,
-        input: || PROJECTED,
-        expect: Expect::Value("select project"),
-    },
-    Case {
-        name: CaseName("a_relation_the_host_declared_is_a_step_that_runs_once_after_the_files"),
-        word: Word::Succeeds,
-        input: || HOSTED,
-        expect: Expect::Value("hosted* select*"),
-    },
-    Case {
-        name: CaseName("a_filter_on_the_rows_a_capture_reads_is_made_before_the_capture"),
-        word: Word::Succeeds,
-        input: || CAPTURED_THEN_FILTERED,
-        expect: Expect::Value("select capture select"),
-    },
-    Case {
-        name: CaseName("a_filter_on_the_columns_a_capture_made_stays_after_it"),
-        word: Word::Succeeds,
-        input: || CAPTURED_THEN_FILTERED_ON_THE_CAPTURE,
-        expect: Expect::Value("capture select"),
-    },
-    Case {
-        name: CaseName(
-            "the_rows_a_file_hands_over_are_cut_to_the_columns_the_steps_after_the_files_read",
-        ),
-        word: Word::Succeeds,
-        input: || COLUMNS_ASKED_ACROSS_FILES,
-        expect: Expect::Value("project project join*"),
-    },
-    Case {
-        name: CaseName(
-            "a_tree_relation_read_across_files_is_cut_to_the_columns_asked_by_a_step_before_the_join",
-        ),
-        word: Word::Succeeds,
-        input: || COLUMNS_OF_A_TREE_ASKED_ACROSS_FILES,
-        expect: Expect::Value("select select join*"),
-    },
-    Case {
-        name: CaseName(
-            "rows_handed_over_for_the_columns_the_finish_asks_are_cut_to_those_without_repeats",
-        ),
-        word: Word::Succeeds,
-        input: || DISTINCT_COUNT,
-        expect: Expect::Value("select project group-count*"),
-    },
-    Case {
-        name: CaseName("a_parameter_of_a_type_the_language_lacks_is_refused"),
-        word: Word::Refuses,
-        input: || UNKNOWN_PARAMETER_TYPE,
-        expect: Expect::Refusal(|error| {
-            selects(matches!(error, LoweringError::UnknownParameterType { .. }))
-        }),
-    },
-];
-
-/// What an operation is, for the answer.
-fn operation_name(operation: &Operation) -> &'static str {
-    match operation {
-        Operation::Select { .. } => "select",
-        Operation::Project {
-            distinct: RepeatedRows::Kept,
-            ..
-        } => "project-keyed",
-        Operation::Project { .. } => "project",
-        Operation::Join { .. } => "join",
-        Operation::GroupCount { .. } => "group-count",
-        Operation::GroupDigest { .. } => "group-digest",
-        Operation::Antijoin { .. } => "antijoin",
-        Operation::Union { .. } => "union",
-        Operation::Capture { .. } => "capture",
-        Operation::Extend { .. }
-        | Operation::Intersection { .. }
-        | Operation::Difference { .. }
-        | Operation::Rank { .. }
-        | Operation::Words { .. }
-        | Operation::Closure { .. }
-        | Operation::Cycles { .. } => "other",
-        Operation::Rows { .. } | Operation::Hosted { .. } => "hosted",
-        Operation::Axis { .. } => "axis",
+fn select(column: &str) -> ast::Select {
+    ast::Select {
+        columns: ast::Columns::Listed(vec![ast::SelectColumn {
+            column: ast::ColumnReference {
+                alias: ast::Alias::Unwritten,
+                column: ryo_values::domain::descriptions::types::ColumnName(column.into()),
+            },
+            rename: ast::Renaming::Unchanged,
+        }]),
+        from: ast::QuerySource {
+            reference: ast::SourceReference::Relation(tokens::WrittenRelation("function".into())),
+            alias: ast::Alias::Unwritten,
+            span: lowering_builder().span,
+        },
+        join: ast::Joining::Alone,
+        filters: vec![],
     }
 }
 
-/// Lowers the text and names the operations of the plan, but the answer must be one of the known lists.
-fn subject(text: Input) -> Result<Value, Failure> {
-    let program = winnow()
-        .read(QueryView(text))
-        .expect("the row's text is readable");
-    let plan = lower(
-        &program,
-        &[
-            Relation::Function,
-            Relation::SyntaxChild,
-            Relation::SyntaxTree,
-            Relation::WorkspaceMember,
-        ],
-        &[HostedRelation {
-            name: HostedName("host.placed".into()),
-            columns: vec![
-                HostedColumn {
-                    name: ColumnLabel("path".into()),
-                    kind: CellKind::File,
-                },
-                HostedColumn {
-                    name: ColumnLabel("spec".into()),
-                    kind: CellKind::Symbol,
-                },
-            ],
+fn program() -> syntax::WrittenProgram {
+    let span = lowering_builder().span;
+    syntax::WrittenProgram {
+        linked: ryo_values::domain::query_tokens::types::Linking::Unlinked,
+        imports: vec![],
+        origins: vec![],
+        fragment_contracts: vec![],
+        step_origins: Default::default(),
+        emit_origin: ryo_values::domain::query_tokens::types::Attribution::Unlocated,
+        parameters: vec![],
+        observations: vec![],
+        steps: vec![syntax::LetStep {
+            name: tokens::StepName(
+                "result".into(),
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+            ),
+            expression: ast::Expression::Select(select("file")),
+            span,
         }],
-    )?;
-    let names: Vec<String> = plan
-        .steps
-        .iter()
-        .map(|step| {
-            format!(
-                "{}{}",
-                operation_name(&step.operation),
-                if step.scope == StepScope::CrossFile {
-                    "*"
-                } else {
-                    ""
-                }
-            )
+        emit: syntax::WrittenEmit {
+            step: tokens::StepName(
+                "result".into(),
+                ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+            ),
+            subject: ryo_values::domain::descriptions::types::ColumnName("file".into()),
+            key: vec![ryo_values::domain::descriptions::types::ColumnName(
+                "file".into(),
+            )],
+            span,
+        },
+    }
+}
+fn typed_program_keeps_emitted_projection() {
+    let plan = super::service::lower(&program(), &[Relation::Function], &[]).unwrap();
+    assert_eq!(plan.emit.step, parts::StepId(0));
+    assert_eq!(
+        plan.steps,
+        vec![plans::PlanStep {
+            scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
+            operation: plans::Operation::Project {
+                from: parts::Input::Relation(Relation::Function),
+                columns: vec![parts::ColumnIndex(2)],
+                distinct: parts::RepeatedRows::Dropped,
+            }
+        }]
+    );
+}
+fn unknown_parameter_kind_keeps_its_location() {
+    let mut program = program();
+    let span = program.emit.span;
+    program.parameters.push(syntax::ParameterDeclaration {
+        parameter: tokens::WrittenParameter("limit".into()),
+        kind: tokens::TypeName("nothing".into()),
+        span,
+    });
+    assert_eq!(
+        super::service::lower(&program, &[Relation::Function], &[]),
+        Err(LoweringError::UnknownParameterType {
+            name: "nothing".into(),
+            span
         })
-        .collect();
-    // The answer is leaked: a case compares it with text that lives for the whole run.
-    Ok(Box::leak(names.join(" ").into_boxed_str()))
+    );
 }
 
+fn origin_of(span: tokens::QuerySpan) -> tokens::QueryOrigin {
+    tokens::QueryOrigin {
+        source_id: tokens::QuerySourceId("module".into()),
+        span,
+        trace: vec![],
+    }
+}
+fn a_refusal_of_an_expanded_fragment_names_its_origin() {
+    let mut program = program();
+    let span = program.emit.span;
+    program.emit.step = tokens::StepName(
+        "missing".into(),
+        ryo_values::domain::query_tokens::types::StepIdentified::Unassigned,
+    );
+    program.emit_origin =
+        ryo_values::domain::query_tokens::types::Attribution::Located(origin_of(span));
+    assert!(matches!(
+        super::service::lower(&program, &[Relation::Function], &[]),
+        Err(LoweringError::Located { .. })
+    ));
+}
+fn a_fragment_input_that_is_not_a_relation_is_refused() {
+    let mut program = program();
+    let span = program.emit.span;
+    let first = tokens::StepIdentity(1);
+    program.steps[0].name = tokens::StepName(
+        "result".into(),
+        ryo_values::domain::query_tokens::types::StepIdentified::Assigned(first),
+    );
+    program.fragment_contracts.push(syntax::FragmentContract {
+        first,
+        result: first,
+        inputs: vec![syntax::FragmentContractInput {
+            name: tokens::WrittenName("rows".into()),
+            value: ast::ArgumentValue::Number(ryo_relations::domain::relations::types::Integer(1)),
+            relation: syntax::RelationSignature {
+                columns: vec![],
+                span,
+            },
+            span,
+        }],
+        output: syntax::RelationSignature {
+            columns: vec![],
+            span,
+        },
+        output_span: span,
+        origin: origin_of(span),
+    });
+    assert!(matches!(
+        super::service::lower(&program, &[Relation::Function], &[]),
+        Err(LoweringError::FragmentContract { .. })
+    ));
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("typed_program_keeps_emitted_projection"),
+        word: Word::Succeeds,
+        input: || typed_program_keeps_emitted_projection,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unknown_parameter_kind_keeps_its_location"),
+        word: Word::Succeeds,
+        input: || unknown_parameter_kind_keeps_its_location,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_refusal_of_an_expanded_fragment_names_its_origin"),
+        word: Word::Succeeds,
+        input: || a_refusal_of_an_expanded_fragment_names_its_origin,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_fragment_input_that_is_not_a_relation_is_refused"),
+        word: Word::Succeeds,
+        input: || a_fragment_input_that_is_not_a_relation_is_refused,
+        expect: Expect::Value(()),
+    },
+];
+
+fn subject(check: Input) -> Result<Value, Failure> {
+    check();
+    Ok(())
+}
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
 }

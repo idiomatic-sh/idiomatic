@@ -1,23 +1,17 @@
-// ignore: idiomatic.arch/file-length - the three cuts of the rows handed over (a step's columns, a relation's columns, a view read in place) share the reading of what an operation reads of an input, which is one match over the operations; splitting it would repeat that match.
 //! The `inlining` service: free functions named by verb over the views of a relation read in place, and the rows handed over cut to the columns asked.
 
-use ryo_language::domain::relations::service::provenance_of;
-use ryo_language::domain::relations::types::{Provenance, Relation};
-
-use super::types::StepReading;
-use crate::domain::pruning::service::each_input;
-use crate::domain::rewriting::types::Planned;
-use ryo_values::domain::plan_parts::service::{each_column, each_column_mut};
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::service::each_column;
+use ryo_values::domain::plan_parts::service::each_column_mut;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plan_parts::types::Comparison;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
-use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
-use ryo_values::domain::plans::types::StepScope;
 
 /// The columns a join or an axis names of its input on `side`.
 fn side_columns(output: &[JoinColumn], side: Side) -> impl Iterator<Item = ColumnIndex> + '_ {
@@ -39,7 +33,7 @@ fn side_columns_mut(
 }
 
 /// The columns the comparisons read, those the arguments of a function read among them.
-fn compared_columns(comparisons: &[Comparison]) -> impl Iterator<Item = ColumnIndex> + '_ {
+fn compared_columns(comparisons: &[PlanComparison]) -> impl Iterator<Item = ColumnIndex> + '_ {
     let mut read = Vec::new();
     for comparison in comparisons {
         each_column(&comparison.left, &mut |column| read.push(column));
@@ -49,7 +43,7 @@ fn compared_columns(comparisons: &[Comparison]) -> impl Iterator<Item = ColumnIn
 }
 
 /// Renames each column the comparisons read with `place`, those the arguments of a function read among them.
-fn rename_compared<F>(comparisons: &mut [Comparison], mut place: F)
+fn rename_compared<F>(comparisons: &mut [PlanComparison], mut place: F)
 where
     F: FnMut(&mut ColumnIndex),
 {
@@ -59,9 +53,33 @@ where
     }
 }
 
+/// Columns demanded from one of a join's inputs, retaining side and output order.
+fn join_read_columns(
+    left: Input,
+    right: Input,
+    left_on: &[ColumnIndex],
+    right_on: &[ColumnIndex],
+    output: &[JoinColumn],
+    read: Input,
+) -> Option<Vec<ColumnIndex>> {
+    if left != read && right != read {
+        return None;
+    }
+    let mut used = Vec::new();
+    if left == read {
+        used.extend(left_on);
+        used.extend(side_columns(output, Side::Left));
+    }
+    if right == read {
+        used.extend(right_on);
+        used.extend(side_columns(output, Side::Right));
+    }
+    Some(used)
+}
+
 /// The columns of the step `read` that the operation reads, when it reads only those and says so by what it keeps
 /// of them; nothing when it reads them all, or in a way this cannot cut.
-fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> {
+fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> {
     let is = |input: &Input| *input == read;
     let mut used: Vec<ColumnIndex> = Vec::new();
     match operation {
@@ -82,21 +100,15 @@ fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> 
             output,
             filter,
             view,
+
+            reach: None,
         } => {
             if is(right) && (!filter.is_empty() || !view.is_empty()) {
                 return None;
             }
-            if !is(left) && !is(right) {
-                return None;
-            }
-            if is(left) {
-                used.extend(left_on);
-                used.extend(side_columns(output, Side::Left));
-            }
-            if is(right) {
-                used.extend(right_on);
-                used.extend(side_columns(output, Side::Right));
-            }
+            used.extend(join_read_columns(
+                *left, *right, left_on, right_on, output, read,
+            )?);
         }
         Operation::Antijoin {
             left,
@@ -146,11 +158,22 @@ fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> 
         Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }
+        // Demand RHS keys address a virtual closure schema, not the physical edge columns.
+        // This earlier column-remapping pass must leave that physical descriptor intact.
+        | Operation::Join { reach: Some(_), .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SourceMatches { .. }
+            | Operation::RenderSyntax { .. }
+            | Operation::FitsRendered { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::OrderedDfs { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Words { .. }
@@ -161,13 +184,19 @@ fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> 
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => return None,
     }
+    Some(used)
+}
+
+/// Canonical distinct column indices needed from one input of an operation.
+pub(crate) fn columns_read(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex>> {
+    let mut used = reading_columns(operation, read)?;
     used.sort();
     used.dedup();
     Some(used)
 }
 
 /// The operation reading the step `read` now reading `through` instead, each column it names there named by `map`.
-fn reading_through(
+pub(crate) fn reading_through(
     operation: &mut Operation,
     read: Input,
     through: Input,
@@ -260,6 +289,14 @@ fn reading_through(
         | Operation::Difference { .. }
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::OrderedDfs { .. }
         | Operation::GroupDigest { .. }
         | Operation::Capture { .. }
         | Operation::Words { .. }
@@ -307,218 +344,11 @@ pub(crate) fn inline_views(mut steps: Vec<PlanStep>) -> Vec<PlanStep> {
     steps
 }
 
-/// The plan with, for each per-file step that only cross-file steps read through some of its columns, one projection
-/// of those columns without repeats: the rows a file hands over are the distinct ones the cross-file steps ask for, not
-/// one for each place in the file. Not done when a count of rows (not of distinct values) comes after the files, which
-/// would count the repeats.
-#[must_use]
-pub(crate) fn reduced_frontier(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
-    if steps.iter().any(|step| {
-        step.scope == StepScope::CrossFile
-            && matches!(step.operation, Operation::GroupCount { distinct: None, .. })
-    }) {
-        return Planned { steps, emitted };
-    }
-    for candidate in (0..steps.len()).rev() {
-        let read = StepId(u32::try_from(candidate).unwrap_or(u32::MAX));
-        let Some(cut_step) = steps.get(candidate) else {
-            continue;
-        };
-        if cut_step.scope != StepScope::PerFile || emitted == read {
-            continue;
-        }
-        let consumers: Vec<usize> = steps
-            .iter()
-            .enumerate()
-            .filter(|(_, step)| {
-                step.scope == StepScope::CrossFile
-                    && operation_reads(&step.operation, read) == StepReading::Reads
-            })
-            .map(|(place, _)| place)
-            .collect();
-        if consumers.is_empty() {
-            continue;
-        }
-        let mut used: Vec<ColumnIndex> = Vec::new();
-        let mut cut = true;
-        for step in consumers.iter().filter_map(|place| steps.get(*place)) {
-            match columns_read(&step.operation, Input::Step(read)) {
-                Some(columns) => used.extend(columns),
-                None => cut = false,
-            }
-        }
-        used.sort();
-        used.dedup();
-        // Rows a join or a count made are each of something else; those a filter, a capture or a split made repeat
-        // wherever the file does, and a step that makes only the columns asked of it already is the reduced rows.
-        let made = if let Operation::Select { kept, .. } = &cut_step.operation
-            && !kept.is_empty()
-        {
-            Some(kept.len())
-        } else {
-            None
-        };
-        let repeats = matches!(
-            cut_step.operation,
-            Operation::Select { .. }
-                | Operation::Capture { .. }
-                | Operation::Words { .. }
-                | Operation::Extend { .. }
-                | Operation::Project {
-                    distinct: RepeatedRows::Kept,
-                    ..
-                }
-        );
-        if !cut || used.is_empty() || !repeats || made == Some(used.len()) {
-            continue;
-        }
-        // The projection follows the step it cuts, so every step reads only what comes before it.
-        let through = StepId(read.0 + 1);
-        for step in &mut steps {
-            each_input(&mut step.operation, &mut |input| {
-                if let Input::Step(id) = input
-                    && id.0 > read.0
-                {
-                    id.0 += 1;
-                }
-            });
-        }
-        if emitted.0 > read.0 {
-            emitted.0 += 1;
-        }
-        steps.insert(
-            candidate + 1,
-            PlanStep {
-                operation: Operation::Project {
-                    from: Input::Step(read),
-                    columns: used.clone(),
-                    distinct: RepeatedRows::Dropped,
-                },
-                scope: StepScope::PerFile,
-            },
-        );
-        for place in consumers {
-            // The step inserted before it moved each consumer one place on.
-            let Some(consumer) = steps.get_mut(place + 1) else {
-                continue;
-            };
-            reading_through(
-                &mut consumer.operation,
-                Input::Step(read),
-                Input::Step(through),
-                &|column| {
-                    used.iter()
-                        .position(|each| *each == column)
-                        .map_or(column, |at| {
-                            ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))
-                        })
-                },
-            );
-        }
-    }
-    Planned { steps, emitted }
-}
-
-/// Whether the operation reads the step `read`.
-fn operation_reads(operation: &Operation, read: StepId) -> StepReading {
-    let mut reads = false;
-    let mut copy = operation.clone();
-    each_input(&mut copy, &mut |input| reads |= *input == Input::Step(read));
-    if reads {
-        StepReading::Reads
-    } else {
-        StepReading::Ignores
-    }
-}
-
-/// The plan with, for each relation a cross-file step reads whole, one step that cuts it to the columns the cross-file steps ask of it:
-/// a file hands over those columns of its rows, and not the others. A relation read for all its columns is left as it is.
-#[must_use]
-pub(crate) fn cut_relations(mut steps: Vec<PlanStep>, mut emitted: StepId) -> Planned {
-    let mut wanted: Vec<Relation> = Vec::new();
-    for step in steps
-        .iter()
-        .filter(|step| step.scope == StepScope::CrossFile)
-    {
-        let mut copy = step.operation.clone();
-        each_input(&mut copy, &mut |input| {
-            if let Input::Relation(relation) = input
-                && !wanted.contains(relation)
-                && provenance_of(*relation) != Provenance::Manifests
-            {
-                wanted.push(*relation);
-            }
-        });
-    }
-    for relation in wanted {
-        let read = Input::Relation(relation);
-        let consumers: Vec<usize> = steps
-            .iter()
-            .enumerate()
-            .filter(|(_, step)| {
-                step.scope == StepScope::CrossFile && {
-                    let mut reads = false;
-                    let mut copy = step.operation.clone();
-                    each_input(&mut copy, &mut |input| reads |= *input == read);
-                    reads
-                }
-            })
-            .map(|(place, _)| place)
-            .collect();
-        let mut used: Vec<ColumnIndex> = Vec::new();
-        let mut cut = !consumers.is_empty();
-        for step in consumers.iter().filter_map(|place| steps.get(*place)) {
-            match columns_read(&step.operation, read) {
-                Some(columns) => used.extend(columns),
-                None => cut = false,
-            }
-        }
-        used.sort();
-        used.dedup();
-        if !cut
-            || used.is_empty()
-            || used.len() >= ryo_language::domain::relations::service::columns(relation).len()
-        {
-            continue;
-        }
-        // The cut comes first, so every step reads only what comes before it.
-        for step in &mut steps {
-            each_input(&mut step.operation, &mut |input| {
-                if let Input::Step(id) = input {
-                    id.0 += 1;
-                }
-            });
-        }
-        emitted.0 += 1;
-        steps.insert(
-            0,
-            PlanStep {
-                operation: Operation::Select {
-                    from: read,
-                    comparisons: Vec::new(),
-                    kept: used.clone(),
-                },
-                scope: StepScope::PerFile,
-            },
-        );
-        for place in consumers {
-            // The step inserted before it moved each consumer one place on.
-            let Some(consumer) = steps.get_mut(place + 1) else {
-                continue;
-            };
-            reading_through(
-                &mut consumer.operation,
-                read,
-                Input::Step(StepId(0)),
-                &|column| {
-                    used.iter()
-                        .position(|each| *each == column)
-                        .map_or(column, |at| {
-                            ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))
-                        })
-                },
-            );
-        }
-    }
-    Planned { steps, emitted }
+/// Resolve an original column to its place in the reduced frontier projection.
+pub(crate) fn projection_column(used: &[ColumnIndex], column: ColumnIndex) -> ColumnIndex {
+    used.iter()
+        .position(|each| *each == column)
+        .map_or(column, |at| {
+            ColumnIndex(u32::try_from(at).unwrap_or(u32::MAX))
+        })
 }

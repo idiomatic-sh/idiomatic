@@ -1,13 +1,14 @@
 //! The language adapter of the catalog port: the port's contract rows run through it, then the cases specific to it.
 
-use ryo_language::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::Relation;
 
 use super::adapter::CatalogLanguageAdapter;
-use crate::cases::{Case, CaseName, Expect, Word, run, selects};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::catalog::errors::CatalogError;
 use crate::outbound::catalog::fixtures::contract::check;
 use crate::outbound::catalog::fixtures::fake::CatalogFake;
 use crate::outbound::catalog::interface::CatalogPort as _;
+use crate::selects;
 
 /// What a row of the cases asks: the catalog of the adapter, or the failure the port names when a catalog cannot be read.
 #[derive(Clone, Copy)]
@@ -37,7 +38,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("fails_when_the_catalog_cannot_be_read"),
         word: Word::Fails,
         input: || Scenario::Unreadable,
-        expect: Expect::Refusal(|error| selects(matches!(error, CatalogError::Unavailable { .. }))),
+        expect: Expect::Refusal(|error| {
+            selects!(matches!(error, CatalogError::Unavailable { .. }))
+        }),
     },
 ];
 

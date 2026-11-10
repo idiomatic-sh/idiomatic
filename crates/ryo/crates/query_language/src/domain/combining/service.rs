@@ -7,14 +7,16 @@ use crate::domain::resolving::service::{bad_argument, column_of, find_column, in
 use crate::domain::syntax::types::ArgumentSlot;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
-use ryo_values::domain::plans::types::QueryOperator;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::query_syntax::types as ast;
+use ryo_values::domain::query_tokens::types as tokens;
 
 /// Lowers a set call (`union`, `intersection` or `difference`) of two inputs with the same columns, as the step `name`.
 pub(crate) fn call_set(
     builder: &mut Builder<'_>,
-    name: &syntax::StepName,
-    call: &syntax::Call,
+    name: &tokens::StepName,
+    call: &ast::Call,
     operator: QueryOperator,
 ) -> Result<(), LoweringError> {
     let Sourced {
@@ -85,6 +87,14 @@ pub(crate) fn call_set(
         | QueryOperator::Join
         | QueryOperator::Antijoin
         | QueryOperator::GroupCount
+        | QueryOperator::Replace
+        | QueryOperator::SpanBetween
+        | QueryOperator::SpanBounds
+        | QueryOperator::SourceMatches
+        | QueryOperator::RenderSyntax
+        | QueryOperator::FitsRendered
+        | QueryOperator::OrderedMatch
+        | QueryOperator::OrderedDfs
         | QueryOperator::GroupDigest
         | QueryOperator::Capture
         | QueryOperator::Words
