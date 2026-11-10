@@ -32,7 +32,7 @@ id = "cargo-clippy"
 group = "clippy"
 # Every clippy and compiler warning is a SARIF result the lock ratchets (clippy-sarif,
 # pinned in Cargo.toml); a compile error or a denied lint fails the run, never clean.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | python ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
+run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
@@ -194,7 +194,7 @@ group = "check"
 # All 104 native query assets retain their 2,211 authored cases under explicitly declared
 # singleton selections. The full combined candidate cohort stays a separate tool; no
 # reference arrays are rewritten and every staged execution identity is recorded.
-run = ["python", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nguards = subprocess.run([sys.executable, str(helper), '--self-test-native-standalone'])\nif guards.returncode:\n    sys.exit(guards.returncode)\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nsys.exit(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)"]
+run = ["python3", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nguards = subprocess.run([sys.executable, str(helper), '--self-test-native-standalone'])\nif guards.returncode:\n    sys.exit(guards.returncode)\noutput = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / ('ruff-native-standalone-' + os.environ.get('GITHUB_RUN_ID', 'local') + '-' + str(os.getpid()))\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nsys.exit(subprocess.run([sys.executable, str(helper), executable, '--native-standalone', '--output-dir', str(output)], env=environment).returncode)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
@@ -203,7 +203,7 @@ id = "correctness-python-ruff-candidates"
 group = "ruff-candidates"
 # This job checks authoring guards and optimized Python release behavior. The dedicated
 # ruff-all-defaults CI job owns strict 413-rule verification and its receipts.
-run = ["python", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
+run = ["python3", "-c", "import os, shutil, subprocess, sys\nfrom pathlib import Path\nexecutable = shutil.which('ruff')\nif executable is None:\n    sys.exit('pinned Ruff executable is missing')\nhelper = Path('languages/python/benchmarks/linters/ruff/verify_profiles.py').resolve()\nself_test = subprocess.run([sys.executable, str(helper), '--self-test'])\nif self_test.returncode:\n    sys.exit(self_test.returncode)\nrelease_tests = [\n    ['cargo', 'test', '--release', '--locked', '-p', 'idiomatic-sh-ryo-python', '--lib', 'boolean_parser_payload_is_written_in_optimized_builds'],\n]\nenvironment = {**os.environ, 'CARGO_BUILD_JOBS': '6'}\nfor command in release_tests:\n    result = subprocess.run(command, env=environment)\n    if result.returncode:\n        sys.exit(result.returncode)\nsys.exit(0)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", "languages/python", "crates/benchmark", "crates/sdk", "crates/core", "crates/language", "crates/query_language", "crates/values", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
