@@ -1,0 +1,14 @@
+version = 1
+parents = ["2b433815b6e517da27b875daec09d63010ac38549ae28720279fe5ff24c011a9"]
+
+suppressed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "crates/execution_domain/src/domain/observation_schedule/service/link.rs", level = "error", fingerprint = "b38a6c348fd3539f", count = 1, message = "`crates/ryo/crates/execution_domain/src/domain/observation_schedule/service/link.rs` has 429 lines, over the file-length limit", since_rev = "2a8ee439536e6bfbab54185234fe12fc09ec03c8", since = "2026-11-10" },
+]
+
+suppressed-removed = [
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "docs/contracts/evidence/checkpoint/rewrite-replaced.toml", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "docs/contracts/evidence/checkpoint/run_test.py", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/file-length", path = "docs/contracts/evidence/checkpoint/run.py", level = "error", fingerprint = "b38a6c348fd3539f" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-silent-skip", path = "crates/core/tests/allocation.rs", level = "error", fingerprint = "d3b54c05a410426b" },
+  { tool = "tastemaker", rule = "idiomatic.arch/no-tracker-text-shipped", path = "docs/contracts/README.md", level = "error", fingerprint = "e5cdbce3f183a729" },
+]
