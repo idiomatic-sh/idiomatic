@@ -1,23 +1,20 @@
 //! Each verification flag is read once into the choice it names; anything else is refused.
 use super::{
     interface::SelectCasesUseCase as _,
-    types::{CaseArgument, CaseRun, SelectedIds},
+    types::{CaseArgument, CaseRun},
     use_case::SelectCasesUseCaseImpl,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::receipts::types::CaseReceipts;
-use crate::outbound::suite::fixtures::fake::SuiteFake;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
-use std::sync::Arc;
 
 type Input = &'static [&'static str];
-/// What the flags chose: whether receipts are recorded, the shard's coordinates and whether IDs are listed.
+/// What the flags chose: whether receipts are recorded and the shard's coordinates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Chosen {
     recorded: bool,
     shard: Option<(usize, usize)>,
-    subset: bool,
 }
 type Value = Chosen;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,7 +32,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Chosen {
             recorded: false,
             shard: None,
-            subset: false,
         }),
     },
     Case {
@@ -45,7 +41,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Chosen {
             recorded: false,
             shard: Some((1, 3)),
-            subset: false,
         }),
     },
     Case {
@@ -55,7 +50,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Chosen {
             recorded: true,
             shard: None,
-            subset: false,
         }),
     },
     Case {
@@ -95,7 +89,7 @@ fn subject(arguments: Input) -> Result<Value, Failure> {
         .iter()
         .map(|argument| CaseArgument((*argument).to_owned()))
         .collect::<Vec<_>>();
-    SelectCasesUseCaseImpl::new(Arc::new(SuiteFake::default()))
+    SelectCasesUseCaseImpl
         .select_cases(&arguments)
         .map(chosen)
         .map_err(|error| match error {
@@ -114,7 +108,6 @@ fn chosen(run: CaseRun) -> Chosen {
             ShardPartition::All => None,
             ShardPartition::Shard(shard) => Some((shard.index().0, shard.count().0)),
         },
-        subset: matches!(run.ids, SelectedIds::Subset(_)),
     }
 }
 

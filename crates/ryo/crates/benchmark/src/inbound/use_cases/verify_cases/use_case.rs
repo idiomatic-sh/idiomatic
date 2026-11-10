@@ -41,7 +41,7 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
         &self,
         rules: &Path,
         scratch: &Path,
-        selection: ryo_benchmark_contracts::domain::requests::types::CaseSelection<'_>,
+        selection: ryo_benchmark_contracts::domain::requests::types::CaseSelection,
         coverage: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
     ) -> Result<
         ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount,

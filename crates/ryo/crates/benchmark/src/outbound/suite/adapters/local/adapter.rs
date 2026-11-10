@@ -7,7 +7,7 @@ use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
 use crate::outbound::suite::types::{
     ArtifactBytes, ArtifactMetadata, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText,
     CaseArtifacts, MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery,
-    SelectedName, SourceDigest,
+    SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -170,9 +170,6 @@ impl SuitePort for SuiteLocalAdapter {
         ArtifactPath(file): ArtifactPath<'_>,
     ) -> Result<Box<dyn std::io::Write + Send>, Error> {
         Ok(Box::new(std::fs::File::create(file)?))
-    }
-    fn selection(&self, ArtifactPath(file): ArtifactPath<'_>) -> Result<Vec<SelectedName>, Error> {
-        super::selection::schemas::names(&std::fs::read(file)?)
     }
     fn total_size(&self, ArtifactSet(files): ArtifactSet<'_>) -> Result<ArtifactSize, Error> {
         files

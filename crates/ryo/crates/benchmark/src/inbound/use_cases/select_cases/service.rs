@@ -1,27 +1,23 @@
 //! Each flag is read once into the typed choice it names.
 use super::constants::{
-    CASE_RECEIPT_DESTINATION_MUST_BE_N, CASE_SELECTION, CASE_SELECTION_MUST_BE_NONEMPTY_AN,
-    DUPLICATE_CASE_SELECTION_ARGUMENT, DUPLICATE_CASE_SHARD_ARGUMENT, EXPECTED_SHARD_INDEX_COUNT,
+    CASE_RECEIPT_DESTINATION_MUST_BE_N, DUPLICATE_CASE_SHARD_ARGUMENT, EXPECTED_SHARD_INDEX_COUNT,
     INVALID_CASE_SHARD_COUNT, INVALID_CASE_SHARD_INDEX, SHARD, SHARD_SEPARATOR,
     UNEXPECTED_VERIFY_CASES_ARGUMENT,
 };
-use super::types::{CaseArgument, CaseRun, SelectedIds};
+use super::types::{CaseArgument, CaseRun};
 use crate::outbound::receipts::types::CaseReceipts;
-use crate::outbound::suite::{interface::SuitePort, types::ArtifactPath};
 use ryo_benchmark_contracts::domain::receipts::constants::CASE_RECEIPTS_ARGUMENT;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::types::{
-    CaseId, ShardPartition,
+    ShardPartition,
     case_shard::value::{CaseShard, ShardCount, ShardIndex},
 };
-use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Read every flag of one verification run.
-pub(super) fn select(suite: &dyn SuitePort, arguments: &[CaseArgument]) -> Result<CaseRun, Error> {
+pub(super) fn select(arguments: &[CaseArgument]) -> Result<CaseRun, Error> {
     let mut case_receipts = None;
     let mut shard = ShardPartition::All;
-    let mut case_selection = None;
     for argument in arguments {
         if let Some(path) = argument.0.strip_prefix(CASE_RECEIPTS_ARGUMENT) {
             if path.is_empty() || case_receipts.replace(PathBuf::from(path)).is_some() {
@@ -32,11 +28,6 @@ pub(super) fn select(suite: &dyn SuitePort, arguments: &[CaseArgument]) -> Resul
                 return Err(Error::Invalid(DUPLICATE_CASE_SHARD_ARGUMENT.into()));
             }
             shard = ShardPartition::Shard(parse_shard(argument)?);
-        } else if let Some(path) = argument.0.strip_prefix(CASE_SELECTION) {
-            if case_selection.is_some() {
-                return Err(Error::Invalid(DUPLICATE_CASE_SELECTION_ARGUMENT.into()));
-            }
-            case_selection = Some(selected_ids(suite, Path::new(path))?);
         } else {
             return Err(Error::Invalid(UNEXPECTED_VERIFY_CASES_ARGUMENT.into()));
         }
@@ -44,22 +35,7 @@ pub(super) fn select(suite: &dyn SuitePort, arguments: &[CaseArgument]) -> Resul
     Ok(CaseRun {
         receipts: case_receipts.map_or(CaseReceipts::Unrecorded, CaseReceipts::Recorded),
         shard,
-        ids: case_selection.map_or(SelectedIds::WholeShard, SelectedIds::Subset),
     })
-}
-
-/// The case IDs a selection file lists, each exactly once.
-fn selected_ids(suite: &dyn SuitePort, file: &Path) -> Result<BTreeSet<CaseId>, Error> {
-    let selected = suite.selection(ArtifactPath(file))?;
-    let selected_count = selected.len();
-    let selected = selected
-        .into_iter()
-        .map(|name| CaseId(name.0))
-        .collect::<BTreeSet<_>>();
-    if selected.is_empty() || selected.len() != selected_count {
-        return Err(Error::Invalid(CASE_SELECTION_MUST_BE_NONEMPTY_AN.into()));
-    }
-    Ok(selected)
 }
 
 /// Parse explicit zero-based shard coordinates using the validated application type.

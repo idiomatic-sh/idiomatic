@@ -2,7 +2,7 @@
 use crate::outbound::suite::interface::{ScopedDirectory, SuitePort};
 use crate::outbound::suite::types::{
     ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, MaterializedCase,
-    MaterializedContext, RetainedDirectory, RuleQuery, SelectedName, SourceDigest,
+    MaterializedContext, RetainedDirectory, RuleQuery, SourceDigest,
 };
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -131,9 +131,6 @@ impl SuitePort for SuiteFake {
     }
     fn create_text(&self, file: ArtifactPath<'_>) -> Result<Box<dyn std::io::Write + Send>, Error> {
         local().create_text(file)
-    }
-    fn selection(&self, file: ArtifactPath<'_>) -> Result<Vec<SelectedName>, Error> {
-        local().selection(file)
     }
     fn total_size(&self, files: ArtifactSet<'_>) -> Result<ArtifactSize, Error> {
         local().total_size(files)

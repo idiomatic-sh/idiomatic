@@ -40,7 +40,7 @@ pub(super) fn verify_prepared_shard(
     inventory: &dyn InventoryPort,
     rules: &Path,
     mut cases: Vec<PreparedCase>,
-    selection: CaseSelection<'_>,
+    selection: CaseSelection,
 ) -> Result<CaseCount, Error> {
     if cases.is_empty() {
         return Err(Error::Invalid(constants::NO_CASES.into()));
@@ -50,7 +50,7 @@ pub(super) fn verify_prepared_shard(
     let ShardSelection {
         global_count,
         selected_cases,
-    } = select(cases, selection)?;
+    } = select(cases, selection);
     let count = selected_cases.len();
     let first = selected_cases
         .first()

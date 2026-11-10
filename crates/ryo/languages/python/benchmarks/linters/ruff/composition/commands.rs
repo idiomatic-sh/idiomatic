@@ -20,10 +20,7 @@ use ryo_benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
 use ryo_benchmark::inbound::use_cases::{
-    select_cases::{
-        interface::SelectCasesUseCase as _,
-        types::{CaseArgument, SelectedIds},
-    },
+    select_cases::{interface::SelectCasesUseCase as _, types::CaseArgument},
     stage_suite::interface::StageSuiteUseCase as _,
     verify_cases::interface::VerifyCasesUseCase as _,
     verify_reference_cases::interface::VerifyReferenceCasesUseCase as _,
@@ -142,10 +139,7 @@ pub(super) fn verify_cases(
     let flags = args
         .map(|argument| CaseArgument(argument.0))
         .collect::<Vec<_>>();
-    let run =
-        ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new(
-            Arc::new(ryo_benchmark::outbound::suite::factory::local()),
-        )
+    let run = ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl
         .select_cases(&flags)?;
     let suite_source: Arc<dyn SuitePort> =
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
@@ -206,17 +200,7 @@ pub(super) fn verify_cases(
         .verify_cases(
             &profile.join(constants::RULES_DIRECTORY),
             &root.join(constants::CASES_DIRECTORY),
-            ryo_benchmark_contracts::domain::requests::types::CaseSelection {
-                shard: run.shard,
-                ids: match &run.ids {
-                    SelectedIds::WholeShard => {
-                        ryo_benchmark_contracts::domain::requests::types::IdSelection::WholeShard
-                    }
-                    SelectedIds::Subset(ids) => {
-                        ryo_benchmark_contracts::domain::requests::types::IdSelection::Subset(ids)
-                    }
-                },
-            },
+            ryo_benchmark_contracts::domain::requests::types::CaseSelection { shard: run.shard },
             ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
         );
     drop(scratch);

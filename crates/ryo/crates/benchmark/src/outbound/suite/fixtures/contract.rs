@@ -32,8 +32,7 @@ pub enum Operation {
     RetainedDirectory,
     CopyMissing,
     EnsureDirectory,
-    WriteAndSelect,
-    SelectMissing,
+    WriteAndRead,
     CreateAndRead,
     AcceptedMissing,
     TotalSize,
@@ -167,16 +166,10 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(1),
     },
     Case {
-        name: CaseName("written names are read back as a selection"),
+        name: CaseName("written text reads back as source text"),
         word: Word::Succeeds,
-        input: || Operation::WriteAndSelect,
-        expect: Expect::Value(2),
-    },
-    Case {
-        name: CaseName("a missing selection is refused"),
-        word: Word::Refuses,
-        input: || Operation::SelectMissing,
-        expect: Expect::Error(Failure::MissingArtifact),
+        input: || Operation::WriteAndRead,
+        expect: Expect::Value(0),
     },
     Case {
         name: CaseName("text streamed into a created file reads back as source text"),
@@ -343,18 +336,14 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
                 ))
                 .map(|directory| usize::from(directory.is_dir()))
                 .map_err(classify),
-            Operation::WriteAndSelect => {
-                let file = temporary.path().join("selection.json");
+            Operation::WriteAndRead => {
+                let file = temporary.path().join("written.txt");
                 adapter
                     .write_text(ArtifactPath(&file), ArtifactText("[\"one\",\"two\"]"))
-                    .and_then(|()| adapter.selection(ArtifactPath(&file)))
-                    .map(|names| names.len())
+                    .and_then(|()| adapter.source_text(ArtifactPath(&file)))
+                    .map(|source| source.0.len())
                     .map_err(classify)
             }
-            Operation::SelectMissing => adapter
-                .selection(ArtifactPath(&missing))
-                .map(|names| names.len())
-                .map_err(classify),
             Operation::CreateAndRead => {
                 let file = temporary.path().join("source.py");
                 adapter

@@ -1,18 +1,16 @@
-//! The public flag reading over the suite double.
+//! The public flag reading.
 use cucumber::then;
 use ryo_benchmark::inbound::use_cases::select_cases::{
     interface::SelectCasesUseCase as _, types::CaseArgument, use_case::SelectCasesUseCaseImpl,
 };
-use ryo_benchmark::outbound::suite::fixtures::fake::SuiteFake;
 use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
-use std::sync::Arc;
 
 fn select(flags: &[&str]) -> Result<ShardPartition, String> {
     let arguments = flags
         .iter()
         .map(|flag| CaseArgument((*flag).to_owned()))
         .collect::<Vec<_>>();
-    SelectCasesUseCaseImpl::new(Arc::new(SuiteFake::default()))
+    SelectCasesUseCaseImpl
         .select_cases(&arguments)
         .map(|run| run.shard)
         .map_err(|error| error.to_string())

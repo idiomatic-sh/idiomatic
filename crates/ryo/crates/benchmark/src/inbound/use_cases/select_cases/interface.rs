@@ -6,6 +6,6 @@ pub trait SelectCasesUseCase {
     /// Parse each flag once; a repeated, empty or unknown flag is refused.
     ///
     /// # Errors
-    /// Refuses malformed or repeated flags and a selection file that is empty or names a case twice.
+    /// Refuses malformed or repeated flags.
     fn select_cases(&self, arguments: &[CaseArgument]) -> Result<CaseRun, ReportsError>;
 }
