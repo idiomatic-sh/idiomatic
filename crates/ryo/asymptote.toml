@@ -31,8 +31,9 @@ timeout-seconds = 1800
 id = "cargo-clippy"
 group = "clippy"
 # Every clippy and compiler warning is a SARIF result the lock ratchets (clippy-sarif,
-# pinned in Cargo.toml); a compile error or a denied lint fails the run, never clean.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
+# pinned in Cargo.toml); a denied lint is capped to a warning so the lock decides (a finding the lock
+# does not hold fails), and a compile error still fails the run, never clean.
+run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --all-features --locked --message-format=json -- --cap-lints warn | python3 ../../ci/scripts/checks/cargo_diagnostics.py | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
@@ -90,7 +91,7 @@ inputs = [".", "../../tastemaker", "../../rust-toolchain.toml", "../../.cargo"]
 id = "cargo-clippy-default"
 group = "release-clippy"
 # The same, with the default features: code a feature turns off is compiled and linted as a user builds it.
-run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json | clippy-sarif"]
+run = ["bash", "-c", "set -o pipefail; clippy-sarif --version </dev/null >&2 && CARGO_BUILD_JOBS=6 cargo clippy --workspace --all-targets --locked --message-format=json -- --cap-lints warn | clippy-sarif"]
 output = "sarif"
 timeout-seconds = 3600
 inputs = [".", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo"]
