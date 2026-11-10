@@ -47,7 +47,7 @@ impl PreparedMatchers {
     }
 
     /// Declare literal keys from the one compiled executable program, before any worker runs.
-    pub fn from_operations<'a>(operations: impl IntoIterator<Item = &'a Operation>) -> Self {
+    pub(crate) fn from_operations<'a>(operations: impl IntoIterator<Item = &'a Operation>) -> Self {
         let mut prepared = Self::default();
         for operation in operations {
             #[expect(

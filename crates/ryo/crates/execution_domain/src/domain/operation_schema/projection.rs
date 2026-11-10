@@ -131,7 +131,7 @@ pub(crate) fn right_column(view: Option<&[ColumnIndex]>, column: ColumnIndex) ->
 
 /// The native tree form a step's output keeps: a select that filters and drops nothing, and a projection that keeps
 /// every column in place, read their input's tree; any other step computes its rows.
-pub fn tree_output(
+pub(crate) fn tree_output(
     operation: &Operation,
     input: Option<InputShape<'_>>,
 ) -> Option<crate::domain::table_cells::types::TreeForm> {
@@ -186,7 +186,7 @@ pub fn tree_output(
 /// difference keeps its left rows). A join, an intersection and an ordered match hand each side's origins to `side`,
 /// which answers what the origin is on that side of this operation, or none. Every other operation makes new rows, and
 /// its columns have no origin.
-pub fn output_origins<T: Copy>(
+pub(crate) fn output_origins<T: Copy>(
     operation: &Operation,
     inputs: &[InputShape<'_>],
     origins: &[&[Option<T>]],
