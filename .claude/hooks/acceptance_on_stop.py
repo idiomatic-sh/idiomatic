@@ -11,7 +11,6 @@ import textwrap
 from datetime import datetime
 
 LIMIT = 5
-STATE = os.environ.get("CLAUDE_HOOKS_STATE", "/tmp/claude-hooks")
 BD_HOME = "/workspaces/idiomatic"
 EVIDENCE = "crates/ryo/docs/contracts/evidence/"
 # The verdict file of each review agent, under the evidence directory; a leak review of a branch writes branches/<branch>.json.
@@ -144,9 +143,112 @@ def reviewer_stop(data, agent):
     return hold(problem) if problem else 0
 
 
+def gate_module():
+    """no_subagent_builders.py beside this hook, loaded by path: the one validator of scope-review-<report stem>.json."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("no_subagent_builders",
+                                                  os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                               "no_subagent_builders.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def scope_review_stop(data):
+    """A scope review stops only after writing a valid scope-review-<report stem>.json beside the SCOPE= report its prompt
+    names, during its run, or on BLOCKED: <question>. Any error on the way holds the stop."""
+    try:
+        return scope_review_check(data)
+    except Exception as error:
+        return scope_hold("the check failed (" + type(error).__name__ + ": " + str(error) + ")")
+
+
+def scope_review_check(data):
+    path = data.get("agent_transcript_path") or data.get("transcript_path")
+    if not path or not os.path.exists(path):
+        return scope_hold("its transcript is unreadable, so the run's start is unknown")
+    first, last = read_transcript(path)
+    last = data.get("last_assistant_message") or last
+    if last.strip().startswith("BLOCKED:"):
+        return 0
+    since = started_at(path)
+    if since is None:
+        return scope_hold("its transcript has no timestamp, so the run's start is unknown")
+    try:
+        gate = gate_module()
+    except Exception as error:  # a missing or broken gate holds the stop, never releases it
+        return scope_hold("no_subagent_builders.py failed to load (" + type(error).__name__ + ": " + str(error) + ")")
+    scope = gate.brief_scope(first)
+    review_path = gate.review_path(scope) if scope else None
+    if review_path is None:
+        return scope_hold("the prompt must name SCOPE=<path to scope-<stem>.md> once")
+    try:
+        if os.path.getmtime(review_path) < since:
+            return scope_hold(review_path + " was not written during this run")
+    except OSError:
+        return scope_hold(review_path + " does not exist")
+    review, problem = gate.load(review_path)
+    if problem:
+        return scope_hold(problem)
+    problem = gate.scope_review_problem(review, scope)
+    return scope_hold(review_path + " " + problem) if problem else 0
+
+
+def scope_hold(why):
+    print("Scope review not finished: " + why + ". Append the Scope review section to the scope report, then write "
+          "scope-review-<report stem>.json beside it: {\"rows\": [{\"id\", \"result\": PASS|FAIL, \"reason\"}] for every "
+          "rubric row (S1 and S10 only for a DEFER or DROP report), \"verdict\", and \"scope_sha256\", the sha256 of "
+          "the report as written; or reply BLOCKED: <one question>.", file=sys.stderr)
+    return 2
+
+
 def hold(why):
     print("Review not finished: " + why + ". Write the verdict file (the review evidence schema, reviewer and source "
           "set) the moment the verdict is decided, then the write-up; or reply BLOCKED: <one question>.", file=sys.stderr)
+    return 2
+
+
+def gate_assignment(name):
+    """The value node of no_subagent_builders.py's top-level `name = ...`, read from its source without running it
+    (a broken gate cannot release a stop through this path); None when it cannot be read."""
+    import ast
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "no_subagent_builders.py")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            tree = ast.parse(handle.read())
+    except (OSError, SyntaxError, ValueError):
+        return None
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and [getattr(t, "id", None) for t in node.targets] == [name]:
+            return node.value
+    return None
+
+
+def state_root():
+    """The hooks' state root as no_subagent_builders.py defines it (its STATE default, overridden by
+    CLAUDE_HOOKS_STATE); None when that definition cannot be read."""
+    import ast
+    call = gate_assignment("STATE")
+    if (isinstance(call, ast.Call) and len(call.args) == 2 and
+            all(isinstance(a, ast.Constant) and isinstance(a.value, str) for a in call.args)):
+        return os.environ.get(call.args[0].value, call.args[1].value)
+    return None
+
+
+def accepted_types():
+    """The agent types whose stop runs acceptance, no_subagent_builders.py's ACCEPTED literal; None when unreadable."""
+    import ast
+    node = gate_assignment("ACCEPTED")
+    try:
+        value = ast.literal_eval(node) if node is not None else None
+    except ValueError:
+        return None
+    return value if isinstance(value, set) and all(isinstance(v, str) for v in value) else None
+
+
+def no_state():
+    print("Stop held: the hooks' state root cannot be read from no_subagent_builders.py; repair it, then stop again.",
+          file=sys.stderr)
     return 2
 
 
@@ -180,8 +282,11 @@ def run(script, worktree):
 
 
 def failure(bead, detail):
-    os.makedirs(STATE, exist_ok=True)
-    counter = os.path.join(STATE, bead + ".count")
+    state = state_root()
+    if state is None:
+        return no_state()
+    os.makedirs(state, exist_ok=True)
+    counter = os.path.join(state, bead + ".count")
     try:
         with open(counter, encoding="utf-8") as handle:
             count = int(handle.read().strip() or 0) + 1
@@ -198,40 +303,71 @@ def failure(bead, detail):
 
 
 def success(bead):
+    state = state_root()
+    if state is None:
+        return no_state()
     try:
-        os.remove(os.path.join(STATE, bead + ".count"))
+        os.remove(os.path.join(state, bead + ".count"))
     except OSError:
         pass
     return 0
 
 
 def main():
-    data = json.load(sys.stdin)
+    try:
+        return stop(json.load(sys.stdin))
+    except Exception as error:  # Claude Code releases a stop whose hook crashes; hold it instead
+        print("Stop held: acceptance_on_stop.py failed (" + type(error).__name__ + ": " + str(error) + "); "
+              "repair the brief or the hook, or reply BLOCKED: <one question>.", file=sys.stderr)
+        return 2
+
+
+def stop(data):
+    if data.get("agent_type") == "scope-review":
+        return scope_review_stop(data)
     if data.get("agent_type") in REVIEWERS:
         return reviewer_stop(data, data["agent_type"])
-    path = data.get("transcript_path")
+    accepted = accepted_types()
+    if accepted is None:
+        print("Stop held: no_subagent_builders.py's ACCEPTED cannot be read; repair it, then stop again.",
+              file=sys.stderr)
+        return 2
+    if data.get("agent_type") not in accepted:
+        return 0
+    # On SubagentStop, transcript_path is the parent session's; the agent's own is agent_transcript_path.
+    path = data.get("agent_transcript_path") or data.get("transcript_path")
     if not path or not os.path.exists(path):
         return 0
     first, last = read_transcript(path)
-    bead = re.search(r"BEAD:\s*(ryo-[\w.]+)", first)
-    tree = re.search(r"WORKTREE:\s*(/\S+)", first)
-    if not bead or not tree:
-        return 0
-    bead, tree = bead.group(1), tree.group(1)
+    last = (data.get("last_assistant_message") or last).strip()
+    try:
+        gate = gate_module()
+    except Exception as error:  # the brief cannot be read without the gate's parser; hold, never release
+        print("Stop held: no_subagent_builders.py failed to load (" + type(error).__name__ + ": " + str(error) +
+              "); repair it, then stop again.", file=sys.stderr)
+        return 2
+    beads, tree = gate.brief_beads(first), gate.brief_worktree(first)
+    if not beads or not tree:
+        if data.get("agent_type") not in gate.GATED or last.startswith("BLOCKED:"):
+            return 0  # an integrator may run without a brief
+        print("Stop held: the brief lacks an exact `BEAD: <id>` or `WORKTREE: /abs/path` line, so no acceptance block "
+              "can run; reply BLOCKED: <one question>.", file=sys.stderr)
+        return 2
     if last.startswith("BLOCKED:"):
-        return success(bead)
+        return max(success(bead) for bead in beads)
     if not last.startswith("DONE:"):
-        return failure(bead, "Report must start with DONE: or BLOCKED:")
-    script = acceptance_script(bead)
-    if script is None:
-        return failure(bead, "Acceptance failed for %s: no ACCEPTANCE: ... END ACCEPTANCE block in the bead notes. "
-                       "Reply BLOCKED: <one question>." % bead)
-    passed, output = run(script, tree)
-    if passed:
-        return success(bead)
-    tail = "\n".join(output.splitlines()[-40:])
-    return failure(bead, "Acceptance failed for %s: %s. Fix and run it again, or reply BLOCKED: <one question>."
-                   % (bead, tail))
+        return failure(beads[0], "Report must start with DONE: or BLOCKED:")
+    for bead in beads:  # every bead the brief carries passes its own acceptance block
+        script = acceptance_script(bead)
+        if script is None:
+            return failure(bead, "Acceptance failed for %s: no ACCEPTANCE: ... END ACCEPTANCE block in the bead "
+                           "notes. Reply BLOCKED: <one question>." % bead)
+        passed, output = run(script, tree)
+        if not passed:
+            tail = "\n".join(output.splitlines()[-40:])
+            return failure(bead, "Acceptance failed for %s: %s. Fix and run it again, or reply BLOCKED: <one "
+                           "question>." % (bead, tail))
+    return max(success(bead) for bead in beads)
 
 
 sys.exit(main())

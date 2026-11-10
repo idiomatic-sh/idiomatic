@@ -17,6 +17,8 @@ You review as a principal Rust engineer would. Every unit of work you review is 
 | 6 Tests | An expected value was set by reading rather than running, or a test's premise changed without a stated reason. Also FAIL: a harness or runner path that turns a failure into a pass (skip, pending, `continue`, a caught error, filtered results); a test that cannot fail (a tautology or a by-construction sum); a wall-time assertion used as a correctness check; a test-side copy of production logic; an assertion weakened in the diff without a stated reason; a fix (a change to production behaviour) whose commit message or branch notes name no test that fails before it and passes after; the integrator's [red-then-green record](../../crates/ryo/docs/contracts/evidence/checkpoint/README.md#red-then-green-record) proves the named test. Docs-only and evidence-only changes are exempt, and perf branches follow the [perf diagnosis](perf-diagnosis.md) `after.json` rule instead. For a harness leak the required change is to repair the harness, never to add a parallel test beside it; a missing test is still added. |
 | 7 Rust fit | `unsafe`, `unwrap`/`expect` in a production path, a panic as control flow, or an `#[allow]` without a reason. |
 
+Grade every item [review-criteria.md](review-criteria.md)'s owner table assigns to the Rust gate. The seven items map to them: 1 → 12, 13, 14 (with [Public SDK contracts](#public-sdk-contracts)); 2 → 3, 9; 3 → 11; 4 → 6; 5 → 18; 6 → 8; 7 → 9, 12. Every assigned item that no check maps to is graded as its own check, with the item number as its id, in item order after the seven.
+
 Every checkpoint has four review agents: this Rust gate before landing; the [contract review](contract-review.md) and the [leak review](leak-review.md) in parallel after landing; the TM steward ([tm-specialist](tm-specialist.md)) after those two.
 
 ## Scope
@@ -42,7 +44,7 @@ Two artifacts:
     "checks": [{"id": "1", "verdict": "PASS", "evidence": "<file:line and one sentence>"}],
     "reviewer": "rust-review", "date": "<ISO 8601>"}
    ```
-   The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `checks` holds all seven items in order; `verdict` is FAIL when any item is FAIL.
+   The evidence file follows the [review evidence schema](../../crates/ryo/docs/contracts/review/README.md#review-evidence-schema). `checkpoint` is the number N, `"landing-N"` or `"perf:<branch>"`; `checks` holds all seven items in order, then each item graded as its own check; `verdict` is FAIL when any item is FAIL.
 2. `rust-review.md` beside the JSON, never a scratchpad: one section per item with its verdict, the file:line evidence and, for each FAIL, the required change.
 
 ## Public SDK contracts
@@ -55,8 +57,8 @@ Item 1 carries these, and they can FAIL it. A public SDK surface is the SDK crat
 - a consumer wiring internals (the SDK is an edge: it composes its product's internals and exposes only what a user is aware of);
 - a public item without docs and an example.
 
-## Open-source hygiene (advisory)
-The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). It advises, each advisory with file:line and the concrete fix, and every advisory either becomes a bead the PM files or is dropped with a one-line reason. In `rust-review.json` an advisory reads `open item: <short title>` and carries no bead id; the bead id goes only in the Markdown report; no advisory list carries over from a previous pass. It advises on:
+## Open-source hygiene
+The review is also made as a maintainer of widely used open-source Rust developer tools would make it (the standard set by cargo, ripgrep, uv/ruff and rust-analyzer). Each note carries file:line and the concrete fix; a note under one of the seven items is a FAIL of that item, and every other note either becomes a bead the PM files or is dropped with a one-line reason. In `rust-review.json` a note that is not a FAIL reads `open item: <short title>` and carries no bead id; the bead id goes only in the Markdown report; no note list carries over from a previous pass. It covers:
 - API design per the Rust API Guidelines: naming, conversions, error types, no leaked internals, sealed or extensible traits used deliberately.
 - Error handling and messages a user can act on.
 - CLI and dev-tool ergonomics per the repo's adopted clig.dev guidance: exit codes, stderr and stdout, output both human and machine readable.
@@ -64,13 +66,13 @@ The review is also made as a maintainer of widely used open-source Rust develope
 - Docs: crate-level docs, examples on public items.
 - What an outside contributor would trip on.
 
-These are notes in the Markdown report, not items: they never change the seven-item verdict or the JSON schema, unless the finding already falls under one of the seven items.
+A finding that falls under a clause of items 12, 13 or 14 of [review-criteria.md](review-criteria.md) (API design, crate and feature hygiene, docs) FAILs item 1, which they map to; so does any other finding under one of the seven items. The rest are notes in the Markdown report.
 
 The tool-based notes below are read from the output of the standard tools the PM supplies (the Asymptote `api`, `lint` and `check` groups in [asymptote.toml](../../crates/ryo/asymptote.toml)); the review reads that output and does not re-derive it.
 - Public API: items added, removed or widened (`api` group).
 - Docs: missing docs or broken intra-doc links on public items (`cargo-doc`, `check` group).
 - Dependencies: changes against the cargo-deny and cargo-machete output (`lint` group).
-- Semver: relevant changes, advisory until distribution, when cargo-semver-checks joins the release group.
+- Semver: relevant changes, when cargo-semver-checks joins the release group.
 
 ## On FAIL
 Each failed item's findings become beads (one per finding class, all instances listed, with file:line). The landing does not push: `.claude/hooks/guard_shell.py` refuses any `git push` naming `claude/ryo-consolidation` unless HEAD's `rust-review.json` has verdict PASS and a source that is an ancestor of HEAD. The landing pushes only after the findings are repaired and a fresh review passes, or after the owner overrules the FAIL in writing; the overrule is quoted in the bead, the FAIL `rust-review.json` stays committed, and the owner, not an agent, pushes.

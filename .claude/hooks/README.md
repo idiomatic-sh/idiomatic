@@ -1,7 +1,16 @@
 # Harness hooks
 
-`guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent),
-`acceptance_on_stop.py` (SubagentStop) and `check_in_on_stop.py` (Stop). `test_hooks.py` holds their cases; run it with
+`guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent:
+no subagent spawns another, judged by the payload's `agent_id`; a prompt with a `BEAD:` line launches only
+as `builder`, `contract-migration` or `integrator`; and a `builder` or `contract-migration` launch needs exact
+`BEAD: <id>` and `WORKTREE: /abs/path` lines and `SCOPE=<path>`,
+a report whose second line is `BEADS: <id> ...` listing every bead of the brief, with a passing
+`scope-review-<report stem>.json` that carries the report's sha256), `acceptance_on_stop.py` (SubagentStop: the
+builder, contract-migration and integrator stops run each bead's acceptance block, the reviewers and the scope review
+hold until their verdict file is valid, a builder or contract-migration brief without those exact lines holds
+unless it replies BLOCKED, and any error holds the stop; it reads the agent's own transcript,
+`agent_transcript_path`, before `transcript_path`, which is the parent session's) and `check_in_on_stop.py` (Stop, the
+main session's own `transcript_path`). `test_hooks.py` holds their cases; run it with
 `python3 -m unittest test_hooks` in this directory.
 
 ## Threat model
@@ -14,6 +23,10 @@ grades a hook escape only for a spelling an agent would plausibly write by accid
 The census in `run.py --census` reads Rust source with a hand-written scanner until it is replaced by ryo queries over
 the source (after the checkpoint-loop PR). A further edge case of that scanner is owned by that
 replacement: a leak review reports it as an advisory, not a check 2 failure, unless the shape occurs in the real tree.
+
+A here-document body is read as commands, like every other line: telling data from commands there was tried and
+each attempt hid later lines from the guards. The cost is a refusal when a heredoc's text mentions `cargo` or a push;
+write such text with the Write tool and pass the file (`git commit -F <file>`).
 
 ## Known non-goals
 These reach past the guards and are left out on purpose; none is a spelling an agent writes by accident:
