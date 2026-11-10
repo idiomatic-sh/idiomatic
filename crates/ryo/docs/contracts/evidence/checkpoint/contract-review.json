@@ -1,106 +1,32 @@
 {
-  "source": "7e0faf9d14578a091ee07d97dc0606dc1b9505dc",
-  "verdict": "PASS",
+  "source": "40e49021520d4392d29df28ee5bd2fef739e5d37",
+  "verdict": "BLOCKING",
   "reviewer": "contract-review",
-  "checkpoint": 334,
-  "date": "2026-11-10",
-  "base": "40e49021520d4392d29df28ee5bd2fef739e5d37",
-  "frozen_validation": "333641a62a01e87ce8bab84f94a43a710f813b9a",
-  "prior_review_source": "79c1329bdf3382a990054948b36b2f107e6e2e81",
-  "delta": "79c1329bdf..7e0faf9d14: 4ac5f0594d (run.py writes review/README.md Known red from validation.json; one run_test.py test; its red/green entry in validation.json) and 7e0faf9d14 (Verification limits for 334, matrix item 1 punctuation, records). No engine or production Rust source changed.",
-  "commands": [
-    "git clone -q --no-checkout <integration tree> <scratch>/c334; git checkout 7e0faf9d14: HEAD 7e0faf9d14578a091ee07d97dc0606dc1b9505dc",
-    "python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py --check (clone's consolidation ref at 80f473c67d, checkpoint 318): exit 1, 1011 DOC lines from the stale base; discarded as a mis-set probe, clone left clean",
-    "git update-ref refs/remotes/origin/claude/ryo-consolidation 40e49021520d4392d29df28ee5bd2fef739e5d37; python3 -I .../run.py --check: exit 0, 6 RED lines, no STALE RECORD, git status clean after",
-    "grep '^RED ' of the --check output vs the '- `RED' bullets of review/README.md ## Known red: diff empty (6 = 6)",
-    "python3 recount of {temp}/ryo-contract-validation334/default_features.log with run.py TEST_RESULT and RUNNER_COUNTS: 2402 + 93 + 11 = 2506; sha256 412f8ac7f54ef1119f49f4b7503cf8557182236c930132cc8c3ed46b3d9683e6",
-    "git diff 79c1329bdf 7e0faf9d14 over run.py, run_test.py, validation.json, review/README.md and the matrix README: read in full"
+  "checkpoint": 333,
+  "date": "2026-11-09",
+  "base": "dcea2ee7df7c02711f42c332cbc403ff7b84a034",
+  "tree": "b2e4a8c1f1037b640346f4970243d154dd26fa1b",
+  "validated": "563c0bc69b95071aa4586d4d8bcd4a1bab9eec0e",
+  "criteria_source": "the claude/checkpoint-334 tree's .agents/agents/contract-review.md (four criteria, Change isolation included)",
+  "receipts": [
+    {"id": "tm", "verdict": "PASS", "evidence": "Command: tm --root crates/ryo check --format json, on a git archive of 40e4902152 (initialised as its own repository, fresh store). tm 0.1.2 release, sha256 33bba487, the binary the record names. Exit 0, 176.6 s wall, 4,425,044 KiB peak: 0 findings, 19 suppressed (15 file-length, 3 no-tracker-text-shipped, 1 no-unwrap-or-on-lookup, each an in-source ignore with a reason). The scoped tm_source raw result at 563c0bc69b: exit 0, 0 findings, 5 suppressed. This confirms the record's whole-tree claim; the raw whole-tree result kept beside the validation logs (tm_whole_tree_563c0bc69b.json) is the pre-scrub run: exit 1, 10 findings, all in review evidence files."},
+    {"id": "run.py --check", "verdict": "PASS", "evidence": "Command: python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py --check on the archive of 40e4902152. Exit 0. Output: 17 'newly scoped ... (0 findings)' lines."},
+    {"id": "validation.json", "verdict": "PASS", "evidence": "no_print.json: exit 0, source 563c0bc69b; no_print.log has 0 lines starting 'error'. A Tarjan SCC recount over ownership_edges.log (source 563c0bc69b) gives 0 cycles over 4,971 occurrences and 766 files, as validation.json records."}
   ],
   "checks": [
-    {
-      "id": "Enforced boundaries",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). B1 closed. internal_crates (56169f083f) walks cargo metadata's resolve graph from the SDK over normal-dependency edges between workspace members. My own run of it over the real workspace metadata gives 12 crates: ryo_core, ryo_derived, ryo_execution, ryo_execution_domain, ryo_execution_runtime, ryo_execution_store, ryo_language, ryo_matching, ryo_operators, ryo_query_language, ryo_relations and ryo_values. Every workspace lib target name uses underscores, so the names match rustdoc crate names. The forwarded-type test is red at a33f361f7a and green at 56169f083f (17 passed). sdk_api-at-56169f083f.log reaches semver-checks after the leak and listing steps: 202 checks, 198 pass, 4 fail, which is the owned semver red (exit 1)."
-    },
-    {
-      "id": "Clear ownership and flow",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). The delta is harness, record and two test lines. The SDK internal set has one definition, the resolve graph; the hand list and the manifest reader are deleted. run.py has one raw_dir reader for {temp}."
-    },
-    {
-      "id": "Proof",
-      "verdict": "PASS",
-      "evidence": "B8 closed at 7e0faf9d14. In a scratch clone at the source, with origin/claude/ryo-consolidation set to the integration tree's ref 40e4902152, `python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` exits 0, prints 6 RED lines (sdk_api, default_features, libraries, core_allocation, cli_tests, cli_cost), no STALE RECORD, no DOC/FIX/RESULT/TICKED line, and leaves the clone clean. The 6 `- `RED ...`` bullets of review/README.md `## Known red` diff byte-identical against those 6 lines. Because --check rewrites the section and fails on any change, a clean clone after --check also proves the per-test sub-bullets and the tastemaker_workspace line equal known_red(validation.json). Verification limits now cite validation335 at 333641a62a; their Django figures (89.8 s, load 1.89, f50bb571) and tm (0 tracked, a33f361f7a) match the prior pass's recounts. The run.py change cannot turn a red green: red_line returns the exact string the old print built, red_commands is unchanged, known_red/write_known_red only read v, and the only effect on the exit is appending 'review/README.md' to `changed`, which under --check makes the exit 1, never 0. default_features checked.count 2506 recounted from {temp}/ryo-contract-validation334/default_features.log with run.py's own patterns: 85 `test result` lines give 2402 passed+failed (equal to the `running N` sum), 41 cucumber `N scenarios (` lines give 93, `activation: 11 actual cases passed` gives 11; 2402+93+11=2506. The stray ' : ' in matrix status item 1 is now '; '. Carried from the prior review at 79c1329bdf: B1-B7 closed with their recounts."
-    },
-    {
-      "id": "Change isolation",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). (a) and (b): the delta since the frozen head touches only harness, record, the lock and two test lines. (c) run.py --census at 79c1329bdf equals the committed census.json, with ratcheted rows edit footprint 2, cross-crate tests outside the replaced set 51, Operation matches outside it 24 and fact touch points 25. None rises; the 333 checkpoint committed no census. B6 closed: census.md has a 334 column. Ruling on the Relation::X row: it is a census.md proxy, not in validation.json census.ratcheted, so it is informational. My git grep at 40e4902152 and 333641a62a shows +3 files and +4 occurrences, all on /// doc-example lines in executable_program/presence/types.rs, source_partitions/types.rs and file_dag/derived/prepared.rs. The count of files with a match outside comments is unchanged. A comment-only rise does not count against 'census never rising', which binds the ratcheted production rows."
-    },
-    {
-      "id": "1",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). No ratcheted census row rose (recomputed at the head). The delta stays inside the harness plus the record."
-    },
-    {
-      "id": "2",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). sdk_api's manifest-path reader and its tests were deleted in 56169f083f, the change that replaced them. There is no second internal-set source."
-    },
-    {
-      "id": "4",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). The seam table has 25 rows, all accounted for (seam-mutations.json). The forwarded-type test asserts the internal set, the leak and two negatives (a registry crate and a dev-only member). Semver ran 202 checks."
-    },
-    {
-      "id": "5",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). No layout change in the delta."
-    },
-    {
-      "id": "7",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). Django byte-identical f50bb571 at 333641a62a; ruff_parity 412/413 with FURB122 accepted. No engine change after 333641a62a."
-    },
-    {
-      "id": "10",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). Nothing out of scope or in code the rewrite deletes; the two test casts are lock hygiene inside the replaced set."
-    },
-    {
-      "id": "15",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). The whole-tree tm, including no-machine-paths-shipped and no-tracker-text-shipped, is 0 at the head. raw_identity is now {temp}-relative (9bfc1c34c8), with a red/green test."
-    },
-    {
-      "id": "19",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). Manual judgment: sdk_api grows by 11 lines and replaces two tests with one. The run.py size advisory stands (1,102 lines)."
-    },
-    {
-      "id": "20",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). Nothing misplaced in the delta."
-    },
-    {
-      "id": "21",
-      "verdict": "PASS",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). The internal set is derived per product from [workspace.metadata.api].package, once, in the harness."
-    },
-    {
-      "id": "goal exits",
-      "verdict": "NOTE",
-      "evidence": "Carried from the contract review at 79c1329bdf (delta 79c1329bdf..7e0faf9d14 is run.py, run_test.py, validation.json red_green, review/README.md, matrix README and records only). Progress, not a checkpoint gate. (1) In progress. (2) In progress. (3) Met: parity at 333641a62a. (4) Met at this head: my tm run at 79c1329bdf gives 0 findings and 28 suppressed. (5) Open: the workflow has not been dispatched. (6) Met as recorded red. (7) Met."
-    }
+    {"id": "Enforced boundaries", "verdict": "PASS", "evidence": "Scope: the 333 claims. Whole-tree TM at the reviewed source is 0 findings (receipt above); tm validate holds 241 / 224 (tm_validate_all.log: proven 241 kept 241, proven 224 kept 224, failed []). The Rust gate's F1 makes the operator contract's failure() name every Operation variant, so a new variant is a compile error there (red_green entry 6). The provider alias scope is proved red then green three ways (red_green 1 to 3). Every merged branch has a leak PASS at its merged head under evidence/branches (8eeb39f8ed, 555076902b, 6e7265eaac, 3d1e6d91a4). The validator fix's case is in ci/contract_review/service_test.py VARIANTS. Whether each cited enforcement fires is the leak review's lens."},
+    {"id": "Clear ownership and flow", "verdict": "PASS", "evidence": "Skip rules put the presence fold in execution_domain executable_program/presence (its own hex, with its tests) and its application in the runtime's file_execution/presence; the engine still owns scheduling and admission. The noqa rewrite keeps the directive grammar in one fragment family owned by the Python benchmark (806 per-rule copies to 0, two grammars to one). The provider alias stays in the Rust language's links domain. Not closed here: skip rules has no strategy port, so its runtime half edits ten runtime services (state, strategies, probes, scheduling, invocation, cleanup, admission, context, preparation, source_admission); graded under Change isolation."},
+    {"id": "Proof", "verdict": "PASS", "evidence": "Recounted from the raw logs of the final run (every <name>.json names source 563c0bc69b); every count matches the record: libraries 1,142 / 1 (12 result lines; the one failure is verify_cases process_capture, owned), bdd 9 and core_bdd 18 scenarios, ruff 12 / 0, boundary 99 / 0, activation 11, harness hooks 135 OK, checkpoint_check 17 OK, python 140 / 0, language 43 / 0, cli replay 96 / 3, cli_cost 4 / 3, tm_import_cli 1 / 0, parity 412 identical of 413, 0 unaccepted. Only docs, evidence and the ci/contract_review validator (with its case) change from 563c0bc69b to 40e4902152 (git diff --stat: 20 files). The 332 blockers P1 and P2 are closed. Stale labels remain (notes P3 to P5)."},
+    {"id": "Change isolation", "verdict": "FAIL", "evidence": "(a) FAIL, finding C1: three test files new at 333 name internals behind another crate's seam, and skip rules rewrote execution-crate tests that pin the evaluator's read order and walk cohort counts. Test files outside execution_domain naming it: 154 at dcea2ee7df, 157 at 40e4902152 (recount, the census's figures); outside execution_runtime: 124 to 126 by the same recount. (b) FAIL, finding C2: skip rules (merge a73aa2bee8, 70 files) changed the signature of execution_domain's executable_program compile(), and five fixture and test files in three other crates that call it by deep path had to change. The other merges stay in their concept: the noqa rewrite in languages/python and docs (465 rule asset files plus fragments and docs), the provider alias in languages/rust (20 files), the isolation lens in one agent file; the integration's other edits are justified in the .md table. (c) PASS: the census proxy rows (census.md lines 51 to 55) recount equal at dcea2ee7df and 40e4902152 under every pattern variant tried (binding_read 18 / 13, static_import 32 / 12, project_context 78 / 18 with 32 in benchmark crates, Relation::X 26 files / 156 occurrences / 9 crates, all unchanged), and census.md's own 332 and 333 columns are equal on these rows. Note N1: the census has no executable command, and its stated method does not reproduce its absolute figures."}
   ],
   "findings": [
-    "B8 closed: Known red equals --check's 6 RED lines at 7e0faf9d14; Verification limits cite validation335 at 333641a62a.",
-    "B1-B7 closed (carried from 79c1329bdf).",
-    "2506 explained: 2402 libtest + 93 cucumber scenarios + 11 activation cases, recounted from the raw log.",
-    "advisory: run.py --check writes review/README.md (as it already writes the matrix .md files) before failing on the change; a checker that mutates the tree is the existing pattern, now one file wider. It never greens a red.",
-    "advisory: finish() skips the Known red check silently if review/README.md is missing (`if review.exists()`); a deleted README drops the check instead of failing it.",
-    "advisory: the 2506 breakdown is not written in the record, and default_features.log is not hash-bound in the committed evidence (its sha256 is recorded here); the counter's definition is run.py's RUNNER_COUNTS comment.",
-    "advisory: --check's DOC result depends on origin/claude/ryo-consolidation; a clone with a stale ref gives 1011 DOC lines and exit 1. The prior pass and this one set it to 40e4902152.",
-    "not run (read-only pass): run_test.py; the new test's red/green logs are recorded in validation.json red_green and --check's red_green_problems accepted them."
-  ]
+    {"id": "C1", "verdict": "BLOCKING", "where": "crates/ryo/crates/execution/src/inbound/use_cases/execution/use_case_test/conformance_emptied/test.rs (new); .../use_case_test/conformance/fixtures.rs (new); crates/ryo/crates/execution_runtime/src/application/file_dag/acceptance/presence_service_test.rs (new); crates/ryo/crates/execution/tests/shared_walk/order/join_dependency/test.rs; .../use_case_test/provider/test.rs; .../use_case_test/conformance_driver/test.rs", "failure": "Change isolation (a). conformance_emptied/test.rs names ryo_execution_domain::domain::operator::contract::presence and ::service::semantics and the runtime's acceptance::operator_contract_test::fixtures. conformance/fixtures.rs names runtime file_session, request_execution and rule_outcome types and domain rule_intent and prepared_request. presence_service_test.rs names domain executable_program::presence::service::of_graph, file_program::service::compile_prepared_observations and execution_store's fixtures::program_derived_port and outbound::derived::factory::semantics. Skip rules rewrote join_dependency's walk counts (counts(&file, 2, 8) to (1, 4)) and the provider and driver tests' relation read order: a perf strategy changed assertions in another crate. Same class as 332's C1, which was recorded with an owner and not fixed; it grew by 3 files.", "required": "Each assertion moves into the crate that owns its subject or goes through execution's use cases or the port; read order and cohort counts are asserted only inside the evaluator. Test files outside execution_domain that name it come back to 154 or fewer."},
+    {"id": "C2", "verdict": "BLOCKING", "where": "merge a73aa2bee8: crates/ryo/crates/execution_store/src/application/file_dag/derived/owner/fixtures/mod.rs:77; crates/ryo/crates/execution_runtime/src/application/file_dag/program/facade_runtime/walk_coverage/fixtures/{catalog,operations/corpus}/mod.rs; .../runtime/service/lifecycle/inputs/fixtures.rs; crates/ryo/crates/execution/tests/union_rows/mod.rs", "failure": "Change isolation (b). executable_program::service::compile gained a PatternMatcher argument; five fixtures and tests in three crates call the domain function by its deep path, so each was edited to pass ryo_execution_domain::domain::matching::types::PatternMatcher(&MatchingUseCaseImpl). The concept did not require those edits; the coupling did. Same class as 332's C2.", "required": "Callers outside execution_domain build compiled programs through one owned fixture or entry point, so a signature change inside the domain edits 0 files in other crates. The deep-path import class goes to the tm-specialist for a rule (the 332 C2 route)."},
+    {"id": "N1", "verdict": "NOTE", "where": "crates/ryo/docs/contracts/evidence/checkpoint/census.md:17-21", "failure": "No census command exists in run.py at 40e4902152 or in the 334 tree, though the request names one. The stated method does not reproduce the absolute figures: binding_read gives 18 / 13 (exact case), 25 / 14 (with BindingRead) or 27 / 15 (case-insensitive) against 23 / 13; Relation::X gives 26 / 156 / 9 against 25 / 155 / 9; only static_import (case-insensitive, 34 / 13) matches. The deltas agree, so part (c) holds, but it rests on a reviewer's reconstruction.", "required": "Commit the census as a command whose output is the table, so part (c) is a recount."},
+    {"id": "N2", "verdict": "NOTE", "where": "census.md sections 1, 4, 5 and 8, the 333 column against 332", "failure": "Rows outside the part (c) comparison rose: files with an exhaustive Operation match 24 to 27 (recount: executable_program/presence/narrowing.rs, operation_schema/projection.rs and operator/contract/service.rs, from skip rules and the Rust gate's F1); GroupCount files 43 to 45; store concrete types 52 to 53; files a rewrite of the evaluator must touch 179 to 181 (tests 137 to 139). The owner decision moving the operator registry to the oxlint phase names the 23 to 24 rise only.", "required": "The PM records whether the owner decision covers the 24 to 27 rise, or files it with the operator registry."},
+    {"id": "P3", "verdict": "NOTE", "where": "crates/ryo/docs/contracts/evidence/checkpoint/validation.json scope and tm_whole_tree", "failure": "scope still reads 'Ownership consolidation checkpoint 330' (332's P3 asked for it). tm_whole_tree binds the 8568d6f1a2 run, while the record's whole-tree claim is at 563c0bc69b; the only raw result at 563c0bc69b is the pre-scrub run (exit 1, 10 findings). This review's run at 40e4902152 gives 0 / 19.", "required": "Rebind scope to checkpoint 333, and tm_whole_tree to a run with a kept raw result at the validated or reviewed source."},
+    {"id": "P4", "verdict": "NOTE", "where": "crates/ryo/docs/contracts/README.md:73 and :84 against the cycle metrics table", "failure": "The Checks bullet reads 8 workspace check passes, the metrics 9. The red-then-green bullet reads 6 entries; validation.json red_green has 7 (the validator case at 98e0fcb703) and the metrics say 7.", "required": "One count each."},
+    {"id": "P5", "verdict": "NOTE", "where": "validation.json review; the current ownership checkpoint table's Review link", "failure": "The link points at audits/2026-11-06-derived/ownership/checkpoint.json, a BLOCKING verdict on source 293ca1a9a2 from 2026-11-07, not a review of this checkpoint.", "required": "Point it at evidence/checkpoint/contract-review.json, or drop it."}
+  ],
+  "manual_judgment": "Whether skip rules' production spread over two crates (domain presence fold, runtime application across ten runtime services) is the concept's required footprint is a judgment: the evaluator has no strategy port, so this review fails only the cross-crate ripple edits (C2) and leaves the spread to the port landing and the fused rewrite."
 }
