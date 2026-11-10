@@ -316,6 +316,9 @@ class Diff(unittest.TestCase):
   self.assertEqual([status('red','idiomatic.arch/no-ok-on-result'),status('green','idiomatic.arch/no-ok-on-result')],['failed','passed'])
   self.assertEqual([status('green','idiomatic.arch/unit-test'),status('cut','idiomatic.arch/no-ok-on-result')],['failed',None])
   self.assertIn('idiomatic.arch/no-ok-on-result',run.named_tests('fix(values): no dropped error (idiomatic.arch/no-ok-on-result)'))
+  self.assertIn('idiomatic.arch/idiomatic-rust/no-string-literals',run.named_tests('fix(values): a constant (idiomatic.arch/idiomatic-rust/no-string-literals)'))
+  self.logs(nested=json.dumps({'findings':[finding(changed[0],'idiomatic.arch/idiomatic-rust/no-string-literals')]}))
+  self.assertEqual(status('nested','idiomatic.arch/idiomatic-rust/no-string-literals'),'failed')
   self.logs(folder=json.dumps({'findings':[finding('crates/ryo/crates/values/src','idiomatic.arch/unit-test#count')]}))
   self.assertEqual(status('folder','idiomatic.arch/unit-test'),'failed')
  def test_a_clippy_lint_is_red_at_the_changed_spans_and_green_when_they_lose_it(self):

@@ -367,7 +367,7 @@ def is_production(path):
  return not is_test_file(path) and (path.endswith('.rs') or path.startswith(HARNESS) and path.endswith('.py'))
 PERF=re.compile(r'^perf(\([^)]*\))?!?:')
 PERF_EVIDENCE='crates/ryo/docs/contracts/evidence/perf/'
-NAMED_TEST=re.compile(r'\b[a-z][a-z0-9]*\.[a-z][a-z0-9]*/[a-z][a-z0-9-]*[a-z0-9]|\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
+NAMED_TEST=re.compile(r'\b[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:/[a-z][a-z0-9-]*[a-z0-9])+|\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
 def named_tests(message): return [t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
 CARGO_LINE=re.compile(r'^test (\S+) \.\.\. (ok|FAILED)\b')
 NEXTEST_LINE=re.compile(r'^\s*(PASS|FAIL|SIGSEGV|SIGABRT|TIMEOUT)\s+\[[^\]]*\]\s+\S+\s+(\S+)')
@@ -384,7 +384,7 @@ RUNNER_FRAMES=((re.compile(r'(?m)^running \d+ tests?$'),re.compile(r'(?m)^test r
                (re.compile(r'(?m)^=+ test session starts =+$'),re.compile(r'(?m)^=+ .*\b\d+ (passed|failed|error)\b.* in [\d.]+s')))
 def runner_framed(text): return any(head.search(text) and tail.search(text) for head,tail in RUNNER_FRAMES)
 CLIPPY_LINT=re.compile(r'^clippy::[a-z_]+$')
-TM_RULE=re.compile(r'^[a-z][a-z0-9]*\.[a-z][a-z0-9]*/[a-z][a-z0-9-]*$')
+TM_RULE=re.compile(r'^[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:/[a-z][a-z0-9-]*)+$')
 def tm_status(text,rule,files):
  """A Tastemaker rule's status in one `tm check --format json` log: 'failed' when a finding of the rule (or of one of its parts,
  `rule#part`) is at one of the files (repository paths) or at a directory holding one, 'passed' when the document holds no such finding, else None."""
