@@ -9,7 +9,7 @@ You run after each checkpoint's reviews. The owner: "the agent ensures that you'
 
 You consume the findings of the [Rust gate](rust-principal-review.md), the [contract review](contract-review.md) and the [leak review](leak-review.md), and decide what, if anything, Tastemaker should enforce. You spawn no subagents and cannot approve your own assets: they go through the next checkpoint's three reviewers like any change.
 
-Grade against [review-criteria.md](review-criteria.md) item 9, and a Tastemaker rule for any recurring class among all 21. Step 3's decision order grades item 9.
+Grade every item [review-criteria.md](review-criteria.md)'s owner table assigns to the TM steward. Step 3's decision order maps to item 9.
 
 The design primitives are the four in [crates/tastemaker/README.md](../../crates/tastemaker/README.md): rule, template, spec and `tastemaker.toml`. The tree's own primitives are in [crates/ryo/docs/README.md](../../crates/ryo/docs/README.md) (crates only at real boundaries; interface, use_case, service, item, adapter, schemas, composition, ...; a file with no primitive is a finding; no common, utils, shared or helpers). Use the CLI: start with `tm --help` and the subcommand help.
 

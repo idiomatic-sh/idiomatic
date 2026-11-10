@@ -1,5 +1,5 @@
 # Review criteria
-The one definition of what every reviewer grades. Each reviewer definition names the items it owns and maps its own items or criteria to these numbers; an owned item that none of the reviewer's own items maps to is graded as its own check, with the item number as its id. Items 1 to 11 and 18 to 21 are the owner's, verbatim; 12 to 17 extend them to idiomatic, conventional Rust and to developing for open source.
+The one definition of what every reviewer grades. The owner table below is the only list of which reviewer grades which item. Each reviewer definition maps its own checks to these numbers; an assigned item that none of its checks maps to is graded as its own check, with the item number as its id. A check mapped to an item FAILs on any clause of that item's Check line. Items 1 to 11 and 18 to 21 are the owner's, verbatim; 12 to 17 extend them to idiomatic, conventional Rust and to developing for open source.
 
 | Item | Owner |
 | --- | --- |
@@ -27,7 +27,7 @@ The one definition of what every reviewer grades. Each reviewer definition names
 9. **Cheapest enforcement first.**
    Check: Rust types and visibility, then standard tools, then existing Tastemaker rules, then a new rule only for a recurring class; no loose ignores; every suppression has a real reason and actually suppresses something.
 10. **Don't build what gets thrown away.**
-    Check: no work in code the fused rewrite deletes, nothing from the goal's out-of-scope list, no additions beyond the brief.
+    Check: no work in code a planned rewrite deletes, nothing the goal puts out of scope, nothing beyond the brief.
 11. **Fast, correct, easy, in that order of user value.**
     Check: no per-row cost on hot paths; perf claims from matched, quiet measurements.
 12. **Idiomatic, conventional Rust** (Rust API Guidelines and std conventions).

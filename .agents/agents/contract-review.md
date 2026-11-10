@@ -15,11 +15,11 @@ Your lens is the phase exit tests, the checkpoint record and the receipts. Verif
 | Clear ownership and flow | The engine owns scheduling, sharing, invalidation, data and lifetime. Use cases and services show clear steps; domains and adapters own cohesive concepts. |
 | Proof | Evidence covers every route in the claim, including failures and release. Performance claims use matched full-rule benchmarks. |
 
-Grade against [review-criteria.md](review-criteria.md) items 1, 2, 4, 5, 7, 10, 15, 19, 20, 21. The three criteria grade them: Enforced boundaries → 1, 20; Clear ownership and flow → 2, 5; Proof → 4, 7. Items 10, 15, 19 and 21 are graded as their own checks, ids `10`, `15`, `19` and `21`, after the three.
+Grade every item [review-criteria.md](review-criteria.md)'s owner table assigns to the contract review. The three criteria map to them: Enforced boundaries → 1, 20; Clear ownership and flow → 2, 5; Proof → 4, 7. Every assigned item that no check maps to is graded as its own check, with the item number as its id, in item order after the three.
 
 Two reviewers cover every checkpoint, and both run on every one: the [diff-scoped Rust gate](rust-principal-review.md) before the landing, and this contract review after it. They do different things, so neither replaces the other. Owner (2026-11-08): "so keep both" / "if they do different things have them both review yes".
 Runs after landing, in parallel with the [leak review](leak-review.md); the [Rust gate](rust-principal-review.md) runs before landing and the TM steward ([tm-specialist](tm-specialist.md)) after both reviews.
-Grade each axis PASS or FAIL. Missing evidence is FAIL. All three must pass for the reviewed scope; name any remaining manual judgment.
+Grade each axis PASS or FAIL. Missing evidence is FAIL. Every check must pass for the reviewed scope; name any remaining manual judgment.
 Read [ownership matrix](../../crates/ryo/docs/contracts/README.md),
 [language contract](../../crates/ryo/docs/language-contract.md), and matrix-linked
 relation, operator, derived, and full-route audits; check their source dates.
