@@ -6,4 +6,4 @@ A call resolves its callee before evaluating arguments. Unrelated imports do not
 
 `binding-type` classifies actual parameter annotations and proven initializers conservatively. A function object's return annotation does not classify the function object as its return value. This change intentionally differs from retained pinned-oracle outputs for such objects. Actual call-result inference is outside this correction.
 
-See `evidence/independent-read-origin` for exact worker identity, retained reference reports, source snapshots and independently intended expectations. Round-rule drivers are parked experiments, not newly certified rules. Generic-syntax controls targeting Python3.10 are scope guards, not admitted oracle discrepancies.
+The pre-prune commit `a6e880e1d7` keeps `evidence/independent-read-origin` with exact worker identity, retained reference reports, source snapshots and independently intended expectations. Round-rule drivers are parked experiments, not newly certified rules. Generic-syntax controls targeting Python3.10 are scope guards, not admitted oracle discrepancies.

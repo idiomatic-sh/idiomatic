@@ -1,6 +1,0 @@
-import read_match from "python/ruff/type-match-at-check";
-input checks: relation<check: node,root: node,file: file>;
-param pattern: string;
-output relation<check: node,file: file>;
-let result=read_match(checks=checks,builtin=$pattern,typing="__no_typing_member__",mode="pattern");
-return result;

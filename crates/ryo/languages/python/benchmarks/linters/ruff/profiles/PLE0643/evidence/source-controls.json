@@ -1,5 +1,0 @@
-{
-  "inline-literal-starred": "result = [*[10,20]][1]\n",
-  "known-valid-starred": "items = [10,20]\nresult = [*items][1]\n",
-  "unknown-starred": "result = [*items][1]\n"
-}

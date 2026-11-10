@@ -4,4 +4,4 @@ Source-only implementation using the generic `filesystem.executable` input-edge 
 
 The dedicated profile requires explicit POSIX execute observations for every source. Unknown metadata is incomplete, never false. Unsupported permission models produce no such rows. Real file modes are staged and reverified before each contestant, and the reference-only stdin shortcut refuses this profile. Ruff's Windows/WSL applicability belongs to its edge; available POSIX facts are not falsified.
 
-Status: PASS in the [complete 407/6 pinned inventory](../../results/ci-bec4-full-inventory-2026-11-03/README.md): 22/22 raw-exact cases, with zero documented discrepancies or contract-only cases. Independent pinned-reference and both Python 3.10 and 3.7 strict replays are retained in the source evidence. No upstream issue opened.
+Status: PASS in the complete 407/6 pinned inventory: 22/22 raw-exact cases, with zero documented discrepancies or contract-only cases. Independent pinned-reference and both Python 3.10 and 3.7 strict replays are retained in the source evidence. No upstream issue opened.
