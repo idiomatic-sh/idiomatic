@@ -48,7 +48,11 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                             ryo_relations::domain::relations::types::Position(2),
                         )
                     }
-                    _ => {}
+                    Value::Symbol(_)
+                    | Value::Name(_)
+                    | Value::Span(_)
+                    | Value::Number(_)
+                    | Value::Flag(_) => {}
                 }
             }
             let read = |_| Ok(SourceRows::Computed(&table));

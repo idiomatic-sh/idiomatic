@@ -106,6 +106,10 @@ fn collected_axis_empty_domain_gate_is_specific_to_computed_representation() {
             .iter()
             .map(|_| FactColumn(vec![]))
             .collect::<Vec<_>>();
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "the fake serves the axis's roots, edges and domain; every other relation is not read"
+        )]
         let read = |relation| match relation {
             Relation::Function => Ok(SourceRows::Computed(&roots)),
             Relation::SemanticChild => Ok(SourceRows::Computed(&edges)),
@@ -185,6 +189,10 @@ fn empty_axis_and_antijoin_carry_the_final_fused_projection_layout() {
                 CellKind::Symbol => Value::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
             })
             .collect();
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "the fake serves the axis's roots, edges and domain; every other relation is not read"
+        )]
         let read = |relation| match relation {
             Relation::Function => Ok(SourceRows::Computed(&roots)),
             Relation::SemanticChild => Ok(SourceRows::Computed(&edges)),
@@ -293,6 +301,10 @@ fn an_empty_gate_schema_error_is_not_erased_by_a_valid_zero_column_continuation(
         count: RowCount(0),
         cells: vec![],
     };
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the fake serves the axis's roots, edges and domain; every other relation is not read"
+    )]
     let read = |relation| match relation {
         Relation::Function => Ok(SourceRows::Computed(&roots)),
         Relation::SemanticChild => Ok(SourceRows::Computed(&edges)),

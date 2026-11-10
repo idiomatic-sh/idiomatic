@@ -105,7 +105,7 @@ pub(crate) fn deliver(
     };
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
-        size: FileSize(source.len() as u64),
+        size: FileSize(u64::try_from(source.len()).expect("a source length fits in u64")),
         modified: Nanoseconds(0),
         executable: ExecutablePermission::Unknown,
     })];
@@ -166,7 +166,10 @@ pub(crate) fn deliver(
             );
             Err(error)
         }
-        _ => panic!("declared per-file operation must settle"),
+        RootOutcome::Partial { .. }
+        | RootOutcome::Skipped(_)
+        | RootOutcome::NoQuery
+        | RootOutcome::Deferred { .. } => panic!("declared per-file operation must settle"),
     };
     collected_file.finish()?;
     let forward_intent = [FileRuleIntent::Run {

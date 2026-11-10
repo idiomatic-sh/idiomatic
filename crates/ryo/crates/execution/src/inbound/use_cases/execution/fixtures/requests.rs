@@ -213,7 +213,7 @@ pub(crate) fn run_prepared_context<'facts>(
     let corpus = [CorpusInput::Available(CorpusEntry {
         path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
         executable: ExecutablePermission::Unknown,
-        size: FileSize(source.len() as u64),
+        size: FileSize(u64::try_from(source.len()).map_err(|_| OperatingError::NotRun)?),
         modified: Nanoseconds(0),
     })];
     let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
@@ -257,7 +257,12 @@ pub(crate) fn run_prepared_context<'facts>(
         RootOutcome::Unknown(error) => panic!(
             "expected a complete publication or exact Failed outcome, got Unknown({error:?})"
         ),
-        _ => panic!("authored per-file request must publish a complete table or its exact failure"),
+        RootOutcome::Partial { .. }
+        | RootOutcome::Skipped(_)
+        | RootOutcome::NoQuery
+        | RootOutcome::Deferred { .. } => {
+            panic!("authored per-file request must publish a complete table or its exact failure")
+        }
     };
     Ok(table)
 }

@@ -42,7 +42,7 @@ impl ryo_execution_runtime::outbound::facts::interface::FactsFinish for Buckets 
         ryo_execution_runtime::outbound::facts::types::KeptBucket,
         ryo_execution_runtime::outbound::facts::errors::FactsError,
     > {
-        self.0[bucket.0 as usize].kept(bucket)
+        self.0[usize::try_from(bucket.0).expect("a bucket number fits in usize")].kept(bucket)
     }
 }
 

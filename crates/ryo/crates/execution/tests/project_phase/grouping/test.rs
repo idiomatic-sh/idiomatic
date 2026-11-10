@@ -63,7 +63,9 @@ fn project_grouping_reads_only_actual_captured_function_names() {
         for (index, row) in table.cells.chunks_exact_mut(width).enumerate() {
             row[0] = Value::Node(ryo_relations::domain::relations::fixtures::node_id(
                 file_id,
-                ryo_relations::domain::relations::types::Position(index as u32),
+                ryo_relations::domain::relations::types::Position(
+                    u32::try_from(index).expect("a row position fits in u32"),
+                ),
             ));
             row[2] = Value::File(file_id);
         }

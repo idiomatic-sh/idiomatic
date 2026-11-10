@@ -36,6 +36,7 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::{cell::Cell, sync::Arc};
+#[cfg(test)]
 mod boundary_fixture;
 use boundary_fixture::{
     authored_request, corpus, demand, engine, prepared, prepared_rules, source,
@@ -57,6 +58,10 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Re
         use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
         use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
         use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "the audit counts reductions and group emissions; every other operator call passes through unchanged"
+        )]
         match &mut call {
             OperatorCall::ReduceCount { .. } => {
                 self.reductions
@@ -242,11 +247,15 @@ fn a_refused_sink_is_retried_from_the_publication_without_another_evaluation() {
     request.finish();
 }
 
+#[cfg(test)]
 mod union_rows;
 
+#[cfg(test)]
 mod mode_order;
+#[cfg(test)]
 mod publication;
 
+#[cfg(test)]
 mod project_phase;
 
 #[cfg(test)]
@@ -258,6 +267,7 @@ mod file_intents;
 #[cfg(test)]
 pub(crate) mod scheduler;
 
+#[cfg(test)]
 mod submission;
 
 mod completion;
@@ -266,6 +276,7 @@ mod preflight;
 
 mod resources;
 
+#[cfg(test)]
 mod file_run;
 
 mod compiled_rules;

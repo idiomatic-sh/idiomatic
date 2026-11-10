@@ -133,7 +133,11 @@ pub(in crate::fixtures) fn prepared(
                     exclude: vec![],
                 })
                 .collect(),
-            digests: (0..total).map(|index| Digest([index as u8; 16])).collect(),
+            digests: (0..total)
+                .map(|index| {
+                    Digest([u8::try_from(index % 256).expect("a remainder of 256 fits in u8"); 16])
+                })
+                .collect(),
             hosted: vec![],
             observations: ObservationIdentity::Independent,
         })

@@ -143,6 +143,10 @@ pub(crate) fn over_the_tree(
     *edges = Source::Relation(Relation::SyntaxChild);
     *domain = domain_source;
     operations.push(operation);
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the fake serves the axis's source and its declared domain; every other relation is not read"
+    )]
     let read = |relation| {
         match relation {
         Relation::Function => Ok(ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows::Computed(&from)),

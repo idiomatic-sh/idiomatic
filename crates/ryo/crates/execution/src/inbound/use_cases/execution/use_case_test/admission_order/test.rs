@@ -49,6 +49,10 @@ const SCHEMA: &[OperationKind] = &[
     OperationKind::Intersection,
     OperationKind::Difference,
 ];
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "this constructor names exactly the six declared schema-first kinds; any other kind is a fixture bug that must crash"
+)]
 pub(crate) fn operation(kind: OperationKind, invalid: bool) -> Operation {
     let left = PlanInput::Relation(Relation::Function);
     let right = PlanInput::Relation(if invalid || kind == OperationKind::Join {
@@ -137,6 +141,10 @@ pub(crate) fn execute(
     let changed = population(Relation::Function, malformed, symbol);
     let right = population(Relation::Resolves, false, symbol);
     let counts = [Cell::new(0), Cell::new(0)];
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the fake serves the join's two sides; every other relation is not read"
+    )]
     let read = |relation| match relation {
         Relation::Function => {
             counts[0].set(counts[0].get() + 1);
@@ -172,6 +180,10 @@ pub(crate) fn execute(
     );
     (result, [counts[0].get(), counts[1].get()])
 }
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only a selection, a projection and a join refuse a missing column; every other kind refuses the shape"
+)]
 pub(crate) fn layout_error(kind: OperationKind) -> OperatingError {
     match kind {
         OperationKind::Select | OperationKind::Project | OperationKind::Join => {
@@ -223,6 +235,10 @@ fn source_failure_before_local_layout() {
         assert_eq!(calls, [1, 1]);
     }
 }
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only a join and a difference change the fixture's row count; every other kind keeps its two rows"
+)]
 fn valid_populations_and_generation_binding() {
     for &kind in SCHEMA {
         let (result, _) = execute(

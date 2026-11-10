@@ -52,7 +52,9 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
     crate::boundary_fixture::plans(&mut authored)[0].steps[0].operation = Operation::Select {
         from: Input::Relation(Relation::Function),
         comparisons: vec![],
-        kept: vec![ColumnIndex(file_column as u32)],
+        kept: vec![ColumnIndex(
+            u32::try_from(file_column).expect("a column number fits in u32"),
+        )],
     };
     crate::boundary_fixture::plans(&mut authored)[0]
         .steps
@@ -88,7 +90,9 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
         crate::boundary_fixture::plans(&mut authored)[1].steps[0].operation = Operation::Select {
             from: Input::Relation(Relation::ModuleIdentity),
             comparisons: vec![],
-            kept: vec![ColumnIndex(column as u32)],
+            kept: vec![ColumnIndex(
+                u32::try_from(column).expect("a column number fits in u32"),
+            )],
         };
         crate::boundary_fixture::plans(&mut authored)[1]
             .steps
@@ -140,7 +144,8 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
     crate::boundary_fixture::plans(&mut authored)[1].observations = vec![PlanObservation {
         name: ObservationName("files".into()),
         source: Input::Step(StepId(
-            (crate::boundary_fixture::plans(&mut authored)[1].steps.len() - 1) as u32,
+            u32::try_from(crate::boundary_fixture::plans(&mut authored)[1].steps.len() - 1)
+                .expect("a step number fits in u32"),
         )),
         columns: columns.clone(),
         scope: StepScope::CrossFile,
@@ -255,14 +260,18 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
             .push(PlanStep {
                 scope: StepScope::CrossFile,
                 operation: Operation::Project {
-                    from: Input::Step(StepId(previous as u32)),
+                    from: Input::Step(StepId(
+                        u32::try_from(previous).expect("a step number fits in u32"),
+                    )),
                     columns: vec![ColumnIndex(1)],
                     distinct: RepeatedRows::Kept,
                 },
             });
     }
-    crate::boundary_fixture::plans(&mut authored)[2].emit.step =
-        StepId((crate::boundary_fixture::plans(&mut authored)[2].steps.len() - 1) as u32);
+    crate::boundary_fixture::plans(&mut authored)[2].emit.step = StepId(
+        u32::try_from(crate::boundary_fixture::plans(&mut authored)[2].steps.len() - 1)
+            .expect("a step number fits in u32"),
+    );
     let host_column = |name: &str, kind| HostColumn {
         name: HostColumnName(name.into()),
         kind,

@@ -30,7 +30,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::DifferentSets => &[&[1, 10], &[1, 20], &[2, 10], &[2, 30]],
         Scenario::DifferentSizes => &[&[1, 10], &[2, 10], &[2, 20]],
         Scenario::MissingColumn => &[&[1, 10]],
-        _ => &[&[1, 10], &[1, 20], &[2, 30]],
+        Scenario::Groups | Scenario::Missing => &[&[1, 10], &[1, 20], &[2, 30]],
     };
     let mut operations = vec![];
     let hosted = if matches!(input, Scenario::Missing) {
@@ -75,7 +75,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 && output.cells[2] == Cell::Number(Integer(1))
                 && output.cells[5] == Cell::Number(Integer(2)),
         )),
-        _ => panic!("missing input or column must fail before publishing groups"),
+        Scenario::Missing | Scenario::MissingColumn => {
+            panic!("missing input or column must fail before publishing groups")
+        }
     }
 }
 const CASES: &[Case<Input, Value, Failure>] = &[

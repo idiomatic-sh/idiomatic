@@ -37,7 +37,9 @@ fn only_admitted_classes_allocate_scratch_and_result_slots() {
                     vec![compared(
                         Test::Equal,
                         1,
-                        Operand::Literal(QueryLiteral::Number(Integer(index as i64))),
+                        Operand::Literal(QueryLiteral::Number(Integer(
+                            i64::try_from(index).expect("a declaration number fits in i64"),
+                        ))),
                     )],
                 )
             };

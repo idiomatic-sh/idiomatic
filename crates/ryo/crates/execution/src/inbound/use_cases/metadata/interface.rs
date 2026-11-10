@@ -89,6 +89,12 @@ pub trait MetadataUseCase {
         wanted: &[Relation],
     ) -> Vec<Partial>;
     fn unknown_message(&self, partial: &Partial, scope: CoverageScope<'_>) -> Message;
+    /// The ordinals of the files a partial project publication affects, sorted and once each: every file when a cause has no
+    /// file.
+    ///
+    /// # Errors
+    ///
+    /// `ObservationIncomplete` when no file is affected, the request declares no file, or an affected file is not one of them.
     fn affected_ordinals(&self, request: AffectedFiles<'_>)
     -> Result<FileOrdinals, OperatingError>;
 

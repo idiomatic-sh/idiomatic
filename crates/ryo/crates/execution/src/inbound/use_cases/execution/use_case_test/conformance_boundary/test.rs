@@ -64,6 +64,10 @@ fn schema_failures_and_emitter_prefix_survive_the_common_path() -> Result<(), Fa
     ] {
         let mut case = fixture(kind);
         let mut invalid = case.operation.clone();
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "the loop builds only these four fixtures; any other operation is the failure this test reports"
+        )]
         match &mut invalid {
             Operation::Select { kept, .. } => kept.push(ColumnIndex(99)),
             Operation::Project { columns, .. } => columns[0] = ColumnIndex(99),

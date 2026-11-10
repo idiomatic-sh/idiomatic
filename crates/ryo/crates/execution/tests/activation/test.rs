@@ -1,5 +1,6 @@
 //! Actual derived activation visits and allocator blocks exclude dormant compiled roots, and the facts finish reads a stored
 //! population without allocating a copy of its words.
+#[cfg(test)]
 mod fixtures;
 use fixtures::file::measure;
 use fixtures::project::measure_project;

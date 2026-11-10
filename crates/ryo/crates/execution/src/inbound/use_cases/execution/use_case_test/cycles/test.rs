@@ -33,7 +33,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             &[5, 3],
             &[6, 6],
         ],
-        _ => &[&[1, 2], &[2, 3], &[1, 3]],
+        Scenario::Path | Scenario::Missing => &[&[1, 2], &[2, 3], &[1, 3]],
     };
     let mut operations = vec![];
     let hosted = if matches!(input, Scenario::Missing) {
@@ -62,7 +62,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let expected: &[i64] = match input {
         Scenario::OneCycle => &[1, 2],
         Scenario::Rings => &[1, 2, 3, 4, 5, 6],
-        _ => &[],
+        Scenario::Path | Scenario::Missing => &[],
     };
     let actual: Vec<_> = output
         .cells

@@ -162,7 +162,7 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
                 kinds: kinds_of(row),
                 tree: match row {
                     Rows::Tree(tree) => Some(tree.form),
-                    _ => None,
+                    Rows::Stored(_) | Rows::Computed(_) | Rows::Compact(_) => None,
                 },
             })
             .collect();
@@ -184,6 +184,10 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
                 origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
             }],
         };
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "the fixture builds only these traversals; any other operation is the failure this test reports"
+        )]
         match &mut operation {
             Operation::Axis {
                 from,

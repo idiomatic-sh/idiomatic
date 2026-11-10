@@ -102,7 +102,7 @@ fn authored(scenario: Input) -> (Plan, Vec<HostRelation>) {
         .map(|index| PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Hosted {
-                relation: HostedNumber(index as u32),
+                relation: HostedNumber(u32::try_from(index).expect("a hosted number fits in u32")),
             },
         })
         .collect();
@@ -177,7 +177,7 @@ fn authored(scenario: Input) -> (Plan, Vec<HostRelation>) {
         operation,
     });
     let emit = Emit {
-        step: StepId((steps.len() - 1) as u32),
+        step: StepId(u32::try_from(steps.len() - 1).expect("a step number fits in u32")),
         subject: ColumnIndex(0),
         key: vec![],
         headings: vec![],
@@ -203,7 +203,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
         .iter()
         .map(|cell| match cell {
             Cell::Number(number) => number.0,
-            _ => panic!("numeric authored contract must keep numeric output cells"),
+            Cell::Node(_)
+            | Cell::Symbol(_)
+            | Cell::Name(_)
+            | Cell::File(_)
+            | Cell::Span(_)
+            | Cell::Flag(_) => panic!("numeric authored contract must keep numeric output cells"),
         })
         .collect();
     Ok((table.count.0, Cow::Owned(values)))

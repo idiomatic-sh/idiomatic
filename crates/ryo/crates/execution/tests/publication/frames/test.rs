@@ -186,7 +186,8 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
             let location = decoded_places.first().expect("frame owns its name place");
             assert_eq!(location.origin, Origin::Derived(WorkerNumber(0)));
             assert_eq!(
-                &arena[location.start.0 as usize..location.end.0 as usize],
+                &arena[usize::try_from(location.start.0).expect("an arena offset fits in usize")
+                    ..usize::try_from(location.end.0).expect("an arena offset fits in usize")],
                 b"abc"
             );
         }

@@ -52,7 +52,9 @@ impl ProjectFacts {
                         start: Offset(0),
                         end: Offset(0),
                     }),
-                    _ => panic!("project fixture follows its actual catalog schema"),
+                    CellKind::Node | CellKind::Number | CellKind::Flag => {
+                        panic!("project fixture follows its actual catalog schema")
+                    }
                 };
                 FactColumn(vec![to_bits(value).0])
             })

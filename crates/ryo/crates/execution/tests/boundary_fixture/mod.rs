@@ -89,7 +89,11 @@ pub(crate) fn authored_request(count: usize) -> PrepareRequest {
                 exclude: vec![],
             })
             .collect(),
-        digests: (0..count).map(|index| Digest([index as u8; 16])).collect(),
+        digests: (0..count)
+            .map(|index| {
+                Digest([u8::try_from(index % 256).expect("a remainder of 256 fits in u8"); 16])
+            })
+            .collect(),
         hosted: vec![],
         observations: ObservationIdentity::Independent,
     }
@@ -147,7 +151,10 @@ pub(crate) fn named_functions(symbols: &mut Symbols) -> Table {
     table.cells.clear();
     for (index, name) in [main, main, other].into_iter().enumerate() {
         let mut row = prototype.clone();
-        row[0] = Value::Node(node_id(FileId(0), Position(index as u32)));
+        row[0] = Value::Node(node_id(
+            FileId(0),
+            Position(u32::try_from(index).expect("a row position fits in u32")),
+        ));
         row[1] = Value::Symbol(name);
         table.cells.extend(row);
     }
