@@ -7,7 +7,8 @@ the product's directory.
     uv run ../../ci/scripts/checks/sdk_api.py
 
 The SDK is named by `[workspace.metadata.api]` of the `Cargo.toml` in the current directory; a product that names none passes.
-The SDK is read with its default features, its published surface; the test-support `fixtures` feature is not, see `check`.
+The SDK is read with all its features, the test-support `fixtures` feature included, so no feature widens the surface unrecorded;
+see `check`.
 The rustdoc JSON (written by the pinned nightly, `doc(hidden)` items included) must reach no type of an internal crate, `cargo public-api` must print the listing
 the product records, and `cargo semver-checks` must find nothing broken against the SDK's baseline. The baseline is its published
 crates.io version; until the first publish there is none, and the workspace at `baseline-rev` stands in for it.
@@ -144,13 +145,16 @@ def check(directory: Path) -> None:
     root = toplevel(directory)
     workspace = directory.resolve().relative_to(root.resolve()).as_posix()
     package, nightly = api["package"], api["nightly"]
-    # Default features only: they are the published surface. `fixtures` is left out on purpose: it is test support (tokio's
-    # `test-util` is the same practice), not a public API, and may change without notice. Tastemaker's `fixtures-feature` rules
-    # (the crate spec's and the language spec's) refuse it on a normal or build dependency and from any feature but a crate's own
-    # `fixtures`, so only a dev-dependency switches it on and no shipped build compiles it. cargo-deny's feature bans cannot hold
-    # this: the resolver unifies a dev-dependency's features into the package.
+    # All features: a feature-gated item is public API to whoever switches its feature on, so the leaks and the listing are read
+    # with every feature, `fixtures` included. `fixtures` is test support (tokio's `test-util` is the same practice) and may change
+    # without notice, so semver is checked on the default features alone, the surface a shipped build compiles; what keeps
+    # `fixtures` out of a shipped build is Tastemaker's `fixtures-feature` rules (the crate spec's and the language spec's, and
+    # `workspace-fixtures-feature` for `[workspace.dependencies]`).
     subprocess.run(
-        ["cargo", f"+{nightly}", "rustdoc", "--lib", "-p", package, "--", "-Z", "unstable-options", "--output-format", "json", "--document-hidden-items"],
+        [
+            "cargo", f"+{nightly}", "rustdoc", "--lib", "-p", package, "--all-features",
+            "--", "-Z", "unstable-options", "--output-format", "json", "--document-hidden-items",
+        ],
         cwd=directory,
         check=True,
     )
@@ -165,7 +169,7 @@ def check(directory: Path) -> None:
     if found:
         raise RuntimeError("the SDK's public API reaches an internal crate's type:\n  " + "\n  ".join(found))
     listing = subprocess.run(
-        ["cargo", f"+{nightly}", "public-api", "-ss", "-p", package], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
+        ["cargo", f"+{nightly}", "public-api", "-ss", "-p", package, "--all-features"], cwd=directory, check=True, capture_output=True, text=True, encoding="utf-8"
     ).stdout
     recorded = (directory / api["listing"]).read_text(encoding="utf-8")
     evidence.mkdir(parents=True, exist_ok=True)
@@ -201,7 +205,7 @@ def check(directory: Path) -> None:
     )
     if listing != recorded:
         raise RuntimeError(
-            f"the SDK's public API is not the one recorded in {api['listing']}: record it with `cargo +{nightly} public-api -ss -p {package}` after the change is meant; comparison evidence: {evidence}"
+            f"the SDK's public API is not the one recorded in {api['listing']}: record it with `cargo +{nightly} public-api -ss -p {package} --all-features` after the change is meant; comparison evidence: {evidence}"
         )
     # The SDK's own manifest, from the workspace's metadata: semver-checks otherwise finds a package by name anywhere
     # beneath the directory, a fixture crate of the same name included.
