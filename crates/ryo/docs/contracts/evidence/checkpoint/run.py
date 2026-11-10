@@ -793,12 +793,17 @@ census_json=p/'census.json'
 def census_rises(current,previous):
  """Each ratcheted census row whose file count is above the previous checkpoint's."""
  return ['census row '+k+' rose from '+str(previous[k]['files'])+' to '+str(current[k]['files'])+' files' for k in RATCHETED if k in previous and k in current and current[k]['files']>previous[k]['files']]
-def census_problems(repo=None,base=None):
- """The committed census.json against the previous checkpoint's (census.json at the checkpoint base): a ratcheted row may not rise."""
+def census_problems(repo=None,base=None,measure=None,committed=None):
+ """The tree's census, measured now, against the previous checkpoint's: census.json at the checkpoint base, or, where the base
+ holds none (the first checkpoint with a census), the committed census.json this checkpoint recorded as its baseline. A
+ ratcheted row may not rise. The committed file alone is never the subject: it is not re-measured, so comparing it would pass
+ any rise made after it was written."""
  repo=repo or p; base=base or checkpoint_base(repo)
- if not census_json.exists() or not base: return []
- old=git(repo,'show',base+':./census.json')
- return census_rises(json.loads(census_json.read_text()),json.loads(old)) if old else []
+ old=git(repo,'show',base+':./census.json') if base else None
+ previous=json.loads(old) if old else (committed if committed is not None else json.loads(census_json.read_text()) if census_json.exists() else None)
+ if previous is None: return []
+ current=measure() if measure else census(p.parents[3])
+ return census_rises(current,previous)
 LOCK=p.parents[3]/'.asymptote'/'operations'
 # Sections of a lock operation that hold no accepted finding: its header, perf bests, and in-source ignores (their reason is
 # in the source, which the zero baseline allows).

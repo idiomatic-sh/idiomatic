@@ -163,10 +163,10 @@ class Check(unittest.TestCase):
  def test_a_rewritten_record_fails_only_the_check_of_the_committed_record_and_an_unowned_red_fails_both(self):
   folder=Path(self.raw.name)/'contracts'; folder.mkdir()
   rows=''.join('- [ ] '+t+'\n' for t in set(run.OWNERS.values()))
-  saved=(run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems)
+  saved=(run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems,run.census_problems)
   run.readme,run.contracts,run.validation_json=folder/'README.md',folder,folder/'validation.json'
-  # The record alone decides here: the checkpoint's own FIX and DOC lines over the real repository are their own tests' subject.
-  run.fix_problems=run.doc_problems=lambda *a,**k: []
+  # The record alone decides here: the checkpoint's own FIX, DOC and census lines over the real repository are their own tests' subject.
+  run.fix_problems=run.doc_problems=run.census_problems=lambda *a,**k: []
   try:
    def verdict(check,checks):
     run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
@@ -199,7 +199,7 @@ class Check(unittest.TestCase):
    run.readme.write_text('### Current ownership checkpoint — stale\n\n'+rows)
    v={'source':'a'*40,'validation':322,'raw_identity':self.raw.name,'results':self.owned_record(),'checks':planted,'tests':run_tests,'tm_whole_tree':{'total':0,'suppressed':0,'at_checkpoint_318':0},'ownership_graph':{'other_cycles':0,'targeted_cycles':[]}}
    with contextlib.redirect_stdout(io.StringIO()): self.assertEqual(run.finish(v),1)
-  finally: run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems=saved
+  finally: run.readme,run.contracts,run.validation_json,run.fix_problems,run.doc_problems,run.census_problems=saved
  def test_a_test_that_printed_not_available_counts_as_not_run_never_as_passed(self):
   tests={'cli_cost':{'replay':{'passed':['cost::typed'],'ignored':[],'not_run':['cost::django'],'failed':{'cost::ratchet':{'rows':[],'collected':False}}}}}
   self.assertEqual(run.count_problems({'results':{'cli_cost':{'passed':1,'failed':1,'not_run':1}},'tests':tests}),[])
@@ -469,6 +469,13 @@ class Census(unittest.TestCase):
    self.assertEqual(run.lock_problems(lock,{'crates/r/src/in.rs'}),['lock record cargo-clippy clippy::as_conversions at crates/r/src/out.rs (a.lock) is for a file outside rewrite-replaced.toml'])
    (lock/'b.lock').write_text('version = 1\nparents = []\n\naccepted-removed = [\n  { tool = "cargo-clippy", rule = "clippy::as_conversions", path = "crates/r/src/out.rs", level = "error", fingerprint = "2" },\n]\n')
    self.assertEqual(run.lock_problems(lock,{'crates/r/src/in.rs'}),[])
+ def test_the_census_check_measures_the_tree_and_refuses_a_rise_over_the_recorded_baseline(self):
+  row=lambda n:{'files':n,'crates':1}
+  recorded={k:row(24) for k in run.RATCHETED}
+  measured=dict(recorded,**{run.RATCHETED[2]:row(29)})
+  self.assertEqual(run.census_problems(repo=run.p,base='0000000000000000000000000000000000000000',measure=lambda:measured,committed=recorded),
+                   ['census row '+run.RATCHETED[2]+' rose from 24 to 29 files'])
+  self.assertEqual(run.census_problems(repo=run.p,base='0000000000000000000000000000000000000000',measure=lambda:recorded,committed=recorded),[])
  def test_the_edit_footprint_counts_files_outside_the_runtime_and_the_replaced_set_that_name_a_replaced_module(self):
   replaced={'crates/execution_domain/src/domain/executable_program/types.rs','crates/execution_runtime/src/application/file_dag/program/runtime/service.rs'}
   prod={'crates/execution_domain/src/domain/executable_program/types.rs':'pub struct ExecutableProgram;\n',
