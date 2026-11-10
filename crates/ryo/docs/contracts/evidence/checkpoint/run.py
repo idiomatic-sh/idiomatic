@@ -397,7 +397,9 @@ def is_production(path):
 PERF=re.compile(r'^perf(\([^)]*\))?!?:')
 PERF_EVIDENCE='crates/ryo/docs/contracts/evidence/perf/'
 NAMED_TEST=re.compile(r'\bgate:[a-z][a-z0-9_]*|\b[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:/[a-z][a-z0-9-]*[a-z0-9])+|\b(?:[a-z_][a-z0-9_]*::)+[a-z_][a-z0-9_]*\b|\btest_\w+|\b[a-z][a-z0-9]*(?:_[a-z0-9]+){3,}\b')
-def named_tests(message): return [t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
+def named_tests(message):
+ """The tests a commit message names; a pytest node id's `<file>.py::<test>` names `<test>` (the `py` is the file's extension)."""
+ return [t[len('py::'):] if t.startswith('py::') else t for t in NAMED_TEST.findall(message) if not t.startswith(('crates::','std::','self::','super::'))]
 CARGO_LINE=re.compile(r'^test (\S+) \.\.\. (ok|FAILED)\b')
 # nextest prints `PASS [ 0.003s] ( 12/153) <binary> <test>`; older versions leave the counter out.
 NEXTEST_LINE=re.compile(r'^\s*(PASS|FAIL|SIGSEGV|SIGABRT|TIMEOUT)\s+\[[^\]]*\]\s+(?:\(\s*\d+/\d+\)\s+)?\S+\s+(\S+)')

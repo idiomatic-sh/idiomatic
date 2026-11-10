@@ -311,6 +311,12 @@ class Diff(unittest.TestCase):
   sha=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): guard_shell::builder_check refuses more')
   self.logs(cli_tests='test other::case ... ok\n')
   self.assertEqual(len(self.fixes([self.entry(sha,'guard_shell::builder_check (red cli_tests.log, green cli_tests.log)')])),1)
+ def test_a_pytest_node_id_in_the_message_names_its_test(self):
+  sha=commit(self.repo,{'ci/x.py':'def check(): return 2\n'},'fix(ci): x checks two\n\nTest: ci/x_test.py::test_x_checks_two, red then green.')
+  frame='============================= test session starts ==============================\n{}\n============================== 1 {} in 0.01s ===============================\n'
+  self.logs(red=frame.format('ci/x_test.py::test_x_checks_two FAILED [100%]','failed'),green=frame.format('ci/x_test.py::test_x_checks_two PASSED [100%]','passed'))
+  self.assertEqual(run.named_tests('Test: ci/x_test.py::test_x_checks_two'),['test_x_checks_two'])
+  self.assertFalse(any(sha[:10] in x for x in self.fixes([self.entry(sha,'test_x_checks_two (ci/x_test.py; red red.log, green green.log)')])))
  def test_a_behaviour_change_of_any_type_but_perf_is_a_fix(self):
   for n,kind in enumerate(('chore','docs','test','style','build','refactor')):
    with self.subTest(kind=kind):
