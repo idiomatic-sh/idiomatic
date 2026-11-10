@@ -310,6 +310,7 @@ class Diff(unittest.TestCase):
   (self.raw/'seam.json').write_text(json.dumps([{'semantic':'one','test':'service_test::one_answers','red':'red.log','green':'green.log'},
       {'semantic':'two','status':'equivalent','argument':'both branches answer the same coverage','evidence':'review.md'},
       {'semantic':'three','status':'unobservable','argument':'only a counter behind the seam differs','evidence':'review.md'}]))
+  self.assertTrue((run.REPO/'crates/ryo/docs/contracts/evidence/checkpoint/run.py').is_file(),run.REPO)
   saved=run.REPO; run.REPO=self.raw
   (self.raw/'mutants.toml').write_text('mutants = ["one", "two", "three"]\n')
   entry={'test':'the port (table seam.json, manifest mutants.toml)','base_sha':self.base,'merge_sha':other}

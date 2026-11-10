@@ -494,7 +494,8 @@ def fix_problems(v,repo=None,base=None,head='HEAD',baseline=FIX_BASELINE):
  return bad+list(unproven.values())
 TABLE=re.compile(r'\btable ([\w.-]+\.json)\b')
 MANIFEST=re.compile(r'\bmanifest ([\w./-]+\.toml)\b')
-REPO=p.parents[4]
+# The repository's root: evidence/checkpoint is crates/ryo/docs/contracts/evidence/checkpoint.
+REPO=p.parents[5]
 TABLE_STATUSES=('caught','equivalent','unobservable')
 def table_of(entry,raw):
  """The tests a range entry's table proves, or None: the entry names `table <file>.json` in the validation directory, a list of
