@@ -581,7 +581,7 @@ def finish(v,check=False):
  old=readme.read_text(); owners_changed,owner_bad=own(v,old); text=write_block(old,v)
  if owners_changed: validation_json.write_text(dumps({k:x for k,x in v.items() if k!='tests'})+'\n')
  for line in scope_delta(v): print(line)
- bad=list(owner_bad)+open_row_problems(old)+red_green_problems(v)+count_problems(v)+census_problems(); diff=['FIX '+x for x in fix_problems(v)]+['DOC '+x for x in doc_problems()]; texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
+ bad=list(owner_bad)+open_row_problems(old)+red_green_problems(v)+count_problems(v)+census_problems()+lock_problems(); diff=['FIX '+x for x in fix_problems(v)]+['DOC '+x for x in doc_problems()]; texts=[]; changed=['validation.json'] if owners_changed else []; unticked_any=False
  for part in sorted(contracts.glob('*.md')):
   before=old if part==readme else part.read_text(); body,unticked=untick_unproven(text if part==readme else before,v); where='' if part==readme else part.name+' '
   if body!=before: part.write_text(body); changed.append(part.name)
@@ -701,6 +701,26 @@ def census_problems(repo=None,base=None):
  if not census_json.exists() or not base: return []
  old=git(repo,'show',base+':./census.json')
  return census_rises(json.loads(census_json.read_text()),json.loads(old)) if old else []
+LOCK=p.parents[3]/'.asymptote'/'operations'
+# Sections of a lock operation that hold no accepted finding: its header, perf bests, and in-source ignores (their reason is
+# in the source, which the zero baseline allows).
+LOCK_KEPT=('version','parents','perf','suppressed')
+def lock_problems(lock=LOCK,replaced=None):
+ """The zero baseline, scoped by the owner's choice: an accepted finding in Asymptote's lock (crates/ryo/.asymptote) is allowed only for
+ a file of rewrite-replaced.toml; a record for any other file fails. Removals cancel the records they name."""
+ import tomllib
+ replaced=replaced_set() if replaced is None else replaced
+ key=lambda r:(r.get('tool'),r.get('rule'),r.get('path'),r.get('fingerprint'))
+ added={}; removed=set()
+ for op in sorted(lock.glob('*.lock')) if lock.is_dir() else []:
+  doc=tomllib.loads(op.read_text())
+  for section,value in doc.items():
+   if section in LOCK_KEPT or section.endswith('-removed') and section[:-8] in LOCK_KEPT or not isinstance(value,list): continue
+   entries=[r for x in value if isinstance(x,dict) for r in (x.get('records') if isinstance(x.get('records'),list) else [x]) if isinstance(r,dict)]
+   for r in entries:
+    if section.endswith('-removed'): removed.add(key(r))
+    elif 'path' in r: added[key(r)]=(op.name,r)
+ return sorted('lock record '+str(r.get('tool'))+' '+str(r.get('rule'))+' at '+str(r.get('path'))+' ('+name+') is for a file outside rewrite-replaced.toml' for k,(name,r) in added.items() if k not in removed and r.get('path') not in replaced)
 def census(product):
  """Change-amplification counts over the product's tracked Rust files, read statically: what a change of each kind must touch outside its owner. A #[cfg(test)] part of a production file counts as test."""
  files=(git(product,'ls-files','*.rs') or '').split()

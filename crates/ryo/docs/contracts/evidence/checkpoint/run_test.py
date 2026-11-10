@@ -395,6 +395,13 @@ class Census(unittest.TestCase):
   self.assertEqual(run.census_rises(current,previous),[])
   current=dict(previous,**{run.RATCHETED[1]:row(3)})
   self.assertEqual(run.census_rises(current,previous),['census row '+run.RATCHETED[1]+' rose from 2 to 3 files'])
+ def test_a_lock_record_is_allowed_for_a_replaced_file_and_refused_for_any_other(self):
+  with tempfile.TemporaryDirectory() as folder:
+   lock=Path(folder)
+   (lock/'a.lock').write_text('version = 1\nparents = []\n\n[[accepted]]\nreasons = ["owned by the fused rewrite (owner decision)"]\nrecords = [\n  { tool = "cargo-clippy", rule = "clippy::as_conversions", path = "crates/r/src/in.rs", level = "error", fingerprint = "1" },\n  { tool = "cargo-clippy", rule = "clippy::as_conversions", path = "crates/r/src/out.rs", level = "error", fingerprint = "2" },\n]\n\nsuppressed = [\n  { tool = "tastemaker", rule = "x", path = "crates/r/src/out.rs", level = "error", fingerprint = "3" },\n]\n')
+   self.assertEqual(run.lock_problems(lock,{'crates/r/src/in.rs'}),['lock record cargo-clippy clippy::as_conversions at crates/r/src/out.rs (a.lock) is for a file outside rewrite-replaced.toml'])
+   (lock/'b.lock').write_text('version = 1\nparents = []\n\naccepted-removed = [\n  { tool = "cargo-clippy", rule = "clippy::as_conversions", path = "crates/r/src/out.rs", level = "error", fingerprint = "2" },\n]\n')
+   self.assertEqual(run.lock_problems(lock,{'crates/r/src/in.rs'}),[])
  def test_the_edit_footprint_counts_files_outside_the_runtime_and_the_replaced_set_that_name_a_replaced_module(self):
   replaced={'crates/execution_domain/src/domain/executable_program/types.rs','crates/execution_runtime/src/application/file_dag/program/runtime/service.rs'}
   prod={'crates/execution_domain/src/domain/executable_program/types.rs':'pub struct ExecutableProgram;\n',
