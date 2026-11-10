@@ -190,6 +190,15 @@ fn moved(column: ColumnIndex, kept: &[ColumnIndex]) -> Option<ColumnIndex> {
 /// What a publication covers when it was computed from these inputs: complete when each was, partial when one was (any file out of
 /// scope then lacking any row of itself), and inapplicable in the files any input was inapplicable in otherwise.
 ///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::completion::{service::contributed, types::CoverageState};
+/// let merged = contributed([&CoverageState::Complete, &CoverageState::Complete])?;
+/// assert_eq!(merged, CoverageState::Complete);
+/// # Ok::<(), ryo_execution_domain::domain::operating::errors::OperatingError>(())
+/// ```
+///
 /// # Errors
 ///
 /// `NotRun` when partial inputs merge to no partial coverage, which no coverage of theirs can.

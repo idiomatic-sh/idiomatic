@@ -26,6 +26,14 @@ pub(crate) enum PartitionRefusal {
 }
 
 /// Which partition of its producer an input must be bound to.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::source_partitions::types::PartitionRequirement;
+/// let requirement = PartitionRequirement::CurrentFile;
+/// assert_ne!(requirement, PartitionRequirement::RequestInvariant);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PartitionRequirement {
     /// The same rows for the whole request.
@@ -40,6 +48,32 @@ pub enum PartitionRequirement {
 
 /// Mandatory producer declarations. No operation kind implies broadcast completeness.
 /// Used by preparation/admission only; semantic kernels never receive this interface.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::coverage::types::RuleIndex;
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::source_partitions::types::{PartitionRequirement, ProducerPartitions};
+/// use ryo_relations::domain::relations::types::Relation;
+/// use ryo_values::domain::plan_parts::types::{HostedNumber, ObservationBindingId, ParameterId};
+/// struct Uniform;
+/// impl ProducerPartitions for Uniform {
+///     fn hosted(&self, _: RuleIndex, _: HostedNumber) -> Result<PartitionRequirement, OperatingError> {
+///         Ok(PartitionRequirement::RequestInvariant)
+///     }
+///     fn parameter(&self, _: RuleIndex, _: ParameterId) -> Result<PartitionRequirement, OperatingError> {
+///         Ok(PartitionRequirement::RequestInvariant)
+///     }
+///     fn relation(&self, _: Relation) -> PartitionRequirement {
+///         PartitionRequirement::RequestInvariant
+///     }
+///     fn observation(&self, _: RuleIndex, _: ObservationBindingId) -> Result<PartitionRequirement, OperatingError> {
+///         Ok(PartitionRequirement::RequestInvariant)
+///     }
+/// }
+/// assert_eq!(Uniform.relation(Relation::Function), PartitionRequirement::RequestInvariant);
+/// ```
 pub trait ProducerPartitions {
     /// The partition requirement of a host relation provided to a rule.
     ///

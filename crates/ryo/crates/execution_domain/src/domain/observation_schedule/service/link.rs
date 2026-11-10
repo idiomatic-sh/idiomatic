@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - one demand closure over the request's plans, 399 lines before its two pub fns gained the `# Examples` the published API requires; moving either fn out would change its public path
 //! Request-local demand closure over immutable cached plans; no source names are resolved here.
 use crate::domain::coverage::types::RuleIndex;
 use crate::domain::observation_schedule::types::{
@@ -17,6 +18,16 @@ use ryo_values::domain::{
 use std::collections::BTreeSet;
 
 /// Follow only roots reachable from Emit or from actually read bound inputs, then remap once.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::service::link::link;
+/// let linked = link(Vec::new(), Vec::new())?;
+/// assert!(linked.plans.is_empty());
+/// assert!(linked.bindings.is_empty());
+/// # Ok::<(), ryo_execution_domain::domain::rule_intent::errors::RuleIntentError>(())
+/// ```
 ///
 /// # Errors
 ///
@@ -333,6 +344,25 @@ fn frontier(plan: &Plan) -> Result<Vec<Input>, RuleIntentError> {
 }
 
 /// Actual bound sources beneath each retained cross frontier, including per-file transforms.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::observation_schedule::service::link::frontier_dependencies;
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
+/// use ryo_values::domain::plans::types::{Emit, Plan};
+/// let plan = Plan {
+///     observation_inputs: Vec::new(),
+///     parameters: Vec::new(),
+///     steps: Vec::new(),
+///     comparison_origins: Vec::new(),
+///     observations: Vec::new(),
+///     emit: Emit { step: StepId(0), subject: ColumnIndex(0), key: Vec::new(), headings: Vec::new() },
+///     frontier: Vec::new(),
+/// };
+/// assert!(frontier_dependencies(&plan)?.is_empty());
+/// # Ok::<(), ryo_execution_domain::domain::rule_intent::errors::RuleIntentError>(())
+/// ```
 ///
 /// # Errors
 ///

@@ -197,6 +197,17 @@ pub fn validate<'a>(
 /// Admits a file's population of a provider relation for the source searches that rely on its spans: every cell of the
 /// named span columns must pass the occurrence search's own span gate, so a search over them cannot fail on its span.
 ///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::validate_spans;
+/// use ryo_execution_domain::domain::table_model::types::Rows;
+/// use ryo_values::domain::files::types::SourceView;
+/// use ryo_values::domain::rows::types::Table;
+/// let table = Table::default();
+/// assert!(matches!(validate_spans(&Rows::Computed(&table), &[], SourceView(b"")), Ok(())));
+/// ```
+///
 /// # Errors
 ///
 /// The first refusal the gate meets: [`OperatingError::InvalidSourceMatchSpan`] for a span out of order, outside the
