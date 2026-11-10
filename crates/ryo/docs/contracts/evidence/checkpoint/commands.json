@@ -4,6 +4,10 @@
     ["sh", "-c", "set -e; cargo build --manifest-path crates/tastemaker/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 -p idiomatic-sh-tastemaker --bin tm; cargo build --manifest-path crates/ryo/Cargo.toml --target-dir /workspaces/idiomatic-target/{worktree} --locked --offline -j6 --all-features -p idiomatic-sh-ryo --bin ryo"]
   ],
   [
+    "sdk_api",
+    ["sh", "-c", "cd crates/ryo && CARGO_TARGET_DIR=/workspaces/idiomatic-target/{worktree} uv run ../../ci/scripts/checks/sdk_api.py"]
+  ],
+  [
     "sdk_without_fixtures",
     ["cargo", "test", "--manifest-path", "crates/ryo/Cargo.toml", "--target-dir", "/workspaces/idiomatic-target/{worktree}", "--locked", "--offline", "-j6", "-p", "idiomatic-sh-ryo-sdk", "--no-run"]
   ],
