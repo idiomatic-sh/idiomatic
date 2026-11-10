@@ -2085,5 +2085,360 @@ class CheckInOnStop(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
 
+MANIFEST = """# the test manifest
+tastemaker = "0.1.2"
+variables = { internal-packages = ["pkg-a", "pkg-b"] }
+workspace = { name = "x", members = ["crates/a", "crates/b"], rules-exclude = ["target/**", "vendor/**"] }
+rules = [
+  { rule = "idiomatic.arch/no-language-names", include = ["src/**", "tests/**"], exclude = ["src/gen/**", "src/old/**"], params = { max-lines = 400, allowed-packages = ["serde", "toml"] }, description = "No language names." },
+  { rule = "idiomatic.arch/second", include = ["src/**"] },
+]
+specs = [
+  { spec = "idiomatic.arch/concept", include = ["."], imports = { allow = ["std", "core"] }, except = ["src/legacy.rs"], description = "The concept." },
+]
+templates = [
+  { template = "idiomatic.rust/adapter", file = "src/adapter.rs", description = "The adapter." },
+  { template = "idiomatic.rust/module", file = "src/**/mod.rs", description = "Every module." },
+  { template = "idiomatic.rust/changelog", file = "CHANGELOG.md", count = { min = 0 } },
+]
+"""
+RULE = '{ rule = "idiomatic.arch/no-language-names", '
+SECOND = '  { rule = "idiomatic.arch/second", include = ["src/**"] },\n'
+SPEC = '  { spec = "idiomatic.arch/concept", '
+ADAPTER = '  { template = "idiomatic.rust/adapter", file = "src/adapter.rs", description = "The adapter." },\n'
+MODULE = '  { template = "idiomatic.rust/module", file = "src/**/mod.rs", description = "Every module." },\n'
+SOURCE = ("fn a() {}\n// ignore: idiomatic.arch/one - the reason\n"
+          "fn b() {} // ignore: idiomatic.arch/two - the reason\n")
+SCRIPT = "#!/bin/sh\n# ignore: idiomatic.arch/three - the reason\necho hi\n"
+ROUTE = ("git commit -F <file>", "gh pr create --body-file <file>")
+ADMIT_EXCLUDE = """[[manifest]]
+path = "crates/x/tastemaker.toml"
+change = "added"
+fact = "rules[idiomatic.arch/no-language-names].exclude"
+value = "src/new/**"
+reason = "the owner admits it"
+"""
+
+
+class ClosedForExtension(unittest.TestCase):
+    """Tastemaker manifests are closed for extension: an agent's write may tighten them, never extend or loosen them,
+    and adds no in-source ignore comment, unless the owner's allowlist admits the change."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.hooks = os.path.join(self.dir.name, "hooks")
+        shutil.copytree(HERE, self.hooks, ignore=shutil.ignore_patterns("__pycache__", "test_*"))
+        self.allowlist = os.path.join(self.hooks, "closed_for_extension.toml")
+        self.tree = repo(self.dir.name, "tree", "claude/closed-x")
+        self.manifest = os.path.join(self.tree, "crates", "x", "tastemaker.toml")
+        self.source = os.path.join(self.tree, "src", "lib.rs")
+        self.script = os.path.join(self.tree, "scripts", "run.sh")
+        self.put(self.manifest, MANIFEST)
+        self.put(self.source, SOURCE)
+        self.put(self.script, SCRIPT)
+
+    def put(self, path, text):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+
+    def hook(self, name, payload):
+        payload = dict(payload, cwd=self.tree)
+        return subprocess.run(["python3", "-I", os.path.join(self.hooks, name)], input=json.dumps(payload),
+                              capture_output=True, text=True, check=False, cwd=self.tree)
+
+    def write(self, path, content):
+        return self.hook("guard_write.py", {"tool_name": "Write", "tool_input": {"file_path": path, "content": content}})
+
+    def edit(self, path, old, new):
+        return self.hook("guard_write.py", {"tool_name": "Edit",
+                                            "tool_input": {"file_path": path, "old_string": old, "new_string": new}})
+
+    def bash(self, command):
+        return self.hook("guard_shell.py", {"tool_name": "Bash", "tool_input": {"command": command}})
+
+    def both(self, old, new, path=None):
+        """The Write of the whole changed file and the Edit of the fragment, each run on the unchanged file."""
+        path = path or self.manifest
+        with open(path, encoding="utf-8") as handle:
+            before = handle.read()
+        self.assertIn(old, before)
+        return {"Write": self.write(path, before.replace(old, new, 1)), "Edit": self.edit(path, old, new)}
+
+    def assert_codes(self, code, changes, path=None):
+        for old, new in changes:
+            for tool, done in self.both(old, new, path).items():
+                with self.subTest(tool=tool, old=old, new=new):
+                    self.assertEqual(done.returncode, code, done.stderr)
+
+    def refused(self, *changes, path=None):
+        self.assert_codes(2, changes, path)
+
+    def allowed(self, *changes, path=None):
+        self.assert_codes(0, changes, path)
+
+    def assert_commands(self, code, commands):
+        for command in commands:
+            with self.subTest(command=command):
+                done = self.bash(command)
+                self.assertEqual(done.returncode, code, done.stderr)
+
+    # refused
+
+    def test_an_added_literal_template_placement_is_refused(self):
+        self.refused((ADAPTER, ADAPTER + '  { template = "idiomatic.rust/adapter", file = "src/myname.rs" },\n'))
+
+    def test_an_added_glob_template_placement_is_refused(self):
+        self.refused((ADAPTER, ADAPTER + '  { template = "idiomatic.rust/adapter", file = "src/*.rs" },\n'),
+                     (ADAPTER, ADAPTER + '  { template = "idiomatic.rust/adapter", file = "src/myname.r[s]" },\n'))
+
+    def test_an_added_include_is_refused(self):
+        self.refused(('include = ["src/**", "tests/**"]', 'include = ["src/**", "tests/**", "benches/**"]'))
+
+    def test_an_added_exclude_is_refused(self):
+        self.refused(('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/gen/**", "src/old/**", "src/new/**"]'))
+
+    def test_an_added_except_or_allow_entry_is_refused(self):
+        self.refused(('allow = ["std", "core"]', 'allow = ["std", "core", "alloc"]'),
+                     ('except = ["src/legacy.rs"]', 'except = ["src/legacy.rs", "src/other.rs"]'),
+                     ('allowed-packages = ["serde", "toml"]', 'allowed-packages = ["serde", "toml", "rand"]'))
+
+    def test_an_added_rules_exclude_glob_is_refused(self):
+        self.refused(('rules-exclude = ["target/**", "vendor/**"]', 'rules-exclude = ["target/**", "vendor/**", "build/**"]'))
+
+    def test_an_added_variable_entry_is_refused(self):
+        self.refused(('["pkg-a", "pkg-b"]', '["pkg-a", "pkg-b", "pkg-c"]'))
+
+    def test_a_new_rule_entry_is_refused(self):
+        self.refused((SECOND, SECOND + '  { rule = "idiomatic.arch/third", include = ["src/**"] },\n'))
+
+    def test_a_new_spec_entry_is_refused(self):
+        self.refused(("specs = [\n", 'specs = [\n  { spec = "idiomatic.arch/other", include = ["."] },\n'))
+
+    def test_a_loosened_params_scalar_is_refused(self):
+        self.refused(("max-lines = 400", "max-lines = 800"))
+
+    def test_a_new_manifest_file_is_refused(self):
+        self.assertEqual(self.write(os.path.join(self.tree, "crates", "y", "tastemaker.toml"), MANIFEST).returncode, 2)
+
+    def test_a_removed_rule_entry_is_refused(self):
+        self.refused((SECOND, ""))
+
+    def test_a_removed_include_is_refused(self):
+        self.refused(('include = ["src/**", "tests/**"]', 'include = ["src/**"]'))
+
+    def test_a_removed_variable_element_is_refused(self):
+        self.refused(('["pkg-a", "pkg-b"]', '["pkg-a"]'))
+
+    def test_a_removed_or_changed_params_value_is_refused(self):
+        self.refused(("max-lines = 400, ", ""), ("max-lines = 400", "max-lines = 300"),
+                     ('allowed-packages = ["serde", "toml"]', 'allowed-packages = ["serde"]'))
+
+    def test_a_removed_or_changed_count_is_refused(self):
+        self.refused((', count = { min = 0 }', ""), ("count = { min = 0 }", "count = { min = 1 }"))
+
+    def test_a_removed_workspace_member_is_refused(self):
+        self.refused(('members = ["crates/a", "crates/b"]', 'members = ["crates/a"]'))
+
+    def test_a_removed_spec_entry_is_refused(self):
+        self.refused(("specs = [\n" + SPEC, "specs = [\n  # " + SPEC))
+
+    def test_a_removed_glob_template_placement_is_refused(self):
+        self.refused((MODULE, ""))
+
+    def test_an_unparsable_manifest_write_is_refused(self):
+        self.refused(("rules = [\n", "rules = [[[\n"))
+
+    def test_an_edit_whose_old_string_does_not_match_a_manifest_is_refused(self):
+        self.assertEqual(self.edit(self.manifest, "no such text", "x = 1").returncode, 2)
+        self.assertEqual(self.edit(self.source, "no such text", "// ignore: idiomatic.arch/x - why").returncode, 2)
+        self.assertEqual(self.edit(self.source, "no such text", "fn c() {}").returncode, 0)
+
+    def test_an_added_ignore_comment_is_refused(self):
+        self.refused(("fn a() {}\n", "fn a() {}\n// ignore: idiomatic.arch/new - the reason\n"),
+                     ("fn a() {}", "fn a() {} // ignore: idiomatic.arch/new - the reason"), path=self.source)
+        self.refused(("echo hi\n", "echo hi # ignore: idiomatic.arch/new - the reason\n"), path=self.script)
+        cargo = os.path.join(self.tree, "Cargo.toml")
+        self.put(cargo, '[package]\nname = "x"\n')
+        self.refused(('name = "x"\n', 'name = "x"\n# ignore: idiomatic.arch/new - the reason\n'), path=cargo)
+
+    def test_a_write_to_the_allowlist_is_refused(self):
+        self.assertEqual(self.write(self.allowlist, ADMIT_EXCLUDE).returncode, 2)
+        self.put(self.allowlist, "# the owner's\n")
+        self.assertEqual(self.edit(self.allowlist, "# the owner's\n", ADMIT_EXCLUDE).returncode, 2)
+        self.assertEqual(self.write(os.path.join(self.tree, "closed_for_extension.toml"), "").returncode, 2)
+        self.assert_commands(2, ["echo x > " + self.allowlist, "cp a.toml " + self.allowlist,
+                                 "cp a.toml " + self.hooks + "/closed_for_extension.toml"])
+
+    def test_a_bash_write_to_a_manifest_is_refused(self):
+        self.assert_commands(2, [
+            "sed -i s/a/b/ crates/x/tastemaker.toml",
+            "perl -pi -e 's/a/b/' crates/x/tastemaker.toml",
+            "cat > crates/x/tastemaker.toml <<'EOF'\ntastemaker = \"0.1.2\"\nEOF",
+            "echo x | tee crates/x/tastemaker.toml",
+            "python3 -c \"open('crates/x/tastemaker.toml', 'w').write('')\"",
+            "python3 - <<'EOF'\nopen('crates/x/tastemaker.toml', 'w').write('')\nEOF",
+            "git show HEAD:crates/x/tastemaker.toml > crates/x/tastemaker.toml"])
+
+    def test_digit_bundled_in_place_flags_are_refused(self):
+        self.assert_commands(2, [
+            "perl -0pi -e 's/a/b/' crates/x/tastemaker.toml",
+            "perl -0pi -e 's/$/ # ignore: idiomatic.x/' a.py",
+            "sed -Ei s/a/b/ crates/x/tastemaker.toml",
+            "perl -0pi -e 's/a/b/' /tmp/claude-scratch/leak-review.json"])
+
+    def test_node_and_deno_eval_writes_are_refused(self):
+        self.assert_commands(2, [
+            "node -e \"fs.writeFileSync('crates/x/tastemaker.toml', s)\"",
+            "node --eval \"require('fs').writeFileSync('crates/x/tastemaker.toml', s)\"",
+            "deno eval \"Deno.writeTextFileSync('crates/x/tastemaker.toml', s)\"",
+            "node -e \"fs.appendFileSync('a.rs', '// ignore: idiomatic.x')\""])
+
+    def test_an_in_place_editor_driven_by_xargs_or_find_is_refused(self):
+        self.assert_commands(2, [
+            "git ls-files '*tastemaker.toml' | xargs sed -i s/a/b/",
+            "find . -name tastemaker.toml -exec sed -i s/a/b/ {} +",
+            "git ls-files '*.rs' | xargs sed -i s/a/b/"])
+
+    def test_git_apply_git_am_and_patch_are_refused(self):
+        self.assert_commands(2, ["git apply fix.patch", "git -C t am x.mbox", "patch -p1 < x.diff"])
+
+    def test_a_bash_write_adding_an_ignore_line_is_refused(self):
+        self.assert_commands(2, [
+            "cat >> Cargo.toml <<EOF\n# ignore: idiomatic.x - why\nEOF",
+            "sed -i 's/$/  # ignore: idiomatic.x/' a.py",
+            "echo '// ignore: idiomatic.x' >> a.rs"])
+
+    def test_writing_a_patch_file_naming_a_manifest_is_refused(self):
+        patch = "--- a/crates/x/tastemaker.toml\n+++ b/crates/x/tastemaker.toml\n@@ -1 +1 @@\n-a\n+b\n"
+        self.assertEqual(self.write(os.path.join(self.tree, "fix.patch"), patch).returncode, 2)
+
+    def test_writing_a_script_that_writes_a_manifest_is_refused(self):
+        body = "open('crates/x/tastemaker.toml', 'w').write(text)\n"
+        self.assertEqual(self.write(os.path.join(self.tree, "fix.py"), body).returncode, 2)
+        shell_body = "#!/bin/sh\npython3 -c \"open('crates/x/tastemaker.toml', 'w').write('')\"\n"
+        self.assertEqual(self.write(os.path.join(self.tree, "fix"), shell_body).returncode, 2)
+
+    def test_tm_add_init_and_update_are_refused(self):
+        self.assert_commands(2, [
+            "tm add idiomatic.arch/x --at src/x.rs", "tm add x --at src/x.rs -n", "tm --root d add x --at src/x.rs",
+            "tm --root=d add x --at y", "tm init", "tm --root d init", "tm update", "tm --root d update",
+            "flock l tm update"])
+
+    def test_a_commit_message_naming_a_manifest_and_a_writer_word_is_refused_with_the_file_route_named(self):
+        for command in ["git commit -m \"drop the cp exclude from tastemaker.toml\"",
+                        "git commit -F - <<EOF\nthe # ignore: idiomatic.x -> removed\nEOF",
+                        "gh pr create --body \"the tastemaker.toml exclude, cp of it\""]:
+            with self.subTest(command=command):
+                done = self.bash(command)
+                self.assertEqual(done.returncode, 2, done.stderr)
+                for route in ROUTE:
+                    self.assertIn(route, done.stderr)
+
+    # passed
+
+    def test_each_tightening_removal_is_allowed(self):
+        self.allowed(('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/gen/**"]'),
+                     ('except = ["src/legacy.rs"]', "except = []"),
+                     ('allow = ["std", "core"]', 'allow = ["std"]'),
+                     ('rules-exclude = ["target/**", "vendor/**"]', 'rules-exclude = ["target/**"]'),
+                     (ADAPTER, ""))
+        self.allowed(("// ignore: idiomatic.arch/one - the reason\n", ""),
+                     (" // ignore: idiomatic.arch/two - the reason", ""), path=self.source)
+        self.allowed(("# ignore: idiomatic.arch/three - the reason\n", ""), path=self.script)
+
+    def test_reorder_reformat_comment_and_description_edits_are_allowed(self):
+        self.allowed(('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/old/**", "src/gen/**"]'),
+                     ('include = ["src/**", "tests/**"]', 'include = [\n    "tests/**",\n    "src/**",\n  ]'),
+                     ("# the test manifest\n", "# the test manifest, with a comment\n# and another\n"),
+                     ('description = "No language names."', 'description = "No language names, said better."'),
+                     ('{ rule = "idiomatic.arch/second", include = ["src/**"] }',
+                      '{ include = ["src/**"], rule = "idiomatic.arch/second" }'),
+                     (SECOND, SECOND.replace(" }", ', description = "A new description." }')))
+
+    def test_an_allowlisted_manifest_addition_is_allowed(self):
+        self.put(self.allowlist, ADMIT_EXCLUDE)
+        self.allowed(('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/gen/**", "src/old/**", "src/new/**"]'))
+        self.refused(('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/gen/**", "src/old/**", "src/other/**"]'))
+
+    def printed_blocks(self, done):
+        """The [[manifest]] or [[ignore]] blocks a refusal prints for the owner to paste."""
+        return re.findall(r"^\[\[(?:manifest|ignore)\]\]\n(?:[a-z]+ = .*\n?)+", done.stderr, re.MULTILINE)
+
+    def test_an_allowlisted_manifest_removal_is_allowed(self):
+        done = self.edit(self.manifest, SECOND, "")
+        self.assertEqual(done.returncode, 2)
+        blocks = self.printed_blocks(done)
+        self.assertTrue(blocks, done.stderr)
+        admitted = "\n".join(b.replace('reason = ""', 'reason = "the owner drops the rule"') for b in blocks)
+        self.assertIn('change = "removed"', admitted)
+        self.put(self.allowlist, admitted)
+        self.allowed((SECOND, ""))
+        self.put(self.allowlist, admitted.replace('change = "removed"', 'change = "added"'))
+        self.refused((SECOND, ""))
+
+    def test_an_allowlisted_ignore_line_is_allowed(self):
+        line = "// ignore: idiomatic.arch/new - the reason"
+        self.put(self.allowlist, '[[ignore]]\npath = "src/lib.rs"\nline = "' + line + '"\nreason = "the owner admits it"\n')
+        self.allowed(("fn a() {}\n", "fn a() {}\n" + line + "\n"), path=self.source)
+        self.refused(("fn a() {}\n", "fn a() {}\n// ignore: idiomatic.arch/other - the reason\n"), path=self.source)
+
+    def test_an_allowlist_entry_without_reason_or_change_admits_nothing(self):
+        added = ('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/gen/**", "src/old/**", "src/new/**"]')
+        for entry in (ADMIT_EXCLUDE.replace('reason = "the owner admits it"\n', ""),
+                      ADMIT_EXCLUDE.replace('change = "added"\n', "")):
+            with self.subTest(entry=entry):
+                self.put(self.allowlist, entry)
+                self.refused(added)
+
+    def test_a_python_read_of_a_manifest_is_allowed(self):
+        self.assert_commands(0, ["python3 -c \"import tomllib; tomllib.load(open('crates/x/tastemaker.toml', 'rb'))\"",
+                                 "grep x crates/x/tastemaker.toml 2>/dev/null"])
+
+    def test_a_script_reading_a_manifest_is_allowed(self):
+        body = "import tomllib\nprint(tomllib.load(open('crates/x/tastemaker.toml', 'rb')))\n"
+        self.assertEqual(self.write(os.path.join(self.tree, "check.py"), body).returncode, 0)
+
+    def test_tm_read_commands_are_allowed(self):
+        self.assert_commands(0, ["tm check", "tm --root d check", "tm explain x", "tm list", "tm validate"])
+
+    def test_the_message_file_route_is_allowed(self):
+        message = "/tmp/claude-scratch/msg.txt"
+        self.assertEqual(self.write(message, "drop the cp exclude from tastemaker.toml\n").returncode, 0)
+        self.assert_commands(0, ["git commit -F " + message, "gh pr create --body-file " + message])
+
+    # fails closed
+
+    def test_the_write_hook_fails_closed_when_guard_shell_fails_to_import(self):
+        with open(os.path.join(self.hooks, "guard_shell.py"), "a", encoding="utf-8") as handle:
+            handle.write("\nraise RuntimeError('injected')\n")
+        self.assertEqual(self.write(self.manifest, MANIFEST).returncode, 2)
+        self.assertEqual(self.write(self.allowlist, "").returncode, 2)
+        self.assertEqual(self.write(os.path.join(self.tree, "src", "new.rs"), "// ignore: idiomatic.arch/x - why\n").returncode, 2)
+        self.assertEqual(self.edit(self.source, "fn a() {}", "fn a() {} // ignore: idiomatic.arch/x - why").returncode, 2)
+        self.assertEqual(self.write(os.path.join(self.tree, "notes.md"), "hi\n").returncode, 0)
+
+    def test_the_shell_hook_fails_closed_on_its_own_error_for_commands_naming_a_closed_file_or_mark(self):
+        path = os.path.join(self.hooks, "guard_shell.py")
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        old = "def segments(text):"
+        self.assertIn(old, text)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text.replace(old, "def segments(text):\n    raise RuntimeError('injected')\n\n\ndef _segments(text):", 1))
+        for command in ("sed -i s/a/b/ crates/x/tastemaker.toml", "echo '# ignore: idiomatic.x' >> a.py",
+                        "echo x > closed_for_extension.toml"):
+            with self.subTest(command=command):
+                done = self.bash(command)
+                self.assertEqual(done.returncode, 2, done.stderr)
+                self.assertIn("guard failed closed", done.stderr)
+        self.assertEqual(self.bash("ls").returncode, 1)
+
+    def test_an_unparsable_allowlist_admits_nothing(self):
+        self.put(self.allowlist, "[[manifest]\n" + ADMIT_EXCLUDE)
+        self.refused(('exclude = ["src/gen/**", "src/old/**"]', 'exclude = ["src/gen/**", "src/old/**", "src/new/**"]'))
+
+
 if __name__ == "__main__":
     unittest.main()
