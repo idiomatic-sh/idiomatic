@@ -226,9 +226,7 @@ pub(crate) fn counted_lint(given: Given) -> Result<(usize, u64), Failure> {
         use_case, language, ..
     } = world(given);
     let report = use_case
-        .counting(std::sync::Arc::new(
-            ryo_execution_runtime::outbound::observer::factory::counting(),
-        ))
+        .counting(|| Arc::new(ryo_execution_runtime::outbound::observer::factory::counting()))
         .lint(asked)?;
     let fed = report
         .work
@@ -237,4 +235,30 @@ pub(crate) fn counted_lint(given: Given) -> Result<(usize, u64), Failure> {
         .map(|step| step.rows.0)
         .sum();
     Ok((language.projects.load(Ordering::SeqCst), fed))
+}
+
+/// Two counted lints of one use case over the same files, with two rules whose text differs and whose plan is one, so the second run
+/// does the first's work again rather than reusing it: how many rows the steps of the rules were fed in the first run, and in the
+/// second.
+pub(crate) fn counted_twice() -> Result<(usize, usize), Failure> {
+    let given = |rule| Given {
+        rules: vec![rule],
+        ..violations()
+    };
+    let (first_asked, second_asked) = (request(&given("one")), request(&given("two")));
+    let World { use_case, .. } = world(given("one"));
+    let counted = use_case
+        .counting(|| Arc::new(ryo_execution_runtime::outbound::observer::factory::counting()));
+    let fed = |report: super::super::types::LintReport| {
+        let rows: u64 = report
+            .work
+            .iter()
+            .flat_map(|rule| &rule.steps)
+            .map(|step| step.rows.0)
+            .sum();
+        usize::try_from(rows).expect("a test's row count fits a usize")
+    };
+    let first = fed(counted.lint(first_asked)?);
+    let second = fed(counted.lint(second_asked)?);
+    Ok((first, second))
 }

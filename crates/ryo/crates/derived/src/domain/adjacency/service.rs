@@ -24,6 +24,10 @@ fn check_columns(
 }
 
 /// Builds the compact graph of the rows, partitioned by the key columns; absent when it does not fit the id space.
+#[expect(
+    clippy::as_conversions,
+    reason = "a u32 offset or vertex number indexes the graph's own arrays: lossless on every target ryo builds for, and this per-edge kernel keeps its indexing panic instead of a refusal branch in every visit"
+)]
 pub(crate) fn build_borrowed(
     rows: &dyn RowCells,
     endpoints: [ColumnIndex; 2],
@@ -101,7 +105,7 @@ pub(crate) fn build_borrowed(
     for orientation in 0..2 {
         let mut offsets = vec![0_u32; graph.vertices.len() + 1];
         for pair in &pairs {
-            offsets[usize::try_from(pair[orientation].0 + 1).unwrap_or(usize::MAX)] += 1;
+            offsets[usize::from(pair[orientation]) + 1] += 1;
         }
         for vertex in 1..offsets.len() {
             offsets[vertex] += offsets[vertex - 1];
@@ -109,9 +113,8 @@ pub(crate) fn build_borrowed(
         let mut written = offsets.clone();
         let mut neighbors = vec![0_u32; pairs.len()];
         for pair in &pairs {
-            let source = usize::try_from(pair[orientation].0).unwrap_or(usize::MAX);
-            neighbors[usize::try_from(written[source]).unwrap_or(usize::MAX)] =
-                pair[1 - orientation].0;
+            let source = usize::from(pair[orientation]);
+            neighbors[written[source] as usize] = pair[1 - orientation].0;
             written[source] += 1;
         }
         let offsets = OffsetList(offsets);
@@ -124,12 +127,15 @@ pub(crate) fn build_borrowed(
 }
 
 /// Validate duplicate-insensitive single-parent ancestry and cycles iteratively once per graph.
+#[expect(
+    clippy::as_conversions,
+    reason = "a u32 offset or vertex number indexes the graph's own arrays: lossless on every target ryo builds for, and this per-edge kernel keeps its indexing panic instead of a refusal branch in every visit"
+)]
 fn forest(offsets: &OffsetList, neighbors: &NeighborList) -> Option<ParentList> {
     let (offsets, neighbors) = (&offsets.0, &neighbors.0);
     let mut parents = vec![FOREST_ROOT; offsets.len().saturating_sub(1)];
     for vertex in 0..parents.len() {
-        let outgoing = &neighbors[usize::try_from(offsets[vertex]).unwrap_or(usize::MAX)
-            ..usize::try_from(offsets[vertex + 1]).unwrap_or(usize::MAX)];
+        let outgoing = &neighbors[offsets[vertex] as usize..offsets[vertex + 1] as usize];
         if let Some(parent) = outgoing.first() {
             if outgoing.iter().any(|other| other != parent) {
                 return None;
@@ -157,7 +163,7 @@ fn forest(offsets: &OffsetList, neighbors: &NeighborList) -> Option<ParentList> 
             if parents[current] == FOREST_ROOT {
                 break;
             }
-            current = usize::try_from(parents[current]).unwrap_or(usize::MAX);
+            current = parents[current] as usize;
         }
         for vertex in &path {
             state[*vertex] = 2;

@@ -562,9 +562,9 @@ pub(crate) fn lint_report_with_languages(
         )
     };
     let use_case = if COUNTING.load(std::sync::atomic::Ordering::Relaxed) {
-        use_case.counting(std::sync::Arc::new(
-            ryo_execution_runtime::outbound::observer::factory::counting(),
-        ))
+        use_case.counting(|| {
+            std::sync::Arc::new(ryo_execution_runtime::outbound::observer::factory::counting())
+        })
     } else {
         use_case
     };

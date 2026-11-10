@@ -218,9 +218,9 @@ fn lint_once(
         ..
     } = made;
     let report = use_case
-        .counting(std::sync::Arc::new(
-            ryo_execution_runtime::outbound::observer::factory::counting(),
-        ))
+        .counting(|| {
+            std::sync::Arc::new(ryo_execution_runtime::outbound::observer::factory::counting())
+        })
         .lint(asked)
         .expect("the lint answers");
     Observed {

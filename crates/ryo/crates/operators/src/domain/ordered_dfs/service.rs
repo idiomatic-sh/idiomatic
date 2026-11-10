@@ -94,9 +94,11 @@ pub(crate) fn evaluate(
             if driver.dfs().root(RowIndex(begin), root_row) != RowRead::Read {
                 return Err(PortableOperatorFault::ShapeMismatch);
             }
-            if !columns.iter().zip(key.iter()).all(|(column, value)| {
-                root_row.get(usize::try_from(column.0).unwrap_or(usize::MAX)) == Some(value)
-            }) {
+            if !columns
+                .iter()
+                .zip(key.iter())
+                .all(|(column, value)| root_row.get(usize::from(*column)) == Some(value))
+            {
                 break;
             }
             begin += 1;

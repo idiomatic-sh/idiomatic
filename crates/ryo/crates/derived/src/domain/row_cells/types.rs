@@ -83,7 +83,7 @@ impl RowCells for Table {
         if row.0 >= self.count.0 {
             return None;
         }
-        let column = usize::try_from(column.0).unwrap_or(usize::MAX);
+        let column = usize::from(column);
         if column >= self.kinds.len() {
             return None;
         }

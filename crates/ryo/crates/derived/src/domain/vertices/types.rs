@@ -5,9 +5,29 @@ use ryo_relations::domain::relations::types::Value;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PartitionId(pub u32);
 
+impl From<PartitionId> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "a partition id is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(partition: PartitionId) -> Self {
+        partition.0 as Self
+    }
+}
+
 /// The number of one vertex of a graph, in first-seen order.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VertexId(pub u32);
+
+impl From<VertexId> for usize {
+    #[expect(
+        clippy::as_conversions,
+        reason = "a vertex id is a u32, and every target the engine builds for has a usize of at least 32 bits"
+    )]
+    fn from(vertex: VertexId) -> Self {
+        vertex.0 as Self
+    }
+}
 
 /// Where the edges leaving each vertex begin in the neighbor list: the bare offsets inside are named here.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

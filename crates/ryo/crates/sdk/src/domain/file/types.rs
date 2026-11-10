@@ -29,6 +29,19 @@ pub struct Unread {
 }
 
 /// What the caller knows of a given file's POSIX executable permission. Unknown never means a known nonexecutable file.
+///
+/// # Examples
+///
+/// ```
+/// use ryo::linter::{CaseSource, ExecutablePermission, RelativePath, SourceText};
+/// let script = CaseSource {
+///     executable: ExecutablePermission::PosixExecutable,
+///     path: RelativePath("bin/run.sh".into()),
+///     text: SourceText("#!/bin/sh\n".into()),
+/// };
+/// assert_eq!(script.executable, ExecutablePermission::PosixExecutable);
+/// assert_eq!(ExecutablePermission::default(), ExecutablePermission::Unknown);
+/// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ExecutablePermission {
     /// The caller supplied no reliable observation.

@@ -255,7 +255,7 @@ pub(crate) fn project_reuse_frames_root_and_repository_and_keeps_dependency_evid
         let mut asked = request(&given);
         asked.session.repository = repository;
         let made = world(given);
-        let counted = made.use_case.counting(Arc::new(counting()));
+        let counted = made.use_case.counting(|| Arc::new(counting()));
         let report = counted.lint(asked).expect("complete lint");
         (made.language.projects.load(Ordering::SeqCst), report)
     };

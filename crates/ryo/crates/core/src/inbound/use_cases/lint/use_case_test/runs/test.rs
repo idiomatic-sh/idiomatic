@@ -95,6 +95,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((2, 1)),
     },
     Case {
+        name: CaseName("two_counted_lints_of_one_use_case_each_report_only_their_own_rows"),
+        word: Word::Succeeds,
+        input: || Scenario::CountedTwice,
+        expect: Expect::Value((2, 2)),
+    },
+    Case {
         name: CaseName("an_unknown_semantic_kind_is_refused_before_a_file_is_read"),
         word: Word::Refuses,
         input: || {
