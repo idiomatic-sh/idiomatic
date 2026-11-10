@@ -1,64 +1,89 @@
-# Rust gate, checkpoint 333, second pass: PASS (7 of 7)
+# Rust gate, checkpoint 334 (final, diff-scoped): PASS
 
-- Source reviewed: `e4f1d396eb8cdd57ecf77357ad72b58b9487b76a`.
-- Base: `6af005e9f749d03192fb87f68db577ef42944ce5`, where the first pass failed item 2 (F1).
-- Scope: only the delta `6af005e9f7..e4f1d396eb`. Commits in it:
-  - `8bf8ae89a1`: the repair pass (F1, leak 332 checks 2a, 2b and 3);
-  - `7e5beb9128` and `563c0bc69b`: the unfed list loses `relation:Entry` and `relation:Mapping`;
-  - `e4f1d396eb`: the record (docs and evidence only);
-  - the merged docs-only commits `3d1e6d91a4`, `623ef2feaa` and `226de88f02`.
+- **Reviewed:** `333641a62a01e87ce8bab84f94a43a710f813b9a` against base `40e49021520d4392d29df28ee5bd2fef739e5d37` (333 head).
+- **Criteria items:** the owner table in `.agents/agents/review-criteria.md` gives this gate items 3, 6, 8, 9, 11, 12, 13, 14, 18, 19 and 21. Five map into the seven checks: 3 to items 1 and 2, 6 to item 4, 8 to item 6, 11 to item 3, and 18 to item 5. The other six are graded as their own checks: 9, 12, 13, 14, 19 and 21. Items 12, 13 and 14 gate the verdict.
+- **Tree check:** HEAD was 333641a62a both at the start and at the end. `git status --porcelain` showed the same single line both times: `M crates/ryo/docs/contracts/evidence/checkpoint/identity.json`, written by the concurrent validation. The pass did not change it, and no source file changed.
+- **Scope:** the code graded is the code at this sha. The validation run happening alongside this review (cargo-doc, the doctests, and validation.json's source) is the integrator's to record.
 
-  The full validation ran at `563c0bc69b`. After that only docs and evidence changed.
-- Tree: HEAD was `e4f1d396eb` both before and after the pass, and `git status --porcelain` was empty both times.
+## The early FAILs (293766d1a3), each closed
+| Early item | Finding | Closed by | Evidence |
+| --- | --- | --- | --- |
+| 1, 13 | RelationStore was unsealed, and its `fixture` method depended on a feature | 2e9505dfca | `interface.rs:16-22,110` gives `RelationStore: sealed::Sealed`. `fixture` is now an inherent `RelationOwner` constructor. A compile_fail,E0277 doctest was recorded red, then green. |
+| 1 | ExecutablePermission had no example | 940a264aaa | `sdk/src/domain/file/types.rs:32-44` |
+| 5 | run.py had a hand-written Rust scanner | 351706d970, cc649856d9, d1b4db5f41 | `run.py:612-620` uses the tree-sitter-rust Parser and Query. `literal_end`, `item_end` and `split_tests` are deleted. The pin is in `tools/install.py` (ffadf1b580). |
+| 6, 9 | cargo_diagnostics dropped lints denied by a group or by default | ec498afe71, 63f3f9e3f7 | `cargo_diagnostics.py:45-66,88-110` reads the level from the compiler's note per package, reads default levels from the toolchain tables, and fails closed. Both red-then-green entries are in validation.json. |
+| 12 | 32 production `usize::MAX` sentinels | 889764df1f, 477b650641 | The diff now adds none. Each index type has one `From` (`vertices/types.rs:8-30`, `relations/types.rs`, `plan_parts/types.rs`). gate:no_usize_sentinels was recorded red, then green. |
+| advisory | The counting observer's totals accumulated across runs | c3bf3e75cd | `use_case.rs:96,173-181` holds `Option<fn() -> Arc<dyn ObserverPort>>` and builds a fresh observer per run. The test `two_counted_lints_of_one_use_case_each_report_only_their_own_rows` was red at (2, 4) and green after. |
 
 ## 1 Ownership and API shape: PASS
-- The only public-surface change is the version bump of the ryo workspace from 0.1.2 to 0.1.3. It is at `crates/ryo/Cargo.toml:23`, in every crate's path dependencies (for example `crates/sdk/Cargo.toml:18-26`), and in Tastemaker's registry requirements (`crates/tastemaker/cli/Cargo.toml:35-46`).
-- `8bf8ae89a1` gives the reason: 0.1.2 is a released tag, and the local crates carry unreleased API. Tastemaker keeps the `[patch.crates-io]` until release (`crates/tastemaker/Cargo.toml:238`).
-- No `api.txt` and no SDK source changes.
-- No clone, `Arc` or interior mutability is added.
+- The store seam is sealed (see the table above). The observer is a function pointer that each run calls, so no `Arc` is shared across runs.
+- The SDK api.txt has not changed since the early gate, which accepted it. The new public SDK item has docs and an example.
 
 ## 2 Compiler over tests: PASS
-- F1 is repaired. `failure()` now lists the 15 remaining `Operation` variants as `RowFailure::Never` (`crates/ryo/crates/execution_domain/src/domain/operator/contract/service.rs:230-244`). This matches the exhaustive form of `presence()` and `invalid_patterns`, so a new variant is now a compile error rather than a silent `Never`.
-- The compile ran green at `563c0bc69b` in the full validation. The arm is therefore exhaustive over the enum as it stands.
-- The delta adds no new wildcard and no test that reads source.
+- Privacy and the seal enforce the seam. The doctests only pin it.
+- F3 part 2 changed five `Operation` matches to end in `_` under a reasoned `#[expect(clippy::wildcard_enum_match_arm)]`, for example `prepared/value.rs:53` and `self_join_recogniser/service.rs:82`.
+  - The compiler still stops a new variant: `operator/contract/service.rs:204-257` `failure()` names every variant exhaustively.
+  - The variant tests from 64f77797ef pin the grouped arms on top of that compiler stop.
 
 ## 3 Hot path: PASS
-- The only new Rust code is test-side. `replay_languages()` (`cli/tests/fixtures/replay/base.rs:336-342`) builds a two-element `Vec` once per lint composition, not per file or per row.
-- No production loop, map or dispatch changes.
+- `From<Index> for usize` compiles to a plain cast. The per-edge kernel lost its try_from-plus-sentinel branch (`adjacency/service.rs:108-117`).
+- The observer is built once per run.
+- The doc batch (018413103a) contains only doc comments.
 
 ## 4 One representation per concept: PASS
-- The pending check, the hosted lint and the counting lint each had their own language list. They now share one `replay_languages()` (`base.rs:336`, `:352`, `:488`; `counting.rs:176`).
-- The delta removes a duplicate and adds none.
+- `PureSelection<'a>` (`step_classes/types.rs:33`) is a borrowed view. It folds two copies of the Select/Project extraction into one function, `pure_selection`.
 
 ## 5 Standard crate over home-grown: PASS
-- No dependency is added in either workspace.
-- In `crates/tastemaker/Cargo.lock`, 11 dependents re-resolved from `windows-sys 0.60.2` to `0.61.2`. Both versions were already locked (`:4218-4228`), so this is not a new crate (see A2).
+- run.py reads Rust with tree-sitter-rust.
+- `harness_case` (`samples.rs:184-244`) is about 60 lines of libtest-protocol glue, shared by three runners. Cargo, uv and ruff use no crate for this. libtest-mimic is listed as an advisory.
 
 ## 6 Tests: PASS
-- **Leak 332 check 2a, a harness change.** `run.py` `own()` now refuses an `OWNERS` entry whose result or replay test is not red (`run.py:269`), and the 30 stale entries are deleted. This tightens the harness: a red with no owner is still reported (`:272-278`).
-  - `8bf8ae89a1` names the test `test_a_green_result_with_only_a_stale_owner_fails_the_check` (`run_test.py:102`).
-  - `validation.json` `red_green` records it as red at base `8e4d22b3a5` and green at merge `563c0bc69b`.
-  - The existing test now uses the `owned_reds()` fixture (`run_test.py:89`), so the new refusal does not fire on its setup. Its assertions are unchanged.
-  - The 7 owners that remain match today's reds in `validation.json`: `benchmark_library`, `core_allocation`, `cli_cost` and `tastemaker_workspace` are failed results, and the three `::` keys are exactly `cli_replay_reds`.
-- **Check 2b.** Deleting `recordings/dependency-feature-sprawl/pending.txt` turns a waiting recording into a compared one: its 6 recorded rows are now checked.
-- **The unfed list.** Removing `relation:Entry` and `relation:Mapping` from `fixtures/unfed.toml` is what the shrink-only test `ruff_rules_feed_every_catalog_feature_a_thousand_rows` demands once they are fed (`answers.rs:517-527`).
-  - `7e5beb9128` and `563c0bc69b` state the reason.
-  - `SequenceElement` stays in the list, and its reason now carries the measured count of 268 rows (`unfed.toml:50-51`). The test was run green in a narrow run.
-- **F1** is a compile-only change with no behaviour change. The existing presence `service_test` stays the behaviour proof.
-- The delta adds no skip, `continue`, caught error, filtered result or wall-time assertion.
+- The harness is repaired in place, not worked around by a parallel test.
+  - The filter fails closed: a lint whose level cannot be read is forwarded, with a line on stderr.
+  - `cargo_diagnostics_test.py:42-104` covers group denies, default denies, a default the toolchain does not give, a later diagnostic with no note, and a level that cannot be read.
+- Every fix since the early gate names its test, and each has a red_green entry in validation.json.
+- 752cc02c32 changes only commands.json, an evidence record. The later gate entries prove its effect.
+- Of the 18 assert lines removed since the early gate, every one comes back reformatted by rustfmt (da77293b16). None was weakened.
 
 ## 7 Rust fit: PASS
-- The delta adds no `unsafe`, no `unwrap` or `expect`, no panic and no `#[allow]` (`service.rs:199-245`, `base.rs:333-492`, `counting.rs:157-177`).
+- The diff adds no `unsafe` and no `#[allow]`.
+- Every new `as` and wildcard sits under `#[expect(..., reason)]`, and `unfulfilled_lint_expectations = "deny"` holds each one.
+- The `expect` calls in `samples.rs` are in a fixtures module gated by `cfg(any(test, feature = "fixtures"))`.
 
-## Repaired
-- F1 (item 2, first pass) is repaired in `8bf8ae89a1` (`service.rs:230-244`).
+## 9 Cheapest enforcement first: PASS
+- The loose ignore is repaired.
+- Each new suppression states a real reason and is held by the deny on unfulfilled expectations.
 
-## Advisories (open-source hygiene; for each, the PM files a bead or drops it with a reason)
-- **A1, the doc of `replay_languages` says more than the code does.** `base.rs:333-335` and the 333 record (`crates/ryo/docs/contracts/README.md:102`) say that the hosted lint links these languages.
-  - In fact `lint_report_with_languages` links them only when `manifests_read` is true. Otherwise it links Rust alone (`base.rs:485-492`).
-  - This is not a leak. The replay path always passes `true` (`base.rs:431`), and a relation that `provided()` reports but a Rust-only run lacks makes the run fail loudly, not pass.
-  - Fix: reword the doc to "the pending check, the counting lint, and the hosted lint when it reads manifests". Alternatively, drop the `bool` and always link `replay_languages()`.
-- **A2, the Tastemaker lock churn is unexplained.** In `crates/tastemaker/Cargo.lock`, 11 `windows-sys 0.60.2` references became `0.61.2` in the bump commit, and no message mentions it.
-  - Fix: state the re-resolution in the record, or regenerate the lock with only the version bump (`cargo update -p idiomatic-sh-ryo-sdk --precise 0.1.3` style).
+## 12 Idiomatic Rust: PASS
+- No sentinel conversions are added. The conversions follow C-CONV: one `From` impl on each index type, in that type's own types.rs.
+- The remaining sentinels in core cross_file and file_analysis predate this diff, so they are outside this gate's scope.
 
-The JSON lists both advisories as `open item: <title>`. Their bead ids are for the PM to fill in when filing.
+## 13 API stability: PASS
+- Turning on `fixtures` no longer adds a method to RelationStore, so the feature is additive again.
+- The semver baseline is the released tag `idiomatic-sh-ryo-v0.1.2` (`Cargo.toml:16`).
+- The F3 seals narrow the surface.
+
+## 14 Documentation: PASS
+- The doc batch adds 51 examples across the three execution crates, plus the ExecutablePermission example.
+- The `# Errors` and `# Panics` lints are at deny.
+- The 334 cargo-doc and doctest runs are being recorded by the concurrent validation.
+
+## 19 Not a lot of code: PASS
+- Production Rust changes since the early gate are small: conversions, seals, the 17-line observer fix, and examples.
+- Overall the diff deletes far more than it adds.
+
+## 21 One of N: PASS
+- One `harness_case` serves core, the SDK language contract and every language's allocation runner. It is not copied into each.
+
+## Advisories (open-source hygiene; none changes the verdict)
+1. **harness_case parses libtest's arguments by hand** (`language/src/inbound/use_cases/parse/fixtures/samples.rs:190-224`). Fix: use `libtest-mimic` (it is what nextest's docs suggest for custom harnesses), or record why not, for example its single maintainer.
+2. **`From<Index> for usize` loses data where usize is narrower than 32 bits** (`derived/src/domain/vertices/types.rs:8-30`, `relations/types.rs`, `values/.../plan_parts/types.rs`). Fix: put `const _: () = assert!(usize::BITS >= 32);` beside the impls, so the reason the `#[expect]` gives is checked by the compiler.
+3. **The public SDK function `allocations_of_linked` changed behaviour** (`sdk/src/resources/languages/contract.rs:215`). It now reads `std::env::args` and prints libtest text to stdout. Fix: record this for language authors in the SDK changelog when one exists.
+4. **run.py's `identical` proof entries** (d1b4db5f41) accept two logs with equal bytes but do not tie them to the code before and after. Fix: record the sha each log was produced at, and check those against the range.
+5. **run.py parses four test runners' human-readable output with regexes** (`run.py:405-418`). Fix: have nextest and pytest write JUnit, and read that.
+6. **Still open from the early gate:**
+   - `rule_compilation/service.rs:128`: the `Option` slots plus a reasoned `expect` could collect into a typed refusal.
+   - `Cargo.toml:105`: `missing_docs = "warn"` is never gated.
+
+## Beads for the PM
+None are required, because no item FAILs. File each advisory above as a bead, or drop it with a one-line reason.

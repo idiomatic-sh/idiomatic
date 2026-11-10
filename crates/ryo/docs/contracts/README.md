@@ -66,7 +66,7 @@ Earlier integration records (checkpoints 319 to 325 and their branch records): [
 
 ### Checkpoint 334 integration record
 
-Checkpoint 334 merges, into the 333 head `40e4902152` and each as a merge commit after its leak-review PASS was committed under `evidence/branches/`: `claude/w15-ci` (`fe4f6f4d1a`), `claude/w16-prune` (`b5b47621fa`), `claude/audit-f2` (`0d6914eef0`), `claude/w15-loop` (`07bc701e6c`), `claude/lspan` (`0371fefcf8`) and `claude/audit-f1` (`ad2c8867f3`).
+Checkpoint 334 merges 19 branches into the 333 head `40e4902152`, each as a merge commit after its leak-review PASS was committed under `evidence/branches/`. In merge order: `claude/w15-ci` (`fe4f6f4d1a`), `claude/w16-prune` (`b5b47621fa`), `claude/audit-f2` (`0d6914eef0`) and `claude/w15-loop` (`07bc701e6c`); `claude/lspan` (`0371fefcf8`) and `claude/audit-f1` (`ad2c8867f3`); `claude/clippy-a` (`f3e9e08f14`), `claude/port-suite` (`f9a294ed54`, carrying the engine) and `claude/audit-f3` (`1b5d83ba0b`, then `3b08375797`); `claude/clippy-b` (`720b2fc0b0`), `claude/clippy-c` (`6e24483050`) and `claude/review-criteria` (`1392542771`); `claude/audit-f3-part2` (`64f77797ef`); the gate-fix batches `claude/cp334-c` (`940a264aaa`), `claude/cp334-a` (`cc649856d9`), `claude/cp334-d` (`bb1468438a`), `claude/cp334-b` (`2308cf7079`) and `claude/cp334-doc` (`36c1524724`). The frozen head is `333641a62a`.
 
 - **Modularity audit fix batch F2 (goal exit 1), sealing outside execution:** 91 items sealed, 11 deleted (9 items and 2 enum variants nothing raises), 119 kept public and accepted: public APIs carry them, and the workspace's `private_interfaces` deny refuses sealing an item a public signature names. Row 17 is closed (its allowlist line; the leftover `std::sync::atomic::*` allowlist item is owned by its own tracker item); row 14's values, operators, relations, derived, core, sdk and language part is done.
 - **Modularity audit fix batch F1 (goal exit 1), the Ruff benchmark package:** the Ruff benchmark is its own unpublished package, `idiomatic-sh-ryo-python-ruff-benchmark`; the four engine, SDK and provider proofs it held moved to their owners; calls, candidate-locations and call-keywords are shared fragments, imported as suppress-matches is. Proof at the merged head `dabffbbfa3`: the ruff_parity command, now building the worker from the new package, gives 412 identical of 413 rules, 0 unaccepted, and `per-rule.json` byte-identical to the committed `evidence/parity/django-413/per-rule.json` (sha256 `bc01526e`). Rows 12, 16 and 18 are closed.
@@ -111,54 +111,87 @@ Checkpoint 334 merges, into the 333 head `40e4902152` and each as a merge commit
   - crates/tastemaker's 947 new Tastemaker findings (933 `layer-matrix`) and crates/asymptote's 479, with the stale crates/asymptote `tastemaker.lock` under its pinned tm 0.1.0: refused, not fixed. Tastemaker 0 over those crates is out of scope by the owner's goal text.
 - **Owned pre-existing behaviour:** `run_file` with `CaptureIntent::Disabled` answers `NotRun` for every rule. The port engine's leak review found it; it is identical at `40e4902152`, so it predates the port, and no production path passes `Disabled`. Owned by its own tracker item, filed at 334.
 
-### Current ownership checkpoint — source `563c0bc69b`, validation334
+| Metric | Checkpoint 334 |
+|---|---|
+| Branches merged | 19 (listed above); not merged: none |
+| Frozen head | `333641a62a` (the record commits on top of it change evidence and docs only) |
+| Validation runs | 1 full, validation335 at `333641a62a` (raw directory named for 334), after 2 starts refused before any command ran (cwd; a stale identity.json) |
+| Compile passes | not tallied pass by pass at 334; each merge was check-compiled by its builder, and validation335 compiles every target the commands name |
+| Red then green | 122 entries in validation.json `red_green` (115 at 334), `fix_problems` = [] |
+| DOC | `doc_problems` = [] (the 52 new pub items have examples or seals: cp334-b and cp334-doc) |
+| Census | no ratcheted row rose: edit footprint 2, cross-crate tests outside the replaced set 51, Operation matches outside it 24, per-file fact touch points 25; `census.json` regenerated at `333641a62a` (vocabulary 72 to 71) |
+| Parity | `ruff_parity`: 412 of 413 identical, 0 unaccepted (FURB122 accepted) |
+| Full Django 413 cold | exit 0, byte-identical (`f50bb571`), 89.8 s wall, 630.8 CPU-s (621.2 user, 9.6 sys), 2,616,380 KB peak, load 1.89 at the start (under 3: a measurement) |
+| Tastemaker | whole tree at `293766d1a3`: 0 findings, 29 suppressed (the eleventh new one since: `file_intents/mod.rs`); crates/ryo's Tastemaker tool at `dceef687bd`: no new finding in a tracked file |
+| Reviews | early contract review FAIL (B1 to B6, item 15) and early Rust gate, repaired here; the final Rust gate, contract review, leak review and TM steward read `333641a62a` |
+
+- **validation335 at `333641a62a`:** every command of `commands.json` ran. Green: boundary 154/0, activation 11, bdd 9, core_bdd 18, ruff 12/0, ruff_rule_phases (175 cases), ruff_parity; the doctests (execution_domain 23, execution_runtime 31, execution_store 20, sdk 4, values 16, derived 11, core 1); tm_import_cli, tm_cli_source, conformance, bench_build, no_print, tm_source, tm_guards (7), tm_validate_all (465), ownership_edges; harness_hooks 181, checkpoint_check 77, census, python_lib 140, language_lib 42. Every red is owned by its exact id: `sdk_api`: the four semver-checks lints, owned by the breaking next SDK release; `libraries` 1158/1: the benchmark's process_capture row, owned by "Close full TM, contracts, independent review and normal CI."; `core_allocation`: `allocation::core::reading_allocates_as_the_parser_library_does`, owned by "Measure full-Django cold/warm/edit and Rust regressions; meet final objective."; `cli_tests` replay 97/3: the two behaviour rows and the warm peak; `cli_cost` 1/3, with 3 not run without a preflight worker: cold 8,667 ms, peak 599 MB, warm 634 ms; `default_features` 2392/9: the same reds without `--all-features`, plus `allocation::python::reading_allocates_as_the_parser_library_does`, owned by the Rust regressions row. The counts gate refused no command. It names the tools that print no count: checkout_tools, no_print, tm_source, tm_cli_source and conformance. The Tastemaker workspace was re-run at the head (`rerun_333641a62a_tastemaker_workspace.log`): 264/4, the same four owned reds as at 333.
+- **After the freeze (harness only):** `b6aff49ae3` makes `sdk_api.py` read the SDK's internal crates from its own manifest's path dependencies (nine crates, the execution crates among them, where it named five by hand: the final leak review's check 2); `sdk_api` alone at `b6aff49ae3` finds no leak and the same four owned semver lints (`sdk_api-at-b6aff49ae3.log`). `c00074ffe6` writes each check and red_green entry of validation.json on one line (872 lines to 314).
+- **Note on numbers:** every count above is machine-read from the validation's raw logs (tests.json, the command logs, `/usr/bin/time -v` for Django), none from a builder's report.
+
+### Current ownership checkpoint — source `333641a62a`, validation335
 
 Written by `evidence/checkpoint/run.py` from [validation.json](evidence/checkpoint/validation.json); do not edit by hand. Review: [checkpoint](audits/2026-11-06-derived/ownership/checkpoint.json).
 
 | Check | Result |
 |---|---|
-| Source | `563c0bc69b` |
-| Validation | validation334 (raw logs in the directory named `ryo-contract-validation333`, kept outside the repository) |
-| execution library | 74 PASS / 0 failed (execution 74 + runtime 233 = 307 (291 at 332); claude/p7-skip-rules added the emptied-input conformance case (its own conformance_emptied group since 333)) |
-| execution domain library | 141 PASS / 0 failed (140 at 332; claude/p7-skip-rules added the presence fold cases) |
-| execution store library | 83 PASS / 0 failed (as at 332) |
-| core library | 120 PASS / 0 failed (as at 332) |
+| Source | `333641a62a` |
+| Validation | validation335 (raw logs in the directory named `ryo-contract-validation334`, kept outside the repository) |
+| execution library | 76 PASS / 0 failed (execution 76 at 333641a62a (libraries.log); runtime counted apart) |
+| execution domain library | 144 PASS / 0 failed (144 at 333641a62a (141 at 333): the port, F2 and F3 cases) |
+| execution store library | 84 PASS / 0 failed (84 at 333641a62a (83 at 333)) |
+| core library | 125 PASS / 0 failed (125 at 333641a62a (120 at 333): cp334-c's runs case among them) |
 | benchmark library | 229 PASS / 1 failed (verify_cases process_capture succeeds, one red row (a metadata failure preserves the process bytes and cannot be admitted: raw process identity unavailable, entity not found), as since validation326; owned by "Close full TM, contracts, independent review and normal CI.") |
 | sdk passed | 29 |
 | other libraries passed | 233 |
-| libraries total | 1142 PASS / 1 failed (1125/1 at 332; counted from libraries.log (tests.json): benchmark 229/1, core 120, derived 35, execution 74, domain 141, runtime 233, store 83, matching 5, operators 63, query_language 101, sdk 29, values 29) |
-| execution boundary | 99 PASS / 0 failed (97 at validation331; tm-rebuild added the two project_phase::axis engine contracts (a walk after the files, a join with reach after the files)) |
+| libraries total | 1158 PASS / 1 failed (counted from libraries.log (tests.json) at 333641a62a: benchmark 229/1, core 125, derived 35, execution 76, domain 144, runtime 238, store 84, matching 5, operators 63, query_language 101, sdk 29, values 29 (1142/1 at 333)) |
+| execution boundary | 154 PASS / 0 failed (154 at 333641a62a (99 at 333): the runtime port seam suite, with S13 and the mutants 12b, 15b and 15c caught) |
 | activation | 11 PASS / 0 failed (11 actual cases, the facts-finish dhat control among them) |
 | bdd | scenarios 9, failed 0 |
 | core bdd | scenarios 18, failed 0 |
 | ruff canary | 1 PASS / 0 failed (112 = 110 N999 + 2 invalid-syntax, the split asserted, the answer of validation323; now on the benchmark worker pool at rayon default size (10 threads here; one worker at validation325): the same answer) |
 | ruff | 12 PASS / 0 failed (13 at validation331: claude/w13-leak-repairs-b moved engine_test's engine, core and SDK assertions to their owning crates, so engine_test has no fails row) |
 | ruff rule phases | exit 0, note the staging guard self-test exits 0 (red from 321 to 325); both causes were in the harness (the guard expected the command without the case-receipt argument added on 2026-11-04, and rebuilt frozen moved candidates from the live queries), repaired by Review repairs X |
-| doctests | execution 0, execution domain 2, execution runtime 5, core 1, sdk 3, values 16, derived 11, failed 0, note counted from doctest*.log of the final checkpoint 333 run, the counts of 332, execution store 1 |
+| doctests | execution 0, execution domain 23, execution runtime 31, execution store 20, core 1, sdk 4, values 16, derived 11, failed 0, note counted from doctest*.log at 333641a62a (merged and standalone doctests of each crate summed); the doc batch added the examples of the new pub items |
 | tm import cli | exit 0, note 1 passed (tm_import_cli.log); crates/tastemaker at 0.1.2 with the 15 ryo crates its lock holds patched to their directories here |
 | tm cli source findings | 0 |
 | tm guards | pass |
 | core allocation | exit 101, phase 7, note the 327 erratum's owed run, on the tree's own target: a file allocates 1,698 to 1,700 blocks beyond the parser library; owned by "Measure full-Django cold/warm/edit and Rust regressions; meet final objective." |
-| cli replay | 96 PASS / 3 failed |
+| cli replay | 97 PASS / 3 failed |
 | cli replay reds | 3: `behavior::every_recorded_rule_gives_the_recorded_rows`; `behavior::ruff_findings_equal_the_expected_findings`; `peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound` |
 | cli replay note | the three causes of the first validation332 runs are repaired (owner decision: fix the harness, never hide): the replay links the TOML language beside the Rust language, so crate-dependency-cycles, crate-dependency-depth and layer-order run and give their recorded rows (layer-order's parameter in today's syntax; crate-dependency-depth reads the listed files, as analyzed-source now holds source files only; the harness binds a list of sets); the manifests tests write a tool's missing value as absent; a located compile refusal is matched by its innermost refusal. Left: ruff_findings_equal_the_expected_findings, import-fan-in 67 against 66, the false derive_message_formats.rs edge, ; every_recorded_rule_gives_the_recorded_rows, error-variant-never-constructed gives a FormatModuleError::PrintError row that ? constructs through #[from], ; and the warm peak, 115 MB against 100 MB (117 MB at validation331).; behavior owned by "Close full TM, contracts, independent review and normal CI."; behavior owned by "Close full TM, contracts, independent review and normal CI."; peak owned by "Decode lazy packed frontiers once per population, not once per root, and compile ordered existence without the eager request-level pass." |
-| cli cost | 4 PASS / 3 failed / 0 not run (the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 9,331 ms, peak 579 MB, warm 629 ms measured, cli_cost.log); without RYO_PREFLIGHT_WORKER the three Django and one-file rows answer not available (passed, a typed reason); owned by "Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, Rust regression guards within bounds.") |
+| cli cost | 1 PASS / 3 failed / 3 not run (the ruff rows of ratchet.toml hold best 1 and are not seeded (cold 8,667 ms, peak 599 MB, warm 634 ms measured at 333641a62a, cli_cost.log); without RYO_PREFLIGHT_WORKER the three Django and one-file rows print not available and are counted as not run; an_absent_input_is_a_typed_reason_not_a_pass passes; owned by "Acceptance: 413/413 on the current engine, full Django (2,875 files, all 413 rules) with unknown 0 and unread 0, Rust regression guards within bounds.") |
 | cli other targets | blocks (dhat run, no panic), call_count 1/1, command_line 7/7, command_tree 11/11, readme 1/1 |
 | conformance | targets 10, exit 0 |
-| harness hooks | 135 PASS / 0 failed (136 at 332; the asymptote.json record case left with the record, which the owner removed on 2026-11-09) |
-| checkpoint check | 17 PASS / 0 failed (16 at 332; a_green_result_with_only_a_stale_owner_fails_the_check (leak review 332 check 2a)) |
+| harness hooks | 181 PASS / 0 failed (181 at 333641a62a (135 at 333): the review-criteria hook gates) |
+| checkpoint check | 77 PASS / 0 failed (77 at 333641a62a (17 at 333): FIX, DOC, census, lock, result and semver rules) |
 | derived library | 35 PASS / 0 failed |
-| python and language libraries | 183 PASS / 0 failed (python 140/0 and language 43/0) |
+| python and language libraries | 182 PASS / 0 failed (python 140/0 and language 42/0 at 333641a62a) |
 | tm validate all | crates ryo 241 PASS / 0 failed, repository root 224 PASS / 0 failed |
-| execution runtime library | 233 PASS / 0 failed (218 at 332; claude/p7-skip-rules added the presence service cases) |
+| execution runtime library | 238 PASS / 0 failed (238 at 333641a62a (233 at 333)) |
 | values library | 29 PASS / 0 failed |
 | ruff parity | exit 0, note full Django, all 413 rules, ryo against ruff 0.16.5: 412 identical of 413, 0 unaccepted (FURB122: 3 extra findings, accepted); staged digest 5f5c5233 (the noqa fragments; 1a9cf788 at 332); the run's per-rule.json is byte-identical to evidence/parity/django-413/per-rule.json (sha256 bc01526e) |
-| tastemaker workspace | 264 PASS / 4 failed (rerun at 563c0bc69b (rerun_563c0bc69b_tastemaker_workspace.log): cargo test --workspace --all-features in crates/tastemaker, 264 / 4 as at 332. Red, each owned: the cold check of crates/ryo under its memory guard (4,424,456 KiB against 1,331,200), recorded red by owner decision and owned by the fused rewrite; and, red at 331 too, replay scaffold a_captured_nested_item_is_written_and_held, scaffold a_fresh_language_compiles_and_lacks_no_part and validate validating_the_repository_s_definitions_stays_within_its_bounds; owned by "Close full TM, contracts, independent review and normal CI.") |
+| tastemaker workspace | 264 PASS / 4 failed (rerun at 333641a62a (rerun_333641a62a_tastemaker_workspace.log): cargo test --workspace --all-features in crates/tastemaker, 264 / 4 as at 333. Red, each owned: the cold check of crates/ryo under its memory guard (4,348,400 KiB against 1,331,200), recorded red by owner decision and owned by the fused rewrite; and, red at 331 too, replay scaffold a_captured_nested_item_is_written_and_held, scaffold a_fresh_language_compiles_and_lacks_no_part and validate validating_the_repository_s_definitions_stays_within_its_bounds; owned by "Close full TM, contracts, independent review and normal CI.") |
 | tm_cli_source findings | 0 (0 production, 0 test), 0 suppressed, 1 scoped directories |
-| tm_source findings | 0 (0 production, 0 test), 5 suppressed, 16 scoped directories |
+| tm_source findings | 0 (0 production, 0 test), 7 suppressed, 16 scoped directories |
 | Whole-tree TM | 0 findings, 19 suppressed (3676 at 318) |
 | File-level ownership cycles | 0 (0 targeted) |
+| Change amplification | replace the evaluator 223 files (42 production in 6 crates, 181 test); Operation exhaustive matches 27 files in 6 crates; per-file fact 25 files in 14 crates; cross-crate tests naming runtime internals 69 |
+| Red test | sdk_api constructible_struct_adds_field: red; its failure names no case row |
+| Red test | sdk_api enum_missing: red; its failure names no case row |
+| Red test | sdk_api enum_no_repr_variant_discriminant_changed: red; its failure names no case row |
+| Red test | sdk_api struct_missing: red; its failure names no case row |
+| Red test | default_features behavior::ruff_findings_equal_the_expected_findings: red; its failure names no case row |
+| Red test | default_features behavior::every_recorded_rule_gives_the_recorded_rows: red; its failure names no case row |
+| Red test | default_features cost::a_cold_run_over_ruff_holds_the_peak_ratchet: red; its failure names no case row |
+| Red test | default_features cost::a_warm_run_and_an_edit_run_over_ruff_hold_their_ratchets: red; its failure names no case row |
+| Red test | default_features cost::every_live_rule_together_holds_the_cold_ratchet_of_ruff: red; its failure names no case row |
+| Red test | default_features peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound: red; its failure names no case row |
+| Red test | default_features inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds: red rows 1: a metadata failure preserves the process bytes and cannot be admitted |
+| Red test | default_features allocation::core::reading_allocates_as_the_parser_library_does: red; its failure names no case row |
+| Red test | default_features allocation::python::reading_allocates_as_the_parser_library_does: red; its failure names no case row |
 | Red test | libraries inbound::use_cases::verify_cases::use_case_test::process_capture::test::succeeds: red rows 1: a metadata failure preserves the process bytes and cannot be admitted |
+| Red test | core_allocation allocation::core::reading_allocates_as_the_parser_library_does: red; its failure names no case row |
 | Red test | cli_tests behavior::ruff_findings_equal_the_expected_findings: red; its failure names no case row |
 | Red test | cli_tests behavior::every_recorded_rule_gives_the_recorded_rows: red; its failure names no case row |
 | Red test | cli_tests peak::a_warm_unchanged_run_over_ruff_peaks_within_its_bound: red; its failure names no case row |
