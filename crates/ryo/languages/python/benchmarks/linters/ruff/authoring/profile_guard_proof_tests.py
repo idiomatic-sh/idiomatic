@@ -135,8 +135,20 @@ def guards_9(fake_bin, helper, last_profile, last_rule, manifest, marker, pristi
         overlay = json.loads(overlay_path.read_text(encoding='utf-8'))
         if kind == 'source-hash':
             overlay['cases'][0]['case_source_sha256'] = '0' * 64
-        else:
+        elif kind == 'case-key':
             overlay['cases'][0]['case'] = 'unknown-case-key'
+        elif kind == 'missing-rule':
+            overlay['cases'][0]['expected'][0].pop('rule')
+        elif kind == 'oracle':
+            oracle_path = root / descriptor['oracle_file']
+            oracle = json.loads(oracle_path.read_text(encoding='utf-8'))
+            first = overlay['cases'][0]
+            entry = next((case for case in oracle['cases'] if (case['rule'], case.get('case', case.get('name'))) == (first['rule'], first['case'])))
+            entry['expected'] = [*entry['expected'], entry['expected'][0]]
+            oracle_path.write_text(json.dumps(oracle, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+            trial_manifest['files'][descriptor['oracle_file']] = profile_config.sha256(oracle_path)
+        else:
+            raise ValueError(f'unknown self-test: {kind}')
         overlay_path.write_text(json.dumps(overlay, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
         overlay_hash = profile_config.sha256(overlay_path)
         descriptor['expectations_sha256'] = overlay_hash
@@ -148,10 +160,14 @@ def guards_9(fake_bin, helper, last_profile, last_rule, manifest, marker, pristi
         if not valid:
             print(f'shape guard status={check.returncode}; stderr={check.stderr!r}', file=sys.stderr)
         return valid
-    for kind, message in (('source-hash', 'case source hash mismatch'), ('case-key', 'overlay case is absent')):
+    oracle_relative = pristine_manifest['combined_profiles'][profile_config.SHAPE_PROFILE]['oracle_file']
+    baseline_oracle = (root / oracle_relative).read_bytes()
+    for kind, message in (('source-hash', 'case source hash mismatch'), ('case-key', 'overlay case is absent'), ('missing-rule', f'invalid {profile_config.SHAPE_PROFILE} expected finding'), ('oracle', 'overlay diagnostics differ from the sealed oracle')):
         (root / overlay_relative).write_bytes(baseline_overlay)
+        (root / oracle_relative).write_bytes(baseline_oracle)
         if not shape_preflight_failure(kind, message):
             print(f'shape {kind} refusal did not fail before candidate work', file=sys.stderr)
             return 1, ()
     (root / overlay_relative).write_bytes(baseline_overlay)
+    (root / oracle_relative).write_bytes(baseline_oracle)
     return 0, ()

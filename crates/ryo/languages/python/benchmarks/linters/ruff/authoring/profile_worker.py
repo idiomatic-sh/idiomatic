@@ -133,7 +133,7 @@ def build_worker_once(output_directory: Path | None, stack: contextlib.ExitStack
     return (worker_copy, identities)
 
 def reuse_frozen_worker(output_directory: Path) -> tuple[Path, dict[str, object]]:
-    """Resume with the executable whose stable build provenance was saved."""
+    """Reuse the frozen executable whose stable build provenance an earlier run saved."""
     record_path = output_directory / 'build' / 'result.json'
     record = json.loads(record_path.read_text(encoding='utf-8'))
     frozen = record.get('frozen_executable')
