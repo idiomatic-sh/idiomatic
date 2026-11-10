@@ -22,7 +22,7 @@ FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
 ACCEPTED = {"builder", "contract-migration", "integrator"}
 UNGATED = "integrator"  # carries BEAD:/WORKTREE: briefs to land work, not to author it
 GATED = ACCEPTED - {UNGATED}  # the agents that edit code launch only on a passed scope
-WRONG_TYPE = ("a builder brief (BEAD: and WORKTREE: lines) launches as subagent_type builder (or contract-migration, "
+WRONG_TYPE = ("a builder brief (a BEAD: line) launches as subagent_type builder (or contract-migration, "
               "or integrator to land), the agent types whose stop runs each bead's acceptance block; relaunch it with "
               "subagent_type builder")
 TRAILING = ".,;:)]}>'\"`"
@@ -238,7 +238,7 @@ def launch(data):
         return 2
     tool_input = data.get("tool_input") or {}
     kind, prompt = tool_input.get("subagent_type"), str(tool_input.get("prompt") or "")
-    brief = bool(brief_beads(prompt)) and brief_worktree(prompt) is not None
+    brief = bool(brief_beads(prompt))  # any ^BEAD: line makes a builder brief, worktree line or not
     if brief and kind not in ACCEPTED:
         print("Blocked: " + WRONG_TYPE, file=sys.stderr)
         return 2

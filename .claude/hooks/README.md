@@ -1,7 +1,7 @@
 # Harness hooks
 
 `guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent:
-no subagent spawns another, judged by the payload's `agent_id`; a prompt with `BEAD:` and `WORKTREE:` lines launches only
+no subagent spawns another, judged by the payload's `agent_id`; a prompt with a `BEAD:` line launches only
 as `builder`, `contract-migration` or `integrator`; and a `builder` or `contract-migration` launch needs exact
 `BEAD: <id>` and `WORKTREE: /abs/path` lines and `SCOPE=<path>`,
 a report whose second line is `BEADS: <id> ...` listing every bead of the brief, with a passing

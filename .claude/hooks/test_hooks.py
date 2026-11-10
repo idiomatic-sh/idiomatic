@@ -1845,6 +1845,14 @@ class ScopeGate(unittest.TestCase):
                     result = self.launch(brief.format(scope=path), kind=kind)
                     self.assertEqual(result.returncode, 2)
                     self.assertIn("WORKTREE: /", result.stderr)
+            for kind in ("general-purpose", "Explore", "Plan", "fork", None):
+                with self.subTest(brief=name, kind=kind):
+                    result = self.launch(brief.format(scope=path), kind=kind)
+                    if name == "Bead:":  # no exact BEAD: line, so not a builder brief
+                        self.assertEqual(result.returncode, 0)
+                    else:
+                        self.assertEqual(result.returncode, 2)
+                        self.assertIn("subagent_type builder", result.stderr)
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
 
     def test_a_scope_that_is_not_utf8_is_judged_not_crashed(self):
@@ -1914,7 +1922,8 @@ class ScopeGate(unittest.TestCase):
                     self.assertIn("subagent_type builder", result.stderr)
         self.assertEqual(self.launch(self.brief(""), kind="integrator").returncode, 0)
         self.assertEqual(self.launch(self.brief("SCOPE=" + path), kind="builder").returncode, 0)
-        self.assertEqual(self.launch("BEAD: ryo-x\nSurvey the bead.", kind="general-purpose").returncode, 0)
+        self.assertEqual(self.launch("BEAD: ryo-x\nSurvey the bead.", kind="general-purpose").returncode, 2)
+        self.assertEqual(self.launch("Survey bead ryo-x.", kind="general-purpose").returncode, 0)
 
 
 class ScopeReviewStop(unittest.TestCase):
