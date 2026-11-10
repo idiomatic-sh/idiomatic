@@ -42,14 +42,14 @@ impl QueryModuleSource {
     }
 
     /// The stable logical module id.
-    #[must_use]
-    pub fn id(&self) -> &QuerySourceId {
+    #[cfg(test)]
+    pub(crate) fn id(&self) -> &QuerySourceId {
         &self.id
     }
 
     /// The exact source text.
-    #[must_use]
-    pub fn text(&self) -> &QuerySourceText {
+    #[cfg(test)]
+    pub(crate) fn text(&self) -> &QuerySourceText {
         &self.text
     }
 }
@@ -109,9 +109,9 @@ impl RyoQlQuery {
         self.0
     }
 
-    /// The root query text, preserving the standalone API's view.
+    /// The root query text, which `Display` and `AsRef<str>` hand a caller.
     #[must_use]
-    pub fn root_text(&self) -> &QuerySourceText {
+    pub(crate) fn root_text(&self) -> &QuerySourceText {
         ryo_values::domain::program::service::root_text(&self.0)
     }
 }

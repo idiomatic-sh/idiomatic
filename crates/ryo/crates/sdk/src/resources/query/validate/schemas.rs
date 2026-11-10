@@ -294,7 +294,11 @@ impl From<ValidateReportSchema> for ValidateReport {
 pub(super) fn request(request: ValidateRequest) -> CoreRequest {
     CoreRequest {
         hosted: hosted(&request.hosted),
-        observations: request.observations.into_iter().map(Into::into).collect(),
+        observations: request
+            .observations
+            .into_iter()
+            .map(crate::domain::observation::types::BoundObservationInput::into_engine)
+            .collect(),
         text: request.query.into_bundle(),
     }
 }

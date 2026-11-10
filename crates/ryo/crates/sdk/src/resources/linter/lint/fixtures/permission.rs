@@ -15,7 +15,7 @@ use crate::resources::linter::lint::types::LintRequest;
 use crate::resources::linter::lint::types::Linter;
 use crate::resources::linter::lint::types::SourceText;
 use crate::resources::linter::lint::types::Workers;
-use ryo_values::domain::files::types::ExecutablePermission;
+use crate::domain::file::types::ExecutablePermission;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 

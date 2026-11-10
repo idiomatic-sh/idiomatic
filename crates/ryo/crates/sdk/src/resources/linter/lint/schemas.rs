@@ -673,7 +673,11 @@ fn observation_bindings(
         .into_iter()
         .map(|binding| ObservationBinding {
             name: ryo_values::domain::observations::types::ObservationBindingName(binding.name.0),
-            columns: binding.columns.into_iter().map(Into::into).collect(),
+            columns: binding
+                .columns
+                .into_iter()
+                .map(crate::domain::observation::types::ObservationColumn::into_engine)
+                .collect(),
             producers: binding
                 .producers
                 .into_iter()
