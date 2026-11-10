@@ -72,9 +72,10 @@ impl RelationOwner {
     pub fn routes(&self) -> &super::route_counts::types::RouteProfile {
         &self.routes
     }
-    /// The inspections this owner has answered, built or reused: one per admitted input a view checks against the resident population.
+    /// The admitted inputs this owner has inspected, built or reused: one per input a view checked against the resident population
+    /// and found current. A refused inspection (a stale or mismatched input) is not counted.
     #[cfg(test)]
-    pub(super) fn inspections(&self) -> CheckCount {
+    pub(super) fn admitted_inspections(&self) -> CheckCount {
         CheckCount(self.checks.get().0 + self.reuses.get().0)
     }
     #[cfg(test)]
