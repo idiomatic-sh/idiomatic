@@ -1,0 +1,36 @@
+description = "A concept's test support: what its tests, and the tests of the concepts that read through it, build their subjects from."
+why = "A concept whose tests need more than literals (a repository held in memory, a pass run again until it wants nothing) keeps that support in one file beside its service, `fixtures.rs`, declared by the concept's module file under the `fixtures` gate (`#[cfg(any(test, feature = \"fixtures\"))]`, stated by `module-declares`), so no runtime code reads it (`no-runtime-fixtures`). The template asks only that the file exist; what it holds is the concept's."
+content = '''
+//! The test support of the `{{ part }}` concept.
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The concept's directory name." }
+
+[given]
+file = 'fixtures.rs'
+params = { part = 'workspaces' }
+
+[[scenarios]]
+id = 'test-support-concept-needs-only-doc-comment'
+scenario = 'The test support of a concept needs only its doc comment.'
+given.files.'fixtures.rs' = '''
+//! The test support of the `workspaces` concept.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'fixtures.rs' = '''
+//! A repository held in memory.
+
+/// The files of a repository: path and text.
+pub type Files = &'static [(&'static str, &'static str)];
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'concept-fixtures#count', path = '.' },
+]

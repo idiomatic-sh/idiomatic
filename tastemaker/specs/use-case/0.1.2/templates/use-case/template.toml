@@ -1,0 +1,323 @@
+description = "One use case's body: the struct `<Part>UseCaseImpl` holding only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects, built by `new` and implementing its own `<Part>UseCase`."
+why = "Holds one use case's business logic, and exactly the ports it needs, in a file named for it, so a reader finds a use case by its name, an edge builds nothing its verb does not call, and a test fakes only the ports the use case touches. Ports are dynamic and data is static: the edge injects each port through `new` as an `Arc<dyn <Name>Port>`, so the use case is one concrete type whatever its adapters are. Each use case owns its orchestration, and alike loops in two use cases are accepted. The struct is named for the part with the `UseCaseImpl` suffix, as its trait is named for it with `UseCase`. Its visibility, and its constructor's, are the crate's: `pub` where another crate's edge builds it, `pub(crate)` behind an SDK's entries, where a public struct would name the crate's internal ports; the template writes both private, which any visibility meets."
+content = '''
+{% if ('use_case = "' ~ part ~ '"') in implements -%}
+//! The `{{ part }}` use case: it implements the contract another crate declares, with nothing of its own beside it.
+{% for entry in (implements | split("{") | list)[1:] %}
+{%- if ('use_case = "' ~ part ~ '"') in entry %}
+{%- set crate = ((entry | split('crate = "') | list)[1] | split('"') | list)[0] %}
+{%- set interface = ((entry | split('interface = "') | list)[1] | split('"') | list)[0] %}
+
+/// `{{ part }}`, implementing `{{ crate }}::{{ interface }}`.
+pub struct {{ part | pascal }}UseCaseImpl;
+
+impl {{ part | pascal }}UseCaseImpl {
+    /// `{{ part }}` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl {{ crate }}::{{ interface }} for {{ part | pascal }}UseCaseImpl {}
+{%- endif %}
+{%- endfor %}
+{%- elif present["use-case-contract"] | default(false) -%}
+//! The `{{ part }}` use case: the struct that implements the contract.
+
+use super::interface::{{ part | pascal }}UseCase;
+
+/// `{{ part }}`, implementing its contract.
+pub struct {{ part | pascal }}UseCaseImpl;
+
+impl {{ part | pascal }}UseCase for {{ part | pascal }}UseCaseImpl {}
+{%- else -%}
+//! The `{{ part }}` use case: the struct holding only the ports it calls.
+
+use super::interface::{{ part | pascal }}UseCase;
+
+/// `{{ part }}`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+struct {{ part | pascal }}UseCaseImpl;
+
+impl {{ part | pascal }}UseCaseImpl {
+    /// `{{ part }}` over the ports it calls, which the edge injects.
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl {{ part | pascal }}UseCase for {{ part | pascal }}UseCaseImpl {
+    fn {{ part }}(&self) {}
+}
+{%- endif %}
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The part's directory name: the stem of every name in it." }
+implements = { type = "list<table>", description = "The nu-hex `implements` list; a use case it names implements the other crate's trait it gives instead of its own." }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.file = 'use_case.rs'
+given.params = { implements = [], part = 'greet' }
+given.files.'use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use super::interface::GreetUseCase;
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+struct GreetUseCaseImpl;
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self) {}
+}
+'''
+
+[[scenarios]]
+id = 'crate-use-case'
+scenario = 'The crate keeps the struct and its constructor to itself.'
+given.file = 'use_case.rs'
+given.params = { implements = [], part = 'greet' }
+given.files.'use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use super::interface::GreetUseCase;
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub(crate) struct GreetUseCaseImpl;
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    pub(crate) fn new() -> Self {
+        Self
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self) {}
+}
+'''
+
+[[scenarios]]
+id = 'dyn-ports'
+scenario = 'A file may carry more than its template: the ports as dynamic fields.'
+given.file = 'use_case.rs'
+given.params = { implements = [], part = 'greet' }
+given.files.'use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over `names`, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self) {
+        let _ = &self.names;
+    }
+}
+'''
+
+[[scenarios]]
+id = 'multi-word'
+scenario = 'The stem of a multi-word name is its PascalCase for a use case.'
+given.file = 'use_case.rs'
+given.params = { implements = [], part = 'list_names' }
+given.files.'use_case.rs' = '''
+//! The `list_names` use case: the struct holding only the ports it calls.
+
+use super::interface::ListNamesUseCase;
+
+/// `list_names`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+struct ListNamesUseCaseImpl;
+
+impl ListNamesUseCaseImpl {
+    /// `list_names` over the ports it calls, which the edge injects.
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl ListNamesUseCase for ListNamesUseCaseImpl {
+    fn list_names(&self) {}
+}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'use_case.rs'
+given.params = { implements = [], part = 'greet' }
+then.findings = [
+  { rule = 'use-case#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'use-case-s-struct-named-use-case'
+scenario = "The use case's struct is not named for the use case."
+given.file = 'use_case.rs'
+given.params = { implements = [], part = 'greet' }
+given.files.'use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use super::interface::GreetUseCase;
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+struct GreetingUseCaseImpl;
+
+impl GreetingUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl GreetUseCase for GreetingUseCaseImpl {
+    fn greet(&self) {}
+}
+'''
+then.findings = [
+  { rule = 'use-case#template', path = 'use_case.rs' },
+  { rule = 'use-case#template', path = 'use_case.rs' },
+  { rule = 'use-case#template', path = 'use_case.rs' },
+  { rule = 'use-case#template', path = 'use_case.rs' },
+  { rule = 'use-case#template', path = 'use_case.rs' },
+]
+
+[[scenarios]]
+id = 'no-constructor'
+scenario = 'The use case has no constructor the edge can call.'
+given.file = 'use_case.rs'
+given.params = { implements = [], part = 'greet' }
+given.files.'use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use super::interface::GreetUseCase;
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+struct GreetUseCaseImpl;
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self) {}
+}
+'''
+then.findings = [
+  { rule = 'use-case#template', path = 'use_case.rs' },
+  { rule = 'use-case#template', path = 'use_case.rs' },
+]
+
+[[scenarios]]
+id = 'old-interface-suffix'
+scenario = 'The struct implements a trait with the retired Interface suffix.'
+given.file = 'use_case.rs'
+given.params = { implements = [], part = 'greet' }
+given.files.'use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use super::interface::GreetInterface;
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+struct GreetUseCaseImpl;
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl GreetInterface for GreetUseCaseImpl {
+    fn greet(&self) {}
+}
+'''
+then.findings = [
+  { rule = 'use-case#template', path = 'use_case.rs' },
+  { rule = 'use-case#template', path = 'use_case.rs' },
+]
+
+[[scenarios]]
+id = 'use-case-implements-another-crate-s-trait'
+scenario = "A use case that implements another crate's trait."
+given.file = 'use_case.rs'
+given.params = { part = 'greet', implements = [{ use_case = 'greet', crate = 'ryo', interface = 'greeting::Greeter' }] }
+given.files.'use_case.rs' = '''
+//! The `greet` use case: it implements the contract another crate declares, with nothing of its own beside it.
+
+/// `greet`, implementing `ryo::greeting::Greeter`.
+pub struct GreetUseCaseImpl;
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl ryo::greeting::Greeter for GreetUseCaseImpl {}
+'''
+
+[[scenarios]]
+id = 'implementing-parse'
+scenario = "A language's parse use case reads into the worker's table through a builder."
+given.file = 'use_case.rs'
+given.params = { part = 'parse', implements = [{ use_case = 'parse', crate = 'ryo', interface = 'languages::Parse' }] }
+given.files.'use_case.rs' = '''
+//! The `parse` use case: it implements the contract another crate declares, with nothing of its own beside it.
+
+/// `parse`, implementing `ryo::languages::Parse`.
+pub struct ParseUseCaseImpl;
+
+impl ParseUseCaseImpl {
+    /// `parse` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl ryo::languages::Parse for ParseUseCaseImpl {}
+'''
+
+[[scenarios]]
+id = 'implementing-project'
+scenario = "A language's project use case answers every manifest relation of the catalog."
+given.file = 'use_case.rs'
+given.params = { part = 'project', implements = [{ use_case = 'project', crate = 'ryo', interface = 'languages::Project' }] }
+given.files.'use_case.rs' = '''
+//! The `project` use case: it implements the contract another crate declares, with nothing of its own beside it.
+
+/// `project`, implementing `ryo::languages::Project`.
+pub struct ProjectUseCaseImpl;
+
+impl ProjectUseCaseImpl {
+    /// `project` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl ryo::languages::Project for ProjectUseCaseImpl {}
+'''

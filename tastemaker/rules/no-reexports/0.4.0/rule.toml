@@ -1,0 +1,1631 @@
+description = "Imports, external-crate bindings and type aliases of a path have inherited visibility outside the product’s placed SDK surface."
+why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary only (the error a use case's signature carries is vocabulary as much as its data); service/implementation exports remain forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let imports = select * from tree-nodes where kind = "use";
+let external-crates = select * from tree-nodes where kind = "extern-crate";
+let bindings = union(left=imports, right=external-crates);
+let all-aliases = select * from tree-nodes where kind = "type-alias";
+let path-types = select * from tree-nodes where kind = "path-type";
+let alias-kids = select l."id" as "id", r."child" as "child" from all-aliases as l join "syntax-child" as r on l."id" = r."parent";
+let path-alias-ids = select l."id" as "id" from alias-kids as l join path-types as r on l."child" = r."id";
+let aliases = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from all-aliases as l join path-alias-ids as r on l."id" = r."id";
+let forwarding = union(left=bindings, right=aliases);
+let forwarding-children = select r."child" as "child", l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from forwarding as l join "syntax-child" as r on l."id" = r."parent";
+let visibility = select * from tree-nodes where kind = "visibility";
+let visible-forwarding = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", r."id" as "visibility" from forwarding-children as l join visibility as r on l."child" = r."id";
+let visible-imports = select * from visible-forwarding where kind = "use";
+let token-edges = select r."kind" as "kind", l."parent" as "parent", r."text" as "text", r."id" as "token" from "syntax-child" as l join tree-tokens as r on l."child" = r."id";
+let attributes = select * from tree-nodes where kind = "attr";
+let resource-paths = select * from tree-nodes where kind = "path";
+let resource-segments = select * from tree-nodes where kind = "path-segment";
+let resource-names = select * from tree-nodes where kind = "name-ref";
+let resource-segment-edges = select l."parent" as "segment", r."id" as "name" from "syntax-child" as l join resource-names as r on l."child" = r."id";
+let resource-named = select l."segment" as "segment", r."text" as "text" from resource-segment-edges as l join token-edges as r on l."name" = r."parent";
+let resource-keywords = select l."id" as "segment", r."text" as "text" from resource-segments as l join token-edges as r on l."id" = r."parent";
+let resource-segment-names = union(left=resource-named, right=resource-keywords);
+let resource-path-segments = select l."parent" as "path", r."id" as "segment" from "syntax-child" as l join resource-segments as r on l."child" = r."id";
+let resource-path-names = select l."path" as "path", r."text" as "text" from resource-path-segments as l join resource-segment-names as r on l."segment" = r."segment";
+let resource-path-parents = select l."parent" as "path", r."id" as "prefix" from "syntax-child" as l join resource-paths as r on l."child" = r."id";
+let resource-trees = select * from tree-nodes where kind = "use-tree";
+let resource-use-trees = select l."parent" as "id", r."id" as "tree" from "syntax-child" as l join resource-trees as r on l."child" = r."id";
+let resource-lists = select * from tree-nodes where glob_any(kind, "{use-tree-list,rename}");
+let resource-grouped = select l."parent" as "tree" from "syntax-child" as l join resource-lists as r on l."child" = r."id";
+let resource-single-trees = antijoin(left=resource-use-trees, right=resource-grouped, left-on=["tree"], right-on=["tree"]);
+let resource-use-paths = select l."id" as "id", r."prefix" as "path" from resource-single-trees as l join resource-path-parents as r on l."tree" = r."path";
+let resource-factories = select * from visible-imports where glob_any(file, "**/outbound/*/factory.rs");
+let resource-start = select l."id" as "id", r."path" as "path" from resource-factories as l join resource-use-paths as r on l."id" = r."id";
+let resource-step-0 = select l."id" as "id", l."path" as "path", r."text" as "text" from resource-start as l join resource-path-names as r on l."path" = r."path";
+let resource-match-0 = select * from resource-step-0 where glob_any(text, "*Connection");
+let resource-prefix-0 = select l."id" as "id", r."prefix" as "path" from resource-match-0 as l join resource-path-parents as r on l."path" = r."path";
+let resource-step-1 = select l."id" as "id", l."path" as "path", r."text" as "text" from resource-prefix-0 as l join resource-path-names as r on l."path" = r."path";
+let resource-match-1 = select * from resource-step-1 where glob_any(text, "connection");
+let resource-prefix-1 = select l."id" as "id", r."prefix" as "path" from resource-match-1 as l join resource-path-parents as r on l."path" = r."path";
+let resource-step-2 = select l."id" as "id", l."path" as "path", r."text" as "text" from resource-prefix-1 as l join resource-path-names as r on l."path" = r."path";
+let resource-match-2 = select * from resource-step-2 where glob_any(text, "*");
+let resource-prefix-2 = select l."id" as "id", r."prefix" as "path" from resource-match-2 as l join resource-path-parents as r on l."path" = r."path";
+let resource-step-3 = select l."id" as "id", l."path" as "path", r."text" as "text" from resource-prefix-2 as l join resource-path-names as r on l."path" = r."path";
+let resource-match-3 = select * from resource-step-3 where glob_any(text, "adapters");
+let resource-prefix-3 = select l."id" as "id", r."prefix" as "path" from resource-match-3 as l join resource-path-parents as r on l."path" = r."path";
+let resource-step-4 = select l."id" as "id", l."path" as "path", r."text" as "text" from resource-prefix-3 as l join resource-path-names as r on l."path" = r."path";
+let resource-match-4 = select * from resource-step-4 where glob_any(text, "super");
+let resource-imports = antijoin(left=resource-match-4, right=resource-path-parents, left-on=["path"], right-on=["path"]);
+let signature-interfaces = select * from visible-imports where glob_any(file, "**/src/inbound/use_cases/*/interface.rs");
+let signature-paths = select l."id" as "id", r."path" as "path" from signature-interfaces as l join resource-use-paths as r on l."id" = r."id";
+let signature-item-prefix = select l."id" as "id", r."prefix" as "path" from signature-paths as l join resource-path-parents as r on l."path" = r."path";
+let signature-type-paths-step = select l."id" as "id", l."path" as "path", r."text" as "text" from signature-item-prefix as l join resource-path-names as r on l."path" = r."path";
+let signature-type-paths = select "id", "path" from signature-type-paths-step where glob_any(text, "{types,errors}");
+let signature-concept = select l."id" as "id", r."prefix" as "path" from signature-type-paths as l join resource-path-parents as r on l."path" = r."path";
+let signature-domain-path = select l."id" as "id", r."prefix" as "path" from signature-concept as l join resource-path-parents as r on l."path" = r."path";
+let signature-domain-step = select l."id" as "id", l."path" as "path", r."text" as "text" from signature-domain-path as l join resource-path-names as r on l."path" = r."path";
+let signature-domain = select "id", "path" from signature-domain-step where text = "domain";
+let signature-crate-path = select l."id" as "id", r."prefix" as "path" from signature-domain as l join resource-path-parents as r on l."path" = r."path";
+let signature-crate-step = select l."id" as "id", l."path" as "path", r."text" as "text" from signature-crate-path as l join resource-path-names as r on l."path" = r."path";
+let signature-crate = select "id", "path" from signature-crate-step where text = "crate";
+let signature-imports = antijoin(left=signature-crate, right=resource-path-parents, left-on=["path"], right-on=["path"]);
+let other-forwarding = antijoin(left=visible-forwarding, right=resource-imports, left-on=["id"], right-on=["id"]);
+let forbidden-forwarding = antijoin(left=other-forwarding, right=signature-imports, left-on=["id"], right-on=["id"]);
+let forwarding-rows = project(from=forbidden-forwarding, columns=["file", "span", "kind"]);
+let forwarding-described = extend(from=forwarding-rows, values={"problem": "declaration has explicit forwarding visibility"});
+let metas = select * from tree-nodes where glob_any(kind, "{token-tree-meta,key-value-meta,path-meta}");
+let meta-attributes = axis(from=metas, relation="syntax-child", direction=nearest-ancestor, domain=attributes);
+let attribute-metas = select r."id" as "attribute", l."id" as "meta", r."file" as "file", r."span" as "span" from meta-attributes as l join attributes as r on l."related" = r."id";
+let meta-path-edges = select l."attribute" as "attribute", r."child" as "child", l."meta" as "meta" from attribute-metas as l join "syntax-child" as r on l."meta" = r."parent";
+let paths = select * from tree-nodes where kind = "path";
+let meta-paths = select l."attribute" as "attribute", l."meta" as "meta", r."id" as "path-node" from meta-path-edges as l join paths as r on l."child" = r."id";
+let meta-path-segment-edges = select l."attribute" as "attribute", r."child" as "child", l."meta" as "meta" from meta-paths as l join "syntax-child" as r on l."path-node" = r."parent";
+let segments = select * from tree-nodes where kind = "path-segment";
+let segment-name-ref-edges = select r."child" as "child", l."id" as "segment" from segments as l join "syntax-child" as r on l."id" = r."parent";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let segment-name-refs = select r."id" as "name-ref", l."segment" as "segment" from segment-name-ref-edges as l join name-refs as r on l."child" = r."id";
+let segment-identifiers = select r."kind" as "kind", l."name-ref" as "name-ref", l."segment" as "segment", r."text" as "text", r."token" as "token" from segment-name-refs as l join token-edges as r on l."name-ref" = r."parent";
+let attribute-names = select l."attribute" as "attribute", l."meta" as "meta", r."text" as "name" from meta-path-segment-edges as l join segment-identifiers as r on l."child" = r."segment";
+let meta-tree-edges = select l."attribute" as "attribute", r."child" as "child", l."name" as "name" from attribute-names as l join "syntax-child" as r on l."meta" = r."parent";
+let token-trees = select * from tree-nodes where kind = "token-tree";
+let attribute-trees = select l."attribute" as "attribute", r."id" as "id", l."name" as "name" from meta-tree-edges as l join token-trees as r on l."child" = r."id";
+let attribute-tree-roots = project(from=attribute-trees, columns=["id"]);
+let attribute-owned-nodes = axis(from=tree-nodes, relation="syntax-child", direction=nearest-ancestor, domain=attribute-tree-roots);
+let attribute-nested-tokens = select r."kind" as "kind", l."related" as "root", r."text" as "text", r."token" as "token" from attribute-owned-nodes as l join token-edges as r on l."id" = r."parent";
+let attribute-root-tokens = select r."kind" as "kind", l."id" as "root", r."text" as "text", r."token" as "token" from attribute-tree-roots as l join token-edges as r on l."id" = r."parent";
+let attribute-tree-tokens = union(left=attribute-nested-tokens, right=attribute-root-tokens);
+let attribute-tokens = select r."attribute" as "attribute", r."name" as "name", l."text" as "text" from attribute-tree-tokens as l join attribute-trees as r on l."root" = r."id";
+let pub-use-mentions = select * from attribute-tokens where glob_any(text, "{pub_use,restriction}");
+let suppressing-mentions = select * from pub-use-mentions where glob_any(name, "{allow,expect}");
+let suppressions = project(from=suppressing-mentions, columns=["attribute"]);
+let visible-import-attribute-edges = select r."child" as "attribute" from visible-imports as l join "syntax-child" as r on l."id" = r."parent";
+let stray-suppressions = antijoin(left=suppressions, right=visible-import-attribute-edges, left-on=["attribute"], right-on=["attribute"]);
+let stray-candidates = select r."file" as "file", r."span" as "span" from stray-suppressions as l join attributes as r on l."attribute" = r."id";
+let resource-export-files = select l."file" as "file" from visible-imports as l join resource-imports as r on l."id" = r."id";
+let ordinary-stray-rows = antijoin(left=stray-candidates, right=resource-export-files, left-on=["file"], right-on=["file"]);
+let broad-suppressions = select * from suppressing-mentions where text = "restriction";
+let broad-rows = select r."file" as "file", r."span" as "span" from broad-suppressions as l join attributes as r on l."attribute" = r."id";
+let stray-rows = union(left=ordinary-stray-rows, right=broad-rows);
+let stray-described = extend(from=stray-rows, values={"kind": "attribute", "problem": "suppresses `clippy::pub_use` outside an SDK surface"});
+let declaration-and-suppression-findings = union(left=forwarding-described, right=stray-described);
+let macro-definitions = select * from tree-nodes where glob_any(kind, "{macro-rules,macro-def}");
+let macro-descendants = axis(from=macro-definitions, relation="syntax-child", direction=descendant, domain=token-trees);
+let macro-trees = project(from=macro-descendants, columns=["related"]);
+let macro-tree-children = select r."child" as "child", r."ordinal" as "ordinal", l."related" as "tree" from macro-trees as l join "syntax-child" as r on l."related" = r."parent";
+let macro-tokens = select r."kind" as "kind", l."ordinal" as "ordinal", r."file" as "file", r."span" as "span", r."text" as "text", r."id" as "token", l."tree" as "tree" from macro-tree-children as l join tree-tokens as r on l."child" = r."id";
+let macro-publics = select * from macro-tokens where kind = "pub-kw";
+let macro-binding-keywords = select * from macro-tokens where glob_any(kind, "{type-kw,use-kw,extern-kw}");
+let macro-keyword-pairs = select r."token" as "binding", r."ordinal" as "binding-ordinal", r."text" as "kind", r."file" as "file", l."token" as "public", l."ordinal" as "public-ordinal", r."span" as "span", l."tree" as "tree" from macro-publics as l join macro-binding-keywords as r on l."tree" = r."tree";
+let macro-ordered-pairs = select * from macro-keyword-pairs where public-ordinal < binding-ordinal;
+let macro-trivia = select * from macro-tokens where glob_any(kind, "{whitespace,comment}");
+let macro-significant-tokens = antijoin(left=macro-tokens, right=macro-trivia, left-on=["token"], right-on=["token"]);
+let macro-pair-candidates = select r."ordinal" as "between", l."binding" as "binding", l."binding-ordinal" as "binding-ordinal", l."public" as "public", l."public-ordinal" as "public-ordinal" from macro-ordered-pairs as l join macro-significant-tokens as r on l."tree" = r."tree";
+let macro-pair-after-public = select * from macro-pair-candidates where between > public-ordinal;
+let macro-pair-blockers = select * from macro-pair-after-public where between < binding-ordinal;
+let macro-adjacent-pairs = antijoin(left=macro-ordered-pairs, right=macro-pair-blockers, left-on=["public", "binding"], right-on=["public", "binding"]);
+let macro-rows = project(from=macro-adjacent-pairs, columns=["file", "span", "kind"]);
+let macro-described = extend(from=macro-rows, values={"problem": "in a macro body beside `pub` forwards a name with explicit visibility"});
+let findings = union(left=declaration-and-suppression-findings, right=macro-described);
+emit findings subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "{kind} {problem}"
+help = "Import from the defining module and remove forwarding visibility. Only the src tree of the product’s actual SDK spec placement is excluded by its Tastemaker entry; neither a CLI nor an ordinary crate root has a reexport allowance. The narrow port factory resource-handle export and canonical inbound one-item private domain signature-type exports are allowed; grouped, renamed and implementation exports are not."
+
+[given]
+include = ['**']
+
+[[scenarios]]
+id = 'private-imports'
+scenario = 'Private imports and owned declarations.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod owned;
+'''
+given.files.'src/owned.rs' = '''
+use crate::owned::inner::Thing;
+pub struct Owned(u8);
+mod inner {
+    pub struct Thing;
+}
+'''
+
+[[scenarios]]
+id = 'public-import'
+scenario = 'A public import in an ordinary crate root.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+pub use crate::inner::Thing;
+mod inner {
+    pub struct Thing;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'crate-import'
+scenario = "A crate-visible import forwards another module's item."
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/crate_import.rs' = '''
+pub(crate) use std::fmt::Debug;
+'''
+given.files.'src/lib.rs' = '''
+pub mod crate_import;
+'''
+then.findings = [
+  { path = 'src/crate_import.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'public-alias'
+scenario = 'A public type alias forwards another type.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod public_alias;
+'''
+given.files.'src/public_alias.rs' = '''
+pub type Counter = usize;
+'''
+then.findings = [
+  { path = 'src/public_alias.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'external-crate'
+scenario = 'A public external-crate binding.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/external_crate.rs' = '''
+pub extern crate std as standard;
+'''
+given.files.'src/lib.rs' = '''
+pub mod external_crate;
+'''
+then.findings = [
+  { path = 'src/external_crate.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'path-import'
+scenario = 'An import visible to a named path.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod path_import;
+'''
+given.files.'src/path_import.rs' = '''
+mod nested {
+    pub(in crate::path_import::nested) use std::fmt::Debug;
+}
+'''
+then.findings = [
+  { path = 'src/path_import.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'restricted-alias'
+scenario = 'A crate-visible type alias.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod restricted_alias;
+'''
+given.files.'src/restricted_alias.rs' = '''
+pub(crate) type Counter = usize;
+'''
+then.findings = [
+  { path = 'src/restricted_alias.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'restricted-forms'
+scenario = 'A renamed, glob, listed import and an external-crate binding, each crate-visible.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/external.rs' = '''
+pub(crate) extern crate core as foundation;
+'''
+given.files.'src/glob.rs' = '''
+pub(crate) use std::fmt::*;
+'''
+given.files.'src/lib.rs' = '''
+pub mod renamed;
+pub mod glob;
+pub mod listed;
+pub mod external;
+'''
+given.files.'src/listed.rs' = '''
+pub(crate) use std::fmt::{Display, Write};
+'''
+given.files.'src/renamed.rs' = '''
+pub(crate) use std::fmt::Debug as Debuggable;
+'''
+then.findings = [
+  { path = 'src/external.rs', line = 1 },
+  { path = 'src/glob.rs', line = 1 },
+  { path = 'src/listed.rs', line = 1 },
+  { path = 'src/renamed.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'self-import'
+scenario = 'An import written `pub(self)`.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod self_import;
+'''
+given.files.'src/self_import.rs' = '''
+pub(self) use std::fmt::Debug;
+'''
+then.findings = [
+  { path = 'src/self_import.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'super-import'
+scenario = 'An import visible to the parent module.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod super_import;
+'''
+given.files.'src/super_import.rs' = '''
+mod nested {
+    pub(super) use std::fmt::Debug;
+}
+'''
+then.findings = [
+  { path = 'src/super_import.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'active-export'
+scenario = 'A crate-visible import behind a true `#[cfg]`.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/active_export.rs' = '''
+#[cfg(all())]
+pub(crate) use std::fmt::Display;
+'''
+given.files.'src/lib.rs' = '''
+pub mod active_export;
+'''
+then.findings = [
+  { path = 'src/active_export.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'configured-out'
+scenario = 'A crate-visible import behind a false `#[cfg]` (the lint never saw it; the rule does).'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/configured_out.rs' = '''
+#[cfg(any())]
+pub(crate) use std::fmt::Debug;
+'''
+given.files.'src/lib.rs' = '''
+pub mod configured_out;
+'''
+then.findings = [
+  { path = 'src/configured_out.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'macro-forwarding'
+scenario = 'A macro_rules body that writes a crate-visible alias.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod macro_forwarding;
+pub mod macro_import;
+pub mod macro_items;
+'''
+given.files.'src/macro_forwarding.rs' = '''
+macro_rules! forward {
+    () => {
+        pub(crate) type Forwarded = usize;
+    };
+}
+forward!();
+'''
+given.files.'src/macro_import.rs' = '''
+macro_rules! import {
+    () => {
+        pub use std::fmt::Debug;
+    };
+}
+'''
+given.files.'src/macro_items.rs' = '''
+macro_rules! declare {
+    ($type:ident) => {
+        pub enum $type {
+            A,
+        }
+        pub struct Holder;
+        use std::fmt::Debug;
+        pub fn show() {
+            use std::fmt::Display;
+        }
+    };
+}
+'''
+then.findings = [
+  { path = 'src/macro_forwarding.rs', line = 3 },
+  { path = 'src/macro_import.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'facade-outside-root'
+scenario = "The facade's exact shape outside the crate root."
+given.exclude = ['src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/facade.rs' = '''
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+pub use fixture_macros::Catalog;
+'''
+given.files.'src/lib.rs' = '''
+pub mod facade;
+'''
+then.findings = [
+  { path = 'src/facade.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'facade-without-feature'
+scenario = 'A facade without the derive feature gate.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+pub use fixture_macros::Catalog;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'facade-without-expectation'
+scenario = 'A facade without the expectation.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+#[cfg(feature = "derive")]
+pub use fixture_macros::Catalog;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'facade-not-derive'
+scenario = 'A facade naming a function-like macro, not a derive.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+pub use fixture_macros::table;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'facade-renamed'
+scenario = 'A facade that renames its derive.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+pub use fixture_macros::Features as Capabilities;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'facade-extra-attribute'
+scenario = 'A facade carrying another attribute.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+#[allow(unused_imports)]
+pub use fixture_macros::Features;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'facade-partial-expectation'
+scenario = 'A facade expecting `clippy::pub_use` alone.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, reason = "the derive facade")]
+pub use fixture_macros::Relation;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'stray-allow'
+scenario = '`clippy::pub_use` or `clippy::restriction` allowed or expected outside the facade.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/field.rs' = '''
+pub struct Fielded {
+    #[allow(clippy::pub_use)]
+    pub field: u8,
+}
+'''
+given.files.'src/function.rs' = '''
+#[expect(clippy::pub_use, reason = "no re-export here")]
+pub fn exported() {}
+'''
+given.files.'src/inner.rs' = '''
+#![allow(clippy::pub_use)]
+'''
+given.files.'src/lib.rs' = '''
+pub mod inner;
+pub mod function;
+pub mod restriction;
+pub mod field;
+pub mod trait_item;
+pub mod method;
+pub mod statement;
+pub mod unrelated;
+'''
+given.files.'src/method.rs' = '''
+pub struct Fielded {
+    pub field: u8,
+}
+
+impl Fielded {
+    #[allow(clippy::pub_use)]
+    pub fn method(&self) -> u8 {
+        self.field
+    }
+}
+'''
+given.files.'src/restriction.rs' = '''
+#[allow(dead_code, clippy::restriction)]
+mod quiet {}
+'''
+given.files.'src/statement.rs' = '''
+pub fn copy(value: u8) -> u8 {
+    #[allow(clippy::pub_use)]
+    let copy = value;
+    copy
+}
+'''
+given.files.'src/trait_item.rs' = '''
+pub trait Traited {
+    #[expect(clippy::pub_use, reason = "a trait item")]
+    fn required(&self);
+}
+'''
+given.files.'src/unrelated.rs' = '''
+#[allow(clippy::pedantic)]
+mod unrelated {}
+'''
+then.findings = [
+  { path = 'src/field.rs', line = 2 },
+  { path = 'src/function.rs', line = 1 },
+  { path = 'src/inner.rs', line = 1 },
+  { path = 'src/method.rs', line = 6 },
+  { path = 'src/restriction.rs', line = 1 },
+  { path = 'src/statement.rs', line = 2 },
+  { path = 'src/trait_item.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'conditional-allow'
+scenario = '`clippy::pub_use` allowed through `cfg_attr`.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/conditional.rs' = '''
+#[cfg_attr(test, allow(clippy::pub_use))]
+pub fn exported() {}
+'''
+given.files.'src/denied.rs' = '''
+#[cfg_attr(test, deny(clippy::pub_use))]
+pub fn denied() {}
+'''
+given.files.'src/lib.rs' = '''
+pub mod conditional;
+pub mod denied;
+'''
+then.findings = [
+  { path = 'src/conditional.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'facade-restricted'
+scenario = "The facade's shape with a restricted visibility."
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+pub(crate) use fixture_macros::Catalog;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'facade-doc-attribute'
+scenario = 'A facade documented by a doc comment and a doc attribute.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+/// The catalog derive.
+#[doc = "Derives a catalog."]
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+pub use fixture_macros::Catalog;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'nested-cfg-attr-allow'
+scenario = '`clippy::pub_use` allowed through nested `cfg_attr`.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod nested;
+'''
+given.files.'src/nested.rs' = '''
+#[cfg_attr(all(), cfg_attr(all(), allow(clippy::pub_use)))]
+pub fn exported() {}
+'''
+then.findings = [
+  { path = 'src/nested.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'root-stray-allow'
+scenario = 'A crate root allowing `clippy::pub_use` module-wide.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+#![allow(clippy::pub_use)]
+pub struct Owned;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'derive-facade'
+scenario = 'Even a derive facade in an ordinary crate root, as a list and as one name.'
+given.include = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]
+'''
+given.files.'macros/Cargo.toml' = '''
+[package]
+name = "fixture_macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+'''
+given.files.'macros/src/lib.rs' = '''
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+'''
+given.files.'src/lib.rs' = '''
+/// The record derives.
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+pub use fixture_macros::{Entity, Relation};
+#[cfg(feature = "derive")]
+#[expect(clippy::pub_use, clippy::useless_attribute, reason = "the derive facade")]
+pub use fixture_macros::Scalar;
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 2 },
+  { path = 'src/lib.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'private-import-private-alias-beside-owned-types'
+scenario = 'A private import and a private alias beside owned types.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/example.rs' = '''
+mod owner {
+    pub struct Item;
+}
+use owner::Item;
+type Local = Item;
+pub struct Owned(Local);
+pub fn create() -> Owned {
+    Owned(Item)
+}
+'''
+given.files.'src/lib.rs' = '''
+pub mod example;
+'''
+
+[[scenarios]]
+id = 'private-declarations'
+scenario = 'A private external-crate binding, imports, alias and an associated type.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod private_declarations;
+'''
+given.files.'src/private_declarations.rs' = '''
+extern crate std as standard;
+use standard::fmt::{Debug, Display};
+type Counter = usize;
+pub struct Owned(Counter);
+pub trait Contract {
+    type Output;
+}
+impl Contract for Owned {
+    type Output = Owned;
+}
+'''
+
+[[scenarios]]
+id = 'text-is-not-syntax'
+scenario = 'Forwarding written in comments and strings.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod text;
+'''
+given.files.'src/text.rs' = '''
+// pub(crate) use std::fmt::Debug;
+/* pub type Counter = usize; */
+pub const DESCRIPTION: &str = "pub extern crate std;";
+pub const RAW: &str = r#"pub(crate) use std::fmt::*;"#;
+'''
+
+[[scenarios]]
+id = 'public-fn-alias'
+scenario = 'An alias of a function or a dyn Fn forwards no item.'
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/lib.rs' = '''
+pub mod public_alias;
+'''
+given.files.'src/public_alias.rs' = '''
+pub type Visit = fn(u8) -> u8;
+pub type Find<R> = dyn Fn(&R) -> bool;
+'''
+
+[[scenarios]]
+id = 'resource-connection'
+scenario = 'A factory exposes its adapter resource connection.'
+given.files.'src/outbound/cache/factory.rs' = '''
+#![allow(clippy::pub_use)]
+pub use super::adapters::arrow::connection::CacheConnection;
+'''
+
+[[scenarios]]
+id = 'resource-adapter'
+scenario = 'A factory cannot expose the adapter implementation.'
+given.files.'src/outbound/cache/factory.rs' = '''
+pub use super::adapters::arrow::adapter::CacheArrowAdapter;
+'''
+then.findings = [
+  { path = 'src/outbound/cache/factory.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'resource-mixed'
+scenario = 'A resource export cannot hide an adapter export.'
+given.files.'src/outbound/cache/factory.rs' = '''
+pub use super::adapters::arrow::{connection::CacheConnection, adapter::CacheArrowAdapter};
+'''
+then.findings = [
+  { path = 'src/outbound/cache/factory.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'resource-wrong-location'
+scenario = 'A resource connection is not a general reexport allowance.'
+given.files.'src/domain/service.rs' = '''
+pub use super::adapters::arrow::connection::CacheConnection;
+'''
+then.findings = [
+  { path = 'src/domain/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'resource-plus-invalid'
+scenario = 'A permitted resource cannot hide another public import.'
+given.files.'src/outbound/cache/factory.rs' = '''
+#![allow(clippy::pub_use)]
+pub use super::adapters::arrow::connection::CacheConnection;
+pub use super::adapters::arrow::adapter::CacheArrowAdapter;
+'''
+then.findings = [
+  { path = 'src/outbound/cache/factory.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'resource-broad-allow'
+scenario = 'A resource export permits no blanket Clippy restriction allowance.'
+given.files.'src/outbound/cache/factory.rs' = '''
+#![allow(clippy::restriction)]
+pub use super::adapters::arrow::connection::CacheConnection;
+'''
+then.findings = [
+  { path = 'src/outbound/cache/factory.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'resource-renamed'
+scenario = 'Resource exports preserve the declared connection name.'
+given.files.'src/outbound/cache/factory.rs' = '''
+pub use super::adapters::arrow::connection::CacheConnection as Anything;
+'''
+then.findings = [
+  { path = 'src/outbound/cache/factory.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'inbound-signature-type'
+scenario = 'The canonical inbound contract may forward nominal private domain signature types.'
+given.files.'src/domain/contract/types.rs' = '''
+pub struct OperatorCall { pub ordinal: u8 }
+'''
+given.files.'src/domain/capture/types.rs' = '''
+pub struct CaptureOutput { pub ordinal: u8 }
+'''
+given.files.'src/inbound/use_cases/operators/interface.rs' = '''
+pub use crate::domain::contract::types::OperatorCall;
+pub use crate::domain::capture::types::CaptureOutput;
+'''
+
+[[scenarios]]
+id = 'inbound-signature-error'
+scenario = 'The canonical inbound contract may forward the nominal private domain error its signatures carry.'
+given.files.'src/domain/operating/errors.rs' = '''
+pub enum OperatingError { NotRun }
+'''
+given.files.'src/inbound/use_cases/operators/interface.rs' = '''
+pub use crate::domain::operating::errors::OperatingError;
+'''
+
+[[scenarios]]
+id = 'inbound-error-wrong-place'
+scenario = 'A sibling application module cannot forward a domain error.'
+given.files.'src/application/operators/service.rs' = '''
+pub use crate::domain::operating::errors::OperatingError;
+'''
+then.findings = [
+  { path = 'src/application/operators/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'inbound-signature-grouped'
+scenario = 'A grouped import cannot hide an implementation import in the signature allowance.'
+given.files.'src/inbound/use_cases/operators/interface.rs' = '''
+pub use crate::domain::contract::types::{OperatorCall, service::run};
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/operators/interface.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'inbound-implementation-export'
+scenario = 'An inbound interface cannot forward implementation service calls.'
+given.files.'src/inbound/use_cases/operators/interface.rs' = '''
+pub use crate::domain::contract::service::run;
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/operators/interface.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'inbound-type-wrong-place'
+scenario = 'A sibling application module cannot claim inbound signature authority.'
+given.files.'src/application/operators/service.rs' = '''
+pub use crate::domain::contract::types::OperatorCall;
+'''
+then.findings = [
+  { path = 'src/application/operators/service.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'inbound-type-renamed'
+scenario = 'Renaming a private signature type creates a parallel contract path.'
+given.files.'src/inbound/use_cases/operators/interface.rs' = '''
+pub use crate::domain::contract::types::OperatorCall as AlternateCall;
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/operators/interface.rs', line = 1 },
+]

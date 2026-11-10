@@ -1,0 +1,224 @@
+description = "An adapter: one implementation of one outbound port of the core, which it imports from the core crate."
+why = "Holds one implementation of the core's port behind the port's name, so the core's use cases depend on the promise and the edge alone picks the implementation. The port is the core's, imported from the crate the entry names in `core`: the adapter holds nothing of the core's logic and no interface of its own. Its struct is `<Port><Part>Adapter` and it implements `<Port>Port`, so the port and the kind can be read from the name. A store adapter is built from its settings (the directory and the build, which its factory takes and no port method does), reads empty when its file is absent, was written by another build or does not decode (never migrated), and writes each `keep_…` once, when the run succeeds, to a temporary file renamed over the store."
+content = '''
+//! The {{ port }} port, implemented with {{ part }}.
+
+use {{ core }}::outbound::{{ port }}::interface::{{ port | pascal }}Port;
+{%- if present.settings | default(false) %}
+use super::settings::{{ port | pascal }}{{ part | pascal }}Settings;
+
+/// The {{ part }} {{ port }} adapter, configured by its settings.
+#[derive(Debug)]
+pub(crate) struct {{ port | pascal }}{{ part | pascal }}Adapter {
+    settings: {{ port | pascal }}{{ part | pascal }}Settings,
+}
+
+impl {{ port | pascal }}{{ part | pascal }}Adapter {
+    /// The adapter over `settings`, which its composition chooses.
+    pub(crate) fn new(settings: {{ port | pascal }}{{ part | pascal }}Settings) -> Self {
+        Self { settings }
+    }
+}
+{%- else %}
+
+/// The {{ part }} {{ port }} adapter.
+#[derive(Debug)]
+pub(crate) struct {{ port | pascal }}{{ part | pascal }}Adapter;
+{%- endif %}
+
+impl {{ port | pascal }}Port for {{ port | pascal }}{{ part | pascal }}Adapter {}
+'''
+
+[params]
+core = { type = "identifier", description = "The Rust crate that owns the port and contract." }
+port = { type = "identifier", from = "directory-name", description = "The outbound port the adapter implements, captured from the path of its part; the directory's own name where the part has no port." }
+part = { type = "identifier", from = "directory-name", description = "The adapter's directory name: the implementation." }
+
+[[scenarios]]
+id = 'example-adapter'
+scenario = 'The rendered template passes.'
+given.file = 'src/names/adapters/memory/adapter.rs'
+given.params = { core = 'crate', port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/adapter.rs' = '''
+//! The names port, implemented with memory.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// The memory names adapter.
+#[derive(Debug)]
+pub(crate) struct NamesMemoryAdapter;
+
+impl NamesPort for NamesMemoryAdapter {}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.file = 'src/names/adapters/memory/adapter.rs'
+given.params = { core = 'crate', port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/adapter.rs' = '''
+//! The names port, implemented with memory.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// The memory names adapter.
+#[derive(Debug)]
+pub(crate) struct NamesMemoryAdapter {
+    store: std::collections::BTreeMap<String, String>,
+}
+
+impl NamesPort for NamesMemoryAdapter {}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'store-adapter'
+scenario = 'A store adapter: built from its settings, empty when its file is absent, of another build or undecodable, and kept once on success through a temporary file and a rename.'
+given.file = 'src/outbound/check_store/adapters/postcard/adapter.rs'
+given.params = { core = 'crate', port = 'check_store', part = 'postcard' }
+given.files.'src/outbound/check_store/adapters/postcard/settings.rs' = '''
+//! What the postcard check_store adapter is configured with.
+
+/// The postcard check_store adapter's settings: the values and parts its
+/// composition chooses.
+#[derive(Debug)]
+pub(crate) struct CheckStorePostcardSettings {
+    /// The directory the store's file is kept in.
+    pub(crate) directory: std::path::PathBuf,
+    /// The build that reads and writes it: a file of another build reads empty.
+    pub(crate) build: Box<str>,
+}
+'''
+given.files.'src/outbound/check_store/adapters/postcard/adapter.rs' = '''
+//! The check_store port, implemented with postcard.
+
+use crate::outbound::check_store::interface::CheckStorePort;
+use super::settings::CheckStorePostcardSettings;
+
+/// The postcard check_store adapter, configured by its settings.
+#[derive(Debug)]
+pub(crate) struct CheckStorePostcardAdapter {
+    settings: CheckStorePostcardSettings,
+}
+
+impl CheckStorePostcardAdapter {
+    /// The adapter over `settings`, which its composition chooses.
+    pub(crate) fn new(settings: CheckStorePostcardSettings) -> Self {
+        Self { settings }
+    }
+}
+
+impl CheckStorePort for CheckStorePostcardAdapter {
+    fn findings(&self) -> Vec<crate::domain::findings::types::Finding> {
+        let file = self.settings.directory.join("check.postcard");
+        std::fs::read(&file)
+            .ok()
+            .and_then(|bytes| super::schemas::read(&bytes, &self.settings.build))
+            .unwrap_or_default()
+    }
+
+    fn keep_findings(&self, findings: &[crate::domain::findings::types::Finding]) -> std::io::Result<()> {
+        let file = self.settings.directory.join("check.postcard");
+        let written = self.settings.directory.join("check.postcard.tmp");
+        std::fs::create_dir_all(&self.settings.directory)?;
+        std::fs::write(&written, super::schemas::write(findings, &self.settings.build))?;
+        std::fs::rename(&written, &file)
+    }
+}
+'''
+
+[[scenarios]]
+id = 'crate-adapter'
+scenario = 'The adapter is public so the factory can build it.'
+given.file = 'src/names/adapters/memory/adapter.rs'
+given.params = { core = 'crate', port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/adapter.rs' = '''
+//! The names port, implemented with memory.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// The memory names adapter.
+#[derive(Debug)]
+pub(crate) struct NamesMemoryAdapter;
+
+impl NamesPort for NamesMemoryAdapter {}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+given.file = 'src/names/adapters/memory/adapter.rs'
+given.params = { core = 'crate', port = 'names', part = 'memory' }
+then.findings = [
+  { rule = 'adapter#count', path = '.' },
+]
+
+[[scenarios]]
+id = 'adapter-s-struct-named-port-part'
+scenario = "The adapter's struct is not named for its port and part."
+given.file = 'src/names/adapters/memory/adapter.rs'
+given.params = { core = 'crate', port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/adapter.rs' = '''
+//! The names port, implemented with memory.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// The memory names adapter.
+#[derive(Debug)]
+pub struct MemoryStore;
+
+impl NamesPort for NamesMemoryAdapter {}
+'''
+then.findings = [
+  { rule = 'adapter#template', path = 'src/names/adapters/memory/adapter.rs' },
+]
+
+[[scenarios]]
+id = 'retired-interface-suffix'
+scenario = "An adapter that implements the retired `Interface` trait is not the port's adapter."
+given.file = 'src/names/adapters/memory/adapter.rs'
+given.params = { core = 'crate', port = 'names', part = 'memory' }
+given.files.'src/names/adapters/memory/adapter.rs' = '''
+//! The names port, implemented with memory.
+
+use crate::outbound::names::interface::NamesInterface;
+
+/// The memory names adapter.
+#[derive(Debug)]
+pub(crate) struct NamesMemoryAdapter;
+
+impl NamesInterface for NamesMemoryAdapter {}
+'''
+then.findings = [
+  { rule = 'adapter#template', path = 'src/names/adapters/memory/adapter.rs' },
+]
+
+[[scenarios]]
+id = 'multi-word-adapter'
+scenario = 'An adapter named by several words is named for all of them.'
+given.file = 'src/user_names/adapters/in_memory/adapter.rs'
+given.params = { core = 'crate', port = 'user_names', part = 'in_memory' }
+given.files.'src/user_names/adapters/in_memory/adapter.rs' = '''
+//! The user_names port, implemented with in_memory.
+
+use crate::outbound::user_names::interface::UserNamesPort;
+
+/// The in_memory user_names adapter.
+#[derive(Debug)]
+pub(crate) struct UserNamesInMemoryAdapter;
+
+impl UserNamesPort for UserNamesInMemoryAdapter {}
+'''
+
+[[scenarios]]
+id = 'external-owner-bound'
+scenario = 'An external adapter must import the exact bound port owner.'
+given.file = 'edge/adapter.rs'
+given.params = { core = 'foreign_core', port = 'names', part = 'edge' }
+given.files.'edge/adapter.rs' = '''
+use foreign_core::outbound::names::interface::NamesPort;
+#[derive(Debug)]
+pub(crate) struct NamesEdgeAdapter;
+impl NamesPort for NamesEdgeAdapter {}
+'''

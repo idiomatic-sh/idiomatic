@@ -1,0 +1,38 @@
+description = "Cases for an application operation using the fakes of its injected ports."
+why = "The subject invokes the actual operation. A nonempty table must demonstrate observable values and errors, including changed port data; an empty scaffold deliberately cannot pass validation."
+content = '''
+//! Behavioral proof of `{{ part }}` through its injected ports.
+use crate::cases::{Case, Word, run};
+{% if scaffold | default(false) %}
+type Input = ();
+type Value = ();
+type Failure = ();
+const CASES: &[Case<Input, Value, Failure>] = &[];
+fn subject(_input: Input) -> Result<Value, Failure> {
+    todo!("call the real application operation with injected fake ports")
+}
+#[test]
+fn succeeds() { run(CASES, Word::Succeeds, subject); }
+{% endif %}
+'''
+[params]
+part = { type = "identifier", from = "directory-name", description = "The operation name." }
+
+[given]
+file = 'service_test.rs'
+params = { part = 'short' }
+
+[[scenarios]]
+id = 'service-test-names-its-operation'
+scenario = 'The test of an operation says which operation it proves.'
+given.files.'service_test.rs' = '''
+//! Behavioral proof of `short` through its injected ports.
+use crate::cases::{Case, Word, run};
+'''
+
+[[scenarios]]
+id = 'service-test-missing'
+scenario = 'An operation without its test is reported.'
+then.findings = [
+  { rule = 'service-test#count', path = '.' },
+]

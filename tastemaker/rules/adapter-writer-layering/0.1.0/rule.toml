@@ -1,0 +1,69 @@
+description = "An adapter's serialization writer depends on schemas and data, never back on the port implementation."
+why = "The optional writer is a traversal implementation, not an escape hatch from adapter layering. adapter.rs may call writer.rs, which may use schemas.rs and types.rs. Neither schemas nor types calls the writer, and the writer cannot reach adapter.rs. Written sibling imports and qualified adapter paths are checked, including the source of renamed imports. References hidden behind external re-exports or macros remain frontend limitations. Ordinary cross-adapter access is separately refused by adapter-owns-no-adapter."
+query = '''
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let sources = capture(from=mentions, path="file", pattern="{*owner}/{part}.rs", captures=["owner", "part"]);
+let reversed = select * from sources as s where (s."part" = "writer" and glob_any(s."target", "{super::adapter,super::adapter::*,*::adapters::*::adapter,*::adapters::*::adapter::*}")) or (glob_any(s."part", "{schemas,types}") and glob_any(s."target", "{super::writer,super::writer::*,*::adapters::*::writer,*::adapters::*::writer::*}"));
+let findings = project(from=reversed, columns=["file", "span"]);
+emit findings subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "adapter serialization reverses its dependency direction"
+help = "Keep orchestration in adapter.rs, traversal in writer.rs, wire conversion in schemas.rs, and data in types.rs. Pass data down instead of calling the owning layer."
+
+[given]
+include = ['src/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "writer-contract"
+version = "0.1.0"
+edition = "2024"
+'''
+files.'src/lib.rs' = 'mod adapter; mod writer; mod schemas; mod types;'
+files.'src/adapter.rs' = 'pub fn run() { super::writer::write(); }'
+files.'src/writer.rs' = 'pub fn write() { super::schemas::encode(); }'
+files.'src/schemas.rs' = 'pub fn encode() {}'
+files.'src/types.rs' = 'pub struct Value;'
+
+[[scenarios]]
+id = 'downward-serialization'
+scenario = 'The port implementation calls its writer and the writer calls its codec.'
+
+[[scenarios]]
+id = 'writer-calls-adapter'
+scenario = 'The writer cannot call its owning port implementation.'
+given.files.'src/writer.rs' = 'pub fn write() { super::adapter::run(); }'
+then.findings = [{ path = 'src/writer.rs', line = 1 }]
+
+[[scenarios]]
+id = 'schema-calls-writer'
+scenario = 'A codec cannot call the traversal that uses it.'
+given.files.'src/schemas.rs' = 'pub fn encode() { super::writer::write(); }'
+then.findings = [{ path = 'src/schemas.rs', line = 1 }]
+
+[[scenarios]]
+id = 'data-calls-writer'
+scenario = 'Plain data cannot call the traversal through an imported alias.'
+given.files.'src/types.rs' = 'use super::writer::write as serialize; pub fn value() { serialize(); }'
+then.findings = [{ path = 'src/types.rs', line = 1 }]
+
+[[scenarios]]
+id = 'qualified-adapter-call'
+scenario = 'A qualified adapter path cannot bypass the writer dependency boundary.'
+given.files.'src/writer.rs' = 'pub fn write() { crate::outbound::names::adapters::file::adapter::run(); }'
+then.findings = [{ path = 'src/writer.rs', line = 1 }]
+
+[[scenarios]]
+id = 'qualified-writer-import'
+scenario = 'A codec cannot import an adapter writer through its qualified path.'
+given.files.'src/schemas.rs' = 'use crate::outbound::names::adapters::file::writer::write as serialize; pub fn encode() {}'
+then.findings = [{ path = 'src/schemas.rs', line = 1 }]
+
+[[scenarios]]
+id = 'external-writer-library'
+scenario = 'An unrelated library writer is not an adapter traversal back edge.'
+given.files.'src/schemas.rs' = 'pub fn encode() { external::writer::encode(); }'

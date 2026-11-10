@@ -1,0 +1,22 @@
+description = "The proof of a command line's `Outcome`, beside `src/outcome.rs`: each ending's exit code and each error's class."
+why = "Every placed logic file has its test beside it: the exit codes are the command line's contract with its callers, and each product's `From<&Error> for Outcome` classes its errors, so both are proven where they are written."
+content = '''
+//! Proves how a command ended: each `Outcome` and its exit code, and each error's class.
+'''
+
+[given]
+file = 'cli/src/outcome_test.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'cli/src/outcome_test.rs' = '''
+//! Proves how a command ended: each `Outcome` and its exit code, and each error's class.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'outcome-test#count', path = '.' },
+]

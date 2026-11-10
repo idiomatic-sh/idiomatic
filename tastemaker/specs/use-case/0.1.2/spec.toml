@@ -1,0 +1,3733 @@
+description = "One use case of a core: the interface an edge calls, the body that holds its injected ports and explicitly owned invocation state, its test, and the plain types and errors it has."
+why = "A use case is what a command or an SDK entry calls: one trait declaring its one method, one struct holding the ports it calls as `Arc<dyn <Name>Port>` and explicitly owned invocation state, and the proof of it run against the fakes of those ports. Its types are plain data and its errors one enum; it has no schemas, because validation stands only at an edge. A name is the kind's suffix on the directory's stem and a file is the snake_case of the same stem. The nu-hex spec places each use case, so the product's tastemaker.toml names only the crate."
+conditions = { implemented = { description = "The use case implements a trait another crate declares: its body names no trait of its own interface.", rule = { rule = "implemented-use-case", include = ["use_case.rs"] } } }
+templates = [
+  { template = "idiomatic.arch/test-group-module@0.1.0", file = "use_case_test/{group}/mod.rs", count = { min = 0 }, description = "Normal directory namespace of one cohesive public-contract proof concept." },
+  { template = "idiomatic.arch/unit-test@0.1.0", file = "use_case_test/{group}/test.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "A declared behavioral group of the public use-case cases, with its own case table and runners." },
+  { template = "acceptance-feature", file = "acceptance.feature", description = "The use case public behavior and storage lifecycle, exercised by the integration harness." },
+  { template = "acceptance-steps", file = "acceptance.rs", description = "The colocated Cucumber steps, compiled only by tests/bdd.rs, never by the production module." },
+  { template = "idiomatic.arch/interface@0.1.0", file = "interface.rs", count = { when = { condition = "implemented" }, then = 0, else = 1 }, params = { kind = "use-case", exposed = [] }, description = "The part's one trait: a use case's `<Part>UseCase` declaring its one method, or a port's `<Part>Port`, in the core's own vocabulary." },
+  { template = "use-case", file = "use_case.rs", params = { implements = { param = "implements" } }, description = "The use case's body: the struct holding the ports it calls, each an `Arc<dyn <Name>Port>`, implementing the part's `<Part>UseCase`." },
+  { template = "use-case-service", file = "service.rs", count = { min = 0 }, description = "Private free-function helpers of this use case, or the implementation helpers of an SDK-facing contract. They share the use case dependencies and are not independent service objects." },
+  { template = "idiomatic.arch/unit-test@0.1.0", file = "service_test.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "Optional focused proof of private helpers; the required use_case_test.rs remains the behavioral proof." },
+  { template = "use-case-test", file = "use_case_test.rs", params = { implements = { param = "implements" } }, description = "The proof of the use case, run against the fakes of the ports it calls." },
+  { template = "use-case-fixtures", file = "fixtures.rs", count = { min = 0 }, description = "The use case's test support module: the scenario its tests share, declaring the contract when other crates implement the use case." },
+  { template = "use-case-fixture", file = "fixtures/{*fixture}", count = { min = 0 }, description = "One file of a use case's `fixtures/` tree: `contract.rs`, the rows every implementation must pass, and, for an SDK-facing contract, any further file or directory of its samples, expectations and conformance." },
+  { alias = "use-case-contract", template = "use-case-fixture", file = "fixtures/contract.rs", count = { min = 0 }, params = { fixture = "contract" }, description = "The rows every implementation of an SDK-facing contract use case must pass; its presence is what makes the use case a contract (the body is the struct that implements the trait, and its trait declares several methods; `use-case-methods`)." },
+  { template = "idiomatic.arch/constants@0.1.0", file = "constants.rs", count = { min = 0 }, description = "The constants the use case uses, its named cache bounds among them, when it has any: no literal sits in code." },
+  { template = "idiomatic.arch/types@0.1.0", file = "types.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "The part's own plain types when it has any (a command's or an entry's: the dependencies its composition is given)." },
+  { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "The error the part produces, when it has one." },
+]
+rules = [
+  { rule = "idiomatic.arch/test-directory-layout@0.1.0", include = ["use_case_test/**"], description = "Grouped proof concepts use generic role filenames and actual normal Rust registration." },
+  { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["use_case_test/*/test.rs"], description = "A grouped test must be reached through normal Rust module declarations." },
+  { rule = "local-helpers", include = ["service.rs", "fixtures/contract.rs"], description = "Private free helpers need no contract or independent service object." },
+  { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "Proofs execute a real subject over nonempty cases." },
+  { rule = "implemented-shape", include = ["*.rs"], description = "A use case that implements a trait another crate declares has no interface, types or errors of its own." },
+  { rule = "idiomatic.arch/kind-suffix@0.1.0", include = ["interface.rs"], params = { kind = "use-case", exposed = [] }, description = "A use case's or a port's interface.rs declares exactly one pub trait, named <Dir>UseCase or <Dir>Port." },
+  { rule = "idiomatic.arch/interface-shape@0.1.0", include = ["interface.rs"], description = "A use case's or a port's interface.rs declares exactly one trait, no free function, and default bodies that call only the trait itself." },
+  { rule = "use-case-methods", include = ["interface.rs", "fixtures/contract.rs"], params = { kind = "use-case" }, description = "A use case's trait declares exactly one method, named like the use case's directory and taking `&self`; a kernel crate's SDK-facing contract use case (a `fixtures/contract.rs` beside it) declares several." },
+  { rule = "contract-only-files", include = ["fixtures/**/*.rs"], description = "A use case has nested test support files only when it has a `fixtures/contract.rs` that other crates run: the SDK-facing contract of a kernel crate." },
+  { rule = "use-case-ports", include = ["use_case.rs"], description = "A use case holds each port as an `Arc<dyn <Name>Port>` field; a field typed by one of the struct's own generic parameters is a generic port." },
+  { rule = "use-case-declares", include = ["use_case.rs"], description = "A use case's `use_case.rs` declares only its `<Name>UseCaseImpl`, its `<Name>Ports` bundle and their impls: helpers go to `service.rs`, types and rules to the domain." },
+  { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
+  { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs"], description = "A part's types.rs declares at least one type." },
+  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
+  { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs"], description = "A part's types and errors are nominal types, never type aliases." },
+  { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
+  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+  { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs." },
+  { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
+  { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs", "acceptance.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs", "fixtures/*.rs", "acceptance.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "fixtures/*.rs", "*_test.rs", "acceptance.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
+]
+
+[params]
+implements = { type = "list<table>", description = "The nu-hex `implements` list: each entry is a use case that implements a trait another crate declares, with the crate and the trait. Passed by the nu-hex that places the use case; empty for a normal core." }
+
+[given]
+at = 'src/inbound/use_cases/{use-case}'
+params = { implements = [] }
+files.'Cargo.toml' = '''
+[package]
+name = "demo-greeting"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+thiserror = "2"
+'''
+files.'src/cases.rs' = '''
+//! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
+
+use std::fmt::Debug;
+
+/// The case word of a row: the four a part's cases are named with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Word {
+    /// The operation completes and answers the expected value.
+    Succeeds,
+    /// The input is refused with the expected error variant.
+    Refuses,
+    /// A dependency fails and its failure becomes the expected error variant.
+    Fails,
+    /// A weaker implementation is supplied and the expected error variant rejects it.
+    Rejects,
+}
+
+/// What a row expects: a value or a full error.
+#[derive(Debug)]
+pub enum Expect<V, E> {
+    /// The value the subject answers, compared by equality.
+    Value(V),
+    /// The error the subject fails with, compared in full by equality.
+    Error(E),
+}
+
+/// What a case shows, in the product's nouns.
+#[derive(Clone, Copy, Debug)]
+pub struct CaseName(pub &'static str);
+
+/// One row of a part's cases.
+#[derive(Debug)]
+pub struct Case<I, V, E> {
+    /// What the case shows.
+    pub name: CaseName,
+    /// The row's one case word.
+    pub word: Word,
+    /// Builds the row's input from the fixtures or a constructor.
+    pub input: fn() -> I,
+    /// The expected value or error.
+    pub expect: Expect<V, E>,
+}
+
+/// Runs every row of `cases` whose word is `word` through `subject` and asserts its expectation.
+///
+/// A `Succeeds` row expects a `Value` and every other word expects an `Error`; a row that names
+/// the other kind is a failure of the table, reported with the row's name. An `Error` is compared by value, in full. A word no row has
+/// is a failure too: a runner with nothing to run proves nothing.
+///
+/// # Panics
+///
+/// When a row's expectation is not met, or its kind does not match its word.
+pub fn run<I, V: PartialEq + Debug, E: PartialEq + Debug>(
+    cases: &[Case<I, V, E>],
+    word: Word,
+    subject: impl Fn(I) -> Result<V, E>,
+) {
+    assert!(
+        cases.iter().any(|case| case.word == word),
+        "no row has the case word {word:?}: a runner with nothing to run proves nothing"
+    );
+    for case in cases.iter().filter(|case| case.word == word) {
+        let kind_matches = matches!(
+            (case.word, &case.expect),
+            (Word::Succeeds, Expect::Value(_))
+                | (Word::Refuses | Word::Fails | Word::Rejects, Expect::Error(_))
+        );
+        assert!(
+            kind_matches,
+            "{}: a {:?} row expects the wrong kind",
+            case.name.0, case.word
+        );
+        let answer = subject((case.input)());
+        let met = match (&case.expect, &answer) {
+            (Expect::Value(expected), Ok(actual)) => expected == actual,
+            (Expect::Error(expected), Err(actual)) => expected == actual,
+            _ => false,
+        };
+        assert!(
+            met,
+            "{}: expected {:?}, answered {:?}",
+            case.name.0, case.expect, answer
+        );
+    }
+}
+'''
+files.'src/inbound.rs' = '''
+//! The greeting domain's inbound surface: the use cases an edge calls.
+
+pub mod use_cases;
+'''
+files.'src/inbound/use_cases.rs' = '''
+//! The greeting domain's use cases, one module each.
+
+pub mod greet;
+'''
+files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+files.'src/inbound/use_cases/greet/acceptance.feature' = '''
+Feature: greet
+
+  @succeeds
+  Scenario: the public contract
+    Then the contract holds
+'''
+files.'src/inbound/use_cases/greet/acceptance.rs' = '''
+use cucumber::then;
+#[then("the contract holds")]
+fn holds(world: &mut crate::Behavior) { assert!(world.ready); }
+'''
+files.'src/lib.rs' = '''
+pub mod inbound;
+pub mod outbound;
+
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+files.'src/outbound.rs' = '''
+//! The greeting domain's outbound ports: what it needs from outside, one module each.
+
+pub mod names;
+'''
+files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+pub mod types;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+files.'src/outbound/names/fixtures.rs' = '''
+pub mod fake;
+'''
+files.'src/outbound/names/fixtures/fake.rs' = '''
+//! The fake of the names port.
+
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// A fake of the names port: a greeting for Ada, a stranger's for everyone else.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {
+    fn stored(&self, asked: &Asked) -> Greeting {
+        match asked.0 {
+            "Ada" => Greeting("hello, Ada"),
+            _ => Greeting("hello, stranger"),
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "fake_test.rs"]
+mod tests;
+'''
+files.'src/outbound/names/fixtures/fake_test.rs' = '''
+//! The `names` port's fake runs the port's contract.
+
+use super::super::contract::check;
+use super::NamesFake;
+
+#[test]
+fn succeeds() {
+    check(&NamesFake);
+}
+'''
+files.'src/outbound/names/interface.rs' = '''
+//! What the names port asks of the outside, in the core's own vocabulary.
+
+use super::types::{Asked, Greeting};
+
+/// What every names adapter implements.
+pub trait NamesPort {
+    /// The greeting stored for the name asked for.
+    fn stored(&self, asked: &Asked) -> Greeting;
+}
+'''
+files.'src/outbound/names/types.rs' = '''
+//! The types the names port speaks: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// A name asked for.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Asked(pub &'static str);
+
+/// A greeting for a name.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Greeting(pub &'static str);
+'''
+
+[[scenarios]]
+id = 'complete-use-case'
+scenario = 'A complete use case: its interface, its body and its test, and nothing else.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'errors-alias'
+scenario = 'A type alias in errors.rs: an error is a nominal type.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod errors;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetError {
+    /// No name was given.
+    #[error("no name was given")]
+    Empty,
+}
+
+/// Why, as text.
+pub type Reason = String;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use super::errors::GreetError;
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError>;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError> {
+        if name.is_empty() {
+            return Err(GreetError::Empty);
+        }
+        Ok(self.names.stored(&Asked(name)))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = GreetError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+    Case {
+        name: "refuses an empty name",
+        word: Word::Refuses,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), ""),
+        expect: Expect::Error(GreetError::Empty),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    greet.greet(name)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/error-name', path = 'src/inbound/use_cases/greet/errors.rs', line = 12 },
+  { rule = 'idiomatic.arch/no-domain-aliases', path = 'src/inbound/use_cases/greet/errors.rs', line = 12 },
+]
+
+[[scenarios]]
+id = 'errors-misnamed'
+scenario = 'An errors.rs enum that is not `<Name>Error`.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod errors;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetFailure {
+    /// No name was given.
+    #[error("no name was given")]
+    Empty,
+}
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use super::errors::GreetFailure;
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetFailure>;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::errors::GreetFailure;
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetFailure> {
+        if name.is_empty() {
+            return Err(GreetFailure::Empty);
+        }
+        Ok(self.names.stored(&Asked(name)))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::errors::GreetFailure;
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = GreetFailure;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+    Case {
+        name: "refuses an empty name",
+        word: Word::Refuses,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), ""),
+        expect: Expect::Error(GreetFailure::Empty),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    greet.greet(name)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/error-name', path = 'src/inbound/use_cases/greet/errors.rs', line = 4 },
+  { rule = 'idiomatic.arch/errors#template', path = 'src/inbound/use_cases/greet/errors.rs' },
+]
+
+[[scenarios]]
+id = 'errors-two-enums'
+scenario = 'A second enum in errors.rs: a part has one error.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod errors;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetError {
+    /// No name was given.
+    #[error("no name was given")]
+    Empty,
+}
+
+/// Why a greeting was only a warning.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetWarning {
+    /// The name was long.
+    #[error("the name was long")]
+    Long,
+}
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use super::errors::GreetError;
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError>;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError> {
+        if name.is_empty() {
+            return Err(GreetError::Empty);
+        }
+        Ok(self.names.stored(&Asked(name)))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = GreetError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+    Case {
+        name: "refuses an empty name",
+        word: Word::Refuses,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), ""),
+        expect: Expect::Error(GreetError::Empty),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    greet.greet(name)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/error-name', path = 'src/inbound/use_cases/greet/errors.rs', line = 4 },
+  { rule = 'idiomatic.arch/error-name', path = 'src/inbound/use_cases/greet/errors.rs', line = 12 },
+  { rule = 'idiomatic.arch/error-name', path = 'src/inbound/use_cases/greet/errors.rs', line = 12 },
+]
+
+[[scenarios]]
+id = 'interface-with-free-function'
+scenario = 'A free function in interface.rs: the file is exactly one trait.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+
+/// Shouts a name.
+#[must_use]
+pub fn shout(text: &str) -> String {
+    text.to_uppercase()
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/interface-shape', path = 'src/inbound/use_cases/greet/interface.rs', line = 12 },
+]
+
+[[scenarios]]
+id = 'test-expects-is-ok'
+scenario = 'A case that checks `is_ok` instead of naming the value it expects.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    let answer: Result<Value, Failure> = Ok(greet.greet(name));
+    assert!(answer.is_ok());
+    answer
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/case-expectation', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 28 },
+]
+
+[[scenarios]]
+id = 'test-with-fifth-runner'
+scenario = 'A fifth `#[test]` in a test file: the four runners are the only tests.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn greets_ada() {
+    assert_eq!(1, 1);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/test-shape', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 35 },
+]
+
+[[scenarios]]
+id = 'test-without-refuses-row'
+scenario = 'A use case with an error variant of its own and no `refuses` row in its test.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod errors;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetError {
+    /// No name was given.
+    #[error("no name was given")]
+    Empty,
+}
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use super::errors::GreetError;
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError>;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError> {
+        if name.is_empty() {
+            return Err(GreetError::Empty);
+        }
+        Ok(self.names.stored(&Asked(name)))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = GreetError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    greet.greet(name)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/unit-cases', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'test-with-rejects-row-without-runner'
+scenario = 'A use case test with a `rejects` row and no `rejects` runner.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+    Case {
+        name: "a weaker implementation is rejected",
+        word: Word::Rejects,
+        input: weaker,
+        expect: Expect::Error(Failure::Rejected),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/test-runners-match-rows', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 25 },
+]
+
+[[scenarios]]
+id = 'test-without-succeeds-row'
+scenario = 'A use case test with no `succeeds` row.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/no-vacuous-tests', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 16 },
+  { rule = 'idiomatic.arch/unit-cases', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'types-alias'
+scenario = 'A type alias in types.rs: a type is nominal.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod types;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! The types of the `greet` use case: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// Who a greeting is addressed to.
+#[derive(Debug, PartialEq)]
+pub struct Recipient {
+    pub name: &'static str,
+}
+
+/// A name as text.
+pub type Name = String;
+
+/// What `greet` is asked.
+#[derive(Debug)]
+pub struct GreetRequest {
+    pub recipient: Recipient,
+}
+
+/// What `greet` answers.
+#[derive(Debug)]
+pub struct GreetReport {
+    pub greeting: &'static str,
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/no-domain-aliases', path = 'src/inbound/use_cases/greet/types.rs', line = 10 },
+]
+
+[[scenarios]]
+id = 'types-inherent-impl'
+scenario = 'An `impl Type { }` block in types.rs: a type is its data.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod types;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! The types of the `greet` use case: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// Who a greeting is addressed to.
+#[derive(Debug, PartialEq)]
+pub struct Recipient {
+    pub name: &'static str,
+}
+
+impl Recipient {
+    /// The name in capitals.
+    #[must_use]
+    pub fn shout(&self) -> String {
+        self.name.to_uppercase()
+    }
+}
+
+/// What `greet` is asked.
+#[derive(Debug)]
+pub struct GreetRequest {
+    pub recipient: Recipient,
+}
+
+/// What `greet` answers.
+#[derive(Debug)]
+pub struct GreetReport {
+    pub greeting: &'static str,
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/no-inherent-impls', path = 'src/inbound/use_cases/greet/types.rs', line = 9 },
+]
+
+[[scenarios]]
+id = 'types-placeholder-struct'
+scenario = 'An empty placeholder struct in types.rs.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod types;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! The types of the `greet` use case: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// Who a greeting is addressed to.
+#[derive(Debug, PartialEq)]
+pub struct Recipient {
+    pub name: &'static str,
+}
+
+/// Nothing yet.
+pub struct Marker;
+
+/// What `greet` is asked.
+#[derive(Debug)]
+pub struct GreetRequest {
+    pub recipient: Recipient,
+}
+
+/// What `greet` answers.
+#[derive(Debug)]
+pub struct GreetReport {
+    pub greeting: &'static str,
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/hollow-artifacts', path = 'src/inbound/use_cases/greet/types.rs', line = 10 },
+]
+
+[[scenarios]]
+id = 'types-without-a-type'
+scenario = 'A types.rs that declares no type.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod types;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! The types of the `greet` use case: plain data, public fields and derives, with no constructor and no inherent impl.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/hollow-artifacts', path = 'src/inbound/use_cases/greet/types.rs', line = 1 },
+  { rule = 'idiomatic.arch/hollow-types', path = 'src/inbound/use_cases/greet/types.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'use-case-generic-port'
+scenario = 'A use case holding a port as a generic parameter instead of an `Arc<dyn Port>`.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl<N: NamesPort> {
+    names: N,
+}
+
+impl<N: NamesPort> GreetUseCaseImpl<N> {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: N) -> Self {
+        Self { names }
+    }
+}
+
+impl<N: NamesPort> GreetUseCase for GreetUseCaseImpl<N> {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/use-case/use-case-ports', path = 'src/inbound/use_cases/greet/use_case.rs', line = 11 },
+]
+
+[[scenarios]]
+id = 'use-case-interface-port-suffix'
+scenario = "A use case's trait named `GreetPort`: a port's suffix on a use case."
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetPort {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetPort;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetPort for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetPort;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/interface#template', path = 'src/inbound/use_cases/greet/interface.rs' },
+  { rule = 'idiomatic.arch/kind-suffix', path = 'src/inbound/use_cases/greet/interface.rs', line = 6 },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+]
+
+[[scenarios]]
+id = 'use-case-interface-retired-suffix'
+scenario = "A use case's trait named `GreetInterface`: the retired Interface suffix."
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetInterface {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetInterface;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetInterface for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetInterface;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/interface#template', path = 'src/inbound/use_cases/greet/interface.rs' },
+  { rule = 'idiomatic.arch/kind-suffix', path = 'src/inbound/use_cases/greet/interface.rs', line = 6 },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+]
+
+[[scenarios]]
+id = 'use-case-interface-wrong-stem'
+scenario = "A use case's trait named for another stem (`GreetingUseCase` in greet/interface.rs): the template pins the name from the directory."
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetingUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetingUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetingUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetingUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/interface#template', path = 'src/inbound/use_cases/greet/interface.rs' },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+]
+
+[[scenarios]]
+id = 'use-case-names-a-factory'
+scenario = 'A use case naming a `factory` module: only an edge builds an adapter.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::names::factory::memory;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/factory-calls', path = 'src/inbound/use_cases/greet/use_case.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'use-case-reads-fixtures'
+scenario = 'Production code of a use case reading a `fixtures` module.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/no-runtime-fixtures', path = 'src/inbound/use_cases/greet/use_case.rs', line = 6 },
+]
+
+[[scenarios]]
+id = 'use-case-struct-misnamed'
+scenario = "A use case's struct named `CoreGreet`: the template pins the struct to the directory's stem."
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct CoreGreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl CoreGreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for CoreGreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::CoreGreet;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (CoreGreet, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (CoreGreet::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+  { rule = 'idiomatic.arch/use-case/use-case#template', path = 'src/inbound/use_cases/greet/use_case.rs' },
+]
+
+[[scenarios]]
+id = 'use-case-two-methods'
+scenario = 'A use case whose trait declares two methods: it promises one.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+
+    /// Says goodbye to the person named.
+    fn farewell(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+
+    fn farewell(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/use-case/use-case-methods', path = 'src/inbound/use_cases/greet/interface.rs', line = 11 },
+]
+
+[[scenarios]]
+id = 'use-case-with-errors'
+scenario = 'A use case with an errors.rs of its own variants: its test states a refuses row.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod errors;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/errors.rs' = '''
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetError {
+    /// No name was given.
+    #[error("no name was given")]
+    Empty,
+}
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use super::errors::GreetError;
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError>;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError> {
+        if name.is_empty() {
+            return Err(GreetError::Empty);
+        }
+        Ok(self.names.stored(&Asked(name)))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = GreetError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+    Case {
+        name: "refuses an empty name",
+        word: Word::Refuses,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), ""),
+        expect: Expect::Error(GreetError::Empty),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    greet.greet(name)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'use-case-with-service'
+scenario = "A service.rs in a use case: the service is a concept's body."
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod service;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/service.rs' = '''
+//! The `greet` service.
+
+/// The word a greeting opens with.
+#[must_use]
+pub(super) fn opening() -> &'static str {
+    "hello"
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'use-case-with-stray-file'
+scenario = 'A helpers.rs in a use case: no primitive of the kind is named so.'
+given.files.'src/inbound/use_cases/greet/helpers.rs' = '''
+//! Helpers.
+
+/// Shouts a name.
+#[must_use]
+pub fn shout(name: &str) -> String {
+    name.to_uppercase()
+}
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/use-case#closed', path = 'src/inbound/use_cases/greet/helpers.rs' },
+]
+
+[[scenarios]]
+id = 'use-case-with-types'
+scenario = 'A use case with a types.rs of plain data and no test beside it.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod types;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/types.rs' = '''
+//! The types of the `greet` use case: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// Who a greeting is addressed to.
+#[derive(Debug, PartialEq)]
+pub struct Recipient {
+    pub name: &'static str,
+}
+
+/// What `greet` is asked.
+#[derive(Debug)]
+pub struct GreetRequest {
+    pub recipient: Recipient,
+}
+
+/// What `greet` answers.
+#[derive(Debug)]
+pub struct GreetReport {
+    pub greeting: &'static str,
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'use-case-without-interface'
+scenario = 'A use-case part without its required interface.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod use_case;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/interface#count', path = 'src/inbound/use_cases/greet' },
+]
+
+[[scenarios]]
+id = 'use-case-without-test'
+scenario = 'A use-case part without its required use_case_test.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/use-case/use-case-test#count', path = 'src/inbound/use_cases/greet' },
+]
+
+[[scenarios]]
+id = 'use-case-without-use-case-body'
+scenario = 'A use-case part without its required use_case.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/use-case/use-case#count', path = 'src/inbound/use_cases/greet' },
+]
+
+[[scenarios]]
+id = 'implementing-use-case'
+scenario = "A use case that implements another crate's trait has no interface, types or errors."
+given.params = { implements = [{ use_case = 'greet', crate = 'ryo', interface = 'languages::Language' }] }
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The greeting domain's `greet` use case.
+
+pub mod use_case;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: it implements the contract another crate declares, with nothing of its own beside it.
+
+/// `greet`, implementing `ryo::languages::Language`.
+pub struct GreetUseCaseImpl;
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl ryo::languages::Language for GreetUseCaseImpl {}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! The `greet` use case: the contract of the trait it implements, run through it, then its own cases.
+
+use crate::cases::{Case, Word, run};
+use super::use_case::GreetUseCaseImpl;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this use case: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (),
+        expect: Expect::Value(()),
+    },
+];
+
+/// Calls the use case on one input; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the use case on one input")
+}
+
+#[test]
+fn succeeds() {
+    ryo::languages::contract::language(&GreetUseCaseImpl::new());
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/no-vacuous-tests', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 22 },
+]
+
+[[scenarios]]
+id = 'implementing-use-case-with-interface'
+scenario = "An interface beside a use case that implements another crate's trait."
+given.params = { implements = [{ use_case = 'greet', crate = 'ryo', interface = 'languages::Language' }] }
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The greeting domain's `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: it implements the contract another crate declares, with nothing of its own beside it.
+
+/// `greet`, implementing `ryo::languages::Language`.
+pub struct GreetUseCaseImpl;
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl ryo::languages::Language for GreetUseCaseImpl {}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! The `greet` use case: the contract of the trait it implements, run through it, then its own cases.
+
+use crate::cases::{Case, Word, run};
+use super::use_case::GreetUseCaseImpl;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this use case: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (),
+        expect: Expect::Value(()),
+    },
+];
+
+/// Calls the use case on one input; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    todo!("call the use case on one input")
+}
+
+#[test]
+fn succeeds() {
+    ryo::languages::contract::language(&GreetUseCaseImpl::new());
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/interface#count', path = 'src/inbound/use_cases/greet' },
+  { rule = 'idiomatic.arch/no-vacuous-tests', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 22 },
+  { rule = 'idiomatic.arch/use-case/implemented-shape', path = 'src/inbound/use_cases/greet/interface.rs' },
+]
+
+[[scenarios]]
+id = 'sdk-contract-use-case'
+scenario = "A kernel crate's SDK-facing contract use case with several methods, a service, its test and test support is accepted."
+given.files.'src/inbound/use_cases/greet/constants.rs' = '''
+//! The names of the `greet` use case.
+
+/// The greeting a call starts with.
+pub const GREETING: &str = "hello";
+'''
+given.files.'src/inbound/use_cases/greet/fixtures.rs' = '''
+//! The test support of the `names` use case: the contract every implementation of its trait runs.
+
+pub mod contract;
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/contract.rs' = '''
+//! What every implementation of the `greet` use case's trait must pass.
+
+use super::super::interface::GreetUseCase;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation, in the crate that implements the trait.
+pub fn check(subject: &impl GreetUseCase) {
+    let _ = subject;
+    todo!("run the contract's rows against the implementation")
+}
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows.rs' = '''
+//! The rows of the contract's conformance.
+
+/// A name the contract greets.
+pub const NAME: &str = "Ada";
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows/detail.rs' = '''
+//! A file of the conformance rows, in a directory of its own.
+
+/// A name the nested rows greet.
+pub const NESTED: &str = "Grace";
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows_test.rs' = '''
+//! The rows' own checks.
+
+#[test]
+fn the_name_is_not_empty() {
+    assert!(!super::rows::NAME.is_empty());
+}
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises: the contract a caller implements, in its own vocabulary.
+
+/// What a greeter offers.
+pub trait GreetUseCase {
+    /// Whether the greeter greets the person named.
+    fn recognizes(&self, name: &str) -> bool;
+
+    /// Finishes a greeting.
+    fn complete(&self, name: &str) -> String;
+}
+'''
+given.files.'src/inbound/use_cases/greet/service.rs' = '''
+//! The `greet` service: free functions that drive an implementation of the contract.
+
+use super::interface::GreetUseCase;
+
+/// Greets the person named when the implementation recognizes them.
+pub fn greeted(language: &impl GreetUseCase, name: &str) -> Option<String> {
+    language.recognizes(name).then(|| language.complete(name))
+}
+'''
+given.files.'src/inbound/use_cases/greet/service_test.rs' = '''
+//! The `greet` service's cases, on values alone.
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: "recognizes the person named",
+    word: Word::Succeeds,
+    input: || "Ada",
+    expect: Expect::Value(true),
+}];
+
+/// Calls the part on one input; the author states it.
+fn subject(name: Input) -> Result<Value, Failure> {
+    Ok(!name.is_empty())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct that implements the contract.
+
+use super::interface::GreetUseCase;
+
+/// `greet`, implementing its contract.
+pub struct GreetUseCaseImpl;
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn recognizes(&self, _name: &str) -> bool {
+        true
+    }
+
+    fn complete(&self, name: &str) -> String {
+        name.to_string()
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: "recognizes the person named",
+    word: Word::Succeeds,
+    input: || "Ada",
+    expect: Expect::Value(true),
+}];
+
+/// Calls the part on one input; the author states it.
+fn subject(name: Input) -> Result<Value, Failure> {
+    Ok(!name.is_empty())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'test-with-rejects-runner-without-row'
+scenario = 'A use case test with a `rejects` runner and no `rejects` row.'
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/test-runners-match-rows', path = 'src/inbound/use_cases/greet/use_case_test.rs', line = 37 },
+]
+
+[[scenarios]]
+id = 'use-case-with-scenario-fixtures'
+scenario = 'A use case with a fixtures.rs of the scenario its tests share, and no contract.'
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/fixtures.rs' = '''
+//! The test support of the `greet` use case: the scenario its tests share.
+
+/// The name the scenario greets.
+pub const PERSON: &str = "Ada";
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    fn greet(&self, name: &'static str) -> Greeting;
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Greeting {
+        self.names.stored(&Asked(name))
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'contract-fixtures-without-contract-module'
+scenario = 'A contract use case whose fixtures.rs does not declare the contract.'
+given.files.'src/inbound/use_cases/greet/constants.rs' = '''
+//! The names of the `greet` use case.
+
+/// The greeting a call starts with.
+pub const GREETING: &str = "hello";
+'''
+given.files.'src/inbound/use_cases/greet/fixtures.rs' = '''
+//! The test support of the `greet` use case: the contract every implementation of its trait runs.
+
+/// The name the scenario greets.
+pub const PERSON: &str = "Ada";
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/contract.rs' = '''
+//! What every implementation of the `greet` use case's trait must pass.
+
+use super::super::interface::GreetUseCase;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation, in the crate that implements the trait.
+pub fn check(subject: &impl GreetUseCase) {
+    let _ = subject;
+    todo!("run the contract's rows against the implementation")
+}
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows.rs' = '''
+//! The rows of the contract's conformance.
+
+/// A name the contract greets.
+pub const NAME: &str = "Ada";
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows/detail.rs' = '''
+//! A file of the conformance rows, in a directory of its own.
+
+/// A name the nested rows greet.
+pub const NESTED: &str = "Grace";
+'''
+given.files.'src/inbound/use_cases/greet/fixtures/rows_test.rs' = '''
+//! The rows' own checks.
+
+#[test]
+fn the_name_is_not_empty() {
+    assert!(!super::rows::NAME.is_empty());
+}
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What the `greet` use case promises: the contract a caller implements, in its own vocabulary.
+
+/// What a greeter offers.
+pub trait GreetUseCase {
+    /// Whether the greeter greets the person named.
+    fn recognizes(&self, name: &str) -> bool;
+
+    /// Finishes a greeting.
+    fn complete(&self, name: &str) -> String;
+}
+'''
+given.files.'src/inbound/use_cases/greet/service.rs' = '''
+//! The `greet` service: free functions that drive an implementation of the contract.
+
+use super::interface::GreetUseCase;
+
+/// Greets the person named when the implementation recognizes them.
+pub fn greeted(language: &impl GreetUseCase, name: &str) -> Option<String> {
+    language.recognizes(name).then(|| language.complete(name))
+}
+'''
+given.files.'src/inbound/use_cases/greet/service_test.rs' = '''
+//! The `greet` service's cases, on values alone.
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: "recognizes the person named",
+    word: Word::Succeeds,
+    input: || "Ada",
+    expect: Expect::Value(true),
+}];
+
+/// Calls the part on one input; the author states it.
+fn subject(name: Input) -> Result<Value, Failure> {
+    Ok(!name.is_empty())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case: the struct that implements the contract.
+
+use super::interface::GreetUseCase;
+
+/// `greet`, implementing its contract.
+pub struct GreetUseCaseImpl;
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn recognizes(&self, _name: &str) -> bool {
+        true
+    }
+
+    fn complete(&self, name: &str) -> String {
+        name.to_string()
+    }
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: "recognizes the person named",
+    word: Word::Succeeds,
+    input: || "Ada",
+    expect: Expect::Value(true),
+}];
+
+/// Calls the part on one input; the author states it.
+fn subject(name: Input) -> Result<Value, Failure> {
+    Ok(!name.is_empty())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/use-case/use-case-fixtures#template', path = 'src/inbound/use_cases/greet/fixtures.rs' },
+]
+
+[[scenarios]]
+id = "declared-use-case-test-group"
+scenario = "Grouped use-case tests require normal module registration."
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[cfg(test)]
+mod coverage;
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::super::super::interface::GreetUseCase;
+use super::super::super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/mod.rs' = '#[cfg(test)] mod test;'
+then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files']
+
+[[scenarios]]
+id = "undeclared-use-case-test-group"
+scenario = "Grouped use-case tests require normal module registration."
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::super::super::interface::GreetUseCase;
+use super::super::super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/mod.rs' = '#[cfg(test)] mod test;'
+then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files']
+then.findings = [{ rule = 'idiomatic.arch/orphan-rust-files', path = 'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' }]

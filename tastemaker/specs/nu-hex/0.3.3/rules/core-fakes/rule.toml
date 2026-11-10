@@ -1,0 +1,212 @@
+description = "Each outbound port of the core has its fake in `outbound/<port>/fixtures/fake.rs`, and that file implements the trait of its own port and no other: the core's ports, every one of them, and no other crate's."
+why = "A port's fake is written once, beside the port, in its own `fixtures/` directory, and every test that needs to stand in for the port reaches it through the owning crate's `fixtures` feature. A fake of another crate's port is a second copy of it, and a port with no fake cannot be replaced, so a use case, a command or a bench that runs with one part real and the rest faked cannot be built. Several fakes of one port, such as a working one and a failing one, are allowed in the one file. A port is the trait its `outbound/<port>/interface.rs` declares, and the fake is the `impl` of that trait in `outbound/<port>/fixtures/fake.rs` of the same port directory of the same crate. Use cases have no fake: where one would live is an open owner decision."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let impls = select * from tree-nodes where kind = "impl";
+let module-impls-edges = select l."id" as "id", r."parent" as "module-impls-p", l."file" as "file", l."span" as "span" from impls as l join "syntax-child" as r on l."id" = r."child";
+let module-impls-kinds = select * from tree-nodes where glob_any(kind, "{source-file,item-list}");
+let module-impls = select l."id" as "id", l."file" as "file", l."span" as "span" from module-impls-edges as l join module-impls-kinds as r on l."module-impls-p" = r."id";
+let impl-children = select r."child" as "child", l."id" as "id", r."ordinal" as "ordinal", l."file" as "file", l."span" as "span" from module-impls as l join "syntax-child" as r on l."id" = r."parent";
+let path-types = select * from tree-nodes where kind = "path-type";
+let impl-types = select l."id" as "id", l."ordinal" as "ordinal", l."file" as "file", l."span" as "span", l."child" as "type" from impl-children as l join path-types as r on l."child" = r."id";
+let for-tokens = select * from tree-tokens where kind = "for-kw";
+let impl-for = select l."ordinal" as "for", l."id" as "id" from impl-children as l join for-tokens as r on l."child" = r."id";
+let impl-types-for = select r."for" as "for", l."id" as "id", l."ordinal" as "ordinal", l."file" as "file", l."span" as "span", l."type" as "type" from impl-types as l join impl-for as r on l."id" = r."id";
+let trait-types = select * from impl-types-for where ordinal < for;
+let trait-names-path-edges = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "trait-names-path-c" from trait-types as l join "syntax-child" as r on l."type" = r."parent";
+let trait-names-path-kinds = select * from tree-nodes where kind = "path";
+let trait-names-path = select l."id" as "id", l."file" as "file", l."span" as "span", r."id" as "trait-names-pt" from trait-names-path-edges as l join trait-names-path-kinds as r on l."trait-names-path-c" = r."id";
+let trait-names-seg-edges = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "trait-names-seg-c" from trait-names-path as l join "syntax-child" as r on l."trait-names-pt" = r."parent";
+let trait-names-seg-kinds = select * from tree-nodes where kind = "path-segment";
+let trait-names-seg = select l."id" as "id", l."file" as "file", l."span" as "span", r."id" as "trait-names-sg" from trait-names-seg-edges as l join trait-names-seg-kinds as r on l."trait-names-seg-c" = r."id";
+let trait-names-ref-edges = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "trait-names-ref-c" from trait-names-seg as l join "syntax-child" as r on l."trait-names-sg" = r."parent";
+let trait-names-ref-kinds = select * from tree-nodes where kind = "name-ref";
+let trait-names-ref = select l."id" as "id", l."file" as "file", l."span" as "span", r."id" as "trait-names-nr" from trait-names-ref-edges as l join trait-names-ref-kinds as r on l."trait-names-ref-c" = r."id";
+let trait-names-edges = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "trait-names-c" from trait-names-ref as l join "syntax-child" as r on l."trait-names-nr" = r."parent";
+let trait-names = select l."id" as "id", l."file" as "file", l."span" as "span", r."text" as "trait" from trait-names-edges as l join tree-tokens as r on l."trait-names-c" = r."id";
+let fake-impls-captured = capture(from=trait-names, path="file", pattern="{*root}/outbound/{port}/fixtures/fake.rs", captures=["root", "port"]);
+let fake-impls = project(from=fake-impls-captured, columns=["id", "file", "span", "trait", "root", "port"]);
+let traits = select * from tree-nodes where kind = "trait";
+let trait-named-name-edges = select l."id" as "id", r."child" as "trait-named-name-c" from traits as l join "syntax-child" as r on l."id" = r."parent";
+let trait-named-name-kinds = select * from tree-nodes where kind = "name";
+let trait-named-name = select l."id" as "id", r."id" as "trait-named-nm" from trait-named-name-edges as l join trait-named-name-kinds as r on l."trait-named-name-c" = r."id";
+let trait-named-edges = select l."id" as "id", r."child" as "trait-named-c" from trait-named-name as l join "syntax-child" as r on l."trait-named-nm" = r."parent";
+let trait-named = select l."id" as "id", r."text" as "trait" from trait-named-edges as l join tree-tokens as r on l."trait-named-c" = r."id";
+let trait-named-paths = select r."file" as "file", r."span" as "span", l."trait" as "trait" from trait-named as l join traits as r on l."id" = r."id";
+let trait-named-files = project(from=trait-named-paths, columns=["file", "span", "trait"]);
+let outbound-captured = capture(from=trait-named-files, path="file", pattern="{*root}/outbound/{port}/interface.rs", captures=["root", "port"]);
+let own-traits = project(from=outbound-captured, columns=["file", "span", "trait", "root", "port"]);
+let own-names = project(from=own-traits, columns=["root", "trait"]);
+let own-name-impls = select l."id" as "id", l."file" as "file", l."span" as "span", l."trait" as "trait", l."root" as "root", l."port" as "port" from fake-impls as l join own-names as r on l."root" = r."root" and l."trait" = r."trait";
+let suffixed-impls = select * from fake-impls where glob_any(trait, "*Port");
+let fake-rows = union(left=own-name-impls, right=suffixed-impls);
+let foreign = antijoin(left=fake-rows, right=own-traits, left-on=["root", "port", "trait"], right-on=["root", "port", "trait"]);
+let foreign-rows = project(from=foreign, columns=["file", "span", "trait"]);
+let foreign-fakes = extend(from=foreign-rows, values={"problem": "is not the port of this directory: its fake lives in the port that owns it"});
+let own-ports = project(from=own-traits, columns=["file", "span", "trait", "root", "port"]);
+let unfaked = antijoin(left=own-ports, right=fake-rows, left-on=["root", "port", "trait"], right-on=["root", "port", "trait"]);
+let unfaked-rows = project(from=unfaked, columns=["file", "span", "trait"]);
+let missing-fakes = extend(from=unfaked-rows, values={"problem": "is a port of this core and has no fake in its `fixtures/fake.rs`"});
+let findings = union(left=foreign-fakes, right=missing-fakes);
+emit findings subject "file" key("span", "trait");
+'''
+
+[diagnostic]
+primary = "span"
+message = "the trait `{trait}` {problem}"
+help = "Write the port's fake as `outbound/<port>/fixtures/fake.rs`, with `impl <Name>Port for` it; delete a fake of another port or crate and use the owner's, enabled from `[dev-dependencies]` through its `fixtures` feature."
+
+[given]
+include = ['**/*.rs']
+files.'src/outbound/names/interface.rs' = '''
+//! What the names port asks of the outside.
+
+/// What every names adapter implements.
+pub trait NamesPort {
+    /// Runs.
+    fn run(&self);
+}
+'''
+
+[[scenarios]]
+id = 'own-fakes'
+scenario = 'Every outbound port of the core has its fake in its own fixtures.'
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! The fake of the `names` port.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// A fake.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {
+    fn run(&self) {}
+}
+'''
+
+[[scenarios]]
+id = 'several-fakes'
+scenario = 'A working fake and a failing fake of one port.'
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! The fakes of the `names` port: one working, one failing.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// A working fake.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {
+    fn run(&self) {}
+}
+
+/// A failing fake.
+pub struct NamesFailing;
+
+impl NamesPort for NamesFailing {
+    fn run(&self) {}
+}
+'''
+
+[[scenarios]]
+id = 'foreign-fake'
+scenario = 'A fake of a port another crate declares, in the fake file of a port.'
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! The fake of the `names` port, and a fake of another crate's port.
+
+use crate::outbound::names::interface::NamesPort;
+use other::OtherPort;
+
+/// A fake.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {
+    fn run(&self) {}
+}
+
+/// A fake of a port this core does not own.
+pub struct OtherFake;
+
+impl OtherPort for OtherFake {
+    fn run(&self) {}
+}
+'''
+then.findings = [
+  { path = 'src/outbound/names/fixtures/fake.rs', line = 16 },
+]
+
+[[scenarios]]
+id = 'unfaked-outbound-port'
+scenario = 'An outbound port with no fake.'
+given.files.'src/lib.rs' = '''
+//! The core.
+'''
+then.findings = [
+  { path = 'src/outbound/names/interface.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'plain-noun-port'
+scenario = 'A port the SDK exposes under its plain noun, with its fake.'
+given.files.'src/outbound/language/fixtures/fake.rs' = '''
+//! The fake of the `language` port.
+
+use crate::outbound::language::interface::Language;
+
+/// A fake.
+pub struct LanguageFake;
+
+impl Language for LanguageFake {
+    fn run(&self) {}
+}
+'''
+given.files.'src/outbound/language/interface.rs' = '''
+//! What the language port asks of the outside.
+
+/// What every language implements.
+pub trait Language {
+    /// Runs.
+    fn run(&self);
+}
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! The fake of the `names` port.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// A fake.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {
+    fn run(&self) {}
+}
+'''
+
+[[scenarios]]
+id = 'plain-noun-unfaked'
+scenario = 'A port under its plain noun with no fake.'
+given.files.'src/outbound/language/interface.rs' = '''
+//! What the language port asks of the outside.
+
+/// What every language implements.
+pub trait Language {
+    /// Runs.
+    fn run(&self);
+}
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! The fake of the `names` port.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// A fake.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {
+    fn run(&self) {}
+}
+'''
+then.findings = [
+  { path = 'src/outbound/language/interface.rs', line = 4 },
+]

@@ -1,0 +1,57 @@
+description = "One port's fixtures module file: its contract and its fake, the test support the port keeps beside its interface."
+why = "Declares the two files of a port's `fixtures/` directory: the contract every implementation runs and the fake the core's tests use. The port's module file declares this module under the gate of test support, `#[cfg(any(test, feature = \"fixtures\"))]`, so the gate is stated once for both files (`module-declares`)."
+content = '''
+//! The test support of the `{{ part }}` port: its contract and its fake.
+
+pub mod contract;
+pub mod fake;
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The port's directory name." }
+
+[given]
+file = 'fixtures.rs'
+params = { part = 'names' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'fixtures.rs' = '''
+//! The test support of the `names` port: its contract and its fake.
+
+pub mod contract;
+pub mod fake;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'fixtures.rs' = '''
+//! The test support of the `names` port: its contract and its fake.
+
+pub mod contract;
+pub mod fake;
+
+/// How many rows the contract has.
+pub const ROWS: usize = 2;
+'''
+
+[[scenarios]]
+id = 'contract-only'
+scenario = 'The module file does not declare the fake.'
+given.files.'fixtures.rs' = '''
+//! The test support of the `names` port: its contract and its fake.
+
+pub mod contract;
+'''
+then.findings = [
+  { rule = 'fixtures#template', path = 'fixtures.rs' },
+]
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'fixtures#count', path = '.' },
+]

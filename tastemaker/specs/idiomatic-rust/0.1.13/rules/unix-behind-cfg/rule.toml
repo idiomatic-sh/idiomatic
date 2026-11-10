@@ -1,0 +1,139 @@
+description = "`std::os::unix` is named only under `#[cfg(unix)]` (an item attribute or an inner `#![cfg(unix)]`), and production uses have a `#[cfg(not(unix))]` or `#[cfg(windows)]` twin in their file. Platform-specific tests need no no-op twin."
+why = "`std::os::unix` does not exist on Windows: an unguarded use is a build failure on a platform the product supports, found by a user instead of by a check; a guard with no twin compiles and then lacks the behaviour there. Found from the paths in the files the entry includes whose last two segments are `os::unix`: one with no ancestor item carrying `#[cfg(unix)]` or `#[cfg(all(unix,...))]` (nor an inner attribute of its file), or in a file with no `#[cfg(windows)]` or `#[cfg(not(unix))]` anywhere. Not seen: a gate placed on a `mod` declaration in another file, a gate by `target_family = \"unix\"`, and `libc`."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let paths = select * from tree-nodes where kind = "path";
+let segments = select * from tree-nodes where kind = "path-segment";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let attrs = select * from tree-nodes where kind = "attr";
+let atoms = select * from tree-nodes where kind = "cfg-atom";
+let composites = select * from tree-nodes where kind = "cfg-composite";
+let cfg-metas = select * from tree-nodes where kind = "cfg-meta";
+let unix-tokens = select * from tree-tokens where text = "unix";
+let os-tokens = select * from tree-tokens where text = "os";
+let windows-tokens = select * from tree-tokens where text = "windows";
+let not-tokens = select * from tree-tokens where text = "not";
+let all-tokens = select * from tree-tokens where text = "all";
+let seg-of = select l."id" as "id", l."span" as "span", l."file" as "file", r."child" as "seg" from paths as l join "syntax-child" as r on l."id" = r."parent";
+let seg-nodes = select l."id" as "id", l."span" as "span", l."file" as "file", r."id" as "seg" from seg-of as l join segments as r on l."seg" = r."id";
+let seg-ref-c = select l."id" as "id", l."span" as "span", l."file" as "file", r."child" as "ref" from seg-nodes as l join "syntax-child" as r on l."seg" = r."parent";
+let seg-refs = select l."id" as "id", l."span" as "span", l."file" as "file", r."id" as "ref" from seg-ref-c as l join name-refs as r on l."ref" = r."id";
+let seg-ident-c = select l."id" as "id", l."span" as "span", l."file" as "file", r."child" as "tok" from seg-refs as l join "syntax-child" as r on l."ref" = r."parent";
+let unix-paths = select l."id" as "id", l."span" as "span", l."file" as "file" from seg-ident-c as l join unix-tokens as r on l."tok" = r."id";
+let os-paths = select l."id" as "os" from seg-ident-c as l join os-tokens as r on l."tok" = r."id";
+let unix-kids = select l."id" as "id", l."span" as "span", l."file" as "file", r."child" as "child" from unix-paths as l join "syntax-child" as r on l."id" = r."parent";
+let os-unix = select l."id" as "id", l."span" as "span", l."file" as "file" from unix-kids as l join os-paths as r on l."child" = r."os";
+let atom-kids = select l."id" as "atom", r."child" as "tok" from atoms as l join "syntax-child" as r on l."id" = r."parent";
+let unix-atoms = select l."atom" as "atom" from atom-kids as l join unix-tokens as r on l."tok" = r."id";
+let windows-atoms = select l."atom" as "atom" from atom-kids as l join windows-tokens as r on l."tok" = r."id";
+let atom-parents = select l."atom" as "atom", r."parent" as "parent" from unix-atoms as l join "syntax-child" as r on l."atom" = r."child";
+let plain-unix = select l."atom" as "id" from atom-parents as l join cfg-metas as r on l."parent" = r."id";
+let comp-unix = select l."atom" as "atom", r."id" as "comp" from atom-parents as l join composites as r on l."parent" = r."id";
+let comp-kids = select l."atom" as "atom", r."child" as "tok" from comp-unix as l join "syntax-child" as r on l."comp" = r."parent";
+let all-unix = select l."atom" as "id" from comp-kids as l join all-tokens as r on l."tok" = r."id";
+let not-unix = select l."atom" as "atom" from comp-kids as l join not-tokens as r on l."tok" = r."id";
+let gate-atoms = union(left=plain-unix, right=all-unix);
+let gate-attrs = axis(from=gate-atoms, relation="syntax-child", direction=ancestor, domain=attrs);
+let gate-parents = select l."related" as "attr", r."parent" as "item" from gate-attrs as l join "syntax-child" as r on l."related" = r."child";
+let gated-items = select l."item" as "id" from gate-parents as l join gate-parents as r on l."item" = r."item";
+let guarded = axis(from=os-unix, relation="syntax-child", direction=ancestor, domain=gated-items);
+let guarded-paths = select l."id" as "id" from guarded as l join guarded as r on l."id" = r."id";
+let ungated = antijoin(left=os-unix, right=guarded-paths, left-on=["id"], right-on=["id"]);
+let twin-atoms = union(left=windows-atoms, right=not-unix);
+let twin-ids = select l."atom" as "id" from twin-atoms as l join twin-atoms as r on l."atom" = r."atom";
+let twin-nodes = select r."file" as "file" from twin-ids as l join atoms as r on l."id" = r."id";
+let twin-files = project(from=twin-nodes, columns=["file"]);
+let test-tokens = select * from tree-tokens where text = "test";
+let test-parents = select r."parent" as "id" from test-tokens as l join "syntax-child" as r on l."id" = r."child";
+let test-attrs = axis(from=test-parents, relation="syntax-child", direction=nearest-ancestor, domain=attrs);
+let test-owners = select r."parent" as "id" from test-attrs as l join "syntax-child" as r on l."related" = r."child";
+let functions = select * from tree-nodes where kind = "fn";
+let test-functions = select r."id" as "id" from test-owners as l join functions as r on l."id" = r."id";
+let in-tests = axis(from=os-unix, relation="syntax-child", direction=ancestor, domain=test-functions);
+let production = antijoin(left=os-unix, right=in-tests, left-on=["id"], right-on=["id"]);
+let untwinned = antijoin(left=production, right=twin-files, left-on=["file"], right-on=["file"]);
+let ungated-sites = select l."id" as "id", l."span" as "span" from ungated as l join ungated as r on l."id" = r."id";
+let untwinned-sites = select l."id" as "id", l."span" as "span" from untwinned as l join untwinned as r on l."id" = r."id";
+let found = union(left=ungated-sites, right=untwinned-sites);
+let reported = select l."file" as "file", l."span" as "span" from os-unix as l join found as r on l."id" = r."id";
+emit reported subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`std::os::unix` is named without a `#[cfg(unix)]` guard and a `#[cfg(not(unix))]` twin in this file"
+help = "Put the item under `#[cfg(unix)]` and write its `#[cfg(not(unix))]` or `#[cfg(windows)]` twin beside it in the same file."
+
+[given]
+include = ['**/*.rs']
+files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+
+[[scenarios]]
+id = 'unguarded-use'
+scenario = 'An unguarded use: it is reported.'
+given.files.'src/lib.rs' = '''
+//! Permissions.
+
+use std::os::unix::fs::PermissionsExt;
+
+#[test]
+fn unguarded_test() {
+    use std::os::unix::fs::PermissionsExt;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 3 },
+  { path = 'src/lib.rs', line = 7 },
+]
+
+[[scenarios]]
+id = 'guard-without-twin'
+scenario = 'A guard with no twin.'
+given.files.'src/lib.rs' = '''
+//! Permissions.
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
+#[cfg(unix)]
+#[test]
+fn unix_permissions_are_read() {
+    use std::os::unix::fs::PermissionsExt;
+}
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'guard-with-twin'
+scenario = 'A guarded use with its twin.'
+given.files.'src/lib.rs' = '''
+//! Permissions.
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
+#[cfg(not(unix))]
+fn mode() {}
+'''
+
+[[scenarios]]
+id = 'guarded-function'
+scenario = 'A guarded platform-specific test needs no no-op twin.'
+given.files.'src/lib.rs' = '''
+//! Permissions.
+
+#[cfg(unix)]
+#[test]
+fn mode() {
+    use std::os::unix::fs::PermissionsExt;
+}
+'''

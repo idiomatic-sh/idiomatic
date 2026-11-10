@@ -1,11 +1,13 @@
 description = "The shape of the data a part does not control, and its checked conversion into the core's types and back."
-why = "Validation exists only where the shape of the data is not ours. This file is that place for a plugin port, an adapter, a command and an SDK entry: the wire shape (a file on disk, a command's arguments, an SDK caller's request, a provider's rows) as a `<Name>Schema`, the `TryFrom<<Name>Schema>` that checks it into a core type (or the `From<<Name>Schema>` of a lossless shape, where the conversion cannot fail), and the refusal of a conversion as a `<Name>SchemaError`. It is the only file where a `TryFrom` or a fallible constructor lives (`validation-at-edges`), and its accepted and refused inputs are proven in `schemas_test.rs` beside it. The scaffold shows no wire shape, because a placeholder one would be a hollow artifact: it starts with its test module and the author adds the shapes the data has."
+why = "Validation exists only where the shape of the data is not ours. This file is that place for a plugin port, an adapter, a command and an SDK entry: the wire shape (a file on disk, a command's arguments, an SDK caller's request, a provider's rows) as a `<Name>Schema`, the `TryFrom<<Name>Schema>` that checks it into a core type (or the `From<<Name>Schema>` of a lossless shape, where the conversion cannot fail), and the refusal of a conversion as a `<Name>SchemaError`. It is the only file where a `TryFrom` or a fallible constructor lives (`validation-at-edges`), and its accepted and refused inputs are proven in `schemas_test.rs` beside it. The scaffold shows no wire shape, because a placeholder one would be a hollow artifact: it starts with its test module and the author adds the shapes the data has. A colocated cargo-schema-tests role instead owns that registration when the same schemas are compiled into a harness-free executable; that role must require the adjacent test module and its Cargo test target."
 content = '''
 //! The shape of the data this {{ kind }} does not control: each wire shape is a `<Name>Schema`, its conversion into the core's type is an `impl TryFrom<<Name>Schema>` (or an `impl From<<Name>Schema>` where it cannot fail), and each refusal of a conversion is a `<Name>SchemaError`.
 
+{% if not present["cargo-schema-tests"] | default(false) %}
 #[cfg(test)]
 #[path = "schemas_test.rs"]
 mod tests;
+{% endif %}
 '''
 
 [params]

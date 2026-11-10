@@ -1,0 +1,35 @@
+description = "Private free functions belonging to one use case."
+why = "A use case can extract local coordination into private free functions without inventing a domain concept or independent injectable service. SDK-facing contracts may additionally expose their implementation helpers."
+content = '''
+//! The `{{ part }}` service: local free-function helpers, private to this use case unless it is an SDK contract.
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The part's directory name: the stem of every name in it." }
+
+[given]
+file = 'service.rs'
+params = { part = 'greet' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'service.rs' = '''
+//! The `greet` service: free functions that drive an implementation of the contract.
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'service.rs' = '''
+//! The `greet` service: free functions that drive an implementation of the contract.
+
+pub fn drive() {}
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'use-case-service#count', path = '.' },
+]

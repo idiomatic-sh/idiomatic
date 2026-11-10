@@ -1,10 +1,9 @@
 closed = false
-description = "Lifecycle evidence beside an existing pipeline use case, without choosing its storage backend or runtime."
-why = "Apply beside a use-case instance that retains reusable work. Its existing use_case_test.rs supplies executable lifecycle cases: cold execution, unchanged reuse, one-entity edit invalidation, failed publication preserving the previous completed state, and batch/lease lifetime under any store budget the product declares. If work fans out, the same cases compare complete serial and bounded-parallel outcomes in deterministic order. Connections and any partition bindings are injected at the edge; methods use domain entities and IDs. Pure computation needs no store or scheduler. The accompanying use-case spec owns and requires its evidence file. This overlay reuses ordinary case/expectation structure without claiming that file again; product tests must execute and prove these behavioral obligations. It does not infer cache correctness, resource limits or publication safety from names or source syntax."
+description = "Structural test wiring beside a pipeline use case; executable product tests prove lifecycle behavior."
+why = "The language plugs in facts. A primitive implements its semantics through validated inputs, a capability-restricted context and an output contract; the engine owns planning, scheduling, sharing, invalidation and resource lifetime. This overlay checks the shape of test runners and their expectations. Product tests must execute cold and unchanged runs, one-entity edits, failed publication, bounded retention and complete serial/parallel outcomes. A real store test must measure retained files and bytes after repeated unchanged and changed runs, and a deliberately accumulating writer must fail the same bound. The accompanying use-case spec owns its evidence file. Tastemaker does not infer these behavioral guarantees from a case name or source text."
 rules = [
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["use_case_test.rs"], description = "Lifecycle evidence uses the existing case runners." },
   { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["use_case_test.rs"], description = "Cases expect specific values or error variants, rather than merely successful execution." },
-  { rule = "idiomatic.arch/bounded-store@0.1.0", include = ["use_case_test.rs"], description = "A lifecycle case runs the pipeline many times in a row and holds the files it keeps to a bound." },
 ]
 [given]
 at = 'src/run'
@@ -20,8 +19,6 @@ type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case { name: CaseName("unchanged_reuses_complete_result"), word: Word::Succeeds,
         input: || 7, expect: Expect::Value(7) },
-    Case { name: CaseName("many_runs_in_a_row_leave_a_bounded_number_of_files"), word: Word::Succeeds,
-        input: || 40, expect: Expect::Value(40) },
 ];
 fn subject(input: Input) -> Result<Value, Failure> { Ok(input) }
 #[test]
@@ -34,5 +31,4 @@ scenario = 'A use case test whose lifecycle evidence is malformed is reported by
 given.files.'src/run/use_case_test.rs' = '#[test] fn arbitrary() {}'
 then.findings = [
   { rule = 'idiomatic.arch/test-shape', path = 'src/run/use_case_test.rs', line = 1 },
-  { rule = 'idiomatic.arch/bounded-store', path = 'src/run/use_case_test.rs' },
 ]
