@@ -1,6 +1,7 @@
 # Harness hooks
 
-`guard_shell.py` (PreToolUse, Bash), `guard_write.py` (PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent:
+`guard_shell.py` (PreToolUse, Bash), `closed_effect.py` (PreToolUse and PostToolUse, Bash), `guard_write.py`
+(PreToolUse, edits), `no_subagent_builders.py` (PreToolUse, Agent:
 no subagent spawns another, judged by the payload's `agent_id`; a prompt with a `BEAD:` line launches only
 as `builder`, `contract-migration` or `integrator`; and a `builder` or `contract-migration` launch needs exact
 `BEAD: <id>` and `WORKTREE: /abs/path` lines and `SCOPE=<path>`,
@@ -13,19 +14,20 @@ unless it replies BLOCKED, and any error holds the stop; it reads the agent's ow
 main session's own `transcript_path`). `test_hooks.py` holds their cases; run it with
 `python3 -m unittest test_hooks` in this directory.
 
-Tastemaker manifests are closed for extension. `guard_write.py` diffs a `tastemaker.toml` edit as TOML facts (scope
-`rules[<id>]`, `templates[<id> as <alias>]`, `specs[<id>]`, dotted key path, list positions erased) and refuses every
-added fact and every removal that loosens: an agent may only remove an `exclude`, `except`, `allow` or `rules-exclude`
-element or a single-file template placement, and edit descriptions, comments and order. It refuses an added
-`ignore: idiomatic.` line in any file, manifests included, a patch naming a manifest, a script that writes one (a
-shell script, by suffix or shebang, through any shell writer), and every write to
-`closed_for_extension.toml`, the owner's allowlist beside the hooks in idiomatic-internal, which the owner edits by
-hand (absent or unparsable, it admits nothing; each refusal prints the block that would admit it, and an entry admits
-only with its `reason`). `guard_shell.py` refuses every shell write of a manifest or the allowlist (edit manifests with
-the Edit or Write tool), a writer next to an ignore mark, an in-place editor driven by xargs or find -exec, `patch`,
-`git apply`, `git am`, and `tm add`, `tm init` and `tm update`. Its text rules read the raw command, so a commit
-message or PR body naming a manifest beside a writer word is refused: write it with the Write tool and pass the file
-(`git commit -F <file>`, `gh pr create --body-file <file>`).
+Tastemaker manifests are closed for extension. `closed_effect.py` holds the fact model: a manifest is diffed as
+TOML facts (scope `rules[<id>]`, `templates[<id> as <alias>]`, `specs[<id>]`, dotted key path, list positions erased),
+and every added fact and every removal that loosens is refused: an agent may only remove an `exclude`, `except`,
+`allow` or `rules-exclude` element or a single-file template placement, and edit descriptions, comments and order. An
+added `ignore: idiomatic.` line is refused in any file, manifests included. `closed_for_extension.toml`, the owner's
+allowlist beside the hooks in idiomatic-internal, admits named changes; the owner edits it by hand (absent or
+unparsable, it admits nothing; each refusal prints the block that would admit it, and an entry admits only with its
+`reason`), and agents never change it. `guard_write.py` applies the model before a Write or Edit. For Bash,
+`closed_effect.py` judges the effect, never the spelling: before the command (PreToolUse) it snapshots each repository
+the command may touch, every tracked and untracked file as a git tree written through a temporary index, with the
+refs and the allowlist; after it (PostToolUse) it diffs the trees, refuses what the model refuses, and restores each
+such file to its content before the command (a new file is removed). Content git brings from commits that existed
+before the command (a checkout, merge, rebase or reset, or a side of a merge in progress) passes, and a conflicted
+manifest passes until it is resolved. A snapshot that failed refuses after the command and restores nothing.
 
 ## Threat model
 The hooks stop **honest mistakes by our own agents**: the command an agent writes by habit, by copying an old brief or
@@ -57,7 +59,8 @@ These reach past the guards and are left out on purpose; none is a spelling an a
   (`idiomatic-sh-ryo-sdk`); one in parentheses or after "bead" is reported. The review evidence validator (`ci/contract_review/service.py`) reads its tracker-id globs from that placement in
   the newest `idiomatic-project` spec, so the rule and the validator hold one definition;
 - `gh pr merge`. Server-side branch protection on `main` is the complete fix for every push to it;
-- manifest content that arrives committed (`git merge`, `cherry-pick`, `checkout <ref> -- <file>`), an interpreter
-  given a command string that builds a closed file's name at run time, a `python3 -c` open with mode `r+`, and a
-  list element moved between two entries of the same scope (two unaliased entries of one rule), which keeps the
-  fact counts equal.
+- for the closed-for-extension effect check: a repository the command reaches only through a path its text does not
+  spell (a variable, a relative `cd` out of the working directory's repository), files git ignores, a command's
+  background processes that write after it returns, and a list element moved between two entries of the same scope
+  (two unaliased entries of one rule), which keeps the fact counts equal. A change already committed by the command
+  stays in that commit; the refusal says to commit the restored file.
