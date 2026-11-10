@@ -11,6 +11,17 @@ use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement
 use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
+/// Seals [`RelationStore`]: the trait is public so the runtime can hold the store through it, and its one implementation is
+/// [`RelationOwner`](super::RelationOwner)'s, so a replacement of the store touches `relations.rs` only.
+pub(crate) mod sealed {
+    /// Implemented only by `RelationOwner`: no other type, in this crate or another, implements it or `RelationStore`.
+    #[expect(
+        unnameable_types,
+        reason = "the seal: a supertrait other crates can reach but never name, so they cannot implement RelationStore"
+    )]
+    pub trait Sealed {}
+}
+
 /// What the runtime needs from the store to hold, read and free published relations: the one pub route to them. The owner's own
 /// workflows are not on it: a caller cannot publish a computed table, a compact source or retire a producer by hand,
 /// ```compile_fail,E0624
@@ -37,7 +48,50 @@ use ryo_relations::domain::relations::types::{CellKind, Relation};
 /// ```compile_fail,E0603
 /// use ryo_execution_store::application::file_dag::relations::generation::service::GenerationLease;
 /// ```
-pub trait RelationStore {
+/// It is sealed: a type of another crate that answers every operation is still no store, so the store the runtime holds is
+/// always the owner's.
+/// ```compile_fail,E0277
+/// use ryo_execution_domain::domain::operating::errors::OperatingError;
+/// use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
+/// use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
+/// use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
+/// use ryo_execution_store::application::file_dag::relations::{
+///     admission::service::BorrowedInput, generation::service::ResidentGeneration, handle::service::Publication,
+///     interface::RelationStore, number::service::AdmittedNumber,
+///     publication::types::{ProducerScope, PublicationBody}, types::ProducerId,
+/// };
+/// use ryo_relations::domain::relations::types::{CellKind, Relation};
+/// struct Elsewhere;
+/// impl RelationStore for Elsewhere {
+///     fn generation(&self) -> ResidentGeneration { todo!() }
+///     fn publish(&self, _: PublicationBody<'_>) -> Result<Publication, OperatingError> { todo!() }
+///     fn population(&self) -> Result<PopulationId, OperatingError> { todo!() }
+///     fn admit<'a>(
+///         &self,
+///         _: &Publication,
+///         _: RepresentationInput<'a>,
+///     ) -> Result<Result<BorrowedInput<'a>, OperatingError>, OperatingError> { todo!() }
+///     fn admit_number<'a>(
+///         &self,
+///         _: &'a Publication,
+///         _: ProducerId,
+///         _: &NumberRequirement,
+///         _: RepresentationInput<'_>,
+///     ) -> Result<Option<AdmittedNumber<'a>>, OperatingError> { todo!() }
+///     fn rows<'r, 'f: 'r>(
+///         &self,
+///         _: &'r Publication,
+///         _: &dyn Fn(Relation) -> Result<Rows<'f>, OperatingError>,
+///     ) -> Result<Rows<'r>, OperatingError> { todo!() }
+///     fn normalize<'r, 'f: 'r>(&self, _: &'r Publication, _: Rows<'f>) -> Result<Rows<'r>, OperatingError> { todo!() }
+///     fn kinds<'a>(&self, _: &'a Publication) -> Result<&'a [CellKind], OperatingError> { todo!() }
+///     fn bind_producer(&self, _: ProducerScope, _: ProducerId, _: &Publication) -> Result<(), OperatingError> { todo!() }
+///     fn pin(&self, _: &Publication) {}
+///     fn retire_producer(&self, _: ProducerScope, _: ProducerId) {}
+///     fn release(&self) {}
+/// }
+/// ```
+pub trait RelationStore: sealed::Sealed {
     /// The resident population's generation.
     fn generation(&self) -> ResidentGeneration;
     /// Publishes `body`, its backing accounted to the ledger.
@@ -119,12 +173,4 @@ pub trait RelationStore {
     fn retire_producer(&self, scope: ProducerScope, producer: ProducerId);
     /// Ends the resident population: every publication of its generation is refused from now on.
     fn release(&self);
-    /// A store over `derived` with the default pin limit and no route recording, for the proofs of the store and the engine.
-    #[cfg(any(test, feature = "fixtures"))]
-    fn fixture(
-        reuse: super::types::ReuseEligibility,
-        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-    ) -> Self
-    where
-        Self: Sized;
 }

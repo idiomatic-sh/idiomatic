@@ -154,6 +154,24 @@ impl RelationOwner {
             routes,
         }
     }
+    /// A store over `derived` with the default pin limit and no route recording, for the proofs of the store and the engine.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
+    /// use ryo_execution_store::application::file_dag::relations::{types::ReuseEligibility, RelationOwner};
+    /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
+    /// assert_eq!(owner.stable(), ReuseEligibility::Eligible);
+    /// ```
+    #[cfg(any(test, feature = "fixtures"))]
+    #[must_use]
+    pub fn fixture(
+        reuse: ReuseEligibility,
+        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
+    ) -> Self {
+        Self::with_limits(reuse, PinnedViewCount(1024), derived, Default::default())
+    }
     /// Whether this owner's publications may be reused across invocations.
     #[cfg(any(test, feature = "fixtures"))]
     pub fn stable(&self) -> ReuseEligibility {
@@ -170,6 +188,7 @@ impl RelationOwner {
     }
 }
 
+impl interface::sealed::Sealed for RelationOwner {}
 impl interface::RelationStore for RelationOwner {
     fn generation(&self) -> generation::service::ResidentGeneration {
         generation::service::ResidentGeneration(self.current_generation())
@@ -257,13 +276,6 @@ impl interface::RelationStore for RelationOwner {
     }
     fn release(&self) {
         self.release_population();
-    }
-    #[cfg(any(test, feature = "fixtures"))]
-    fn fixture(
-        reuse: ReuseEligibility,
-        derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-    ) -> Self {
-        Self::with_limits(reuse, PinnedViewCount(1024), derived, Default::default())
     }
 }
 

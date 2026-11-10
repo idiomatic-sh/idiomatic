@@ -77,7 +77,7 @@ impl DerivedOwner {
     /// use ryo_execution_domain::domain::operating::errors::OperatingError;
     /// use ryo_execution_store::application::file_dag::derived::prepared::RequestDerived;
     /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::RelationOwner;
     /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
     /// let fresh = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
     /// assert!(matches!(fresh.derived().serve_project(), Ok(())));
