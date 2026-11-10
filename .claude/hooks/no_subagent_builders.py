@@ -1,5 +1,5 @@
 """PreToolUse hook for Agent: refuses a subagent spawning further subagents, and a builder launched without a scope
-report the scope review passed. scope_review_problem is the one validator of scope-review-<bead>.json; the
+report the scope review passed. scope_review_problem is the one validator of scope-review-<report stem>.json; the
 SubagentStop hook loads it by path."""
 
 import hashlib
@@ -21,13 +21,13 @@ FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
 WORKTREE = re.compile(r"^WORKTREE:\s*(\S+)", re.MULTILINE)
 BEAD = re.compile(r"^BEAD:\s*(\S+)", re.MULTILINE)
 NEEDS = ("a builder needs SCOPE=<path to scope-<bead>.md>, a report naming the brief's BEAD (or a checkpoint scope "
-         "listing it on a BEADS: line) whose first line starts PROCEED or RESHAPE, with scope-review-<stem>.json beside it holding the report's scope_sha256, verdict PASS "
+         "listing it on a BEADS: line directly under the verdict line) whose first line starts PROCEED or RESHAPE, with scope-review-<stem>.json beside it holding the report's scope_sha256, verdict PASS "
          "and every rubric row PASS; a review-fix round carries FOLLOWUP=<branch> instead, from a WORKTREE on that "
          "branch, for the bead and branch an earlier builder launched with a passed scope")
 
 
 def review_path(scope):
-    """scope-review-<bead>.json beside scope-<bead>.md, or None when the scope report is not named that way."""
+    """scope-review-<stem>.json beside scope-<stem>.md, or None when the scope report is not named that way."""
     found = re.fullmatch(r"scope-(.+)\.md", os.path.basename(scope))
     return os.path.join(os.path.dirname(scope), "scope-review-" + found.group(1) + ".json") if found else None
 
@@ -114,17 +114,18 @@ def scope_problem(scope, bead):
         return "the scope report " + scope + " does not start with PROCEED or RESHAPE"
     path = review_path(scope)
     if path is None:
-        return "the scope report " + scope + " is not named scope-<bead>.md"
+        return "the scope report " + scope + " is not named scope-<stem>.md"
     if not bead:
         return "the brief names no BEAD: <id>"
     with open(scope, encoding="utf-8", errors="replace") as handle:
         text = handle.read()
-    prose = re.sub(r"^(```|~~~).*?^\1[^\n]*$", "", text, flags=re.MULTILINE | re.DOTALL)  # code fences are examples
-    listed = {word.rstrip(".,;") for line in re.findall(r"^BEADS:(.*)$", prose, re.MULTILINE) for word in line.split()}
+    lines = text.splitlines()
+    second = lines[1] if len(lines) > 1 else ""  # a BEADS: line counts only directly under the verdict line
+    listed = {word.rstrip(".,;") for word in second[len("BEADS:"):].split()} if second.startswith("BEADS:") else set()
     own = os.path.basename(scope) == "scope-" + bead + ".md" and names(text, bead)
     if not own and bead not in listed:
         return ("the scope report " + scope + " is neither scope-" + bead + ".md naming the bead nor a checkpoint "
-                "scope listing it on a BEADS: line")
+                "scope listing it on a BEADS: line directly under the verdict line")
     review, problem = load(path)
     if problem:
         return problem

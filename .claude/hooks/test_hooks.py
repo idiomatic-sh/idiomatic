@@ -82,19 +82,17 @@ class GuardShell(unittest.TestCase):
     def test_a_here_string_hides_no_later_line(self):
         self.assertEqual(shell("read -r base <<<\"main\"\ngit push origin HEAD:main", self.builder), 2)
 
-    def test_clippy_runs_only_in_a_reviewers_archive_copy_with_its_own_target(self):
+    def test_clippy_runs_only_in_an_integration_tree(self):
         copy = tempfile.mkdtemp(prefix="ryo-review-", dir="/tmp")
         self.addCleanup(shutil.rmtree, copy)
-        clippy = "cargo clippy --workspace --all-targets --target-dir "
-        self.assertEqual(shell(LOCK + clippy + copy + "/target", copy), 0)
-        self.assertEqual(shell(LOCK + clippy + "target", copy), 0)
-        self.assertEqual(shell(clippy + copy + "/target", copy), 2)
-        self.assertEqual(shell(LOCK + clippy + "/workspaces/idiomatic-target/ryo-333", copy), 2)
-        self.assertEqual(shell(LOCK + "cargo clippy --workspace", copy), 2)
-        self.assertEqual(shell(LOCK + "cargo build --target-dir " + copy + "/target", copy), 2)
-        self.assertEqual(shell(LOCK + clippy + copy + "/target", self.builder), 2)
-        worktree = repo(copy, "tree", "claude/p1-x")
-        self.assertEqual(shell(LOCK + clippy + worktree + "/target", worktree), 2)
+        clippy = LOCK + "cargo clippy --workspace --all-targets --target-dir " + copy + "/tgt"
+        tree = self.builder
+        for command in [clippy, "cd " + tree + " && " + clippy + "; cd " + copy,
+                        "cd " + tree + " && " + clippy + " && cd " + copy, "cd " + tree + " && " + clippy + "\ncd " + copy,
+                        "(cd " + tree + " && " + clippy + "); cd " + copy, "pushd " + tree + " && " + clippy + "; popd",
+                        "builtin cd " + tree + " && " + clippy, "command cd " + tree + " && " + clippy]:
+            with self.subTest(command=command):
+                self.assertEqual(shell(command, copy), 2)
 
     def test_a_builders_check_behind_one_unwrapping_is_allowed(self):
         check = "cargo check -p x --target-dir /workspaces/idiomatic-check-target/ryo-w5"
@@ -1654,14 +1652,11 @@ class ScopeGate(unittest.TestCase):
 
     def test_a_checkpoint_scope_names_its_beads_on_a_beads_line(self):
         passed = {"rows": scope_rows(), "verdict": "PASS"}
-        path = self.scope("PROCEED", passed, bead="cp334", names="cp334\nBEADS: ryo-a ryo-x ryo-b")
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
-        path = self.scope("PROCEED", passed, bead="cp334", names="cp334\nBEADS: ryo-a ryo-b")
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
-        path = self.scope("PROCEED", passed, bead="cp334", names="cp334; ryo-x is mentioned\nBEADS: ryo-a")
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
-        path = self.scope("PROCEED", passed, bead="cp334", names="cp334\n```\nBEADS: ryo-x\n```\nBEADS: ryo-a")
-        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        for first, code in [("PROCEED\nBEADS: ryo-a ryo-x ryo-b", 0), ("PROCEED\nBEADS: ryo-a ryo-b", 2),
+                            ("PROCEED\n\nBEADS: ryo-x", 2), ("PROCEED\nscope of cp334\nBEADS: ryo-x", 2)]:
+            with self.subTest(first=first):
+                path = self.scope(first, passed, bead="cp334", names="cp334; ryo-x is mentioned\nBEADS: ryo-x")
+                self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, code)
 
     def test_refuses_a_scope_changed_after_its_review(self):
         path = self.scope("PROCEED", {"rows": scope_rows(), "verdict": "PASS"})

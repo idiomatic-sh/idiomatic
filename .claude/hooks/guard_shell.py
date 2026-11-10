@@ -287,30 +287,6 @@ def own_target(dirs):
     return TARGET_ROOT + "/" + names.pop() if len(names) == 1 else None
 
 
-REVIEW_ROOTS = re.compile(r"/tmp/ryo-[^/]+|/tmp/claude-\d+/[^/]+/[^/]+/scratchpad/[^/]+")
-
-
-def review_place(path):
-    """True for a path in a reviewer's scratch area: under /tmp/ryo-* or one level below a session scratchpad."""
-    return REVIEW_ROOTS.match(os.path.abspath(path)) is not None
-
-
-def review_copy(directory):
-    """A reviewer's `git archive` copy: an existing directory in a scratch area that is in no git work tree."""
-    return review_place(directory) and os.path.isdir(directory) and git_out(directory, "rev-parse", "--git-dir")[0] != 0
-
-
-def review_clippy(rest, dirs):
-    """True for cargo clippy run in reviewers' archive copies into a target dir of their own in a scratch area,
-    never the shared or integration targets. The exclusive build lock is required as for every build."""
-    sub = next(iter(cargo_positionals(rest)), "")
-    target = target_dir(rest)
-    if sub != "clippy" or not target or not all(review_copy(d) for d in dirs):
-        return False
-    target = os.path.normpath(os.path.join(dirs[0], target))
-    return review_place(target) and not target.startswith((TARGET_ROOT, CHECK_TARGET))
-
-
 def cargo_rules(words, before, dirs):
     at = cargo_index(words)
     if at is None:
@@ -321,7 +297,7 @@ def cargo_rules(words, before, dirs):
     target = os.path.normpath(target) if target else target
     checking = sub == "check" and is_check_target(target)
     own = own_target(dirs)
-    if target is not None and target != own and not checking and not review_clippy(rest, dirs):
+    if target is not None and target != own and not checking:
         return ("cargo --target-dir must be " + TARGET_ROOT + "/<this worktree's name>" +
                 (" (here " + own + ")" if own else "") +
                 ": one target per worktree, so no build reuses another tree's units (or " + CHECK_TARGET +
@@ -401,11 +377,10 @@ def branch_packages(here):
     return found
 
 
-def builder_check(words, here, dirs):
+def builder_check(words, here):
     """Outside an integration tree only two cargo forms run: a package-scoped cargo check into the check-only
     target dir, and the tests of one package this branch changes (cargo test or nextest run) into this worktree's
-    own target, directly behind `flock <the build lock>`; and a reviewer's clippy in its archive copy (review_clippy).
-    Every other cargo invocation is the integrator's."""
+    own target, directly behind `flock <the build lock>`. Every other cargo invocation is the integrator's."""
     inner = peel(words)
     rest = cargo_args(inner)
     if rest is None:
@@ -428,10 +403,6 @@ def builder_check(words, here, dirs):
             return ("a builder runs the tests of a package this branch changes (" +
                     (", ".join(sorted(changed)) if changed else "none yet, or no base " + CONSOLIDATION) +
                     "); workspace and other packages' tests are the integrator's")
-        return None
-    if sub == "clippy" and review_clippy(rest, dirs):
-        if before is None or not exclusive_build_lock(before):
-            return "a reviewer's clippy in its archive copy runs directly behind: flock " + LOCK
         return None
     if sub != "check":
         return BUILDERS_AUTHOR
@@ -1142,7 +1113,7 @@ def reason(command, cwd=None):
         here = working_dirs(clean, cwd)[0]
         for segment in segments(clean):
             words = tokens(segment)
-            found = builder_check(words, here, working_dirs(clean, cwd)) if runs_cargo_verb(words) else None
+            found = builder_check(words, here) if runs_cargo_verb(words) else None
             if found:
                 return found
     before, here, dirs = "", cwd or os.getcwd(), working_dirs(clean, cwd)

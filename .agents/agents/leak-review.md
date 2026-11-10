@@ -28,6 +28,7 @@ The PM names: the landed sha, the base sha, the scope label and a scratch direct
 The PM launches this agent as a subagent, in parallel with the contract review, after the landing. It spawns no subagents.
 - The reviewed tree is read-only: never edit it, never build in it. Record `git rev-parse HEAD` and `git status --porcelain` before and after; a review whose tree changed is discarded.
 - Check 2 needs a build, so the reviewer works in its own `git archive <sha>` copy under the scratch directory, with its own target directory. In that copy, per cited rule, probe or lint: plant a violation in the real tree, run the check, record the count, revert. Delete the copy and its target directory when the review ends.
+- A lint plant is proved by the integrator: the guard lets clippy run only in an integration tree, so ask the integrator to run it on the plant and record the count it reports.
 - When a check fails, enumerate every variant of the failing class in the same pass before giving the verdict (every ref spelling, every wrapper, every alias), so one round of fixes closes the class.
 - Check 2, for every test and runner in the closure: enumerate every way a harness or runner can turn a failure into a pass (skip, pending, `continue`, a caught error, filtered results, a test that cannot fail, a wall-time assertion standing in for correctness, a weakened assertion). The required change for a leak is the harness fix, never a new parallel test.
 - Checks 1 and 3 to 6 are read with `git diff`, `git show`, `grep` and the package manifests.

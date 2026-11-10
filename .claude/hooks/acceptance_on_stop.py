@@ -144,7 +144,7 @@ def reviewer_stop(data, agent):
 
 
 def gate_module():
-    """no_subagent_builders.py beside this hook, loaded by path: the one validator of scope-review-<bead>.json."""
+    """no_subagent_builders.py beside this hook, loaded by path: the one validator of scope-review-<report stem>.json."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("no_subagent_builders",
                                                   os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -155,7 +155,7 @@ def gate_module():
 
 
 def scope_review_stop(data):
-    """A scope review stops only after writing a valid scope-review-<bead>.json beside the SCOPE= report its prompt
+    """A scope review stops only after writing a valid scope-review-<report stem>.json beside the SCOPE= report its prompt
     names, during its run, or on BLOCKED: <question>."""
     path = data.get("agent_transcript_path") or data.get("transcript_path")
     if not path or not os.path.exists(path):
@@ -173,7 +173,7 @@ def scope_review_stop(data):
         return scope_hold("no_subagent_builders.py failed to load (" + type(error).__name__ + ": " + str(error) + ")")
     review_path = gate.review_path(scope) if scope else None
     if review_path is None:
-        return scope_hold("the prompt must name SCOPE=<path to scope-<bead>.md> once")
+        return scope_hold("the prompt must name SCOPE=<path to scope-<stem>.md> once")
     try:
         if os.path.getmtime(review_path) < since:
             return scope_hold(review_path + " was not written during this run")
@@ -188,7 +188,7 @@ def scope_review_stop(data):
 
 def scope_hold(why):
     print("Scope review not finished: " + why + ". Append the Scope review section to the scope report, then write "
-          "scope-review-<bead>.json beside it: {\"rows\": [{\"id\", \"result\": PASS|FAIL, \"reason\"}] for every "
+          "scope-review-<report stem>.json beside it: {\"rows\": [{\"id\", \"result\": PASS|FAIL, \"reason\"}] for every "
           "rubric row (S1 and S10 only for a DEFER or DROP report), \"verdict\", and \"scope_sha256\", the sha256 of "
           "the report as written; or reply BLOCKED: <one question>.", file=sys.stderr)
     return 2
