@@ -78,6 +78,7 @@ the contract stops and asks for a re-scope.
 - Sections 1-3, citing evidence (file:line, bead ids, census rows,
   measurements) and criteria by number. Write "unverified" where you infer.
 - Decisions for the PM, each with a recommendation.
+- A checkpoint-wide scope lists its beads on a `BEADS:` line.
 
 ## Rules
 - No subagents.

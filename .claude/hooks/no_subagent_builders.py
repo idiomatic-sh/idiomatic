@@ -11,7 +11,7 @@ import sys
 
 MESSAGE = ("Blocked: a builder never spawns subagents; do the work serially in your own worktree, "
            "or reply BLOCKED: <one question>")
-STATE = os.environ.get("CLAUDE_HOOKS_STATE", "/tmp/claude-hooks")  # every hook's state root; the stop hook reads it here
+STATE = os.environ.get("CLAUDE_HOOKS_STATE", "/tmp/claude-hooks")  # every hook's state root; the stop hook parses it
 SCOPED = os.path.join(STATE, "scoped-branches")
 RUBRIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".agents", "agents", "scope-review.md")
 ROW = re.compile(r"^\|\s*(S\w+)\s", re.MULTILINE)
@@ -20,8 +20,8 @@ SCOPE = re.compile(r"(?<![A-Za-z0-9_])SCOPE=(\S+)")
 FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
 WORKTREE = re.compile(r"^WORKTREE:\s*(\S+)", re.MULTILINE)
 BEAD = re.compile(r"^BEAD:\s*(\S+)", re.MULTILINE)
-NEEDS = ("a builder needs SCOPE=<path to scope-<bead>.md>, a report naming the brief's BEAD whose first line starts "
-         "PROCEED or RESHAPE, with scope-review-<bead>.json beside it holding the report's scope_sha256, verdict PASS "
+NEEDS = ("a builder needs SCOPE=<path to scope-<bead>.md>, a report naming the brief's BEAD (or a checkpoint scope "
+         "listing it on a BEADS: line) whose first line starts PROCEED or RESHAPE, with scope-review-<stem>.json beside it holding the report's scope_sha256, verdict PASS "
          "and every rubric row PASS; a review-fix round carries FOLLOWUP=<branch> instead, from a WORKTREE on that "
          "branch, for the bead and branch an earlier builder launched with a passed scope")
 
@@ -118,10 +118,12 @@ def scope_problem(scope, bead):
     if not bead:
         return "the brief names no BEAD: <id>"
     with open(scope, encoding="utf-8", errors="replace") as handle:
-        if not names(handle.read(), bead):
-            return "the scope report " + scope + " does not name the brief's bead " + bead
-    if not re.search(r"(?:^|-)" + re.escape(bead) + r"(?:-|\.json$)", os.path.basename(path)):
-        return "the review " + path + " is not named for the brief's bead " + bead
+        text = handle.read()
+    listed = {word.rstrip(".,;") for line in re.findall(r"^BEADS:(.*)$", text, re.MULTILINE) for word in line.split()}
+    own = os.path.basename(scope) == "scope-" + bead + ".md" and names(text, bead)
+    if not own and bead not in listed:
+        return ("the scope report " + scope + " is neither scope-" + bead + ".md naming the bead nor a checkpoint "
+                "scope listing it on a BEADS: line")
     review, problem = load(path)
     if problem:
         return problem

@@ -200,6 +200,31 @@ def hold(why):
     return 2
 
 
+def state_root():
+    """The hooks' state root as no_subagent_builders.py defines it (its STATE default, overridden by
+    CLAUDE_HOOKS_STATE), read from its source without running it; None when that definition cannot be read."""
+    import ast
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "no_subagent_builders.py")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            tree = ast.parse(handle.read())
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and [getattr(t, "id", None) for t in node.targets] == ["STATE"]:
+                call = node.value
+                if (isinstance(call, ast.Call) and len(call.args) == 2 and
+                        all(isinstance(a, ast.Constant) and isinstance(a.value, str) for a in call.args)):
+                    return os.environ.get(call.args[0].value, call.args[1].value)
+    except (OSError, SyntaxError, ValueError):
+        return None
+    return None
+
+
+def no_state():
+    print("Stop held: the hooks' state root cannot be read from no_subagent_builders.py; repair it, then stop again.",
+          file=sys.stderr)
+    return 2
+
+
 def acceptance_script(bead):
     shown = subprocess.run(["bd", "show", bead, "--json"], cwd=BD_HOME if os.path.isdir(BD_HOME) else None,
                            capture_output=True, text=True, check=False)
@@ -230,7 +255,9 @@ def run(script, worktree):
 
 
 def failure(bead, detail):
-    state = gate_module().STATE
+    state = state_root()
+    if state is None:
+        return no_state()
     os.makedirs(state, exist_ok=True)
     counter = os.path.join(state, bead + ".count")
     try:
@@ -249,8 +276,11 @@ def failure(bead, detail):
 
 
 def success(bead):
+    state = state_root()
+    if state is None:
+        return no_state()
     try:
-        os.remove(os.path.join(gate_module().STATE, bead + ".count"))
+        os.remove(os.path.join(state, bead + ".count"))
     except OSError:
         pass
     return 0

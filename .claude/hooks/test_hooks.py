@@ -68,13 +68,19 @@ class GuardShell(unittest.TestCase):
                         "cat <<EOF | xargs -I{} sh -c {}" + body, "env A=1 timeout 60 zsh <<EOF" + body,
                         "cat <<EOF |\ncargo build\nEOF\nbash", "cat <<EOF \\\n| dash" + body,
                         "echo hi # see <<EOF\ncargo build", "echo $((1<<EOF))\ncargo build",
-                        "git commit -m \"notes about\nthe <<EOF form\" && true\ncargo build"]:
+                        "git commit -m \"notes about\nthe <<EOF form\" && true\ncargo build",
+                        "read -r base <<<main\ncargo build", "cat <<<'hello'\ncargo build",
+                        "read -r x <<< \"word\"\ncargo build", "cat <<EOF | fish" + body,
+                        "cat <<EOF | source /dev/stdin" + body, "cat <<EOF | . /dev/stdin" + body]:
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 2)
         for command in ["cat > notes.md <<'EOF'\ncargo build\nEOF", "tee notes.md <<EOF >/dev/null\ncargo build\nEOF",
                         "cat <<EOF | tee notes.md\ncargo build\nEOF", "git commit -F - <<'EOF'\nfix(x): y # z\ncargo build\nEOF"]:
             with self.subTest(command=command):
                 self.assertEqual(shell(command, self.builder), 0)
+
+    def test_a_here_string_hides_no_later_line(self):
+        self.assertEqual(shell("read -r base <<<\"main\"\ngit push origin HEAD:main", self.builder), 2)
 
     def test_clippy_runs_only_in_a_reviewers_archive_copy_with_its_own_target(self):
         copy = tempfile.mkdtemp(prefix="ryo-review-", dir="/tmp")
@@ -1364,6 +1370,26 @@ class Acceptance(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("DONE: or BLOCKED:", result.stderr)
 
+    def test_a_gate_that_fails_to_load_holds_the_builder(self):
+        copy = os.path.join(self.dir.name, "copy")
+        os.makedirs(os.path.join(copy, ".claude", "hooks"))
+        shutil.copy(os.path.join(HERE, "acceptance_on_stop.py"), os.path.join(copy, ".claude", "hooks"))
+        transcript = os.path.join(self.dir.name, "t.jsonl")
+        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ["PATH"],
+                   CLAUDE_HOOKS_STATE=os.path.join(self.dir.name, "state"))
+        self.fake_bd("true")
+        for broken in ("import no_such_module_planted\n", "def (:\n"):
+            for report in ("All finished.", "BLOCKED: which crate?"):
+                with self.subTest(broken=broken, report=report):
+                    with open(os.path.join(copy, ".claude", "hooks", "no_subagent_builders.py"), "w",
+                              encoding="utf-8") as handle:
+                        handle.write(broken)
+                    self.stop(self.brief(), report)  # writes the transcript
+                    result = subprocess.run(["python3", "-I", os.path.join(copy, ".claude", "hooks", "acceptance_on_stop.py")],
+                                            input=json.dumps({"transcript_path": transcript, "stop_hook_active": False}),
+                                            capture_output=True, text=True, env=env, check=False)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+
     def test_stop_allowed_after_five_failures(self):
         self.fake_bd("false")
         codes = [self.stop(self.brief(), "DONE: x").returncode for _ in range(5)]
@@ -1624,6 +1650,15 @@ class ScopeGate(unittest.TestCase):
         path = self.scope("PROCEED", passed, names="ryo-old")
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
         path = self.scope("PROCEED", passed, names="ryo-x.1")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+
+    def test_a_checkpoint_scope_names_its_beads_on_a_beads_line(self):
+        passed = {"rows": scope_rows(), "verdict": "PASS"}
+        path = self.scope("PROCEED", passed, bead="cp334", names="cp334\nBEADS: ryo-a ryo-x ryo-b")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
+        path = self.scope("PROCEED", passed, bead="cp334", names="cp334\nBEADS: ryo-a ryo-b")
+        self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
+        path = self.scope("PROCEED", passed, bead="cp334", names="cp334; ryo-x is mentioned\nBEADS: ryo-a")
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 2)
 
     def test_refuses_a_scope_changed_after_its_review(self):

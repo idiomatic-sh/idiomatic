@@ -59,8 +59,8 @@ def segments(text):
     return out
 
 
-HEREDOC = re.compile(r"<<(-?)[ \t]*\\?(['\"]?)([A-Za-z_][\w.-]*)\2")
-SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "eval"}
+HEREDOC = re.compile(r"(?<!<)<<(-?)[ \t]*\\?(['\"]?)([A-Za-z_][\w.-]*)\2")
+SHELLS = {"sh", "bash", "zsh", "dash", "ksh", "fish", "eval", "source", "."}
 SUDO_VALUES = {"-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T", "--user", "--group", "--chdir"}
 
 
@@ -91,7 +91,10 @@ def logical_line(text, i):
             continue
         elif c == "\n":
             return i, operators
-        elif depth == 0 and text.startswith("<<", i) and not text.startswith("<<<", i):
+        elif text.startswith("<<<", i):
+            i += 3  # a here-string: its word is on this line, and no body follows
+            continue
+        elif depth == 0 and text.startswith("<<", i):
             found = HEREDOC.match(text, i)
             if found:
                 operators.append(found)
