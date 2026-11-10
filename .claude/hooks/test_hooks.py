@@ -2287,6 +2287,10 @@ class ClosedForExtension(unittest.TestCase):
         self.put(cargo, '[package]\nname = "x"\n')
         self.refused(('name = "x"\n', 'name = "x"\n# ignore: idiomatic.arch/new - the reason\n'), path=cargo)
 
+    def test_an_added_ignore_comment_inside_a_manifest_is_refused(self):
+        self.refused((SECOND, SECOND + "  # ignore: idiomatic.arch/new - the reason\n"),
+                     ('tastemaker = "0.1.2"\n', 'tastemaker = "0.1.2"  # ignore: idiomatic.arch/new - the reason\n'))
+
     def test_a_write_to_the_allowlist_is_refused(self):
         self.assertEqual(self.write(self.allowlist, ADMIT_EXCLUDE).returncode, 2)
         self.put(self.allowlist, "# the owner's\n")
@@ -2349,6 +2353,16 @@ class ClosedForExtension(unittest.TestCase):
         self.assertEqual(self.write(os.path.join(self.tree, "fix.py"), body).returncode, 2)
         shell_body = "#!/bin/sh\npython3 -c \"open('crates/x/tastemaker.toml', 'w').write('')\"\n"
         self.assertEqual(self.write(os.path.join(self.tree, "fix"), shell_body).returncode, 2)
+
+    def test_a_shell_script_writing_a_manifest_with_a_shell_writer_is_refused(self):
+        for name, body in (("fix.sh", "sed -i s/a/b/ crates/x/tastemaker.toml\n"),
+                           ("fix.bash", "echo x | tee crates/x/tastemaker.toml\n"),
+                           ("fix.zsh", "cat > crates/x/tastemaker.toml <<'EOF'\nx = 1\nEOF\n"),
+                           ("fix", "#!/bin/sh\nsed -i s/a/b/ crates/x/tastemaker.toml\n"),
+                           ("fix-env", "#!/usr/bin/env bash\nperl -0pi -e 's/a/b/' crates/x/tastemaker.toml\n")):
+            with self.subTest(name=name):
+                done = self.write(os.path.join(self.tree, name), body)
+                self.assertEqual(done.returncode, 2, done.stderr)
 
     def test_tm_add_init_and_update_are_refused(self):
         self.assert_commands(2, [
@@ -2425,6 +2439,8 @@ class ClosedForExtension(unittest.TestCase):
     def test_a_script_reading_a_manifest_is_allowed(self):
         body = "import tomllib\nprint(tomllib.load(open('crates/x/tastemaker.toml', 'rb')))\n"
         self.assertEqual(self.write(os.path.join(self.tree, "check.py"), body).returncode, 0)
+        shell_body = "#!/bin/sh\ngrep -c rule crates/x/tastemaker.toml 2>/dev/null\n"
+        self.assertEqual(self.write(os.path.join(self.tree, "check.sh"), shell_body).returncode, 0)
 
     def test_tm_read_commands_are_allowed(self):
         self.assert_commands(0, ["tm check", "tm --root d check", "tm explain x", "tm list", "tm validate"])
