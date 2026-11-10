@@ -125,11 +125,11 @@
   ],
   [
     "checkpoint_check",
-    ["bash", "-c", "uv tool run --offline --from pytest python -I -c 'import tree_sitter_rust' 2>/dev/null || { echo 'run tools/install.py first' >&2; exit 1; }; exec uv tool run --offline --from pytest python -I crates/ryo/docs/contracts/evidence/checkpoint/run_test.py -v"]
+    ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run_test.py", "-v"]
   ],
   [
     "census",
-    ["bash", "-c", "uv tool run --offline --from pytest python -I -c 'import tree_sitter_rust' 2>/dev/null || { echo 'run tools/install.py first' >&2; exit 1; }; exec uv tool run --offline --from pytest python -I crates/ryo/docs/contracts/evidence/checkpoint/run.py --census"]
+    ["python3", "-I", "crates/ryo/docs/contracts/evidence/checkpoint/run.py", "--census"]
   ],
   [
     "python_lib",

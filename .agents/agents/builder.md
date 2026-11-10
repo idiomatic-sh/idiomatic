@@ -13,7 +13,7 @@ The brief starts with `BEAD: <id>` and `WORKTREE: <path>`; a brief without both 
 - `tm` over your scope, continuously.
 - The package-scoped check of your crate into the check-only target, `/workspaces/idiomatic-check-target/<worktree name>`; a crate move also checks every dependent crate with all targets and features.
 - **Your own crate's tests**: `flock /workspaces/.cargo-build.lock cargo nextest run -p <your crate> --target-dir /workspaces/idiomatic-target/<worktree name>`, and the same with `cargo test -p <your crate> --doc` for doctests. The guard hook allows exactly this: `flock` with the build lock directly before cargo, one `-p` naming a package this branch changes (no pattern), and this worktree's own target; workspace-wide tests, other packages' tests, builds, clippy and every other cargo verb are the integrator's.
-- `uv tool run --offline --from pytest python -I crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` (the pytest tool environment `tools/install.py` installs) for its `DOC` lines on your diff: every new `pub` item of a published crate has `# Examples`, and `# Errors` when it returns a `Result`.
+- `python3 crates/ryo/docs/contracts/evidence/checkpoint/run.py --check` for its `DOC` lines on your diff: every new `pub` item of a published crate has `# Examples`, and `# Errors` when it returns a `Result`.
 
 ## Tests
 - **At the seam by default.** A test exercises its concept through that concept's port or inbound API and names no internals behind another crate's or hex's seam. A test of an internal lives inside the part it pins and goes away with it.
