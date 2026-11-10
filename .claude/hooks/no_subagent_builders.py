@@ -12,7 +12,8 @@ MESSAGE = ("Blocked: a builder never spawns subagents; do the work serially in y
            "or reply BLOCKED: <one question>")
 STATE = os.environ.get("CLAUDE_HOOKS_STATE", "/tmp/claude-hooks")
 SCOPED = os.path.join(STATE, "scoped-branches")
-ROWS = ["S1", "S2", "S2b", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]  # the rubric rows of scope-review.md
+RUBRIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".agents", "agents", "scope-review.md")
+ROW = re.compile(r"^\|\s*(S\w+)\s", re.MULTILINE)
 SCOPE = re.compile(r"(?<![A-Za-z0-9_])SCOPE=(\S+)")
 FOLLOWUP = re.compile(r"(?<![A-Za-z0-9_])FOLLOWUP=(\S+)")
 WORKTREE = re.compile(r"^WORKTREE:\s*(\S+)", re.MULTILINE)
@@ -27,14 +28,26 @@ def review_path(scope):
     return os.path.join(os.path.dirname(scope), "scope-review-" + found.group(1) + ".json") if found else None
 
 
+def rubric_rows():
+    """The row ids of the rubric table in scope-review.md (its `| S<id> ...` rows), in order: the one definition."""
+    try:
+        with open(RUBRIC, encoding="utf-8") as handle:
+            return ROW.findall(handle.read())
+    except OSError:
+        return []
+
+
 def scope_review_problem(review):
     """Why review is not a valid scope review (the rubric rows in order, each PASS or FAIL with a reason, and a verdict
     that is PASS exactly when every row passes), or None."""
+    rubric = rubric_rows()
+    if not rubric:
+        return "cannot be judged: no rubric rows in " + os.path.normpath(RUBRIC)
     if not isinstance(review, dict) or not isinstance(review.get("rows"), list):
         return "holds no rows list"
     rows = review["rows"]
-    if [r.get("id") if isinstance(r, dict) else None for r in rows] != ROWS:
-        return "must hold the rows " + ", ".join(ROWS) + " in order, each once"
+    if [r.get("id") if isinstance(r, dict) else None for r in rows] != rubric:
+        return "must hold the rows " + ", ".join(rubric) + " of " + os.path.normpath(RUBRIC) + " in order, each once"
     for row in rows:
         if row.get("result") not in ("PASS", "FAIL"):
             return "row " + row["id"] + " has result " + repr(row.get("result")) + ", not PASS or FAIL"

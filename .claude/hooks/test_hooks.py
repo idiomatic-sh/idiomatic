@@ -1525,9 +1525,18 @@ class NoSubagentBuilders(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
 
+def rubric_rows():
+    """The scope review's rubric rows, read by the gate's own reader (no copy of the list here)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("gate", os.path.join(HERE, "no_subagent_builders.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.rubric_rows()
+
+
 def scope_rows(failing=()):
     return [{"id": row, "result": "FAIL" if row in failing else "PASS", "reason": "x.rs:1 holds"}
-            for row in ["S1", "S2", "S2b", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]]
+            for row in rubric_rows()]
 
 
 class ScopeGate(unittest.TestCase):
@@ -1584,6 +1593,31 @@ class ScopeGate(unittest.TestCase):
         self.assertEqual(self.launch(self.brief("SCOPE=" + path)).returncode, 0)
         self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p1-scoped")).returncode, 0)
         self.assertEqual(self.launch(self.brief("FOLLOWUP=claude/p2-other")).returncode, 2)
+
+    def test_the_rows_come_from_the_rubric_so_a_rubric_change_needs_no_hook_edit(self):
+        copy = os.path.join(self.dir.name, "copy")
+        os.makedirs(os.path.join(copy, ".claude", "hooks"))
+        os.makedirs(os.path.join(copy, ".agents", "agents"))
+        shutil.copy(os.path.join(HERE, "no_subagent_builders.py"), os.path.join(copy, ".claude", "hooks"))
+        rubric = os.path.join(copy, ".agents", "agents", "scope-review.md")
+
+        def launch(rows, table):
+            if table is not None:
+                with open(rubric, "w", encoding="utf-8") as handle:
+                    handle.write("## Rubric\n| Row | PASS when |\n|---|---|\n" + "".join("| " + r + " Name | x |\n" for r in table))
+            path = self.scope("PROCEED", {"rows": [{"id": r, "result": "PASS", "reason": "x"} for r in rows],
+                                          "verdict": "PASS"})
+            payload = {"tool_name": "Agent", "transcript_path": self.MAIN,
+                       "tool_input": {"subagent_type": "builder", "prompt": self.brief("SCOPE=" + path)}}
+            return subprocess.run(["python3", "-I", os.path.join(copy, ".claude", "hooks", "no_subagent_builders.py")],
+                                  input=json.dumps(payload), capture_output=True, text=True, env=self.env,
+                                  check=False).returncode
+        ten = ["S%d" % n for n in range(1, 11)]
+        self.assertEqual(launch(ten, ten), 0)
+        self.assertEqual(launch(ten[:9], ten), 2)
+        self.assertEqual(launch(["S1", "S2", "S2b"], ["S1", "S2", "S2b"]), 0)
+        os.remove(rubric)
+        self.assertEqual(launch(ten, None), 2)
 
     def test_other_agents_need_no_scope(self):
         self.assertEqual(self.launch("review sha x", kind="leak-review").returncode, 0)
