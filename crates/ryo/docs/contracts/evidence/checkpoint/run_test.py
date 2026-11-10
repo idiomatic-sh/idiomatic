@@ -331,6 +331,8 @@ class Diff(unittest.TestCase):
   status=lambda name,test: run.log_status(self.raw/(name+'.log'),test,changed)
   self.assertEqual([status('red','clippy::as_conversions'),status('green','clippy::as_conversions')],['failed','passed'])
   self.assertEqual([status('green','clippy::expect_used'),status('cut','clippy::as_conversions')],['failed',None])
+  self.logs(dead='\n'.join([lint('crates/values/src/a.rs','dead_code'),done]))
+  self.assertEqual([status('dead','rustc::dead_code'),status('green','rustc::dead_code')],['failed','passed'])
  def test_a_reworded_twin_of_a_proven_commit_is_proven_and_a_different_patch_is_not(self):
   proven=commit(self.repo,{'a/src/lib.rs':'pub fn one() { }\n'},'fix(a): one answers, `service_test::one_answers`')
   subprocess.run(['git','-C',self.repo,'reset','-q','--hard',self.base],check=True)

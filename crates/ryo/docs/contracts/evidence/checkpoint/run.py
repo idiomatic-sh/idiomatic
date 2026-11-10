@@ -383,7 +383,7 @@ RUNNER_FRAMES=((re.compile(r'(?m)^running \d+ tests?$'),re.compile(r'(?m)^test r
                (re.compile(r'(?m)^Ran \d+ tests? in '),re.compile(r'(?m)^(OK|FAILED \()')),
                (re.compile(r'(?m)^=+ test session starts =+$'),re.compile(r'(?m)^=+ .*\b\d+ (passed|failed|error)\b.* in [\d.]+s')))
 def runner_framed(text): return any(head.search(text) and tail.search(text) for head,tail in RUNNER_FRAMES)
-CLIPPY_LINT=re.compile(r'^clippy::[a-z_]+$')
+CLIPPY_LINT=re.compile(r'^(?:clippy|rustc)::[a-z_]+$')
 TM_RULE=re.compile(r'^[a-z][a-z0-9]*\.[a-z][a-z0-9]*(?:/[a-z][a-z0-9-]*)+$')
 def tm_status(text,rule,files):
  """A Tastemaker rule's status in one `tm check --format json` log: 'failed' when a finding of the rule (or of one of its parts,
@@ -403,7 +403,7 @@ def clippy_status(text,lint,files):
   try: m=json.loads(line)
   except ValueError: continue
   if m.get('reason')=='build-finished': finished=True
-  if m.get('reason')!='compiler-message' or ((m.get('message') or {}).get('code') or {}).get('code')!=lint: continue
+  if m.get('reason')!='compiler-message' or ((m.get('message') or {}).get('code') or {}).get('code')!=lint.removeprefix('rustc::'): continue
   spans=[x['file_name'] for x in m['message'].get('spans',[]) if x.get('is_primary')]
   hit|=any(f==x or f.endswith('/'+x.lstrip('./')) for x in spans for f in files)
  return 'failed' if hit else 'passed' if finished else None
