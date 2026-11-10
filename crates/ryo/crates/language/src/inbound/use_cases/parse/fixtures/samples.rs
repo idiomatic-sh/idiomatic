@@ -163,3 +163,40 @@ pub fn allocations_of_fixtures(subject: &dyn ParseEngine, fixtures: &Path) {
         });
     }
 }
+
+/// Runs the one case of a `harness = false` test target and reports it as cargo's harness does: `test <name> ... ok`, or
+/// `... FAILED` with its `failures:` list, then a `test result:` summary, so what reads a test log reads this one.
+///
+/// # Panics
+///
+/// When `body` panics: its panic resumes after the report, so the process exits 101 as a failed cargo test does.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::inbound::use_cases::parse::fixtures::samples::harness_case;
+///
+/// harness_case("example::sums", || assert_eq!(1 + 1, 2));
+/// ```
+#[expect(
+    clippy::print_stdout,
+    reason = "a harness = false runner's report is its standard output, in the shape of cargo's harness"
+)]
+pub fn harness_case(name: &str, body: impl FnOnce()) {
+    println!("\nrunning 1 test");
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(body)) {
+        Ok(()) => println!(
+            "test {name} ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n"
+        ),
+        Err(payload) => {
+            println!(
+                "test {name} ... FAILED\n\nfailures:\n    {name}\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out\n"
+            );
+            std::panic::resume_unwind(payload);
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "samples_test.rs"]
+mod tests;
