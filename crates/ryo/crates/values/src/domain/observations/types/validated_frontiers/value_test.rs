@@ -1,4 +1,5 @@
 //! A frontier map is lent as `ValidatedFrontiers` only when it has the shape the request names.
+use super::value::ValidatedFrontiers;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::observations::errors::ObservationsError;
 use crate::domain::observations::service::{new_frontiers, validate_frontiers};
@@ -27,7 +28,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject((made, requested): Input) -> Result<Value, Failure> {
     let layout = ObservationReadinessLayout(Digest([7; 16]));
     let map = new_frontiers(layout, ObservationReadinessCount(made));
-    let checked = validate_frontiers(&map, layout, ObservationReadinessCount(requested))?;
+    let checked: ValidatedFrontiers<'_> =
+        validate_frontiers(&map, layout, ObservationReadinessCount(requested))?;
     Ok(checked.0.slots.0)
 }
 #[test]
