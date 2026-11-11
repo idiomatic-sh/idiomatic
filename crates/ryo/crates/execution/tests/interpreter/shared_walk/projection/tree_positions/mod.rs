@@ -1,2 +1,3 @@
 //! The interpreter's own counters of tree positions.
-mod test;
+#[cfg(test)]
+pub(super) mod test;

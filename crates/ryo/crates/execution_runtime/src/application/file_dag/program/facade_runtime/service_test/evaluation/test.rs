@@ -1,6 +1,6 @@
 //! The scenario subject: the prepared file program run over one small tree.
-use super::super::request::{plan, rule};
-use super::super::scenario::Scenario;
+use super::super::fixtures::request::{plan, rule};
+use super::super::fixtures::scenario::Scenario;
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;

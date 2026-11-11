@@ -1,10 +1,10 @@
 //! Select, count and refusal cases through the prepared file program.
 mod evaluation;
-mod request;
-mod scenario;
+#[cfg(test)]
+mod fixtures;
 use evaluation::test::subject;
-use request::{plan, rule};
-use scenario::Scenario;
+use fixtures::request::{plan, rule};
+use fixtures::scenario::Scenario;
 
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::types::ProgramServices;

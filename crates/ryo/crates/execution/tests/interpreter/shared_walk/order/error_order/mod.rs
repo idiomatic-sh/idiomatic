@@ -1,2 +1,3 @@
 //! The interpreter's own counters of error order.
-mod test;
+#[cfg(test)]
+pub(super) mod test;

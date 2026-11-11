@@ -1,2 +1,3 @@
 //! The interpreter's own counters of a file whose rule is skipped.
-mod test;
+#[cfg(test)]
+pub(super) mod test;

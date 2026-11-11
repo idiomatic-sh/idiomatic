@@ -1,3 +1,3 @@
 //! A sink failure or a fused semantic refusal stays sticky while the kernel continues and reports success.
 #[cfg(test)]
-mod test;
+pub(super) mod test;

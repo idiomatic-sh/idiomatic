@@ -4,4 +4,4 @@ mod identity;
 #[cfg(test)]
 mod lifecycle;
 #[cfg(test)]
-mod test;
+pub(super) mod test;

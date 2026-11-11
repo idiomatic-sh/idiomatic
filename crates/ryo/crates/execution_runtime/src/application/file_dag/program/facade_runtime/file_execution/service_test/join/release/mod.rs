@@ -2,4 +2,4 @@
 #[cfg(any(test, feature = "fixtures"))]
 mod fixtures;
 #[cfg(test)]
-mod test;
+pub(super) mod test;
