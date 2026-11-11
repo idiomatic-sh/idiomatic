@@ -1,5 +1,5 @@
 description = "Only declared owners and bridges may depend on execution implementation modules."
-why = "The application program owns admission, publication, restoration, and physical dispatch; the domain dispatcher owns operator registration. A domain primitive cannot depend on any application module, including a newly added acquisition or permit module. Other consumers cannot resolve the protected implementation modules directly. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. Exact syntax paths inside visibility restrictions are excluded by source file and span; visibility names an access scope and does not borrow or call that owner. Real imports, type references and calls at the same path remain subject to the boundary. The immutable preparation service/types, neutral protocol roles, outer file/project entry and borrowed semantic interfaces remain available. Lower implementations never depend on an orchestration facade. Public partition/applicability descriptors and opaque validated restoration retain their existing caller API at the actual defining module; their input/permit constructors remain Rust-private. Source admission validates explicit scope data and cannot depend on runtime state; protocol/preparation and runtime type roles cannot point back to their own workflow implementations. Rust visibility and engine-issued permits separately enforce construction and invocation. The source, invocation and semantic bridges have one production implementer each. Operator and physical representation implementers must be selected by the tail match of their actual RegisteredOperator/RegisteredRepresentation item method: only an unguarded direct immutable &Item arm result registers its resolved type, including qualified or renamed imports. Blocks, guards, patterns, unused matches and other methods supply no registration; a new implementation does not acquire a route merely by satisfying the trait. Registered proof roles may substitute implementations for negative controls. The kind enums drive exhaustive dispatch and real fixture coverage; this check does not establish runtime behavior. This relation does not follow a facade re-export chain or resolve macro-generated paths, so it is one source boundary rather than proof of every callable route."
+why = "The application program owns admission, publication, restoration, and physical dispatch; the domain dispatcher owns operator registration. A domain primitive cannot depend on any application module, including a newly added acquisition or permit module. Other consumers cannot resolve the protected implementation modules directly. This checks resolved same-crate Rust source dependencies, including aliases and qualified paths. Exact syntax paths inside visibility restrictions are excluded by source file and span; visibility names an access scope and does not borrow or call that owner. Real imports, type references and calls at the same path remain subject to the boundary. The immutable preparation service/types, neutral protocol roles, outer file/project entry and borrowed semantic interfaces remain available. Lower implementations never depend on an orchestration facade. Public partition/applicability descriptors and opaque validated restoration retain their existing caller API at the actual defining module; their input/permit constructors remain Rust-private. Source admission validates explicit scope data and cannot depend on runtime state; protocol/preparation and runtime type roles cannot point back to their own workflow implementations. Rust visibility and engine-issued permits separately enforce construction and invocation. The source, invocation and semantic bridges have one production implementer each. Operator and physical representation implementers must be selected by the tail match of their actual RegisteredOperator/RegisteredRepresentation item method: only an unguarded direct immutable &Item arm result registers its resolved type, including qualified or renamed imports. Blocks, guards, patterns, unused matches and other methods supply no registration; a new implementation does not acquire a route merely by satisfying the trait. Registered proof roles may substitute implementations for negative controls. The kind enums drive exhaustive dispatch and real fixture coverage; this check does not establish runtime behavior. A test double of a guarded contract may also stand in a fixtures role: a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under a `cfg` naming `test` or the `fixtures` feature, so it compiles only for tests and under `fixtures`; the same file declared without that gate is production and is refused. This relation does not follow a facade re-export chain or resolve macro-generated paths, so it is one source boundary rather than proof of every callable route."
 
 query = '''
 let dependency-nodes = select id, file, span, kind from "syntax-tree" where text = "";
@@ -134,7 +134,27 @@ let registered-sites = select file, span from authorized-implementations;
 let implementation-sites = select file, span from implementations;
 let unregistered-sites = antijoin(left=implementation-sites, right=registered-sites, left-on=["file", "span"], right-on=["file", "span"]);
 let implementation-proofs = select path as file from "tastemaker.placed" where (package = "idiomatic.arch" and glob_any(template, "{unit-test,item-test,value-test,composition-test,domain-test,edge-fixtures}")) or (package = "idiomatic.ryo" and template = "program-runtime-proof");
-let unregistered-production = antijoin(left=unregistered-sites, right=implementation-proofs, left-on=["file"], right-on=["file"]);
+let fixture-rust-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
+let fixture-all-cfgs = select * from "decorates" where target = "cfg";
+let fixture-cfgs = select * from fixture-all-cfgs where glob_any(arguments, "{test,*(test*,* test*,*feature = ?fixtures?*}") and not glob_any(arguments, "{not(test*,*(not(test*,* not(test*}");
+let fixture-declared = select * from "defines" where kind = "namespace";
+let fixture-gated-modules = select r."name" as "name", r."file" as "file" from fixture-cfgs as l join fixture-declared as r on l."declaration" = r."id";
+let fixture-module-places = capture(from=fixture-gated-modules, path="file", pattern="{*dir}/{stem}.rs", captures=["dir", "stem"]);
+let fixture-nested-files = capture(from=fixture-rust-files, path="file", pattern="{*dir}/{stem}/{child}.rs", captures=["dir", "stem", "child"]);
+let fixture-nested = select r."file" as "file" from fixture-module-places as l join fixture-nested-files as r on l."dir" = r."dir" and l."stem" = r."stem" and l."name" = r."child";
+let fixture-nested-trees = capture(from=fixture-rust-files, path="file", pattern="{*dir}/{stem}/{child}/{*rest}", captures=["dir", "stem", "child", "rest"]);
+let fixture-nested-tree = select r."file" as "file" from fixture-module-places as l join fixture-nested-trees as r on l."dir" = r."dir" and l."stem" = r."stem" and l."name" = r."child";
+let fixture-root-places = select * from fixture-module-places where glob_any(stem, "{lib,main,mod}");
+let fixture-sibling-files = capture(from=fixture-rust-files, path="file", pattern="{*dir}/{child}.rs", captures=["dir", "child"]);
+let fixture-root = select r."file" as "file" from fixture-root-places as l join fixture-sibling-files as r on l."dir" = r."dir" and l."name" = r."child";
+let fixture-sibling-trees = capture(from=fixture-rust-files, path="file", pattern="{*dir}/{child}/{*rest}", captures=["dir", "child", "rest"]);
+let fixture-root-tree = select r."file" as "file" from fixture-root-places as l join fixture-sibling-trees as r on l."dir" = r."dir" and l."name" = r."child";
+let fixture-gated-0 = union(left=fixture-nested, right=fixture-nested-tree);
+let fixture-gated-1 = union(left=fixture-gated-0, right=fixture-root);
+let fixture-gated = union(left=fixture-gated-1, right=fixture-root-tree);
+let fixture-roles = select * from fixture-gated where glob_any(file, "{**/fixtures.rs,**/fixtures/**}");
+let proof-placed = antijoin(left=unregistered-sites, right=implementation-proofs, left-on=["file"], right-on=["file"]);
+let unregistered-production = antijoin(left=proof-placed, right=fixture-roles, left-on=["file"], right-on=["file"]);
 
 let ownership-violations = union(left=invocation-boundary, right=neutral-backrefs);
 let violations = union(left=ownership-violations, right=unregistered-production);
@@ -1042,3 +1062,34 @@ scenario = "A directory that only begins with the kernel session's name is not t
 given.files.'src/application/file_dag/program/mod.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod kernel_session_extra; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
 given.files.'src/application/file_dag/program/kernel_session_extra.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
 then.findings = [{ path = "src/application/file_dag/program/kernel_session_extra.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-double-is-production"
+scenario = "An invocation implementation in a domain file is production, so it is refused."
+given.files.'src/domain/semantic.rs' = "pub struct Double; impl crate::application::file_dag::program::runtime::service::KernelInvocation for Double {}"
+then.findings = [{ path = "src/domain/semantic.rs", line = 1 }]
+
+[[scenarios]]
+id = "ungated-fixtures-double"
+scenario = "An invocation implementation in a fixtures file declared without a test or fixtures gate is production, so it is refused."
+given.files.'src/application/file_dag/program/runtime/mod.rs' = 'pub mod types; pub mod service; pub mod fixtures;'
+given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super::service::KernelInvocation; pub struct Probe; impl KernelInvocation for Probe {}"
+then.findings = [{ path = "src/application/file_dag/program/runtime/fixtures.rs", line = 1 }]
+
+[[scenarios]]
+id = "gated-fixtures-double"
+scenario = "An invocation implementation in a fixtures file declared under the fixtures gate is a test double: it passes."
+given.files.'src/application/file_dag/program/runtime/mod.rs' = '''pub mod types; pub mod service;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;'''
+given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super::service::KernelInvocation; pub struct Probe; impl KernelInvocation for Probe {}"
+
+[[scenarios]]
+id = "gated-group-fixtures-double"
+scenario = "A source double in a fixtures file beneath a test-gated group passes."
+given.files.'src/application/file_dag/program/admission/mod.rs' = '''pub struct Permit; pub trait Inputs {}
+#[cfg(test)]
+mod service_test;'''
+given.files.'src/application/file_dag/program/admission/service_test/mod.rs' = 'mod probe;'
+given.files.'src/application/file_dag/program/admission/service_test/probe/mod.rs' = 'mod fixtures;'
+given.files.'src/application/file_dag/program/admission/service_test/probe/fixtures.rs' = "use crate::application::file_dag::program::admission::Inputs; pub struct Probe; impl Inputs for Probe {}"
