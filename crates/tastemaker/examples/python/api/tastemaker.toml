@@ -2,7 +2,7 @@
 # The todo API in Python the Tastemaker README describes, one rule, spec or template per row of its table. Each row has one
 # violation planted in the code and commented `# planted: <row>`, so `tm check` reports each row once.
 closed = false
-tastemaker = "0.1.0"
+tastemaker = "0.1.2"
 workspace = { name = "local", dependencies = [
   { package = "local", path = "tastemaker" },
 ] }
