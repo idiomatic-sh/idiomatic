@@ -1,10 +1,5 @@
 //! The types of the `job_scheduling` port: plain data, public fields and derives, with no constructor
 //! and no inherent impl.
 
-/// How many jobs to run.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct ScheduledJobCount(pub u32);
-
-/// Which of the jobs is running, counting from zero.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct JobIndex(pub u32);
+/// One job: it runs once, on any worker, and writes only what it owns.
+pub(crate) type Job<'a> = Box<dyn FnOnce() + Send + 'a>;

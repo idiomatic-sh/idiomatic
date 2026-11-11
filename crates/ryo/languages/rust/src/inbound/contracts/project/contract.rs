@@ -8,7 +8,7 @@
 use crate::domain::paths::service::present;
 use crate::domain::paths::types::Matching;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::Arc;
 
 use ryo::languages::{
     self, ManifestFile, ManifestName, ManifestReader, Project, ProjectError, ProjectRequest,
@@ -45,7 +45,7 @@ use crate::domain::workspaces::service::settled;
 use crate::domain::workspaces::types::{Looking, Reason, WorkspaceConfiguration};
 use crate::outbound::conditions::interface::ConditionsPort;
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
-use crate::outbound::job_scheduling::types::{JobIndex, ScheduledJobCount};
+use crate::outbound::job_scheduling::types::Job;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::notes::errors::NotesError;
 use crate::outbound::notes::interface::NotesPort;
@@ -92,29 +92,26 @@ impl ProjectContract {
         }
     }
 
-    /// Runs `each` over the items on the scheduler's workers and gathers what it answers in the order of the items.
+    /// Runs `each` over the items on the scheduler's workers and gathers what it answers in the order of the items: each job writes
+    /// only the answer of its own item.
     fn spread<T, R>(&self, items: &[T], each: &(dyn Fn(ListIndex, &T) -> R + Sync)) -> Vec<R>
     where
         T: Sync,
         R: Send,
     {
-        let slots: Vec<Mutex<Option<R>>> = std::iter::repeat_with(|| Mutex::new(None))
-            .take(items.len())
+        let mut answers: Vec<Option<R>> =
+            std::iter::repeat_with(|| None).take(items.len()).collect();
+        let jobs = answers
+            .iter_mut()
+            .zip(items)
+            .enumerate()
+            .map(|(at, (answer, item))| {
+                let job: Job<'_> = Box::new(move || *answer = Some(each(ListIndex(at), item)));
+                job
+            })
             .collect();
-        self.scheduler.run(
-            ScheduledJobCount(u32::try_from(items.len()).unwrap_or(u32::MAX)),
-            &|job: JobIndex| {
-                let at = usize::try_from(job.0).unwrap_or(usize::MAX);
-                if let (Some(item), Some(slot)) = (items.get(at), slots.get(at)) {
-                    let answer = each(ListIndex(at), item);
-                    *slot.lock().unwrap_or_else(PoisonError::into_inner) = Some(answer);
-                }
-            },
-        );
-        slots
-            .into_iter()
-            .filter_map(|slot| slot.into_inner().unwrap_or_else(PoisonError::into_inner))
-            .collect()
+        self.scheduler.run(jobs);
+        answers.into_iter().flatten().collect()
     }
 
     /// How the source files of the request refer to one another, from the manifests and the notes the parse left of each, worked on in

@@ -4,16 +4,14 @@
 use rayon::prelude::*;
 
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
-use crate::outbound::job_scheduling::types::{JobIndex, ScheduledJobCount};
+use crate::outbound::job_scheduling::types::Job;
 
 /// The rayon job scheduling adapter.
 #[derive(Debug)]
 pub(crate) struct JobSchedulingRayonAdapter;
 
 impl JobSchedulingPort for JobSchedulingRayonAdapter {
-    fn run(&self, count: ScheduledJobCount, job: &(dyn Fn(JobIndex) + Sync)) {
-        (0..count.0)
-            .into_par_iter()
-            .for_each(|index| job(JobIndex(index)));
+    fn run(&self, jobs: Vec<Job<'_>>) {
+        jobs.into_par_iter().for_each(|job| job());
     }
 }
