@@ -84,25 +84,41 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_producer_read_once_by_a_pure_projection_is_fused"),
         word: Word::Succeeds,
         input: || Shape::ReadOnce,
-        expect: Expect::Value(continuation(Fusibility::Fusable, 2, Some(Fusibility::Excluded(Ineligible::Source)))),
+        expect: Expect::Value(continuation(
+            Fusibility::Fusable,
+            2,
+            Some(Fusibility::Excluded(Ineligible::Source)),
+        )),
     },
     Case {
         name: CaseName("a_handed_over_root_is_not_fused_into"),
         word: Word::Succeeds,
         input: || Shape::HandedOver,
-        expect: Expect::Value(continuation(Fusibility::Barrier(Barrier::Handover), 1, None)),
+        expect: Expect::Value(continuation(
+            Fusibility::Barrier(Barrier::Handover),
+            1,
+            None,
+        )),
     },
     Case {
         name: CaseName("a_frontier_root_is_not_fused_into"),
         word: Word::Succeeds,
         input: || Shape::Frontier,
-        expect: Expect::Value(continuation(Fusibility::Barrier(Barrier::Frontier), 1, None)),
+        expect: Expect::Value(continuation(
+            Fusibility::Barrier(Barrier::Frontier),
+            1,
+            None,
+        )),
     },
     Case {
         name: CaseName("an_observation_source_is_not_fused_into"),
         word: Word::Succeeds,
         input: || Shape::Observed,
-        expect: Expect::Value(continuation(Fusibility::Barrier(Barrier::Observation), 1, None)),
+        expect: Expect::Value(continuation(
+            Fusibility::Barrier(Barrier::Observation),
+            1,
+            None,
+        )),
     },
     Case {
         name: CaseName("a_derived_acquisition_source_is_not_fused_into"),
@@ -114,13 +130,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_shared_consumer_keeps_its_producer_publication"),
         word: Word::Succeeds,
         input: || Shape::SecondReader,
-        expect: Expect::Value(continuation(Fusibility::Barrier(Barrier::SharedConsumer), 1, Some(Fusibility::Excluded(Ineligible::Reshapes)))),
+        expect: Expect::Value(continuation(
+            Fusibility::Barrier(Barrier::SharedConsumer),
+            1,
+            Some(Fusibility::Excluded(Ineligible::Reshapes)),
+        )),
     },
     Case {
         name: CaseName("a_partition_boundary_is_not_fused_across"),
         word: Word::Succeeds,
         input: || Shape::CrossFile,
-        expect: Expect::Value(continuation(Fusibility::Barrier(Barrier::Partition), 1, None)),
+        expect: Expect::Value(continuation(
+            Fusibility::Barrier(Barrier::Partition),
+            1,
+            None,
+        )),
     },
     Case {
         name: CaseName("an_absence_sensitive_producer_publishes_before_a_continuation"),

@@ -1,12 +1,12 @@
 //! A source class is not a continuation result, and its consumers own immutable answers.
-use super::super::fixtures::Residency;
-use super::fixtures::{Observed, Walk, exercise};
-use super::super::fixtures::semantics::Calls;
 use super::super::super::fixtures::Root;
+use super::super::fixtures::Residency;
+use super::super::fixtures::semantics::Calls;
+use super::fixtures::{Observed, Walk, exercise};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use std::borrow::Cow;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 
 const fn n(value: i64) -> Cell {
     Cell::Number(Integer(value))

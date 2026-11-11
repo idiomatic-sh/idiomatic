@@ -3,7 +3,6 @@ use super::super::fixtures as compiled;
 use super::fixtures::{evaluate, span};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use std::borrow::Cow;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     constants::NO_SPAN,
@@ -14,6 +13,7 @@ use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as PlanInput, StepId},
     plans::types::Operation,
 };
+use std::borrow::Cow;
 /// What the span bounds run over.
 #[derive(Clone, Copy, Debug)]
 enum Spans {

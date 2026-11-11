@@ -1,10 +1,10 @@
 //! Real compiled source/line gates precede the use of the matcher, which preparation compiled.
+use super::super::fixtures::span;
 use super::fixtures::run as run_file;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::types::Span;
-use super::super::fixtures::span;
 /// A refusal: the gate's error in full, or the pattern the regex compiler refused.
 #[derive(Debug, PartialEq)]
 enum Refused {

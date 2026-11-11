@@ -32,7 +32,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("nonzero_offset_utf8_and_repeated_source_text_keep_exact_order_and_bag"),
         word: Word::Succeeds,
         input: || Matched::Spans("Zéé!".as_bytes(), const { &[span(1, 5), span(1, 5)] }, "é"),
-        expect: Expect::Value(Answer::Spans(Cow::Borrowed(&[span(1, 3), span(3, 5), span(1, 3), span(3, 5)]))),
+        expect: Expect::Value(Answer::Spans(Cow::Borrowed(&[
+            span(1, 3),
+            span(3, 5),
+            span(1, 3),
+            span(3, 5),
+        ]))),
     },
     Case {
         name: CaseName("a_pattern_absent_from_the_source_matches_nothing"),
@@ -44,7 +49,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("zero_width_and_absent_spans_are_explicit"),
         word: Word::Succeeds,
         input: || Matched::Spans("éx".as_bytes(), const { &[span(0, 3)] }, ""),
-        expect: Expect::Value(Answer::Spans(Cow::Borrowed(&[span(0, 0), span(2, 2), span(3, 3)]))),
+        expect: Expect::Value(Answer::Spans(Cow::Borrowed(&[
+            span(0, 0),
+            span(2, 2),
+            span(3, 3),
+        ]))),
     },
     Case {
         name: CaseName("an_empty_pattern_matches_an_empty_span_once_and_skips_an_absent_one"),
@@ -80,13 +89,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("optional_line_uses_match_start_and_counts_crlf_and_single_endings_once"),
         word: Word::Succeeds,
         input: || Matched::Lines(b"a\r\nb\rc\nd", span(0, 8), 1, "\nb|b\\rc|\nd|c"),
-        expect: Expect::Value(Answer::Lines(Cow::Borrowed(&[(span(2, 4), 1), (span(5, 6), 3), (span(6, 8), 3)]))),
+        expect: Expect::Value(Answer::Lines(Cow::Borrowed(&[
+            (span(2, 4), 1),
+            (span(5, 6), 3),
+            (span(6, 8), 3),
+        ]))),
     },
     Case {
         name: CaseName("an_empty_pattern_counts_a_crlf_ending_once"),
         word: Word::Succeeds,
         input: || Matched::Lines(b"a\r\nb", span(0, 4), 1, ""),
-        expect: Expect::Value(Answer::Lines(Cow::Borrowed(&[(span(0, 0), 1), (span(1, 1), 1), (span(2, 2), 1), (span(3, 3), 2), (span(4, 4), 2)]))),
+        expect: Expect::Value(Answer::Lines(Cow::Borrowed(&[
+            (span(0, 0), 1),
+            (span(1, 1), 1),
+            (span(2, 2), 1),
+            (span(3, 3), 2),
+            (span(4, 4), 2),
+        ]))),
     },
     Case {
         name: CaseName("optional_line_rejects_zero_and_overflow"),
@@ -103,7 +122,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches"),
         word: Word::Succeeds,
-        input: || Matched::Captures("é\\q\\z".as_bytes(), const { &[span(2, 6), span(2, 6)] }, r"(?P<piece>\\.)"),
+        input: || {
+            Matched::Captures(
+                "é\\q\\z".as_bytes(),
+                const { &[span(2, 6), span(2, 6)] },
+                r"(?P<piece>\\.)",
+            )
+        },
         expect: Expect::Value(Answer::Captures(Cow::Borrowed(&[
             (span(2, 4), span(2, 4), Cow::Borrowed("\\q")),
             (span(4, 6), span(4, 6), Cow::Borrowed("\\z")),
@@ -115,13 +140,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_unmatched_branch_captures_nothing"),
         word: Word::Succeeds,
         input: || Matched::Captures(b"\\qz", const { &[span(0, 3)] }, r"(?P<piece>\\q)|z"),
-        expect: Expect::Value(Answer::Captures(Cow::Borrowed(&[(span(0, 2), span(0, 2), Cow::Borrowed("\\q"))]))),
+        expect: Expect::Value(Answer::Captures(Cow::Borrowed(&[(
+            span(0, 2),
+            span(0, 2),
+            Cow::Borrowed("\\q"),
+        )]))),
     },
     Case {
         name: CaseName("an_empty_capture_is_kept_at_every_character_boundary"),
         word: Word::Succeeds,
         input: || Matched::Captures("é".as_bytes(), const { &[span(0, 2)] }, r"(?P<piece>)"),
-        expect: Expect::Value(Answer::Captures(Cow::Borrowed(&[(span(0, 0), span(0, 0), Cow::Borrowed("")), (span(2, 2), span(2, 2), Cow::Borrowed(""))]))),
+        expect: Expect::Value(Answer::Captures(Cow::Borrowed(&[
+            (span(0, 0), span(0, 0), Cow::Borrowed("")),
+            (span(2, 2), span(2, 2), Cow::Borrowed("")),
+        ]))),
     },
 ];
 

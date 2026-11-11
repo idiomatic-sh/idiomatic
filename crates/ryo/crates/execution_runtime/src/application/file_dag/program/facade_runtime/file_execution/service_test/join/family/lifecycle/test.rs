@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    Leaked, Departure, exercise, exercise_forgetful,
+    Departure, Leaked, exercise, exercise_forgetful,
     route::{exit::Exit, leave},
 };
 use std::borrow::Cow;

@@ -88,7 +88,10 @@ pub(super) fn plan(operation: Operation) -> Plan {
 /// What a consumer's emit answered: the union's numbers and row count, or its deferral.
 #[derive(Debug, PartialEq)]
 pub(super) enum Emitted {
-    Union { numbers: Cow<'static, [i64]>, rows: usize },
+    Union {
+        numbers: Cow<'static, [i64]>,
+        rows: usize,
+    },
     Deferred(StepScope),
     /// Any other outcome.
     Other,

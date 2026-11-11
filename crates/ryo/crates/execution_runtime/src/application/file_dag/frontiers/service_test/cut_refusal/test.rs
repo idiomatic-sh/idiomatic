@@ -45,7 +45,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_cut_frontier_is_refused_by_its_input_when_admitted_in_complete_mode"),
         word: Word::Refuses,
-        input: || (PlanInput::Relation(Relation::Function), DecodeMode::Complete),
+        input: || {
+            (
+                PlanInput::Relation(Relation::Function),
+                DecodeMode::Complete,
+            )
+        },
         expect: Expect::Error(Refused {
             input: PlanInput::Relation(Relation::Function),
             refusal: Refusal::Incomplete(Cow::Borrowed(
@@ -69,7 +74,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_permissive_diagnostic_decode_never_refuses_a_packed_frontier"),
         word: Word::Succeeds,
-        input: || (PlanInput::Relation(Relation::Function), DecodeMode::Permissive),
+        input: || {
+            (
+                PlanInput::Relation(Relation::Function),
+                DecodeMode::Permissive,
+            )
+        },
         expect: Expect::Value(Admitted::Decoded),
     },
 ];

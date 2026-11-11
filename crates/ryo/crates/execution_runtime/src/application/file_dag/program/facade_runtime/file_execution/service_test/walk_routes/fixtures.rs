@@ -226,4 +226,3 @@ pub(super) fn observed_demand() -> RuleDemand {
         observations: ObservationDemand::Required,
     }
 }
-

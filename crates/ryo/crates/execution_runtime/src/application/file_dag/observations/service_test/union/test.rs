@@ -1,8 +1,8 @@
 //! Named producer populations use the actual prepared union and common file scheduler.
 use super::fixtures::{Emitted, Observed, exercise};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::StepScope;
 use std::borrow::Cow;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = &'static [&'static [i64]];
 type Value = Observed;
 type Failure = String;

@@ -119,10 +119,7 @@ fn subject(aliases: Input) -> Result<Value, Failure> {
                 .is_none(),
         );
     }
-    let swapped = [
-        construct(&b, &a_proof).err(),
-        construct(&a, &b_proof).err(),
-    ];
+    let swapped = [construct(&b, &a_proof).err(), construct(&a, &b_proof).err()];
     drop((a_rows, b_rows));
     Rc::try_unwrap(execution)
         .map_err(|_| OperatingError::NotRun)?
