@@ -1,10 +1,10 @@
 //! A request execution: its files, its project phase and its observation stage.
-use crate::application::file_dag::frontiers::errors::PreparationError;
+use crate::application::file_dag::frontiers::errors::FrontiersError;
 use crate::application::file_dag::frontiers::service::PreparationPolicy;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
-use crate::application::file_dag::program::file_session::interface::FileExecution;
+use crate::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 use crate::application::file_dag::program::file_session::service::FileSession;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::EmittedRoot;
@@ -27,7 +27,7 @@ use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::outbound::facts::errors::FactsError;
@@ -44,7 +44,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::CorpusInput;
 use std::cell::RefCell;
 use std::sync::Arc;
-impl ExecutionRequest for RequestExecution {
+impl ProgramRequestExecutionPort for RequestExecution {
     fn observations<'a>(
         &'a self,
         arenas: &'a mut Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
@@ -105,7 +105,7 @@ impl RequestExecution {
         &self,
         input: FrontierRequest<'_>,
         symbols: &mut Symbols,
-    ) -> Result<PreparedFrontiers, PreparationError> {
+    ) -> Result<PreparedFrontiers, FrontiersError> {
         let policy = match input.demand {
             FrontierDemand::Diagnostic => PreparationPolicy::Diagnostic,
             FrontierDemand::Observations { ready } => {

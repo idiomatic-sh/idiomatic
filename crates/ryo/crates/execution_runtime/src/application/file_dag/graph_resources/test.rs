@@ -1,7 +1,7 @@
 //! Behavioral controls retained from the former application resource constructors.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use {
@@ -68,7 +68,7 @@ fn prepare_closure(
     let rows = owner.rows(&publication, &|_| Err(OperatingError::NotRead))?;
     let input = RepresentationInput::from(&rows);
     let mut cursor =
-        ryo_execution_store::application::file_dag::closure_partitions::schemas::prepare(
+        ryo_execution_store::application::file_dag::closure_partitions::service::prepare(
             &publication,
             input,
             keys,

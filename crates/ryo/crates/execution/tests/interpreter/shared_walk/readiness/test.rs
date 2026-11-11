@@ -4,10 +4,10 @@ use crate::shared_walk::readiness::fixtures::{
     readiness_budget, readiness_chain, readiness_expected, readiness_hosted, readiness_intent,
 };
 use crate::shared_walk::{fixtures::no_catalog, fixtures::*};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;

@@ -5,7 +5,7 @@ use crate::application::file_dag::program::runtime::types::KernelScratch;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
 use std::rc::Rc;
 

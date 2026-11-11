@@ -29,7 +29,7 @@ use crate::domain::render::types::RowNumber;
 use crate::domain::render::types::RowOrder;
 use crate::domain::reporting::service::order_found;
 use crate::outbound::corpus::interface::CorpusPort;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::interface::Mask;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;

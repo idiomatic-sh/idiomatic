@@ -4,12 +4,12 @@ use crate::shared_walk::compact::selected_frontiers::fixtures::{functions, selec
 use crate::shared_walk::fixtures::{complete, input};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;

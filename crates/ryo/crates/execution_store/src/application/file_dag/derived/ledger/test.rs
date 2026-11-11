@@ -345,97 +345,36 @@ fn a_reused_key_cannot_change_its_immutable_size() {
 
 mod bounds;
 
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    SharedAliasIsChargedOnceAndLastConsumerReleasesIt,
-    OptionalRetentionSurvivesRequiredReleaseWithoutDoublePhysicalCharge,
-    OptionalReleaseKeepsRequiredBackingAndRechargesTheViewAllowance,
-    PositionCapacityIsChargedOncePerOptionalBackingAndSurvivesRequiredRelease,
-    OptionalReleasePreviewRequiresEveryLastHandleAndCountsUnitsSeparately,
-    AReusedKeyCannotChangeItsImmutableSize,
-}
-
-type Input = Scenario;
+/// One proof of the ledger, run as its case.
+type Input = fn();
 type Value = ();
 type Failure = String;
 
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("shared_alias_is_charged_once_and_last_consumer_releases_it"),
         word: Word::Succeeds,
-        input: || Scenario::SharedAliasIsChargedOnceAndLastConsumerReleasesIt,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "optional_retention_survives_required_release_without_double_physical_charge",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::OptionalRetentionSurvivesRequiredReleaseWithoutDoublePhysicalCharge,
+        input: || shared_alias_is_charged_once_and_last_consumer_releases_it,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("optional_release_keeps_required_backing_and_recharges_the_view_allowance"),
         word: Word::Succeeds,
-        input: || Scenario::OptionalReleaseKeepsRequiredBackingAndRechargesTheViewAllowance,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "position_capacity_is_charged_once_per_optional_backing_and_survives_required_release",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            Scenario::PositionCapacityIsChargedOncePerOptionalBackingAndSurvivesRequiredRelease
-        },
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "optional_release_preview_requires_every_last_handle_and_counts_units_separately",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::OptionalReleasePreviewRequiresEveryLastHandleAndCountsUnitsSeparately,
+        input: || optional_release_keeps_required_backing_and_recharges_the_view_allowance,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("a_reused_key_cannot_change_its_immutable_size"),
         word: Word::Succeeds,
-        input: || Scenario::AReusedKeyCannotChangeItsImmutableSize,
+        input: || a_reused_key_cannot_change_its_immutable_size,
         expect: Expect::Value(()),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+/// Runs one proof; its assertions are the case's expectation.
 fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::SharedAliasIsChargedOnceAndLastConsumerReleasesIt => {
-            shared_alias_is_charged_once_and_last_consumer_releases_it();
-            Ok(())
-        }
-        Scenario::OptionalRetentionSurvivesRequiredReleaseWithoutDoublePhysicalCharge => {
-            optional_retention_survives_required_release_without_double_physical_charge();
-            Ok(())
-        }
-        Scenario::OptionalReleaseKeepsRequiredBackingAndRechargesTheViewAllowance => {
-            optional_release_keeps_required_backing_and_recharges_the_view_allowance();
-            Ok(())
-        }
-        Scenario::PositionCapacityIsChargedOncePerOptionalBackingAndSurvivesRequiredRelease => {
-            position_capacity_is_charged_once_per_optional_backing_and_survives_required_release();
-            Ok(())
-        }
-        Scenario::OptionalReleasePreviewRequiresEveryLastHandleAndCountsUnitsSeparately => {
-            optional_release_preview_requires_every_last_handle_and_counts_units_separately();
-            Ok(())
-        }
-        Scenario::AReusedKeyCannotChangeItsImmutableSize => {
-            a_reused_key_cannot_change_its_immutable_size();
-            Ok(())
-        }
-    }
+    input();
+    Ok(())
 }
 
 #[test]

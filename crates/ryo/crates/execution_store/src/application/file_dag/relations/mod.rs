@@ -189,7 +189,7 @@ impl RelationOwner {
 }
 
 impl interface::sealed::Sealed for RelationOwner {}
-impl interface::RelationStore for RelationOwner {
+impl interface::RelationsPort for RelationOwner {
     fn generation(&self) -> generation::service::ResidentGeneration {
         generation::service::ResidentGeneration(self.current_generation())
     }

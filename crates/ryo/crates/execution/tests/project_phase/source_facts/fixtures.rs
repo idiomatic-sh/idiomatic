@@ -1,8 +1,8 @@
 //! Injected immutable source rows and the exact file frontier captured by the public owner.
 use ryo_execution::inbound::use_cases::execution::interface::ObservationStage;
 use ryo_execution::inbound::use_cases::execution::interface::{
-    AdmittedOutput, Install, ObservationBatches, ObservationExecution, OccurrenceNumber,
-    OperatingError, Partials, PhasePartials, PhaseStop, ProjectOutputOutcome, RuleOutcome,
+    AdmittedOutput, Install, ObservationBatches, OccurrenceNumber, OperatingError, Partials,
+    PhasePartials, PhaseStop, ProgramObservationStagePort, ProjectOutputOutcome, RuleOutcome,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::KeptWords;

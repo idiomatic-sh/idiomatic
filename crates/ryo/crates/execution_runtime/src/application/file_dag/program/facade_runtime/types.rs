@@ -8,7 +8,7 @@ use crate::application::file_dag::program::request_identity::RequestIdentity;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::{rc::Rc, sync::Arc};
 
 /// Whether the frontier a file root publishes has been committed by its owner.

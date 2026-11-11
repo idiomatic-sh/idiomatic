@@ -9,7 +9,7 @@ use crate::application::file_dag::program::preparation::types::ObservationMetada
 use crate::application::file_dag::program::preparation::types::OutputRoot;
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::CROSS_FILE;
 use ryo_values::domain::records::types::ProducerReadiness;
 

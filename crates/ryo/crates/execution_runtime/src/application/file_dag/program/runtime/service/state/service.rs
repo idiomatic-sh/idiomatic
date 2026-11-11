@@ -11,7 +11,7 @@ use crate::application::file_dag::program::runtime::types::{Dependencies, Reader
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::cell::RefCell;
 use std::sync::Arc;
 

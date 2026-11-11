@@ -1,6 +1,6 @@
 //! A project producer of one named output and two consumers that bind it.
 use crate::boundary_fixture::fixtures::authored_request;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;

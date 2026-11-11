@@ -2,8 +2,8 @@
 use ryo_values::domain::files::types::CorpusInput;
 
 // The application handles and protocol traits the contract is made of.
-pub use ryo_execution_runtime::application::file_dag::frontiers::errors::PreparationError;
-pub use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+pub use ryo_execution_runtime::application::file_dag::frontiers::errors::FrontiersError;
+pub use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::service::FileSession;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::EmittedRoot;
@@ -17,7 +17,7 @@ pub use ryo_execution_runtime::application::file_dag::program::file_session::typ
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::RuleAfter;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SemanticSupport;
 pub use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-pub use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ObservationExecution;
+pub use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ProgramObservationStagePort;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::service::ObservationStage;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::AdmittedOutput;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::BatchNumber;
@@ -25,21 +25,21 @@ pub use ryo_execution_runtime::application::file_dag::program::observation_stage
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::Install;
 pub use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationBatches;
 pub use ryo_execution_runtime::application::file_dag::program::observed_publication::service::ObservedPublication;
-pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::ProgramPreparedExecutionPort;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::Demand;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::NamedLayout;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::ObservationContract;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 pub use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::ReplayClosure;
+pub use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-pub use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProjectStage;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::service::ProjectPhase;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::OccurrenceNumber;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhasePartials;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseRules;
 pub use ryo_execution_runtime::application::file_dag::program::project_phase::types::PhaseStop;
-pub use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+pub use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
 pub use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
@@ -49,7 +49,7 @@ pub use ryo_execution_runtime::application::file_dag::program::rule_outcome::typ
 pub use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 pub use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 pub use ryo_execution_runtime::outbound::observer::interface::ObserverPort;
-pub use ryo_execution_store::application::file_dag::relations::interface::RelationStore;
+pub use ryo_execution_store::application::file_dag::relations::interface::RelationsPort;
 // Canonical inbound signature vocabulary from private pure concepts.
 pub use ryo_execution_domain::domain::coverage::types::Covered;
 pub use ryo_execution_domain::domain::coverage::types::FileObservationReadiness;

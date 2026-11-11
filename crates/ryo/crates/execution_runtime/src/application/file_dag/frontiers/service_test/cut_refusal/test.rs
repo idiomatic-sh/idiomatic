@@ -51,7 +51,6 @@ fn the_permissive_diagnostic_decode_never_refuses_a_packed_frontier() {
         packed(input, DecodeMode::Permissive),
         &mut Symbols::default(),
     )
-    .ok()
     .expect("diagnostic frontiers decode what they can");
     assert!(matches!(admitted, FrontierInput::Decoded { .. }));
 }

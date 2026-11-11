@@ -9,7 +9,7 @@ use crate::application::file_dag::frontiers::types::{
 use crate::application::file_dag::program::observation_stage::types::AdmittedOutput;
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use crate::application::file_dag::program::preparation::types::OutputRoot;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::{CROSS_FILE, WorkerNumber};
 use ryo_values::domain::{
     records::types::{ObservationIndex, ProducerReadiness},

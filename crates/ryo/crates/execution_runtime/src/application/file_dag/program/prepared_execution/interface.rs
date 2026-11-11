@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
 use ryo_values::domain::stored_facts::types::Bucket;
 /// Read-only request metadata; no mutable program, permit or population escapes.
-pub trait PreparedExecution {
+pub trait ProgramPreparedExecutionPort {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]>;
     fn rule_count(&self) -> RuleTotal;
     fn rule_order(&self) -> impl Iterator<Item = RuleIndex> + '_;

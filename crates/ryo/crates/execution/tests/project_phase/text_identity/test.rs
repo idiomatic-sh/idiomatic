@@ -1,10 +1,10 @@
 //! Project text identity does not depend on inherited arenas.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, engine};
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;

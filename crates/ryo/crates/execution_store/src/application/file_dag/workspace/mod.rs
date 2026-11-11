@@ -325,7 +325,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
             return Err(OperatingError::NotRead);
         }
         let storage = self.acquire_rows(order, context)?;
-        super::closure_partitions::schemas::from_prepared(
+        super::closure_partitions::service::from_prepared(
             proof.clone(),
             Arc::clone(&order.plan),
             Arc::clone(&closure.plan),

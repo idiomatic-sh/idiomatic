@@ -1,8 +1,8 @@
 //! A project phase: roots evaluated in declaration order over the request.
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::facade_runtime;
+use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort;
 use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-use crate::application::file_dag::program::project_phase::interface::ProjectStage;
 use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::project_phase::types::OccurrenceNumber;
@@ -93,7 +93,7 @@ pub(crate) fn reserved(slot: PublicationSlot) -> Option<WorkerNumber> {
         PublicationSlot::Reserved(worker) => Some(worker),
     }
 }
-impl ProjectStage for ProjectPhase<'_> {
+impl ProgramProjectPhasePort for ProjectPhase<'_> {
     fn finish(self) -> Result<(), OperatingError> {
         match std::rc::Rc::try_unwrap(self.publication) {
             Ok(publication) => publication.finish(),

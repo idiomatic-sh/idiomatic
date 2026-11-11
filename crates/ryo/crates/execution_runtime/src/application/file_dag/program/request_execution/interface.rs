@@ -11,7 +11,7 @@ use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
-pub trait ExecutionRequest {
+pub trait ProgramRequestExecutionPort {
     /// The observation stage of the request: its project phase and the cross-file publications.
     ///
     /// # Errors

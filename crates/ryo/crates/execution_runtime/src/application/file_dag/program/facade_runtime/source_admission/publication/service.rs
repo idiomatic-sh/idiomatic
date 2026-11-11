@@ -7,7 +7,7 @@ use crate::application::file_dag::program::admission::ProducerRoot;
 use crate::application::file_dag::program::admission::Representation;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {

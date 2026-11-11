@@ -123,10 +123,13 @@ fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
         scope: StepScope::PerFile,
     });
     let (program, mut walk) = prepare(&[one.clone(), two], &[one.clone(), one]);
-    if walk.retain_program_consumers(&program).is_err() {
-        return Err(Refusal::SiblingRefused);
-    }
-    if !program.rules()[1].original_steps.iter().any(Result::is_err) {
+    walk.retain_program_consumers(&program)
+        .map_err(|_| Refusal::SiblingRefused)?;
+    if !program.rules()[1]
+        .original_steps
+        .iter()
+        .any(|origin| origin.as_ref().err().is_some())
+    {
         return Err(Refusal::ErroredOriginDropped);
     }
     let shared = |rule: usize| {
@@ -141,7 +144,7 @@ fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
             .iter()
             .enumerate()
             .any(|(at, origin)| {
-                origin.is_err()
+                origin.as_ref().err().is_some()
                     && walk
                         .class_of(RuleIndex(1))
                         .and_then(|classes| classes.get(at))

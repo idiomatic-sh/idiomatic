@@ -1,8 +1,8 @@
 //! The read-only views of a prepared program.
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::preparation::types::RuleTotal;
-use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+use crate::application::file_dag::program::prepared_execution::interface::ProgramPreparedExecutionPort;
 use crate::application::file_dag::program::prepared_execution::types::{
     Demand, NamedLayout, ObservationContract, ReplayClosure,
 };
@@ -22,7 +22,7 @@ use ryo_values::domain::{
     hosted::types::HostRelation, rule_requests::types::RuleSpec, stored_facts::types::Digest,
 };
 use std::sync::Arc;
-impl PreparedExecution for PreparedExecutionProgram {
+impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
         self.parts.inner.observation_batches()
     }

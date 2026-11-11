@@ -7,12 +7,12 @@ use crate::inbound::use_cases::execution::interface::Partials;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::project_phase::interface::{
-    ProjectRootExecution as _, ProjectStage as _,
+    ProgramProjectPhasePort as _, ProjectRootExecution as _,
 };
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::{
     PhasePartials, PhaseRules,
 };
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::errors::FactsError;

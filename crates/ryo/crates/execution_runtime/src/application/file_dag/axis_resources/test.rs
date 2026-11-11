@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::derived_views::types::{
     DerivedInputs, DerivedScratch, MembershipSpace,
 };
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::table_words::types::ColumnCount;
 use std::sync::Arc;

@@ -50,9 +50,9 @@ impl Object<'_> {
         value.encode(self.out);
     }
 }
-fn quote(out: &mut RouteDocument, text: impl AsRef<str>) {
+fn quote(out: &mut RouteDocument, text: std::str::Chars<'_>) {
     out.0.push(constants::QUOTE);
-    for character in text.as_ref().chars() {
+    for character in text {
         match character {
             constants::QUOTE => out.0.push_str(constants::ESCAPED_QUOTE),
             constants::BACKSLASH => out.0.push_str(constants::ESCAPED_BACKSLASH),
@@ -77,12 +77,12 @@ fn number(out: &mut RouteDocument, value: impl ToString) {
 }
 impl Encode for RouteLabel {
     fn encode(&self, out: &mut RouteDocument) {
-        quote(out, self.0);
+        quote(out, self.0.chars());
     }
 }
 impl Encode for RouteRuleName {
     fn encode(&self, out: &mut RouteDocument) {
-        quote(out, &self.0);
+        quote(out, self.0.chars());
     }
 }
 impl Encode for RouteRuleIndex {

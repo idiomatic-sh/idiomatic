@@ -1,9 +1,9 @@
 //! One project submission through the public phase, with the roots its guard was asked about.
 use crate::boundary_fixture::fixtures::corpus;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationStage;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectPhase;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;

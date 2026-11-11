@@ -4,11 +4,11 @@ use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::{
     FileInput, SourceLanguage,
 };
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
@@ -68,7 +68,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Scenario::Empty => {
             let request = ExecutionUseCaseImpl::new().execution(&prepared, &[], None);
-            ExecutionRequest::finish(request);
+            ProgramRequestExecutionPort::finish(request);
             Ok(Outcome::Finished)
         }
         Scenario::File(language, resident_stability) => {

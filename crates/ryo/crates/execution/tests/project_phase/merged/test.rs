@@ -1,11 +1,11 @@
 //! S12: a project region's inputs, one read in part and one not applicable, merge into a partial answer.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, engine, source};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;

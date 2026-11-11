@@ -13,7 +13,7 @@ use crate::domain::workers::types::FileOrder;
 use crate::domain::workers::types::Held;
 use crate::domain::workers::types::Ready;
 use crate::domain::workers::types::ReadyBucket;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::types::FileId;

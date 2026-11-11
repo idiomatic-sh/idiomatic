@@ -125,7 +125,7 @@ impl<'f> PartitionedClosure<'f> {
 mod constants;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
-pub mod schemas;
+pub mod service;
 pub mod types;
 use types::{OrderCursor, PartitionAdvance};
 #[cfg(test)]

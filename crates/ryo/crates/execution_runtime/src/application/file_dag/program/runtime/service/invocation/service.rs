@@ -23,7 +23,7 @@ use ryo_execution_domain::domain::executable_program::types::region::value::Regi
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::Value;
 
 impl ProgramExecution {

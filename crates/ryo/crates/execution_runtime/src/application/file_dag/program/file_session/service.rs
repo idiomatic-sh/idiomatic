@@ -1,5 +1,5 @@
 //! A file session: the delegation to the file run and the rows the run reads.
-use crate::application::file_dag::program::file_session::interface::FileExecution;
+use crate::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::FileFinished;
 use crate::application::file_dag::program::file_session::types::FinishedReadiness;
@@ -15,7 +15,7 @@ use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::stored_facts::types::Bucket;
-impl FileExecution for FileSession<'_, '_> {
+impl ProgramFileSessionPort for FileSession<'_, '_> {
     fn emit_rows(
         &mut self,
         rule: RuleIndex,

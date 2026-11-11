@@ -3,8 +3,8 @@ use super::super::super::fixtures::{
     Entry, corpus, covered, prepare_for, producer_program, program,
 };
 use super::fixtures::{DIAGNOSTIC, evaluate_one};
-use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort as _;
+use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use crate::application::file_dag::program::request_execution::service::begin;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::coverage::types::{

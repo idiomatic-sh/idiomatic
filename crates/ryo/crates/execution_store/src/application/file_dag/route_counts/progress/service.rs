@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::operating::types::{ProgressAmount, ProgressCou
 
 use super::super::constants::{self, MAX_KEYS};
 use super::super::profile::service::with_state;
-use super::super::schemas::document;
+use super::super::service::document;
 use super::super::types::{
     RouteCardinality, RouteCounters, RouteFileName, RouteHotRow, RouteInputKey, RouteInputSlot,
     RouteKey, RouteRowFile, RouteRuleName, RouteSnapshot, RouteTally,

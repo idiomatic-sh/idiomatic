@@ -4,7 +4,7 @@ pub mod ids;
 pub mod profile;
 #[cfg(feature = "diagnostic-row-progress")]
 pub mod progress;
-mod schemas;
+mod service;
 #[cfg(test)]
 mod test;
 pub mod types;
@@ -19,7 +19,7 @@ use ids::service::{RouteFileIndex, RouteLabel, RouteNodeIndex, RouteRuleIndex};
 use profile::service::CapturedOrigin;
 use profile::service::with_state;
 use profile::service::{FileScope, OriginScope, RouteProfile};
-use schemas::document;
+use service::document;
 #[cfg(feature = "diagnostic-row-progress")]
 use types::RouteProgressState;
 use types::{

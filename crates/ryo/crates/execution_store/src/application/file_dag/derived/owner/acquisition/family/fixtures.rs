@@ -146,7 +146,7 @@ fn acquire(
             scenario,
             Scenario::Succeeds | Scenario::Cancelled | Scenario::Held
         ) {
-            let mut cursor = crate::application::file_dag::closure_partitions::schemas::prepare(
+            let mut cursor = crate::application::file_dag::closure_partitions::service::prepare(
                 &crate::application::file_dag::relations::handle::service::Publication::of(
                     publication.clone(),
                 ),

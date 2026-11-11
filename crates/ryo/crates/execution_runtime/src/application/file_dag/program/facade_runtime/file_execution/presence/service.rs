@@ -15,7 +15,7 @@ use ryo_execution_domain::domain::executable_program::types::absent_regions::val
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::views::validate_spans;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::Relation;
 
 /// What a presence test reads: the file's rows, the texts its comparisons resolve, and the request's prepared matchers.

@@ -1,5 +1,5 @@
 //! One project phase: its scope, its inputs and its tasks.
-use crate::application::file_dag::frontiers::errors::PreparationError;
+use crate::application::file_dag::frontiers::errors::FrontiersError;
 use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
@@ -171,7 +171,7 @@ pub enum PhaseStop<E> {
     /// The engine refused the occurrence's scope or its evaluation.
     Operating(OperatingError),
     /// The occurrence's frontiers could not be prepared.
-    Frontiers(PreparationError),
+    Frontiers(FrontiersError),
     /// The engine answered fewer outcomes than prepared occurrences, with no refusal to explain it.
     Unevaluated,
     /// The occurrence's frontier readiness, publication slot or bound inputs were refused before it reached the phase.

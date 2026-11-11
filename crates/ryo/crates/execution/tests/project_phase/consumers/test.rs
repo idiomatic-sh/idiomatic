@@ -1,12 +1,12 @@
 //! Same producer proof, distinct resolved input slots, one project batch protocol.
 use crate::boundary_fixture::fixtures::{corpus, engine};
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,
@@ -138,7 +138,7 @@ fn two_project_consumers_bind_their_own_slots_to_the_same_producer_in_both_order
 #[test]
 fn every_callback_numbers_an_occurrence_by_its_place_among_all_declared_occurrences() {
     use ryo_execution::inbound::use_cases::execution::interface::{
-        ObservationExecution, PhasePartials,
+        PhasePartials, ProgramObservationStagePort,
     };
     use std::cell::RefCell;
     let engine = engine();

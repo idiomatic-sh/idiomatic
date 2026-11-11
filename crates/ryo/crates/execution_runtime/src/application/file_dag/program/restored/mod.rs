@@ -15,7 +15,7 @@ use ryo_execution_domain::domain::{
     executable_program::types::InputSource, operating::errors::OperatingError,
     operator::types::OperatorContext,
 };
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     plan_parts::types::InputNumber,

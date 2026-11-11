@@ -6,7 +6,7 @@ use super::constants::{
     INPUT_MEMORY_SPAN, OWNER_FRONTIER_DESCRIPTORS, OWNER_PACKED_INPUT, PHASE_COMPACT_PREPARED,
     PHASE_INPUT_PACKED, PRODUCER_UNAVAILABLE, PROOF_MISMATCH, SOURCES_SKIPPED,
 };
-use super::errors::PreparationError;
+use super::errors::FrontiersError;
 use super::types::{
     FileAccounting, FrontierInput, FrontierSource, InputReadiness, PackedFrontier,
     PreparedFrontiers, ProviderAddress, Providers,
@@ -47,7 +47,7 @@ pub(super) fn prepare(
     symbols: &mut Symbols,
     required: &crate::application::file_dag::program::admission::RequiredPartitions,
     policy: PreparationPolicy<'_>,
-) -> Result<PreparedFrontiers, PreparationError> {
+) -> Result<PreparedFrontiers, FrontiersError> {
     let roots = &program
         .program()
         .rules()
@@ -389,7 +389,7 @@ impl FrontierCache {
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
         required: &crate::application::file_dag::program::admission::RequiredPartitions,
         policy: PreparationPolicy<'_>,
-    ) -> Result<PreparedFrontiers, PreparationError> {
+    ) -> Result<PreparedFrontiers, FrontiersError> {
         let ready = match policy {
             PreparationPolicy::Diagnostic => None,
             PreparationPolicy::Observations { ready } => Some(ready),

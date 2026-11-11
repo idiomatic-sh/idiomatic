@@ -15,7 +15,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
 use ryo_execution_store::application::file_dag::relations::handle::service::Publication;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::rc::Rc;
 
 impl SourceInputs<'_, '_> {

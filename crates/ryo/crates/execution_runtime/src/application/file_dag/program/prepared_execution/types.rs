@@ -16,7 +16,7 @@ use std::sync::Arc;
 /// Public prepared handles can be accepted and inspected through the inbound contract.
 /// ```
 /// use ryo_execution_runtime::application::file_dag::program::prepared_execution::{
-///     interface::PreparedExecution, types::PreparedExecutionProgram,
+///     interface::ProgramPreparedExecutionPort, types::PreparedExecutionProgram,
 /// };
 /// fn count(program: &PreparedExecutionProgram) -> usize { program.rule_count().0 }
 /// ```

@@ -1048,11 +1048,8 @@ fn declared(raiser: Raiser, raised: Raised<'_>) -> bool {
     }; 3];
     let failure = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile)
         .map(|contract| contract.failure);
-    let rows = match failure {
-        Ok(RowFailure::OnRows(mask)) => mask != InputMask(0),
-        Ok(RowFailure::UnlessLocated(_)) => located_proof(raised).is_some(),
-        Ok(RowFailure::Never) | Err(_) => false,
-    };
+    let rows = matches!(failure, Ok(RowFailure::OnRows(mask)) if mask != InputMask(0))
+        || (matches!(failure, Ok(RowFailure::UnlessLocated(_))) && located_proof(raised).is_some());
     match raiser {
         Raiser::Rows(_) => rows,
         Raiser::Pattern(_) => {

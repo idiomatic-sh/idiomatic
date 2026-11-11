@@ -1,7 +1,7 @@
 //! Compiled program lifecycle proof with a real owner.
 use super::super::super::super::inputs::fixtures::{CompiledCase, compiled};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::rc::Rc;
 
 #[test]

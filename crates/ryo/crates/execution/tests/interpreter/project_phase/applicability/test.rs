@@ -1,12 +1,12 @@
 //! A skipped rule's file never starts the shared walk.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine};
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;

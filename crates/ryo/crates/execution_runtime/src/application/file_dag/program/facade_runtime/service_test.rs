@@ -2,7 +2,6 @@
 mod evaluation;
 #[cfg(test)]
 mod fixtures;
-use evaluation::fixtures::subject;
 use fixtures::request::{plan, rule};
 use fixtures::scenario::Scenario;
 
@@ -103,6 +102,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(OperatingError::NotRead),
     },
 ];
+
+/// Runs one scenario through the prepared file program the evaluation group's fixtures build.
+fn subject(input: Input) -> Result<Value, Failure> {
+    evaluation::fixtures::subject(input)
+}
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);

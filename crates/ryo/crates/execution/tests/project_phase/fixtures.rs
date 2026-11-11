@@ -2,12 +2,12 @@
 use crate::boundary_fixture::fixtures::authored_request;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;

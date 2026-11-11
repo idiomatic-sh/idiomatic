@@ -26,7 +26,7 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
             Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
-    let mut cursor = super::super::super::schemas::prepare(
+    let mut cursor = super::super::super::service::prepare(
         &crate::application::file_dag::relations::handle::service::Publication::of(
             publication.clone(),
         ),
@@ -88,7 +88,7 @@ fn separate_keys_never_share_edges() {
             Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
-    let mut cursor = super::super::super::schemas::prepare(
+    let mut cursor = super::super::super::service::prepare(
         &crate::application::file_dag::relations::handle::service::Publication::of(
             publication.clone(),
         ),
@@ -140,7 +140,7 @@ fn advancing_releases_only_the_previous_partition_lease() {
         input_charge > 0,
         "the actual input publication remains live"
     );
-    let mut cursor = super::super::super::schemas::prepare(
+    let mut cursor = super::super::super::service::prepare(
         &crate::application::file_dag::relations::handle::service::Publication::of(
             publication.clone(),
         ),
@@ -223,7 +223,7 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
             Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
         })
         .unwrap();
-    let cursor = super::super::super::schemas::prepare(
+    let cursor = super::super::super::service::prepare(
         &crate::application::file_dag::relations::handle::service::Publication::of(
             publication.clone(),
         ),
@@ -253,7 +253,7 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
     ));
     let wrong_plan = std::sync::Arc::new((*empty.partition_plan).clone());
     assert!(matches!(
-        super::super::super::schemas::from_prepared(
+        super::super::super::service::from_prepared(
             empty.proof.clone(),
             wrong_plan,
             std::sync::Arc::clone(&empty.closure_plan),

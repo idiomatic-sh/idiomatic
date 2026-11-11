@@ -1,11 +1,14 @@
 //! Rule compilation keeps bounded session plans and request-local bindings over injected ports.
+use super::constants::COMPILED_PLANS;
 use super::errors::RuleCompilationError;
 use super::service::CompiledPlans;
 use super::service::RuleCompilation;
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use crate::outbound::query_language::interface::QueryLanguagePort;
-use fixtures::{population, rule};
+use fixtures::{
+    bounded, changed_ids, oversized_requests, population, rule, separate_request_eviction,
+};
 use ryo_execution_domain::domain::operator::constants::{OPERATORS, describe};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
@@ -70,6 +73,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || blank_id,
         expect: Expect::Error(RuleCompilationError::Rules(RuleRequestsError::BlankRuleId)),
+    },
+    Case {
+        name: CaseName("changed_ids_across_requests_keep_a_nonempty_bounded_session"),
+        word: Word::Succeeds,
+        input: || changed_ids,
+        expect: Expect::Value([COMPILED_PLANS, (COMPILED_PLANS / 1024 + 2) * 1024, 1]),
+    },
+    Case {
+        name: CaseName("oversized_requests_keep_exactly_the_cap_and_return_every_plan"),
+        word: Word::Succeeds,
+        input: || oversized_requests,
+        expect: Expect::Value([COMPILED_PLANS, COMPILED_PLANS * 3 + 1, 1]),
+    },
+    Case {
+        name: CaseName("separate_requests_evict_only_one_oldest_plan_at_a_time"),
+        word: Word::Succeeds,
+        input: || separate_request_eviction,
+        expect: Expect::Value([COMPILED_PLANS, COMPILED_PLANS + 1, 1]),
+    },
+    Case {
+        name: CaseName("compiled_plans_obeys_COMPILED_PLANS_and_preserves_FIFO_answers"),
+        word: Word::Succeeds,
+        input: || bounded,
+        expect: Expect::Value([COMPILED_PLANS, COMPILED_PLANS + 1, 1]),
     },
 ];
 
@@ -317,6 +344,5 @@ fn refuses() {
 }
 
 use ryo_values::domain::rule_requests::types::Given;
-mod eviction;
 #[cfg(test)]
 mod fixtures;

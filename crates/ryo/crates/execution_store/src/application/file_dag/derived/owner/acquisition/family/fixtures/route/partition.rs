@@ -27,7 +27,7 @@ fn through_partition(
 ) -> Result<DerivedKind, OperatingError> {
     let publication = owner.computed(numbers())?;
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
-    let mut cursor = crate::application::file_dag::closure_partitions::schemas::prepare(
+    let mut cursor = crate::application::file_dag::closure_partitions::service::prepare(
         &crate::application::file_dag::relations::handle::service::Publication::of(
             publication.clone(),
         ),

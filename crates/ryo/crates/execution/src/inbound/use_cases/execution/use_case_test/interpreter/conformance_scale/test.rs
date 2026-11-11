@@ -160,11 +160,11 @@ fn visits(
         CaptureIntent, DiagnosticDelivery, ExecutionUseCase as _, FileRuleIntent,
         ObservationDemand, RuleIndex,
     };
-    use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+    use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
     use ryo_execution_runtime::application::file_dag::program::file_session::types::{
         FileInput, KindSupport, SemanticSupport, SourceLanguage, SourceRows,
     };
-    use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+    use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
     let authored = author(operation, inputs, &[], symbols);
     let emit = authored.plan.emit.step;
     let (_engine, program) = super::super::super::super::fixtures::requests::prepared(

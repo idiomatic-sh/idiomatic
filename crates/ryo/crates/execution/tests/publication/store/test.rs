@@ -1,7 +1,7 @@
 //! S15: through the store port, a publication is readable while its generation lives and refused once the store releases it.
 use crate::boundary_fixture::fixtures::source;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::RelationStore;
+use ryo_execution::inbound::use_cases::execution::interface::RelationsPort;
 use ryo_execution_store::application::file_dag::relations::publication::types::{
     ProducerScope, PublicationBody,
 };

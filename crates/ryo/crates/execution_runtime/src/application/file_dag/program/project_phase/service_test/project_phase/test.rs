@@ -4,10 +4,10 @@ use super::super::super::fixtures::Entry;
 use super::super::super::fixtures::submission::{Root, foreign_phase_outcome, submit};
 use super::super::super::fixtures::{corpus, covered, prepare_for, program};
 use super::fixtures::root;
-use crate::application::file_dag::frontiers::errors::PreparationError;
-use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
+use crate::application::file_dag::frontiers::errors::FrontiersError;
+use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort as _;
 use crate::application::file_dag::program::project_phase::service::ProjectPhase;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use crate::application::file_dag::program::request_execution::service::begin;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::coverage::types::{InapplicableFiles, RefusedFiles};
@@ -216,7 +216,7 @@ fn frontiers_and_scopes_of_an_undeclared_rule_are_refused() {
             assert!(prepare_for(&request, &declared, RuleIndex(0)).is_ok());
             assert!(matches!(
                 prepare_for(&request, &declared, RuleIndex(3)),
-                Err(PreparationError::Metadata(OperatingError::NotRead))
+                Err(FrontiersError::Metadata(OperatingError::NotRead))
             ));
         };
         match entry {

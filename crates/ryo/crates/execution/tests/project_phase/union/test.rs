@@ -1,13 +1,13 @@
 //! One project observation union: its members feed the semantic calls, a refused frontier prevents them, and hosted text joins by spelling.
 use crate::boundary_fixture::fixtures::{authored_request, corpus};
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::{
     BatchNumber, BatchOccurrence, ObservationBatches,

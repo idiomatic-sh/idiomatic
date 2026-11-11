@@ -8,7 +8,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleIntentError;
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::PreparedExecution;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::interface::ProgramPreparedExecutionPort;
 use std::sync::Arc;
 
 type Input = PrepareRequest;

@@ -8,11 +8,11 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},

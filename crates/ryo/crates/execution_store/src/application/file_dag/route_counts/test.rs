@@ -1,7 +1,7 @@
 use super::constants::{
     GRAPH_ADJACENCY_BUILD, KIND_EQUALITY, KIND_MEMBERSHIP, MAX_KEYS, OWNER_BUILD,
 };
-use super::schemas::document;
+use super::service::document;
 use super::types::{
     BuildRoute, RouteCount, RouteOrigin, RouteOwnerId, RouteOwnership, RoutePlanId, RouteRuleName,
     RouteState, RouteTally,

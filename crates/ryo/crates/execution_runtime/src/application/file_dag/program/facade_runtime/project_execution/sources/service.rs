@@ -16,7 +16,7 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::rc::Rc;
 use std::sync::Arc;
 

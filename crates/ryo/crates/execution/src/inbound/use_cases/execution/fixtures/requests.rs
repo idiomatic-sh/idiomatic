@@ -10,13 +10,13 @@ use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs::table_inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::{
     FileInput, SourceLanguage, SourceRows,
 };
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;

@@ -304,29 +304,28 @@ fn main() {
     // nextest lists the cases first (`--list --format terse`), then runs each by its name.
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     if arguments.iter().any(|argument| argument == "--list") {
-        if !arguments.iter().any(|argument| argument == "--ignored") {
-            for case in CASES {
-                println!("{}: test", case.name.0);
-            }
+        let listed = !arguments.iter().any(|argument| argument == "--ignored");
+        for case in CASES.iter().filter(|_| listed) {
+            println!("{}: test", case.name.0);
         }
-        return;
+    } else {
+        let _profiler = dhat::Profiler::builder().testing().build();
+        let selected = arguments
+            .iter()
+            .find(|argument| !argument.starts_with("--"))
+            .cloned();
+        let mut executed = 0;
+        for case in CASES
+            .iter()
+            .filter(|case| selected.as_deref().is_none_or(|name| name == case.name.0))
+        {
+            run(std::slice::from_ref(case), Word::Succeeds, subject);
+            executed += 1;
+        }
+        assert!(
+            executed > 0,
+            "the activation target must execute an actual case"
+        );
+        println!("activation: {executed} actual cases passed");
     }
-    let _profiler = dhat::Profiler::builder().testing().build();
-    let selected = arguments
-        .iter()
-        .find(|argument| !argument.starts_with("--"))
-        .cloned();
-    let mut executed = 0;
-    for case in CASES
-        .iter()
-        .filter(|case| selected.as_deref().is_none_or(|name| name == case.name.0))
-    {
-        run(std::slice::from_ref(case), Word::Succeeds, subject);
-        executed += 1;
-    }
-    assert!(
-        executed > 0,
-        "the activation target must execute an actual case"
-    );
-    println!("activation: {executed} actual cases passed");
 }

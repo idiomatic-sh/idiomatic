@@ -13,7 +13,7 @@ use crate::domain::crossing::types::ObservedRoot;
 use crate::domain::crossing::types::PhaseRoots;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationContract;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectObservation;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase;

@@ -16,7 +16,7 @@ use ryo_execution_domain::domain::{
     table_model::types::Rows,
 };
 use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::{
     relations::{
         service::kinds,

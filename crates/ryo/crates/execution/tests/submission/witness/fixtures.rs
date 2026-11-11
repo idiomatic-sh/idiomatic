@@ -1,19 +1,19 @@
 //! The support of the `witness` cases and of the groups nested in it.
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FactsWorker;
-use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::FileSession;
 use ryo_execution::inbound::use_cases::execution::interface::Install;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationStage;
 use ryo_execution::inbound::use_cases::execution::interface::ObserverPort;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramObservationStagePort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramProjectPhasePort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectPhase;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectRootExecution;
-use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
@@ -74,11 +74,11 @@ pub(in super::super) struct Witness;
 pub(in super::super) fn implements_every_entry_trait<
     W: ExecutionUseCase
         + PrepareUseCase
-        + ExecutionRequest
-        + FileExecution
+        + ProgramRequestExecutionPort
+        + ProgramFileSessionPort
         + ProjectRootExecution
-        + ProjectStage
-        + ObservationExecution,
+        + ProgramProjectPhasePort
+        + ProgramObservationStagePort,
 >(
     _: &W,
 ) {
@@ -105,7 +105,7 @@ impl ExecutionUseCase for Witness {
     }
 }
 
-impl ExecutionRequest for Witness {
+impl ProgramRequestExecutionPort for Witness {
     fn observations<'a>(
         &'a self,
         _: &'a mut Vec<ArenaBytes>,
@@ -156,13 +156,13 @@ impl ProjectRootExecution for Witness {
     }
 }
 
-impl ProjectStage for Witness {
+impl ProgramProjectPhasePort for Witness {
     fn finish(self) -> Result<(), OperatingError> {
         witness(Method::StageFinish)
     }
 }
 
-impl ObservationExecution for Witness {
+impl ProgramObservationStagePort for Witness {
     fn run_batches<H, T, E: From<OperatingError>>(
         self,
         _: ObservationBatches<'_>,
@@ -183,7 +183,7 @@ impl ObservationExecution for Witness {
     }
 }
 
-impl FileExecution for Witness {
+impl ProgramFileSessionPort for Witness {
     fn emit_rows(
         &mut self,
         _: RuleIndex,
