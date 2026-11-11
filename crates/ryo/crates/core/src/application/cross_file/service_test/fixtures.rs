@@ -23,6 +23,13 @@ use ryo_values::domain::rule_requests::service::failed;
 use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::Bucket;
+pub(super) mod budget;
+pub(super) mod generation;
+pub(super) mod partials;
+pub(super) mod population;
+pub(super) mod rendering;
+pub(super) mod root_set;
+pub(super) mod single_rule;
 
 pub(super) fn completed_batch<T>(
     batch: ProjectBatch<Result<T, PhaseStop<CrossFileError>>, CrossFileError>,

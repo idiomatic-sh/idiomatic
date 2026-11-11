@@ -45,7 +45,13 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::BucketsWanted;
 use std::sync::Arc;
-pub(super) mod visits;
+pub(super) mod capture;
+pub(super) mod failure;
+pub(super) mod gating;
+pub(super) mod manifest;
+pub(super) mod replay;
+pub(super) mod resident;
+pub(super) mod visit;
 pub(super) fn prepared_test_program(
     plans: &[Plan],
     ids: &[RuleId],

@@ -1,7 +1,7 @@
 //! The cases of resident populations a worker reads more than once.
 use super::super::super::errors::FileAnalysisError;
-use super::super::fixtures::visits::visited_as;
-use super::super::fixtures::visits::visited_as_with_facts;
+use super::super::fixtures::visit::visited_as;
+use super::super::fixtures::visit::visited_as_with_facts;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::language::fixtures::fake::LanguageFake;

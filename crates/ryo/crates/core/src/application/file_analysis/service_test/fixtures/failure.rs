@@ -1,7 +1,7 @@
 //! The cases of read-failure demand across runs and across rules.
 use super::super::super::errors::FileAnalysisError;
-use super::super::fixtures::visits::visited_inputs;
-use super::super::fixtures::visits::visited_inputs_with_rule_demands;
+use super::super::fixtures::visit::visited_inputs;
+use super::super::fixtures::visit::visited_inputs_with_rule_demands;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::corpus::errors::CorpusError;

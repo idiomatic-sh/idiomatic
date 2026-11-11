@@ -248,9 +248,21 @@ pub(in super::super) fn ordinary_phase_keeps_each_refusal_with_its_occurrence_in
     );
     let mut outcomes = outcome.outcomes.into_iter();
     let first = outcomes.next().unwrap();
-    assert!(
-        first.result.is_ok(),
-        "the prepared occurrence is evaluated and completed"
+    let Ok(first) = first.result else {
+        panic!("the prepared occurrence is evaluated and completed");
+    };
+    assert_eq!(
+        (
+            first.crossed.unknowns.len(),
+            first
+                .crossed
+                .rendered
+                .map(|rendered| (rendered.order.len(), rendered.cells.len())),
+            first.crossed.observations.is_none(),
+            first.publications.len()
+        ),
+        (0, Some((2, 10)), true, 0),
+        "the prepared occurrence is evaluated and completed: two rows rendered, nothing published"
     );
     let second = outcomes.next().unwrap();
     assert!(
@@ -263,7 +275,7 @@ pub(in super::super) fn ordinary_phase_keeps_each_refusal_with_its_occurrence_in
         "a later occurrence is still prepared after a refusal, and fails on its own"
     );
     assert!(outcome.refused.is_none(), "no cohort was refused");
-    assert!(outcome.finished.is_ok(), "the phase is released");
+    assert!(matches!(outcome.finished, Ok(())), "the phase is released");
     assert!(memory.read.load(Ordering::SeqCst) >= 3);
     // Over the budget before the phase opens: the whole phase is refused for the first rule.
     let refused = service().ordinary(

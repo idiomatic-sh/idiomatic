@@ -23,21 +23,7 @@ use ryo_language::inbound::use_cases::project::types::RootPath;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 #[cfg(test)]
-mod capture;
-#[cfg(test)]
-mod failure;
-#[cfg(test)]
 mod fixtures;
-#[cfg(test)]
-mod gating;
-#[cfg(test)]
-mod manifest;
-#[cfg(test)]
-mod replay;
-#[cfg(test)]
-mod resident;
-#[cfg(test)]
-mod visit;
 
 type Input = &'static str;
 type Value = usize;
@@ -46,62 +32,63 @@ type Failure = FileAnalysisError;
 fn subject(path: Input) -> Result<Value, Failure> {
     if path == "a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read"
     {
-        return replay::test::a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read();
+        return fixtures::replay::a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read();
     }
     if path == "syntax_applicability_skips_only_gated_rules_and_names_the_reason" {
-        return gating::test::syntax_applicability_skips_only_gated_rules_and_names_the_reason();
+        return fixtures::gating::syntax_applicability_skips_only_gated_rules_and_names_the_reason(
+        );
     }
     if path == "only_incomplete_diagnostics_mark_code_relations_as_recovery" {
-        return gating::test::only_incomplete_diagnostics_mark_code_relations_as_recovery();
+        return fixtures::gating::only_incomplete_diagnostics_mark_code_relations_as_recovery();
     }
     if path == "required_dependency_stat_and_read_errors_cannot_disappear" {
-        return gating::test::required_dependency_stat_and_read_errors_cannot_disappear();
+        return fixtures::gating::required_dependency_stat_and_read_errors_cannot_disappear();
     }
     if path == "unstable_same_shape_resident_populations_remain_distinct" {
-        return resident::test::unstable_same_shape_resident_populations_remain_distinct();
+        return fixtures::resident::unstable_same_shape_resident_populations_remain_distinct();
     }
     if path == "file_visits_preserve_stable_unstable_and_unread_provider_outcomes" {
-        return resident::test::file_visits_preserve_stable_unstable_and_unread_provider_outcomes();
+        return fixtures::resident::file_visits_preserve_stable_unstable_and_unread_provider_outcomes();
     }
     if path == "a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket" {
-        return capture::test::a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket();
+        return fixtures::capture::a_bad_last_captured_bucket_calls_no_digest_even_after_a_valid_rule_bucket();
     }
     if path == "successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads" {
-        return capture::test::successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads();
+        return fixtures::capture::successful_outcomes_stage_once_and_keep_digests_without_retaining_payloads();
     }
     if path == "staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops" {
-        return replay::test::staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops();
+        return fixtures::replay::staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops();
     }
     if path == "read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes" {
-        return failure::test::read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes();
+        return fixtures::failure::read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes();
     }
     if path == "read_failure_demand_is_limited_to_governing_rules" {
-        return failure::test::read_failure_demand_is_limited_to_governing_rules();
+        return fixtures::failure::read_failure_demand_is_limited_to_governing_rules();
     }
     if path == "discovery_failure_runs_without_parser_bytes_or_permission_invention" {
-        return manifest::test::discovery_failure_runs_without_parser_bytes_or_permission_invention(
+        return fixtures::manifest::discovery_failure_runs_without_parser_bytes_or_permission_invention(
         );
     }
     if path == "primary_manifest_read_failure_retains_real_metadata_without_empty_project_source" {
-        return manifest::test::primary_manifest_read_failure_retains_real_metadata_without_empty_project_source();
+        return fixtures::manifest::primary_manifest_read_failure_retains_real_metadata_without_empty_project_source();
     }
     if path == "project_entry_acquisition_deduplicates_provider_candidates_before_observing" {
-        return manifest::test::project_entry_acquisition_deduplicates_provider_candidates_before_observing();
+        return fixtures::manifest::project_entry_acquisition_deduplicates_provider_candidates_before_observing();
     }
     if path == "forgotten-entry-receipt" {
-        return manifest::test::a_receipt_that_forgets_the_entries_is_refused();
+        return fixtures::manifest::a_receipt_that_forgets_the_entries_is_refused();
     }
     if path == "invalid-provider.rs" {
-        return visit::test::invalid_provider();
+        return fixtures::visit::invalid_provider();
     }
     if path == "manifest-and-stray" {
-        return visit::test::manifest_and_stray();
+        return fixtures::visit::manifest_and_stray();
     }
     if path == "digests" {
-        return visit::test::digested();
+        return fixtures::visit::digested();
     }
     if path == "forgetful.manifest.fake" {
-        return manifest::test::a_project_answer_that_drops_an_observed_entry_is_refused();
+        return fixtures::manifest::a_project_answer_that_drops_an_observed_entry_is_refused();
     }
     if path == "unlinked-source-provider" {
         let service = FileAnalysis::new(

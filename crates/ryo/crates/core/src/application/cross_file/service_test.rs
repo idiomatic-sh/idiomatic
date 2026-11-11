@@ -8,27 +8,13 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
 #[cfg(test)]
-mod budget;
-#[cfg(test)]
 mod fixtures;
-#[cfg(test)]
-mod generation;
 #[cfg(test)]
 mod interpreter_budget;
 #[cfg(test)]
 mod interpreter_population;
 #[cfg(test)]
 mod interpreter_root_set;
-#[cfg(test)]
-mod partials;
-#[cfg(test)]
-mod population;
-#[cfg(test)]
-mod rendering;
-#[cfg(test)]
-mod root_set;
-#[cfg(test)]
-mod single_rule;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
@@ -80,17 +66,17 @@ type Failure = RuleRequestsError;
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::Substitution => Ok([
-            usize::from(rendering::test::source_text(b"one", false) == "one"),
-            usize::from(rendering::test::source_text(b"two", false) == "two"),
+            usize::from(fixtures::rendering::source_text(b"one", false) == "one"),
+            usize::from(fixtures::rendering::source_text(b"two", false) == "two"),
             0,
         ]),
         Scenario::Unreadable => Ok([
-            usize::from(rendering::test::source_text(b"one", true).is_empty()),
+            usize::from(fixtures::rendering::source_text(b"one", true).is_empty()),
             0,
             0,
         ]),
-        Scenario::Placeable => Ok(partials::test::placing_outcomes()),
-        Scenario::Partials => Ok(partials::test::partials_found()),
+        Scenario::Placeable => Ok(fixtures::partials::placing_outcomes()),
+        Scenario::Partials => Ok(fixtures::partials::partials_found()),
         Scenario::CrossCounts => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
@@ -132,17 +118,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 0,
             ])
         }
-        Scenario::CurrentRoots => single_rule::test::current_project_roots_keep_the_original_two_group_four_cell_result().map(|()| [0; 3]),
-        Scenario::RejectedSyntax => single_rule::test::rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics().map(|()| [0; 3]),
-        Scenario::SharedPreparation => generation::test::ordinary_project_rules_share_one_preparation_and_reject_another_generation().map(|()| [0; 3]),
-        Scenario::SeparatePopulations => population::test::ordinary_phase_keeps_valid_rule_populations_and_partiality_separate().map(|()| [0; 3]),
-        Scenario::DistinctPayloads => population::test::equal_policies_do_not_alias_distinct_admitted_frontier_payloads().map(|()| [0; 3]),
-        Scenario::ReachedRegions => population::test::many_distinct_project_populations_allocate_only_reached_region_state().map(|()| [0; 3]),
-        Scenario::SharedPublications => root_set::test::project_root_set_prepares_shared_publications_once_before_ordered_delivery().map(|()| [0; 3]),
-        Scenario::DistinctPolicies => root_set::test::project_root_set_preserves_distinct_actual_population_policy_in_both_orders().map(|()| [0; 3]),
-        Scenario::LaterPopulation => budget::test::project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase().map(|()| [0; 3]),
-        Scenario::RefusedOrdinal => budget::test::refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort().map(|()| [0; 3]),
-        Scenario::OrdinaryOrder => budget::test::ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order().map(|()| [0; 3]),
+        Scenario::CurrentRoots => fixtures::single_rule::current_project_roots_keep_the_original_two_group_four_cell_result().map(|()| [0; 3]),
+        Scenario::RejectedSyntax => fixtures::single_rule::rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics().map(|()| [0; 3]),
+        Scenario::SharedPreparation => fixtures::generation::ordinary_project_rules_share_one_preparation_and_reject_another_generation().map(|()| [0; 3]),
+        Scenario::SeparatePopulations => fixtures::population::ordinary_phase_keeps_valid_rule_populations_and_partiality_separate().map(|()| [0; 3]),
+        Scenario::DistinctPayloads => fixtures::population::equal_policies_do_not_alias_distinct_admitted_frontier_payloads().map(|()| [0; 3]),
+        Scenario::ReachedRegions => fixtures::population::many_distinct_project_populations_allocate_only_reached_region_state().map(|()| [0; 3]),
+        Scenario::SharedPublications => fixtures::root_set::project_root_set_prepares_shared_publications_once_before_ordered_delivery().map(|()| [0; 3]),
+        Scenario::DistinctPolicies => fixtures::root_set::project_root_set_preserves_distinct_actual_population_policy_in_both_orders().map(|()| [0; 3]),
+        Scenario::LaterPopulation => fixtures::budget::project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase().map(|()| [0; 3]),
+        Scenario::RefusedOrdinal => fixtures::budget::refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort().map(|()| [0; 3]),
+        Scenario::OrdinaryOrder => fixtures::budget::ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order().map(|()| [0; 3]),
     }
 }
 
