@@ -1,4 +1,4 @@
-description = "A client or store library of the core is named - imported or written as a path - only in an adapter (a file the adapter spec places, or any file beneath an outbound port's `adapters/`), its port's factory.rs and an edge's composition.rs (a `composition.rs` a template entry places, as an edge's is: a command's, an SDK entry's, a language contract's reader's, a benchmark host's), never in a port's types.rs or errors.rs: the rule itself admits those files, so an entry reads `**` and excludes no production role."
+description = "A client or store library of the core is named - imported or written as a path - only in an adapter (a file the adapter spec places, or any file beneath an outbound port's `adapters/`), its port's factory.rs and an edge's composition (a file a composition template places: `composition`, a `*-composition` such as a command's or a language contract's reader's, or a benchmark host's `workflow`), never in a port's types.rs or errors.rs: the rule itself admits those files, so an entry reads `**` and excludes no production role."
 why = "A client library (a database driver, an HTTP client, a store) is the part of an adapter that touches the outside world. The core depends on it as an ordinary dependency, with no cargo feature per adapter, so the placement is what keeps use cases and domain free of it: the library is named in the adapter that wraps it (`src/outbound/<port>/adapters/<implementation>/`), in its port's `factory.rs`, which receives the client the edge opened, and in an edge's `composition.rs`, which opens it. The libraries are those the entry lists in `libraries`, and the rule is a shared one of the product (a nested spec instance's files are not its enclosing spec's to check). A port's own `types.rs` and `errors.rs` are not excluded: the library is named in none of a port's plain files. Not seen: a path inside an attribute or a macro invocation."
 
 query = '''
@@ -9,7 +9,7 @@ let mentions = union(left=imports, right=references);
 let clients = select * from mentions where glob_any(target, $libraries);
 let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{adapter,adapter-connection,adapter-writer,settings,schemas}");
 let adapter-tree = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "{**/outbound/*/adapters/**,**/outbound/*/factory.rs}");
-let placed-compositions = select l."path" as "file" from "tastemaker.placed" as l where glob_any(l."path", "**/composition.rs");
+let placed-compositions = select l."path" as "file" from "tastemaker.placed" as l where glob_any(l."template", "{composition,*-composition,workflow}");
 let adapter-roles = union(left=governed-roles, right=adapter-tree);
 let adapters = union(left=adapter-roles, right=placed-compositions);
 let outside = antijoin(left=clients, right=adapters, left-on=["file"], right-on=["file"]);
@@ -240,6 +240,24 @@ given.files.'tastemaker.toml' = '''
 workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
 rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = ["rusqlite::*"] } }]
 templates = [{ template = "idiomatic.arch/composition", file = "src/resources/{resource}/{part}/composition.rs" }]
+'''
+then.only = ['idiomatic.arch/client-at-adapter']
+then.findings = [
+  { path = 'src/domain/greeting/composition.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'composition-placed-by-another-template-names-client-library'
+scenario = "A `composition.rs` a template entry places as another role (here a `service`) is no edge's composition: its client library is reported, beside an edge composition the `composition` template places, which passes."
+given.files.'src/resources/greeting/show/composition.rs' = 'use rusqlite::Connection;'
+given.files.'src/domain/greeting/composition.rs' = 'use rusqlite::Connection;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = ["rusqlite::*"] } }]
+templates = [
+  { template = "idiomatic.arch/composition", file = "src/resources/{resource}/{part}/composition.rs" },
+  { template = "idiomatic.arch/service", file = "src/domain/{concept}/composition.rs" },
+]
 '''
 then.only = ['idiomatic.arch/client-at-adapter']
 then.findings = [
