@@ -15,9 +15,9 @@ use ryo_derived::domain::row_cells::types::BulkRows;
 use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
-use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};
+use std::borrow::Cow;
 
 pub(super) fn membership(held: bool) -> SetMembership {
     if held {
@@ -65,7 +65,7 @@ impl RowCells for Cells<'_> {
     }
 }
 
-pub(super) fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex)) {
+pub(super) fn with_edges<T>(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex) -> T) -> T {
     let table = Table {
         kinds: vec![CellKind::Number; 2],
         count: RowCount(rows.len()),
@@ -96,7 +96,7 @@ pub(super) fn with_edges(rows: &[[i64; 2]], run: impl FnOnce(&Table, &KeyIndex))
     else {
         panic!("prepared equality product")
     };
-    run(&table, index);
+    run(&table, index)
 }
 
 pub(super) fn view<'a>(
@@ -113,162 +113,185 @@ pub(super) fn view<'a>(
     }
 }
 
-pub(super) fn nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties()
--> Value {
-    for rows in [
-        vec![[1, 2], [2, 3], [3, 4]],
-        vec![[1, 2], [1, 3], [2, 4], [3, 5]],
-        vec![[1, 3], [1, 2], [3, 4], [2, 4]],
-        vec![[1, 2], [1, 2], [2, 3], [3, 1]],
-        vec![[1, 1], [1, 2]],
-        vec![],
-    ] {
-        with_edges(&rows, |table, index| {
+/// What a row walks: the edges and the walk asked of them.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Traversal {
+    /// Nearest walks from each start under each admitted set, over each edge table, against the breadth walk's
+    /// first admitted vertex.
+    NearestAgainstBreadth(&'static [&'static [[i64; 2]]]),
+    /// One walk value reused: a nearest hit at 3 from 1, a start with no path, then a full breadth walk from 1.
+    ReusedWalk(&'static [[i64; 2]]),
+    /// A nearest walk from 1 whose admission check fails.
+    FailingAdmission(&'static [[i64; 2]]),
+    /// Edges whose last destination cell is missing: a breadth walk and a nearest walk for 3, both from 1.
+    MissingDestination(&'static [[i64; 2]]),
+}
+
+/// What a walk observed.
+#[derive(Debug, PartialEq)]
+pub(super) enum Observed {
+    /// How many (edges, start, admitted set) combinations ran, and in how many the nearest walk reached exactly
+    /// the breadth walk's first admitted vertex.
+    Agreement {
+        combinations: usize,
+        agreeing: usize,
+    },
+    /// The reused walk at each step.
+    Reused {
+        /// What the nearest hit reached.
+        hit: Cow<'static, [Cell]>,
+        /// The hit's error.
+        hit_error: Option<()>,
+        /// How many vertices the hit visited.
+        visited_at_hit: usize,
+        /// Whether the hit left queued descendants.
+        queued_at_hit: bool,
+        /// What the walk from a start with no path reached.
+        no_path: Cow<'static, [Cell]>,
+        /// The error of the walk with no path.
+        no_path_error: Option<&'static str>,
+        /// What the full breadth walk reached after both.
+        full: Cow<'static, [Cell]>,
+    },
+    /// The failing admission.
+    Fault {
+        /// The error the walk returned.
+        error: Option<&'static str>,
+        /// The vertices admission was asked about.
+        asked: Cow<'static, [Cell]>,
+        /// What the walk reached.
+        reached: Cow<'static, [Cell]>,
+    },
+    /// The ragged table's walks.
+    Ragged {
+        /// What the breadth walk reached.
+        full: Cow<'static, [Cell]>,
+        /// What the nearest walk reached.
+        nearest: Cow<'static, [Cell]>,
+        /// The nearest walk's error.
+        error: Option<()>,
+    },
+}
+
+fn admitted_in(admitted: &[i64], value: Cell) -> bool {
+    admitted.iter().any(|n| number(*n) == value)
+}
+
+/// Runs a row's walk.
+pub(super) fn traverse(traversal: Traversal) -> Observed {
+    match traversal {
+        Traversal::NearestAgainstBreadth(tables) => nearest_against_breadth(tables),
+        Traversal::ReusedWalk(edges) => reused_walk(edges),
+        Traversal::FailingAdmission(edges) => failing_admission(edges),
+        Traversal::MissingDestination(edges) => missing_destination(edges),
+    }
+}
+
+fn nearest_against_breadth(tables: &[&[[i64; 2]]]) -> Observed {
+    let mut combinations = 0;
+    let mut agreeing = 0;
+    for rows in tables {
+        with_edges(rows, |table, index| {
             let columns = [ColumnIndex(0)];
             let edges = view(table, index, &columns);
             for start in [1, 2, 9] {
                 let mut full = Walk::default();
                 reach_breadth(&edges, ColumnIndex(1), number(start), &mut full);
-                for admitted in [vec![], vec![1], vec![2], vec![3, 2], vec![4, 5]] {
+                for admitted in [&[][..], &[1], &[2], &[3, 2], &[4, 5]] {
                     let wanted = full
                         .reached
                         .iter()
                         .copied()
-                        .find(|value| admitted.iter().any(|n| number(*n) == *value));
+                        .find(|value| admitted_in(admitted, *value));
                     let mut nearest = Walk::default();
-                    reach_nearest(
+                    let answered = reach_nearest(
                         &edges,
                         ColumnIndex(1),
                         number(start),
                         &mut nearest,
-                        |value| {
-                            Ok::<_, ()>(membership(admitted.iter().any(|n| number(*n) == value)))
-                        },
-                    )
-                    .expect("infallible membership");
-                    assert_eq!(
-                        nearest.reached,
-                        wanted.into_iter().collect::<Vec<_>>(),
-                        "rows={rows:?},start={start},domain={admitted:?}"
+                        |value| Ok::<_, ()>(membership(admitted_in(admitted, value))),
                     );
+                    combinations += 1;
+                    if answered == Ok(())
+                        && nearest.reached == wanted.into_iter().collect::<Vec<_>>()
+                    {
+                        agreeing += 1;
+                    }
                 }
             }
         });
     }
-    1
+    Observed::Agreement {
+        combinations,
+        agreeing,
+    }
 }
 
-pub(super) fn reused_walk_nearest_hit_then_no_path_then_full_walk_clears_previous_work() -> Value {
-    with_edges(&[[1, 2], [1, 3], [2, 4], [3, 5]], |table, index| {
+fn reused_walk(rows: &[[i64; 2]]) -> Observed {
+    with_edges(rows, |table, index| {
         let columns = [ColumnIndex(0)];
         let edges = view(table, index, &columns);
         let mut walk = Walk::default();
-        reach_nearest(&edges, ColumnIndex(1), number(1), &mut walk, |value| {
+        let hit = reach_nearest(&edges, ColumnIndex(1), number(1), &mut walk, |value| {
             Ok::<_, ()>(membership(value == number(3)))
-        })
-        .expect("hit");
-        assert_eq!(walk.reached, vec![number(3)]);
-        assert_eq!(walk.visited.len(), 2, "stop before descendants are visited");
-        assert!(
-            !walk.next.is_empty(),
-            "control leaves queued descendants to be cleared"
-        );
-        reach_nearest(&edges, ColumnIndex(1), number(99), &mut walk, |_| {
+        });
+        let hit_error = hit.err();
+        let hit = walk.reached.clone();
+        let visited_at_hit = walk.visited.len();
+        let queued_at_hit = !walk.next.is_empty();
+        let no_path = reach_nearest(&edges, ColumnIndex(1), number(99), &mut walk, |_| {
             Err("must not validate unreachable membership")
-        })
-        .expect("no path");
-        assert!(walk.reached.is_empty());
+        });
+        let no_path_error = no_path.err();
+        let no_path = walk.reached.clone();
         reach_breadth(&edges, ColumnIndex(1), number(1), &mut walk);
-        assert_eq!(
-            walk.reached,
-            vec![number(2), number(3), number(4), number(5)]
-        );
-    });
-    1
+        Observed::Reused {
+            hit: Cow::Owned(hit),
+            hit_error,
+            visited_at_hit,
+            queued_at_hit,
+            no_path: Cow::Owned(no_path),
+            no_path_error,
+            full: Cow::Owned(walk.reached),
+        }
+    })
 }
 
-pub(super) fn admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission()
--> Value {
-    with_edges(&[[1, 2], [2, 3]], |table, index| {
+fn failing_admission(rows: &[[i64; 2]]) -> Observed {
+    with_edges(rows, |table, index| {
         let columns = [ColumnIndex(0)];
         let edges = view(table, index, &columns);
         let mut walk = Walk::default();
-        let mut called = Vec::new();
+        let mut asked = Vec::new();
         let result = reach_nearest(&edges, ColumnIndex(1), number(1), &mut walk, |value| {
-            called.push(value);
+            asked.push(value);
             Err("wrong membership view")
         });
-        assert_eq!(result, Err("wrong membership view"));
-        assert_eq!(called, vec![number(2)]);
-        assert!(walk.reached.is_empty());
-    });
-    1
+        Observed::Fault {
+            error: result.err(),
+            asked: Cow::Owned(asked),
+            reached: Cow::Owned(walk.reached),
+        }
+    })
 }
 
-pub(super) fn missing_destination_cells_are_skipped_as_in_full_traversal() -> Value {
-    with_edges(&[[1, 2], [2, 3]], |table, index| {
+fn missing_destination(rows: &[[i64; 2]]) -> Observed {
+    with_edges(rows, |table, index| {
         let mut ragged = table.clone();
-        ragged.cells.pop();
+        ragged.cells.truncate(ragged.cells.len().saturating_sub(1));
         let columns = [ColumnIndex(0)];
         let edges = view(&ragged, index, &columns);
         let mut full = Walk::default();
         reach_breadth(&edges, ColumnIndex(1), number(1), &mut full);
-        assert_eq!(full.reached, vec![number(2)]);
         let mut nearest = Walk::default();
-        reach_nearest(&edges, ColumnIndex(1), number(1), &mut nearest, |value| {
+        let error = reach_nearest(&edges, ColumnIndex(1), number(1), &mut nearest, |value| {
             Ok::<_, ()>(membership(value == number(3)))
         })
-        .expect("missing destination is not a new error");
-        assert!(nearest.reached.is_empty());
-    });
-    1
-}
-
-/// A scenario: what a row asks of the part.
-pub(crate) type Input = fn() -> Value;
-
-/// What a scenario answers: a yes as one.
-pub(crate) type Value = usize;
-
-/// A scenario that checks its own claims never fails as a whole.
-pub(crate) type Failure = std::convert::Infallible;
-
-/// The rows of this part's cases.
-pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName(
-            "nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties
-        },
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("reused_walk_nearest_hit_then_no_path_then_full_walk_clears_previous_work"),
-        word: Word::Succeeds,
-        input: || reused_walk_nearest_hit_then_no_path_then_full_walk_clears_previous_work,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName(
-            "admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission",
-        ),
-        word: Word::Succeeds,
-        input: || {
-            admission_fault_is_deferred_until_first_reached_vertex_and_stops_further_admission
-        },
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("missing_destination_cells_are_skipped_as_in_full_traversal"),
-        word: Word::Succeeds,
-        input: || missing_destination_cells_are_skipped_as_in_full_traversal,
-        expect: Expect::Value(1),
-    },
-];
-
-pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
-    Ok(scenario())
+        .err();
+        Observed::Ragged {
+            full: Cow::Owned(full.reached),
+            nearest: Cow::Owned(nearest.reached),
+            error,
+        }
+    })
 }

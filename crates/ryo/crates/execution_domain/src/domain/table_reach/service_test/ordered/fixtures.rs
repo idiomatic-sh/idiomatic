@@ -19,7 +19,6 @@ use ryo_relations::{
     domain::relations::types::{CellKind, Integer, Name, PlaceNumber, TextHash, Value as Cell},
     domain::terms::types::Symbol,
 };
-use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     rows::{
@@ -27,6 +26,7 @@ use ryo_values::domain::{
         types::{RowCount, RowIndex, Table},
     },
 };
+use std::borrow::Cow;
 
 pub(super) struct Rows<'a>(pub(super) &'a Table);
 
@@ -44,14 +44,10 @@ impl RowCells for Rows<'_> {
     fn kinds(&self) -> &[CellKind] {
         &self.0.kinds
     }
-    fn count(&self) -> ryo_values::domain::rows::types::RowCount {
+    fn count(&self) -> RowCount {
         self.0.count
     }
-    fn cell(
-        &self,
-        row: ryo_values::domain::rows::types::RowIndex,
-        column: ColumnIndex,
-    ) -> Option<Cell> {
+    fn cell(&self, row: RowIndex, column: ColumnIndex) -> Option<Cell> {
         row_in(self.0, row)?
             .get(usize::try_from(column.0).expect("a column index fits in usize"))
             .copied()
@@ -150,7 +146,75 @@ pub(super) fn numbers(width: usize, rows: &[&[i64]]) -> Table {
     }
 }
 
-pub(super) fn ordinal_overflow_follows_the_last_representable_visit() -> Value {
+/// The graph a row prepares and walks.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Graph {
+    /// One root with two numbered edges, walked with its next ordinal at the last representable one.
+    LastOrdinal,
+    /// One edge whose order cell is a flag.
+    FlagOrder,
+    /// Roots and edges keyed by source symbols and by retained names, two of them with equal hashes over different
+    /// texts, walked from `a` and from `b` in context `ctx`.
+    RetainedNames,
+}
+
+/// What preparing and walking the graph observed.
+#[derive(Debug, PartialEq)]
+pub(super) enum Observed {
+    /// The walk at the last representable ordinal.
+    LastOrdinal {
+        /// The first visit.
+        first: Result<Option<OrderedVisit>, OperatingError>,
+        /// Whether the destination was expanded before the first visit was yielded.
+        destination_expanded_at_yield: bool,
+        /// The next visit.
+        next: Result<Option<OrderedVisit>, OperatingError>,
+    },
+    /// The prepared graph and its walks.
+    RetainedNames {
+        /// Whether the source symbol and the retained name of the same text share a root key.
+        same_text_shares_key: bool,
+        /// Whether equal retained hashes of different texts share a root key.
+        equal_hashes_share_key: bool,
+        /// Whether every prepared root row starts with its original cells.
+        roots_preserved: bool,
+        /// Whether every prepared edge row starts with its original cells.
+        edges_preserved: bool,
+        /// Whether every prepared edge keeps its retained edge name.
+        edge_names_kept: bool,
+        /// The third root's first prepared cell.
+        third_root: Cell,
+        /// The visits from `a`.
+        from_a: Cow<'static, [OrderedVisit]>,
+        /// The visits from `b`.
+        from_b: Cow<'static, [OrderedVisit]>,
+        /// The vertices both walks expanded.
+        expanded: usize,
+        /// The edges both walks examined.
+        examined: usize,
+    },
+    /// The graph prepared, and nothing was walked.
+    Prepared,
+}
+
+/// A retained name of hash 99 at a place.
+pub(super) const fn retained(place: u32) -> Cell {
+    Cell::Name(Name {
+        hash: TextHash(99),
+        place: PlaceNumber(place),
+    })
+}
+
+/// Prepares and walks a row's graph.
+pub(super) fn walk(graph: Graph) -> Result<Observed, DerivedFault> {
+    match graph {
+        Graph::LastOrdinal => last_ordinal(),
+        Graph::FlagOrder => flag_order(),
+        Graph::RetainedNames => retained_names(),
+    }
+}
+
+fn last_ordinal() -> Result<Observed, DerivedFault> {
     let roots = numbers(1, &[&[1]]);
     let edges = numbers(4, &[&[1, 2, 0, 12], &[1, 3, 1, 13]]);
     with_graph(&roots, &edges, false, &mut Texts::default(), |graph| {
@@ -165,41 +229,27 @@ pub(super) fn ordinal_overflow_follows_the_last_representable_visit() -> Value {
         let mut walk = OrderedWalk::default();
         begin_ordered(&edges, graph, &[], Cell::Number(Integer(1)), &mut walk);
         walk.ordinal = Some(Integer(i64::MAX));
-        let first = next_ordered(&edges, graph, &[], &mut walk)
-            .unwrap()
-            .unwrap();
-        assert_eq!(first.ordinal, Integer(i64::MAX));
-        assert!(
-            !walk.visited.contains(&Cell::Number(Integer(2))),
-            "yield before destination expansion"
-        );
-        assert_eq!(
-            next_ordered(&edges, graph, &[], &mut walk),
-            Err(OperatingError::DfsOrdinalOverflow)
-        );
+        let first = next_ordered(&edges, graph, &[], &mut walk);
+        let destination_expanded_at_yield = walk.visited.contains(&Cell::Number(Integer(2)));
+        let next = next_ordered(&edges, graph, &[], &mut walk);
+        Observed::LastOrdinal {
+            first,
+            destination_expanded_at_yield,
+            next,
+        }
     })
-    .unwrap();
-    1
 }
 
-pub(super) fn nonnumeric_order_cell_is_refused_by_actual_derived_preparation() -> Value {
+fn flag_order() -> Result<Observed, DerivedFault> {
     let roots = numbers(1, &[&[1]]);
     let mut edges = numbers(4, &[&[1, 2, 0, 12]]);
     edges.cells[2] = Cell::Flag(ryo_relations::domain::relations::types::Flag::Raised);
-    assert_eq!(
-        with_graph(&roots, &edges, false, &mut Texts::default(), |_| ()),
-        Err(DerivedFault::ShapeMismatch)
-    );
-    1
+    with_graph(&roots, &edges, false, &mut Texts::default(), |_| {
+        Observed::Prepared
+    })
 }
 
-pub(super) fn equal_retained_hashes_use_exact_text_and_preserve_original_cells() -> Value {
-    let retained = |place| {
-        Cell::Name(Name {
-            hash: TextHash(99),
-            place: PlaceNumber(place),
-        })
-    };
+fn retained_names() -> Result<Observed, DerivedFault> {
     let a = Cell::Symbol(Symbol(0));
     let b = Cell::Symbol(Symbol(1));
     let ctx = Cell::Symbol(Symbol(2));
@@ -240,36 +290,19 @@ pub(super) fn equal_retained_hashes_use_exact_text_and_preserve_original_cells()
                 .map(|column| cell(row_in(&graph.roots, RowIndex(row)).unwrap(), *column).unwrap())
                 .collect::<Vec<_>>()
         };
-        assert_eq!(
-            canonical_key(0),
-            canonical_key(1),
-            "source Symbol and retained Name of the same text share an exact root key"
-        );
-        assert_ne!(
-            canonical_key(0),
-            canonical_key(2),
-            "equal retained hashes do not merge different text"
-        );
-        for row in 0..roots.count.0 {
-            assert_eq!(
-                &row_in(&graph.roots, RowIndex(row)).unwrap()[..2],
-                row_in(&roots, RowIndex(row)).unwrap()
-            );
-        }
-        for row in 0..edges.count.0 {
-            assert_eq!(
-                &row_in(&graph.edges, RowIndex(row)).unwrap()[..5],
-                row_in(&edges, RowIndex(row)).unwrap()
-            );
-            assert_eq!(
-                cell(row_in(&graph.edges, RowIndex(row)).unwrap(), ColumnIndex(3)).unwrap(),
-                retained(4)
-            );
-        }
-        assert_eq!(
-            cell(row_in(&graph.roots, RowIndex(2)).unwrap(), ColumnIndex(0)).unwrap(),
-            retained(1)
-        );
+        let roots_preserved = (0..roots.count.0).all(|row| {
+            row_in(&graph.roots, RowIndex(row)).map(|cells| &cells[..2])
+                == row_in(&roots, RowIndex(row))
+        });
+        let edges_preserved = (0..edges.count.0).all(|row| {
+            row_in(&graph.edges, RowIndex(row)).map(|cells| &cells[..5])
+                == row_in(&edges, RowIndex(row))
+        });
+        let edge_names_kept = (0..edges.count.0).all(|row| {
+            row_in(&graph.edges, RowIndex(row)).and_then(|cells| cell(cells, ColumnIndex(3)).ok())
+                == Some(retained(4))
+        });
+        let third_root = cell(row_in(&graph.roots, RowIndex(2)).unwrap(), ColumnIndex(0)).unwrap();
         let columns = &graph.edge_columns[..graph.edge_columns.len() - 1];
         let walked = Edges {
             table: &graph.edges,
@@ -277,92 +310,32 @@ pub(super) fn equal_retained_hashes_use_exact_text_and_preserve_original_cells()
             from: columns,
             to: *graph.edge_columns.last().unwrap(),
         };
-        let mut total_expanded = 0;
-        let mut total_examined = 0;
-        for (root, expected) in [
-            (
-                a,
-                vec![
-                    OrderedVisit {
-                        edge: RowIndex(0),
-                        ordinal: Integer(0),
-                    },
-                    OrderedVisit {
-                        edge: RowIndex(1),
-                        ordinal: Integer(1),
-                    },
-                    OrderedVisit {
-                        edge: RowIndex(2),
-                        ordinal: Integer(2),
-                    },
-                ],
-            ),
-            (
-                b,
-                vec![
-                    OrderedVisit {
-                        edge: RowIndex(1),
-                        ordinal: Integer(0),
-                    },
-                    OrderedVisit {
-                        edge: RowIndex(2),
-                        ordinal: Integer(1),
-                    },
-                    OrderedVisit {
-                        edge: RowIndex(0),
-                        ordinal: Integer(2),
-                    },
-                ],
-            ),
-        ] {
+        let mut expanded = 0;
+        let mut examined = 0;
+        let mut visits = [a, b].map(|root| {
             let mut walk = OrderedWalk::default();
             begin_ordered(&walked, graph, &[ctx], root, &mut walk);
             let mut actual = Vec::new();
-            while let Some(visit) = next_ordered(&walked, graph, &[ctx], &mut walk).unwrap() {
+            while let Ok(Some(visit)) = next_ordered(&walked, graph, &[ctx], &mut walk) {
                 actual.push(visit);
             }
-            assert_eq!(actual, expected);
-            total_expanded += walk.expanded.0;
-            total_examined += walk.examined.0;
+            expanded += walk.expanded.0;
+            examined += walk.examined.0;
+            actual
+        });
+        let from_b = std::mem::take(&mut visits[1]);
+        let from_a = std::mem::take(&mut visits[0]);
+        Observed::RetainedNames {
+            same_text_shares_key: canonical_key(0) == canonical_key(1),
+            equal_hashes_share_key: canonical_key(0) == canonical_key(2),
+            roots_preserved,
+            edges_preserved,
+            edge_names_kept,
+            third_root,
+            from_a: Cow::Owned(from_a),
+            from_b: Cow::Owned(from_b),
+            expanded,
+            examined,
         }
-        assert_eq!(total_expanded, 6);
-        assert_eq!(total_examined, 6);
     })
-    .unwrap();
-    1
-}
-
-/// A scenario: what a row asks of the part.
-pub(crate) type Input = fn() -> Value;
-
-/// What a scenario answers: a yes as one.
-pub(crate) type Value = usize;
-
-/// A scenario that checks its own claims never fails as a whole.
-pub(crate) type Failure = std::convert::Infallible;
-
-/// The rows of this part's cases.
-pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("ordinal_overflow_follows_the_last_representable_visit"),
-        word: Word::Succeeds,
-        input: || ordinal_overflow_follows_the_last_representable_visit,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("nonnumeric_order_cell_is_refused_by_actual_derived_preparation"),
-        word: Word::Succeeds,
-        input: || nonnumeric_order_cell_is_refused_by_actual_derived_preparation,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName("equal_retained_hashes_use_exact_text_and_preserve_original_cells"),
-        word: Word::Succeeds,
-        input: || equal_retained_hashes_use_exact_text_and_preserve_original_cells,
-        expect: Expect::Value(1),
-    },
-];
-
-pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
-    Ok(scenario())
 }

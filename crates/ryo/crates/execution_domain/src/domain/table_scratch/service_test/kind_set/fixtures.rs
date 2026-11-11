@@ -1,40 +1,11 @@
 //! The support of the `kind_set` cases.
-use crate::domain::table_model::types::SetMembership;
-use crate::domain::table_scratch::service::kind_has;
 use crate::domain::table_scratch::types::{KindMask, KindSet};
 use ryo_relations::domain::relations::types::KindBits;
-use ryo_values::cases::{Case, CaseName, Expect, Word};
 
-/// A scenario: what a row asks of the part.
-pub(crate) type Input = fn() -> Result<Value, ()>;
-
-/// What a scenario answers: a yes as one.
-pub(crate) type Value = usize;
-
-/// This part has no failure of its own.
-pub(crate) type Failure = ();
-
-/// A kind is in a set when its bit is, and a kind beyond the set is out.
-pub(super) fn a_kind_is_in_the_set_by_its_bit() -> Value {
-    let set = KindSet {
+/// The set every row asks: kind 2 alone, held as bit 2 of the first mask word.
+pub(super) fn set() -> KindSet {
+    KindSet {
         bits: KindMask(vec![0b100]),
         kinds: vec![KindBits(2)],
-    };
-    usize::from(
-        kind_has(&set, KindBits(2)) == SetMembership::In
-            && kind_has(&set, KindBits(3)) == SetMembership::Out
-            && kind_has(&set, KindBits(130)) == SetMembership::Out,
-    )
-}
-
-/// The rows of this part's cases.
-pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("a_kind_is_in_the_set_by_its_bit"),
-    word: Word::Succeeds,
-    input: || || Ok(a_kind_is_in_the_set_by_its_bit()),
-    expect: Expect::Value(1),
-}];
-
-pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
-    scenario()
+    }
 }
