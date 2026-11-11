@@ -1,13 +1,12 @@
 //! Stored/compact decoding and ordinary equality bag order through the compiled owner.
 use super::super::cases::fixtures::table_of;
 use super::super::*;
-use super::fixtures::{assert_representation_parity, fact_column};
-use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+use super::fixtures::{
+    Fault, Join, Observed, Parity, Refused, fact_column, malformed_provider, parity, unsorted,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-#[cfg(test)]
 use fixtures::execution::*;
-#[cfg(test)]
-use fixtures::provider::*;
+use fixtures::provider::operation;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::Rows;
@@ -17,14 +16,195 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
+use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::service::row_in;
-use ryo_values::domain::{
-    plan_parts::types::{Side, StepId, StepScope},
-    plans::types::{Operation, PlanStep},
-    rows::types::{RowCount, Table},
-};
-fn exact_scalar_join_bag_order_reordered_and_empty_keys() {
+use ryo_values::domain::rows::types::Table;
+use std::borrow::Cow;
+
+type Input = Join;
+type Value = Observed;
+type Failure = Refused;
+
+/// A number cell.
+const fn number(value: i64) -> Cell {
+    Cell::Number(Integer(value))
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("exact_scalar_join_bag_order_reordered_and_empty_keys"),
+        word: Word::Succeeds,
+        input: || Join::Scalar,
+        expect: Expect::Value(Observed::Rows {
+            rows: 2,
+            cells: Cow::Borrowed(&[number(10), number(100), number(10), number(200)]),
+        }),
+    },
+    Case {
+        name: CaseName("stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows"),
+        word: Word::Succeeds,
+        input: || Join::StoredRight(&[0], &[0]),
+        expect: Expect::Value(Observed::Parity(Parity {
+            rows: 9,
+            made_equal: true,
+            delivered_equal: (true, true),
+            skipped: (0, 0),
+        })),
+    },
+    Case {
+        name: CaseName("a_stored_right_side_on_a_composite_key_preserves_rows"),
+        word: Word::Succeeds,
+        input: || Join::StoredRight(&[1, 0], &[1, 0]),
+        expect: Expect::Value(Observed::Parity(Parity {
+            rows: 5,
+            made_equal: true,
+            delivered_equal: (true, true),
+            skipped: (0, 0),
+        })),
+    },
+    Case {
+        name: CaseName("a_stored_right_side_on_a_reordered_composite_key_preserves_rows"),
+        word: Word::Succeeds,
+        input: || Join::StoredRight(&[0, 1], &[0, 1]),
+        expect: Expect::Value(Observed::Parity(Parity {
+            rows: 5,
+            made_equal: true,
+            delivered_equal: (true, true),
+            skipped: (0, 0),
+        })),
+    },
+    Case {
+        name: CaseName("a_stored_right_side_without_keys_preserves_rows"),
+        word: Word::Succeeds,
+        input: || Join::StoredRight(&[], &[]),
+        expect: Expect::Value(Observed::Parity(Parity {
+            rows: 20,
+            made_equal: true,
+            delivered_equal: (true, true),
+            skipped: (0, 0),
+        })),
+    },
+    Case {
+        name: CaseName("a_stored_right_side_on_unlike_keys_preserves_rows"),
+        word: Word::Succeeds,
+        input: || Join::StoredRight(&[0], &[1]),
+        expect: Expect::Value(Observed::Parity(Parity {
+            rows: 0,
+            made_equal: true,
+            delivered_equal: (true, true),
+            skipped: (0, 0),
+        })),
+    },
+    Case {
+        name: CaseName("repeated_projected_positions_preserve_reordered_key_cells_and_flags"),
+        word: Word::Succeeds,
+        input: || Join::Repeated(&[0, 1], &[1, 2]),
+        expect: Expect::Value(Observed::Parity(Parity {
+            rows: 3,
+            made_equal: true,
+            delivered_equal: (true, true),
+            skipped: (0, 0),
+        })),
+    },
+    Case {
+        name: CaseName("repeated_projected_positions_on_a_reordered_key_preserve_cells_and_flags"),
+        word: Word::Succeeds,
+        input: || Join::Repeated(&[1, 0], &[2, 1]),
+        expect: Expect::Value(Observed::Parity(Parity {
+            rows: 3,
+            made_equal: true,
+            delivered_equal: (true, true),
+            skipped: (0, 0),
+        })),
+    },
+    Case {
+        name: CaseName("repeated_projected_positions_without_keys_preserve_cells_and_flags"),
+        word: Word::Succeeds,
+        input: || Join::Repeated(&[], &[]),
+        expect: Expect::Value(Observed::Parity(Parity {
+            rows: 8,
+            made_equal: true,
+            delivered_equal: (true, true),
+            skipped: (0, 0),
+        })),
+    },
+    Case {
+        name: CaseName("malformed_storage_materializes_its_complete_prefix_before_owner_admission"),
+        word: Word::Succeeds,
+        input: || Join::MalformedStorage,
+        expect: Expect::Value(Observed::Materialized {
+            rows: 2,
+            logical: Cow::Borrowed(&[number(1), number(10), number(1), number(11)]),
+            joined: Cow::Borrowed(&[number(10), number(11)]),
+        }),
+    },
+    Case {
+        name: CaseName("unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact"),
+        word: Word::Succeeds,
+        input: || Join::Unsorted(Fault::None),
+        expect: Expect::Value(Observed::Delivered {
+            prefix: Cow::Borrowed(&[number(20), number(21), number(22)]),
+            index_cells: 0,
+        }),
+    },
+    Case {
+        name: CaseName("an_unsorted_duplicate_join_keeps_the_sink_prefix_before_its_refusal"),
+        word: Word::Refuses,
+        input: || Join::Unsorted(Fault::SinkAfterOne),
+        expect: Expect::Error(Refused {
+            error: OperatingError::NotRun,
+            prefix: Cow::Borrowed(&[number(20)]),
+            index_rows: 4,
+        }),
+    },
+    Case {
+        name: CaseName("an_unsorted_duplicate_join_keeps_the_left_source_refusal"),
+        word: Word::Refuses,
+        input: || Join::Unsorted(Fault::Left),
+        expect: Expect::Error(Refused {
+            error: OperatingError::NotRun,
+            prefix: Cow::Borrowed(&[]),
+            index_rows: 0,
+        }),
+    },
+    Case {
+        name: CaseName("an_unsorted_duplicate_join_keeps_the_right_source_refusal"),
+        word: Word::Refuses,
+        input: || Join::Unsorted(Fault::Right),
+        expect: Expect::Error(Refused {
+            error: OperatingError::NotRead,
+            prefix: Cow::Borrowed(&[]),
+            index_rows: 0,
+        }),
+    },
+    Case {
+        name: CaseName(
+            "malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complete_prefix",
+        ),
+        word: Word::Succeeds,
+        input: || Join::MalformedProvider,
+        expect: Expect::Value(Observed::Delivered {
+            prefix: Cow::Borrowed(&[number(10), number(11)]),
+            index_cells: 0,
+        }),
+    },
+];
+
+/// Runs the Join.
+fn exercise(join: Join) -> Result<Observed, Refused> {
+    match join {
+        Join::Scalar => Ok(scalar()),
+        Join::StoredRight(l, r) => Ok(stored_right(l, r)),
+        Join::Repeated(l, r) => Ok(repeated(l, r)),
+        Join::MalformedStorage => Ok(malformed_storage()),
+        Join::Unsorted(fault) => unsorted(fault),
+        Join::MalformedProvider => malformed_provider(),
+    }
+}
+
+/// Joins two scalar rows to three, keyed on the first column.
+fn scalar() -> Observed {
     let n = |n| Cell::Number(Integer(n));
     let left = table_of(&[CellKind::Number; 2], &[&[n(1), n(10)], &[n(2), n(20)]]);
     let right = table_of(
@@ -45,11 +225,14 @@ fn exact_scalar_join_bag_order_reordered_and_empty_keys() {
         b"",
     )
     .unwrap();
-    assert_eq!(actual.count, RowCount(2));
-    assert_eq!(actual.cells, [n(10), n(100), n(10), n(200)]);
+    Observed::Rows {
+        rows: actual.count.0,
+        cells: Cow::Owned(actual.cells),
+    }
 }
 
-fn stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows() {
+/// Joins four left rows to a stored right side on the keys `l` and `r`.
+fn stored_right(l: &[u32], r: &[u32]) -> Observed {
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];
     let columns = [
         fact_column(&[1, 2, 1, 3, 1]),
@@ -73,16 +256,10 @@ fn stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows() {
             &[n(9), flag(true)],
         ],
     );
-    for (l, r) in [
-        (vec![0], vec![0]),
-        (vec![1, 0], vec![1, 0]),
-        (vec![0, 1], vec![0, 1]),
-        (vec![], vec![]),
-        (vec![0], vec![1]),
-    ] {
+    {
         let op = operation(
-            &l,
-            &r,
+            l,
+            r,
             &[
                 (Side::Right, 2),
                 (Side::Left, 0),
@@ -93,10 +270,11 @@ fn stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows() {
             vec![],
             &[],
         );
-        assert_representation_parity(&op, &left, right.clone(), &computed);
+        Observed::Parity(parity(&op, &left, right, &computed))
     }
 }
-fn repeated_projected_positions_preserve_reordered_key_cells_and_flags() {
+/// Joins two left rows to a stored selection that repeats its projected positions, on `l` and `r`.
+fn repeated(l: &[u32], r: &[u32]) -> Observed {
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];
     let columns = [
         fact_column(&[1, 2, 1, 3, 1]),
@@ -138,19 +316,15 @@ fn repeated_projected_positions_preserve_reordered_key_cells_and_flags() {
             &[n(1), Cell::Flag(Flag::Raised)],
         ],
     );
-    for (l, r) in [
-        (vec![0, 1], vec![1, 2]),
-        (vec![1, 0], vec![2, 1]),
-        (vec![], vec![]),
-    ] {
+    {
         let op = operation(
-            &l,
-            &r,
+            l,
+            r,
             &[(Side::Right, 0), (Side::Right, 0), (Side::Left, 0)],
             vec![],
             &[],
         );
-        assert_representation_parity(
+        Observed::Parity(parity(
             &op,
             &left,
             Rows::Stored(ColumnsView {
@@ -158,10 +332,11 @@ fn repeated_projected_positions_preserve_reordered_key_cells_and_flags() {
                 columns: &stored,
             }),
             &selected,
-        );
+        ))
     }
 }
-fn malformed_storage_materializes_its_complete_prefix_before_owner_admission() {
+/// Materializes stored columns of three and two rows, then joins the result.
+fn malformed_storage() -> Observed {
     let columns = [fact_column(&[1, 1, 1]), fact_column(&[10, 11])];
     let mut logical = Table::default();
     materialize(
@@ -172,11 +347,6 @@ fn malformed_storage_materializes_its_complete_prefix_before_owner_admission() {
         &mut logical,
         &mut vec![],
     );
-    assert_eq!(logical.count, RowCount(2));
-    assert_eq!(
-        logical.cells,
-        [1, 10, 1, 11].map(|n| Cell::Number(Integer(n)))
-    );
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(1))]]);
     let op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
     let out = made(
@@ -186,219 +356,23 @@ fn malformed_storage_materializes_its_complete_prefix_before_owner_admission() {
         b"",
     )
     .unwrap();
-    assert_eq!(out.cells, [10, 11].map(|n| Cell::Number(Integer(n))));
-}
-fn unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact() {
-    let n = |n| Cell::Number(Integer(n));
-    let left = table_of(&[CellKind::Number], &[&[n(2)]]);
-    let columns = [fact_column(&[2, 1, 2, 2]), fact_column(&[20, 10, 21, 22])];
-    let right = Rows::Stored(ColumnsView {
-        kinds: &[CellKind::Number; 2],
-        columns: &columns,
-    });
-    let op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
-    let good = invoke(
-        &op,
-        [Rows::Computed(&left), right.clone()],
-        &mut Symbols::default(),
-        b"",
-        true,
-        real_port(),
-        Faults::default(),
-    )
-    .unwrap();
-    assert_eq!(good.prefix, vec![vec![n(20)], vec![n(21)], vec![n(22)]]);
-    assert!(good.result.is_ok());
-    assert_eq!(good.work.index_cells, 0);
-    let sink = invoke(
-        &op,
-        [Rows::Computed(&left), right.clone()],
-        &mut Symbols::default(),
-        b"",
-        true,
-        real_port(),
-        Faults {
-            sink_after: Some(1),
-            ..Faults::default()
-        },
-    )
-    .unwrap();
-    assert_eq!(sink.result, Err(OperatingError::NotRun));
-    assert_eq!(sink.prefix, vec![vec![n(20)]]);
-    for (fault, error) in [
-        (
-            Faults {
-                left: Some(OperatingError::NotRun),
-                ..Faults::default()
-            },
-            OperatingError::NotRun,
-        ),
-        (
-            Faults {
-                right: Some(OperatingError::NotRead),
-                ..Faults::default()
-            },
-            OperatingError::NotRead,
-        ),
-    ] {
-        let refused = invoke(
-            &op,
-            [Rows::Computed(&left), right.clone()],
-            &mut Symbols::default(),
-            b"",
-            true,
-            real_port(),
-            fault,
-        )
-        .unwrap();
-        assert_eq!(refused.result, Err(error));
-        assert!(refused.prefix.is_empty());
-        assert_eq!(refused.work.index_rows, 0);
+    Observed::Materialized {
+        rows: logical.count.0,
+        logical: Cow::Owned(logical.cells),
+        joined: Cow::Owned(out.cells),
     }
 }
-
-fn malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complete_prefix() {
-    let n = |n| Cell::Number(Integer(n));
-    let left = table_of(&[CellKind::Number], &[&[n(1)]]);
-    let right = table_of(
-        &[CellKind::Number; 2],
-        &[&[n(1), n(10)], &[n(1), n(11)], &[n(1), n(12)]],
-    );
-    let mut steps = vec![];
-    let (left, l) = provider(Rows::Computed(&left), 0, &mut steps);
-    let right_columns = [FactColumn(vec![1, 1, 1]), FactColumn(vec![10, 11, 12])];
-    let (mut right, r) = provider(
-        Rows::Stored(ColumnsView {
-            kinds: &[CellKind::Number; 2],
-            columns: &right_columns,
-        }),
-        1,
-        &mut steps,
-    );
-    let Operation::Select { kept, .. } = &steps[1].operation else {
-        panic!("the fixture builds a Select")
-    };
-    right.columns[kept[1].0 as usize].0.truncate(2);
-    let mut join = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
-    let Operation::Join {
-        left: from,
-        right: other,
-        ..
-    } = &mut join
-    else {
-        panic!("the fixture builds a Join")
-    };
-    *from = l;
-    *other = r;
-    steps.push(PlanStep {
-        scope: StepScope::PerFile,
-        operation: join,
-    });
-    let mut request = plan(Scenario::ProjectRetry);
-    request.steps = steps;
-    request.emit.step = StepId(2);
-    let actual = execute(
-        request,
-        [left, right],
-        &mut Symbols::default(),
-        b"",
-        true,
-        real_port(),
-        Faults::default(),
-    )
-    .unwrap();
-    assert_eq!(actual.prefix, vec![vec![n(10)], vec![n(11)]]);
-    assert!(actual.result.is_ok());
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Proof {
-    ExactScalarJoinBagOrderReorderedAndEmptyKeys,
-    StoredRightCompositeReorderedEmptyAndUnlikeKeysPreserveRows,
-    RepeatedProjectedPositionsPreserveReorderedKeyCellsAndFlags,
-    MalformedStorageMaterializesItsCompletePrefixBeforeOwnerAdmission,
-    UnsortedDuplicateRowsSinkPrefixAndSourceRefusalsAreExact,
-    MalformedProviderIsNormalizedByTheRealOwnerBeforeJoiningItsCompletePrefix,
-}
-
-type Input = Proof;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("exact_scalar_join_bag_order_reordered_and_empty_keys"),
-        word: Word::Succeeds,
-        input: || Proof::ExactScalarJoinBagOrderReorderedAndEmptyKeys,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows"),
-        word: Word::Succeeds,
-        input: || Proof::StoredRightCompositeReorderedEmptyAndUnlikeKeysPreserveRows,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("repeated_projected_positions_preserve_reordered_key_cells_and_flags"),
-        word: Word::Succeeds,
-        input: || Proof::RepeatedProjectedPositionsPreserveReorderedKeyCellsAndFlags,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("malformed_storage_materializes_its_complete_prefix_before_owner_admission"),
-        word: Word::Succeeds,
-        input: || Proof::MalformedStorageMaterializesItsCompletePrefixBeforeOwnerAdmission,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact"),
-        word: Word::Succeeds,
-        input: || Proof::UnsortedDuplicateRowsSinkPrefixAndSourceRefusalsAreExact,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complete_prefix",
-        ),
-        word: Word::Succeeds,
-        input: || Proof::MalformedProviderIsNormalizedByTheRealOwnerBeforeJoiningItsCompletePrefix,
-        expect: Expect::Value(()),
-    },
-];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Proof::ExactScalarJoinBagOrderReorderedAndEmptyKeys => {
-            exact_scalar_join_bag_order_reordered_and_empty_keys();
-            Ok(())
-        }
-        Proof::StoredRightCompositeReorderedEmptyAndUnlikeKeysPreserveRows => {
-            stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows();
-            Ok(())
-        }
-        Proof::RepeatedProjectedPositionsPreserveReorderedKeyCellsAndFlags => {
-            repeated_projected_positions_preserve_reordered_key_cells_and_flags();
-            Ok(())
-        }
-        Proof::MalformedStorageMaterializesItsCompletePrefixBeforeOwnerAdmission => {
-            malformed_storage_materializes_its_complete_prefix_before_owner_admission();
-            Ok(())
-        }
-        Proof::UnsortedDuplicateRowsSinkPrefixAndSourceRefusalsAreExact => {
-            unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact();
-            Ok(())
-        }
-        Proof::MalformedProviderIsNormalizedByTheRealOwnerBeforeJoiningItsCompletePrefix => {
-            malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complete_prefix();
-            Ok(())
-        }
-    }
+/// Runs the Join.
+fn subject(join: Input) -> Result<Value, Failure> {
+    exercise(join)
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
