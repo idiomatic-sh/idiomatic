@@ -1,71 +1,71 @@
-//! Behavioral contract shared by the injected operator adapter and test fake.
+//! Behavioral contract shared by the injected operator adapter and test fake, driven through a call the engine makes.
+use super::reduce_count::{Groups, table};
 use crate::outbound::operators::interface::OperatorsPort;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::reduction::types::GroupColumns;
 use ryo_operators::inbound::use_cases::operators::types::{OperatorAnswer, OperatorCall};
-use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::RowIndex;
+use std::borrow::Cow;
 
-type Input = (Vec<CellValue>, Vec<ColumnIndex>);
-type Value = [CellValue; 3];
+/// Rows of two numbers, already in the prepared key order the engine hands the reduction, and the key columns they are counted by.
+type Input = (Vec<[i64; 2]>, Vec<ColumnIndex>);
+/// Each group's first row and how many rows it counted, in first-occurrence order.
+type Value = Cow<'static, [(usize, usize)]>;
 type Failure = PortableOperatorFault;
 
-/// Observable projection order and first missing-column refusal across the port.
+/// Observable group counts and key-column refusal across the port.
 pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("repeated_columns_keep_order"),
+        name: CaseName("rows_in_prepared_key_order_are_counted_into_their_groups"),
         word: Word::Succeeds,
-        input: || {
-            (
-                vec![CellValue::Number(Integer(7)), CellValue::Number(Integer(9))],
-                vec![ColumnIndex(1), ColumnIndex(0), ColumnIndex(1)],
-            )
-        },
-        expect: Expect::Value([
-            CellValue::Number(Integer(9)),
-            CellValue::Number(Integer(7)),
-            CellValue::Number(Integer(9)),
-        ]),
+        input: || (vec![[1, 7], [2, 7], [2, 8], [2, 7]], vec![ColumnIndex(0)]),
+        expect: Expect::Value(Cow::Borrowed(&[(0, 1), (1, 3)])),
     },
     Case {
-        name: CaseName("first_absent_column_is_reported"),
+        name: CaseName("an_absent_key_column_is_refused"),
         word: Word::Refuses,
-        input: || {
-            (
-                vec![CellValue::Number(Integer(7))],
-                vec![ColumnIndex(3), ColumnIndex(2)],
-            )
-        },
+        input: || (vec![[2, 7]], vec![ColumnIndex(9)]),
         expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
-            index: ryo_values::domain::plan_parts::types::ColumnIndex(3),
+            index: ColumnIndex(9),
         }),
     },
 ];
+
+/// Counts `rows`, taken in their own order as the prepared key order, by `keys` through `adapter` into `target`.
+///
+/// # Errors
+///
+/// The fault the port answers.
+pub fn count(
+    adapter: &impl OperatorsPort,
+    rows: &[[i64; 2]],
+    keys: &[ColumnIndex],
+    target: &mut Groups,
+) -> Result<OperatorAnswer, PortableOperatorFault> {
+    let table = table(rows);
+    let order: Vec<RowIndex> = (0..rows.len()).map(RowIndex).collect();
+    adapter.operators(OperatorCall::ReduceCount {
+        table: &table,
+        keys: GroupColumns::Columns(keys),
+        distinct: None,
+        order: &order,
+        values: &mut Vec::new(),
+        target,
+    })
+}
 
 /// Run the same observable cases for every implementation of the engine port.
 ///
 /// # Panics
 ///
-/// When the implementation changes ordered projection or its refusal.
-#[expect(
-    clippy::expect_used,
-    reason = "a contract fixture: a projection that writes other than three cells is the change it reports by failing"
-)]
+/// When the implementation changes the group counts or their refusal.
 pub fn check(adapter: &impl OperatorsPort) {
-    let subject = |(row, columns): Input| {
-        let mut output = Vec::new();
-        match adapter.operators(OperatorCall::Project {
-            row: &row,
-            columns: &columns,
-            target: &mut output,
-        })? {
-            OperatorAnswer::Written => Ok(output.try_into().expect("three projected cells")),
-            OperatorAnswer::Selected(_)
-            | OperatorAnswer::Rank(_)
-            | OperatorAnswer::ValueHash(_)
-            | OperatorAnswer::SpanBounds(_)
-            | OperatorAnswer::SpanBetween(_) => panic!("project must write a row"),
-        }
+    let subject = |(rows, keys): Input| {
+        let mut groups = Groups::default();
+        let _answer = count(adapter, &rows, &keys, &mut groups)?;
+        Ok(Cow::Owned(groups.0))
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
