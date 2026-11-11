@@ -33,24 +33,13 @@ pub(crate) fn entry(kind: DerivedKind) -> Entry {
         DerivedKind::Adjacency | DerivedKind::Membership => Entry::Graph,
     }
 }
-pub(crate) fn released(kind: DerivedKind, exit: Exit, ledger: (usize, usize, usize)) {
-    assert_eq!(
-        ledger,
-        (0, 0, 0),
-        "{kind:?} {exit:?}: every lease retires with the owner generation"
-    );
-}
 /// The exit itself: the handles and results of the production entry are dropped and the generation
 /// is still live, so nothing but the entry's own release can have returned the required bytes to
-/// `floor`, what the owner keeps for its admitted sources until the generation retires.
-pub(crate) fn released_at_exit(
-    kind: DerivedKind,
-    exit: Exit,
-    ledger: (usize, usize, usize),
-    floor: usize,
-) {
-    assert_eq!(
-        ledger.0, floor,
-        "{kind:?} {exit:?}: the exit itself releases the required lease, before the generation retires"
-    );
+/// `floor`, what the owner keeps for its admitted sources until the generation retires. Answers the
+/// lease left charged when they were not.
+pub(crate) fn left_at_exit(required: usize, floor: usize) -> Option<super::super::Leaked> {
+    (required != floor).then_some(super::super::Leaked {
+        before: floor,
+        after: required,
+    })
 }

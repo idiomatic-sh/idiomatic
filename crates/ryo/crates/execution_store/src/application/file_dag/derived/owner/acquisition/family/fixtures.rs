@@ -1,9 +1,11 @@
 //! Actual publications enter the production owner; no registry, payload factory or executor is copied.
 mod demand;
+pub mod departed;
 mod refusing;
 mod request;
 pub mod route;
 use self::demand::demand;
+use self::departed::{Departed, Refused, Seen, advanced, departed, read};
 use self::request::{observed, request};
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::application::file_dag::relations::types::ProducerId;
@@ -25,10 +27,11 @@ use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     rows::types::{RowCount, Table},
 };
+use std::borrow::Cow;
 use std::{rc::Rc, sync::Arc};
 
 /// How the last consumer of one family leaves: each departure ends with the owner generation
-/// retired, and `exercise` asserts that no required, optional or unique byte remains charged.
+/// retired, and `exercise` answers what the owner still charges then.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Departure {
     /// The view is acquired, read and dropped.
@@ -73,34 +76,26 @@ enum Release {
     /// A fake exit that releases nothing; the control that proves a leak is detected.
     Forgetful,
 }
-/// Runs one acquisition family's departure and answers the kind it acquired.
+/// Runs one acquisition family's departure through the production exit and answers what it observed.
 ///
 /// # Errors
 ///
-/// The production refusal the departure drives the family into, or the first refusal of its setup.
-///
-/// # Panics
-///
-/// When the production exit leaves a lease charged, or a departure's assertion about the owner fails.
-pub fn exercise(kind: DerivedKind, departure: Departure) -> Result<DerivedKind, OperatingError> {
-    let (actual, leaked) = drive(kind, departure, Release::Production);
-    assert_eq!(
-        leaked, None,
-        "{kind:?} {departure:?}: the production exit itself releases the lease, before the generation retires"
-    );
-    actual
+/// The production refusal the departure drives the family into, or the first refusal of its setup,
+/// with what the route observed.
+pub fn exercise(kind: DerivedKind, departure: Departure) -> Result<Departed, Refused> {
+    drive(kind, departure, Release::Production)
 }
-/// The negative control: the same exit with a release that never happens must be observed as a
-/// leak by the ledger before the fixture retires the generation. `None` means the exit was not
-/// reached (a departure that retires the generation first) or nothing stayed charged.
-pub fn exercise_forgetful(kind: DerivedKind, departure: Departure) -> Option<Leaked> {
-    drive(kind, departure, Release::Forgetful).1
+/// The negative control: the same exit with a release that never happens, which the ledger must
+/// observe as a leak before the fixture retires the generation. `leaked` is none when the exit was
+/// not reached (a departure that retires the generation first) or nothing stayed charged.
+///
+/// # Errors
+///
+/// As [`exercise`].
+pub fn exercise_forgetful(kind: DerivedKind, departure: Departure) -> Result<Departed, Refused> {
+    drive(kind, departure, Release::Forgetful)
 }
-fn drive(
-    kind: DerivedKind,
-    departure: Departure,
-    release: Release,
-) -> (Result<DerivedKind, OperatingError>, Option<Leaked>) {
+fn drive(kind: DerivedKind, departure: Departure, release: Release) -> Result<Departed, Refused> {
     let port: Arc<dyn crate::outbound::derived::interface::DerivedPort> =
         if departure == Departure::BuildFails {
             Arc::new(refusing::RefusingBuild)
@@ -112,21 +107,28 @@ fn drive(
         port,
     ));
     let mut leaked = None;
-    let actual = acquire(kind, departure, Rc::clone(&owner), release, &mut leaked);
-    owner.release_population();
-    assert_eq!(
-        owner.derived().publication_ownership_bytes(),
-        (0, 0, 0),
-        "{kind:?} {departure:?}: every lease retires with the owner generation"
+    let mut along = Vec::new();
+    let actual = acquire(
+        kind,
+        departure,
+        Rc::clone(&owner),
+        release,
+        (&mut leaked, &mut along),
     );
-    (actual, leaked)
+    owner.release_population();
+    departed(
+        actual,
+        along,
+        leaked,
+        owner.derived().publication_ownership_bytes(),
+    )
 }
 fn acquire(
     kind: DerivedKind,
     departure: Departure,
     owner: Rc<RelationOwner>,
     release: Release,
-    leaked: &mut Option<Leaked>,
+    (leaked, along): (&mut Option<Leaked>, &mut Vec<Seen>),
 ) -> Result<DerivedKind, OperatingError> {
     let SmallTree {
         elements,
@@ -158,24 +160,16 @@ fn acquire(
                 destination,
                 Rc::clone(&owner),
             )?;
-            assert_eq!(
-                cursor.advance()?,
-                crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced
-            );
-            assert_eq!(cursor.current()?.key, &[Value::Number(Integer(0))]);
+            along.push(advanced(cursor.advance()));
+            along.push(Seen::Key(Cow::Owned(cursor.current()?.key.to_vec())));
             match departure {
                 Departure::Cancelled => {}
                 Departure::Held => {
+                    // The held partition outlives the retired generation; the next partition is a
+                    // new demand on it.
                     owner.release_population();
-                    assert_eq!(
-                        cursor.current()?.key,
-                        &[Value::Number(Integer(0))],
-                        "the held partition outlives the retired generation"
-                    );
-                    assert!(
-                        matches!(cursor.advance(), Err(OperatingError::NotRead)),
-                        "the next partition is a new demand on a retired generation"
-                    );
+                    along.push(Seen::Key(Cow::Owned(cursor.current()?.key.to_vec())));
+                    along.push(advanced(cursor.advance()));
                 }
                 Departure::Succeeds
                 | Departure::Stale
@@ -183,9 +177,10 @@ fn acquire(
                 | Departure::OtherPopulation
                 | Departure::RetargetedDescriptor
                 | Departure::BuildFails => {
-                    assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced, "the second actual partition rebuilds the scoped acquired view");
-                    assert_eq!(cursor.current()?.key, &[Value::Number(Integer(1))]);
-                    assert_eq!(cursor.advance()?, crate::application::file_dag::closure_partitions::types::PartitionAdvance::Exhausted);
+                    // The second actual partition rebuilds the scoped acquired view.
+                    along.push(advanced(cursor.advance()));
+                    along.push(Seen::Key(Cow::Owned(cursor.current()?.key.to_vec())));
+                    along.push(advanced(cursor.advance()));
                 }
             }
             return Ok(DerivedKind::ClosureAdjacency);
@@ -328,18 +323,13 @@ fn acquire(
         }
         Departure::Stale => owner.release_population(),
         Departure::Held => {
+            // A held lease stays readable after retirement; a new demand on the retired
+            // generation refuses.
             let held = demand(kind, &owner, &plan, &admitted, rows, &mut symbols)?;
             owner.release_population();
-            assert_eq!(
-                observed(&held)?,
-                kind,
-                "{kind:?}: a held lease stays readable after retirement"
-            );
+            along.push(read(observed(&held)));
             let again = demand(kind, &owner, &plan, &admitted, rows, &mut symbols);
-            assert!(
-                matches!(again, Err(OperatingError::NotRead)),
-                "{kind:?}: a new demand on the retired generation refuses, got {again:?}"
-            );
+            along.push(read(again.and_then(|view| observed(&view))));
             return Ok(kind);
         }
         Departure::Succeeds

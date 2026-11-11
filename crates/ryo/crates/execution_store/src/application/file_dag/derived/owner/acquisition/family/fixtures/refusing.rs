@@ -9,7 +9,6 @@ use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDeriv
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_relations::domain::relations::types::CellKind;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub(super) struct RefusingBuild;

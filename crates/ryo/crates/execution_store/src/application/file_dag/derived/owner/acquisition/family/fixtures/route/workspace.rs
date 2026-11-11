@@ -2,11 +2,11 @@
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::request::{
     observed, request,
 };
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
-    Exit, released,
-};
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::Exit;
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    SmallTree, numbers, small_tree,
+    SmallTree,
+    departed::{Departed, Refused, Seen, departed, read},
+    numbers, small_tree,
 };
 use crate::application::file_dag::{
     derived::owner::{acquisition::admission::service::AcquiredView, service::ViewContext},
@@ -30,20 +30,26 @@ use ryo_relations::domain::relations::types::{CellKind, FileId, NodeId, Relation
 use ryo_values::domain::files::types::SourceView;
 use std::{rc::Rc, sync::Arc};
 
-pub(super) fn workspace(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
+pub(super) fn workspace(kind: DerivedKind, exit: Exit) -> Result<Departed, Refused> {
     let owner = Rc::new(RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         program_derived_port(),
     ));
-    let result = through_workspace(kind, exit, &owner);
+    let mut along = Vec::new();
+    let result = through_workspace(kind, exit, &owner, &mut along);
     owner.release_population();
-    released(kind, exit, owner.derived().publication_ownership_bytes());
-    result
+    departed(
+        result,
+        along,
+        None,
+        owner.derived().publication_ownership_bytes(),
+    )
 }
 fn through_workspace(
     kind: DerivedKind,
     exit: Exit,
     owner: &Rc<RelationOwner>,
+    along: &mut Vec<Seen>,
 ) -> Result<DerivedKind, OperatingError> {
     let SmallTree {
         elements,
@@ -128,20 +134,14 @@ fn through_workspace(
         }
         Exit::Succeeds => {
             let view = demand(kind, &admissions, &use_, &mut symbols, false)?;
-            assert_eq!(
-                observed(&view)?,
-                kind,
-                "{kind:?}: the leased view reports its family"
-            );
+            along.push(read(observed(&view)));
             Ok(kind)
         }
         Exit::Errors => {
             if !native {
+                // Inputs of another family are refused by the owner.
                 let wrong = demand(kind, &admissions, &use_, &mut symbols, true);
-                assert!(
-                    wrong.is_err(),
-                    "{kind:?}: inputs of another family are refused by the owner"
-                );
+                along.push(read(wrong.and_then(|view| observed(&view))));
             }
             owner.release_population();
             demand(kind, &admissions, &use_, &mut symbols, false).map(|_| kind)

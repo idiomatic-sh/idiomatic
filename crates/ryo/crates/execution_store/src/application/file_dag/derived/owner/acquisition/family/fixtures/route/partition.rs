@@ -1,7 +1,8 @@
 //! The partition entry: families acquired through the `PartitionedClosure` cursor.
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::numbers;
-use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
-    Exit, released,
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::Exit;
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::{
+    departed::{Departed, Refused, Seen, advanced, departed},
+    numbers,
 };
 use crate::application::file_dag::{
     fixtures::program_derived_port, relations::service::RelationOwner,
@@ -12,20 +13,26 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
 
-pub(super) fn partition(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
+pub(super) fn partition(kind: DerivedKind, exit: Exit) -> Result<Departed, Refused> {
     let owner = Rc::new(RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
         program_derived_port(),
     ));
-    let result = through_partition(kind, exit, &owner);
+    let mut along = Vec::new();
+    let result = through_partition(kind, exit, &owner, &mut along);
     owner.release_population();
-    released(kind, exit, owner.derived().publication_ownership_bytes());
-    result
+    departed(
+        result,
+        along,
+        None,
+        owner.derived().publication_ownership_bytes(),
+    )
 }
 fn through_partition(
     kind: DerivedKind,
     exit: Exit,
     owner: &Rc<RelationOwner>,
+    along: &mut Vec<Seen>,
 ) -> Result<DerivedKind, OperatingError> {
     let publication = owner.computed(numbers())?;
     let held = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
@@ -42,11 +49,7 @@ fn through_partition(
     match exit {
         Exit::Cancelled => Ok(kind),
         Exit::Succeeds => {
-            assert_eq!(
-                cursor.advance()?,
-                crate::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced,
-                "{kind:?}: the first partition is built"
-            );
+            along.push(advanced(cursor.advance()));
             Ok(kind)
         }
         Exit::Errors => {

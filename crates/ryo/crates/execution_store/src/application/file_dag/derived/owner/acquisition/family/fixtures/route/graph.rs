@@ -1,6 +1,9 @@
 //! The graph entry: adjacency and membership acquired through an admitted graph input.
+use crate::application::file_dag::derived::owner::acquisition::family::fixtures::departed::{
+    Departed, Refused, departed,
+};
 use crate::application::file_dag::derived::owner::acquisition::family::fixtures::route::exit::{
-    Exit, released, released_at_exit,
+    Exit, left_at_exit,
 };
 use crate::application::file_dag::derived::owner::{
     fixtures::{graph::GraphFixture, graph_snapshot::Snapshot},
@@ -12,16 +15,13 @@ use ryo_execution_domain::domain::{operating::errors::OperatingError, table_mode
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
 
-pub(super) fn graph(kind: DerivedKind, exit: Exit) -> Result<DerivedKind, OperatingError> {
+pub(super) fn graph(kind: DerivedKind, exit: Exit) -> Result<Departed, Refused> {
     let fixture = GraphFixture::new(&[Relation::Function, Relation::Identifier], &[], LIMIT);
     let mut floor = 0;
     let result = through_graph(kind, exit, &fixture, &mut floor);
-    let at_exit = fixture.snapshot();
-    released_at_exit(kind, exit, retained(&at_exit), floor);
+    let leaked = left_at_exit(retained(&fixture.snapshot()).0, floor);
     fixture.clear();
-    let state = fixture.snapshot();
-    released(kind, exit, retained(&state));
-    result
+    departed(result, Vec::new(), leaked, retained(&fixture.snapshot()))
 }
 /// The required, optional and unique bytes the owner retains.
 fn retained(state: &Snapshot) -> (usize, usize, usize) {
@@ -84,18 +84,15 @@ fn through_graph(
             // The entry refuses a demand for the other family while the generation is live; the
             // leases it holds are released by the exit, not by retiring the generation.
             let _held = if membership { Some(domain()?) } else { None };
-            let wrong = fixture.acquire_wrong(
-                source,
-                &rows,
-                ViewRequest::Membership {
-                    column: ColumnIndex(0),
-                },
-            );
-            assert!(
-                wrong.is_err(),
-                "{kind:?}: a demand for another family is refused"
-            );
-            wrong.map(|_| kind)
+            fixture
+                .acquire_wrong(
+                    source,
+                    &rows,
+                    ViewRequest::Membership {
+                        column: ColumnIndex(0),
+                    },
+                )
+                .map(|_| kind)
         }
     }
 }
