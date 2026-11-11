@@ -1,5 +1,5 @@
 //! Registered-operator evaluation of a kernel session.
-use crate::application::file_dag::invocation::service::InvocationResources;
+use crate::application::file_dag::invocation::types::InvocationResources;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;

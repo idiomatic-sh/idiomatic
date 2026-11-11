@@ -2,7 +2,7 @@
 
 use super::super::super::executor::{service::PrimitiveExecutor, types::KernelCall};
 use super::super::super::{
-    invocation::service::InvocationResources, predicates::types::BoundPredicate,
+    invocation::types::InvocationResources, predicates::types::BoundPredicate,
 };
 use super::capability::service::ExecutableLease;
 use crate::application::file_dag::executor::{types::KernelAnswer, types::KernelFault};

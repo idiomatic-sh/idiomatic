@@ -9,7 +9,7 @@ use ryo_execution_domain::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::LiteralText;
 
-use super::super::service::*;
+use super::super::types::{InvocationInputs, InvocationResources};
 use ryo_execution_domain::domain::operator::contract::types::PrimitiveResources;
 
 impl PrimitiveResources for InvocationInputs<'_> {

@@ -2,7 +2,7 @@
 
 use super::super::*;
 
-use super::super::service::*;
+use super::super::types::InvocationResources;
 
 impl InvocationResources<'_> {
     #[cfg(test)]
@@ -21,7 +21,7 @@ impl InvocationResources<'_> {
             .inputs
             .index
             .as_ref()
-            .and_then(super::super::index::service::IndexResource::view);
+            .and_then(index::service::IndexResource::view);
         let primitive = workspace.primitive();
         let distinct = usize::from(
             primitive

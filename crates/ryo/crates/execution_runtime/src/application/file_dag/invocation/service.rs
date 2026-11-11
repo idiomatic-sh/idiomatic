@@ -1,8 +1,8 @@
-// ignore: idiomatic.arch/file-length - in the fused rewrite's replaced set (rewrite-replaced.toml): one invocation's preparation and the resources it holds, which the rewrite deletes whole; the part's module file kept 171 of these lines until the part-namespace placement moved them here
 //! Invocation resources are acquired once, at the contract's demand boundary.
 use super::groups::service::groups;
 use super::index::{service::IndexResource, types::EmptyInput};
 use super::prepared_use::service::prepared;
+use super::types::{AcquiredPartitions, InvocationInputs, InvocationResources};
 use crate::application::file_dag::axis_resources::service::prepare_axis;
 use crate::application::file_dag::resources::service::appended_values;
 use ryo_execution_domain::domain::operator::contract::{
@@ -10,15 +10,12 @@ use ryo_execution_domain::domain::operator::contract::{
     types::OperatorContract,
     views::types::NativeJoin,
 };
-use ryo_execution_domain::domain::table_groups::types::Group;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::types::Texts;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::types::OperatorContext,
 };
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
-use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -329,70 +326,6 @@ pub(super) fn input<'f>(
         .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
 }
 
-/// Resources are prepared once, after the scheduler's static/empty/first-row gates.
-/// Regex resources are acquired separately after the checked physical/text row gates.
-pub(crate) struct InvocationResources<'f> {
-    pub(crate) cached_graph: Option<ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::CachedGraph>,
-    pub(crate) inputs: InvocationInputs<'f>,
-}
-
-impl<'f> InvocationResources<'f> {
-    /// Validate required Join resource metadata without constructing a payload.
-    /// Availability, geometry and static output checks remain at their existing
-    /// owner boundaries; an optional unsupported native lookup still declines.
-    pub(crate) fn validate_row_metadata(
-        contract: &OperatorContract,
-        inputs: &[RepresentationInput<'_>],
-    ) -> Result<(), OperatingError> {
-        use ryo_derived::domain::request::types::DerivedKind;
-        let ResourceProgram::Join(join) = &contract.resources else {
-            return Ok(());
-        };
-        let right = input(inputs, InputNumber(1))?;
-        let validate = |kind| {
-            let request = prepared(contract, kind)?;
-            ryo_execution_domain::domain::derived_views::service::validate(kind, &request.plan)
-        };
-        if join.reach.is_some() {
-            validate(DerivedKind::PartitionOrder)?;
-            validate(DerivedKind::ClosureAdjacency)
-        } else if let RepresentationInput::Tree(tree) = right {
-            validate(DerivedKind::NativeLookup)?;
-            let native = prepared(contract, DerivedKind::NativeLookup)?;
-            let form = match tree.form {
-                ryo_execution_domain::domain::table_cells::types::TreeForm::Elements => {
-                    ryo_derived::domain::native::types::NativeForm::Elements
-                }
-                ryo_execution_domain::domain::table_cells::types::TreeForm::Edges => {
-                    ryo_derived::domain::native::types::NativeForm::Edges
-                }
-            };
-            if ryo_derived::domain::dispatch::service::native_finding(&native.plan.semantic, form)
-                .map_err(ryo_execution_domain::domain::operating::service::derived_fault)?
-                .is_some()
-            {
-                return Ok(());
-            }
-            if join.has_filter
-                == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
-                || !join.view.is_empty()
-            {
-                return Err(OperatingError::WrongOperation);
-            }
-            validate(DerivedKind::Equality)
-        } else {
-            // The ordinary values driver has no native filter/view protocol.
-            if join.has_filter
-                == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
-                || !join.view.is_empty()
-            {
-                return Err(OperatingError::WrongOperation);
-            }
-            validate(DerivedKind::Equality)
-        }
-    }
-}
-
 pub(super) fn partitioned<'f>(
     contract: &OperatorContract,
     input: RepresentationInput<'f>,
@@ -411,65 +344,9 @@ pub(super) fn partitioned<'f>(
     admitted.partitioned(order, closure, input, context)
 }
 
-/// The closure partitions an invocation acquired, in partition order: the views the store leased, held as one
-/// list so the engine can lend them to the domain's partition access (a foreign list cannot implement it).
-#[derive(Debug, Default)]
-pub(crate) struct AcquiredPartitions(pub(super) Vec<AcquiredView>);
-
 impl AcquiredPartitions {
     /// Appends the next partition's view.
     pub(crate) fn push(&mut self, view: AcquiredView) {
         self.0.push(view);
     }
-}
-
-impl ryo_execution_domain::domain::operator::contract::views::types::ClosureParts
-    for AcquiredPartitions
-{
-    fn len(
-        &self,
-    ) -> ryo_execution_domain::domain::operator::contract::views::types::PartitionCount {
-        ryo_execution_domain::domain::operator::contract::views::types::PartitionCount(self.0.len())
-    }
-    fn get(
-        &self,
-        at: ryo_execution_domain::domain::operator::contract::views::types::PartitionIndex,
-    ) -> Result<&ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError>
-    {
-        let view = self
-            .0
-            .as_slice()
-            .get(at.0)
-            .ok_or(OperatingError::ShapeMismatch)?
-            .view()?;
-        match view {
-            ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(part) => Ok(part),
-            _ => Err(OperatingError::WrongOperation),
-        }
-    }
-}
-
-/// The invocation binds these acquired handles once. Primitives see only the
-/// immutable reader implemented for this value, never the owner or scheduler.
-pub(crate) struct InvocationInputs<'f> {
-    pub(crate) index: Option<IndexResource<'f>>,
-    pub(crate) appended: Option<Vec<Value>>,
-    pub(crate) rank_layers: Option<Vec<Vec<LiteralText>>>,
-    pub(crate) native_join: Option<NativeJoin<'f>>,
-    pub(crate) native_storage: Option<AcquiredView>,
-    pub(crate) cycles: Option<AcquiredView>,
-    pub(crate) closure: AcquiredPartitions,
-    pub(crate) partitioned_closure: Option<
-        ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<
-            'f,
-        >,
-    >,
-    pub(crate) ordered: Option<AcquiredView>,
-    pub(crate) dfs: Option<AcquiredView>,
-    pub(crate) axis: Option<super::super::axis_resources::view::service::AxisResource<'f>>,
-    pub(crate) groups: Option<Vec<Group>>,
-    /// The file's profile, the observer the lent indexes report their probes to.
-    #[cfg(feature = "diagnostic-row-progress")]
-    pub(crate) progress:
-        ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile,
 }
