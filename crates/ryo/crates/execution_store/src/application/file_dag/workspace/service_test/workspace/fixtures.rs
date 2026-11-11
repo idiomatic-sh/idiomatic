@@ -22,12 +22,7 @@ pub(super) fn table(values: &[i64], width: usize) -> Table {
     }
 }
 
-pub(super) fn use_(
-    kind: DerivedKind,
-    request: ViewRequest,
-    schemas: &[&[CellKind]],
-    len: u8,
-) -> PreparedViewUse {
+pub(super) fn use_(request: ViewRequest, schemas: &[&[CellKind]], len: u8) -> PreparedViewUse {
     let schemas = schemas
         .iter()
         .map(|kinds| InputShape { kinds, tree: None })
@@ -40,7 +35,6 @@ pub(super) fn use_(
                 &schemas,
             )
             .unwrap();
-            assert_eq!(plan.kind, kind);
             Arc::new(plan)
         },
         inputs: [InputNumber(0), InputNumber(1)],
@@ -109,6 +103,9 @@ pub(super) enum Held {
     Normalized,
     /// Publications of `9` then `4`, each captured in turn.
     Recaptured([i64; 2]),
+    /// The views the cases use: an equality on the first column, a membership of the first column,
+    /// and ordered keys on the first column ordered by the second.
+    Prepared,
 }
 
 /// What two views of one admitted input observed.
@@ -153,12 +150,38 @@ pub(super) enum Answered {
         distinct: bool,
         builds: BuildCount,
     },
+    /// The kind each view the cases use is prepared as.
+    Prepared([DerivedKind; 3]),
+}
+
+/// A membership of the first of one number column.
+pub(super) fn membership_on_first() -> PreparedViewUse {
+    use_(
+        ViewRequest::Membership {
+            column: ColumnIndex(0),
+        },
+        &[&[CellKind::Number]],
+        1,
+    )
+}
+
+/// Ordered keys of two two-number inputs, keyed by the first column and ordered by the second.
+pub(super) fn ordered_keys() -> PreparedViewUse {
+    use_(
+        ViewRequest::OrderedKeys {
+            left_on: vec![ColumnIndex(0)],
+            right_on: vec![ColumnIndex(0)],
+            left_order: ColumnIndex(1),
+            right_order: ColumnIndex(1),
+        },
+        &[&[CellKind::Number; 2], &[CellKind::Number; 2]],
+        2,
+    )
 }
 
 pub(super) fn equality_on_first(width: usize) -> PreparedViewUse {
     let kinds = vec![CellKind::Number; width];
     use_(
-        DerivedKind::Equality,
         ViewRequest::Equality {
             columns: vec![ColumnIndex(0)],
         },

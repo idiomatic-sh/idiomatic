@@ -2,8 +2,8 @@
 use super::super::super::service::*;
 use super::super::super::types::*;
 use super::fixtures::{
-    Answered, Held, TwoRights, TwoViews, context, equality_on_first, ordered_key, owner, table,
-    use_,
+    Answered, Held, TwoRights, TwoViews, context, equality_on_first, membership_on_first,
+    ordered_key, ordered_keys, owner, table,
 };
 use crate::application::file_dag::derived::owner::service::ViewContext;
 use crate::application::file_dag::derived::owner::types::BuildCount;
@@ -13,12 +13,11 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::{derived_views::types::*, table_model::types::Rows};
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value as CellValue,
 };
-use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use std::rc::Rc;
 
@@ -115,6 +114,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             builds: BuildCount(2),
         }),
     },
+    Case {
+        name: CaseName("each_view_request_prepares_a_view_of_its_own_kind"),
+        word: Word::Succeeds,
+        input: || Held::Prepared,
+        expect: Expect::Value(Answered::Prepared([
+            DerivedKind::Equality,
+            DerivedKind::Membership,
+            DerivedKind::OrderedKeys,
+        ])),
+    },
 ];
 
 /// Builds the workspace the input holds and admits or acquires through it.
@@ -157,14 +166,7 @@ fn subject(input: Held) -> Result<Answered, OperatingError> {
             let rows = owner.resolve(published.as_ref(), &|_| Err(OperatingError::NotRead))?;
             workspace.publications = vec![Some(Publication::of(published.clone()))];
             let equality = equality_on_first(1);
-            let membership = use_(
-                DerivedKind::Membership,
-                ViewRequest::Membership {
-                    column: ColumnIndex(0),
-                },
-                &[&[CellKind::Number]],
-                1,
-            );
+            let membership = membership_on_first();
             let inputs = [RepresentationInput::from(&rows)];
             let scope = workspace.inputs(&inputs);
             let before = owner.admitted_inspections();
@@ -202,17 +204,7 @@ fn subject(input: Held) -> Result<Answered, OperatingError> {
             let published = owner.computed(table(&[1, 0], 2))?;
             let left = owner.resolve(published.as_ref(), &|_| Err(OperatingError::NotRead))?;
             workspace.publications = vec![Some(Publication::of(published.clone())), None];
-            let ordered = use_(
-                DerivedKind::OrderedKeys,
-                ViewRequest::OrderedKeys {
-                    left_on: vec![ColumnIndex(0)],
-                    right_on: vec![ColumnIndex(0)],
-                    left_order: ColumnIndex(1),
-                    right_order: ColumnIndex(1),
-                },
-                &[&[CellKind::Number; 2], &[CellKind::Number; 2]],
-                2,
-            );
+            let ordered = ordered_keys();
             let mut retained_views = Vec::new();
             let mut right_keys = [None; 2];
             for (key, right_value) in right_keys.iter_mut().zip(rights) {
@@ -315,6 +307,10 @@ fn subject(input: Held) -> Result<Answered, OperatingError> {
                 empty_slot,
             })
         }
+        Held::Prepared => Ok(Answered::Prepared(
+            [equality_on_first(1), membership_on_first(), ordered_keys()]
+                .map(|view| view.plan.kind),
+        )),
         Held::Recaptured(values) => {
             let equality = equality_on_first(1);
             let mut views = Vec::new();

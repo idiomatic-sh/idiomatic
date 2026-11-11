@@ -1,11 +1,13 @@
 //! Actual shared-index acquisition, owner aliases, eviction and final consumer release.
-use super::fixtures::{fixture, hold, reclaim};
+use super::fixtures::{Built, fixture, hold, reclaim};
 use crate::application::file_dag::derived::owner::types::Room;
 use crate::application::file_dag::derived::owner::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use fixtures::resources::ResourceFixture;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::FactColumn;
+use ryo_values::domain::rows::types::RowIndex;
+use std::borrow::Cow;
 
 /// What the owner does while a consumer holds the shared equality index over the rows
 /// `(1, 10), (2, 20)`.
@@ -21,10 +23,12 @@ enum WhileHeld {
 #[derive(Debug, PartialEq)]
 struct Reclaimed {
     invocation_handles_while_held: bool,
+    optional_bytes_while_held: usize,
     room_while_held: Room,
     backings_while_held: usize,
     invocation_handles_released: bool,
     alive_before_reclaim: bool,
+    optional_bytes_after_release: usize,
     room_after_release: Room,
     alive_after_reclaim: bool,
     backings_after_reclaim: usize,
@@ -43,12 +47,28 @@ struct Released {
     unique_bytes_after_consumer: usize,
 }
 
-/// What the owner and the index observed.
+/// What the owner did while the index was held.
 #[derive(Debug, PartialEq)]
-enum Observed {
+enum WhileHeldObserved {
     Reclaimed(Reclaimed),
     Released(Released),
 }
+
+/// What the index's build and the owner observed.
+#[derive(Debug, PartialEq)]
+struct Observed {
+    built: Built,
+    held: WhileHeldObserved,
+}
+
+/// The build over `(1, 10), (2, 20)`: both rows indexed, the first carrying 10, no invocation handle
+/// left, one shared backing.
+const BUILT: Built = Built {
+    rows: Cow::Borrowed(&[RowIndex(0), RowIndex(1)]),
+    first_payload: Some(10),
+    invocation_handles_released: true,
+    backings: 1,
+};
 
 type Input = WhileHeld;
 type Value = Observed;
@@ -59,31 +79,39 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("one_owner_reclaims_index_only_after_the_final_live_consumer_releases"),
         word: Word::Succeeds,
         input: || WhileHeld::Reclaims,
-        expect: Expect::Value(Observed::Reclaimed(Reclaimed {
-            invocation_handles_while_held: true,
-            room_while_held: Room::Full,
-            backings_while_held: 1,
-            invocation_handles_released: true,
-            alive_before_reclaim: true,
-            room_after_release: Room::Fits,
-            alive_after_reclaim: false,
-            backings_after_reclaim: 0,
-            optional_bytes_after_reclaim: 0,
-        })),
+        expect: Expect::Value(Observed {
+            built: BUILT,
+            held: WhileHeldObserved::Reclaimed(Reclaimed {
+                invocation_handles_while_held: true,
+                optional_bytes_while_held: 408,
+                room_while_held: Room::Full,
+                backings_while_held: 1,
+                invocation_handles_released: true,
+                alive_before_reclaim: true,
+                optional_bytes_after_release: 408,
+                room_after_release: Room::Fits,
+                alive_after_reclaim: false,
+                backings_after_reclaim: 0,
+                optional_bytes_after_reclaim: 0,
+            }),
+        }),
     },
     Case {
         name: CaseName("backend_clear_preserves_one_required_backing_until_last_consumer_drops"),
         word: Word::Succeeds,
         input: || WhileHeld::ReleasesPopulation,
-        expect: Expect::Value(Observed::Released(Released {
-            alive_after_population: true,
-            backings_after_population: 1,
-            optional_bytes_after_population: 0,
-            rows_still_read: 2,
-            alive_after_consumer: false,
-            backings_after_consumer: 0,
-            unique_bytes_after_consumer: 0,
-        })),
+        expect: Expect::Value(Observed {
+            built: BUILT,
+            held: WhileHeldObserved::Released(Released {
+                alive_after_population: true,
+                backings_after_population: 1,
+                optional_bytes_after_population: 0,
+                rows_still_read: 2,
+                alive_after_consumer: false,
+                backings_after_consumer: 0,
+                unique_bytes_after_consumer: 0,
+            }),
+        }),
     },
 ];
 
@@ -96,24 +124,26 @@ fn ledger(
 /// Holds the shared index for one consumer and lets the owner act while it is held.
 fn subject(input: Input) -> Result<Value, Failure> {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![10, 20])];
-    let fixture = fixture(&columns);
+    let (fixture, built) = fixture(&columns);
     let weak = fixture.first_index_weak().ok_or("no shared index")?;
     let held = hold(&fixture, &columns);
-    Ok(match input {
+    let observed = match input {
         WhileHeld::Reclaims => {
             let invocation_handles_while_held = !fixture.no_invocation_index_handles();
-            let room_while_held = reclaim(&fixture);
+            let (room_while_held, optional_bytes_while_held) = reclaim(&fixture);
             let backings_while_held = fixture.shared_index_backings();
             drop(held);
             let invocation_handles_released = fixture.no_invocation_index_handles();
             let alive_before_reclaim = weak.upgrade().is_some();
-            let room_after_release = reclaim(&fixture);
-            Observed::Reclaimed(Reclaimed {
+            let (room_after_release, optional_bytes_after_release) = reclaim(&fixture);
+            WhileHeldObserved::Reclaimed(Reclaimed {
                 invocation_handles_while_held,
+                optional_bytes_while_held,
                 room_while_held,
                 backings_while_held,
                 invocation_handles_released,
                 alive_before_reclaim,
+                optional_bytes_after_release,
                 room_after_release,
                 alive_after_reclaim: weak.upgrade().is_some(),
                 backings_after_reclaim: fixture.shared_index_backings(),
@@ -131,7 +161,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             };
             let rows_still_read = index.rows.len();
             drop(held);
-            Observed::Released(Released {
+            WhileHeldObserved::Released(Released {
                 alive_after_population,
                 backings_after_population,
                 optional_bytes_after_population,
@@ -141,6 +171,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 unique_bytes_after_consumer: ledger(&fixture).unique_bytes.0,
             })
         }
+    };
+    Ok(Observed {
+        built,
+        held: observed,
     })
 }
 
