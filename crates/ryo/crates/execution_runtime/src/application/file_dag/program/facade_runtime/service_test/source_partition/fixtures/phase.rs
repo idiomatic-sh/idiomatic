@@ -5,7 +5,7 @@ pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
         elements,
         mut symbols,
     } = small_tree();
-    let mut source_plan = plan(Scenario::Words);
+    let mut source_plan = plan(ProgramShape::Words);
     let mut bindings = vec![];
     let mut hosted = vec![];
     let project_case = matches!(

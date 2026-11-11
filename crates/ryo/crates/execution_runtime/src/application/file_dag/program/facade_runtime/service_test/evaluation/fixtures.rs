@@ -1,6 +1,6 @@
 //! The support of the `evaluation` cases.
 use super::super::fixtures::request::{plan, rule};
-use super::super::fixtures::scenario::Scenario;
+use super::super::fixtures::scenario::ProgramShape;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::open_file;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
@@ -30,7 +30,7 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 use ryo_values::domain::stored_facts::types::Digest;
 use std::sync::Arc;
 
-type Input = Scenario;
+type Input = ProgramShape;
 
 pub(in super::super) type Value = (usize, &'static str);
 
@@ -153,10 +153,10 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
             Cell::Symbol(symbol)
                 if matches!(
                     scenario,
-                    Scenario::DistinctKinds
-                        | Scenario::KeptKinds
-                        | Scenario::NativeAntijoin
-                        | Scenario::NativeUnion
+                    ProgramShape::DistinctKinds
+                        | ProgramShape::KeptKinds
+                        | ProgramShape::NativeAntijoin
+                        | ProgramShape::NativeUnion
                 ) =>
             {
                 ryo_language::domain::symbols::service::text_of(

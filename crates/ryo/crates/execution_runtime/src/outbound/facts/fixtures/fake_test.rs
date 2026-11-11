@@ -7,16 +7,16 @@ use crate::outbound::facts::interface::FactsPort as _;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::selects;
 
-/// What a row of the cases asks of the fake.
+/// The fake a row calls: one that works, or one told to fail.
 #[derive(Clone, Copy)]
-enum Scenario {
+enum Fake {
     /// Opens a worker's handle on a fake that works.
     Working,
     /// Opens a worker's handle on a fake told to fail.
     Failing,
 }
 
-type Input = Scenario;
+type Input = Fake;
 /// Whether a handle was opened.
 type Value = bool;
 type Failure = FactsError;
@@ -26,22 +26,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_fake_that_works_opens_a_handle"),
         word: Word::Succeeds,
-        input: || Scenario::Working,
+        input: || Fake::Working,
         expect: Expect::Value(true),
     },
     Case {
         name: CaseName("fails_with_its_store_when_told_to"),
         word: Word::Fails,
-        input: || Scenario::Failing,
+        input: || Fake::Failing,
         expect: Expect::Refusal(|error| selects!(matches!(error, FactsError::Store { .. }))),
     },
 ];
 
 /// Calls the fake on one input.
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    match scenario {
-        Scenario::Working => FactsFake::default().worker().map(|_handle| true),
-        Scenario::Failing => FactsFake::failing().worker().map(|_handle| true),
+fn subject(fake: Input) -> Result<Value, Failure> {
+    match fake {
+        Fake::Working => FactsFake::default().worker().map(|_handle| true),
+        Fake::Failing => FactsFake::failing().worker().map(|_handle| true),
     }
 }
 

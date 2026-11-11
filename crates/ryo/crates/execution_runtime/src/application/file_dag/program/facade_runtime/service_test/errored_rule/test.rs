@@ -46,8 +46,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 
 /// Prepares the sound rule and the rule whose last step projects the missing column.
 fn subject(missing: Input) -> Result<Value, Failure> {
-    let sound = plan(Scenario::Words);
-    let mut errored = plan(Scenario::Words);
+    let sound = plan(ProgramShape::Words);
+    let mut errored = plan(ProgramShape::Words);
     // The step after the emit step names a column the select does not keep: the origin is errored, the emit step is sound.
     errored.steps.push(PlanStep {
         operation: Operation::Project {

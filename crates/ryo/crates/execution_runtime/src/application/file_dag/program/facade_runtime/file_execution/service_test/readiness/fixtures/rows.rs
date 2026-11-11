@@ -53,7 +53,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
         let mut plans = Vec::new();
         let mut rules = Vec::new();
         for index in 0..5 {
-            let mut authored = plan(super::super::super::fixtures::Scenario::ProjectRetry);
+            let mut authored = plan(Scenario::ProjectRetry);
             authored.steps.truncate(1);
             authored.emit.step = StepId(0);
             let relation = if index == 3 {
@@ -277,52 +277,78 @@ pub(in super::super) enum Refusal {
     MissingSubmission,
 }
 
-pub(crate) type Input = Scenario;
+pub(crate) type Input = Submission;
 
-pub(crate) type Value = ();
+/// What runtime admission served: the dispatches, the distinct obligations, the ready heads,
+/// and the submissions the adapter omitted.
+#[derive(Debug, PartialEq)]
+pub(in super::super) struct Admitted {
+    dispatches: usize,
+    obligations: usize,
+    heads: usize,
+    skipped: usize,
+}
 
-pub(crate) type Failure = Refusal;
+pub(crate) type Value = Admitted;
+
+/// The refusal, what was admitted, and how many obligations were never served.
+#[derive(Debug, PartialEq)]
+pub(in super::super) struct Unserved {
+    refusal: Refusal,
+    admitted: Admitted,
+    unserved: usize,
+}
+
+pub(crate) type Failure = Unserved;
 
 pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("runtime obligations precede actual ready callbacks and equivalent replay"),
         word: Word::Succeeds,
-        input: || Scenario::Actual,
-        expect: Expect::Value(()),
+        input: || Submission::Actual,
+        expect: Expect::Value(Admitted {
+            dispatches: 2,
+            obligations: 4,
+            heads: 5,
+            skipped: 0,
+        }),
     },
     Case {
         name: CaseName(
             "omitting one actual ready submission preserves its obligation while other dispatches continue",
         ),
         word: Word::Rejects,
-        input: || Scenario::Omitted,
-        expect: Expect::Error(Refusal::MissingSubmission),
+        input: || Submission::Omitted,
+        expect: Expect::Error(Unserved {
+            refusal: Refusal::MissingSubmission,
+            admitted: Admitted {
+                dispatches: 2,
+                obligations: 4,
+                heads: 5,
+                skipped: 1,
+            },
+            unserved: 1,
+        }),
     },
 ];
 
-pub(in super::super) fn verify(observed: Coverage) -> Result<(), Refusal> {
-    assert!(
-        observed.dispatches >= 2,
-        "both actual source populations still dispatch"
-    );
-    assert!(observed.expected.len() > 1);
-    assert!(
-        observed.heads > observed.expected.len(),
-        "different physical heads can share one admitted class"
-    );
-    if observed.expected != observed.served {
-        return Err(Refusal::MissingSubmission);
+/// Admits the corpus through the ready adapter and compares the obligations with those served.
+pub(crate) fn subject(submission: Input) -> Result<Value, Failure> {
+    let observed = observe(matches!(submission, Submission::Omitted));
+    let admitted = Admitted {
+        dispatches: observed.dispatches,
+        obligations: observed.expected.len(),
+        heads: observed.heads,
+        skipped: observed.skipped,
+    };
+    let unserved = observed.expected.difference(&observed.served).count();
+    if observed.expected == observed.served {
+        Ok(admitted)
+    } else {
+        Err(Unserved {
+            refusal: Refusal::MissingSubmission,
+            admitted,
+            unserved,
+        })
     }
-    Ok(())
-}
-
-pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
-    let omit = matches!(scenario, Scenario::Omitted);
-    let observed = observe(omit);
-    assert_eq!(
-        observed.skipped,
-        usize::from(omit),
-        "the adapter omits exactly one actual submission"
-    );
-    verify(observed)
 }

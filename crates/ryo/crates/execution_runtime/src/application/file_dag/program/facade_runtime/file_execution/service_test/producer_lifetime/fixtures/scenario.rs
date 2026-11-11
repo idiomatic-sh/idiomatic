@@ -17,7 +17,60 @@ use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-pub(in super::super) fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
+use std::borrow::Cow;
+/// What the second rule's final consumer answered.
+#[derive(Debug, PartialEq)]
+pub(in super::super) enum Second {
+    /// It completed with these numbers.
+    Rows(Cow<'static, [i64]>),
+    /// It failed with this error.
+    Failed(OperatingError),
+    /// It was refused before running, being excluded at the start.
+    Refused(OperatingError),
+}
+
+/// One consumer's release: the remaining consumers, attempt and index liveness before and
+/// after it, whether working bytes were held before and after, and whether the before and after
+/// events name the same consumer in order.
+#[derive(Clone, Debug, PartialEq)]
+pub(in super::super) struct Release {
+    pub(in super::super) remaining: (usize, usize),
+    pub(in super::super) attempt: (AttemptCheckpoint, AttemptCheckpoint),
+    pub(in super::super) alive: (bool, bool),
+    pub(in super::super) holds_bytes: (bool, bool),
+    pub(in super::super) paired: bool,
+}
+
+/// What the shared producer's lifetime observed.
+#[derive(Debug, PartialEq)]
+pub(in super::super) struct Lifetime {
+    /// Whether both joins demand one producer region, and that region's consumer count.
+    pub(in super::super) shared_consumers: Option<usize>,
+    /// The producer's remaining consumers after the start exclusion, when one was excluded.
+    pub(in super::super) remaining_after_exclusion: Option<usize>,
+    pub(in super::super) first: Cow<'static, [i64]>,
+    /// The equality builds after the first consumer, and after the second with whether it hit.
+    pub(in super::super) builds: (u64, u64, bool),
+    pub(in super::super) second: Second,
+    /// The source reads the final consumer added.
+    pub(in super::super) final_rereads: usize,
+    pub(in super::super) releases: Cow<'static, [Release]>,
+    /// Whether every live consumer saw the same equality backing.
+    pub(in super::super) one_backing: bool,
+    /// The producer's final attempt and remaining consumers.
+    pub(in super::super) final_state: (AttemptCheckpoint, usize),
+    pub(in super::super) working_bytes: usize,
+    /// Whether the transferred first output is unchanged after the producer retired.
+    pub(in super::super) first_survives: bool,
+    pub(in super::super) backing_released: bool,
+    pub(in super::super) owned_bytes: usize,
+}
+
+fn integers(table: &Table) -> Cow<'static, [i64]> {
+    numbers(table).into_iter().map(|number| number.0).collect()
+}
+
+pub(in super::super) fn exercise(final_consumer: FinalConsumer) -> Result<Lifetime, OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
     let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
@@ -47,12 +100,8 @@ pub(in super::super) fn exercise(final_consumer: FinalConsumer) -> Result<(), Op
         prepared.program().logical_regions()[logical.0]
     };
     let producer = shared(RuleIndex(0));
-    assert_eq!(
-        producer,
-        shared(RuleIndex(1)),
-        "both joins must demand the same actual computed producer"
-    );
-    assert_eq!(prepared.program().regions()[producer.0].consumers().0, 2);
+    let shared_consumers = (producer == shared(RuleIndex(1)))
+        .then(|| prepared.program().regions()[producer.0].consumers().0);
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
@@ -147,16 +196,17 @@ pub(in super::super) fn exercise(final_consumer: FinalConsumer) -> Result<(), Op
         producer,
         &[first_consumer, final_consumer_region],
     )?;
+    let mut remaining_after_exclusion = None;
     let first = if skipped_at_start {
-        assert_eq!(
+        remaining_after_exclusion = Some(
             file.execution
                 .retry_checkpoint(file.execution.file_state(), producer)?
                 .remaining
                 .0,
-            1
         );
         let mut cells = vec![];
-        file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
+        // The emission's summary is not this case's observation; the delivered cells are.
+        let _emission = file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
             cells.extend_from_slice(row);
             Ok(())
         })?;
@@ -173,137 +223,72 @@ pub(in super::super) fn exercise(final_consumer: FinalConsumer) -> Result<(), Op
         };
         table
     };
-    assert_eq!(
-        numbers(&first),
-        [Integer(2), Integer(9), Integer(3), Integer(7)]
-    );
+    let first_numbers = integers(&first);
     // Delivery is after canonical scheduling. The live interval is observed at
     // the actual consumer release, never inferred from API call order.
     let first_counts = file.owner.derived().counts();
-    assert_eq!(first_counts.0, 1, "one actual equality construction");
     let reads_before_final = source_reads.get();
-    if skipped_at_start {
-        assert!(matches!(
-            file.rule(RuleIndex(1), demand(), &read, &mut symbols),
-            Err(OperatingError::NotRun)
-        ));
-    } else {
-        let second = file.rule(RuleIndex(1), demand(), &read, &mut symbols)?;
-        match final_consumer {
-            FinalConsumer::InvalidTerminal => {
-                assert!(
-                    matches!(
-                        second.emit,
-                        RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn {
-                            index: 99
-                        }))
-                    ),
-                    "terminal schema failure preserves its exact error while cancelling the unread shared dependency"
-                );
-            }
-            FinalConsumer::RefusingProvider => assert!(
-                matches!(second.emit, RootOutcome::Failed(OperatingError::NotRead)),
-                "the real provider's original refusal must survive consumer cleanup"
-            ),
-            FinalConsumer::SkippedAtStart => {
-                panic!("upfront exclusion is handled before execution")
-            }
-            FinalConsumer::Completes => {
-                let RootOutcome::Complete(second) = second.emit else {
-                    return Err(OperatingError::NotRun);
-                };
-                assert_eq!(
-                    numbers(&second),
-                    [Integer(9), Integer(2), Integer(7), Integer(3)]
-                );
-                let final_counts = file.owner.derived().counts();
-                assert_eq!(
-                    final_counts.0, first_counts.0,
-                    "shared producer index is built once"
-                );
-                assert!(
-                    final_counts.1 > 0,
-                    "second consumer reuses the same live index"
-                );
-            }
+    let second = if skipped_at_start {
+        match file.rule(RuleIndex(1), demand(), &read, &mut symbols).err() {
+            Some(error) => Second::Refused(error),
+            None => return Err(OperatingError::NotRun),
         }
-    }
-    assert_eq!(
-        source_reads.get(),
-        reads_before_final,
-        "the shared source is not reread for a cache hit, skipped consumer or refusing final consumer"
-    );
+    } else {
+        match file.rule(RuleIndex(1), demand(), &read, &mut symbols)?.emit {
+            RootOutcome::Complete(second) => Second::Rows(integers(&second)),
+            RootOutcome::Failed(error) => Second::Failed(error),
+            _ => return Err(OperatingError::NotRun),
+        }
+    };
+    let final_counts = file.owner.derived().counts();
+    let final_rereads = source_reads.get() - reads_before_final;
     let events = file
         .execution
         .take_producer_releases(file.execution.file_state());
-    assert_eq!(events.len(), if skipped_at_start { 2 } else { 4 });
-    let mut live_before = 0;
+    let mut releases = Vec::new();
+    let mut one_backing = true;
     let mut weak: Option<&BackingWitness> = None;
     for pair in events.chunks_exact(2) {
         let (before, after) = (&pair[0], &pair[1]);
-        assert_eq!(before.point, ConsumerReleasePoint::Before);
-        assert_eq!(after.point, ConsumerReleasePoint::After);
-        assert_eq!(before.consumer, after.consumer);
-        assert_eq!(
-            before.checkpoint.remaining.0,
-            after.checkpoint.remaining.0 + 1
-        );
-        if before.index_liveness == IndexLiveness::Alive {
-            live_before += 1;
-            assert_eq!(before.checkpoint.attempt, AttemptCheckpoint::Published);
-            assert!(before.working_bytes.0 > 0);
-            let backing = before
-                .index
-                .as_ref()
-                .expect("real acquired equality backing");
-            if let Some(first) = weak {
-                assert!(first.compare(backing) == BackingIdentity::Same);
-            } else {
-                weak = Some(backing);
-            }
-            if after.checkpoint.remaining.0 > 0 {
-                assert_eq!(after.checkpoint.attempt, AttemptCheckpoint::Published);
-                assert!(
-                    after.index_liveness == IndexLiveness::Alive,
-                    "nonfinal actual consumption keeps backing live"
-                );
-                assert!(after.working_bytes.0 > 0);
+        if let Some(backing) = before.index.as_ref() {
+            match weak {
+                Some(first) => one_backing &= first.compare(backing) == BackingIdentity::Same,
+                None => weak = Some(backing),
             }
         }
-        if after.checkpoint.remaining.0 == 0 {
-            assert_eq!(after.checkpoint.attempt, AttemptCheckpoint::Terminal);
-            assert!(after.index_liveness == IndexLiveness::Released);
-            assert_eq!(
-                after.working_bytes.0, 0,
-                "actual final release precedes output delivery and file finish"
-            );
-        }
+        releases.push(Release {
+            remaining: (before.checkpoint.remaining.0, after.checkpoint.remaining.0),
+            attempt: (before.checkpoint.attempt, after.checkpoint.attempt),
+            alive: (
+                before.index_liveness == IndexLiveness::Alive,
+                after.index_liveness == IndexLiveness::Alive,
+            ),
+            holds_bytes: (before.working_bytes.0 > 0, after.working_bytes.0 > 0),
+            paired: before.point == ConsumerReleasePoint::Before
+                && after.point == ConsumerReleasePoint::After
+                && before.consumer == after.consumer,
+        });
     }
-    // The invalid Project cannot fuse: canonical demand first completes its
-    // actual Join reader, then refuses the Project's output column. Both readers
-    // must therefore release at their real invocation boundaries.
-    assert_eq!(live_before, if skipped_at_start { 1 } else { 2 });
-    let weak = weak.expect("actual healthy consumer held the equality backing");
+    let backing_released = weak.is_some_and(|weak| weak.liveness() == BackingLiveness::Released);
     let final_state = file
         .execution
         .retry_checkpoint(file.execution.file_state(), producer)?;
-    assert_eq!(final_state.attempt, AttemptCheckpoint::Terminal);
-    assert_eq!(final_state.remaining.0, 0);
-    assert_eq!(
-        file.owner.derived().working_bytes(),
-        0,
-        "final consumption or cancellation releases required storage before file shutdown"
-    );
-    assert_eq!(
-        numbers(&first),
-        [Integer(2), Integer(9), Integer(3), Integer(7)],
-        "transferred output survives producer retirement"
-    );
-    assert!(
-        weak.liveness() == BackingLiveness::Released,
-        "last actual consumer releases the unretained physical index"
-    );
-    assert_eq!(file.owner.derived().owned_bytes(), 0);
-    file.finish()?;
-    Ok(())
+    let lifetime = Lifetime {
+        shared_consumers,
+        remaining_after_exclusion,
+        builds: (first_counts.0.0, final_counts.0.0, final_counts.1.0 > 0),
+        second,
+        final_rereads,
+        releases: releases.into(),
+        one_backing,
+        final_state: (final_state.attempt, final_state.remaining.0),
+        working_bytes: file.owner.derived().working_bytes().0,
+        first_survives: integers(&first) == first_numbers,
+        first: first_numbers,
+        backing_released,
+        owned_bytes: file.owner.derived().owned_bytes().0,
+    };
+    // The finished file's frontier readiness is not this case's observation.
+    let _readiness = file.finish()?;
+    Ok(lifetime)
 }

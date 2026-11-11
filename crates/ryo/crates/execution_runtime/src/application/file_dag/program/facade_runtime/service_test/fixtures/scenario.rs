@@ -1,6 +1,6 @@
-//! The scenarios of the compiled-parity table.
+//! The program shapes of the compiled-parity table.
 #[derive(Clone, Copy)]
-pub(crate) enum Scenario {
+pub(crate) enum ProgramShape {
     Words,
     Counted,
     MissingRight,

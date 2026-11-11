@@ -23,7 +23,6 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
-use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     rows::types::RowCount,

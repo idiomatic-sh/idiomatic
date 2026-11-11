@@ -90,7 +90,7 @@ pub(crate) fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u
                     actual_heads.insert(head),
                     "one authority-issued readiness obligation per physical head in this valid demand-all corpus"
                 );
-                expected.insert(Obligation {
+                let _new = expected.insert(Obligation {
                     generation: event["generation"].clone(),
                     population: population(&event["population"]),
                     class: *heads
@@ -139,8 +139,9 @@ pub(crate) fn registration_probe(omission: bool) {
     }
 }
 
+/// Whether the ready adapter submits every actual ready head, or omits one.
 #[derive(Clone, Copy)]
-pub(super) enum Scenario {
+pub(super) enum Submission {
     Actual,
     Omitted,
 }

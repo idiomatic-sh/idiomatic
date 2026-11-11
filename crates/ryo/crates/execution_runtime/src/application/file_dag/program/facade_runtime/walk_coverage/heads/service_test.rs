@@ -14,6 +14,8 @@ use ryo_values::domain::{
     plan_parts::types::{Input as Source, RepeatedRows, StepScope},
     plans::types::Operation,
 };
+use ryo_relations::domain::relations::types::Relation;
+use std::borrow::Cow;
 use std::collections::HashSet;
 
 #[derive(Debug, PartialEq)]
@@ -40,11 +42,11 @@ fn verify(program: &ExecutableProgram, walk: &PreparedWalk) -> Result<(), Refusa
     }
     Ok(())
 }
-fn internally_consistent(walk: &PreparedWalk) {
+/// Whether the census's classes add up to its instructions and its shared count is the shared routes.
+fn internally_consistent(walk: &PreparedWalk) -> bool {
     let census = walk.census();
-    assert_eq!(
-        census.instructions.0,
-        census.shared.0
+    census.instructions.0
+        == census.shared.0
             + census.representation.0
             + census.dependent.0
             + census.observation.0
@@ -52,65 +54,127 @@ fn internally_consistent(walk: &PreparedWalk) {
             + census.derived.0
             + census.request.0
             + census.continuation.0
-    );
-    assert_eq!(
-        census.shared.0,
-        walk.physical
-            .iter()
-            .filter(|route| matches!(route, Some(WalkRoute::Shared(_))))
-            .count()
-    );
+        && census.shared.0
+            == walk
+                .physical
+                .iter()
+                .filter(|route| matches!(route, Some(WalkRoute::Shared(_))))
+                .count()
 }
-#[derive(Clone, Copy)]
-enum Scenario {
-    Catalog,
-    Misclassified,
-    Removed,
-    ProjectPhase,
+
+/// What a row does to the catalog corpus's prepared walk before it is verified.
+#[derive(Clone, Copy, Debug)]
+enum Tamper {
+    /// Leaves the walk as prepared.
+    Nothing,
+    /// Relabels the first eligible head as a representation barrier.
+    RelabelEligibleHead,
+    /// Removes the first eligible head's route.
+    RemoveEligibleHead,
+    /// Relabels the first project-phase head as a representation barrier.
+    RelabelProjectHead,
+}
+
+/// The program a row verifies.
+#[derive(Clone, Copy, Debug)]
+enum Corpus {
+    /// The compiled catalog corpus, tampered with as stated.
+    Catalog(Tamper),
+    /// Two rules over the first relation, the second with a step beyond its operator contracts.
     ErroredOrigin,
 }
-type Input = Scenario;
-type Value = ();
-type Failure = Refusal;
+
+/// What the catalog corpus holds before tampering, and whether the tampered census is consistent.
+#[derive(Debug, PartialEq)]
+struct Covered {
+    /// Whether some head is expected to be eligible.
+    eligible: bool,
+    /// The relations no per-file head reads, and those missing a select, a kept or a dropped project head.
+    unread: Cow<'static, [Relation]>,
+    unshaped: Cow<'static, [Relation]>,
+    /// Whether a cross-file region, a multi-instruction region and a step-input select exist.
+    cross_file: bool,
+    multi_instruction: bool,
+    step_select: bool,
+    /// Whether ordinary step inputs keep their dependent barrier.
+    dependent: bool,
+    /// Whether the untampered walk verifies.
+    verified: bool,
+    /// Whether the tampered census is internally consistent.
+    consistent: bool,
+}
+
+/// The catalog's coverage, or nothing for the errored-origin control.
+type Value = Option<Covered>;
+type Input = Corpus;
+/// The refusal, and whether the tampered census was internally consistent (catalog rows only).
+#[derive(Debug, PartialEq)]
+struct Rejected {
+    refusal: Refusal,
+    consistent: Option<bool>,
+}
+
+type Failure = Rejected;
+
+const fn concealed(refusal: Refusal) -> Rejected {
+    Rejected {
+        refusal,
+        consistent: Some(true),
+    }
+}
+
+/// The prepared catalog corpus, which tampering leaves internally consistent.
+const CATALOG: Covered = Covered {
+    eligible: true,
+    unread: Cow::Borrowed(&[]),
+    unshaped: Cow::Borrowed(&[]),
+    cross_file: true,
+    multi_instruction: true,
+    step_select: true,
+    dependent: true,
+    verified: true,
+    consistent: true,
+};
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every eligible physical catalog head is classified independently"),
         word: Word::Succeeds,
-        input: || Scenario::Catalog,
-        expect: Expect::Value(()),
+        input: || Corpus::Catalog(Tamper::Nothing),
+        expect: Expect::Value(Some(CATALOG)),
     },
     Case {
         name: CaseName(
             "a consistent census cannot conceal an eligible head relabelled as a barrier",
         ),
         word: Word::Rejects,
-        input: || Scenario::Misclassified,
-        expect: Expect::Error(Refusal::EligibleHeadMissing),
+        input: || Corpus::Catalog(Tamper::RelabelEligibleHead),
+        expect: Expect::Error(concealed(Refusal::EligibleHeadMissing)),
     },
     Case {
         name: CaseName("a consistent reduced census cannot conceal a removed eligible head"),
         word: Word::Rejects,
-        input: || Scenario::Removed,
-        expect: Expect::Error(Refusal::EligibleHeadMissing),
+        input: || Corpus::Catalog(Tamper::RemoveEligibleHead),
+        expect: Expect::Error(concealed(Refusal::EligibleHeadMissing)),
     },
     Case {
         name: CaseName(
             "a consistent census cannot conceal a project phase head relabelled as a barrier",
         ),
         word: Word::Rejects,
-        input: || Scenario::ProjectPhase,
-        expect: Expect::Error(Refusal::EligibleHeadMissing),
+        input: || Corpus::Catalog(Tamper::RelabelProjectHead),
+        expect: Expect::Error(concealed(Refusal::EligibleHeadMissing)),
     },
     Case {
         name: CaseName("an errored origin refuses only its own rule; a sibling rule still shares"),
         word: Word::Succeeds,
-        input: || Scenario::ErroredOrigin,
-        expect: Expect::Value(()),
+        input: || Corpus::ErroredOrigin,
+        expect: Expect::Value(None),
     },
 ];
 /// A rule step beyond its prepared operator contracts has an errored origin. Retention leaves
 /// only that rule out of sharing; the sibling rule keeps its class and its shared head.
-fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
+fn errored_origin_refuses_its_rule() -> Result<(), Refusal> {
     let select = || Operation::Select {
         from: Source::Relation(ALL[0]),
         comparisons: vec![],
@@ -166,88 +230,91 @@ fn errored_origin_refuses_its_rule() -> Result<Value, Failure> {
         _ => Err(Refusal::SiblingRefused),
     }
 }
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    if matches!(scenario, Scenario::ErroredOrigin) {
-        return errored_origin_refuses_its_rule();
-    }
+/// Verifies the corpus's prepared walk, the catalog after its tampering.
+fn subject(corpus: Input) -> Result<Value, Failure> {
+    let Corpus::Catalog(tamper) = corpus else {
+        return errored_origin_refuses_its_rule()
+            .map(|()| None)
+            .map_err(|refusal| Rejected {
+                refusal,
+                consistent: None,
+            });
+    };
     let CompiledCorpus { program, mut walk } = compiled();
     let eligible = expected(&program);
-    assert!(!eligible.is_empty());
-    for relation in ALL {
-        assert!(
-            program
-                .regions()
-                .iter()
-                .filter(|region| region.phase() == StepScope::PerFile)
-                .filter_map(|region| region.instructions().first())
-                .any(|head| supported_head(head) == Some(*relation)),
-            "catalog source absent: {relation:?}"
-        );
-    }
-    for relation in ALL {
-        let heads = || {
-            program
-                .regions()
-                .iter()
-                .filter(|region| region.phase() == StepScope::PerFile)
-                .filter_map(|region| region.instructions().first())
-        };
-        assert!(heads().any(|head| matches!(&head.operation(), Operation::Select { from: Source::Relation(source), .. } if source == relation)));
-        assert!(heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Kept, columns } if source == relation && columns.iter().all(|column| (column.0 as usize) < ryo_relations::domain::relations::service::columns(*source).len()))));
-        assert!(heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Dropped, .. } if source == relation)));
-    }
-    assert!(
+    let heads = || {
         program
             .regions()
             .iter()
-            .any(|region| region.phase() == StepScope::CrossFile)
-    );
-    assert!(
-        program
-            .regions()
+            .filter(|region| region.phase() == StepScope::PerFile)
+            .filter_map(|region| region.instructions().first())
+    };
+    let unread: Vec<Relation> = ALL
+        .iter()
+        .copied()
+        .filter(|relation| !heads().any(|head| supported_head(head) == Some(*relation)))
+        .collect();
+    let unshaped: Vec<Relation> = ALL
+        .iter()
+        .copied()
+        .filter(|relation| {
+            let selected = heads().any(|head| matches!(&head.operation(), Operation::Select { from: Source::Relation(source), .. } if source == relation));
+            let kept = heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Kept, columns } if source == relation && columns.iter().all(|column| (column.0 as usize) < ryo_relations::domain::relations::service::columns(*source).len())));
+            let dropped = heads().any(|head| matches!(&head.operation(), Operation::Project { from: Source::Relation(source), distinct: RepeatedRows::Dropped, .. } if source == relation));
+            !(selected && kept && dropped)
+        })
+        .collect();
+    let regions = program.regions();
+    let mut covered = Covered {
+        eligible: !eligible.is_empty(),
+        unread: unread.into(),
+        unshaped: unshaped.into(),
+        cross_file: regions
             .iter()
-            .any(|region| region.instructions().len() > 1)
-    );
-    assert!(
-        program
-            .regions()
+            .any(|region| region.phase() == StepScope::CrossFile),
+        multi_instruction: regions
+            .iter()
+            .any(|region| region.instructions().len() > 1),
+        step_select: regions
             .iter()
             .filter_map(|region| region.instructions().first())
-            .any(|head| matches!(
-                &head.operation(),
-                Operation::Select {
-                    from: Source::Step(_),
-                    ..
-                }
-            ))
-    );
-    assert!(
-        walk.census().dependent.0 > 0,
-        "ordinary normalized Step inputs retain their dependent barrier"
-    );
-    verify(&program, &walk).unwrap();
-    let logical = *eligible.iter().next().unwrap();
-    match scenario {
-        Scenario::Catalog | Scenario::ErroredOrigin => {}
-        Scenario::Misclassified => {
-            walk.physical[logical.0] = Some(WalkRoute::Barrier(WalkBarrier::Representation))
-        }
-        Scenario::Removed => walk.physical[logical.0] = None,
-        Scenario::ProjectPhase => {
-            let project = program
-                .regions()
-                .iter()
-                .find(|region| region.phase() == StepScope::CrossFile)
-                .unwrap()
-                .instructions()
-                .first()
-                .unwrap();
-            walk.physical[project.logical().0] =
-                Some(WalkRoute::Barrier(WalkBarrier::Representation));
-        }
+            .any(|head| {
+                matches!(
+                    &head.operation(),
+                    Operation::Select {
+                        from: Source::Step(_),
+                        ..
+                    }
+                )
+            }),
+        dependent: walk.census().dependent.0 > 0,
+        verified: verify(&program, &walk).err().is_none(),
+        consistent: false,
+    };
+    let first_eligible = eligible.iter().next().copied();
+    let project_head = regions
+        .iter()
+        .find(|region| region.phase() == StepScope::CrossFile)
+        .and_then(|region| region.instructions().first())
+        .map(|head| head.logical());
+    let target = match tamper {
+        Tamper::Nothing => None,
+        Tamper::RelabelEligibleHead | Tamper::RemoveEligibleHead => first_eligible,
+        Tamper::RelabelProjectHead => project_head,
+    };
+    if let Some(logical) = target {
+        walk.physical[logical.0] = match tamper {
+            Tamper::RemoveEligibleHead => None,
+            _ => Some(WalkRoute::Barrier(WalkBarrier::Representation)),
+        };
     }
-    internally_consistent(&walk);
+    covered.consistent = internally_consistent(&walk);
     verify(&program, &walk)
+        .map(|()| Some(covered))
+        .map_err(|refusal| Rejected {
+            refusal,
+            consistent: Some(internally_consistent(&walk)),
+        })
 }
 #[test]
 fn succeeds() {

@@ -9,11 +9,37 @@ use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::service::{all, kinds};
 use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FileId, Relation};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use std::borrow::Cow;
 
-fn the_recogniser_proves_a_number_exactly_when_the_session_hands_it_over_stored() {
+/// The relations whose first number column is checked.
+type Input = &'static [Relation];
+
+/// How many relations have a number column, and those where the recogniser and the session disagree.
+#[derive(Debug, PartialEq)]
+struct Agreement {
+    numbered: usize,
+    disagreeing: Cow<'static, [Relation]>,
+}
+
+type Value = Agreement;
+type Failure = OperatingError;
+
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("the_recogniser_proves_a_number_exactly_when_the_session_hands_it_over_stored"),
+    word: Word::Succeeds,
+    input: all,
+    expect: Expect::Value(Agreement {
+        numbered: 23,
+        disagreeing: Cow::Borrowed(&[]),
+    }),
+}];
+
+/// Hands each relation over as stored columns and asks the recogniser about its first number.
+fn subject(relations: Input) -> Result<Value, Failure> {
     let elements = ryo_language::domain::elements::types::Elements::default();
     let mut numbered = 0_usize;
-    for relation in all() {
+    let mut disagreeing = Vec::new();
+    for relation in relations {
         let schema = kinds(*relation);
         let Some(number) = schema.iter().position(|kind| *kind == CellKind::Number) else {
             continue;
@@ -25,48 +51,18 @@ fn the_recogniser_proves_a_number_exactly_when_the_session_hands_it_over_stored(
                 columns: &[],
             }))
         };
-        let stored = matches!(
-            source_rows(&read, &elements, FileId(0), *relation),
-            Ok(Rows::Stored(_))
-        );
-        assert_eq!(
-            proves_stored_number(*relation, ColumnIndex(u32::try_from(number).unwrap())),
-            stored,
-            "{relation:?}: the recogniser and the file session disagree on a stored number"
-        );
-    }
-    assert!(
-        numbered > 1,
-        "the catalog holds native and stored numbers alike"
-    );
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    TheRecogniserProvesANumberExactlyWhenTheSessionHandsItOverStored,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("the_recogniser_proves_a_number_exactly_when_the_session_hands_it_over_stored"),
-    word: Word::Succeeds,
-    input: || Scenario::TheRecogniserProvesANumberExactlyWhenTheSessionHandsItOverStored,
-    expect: Expect::Value(()),
-}];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::TheRecogniserProvesANumberExactlyWhenTheSessionHandsItOverStored => {
-            the_recogniser_proves_a_number_exactly_when_the_session_hands_it_over_stored();
-            Ok(())
+        let stored = source_rows(&read, &elements, FileId(0), *relation)
+            .ok()
+            .is_some_and(|rows| matches!(rows, Rows::Stored(_)));
+        let column = ColumnIndex(u32::try_from(number).map_err(|_| OperatingError::WrongOperation)?);
+        if proves_stored_number(*relation, column) != stored {
+            disagreeing.push(*relation);
         }
     }
+    Ok(Agreement {
+        numbered,
+        disagreeing: disagreeing.into(),
+    })
 }
 
 #[test]

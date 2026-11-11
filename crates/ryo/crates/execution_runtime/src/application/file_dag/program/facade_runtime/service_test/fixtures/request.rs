@@ -1,5 +1,5 @@
 //! The authored plan and rule each parity scenario submits.
-use super::scenario::Scenario;
+use super::scenario::ProgramShape;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -11,15 +11,15 @@ use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
-pub(crate) fn plan(scenario: Scenario) -> Plan {
+pub(crate) fn plan(scenario: ProgramShape) -> Plan {
     let mut steps = vec![PlanStep {
         operation: Operation::Select {
             from: PlanInput::Relation(Relation::SyntaxTree),
-            comparisons: if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
+            comparisons: if matches!(scenario, ProgramShape::OrdinaryFunctionJoin) {
                 vec![]
             } else if matches!(
                 scenario,
-                Scenario::RowsOfWords | Scenario::DistinctKinds | Scenario::KeptKinds
+                ProgramShape::RowsOfWords | ProgramShape::DistinctKinds | ProgramShape::KeptKinds
             ) {
                 vec![PlanComparison {
                     test: Test::NotEqual,
@@ -35,7 +35,7 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
                     origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }]
             },
-            kept: if matches!(scenario, Scenario::DistinctKinds | Scenario::KeptKinds) {
+            kept: if matches!(scenario, ProgramShape::DistinctKinds | ProgramShape::KeptKinds) {
                 vec![ColumnIndex(1)]
             } else {
                 vec![ColumnIndex(0), ColumnIndex(1)]
@@ -43,7 +43,7 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
         },
         scope: StepScope::PerFile,
     }];
-    if matches!(scenario, Scenario::RowsOfWords) {
+    if matches!(scenario, ProgramShape::RowsOfWords) {
         steps.push(PlanStep {
             operation: Operation::Select {
                 from: PlanInput::Step(StepId(0)),
@@ -60,13 +60,13 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
     }
     if matches!(
         scenario,
-        Scenario::RowsOfWords | Scenario::DistinctKinds | Scenario::KeptKinds
+        ProgramShape::RowsOfWords | ProgramShape::DistinctKinds | ProgramShape::KeptKinds
     ) {
         steps.push(PlanStep {
             operation: Operation::Project {
                 from: PlanInput::Step(StepId((steps.len() - 1) as u32)),
                 columns: vec![ColumnIndex(0)],
-                distinct: if matches!(scenario, Scenario::KeptKinds) {
+                distinct: if matches!(scenario, ProgramShape::KeptKinds) {
                     RepeatedRows::Kept
                 } else {
                     RepeatedRows::Dropped
@@ -75,7 +75,7 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
             scope: StepScope::PerFile,
         });
     }
-    if matches!(scenario, Scenario::Counted) {
+    if matches!(scenario, ProgramShape::Counted) {
         steps.push(PlanStep {
             operation: Operation::GroupCount {
                 from: PlanInput::Step(StepId(0)),
@@ -85,7 +85,7 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
             scope: StepScope::PerFile,
         });
     }
-    if matches!(scenario, Scenario::MissingRight) {
+    if matches!(scenario, ProgramShape::MissingRight) {
         steps.push(PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Select {
@@ -104,7 +104,7 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
             },
         });
     }
-    if matches!(scenario, Scenario::OrdinaryFunctionJoin) {
+    if matches!(scenario, ProgramShape::OrdinaryFunctionJoin) {
         steps.push(PlanStep {
             scope: StepScope::PerFile,
             operation: Operation::Join {
@@ -124,10 +124,10 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
     }
     if matches!(
         scenario,
-        Scenario::NativeAntijoin
-            | Scenario::NativeUnion
-            | Scenario::NativeJoinSteps
-            | Scenario::NativeJoinTree
+        ProgramShape::NativeAntijoin
+            | ProgramShape::NativeUnion
+            | ProgramShape::NativeJoinSteps
+            | ProgramShape::NativeJoinTree
     ) {
         let select = |comparisons, kept| PlanStep {
             operation: Operation::Select {
@@ -144,14 +144,14 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
             origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
         };
         steps = match scenario {
-            Scenario::NativeAntijoin | Scenario::NativeUnion => vec![
+            ProgramShape::NativeAntijoin | ProgramShape::NativeUnion => vec![
                 select(
                     vec![text_is(1, Test::NotEqual, "file")],
                     vec![ColumnIndex(1)],
                 ),
                 select(vec![text_is(1, Test::Equal, "word")], vec![ColumnIndex(1)]),
                 PlanStep {
-                    operation: if matches!(scenario, Scenario::NativeAntijoin) {
+                    operation: if matches!(scenario, ProgramShape::NativeAntijoin) {
                         Operation::Antijoin {
                             left: PlanInput::Step(StepId(0)),
                             right: PlanInput::Step(StepId(1)),
@@ -167,7 +167,7 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
                     scope: StepScope::PerFile,
                 },
             ],
-            Scenario::NativeJoinSteps => vec![
+            ProgramShape::NativeJoinSteps => vec![
                 select(
                     vec![text_is(1, Test::Equal, "word")],
                     vec![ColumnIndex(0), ColumnIndex(1)],
@@ -199,7 +199,7 @@ pub(crate) fn plan(scenario: Scenario) -> Plan {
                     scope: StepScope::PerFile,
                 },
             ],
-            Scenario::NativeJoinTree => vec![
+            ProgramShape::NativeJoinTree => vec![
                 select(vec![text_is(1, Test::Equal, "other")], vec![ColumnIndex(0)]),
                 PlanStep {
                     operation: Operation::Join {

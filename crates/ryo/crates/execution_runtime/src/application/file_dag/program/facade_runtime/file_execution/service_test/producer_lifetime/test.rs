@@ -1,93 +1,118 @@
 //! Required derived storage follows real compiled producer consumers, including cancellation.
 use super::fixtures::FinalConsumer;
-use super::fixtures::scenario::exercise;
+use super::fixtures::scenario::{Lifetime, Release, Second, exercise};
+use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_values::domain::rows::errors::RowsError;
+use std::borrow::Cow;
 
-fn shared_published_producer_keeps_index_until_its_final_real_consumer() {
-    exercise(FinalConsumer::Completes).expect("actual compiled producer lifetime");
-}
-fn terminal_shape_failure_preserves_actual_reader_release_and_transferred_output() {
-    exercise(FinalConsumer::InvalidTerminal).expect("actual compiled failure cancellation");
-}
+type Input = FinalConsumer;
+type Value = Lifetime;
+type Failure = OperatingError;
 
-fn final_refusing_consumer_releases_zero_budget_index_without_rereading_its_producer() {
-    for final_consumer in [FinalConsumer::RefusingProvider] {
-        exercise(final_consumer).expect("actual compiled final consumer cancellation");
+/// A healthy consumer's release that leaves `remaining` consumers.
+const fn released(remaining: usize) -> Release {
+    let last = remaining == 0;
+    Release {
+        remaining: (remaining + 1, remaining),
+        attempt: (
+            AttemptCheckpoint::Published,
+            if last {
+                AttemptCheckpoint::Terminal
+            } else {
+                AttemptCheckpoint::Published
+            },
+        ),
+        alive: (true, !last),
+        holds_bytes: (true, !last),
+        paired: true,
     }
 }
 
-fn upfront_skipped_reader_releases_the_real_shared_index_after_the_remaining_reader() {
-    exercise(FinalConsumer::SkippedAtStart)
-        .expect("actual zero-budget final reader release before file finish");
+/// The lifetime every exit shares: one producer of two consumers, the first's rows, and a
+/// producer that ends terminal with nothing held.
+const fn lifetime(
+    remaining_after_exclusion: Option<usize>,
+    builds: (u64, u64, bool),
+    second: Second,
+    releases: &'static [Release],
+) -> Lifetime {
+    Lifetime {
+        shared_consumers: Some(2),
+        remaining_after_exclusion,
+        first: Cow::Borrowed(&[2, 9, 3, 7]),
+        builds,
+        second,
+        final_rereads: 0,
+        releases: Cow::Borrowed(releases),
+        one_backing: true,
+        final_state: (AttemptCheckpoint::Terminal, 0),
+        working_bytes: 0,
+        first_survives: true,
+        backing_released: true,
+        owned_bytes: 0,
+    }
 }
 
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    SharedPublishedProducerKeepsIndexUntilItsFinalRealConsumer,
-    TerminalShapeFailurePreservesActualReaderReleaseAndTransferredOutput,
-    FinalRefusingConsumerReleasesZeroBudgetIndexWithoutRereadingItsProducer,
-    UpfrontSkippedReaderReleasesTheRealSharedIndexAfterTheRemainingReader,
-}
+const BOTH_RELEASED: &[Release] = &[released(1), released(0)];
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("shared_published_producer_keeps_index_until_its_final_real_consumer"),
         word: Word::Succeeds,
-        input: || Scenario::SharedPublishedProducerKeepsIndexUntilItsFinalRealConsumer,
-        expect: Expect::Value(()),
+        input: || FinalConsumer::Completes,
+        expect: Expect::Value(lifetime(
+            None,
+            (1, 1, true),
+            Second::Rows(Cow::Borrowed(&[9, 2, 7, 3])),
+            BOTH_RELEASED,
+        )),
     },
     Case {
         name: CaseName(
             "terminal_shape_failure_preserves_actual_reader_release_and_transferred_output",
         ),
         word: Word::Succeeds,
-        input: || Scenario::TerminalShapeFailurePreservesActualReaderReleaseAndTransferredOutput,
-        expect: Expect::Value(()),
+        input: || FinalConsumer::InvalidTerminal,
+        expect: Expect::Value(lifetime(
+            None,
+            (1, 1, true),
+            Second::Failed(OperatingError::Table(RowsError::NoSuchColumn { index: 99 })),
+            BOTH_RELEASED,
+        )),
     },
     Case {
         name: CaseName(
             "final_refusing_consumer_releases_zero_budget_index_without_rereading_its_producer",
         ),
         word: Word::Succeeds,
-        input: || Scenario::FinalRefusingConsumerReleasesZeroBudgetIndexWithoutRereadingItsProducer,
-        expect: Expect::Value(()),
+        input: || FinalConsumer::RefusingProvider,
+        expect: Expect::Value(lifetime(
+            None,
+            (1, 1, false),
+            Second::Failed(OperatingError::NotRead),
+            BOTH_RELEASED,
+        )),
     },
     Case {
         name: CaseName(
             "upfront_skipped_reader_releases_the_real_shared_index_after_the_remaining_reader",
         ),
         word: Word::Succeeds,
-        input: || Scenario::UpfrontSkippedReaderReleasesTheRealSharedIndexAfterTheRemainingReader,
-        expect: Expect::Value(()),
+        input: || FinalConsumer::SkippedAtStart,
+        expect: Expect::Value(lifetime(
+            Some(1),
+            (1, 1, false),
+            Second::Refused(OperatingError::NotRun),
+            &[released(0)],
+        )),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::SharedPublishedProducerKeepsIndexUntilItsFinalRealConsumer => {
-            shared_published_producer_keeps_index_until_its_final_real_consumer();
-            Ok(())
-        }
-        Scenario::TerminalShapeFailurePreservesActualReaderReleaseAndTransferredOutput => {
-            terminal_shape_failure_preserves_actual_reader_release_and_transferred_output();
-            Ok(())
-        }
-        Scenario::FinalRefusingConsumerReleasesZeroBudgetIndexWithoutRereadingItsProducer => {
-            final_refusing_consumer_releases_zero_budget_index_without_rereading_its_producer();
-            Ok(())
-        }
-        Scenario::UpfrontSkippedReaderReleasesTheRealSharedIndexAfterTheRemainingReader => {
-            upfront_skipped_reader_releases_the_real_shared_index_after_the_remaining_reader();
-            Ok(())
-        }
-    }
+/// Runs both consumers of the shared producer, the second ending as the input says.
+fn subject(final_consumer: Input) -> Result<Value, Failure> {
+    exercise(final_consumer)
 }
 
 #[test]
