@@ -8,6 +8,7 @@ use fixtures::scenario::Scenario;
 
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use ryo_execution_domain::domain::table_cells::fixtures::{
     SMALL_SOURCE, SmallTree, rows_over, small_tree,
@@ -23,7 +24,6 @@ use ryo_relations::domain::relations::{
     service::kinds,
     types::{FileId, Integer, Relation},
 };
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };

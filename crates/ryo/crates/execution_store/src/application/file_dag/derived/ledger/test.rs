@@ -2,6 +2,7 @@ use super::types::{
     Backing, BackingAddress, BackingKey, BackingTag, ByteCount, Credit, LeaseClass, UnitCount,
 };
 use crate::application::file_dag::derived::ledger::service::Ledger;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
@@ -23,7 +24,6 @@ fn positions(key: BackingAddress, bytes: ByteCount, capacity: UnitCount) -> Back
     }
 }
 
-#[test]
 fn shared_alias_is_charged_once_and_last_consumer_releases_it() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
     let required = Arc::new(
@@ -49,7 +49,6 @@ fn shared_alias_is_charged_once_and_last_consumer_releases_it() {
     assert_eq!(after.peak_unique_bytes, ByteCount(100));
 }
 
-#[test]
 fn optional_retention_survives_required_release_without_double_physical_charge() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
     let required = Ledger::acquire(
@@ -108,7 +107,6 @@ fn optional_retention_survives_required_release_without_double_physical_charge()
     assert_eq!(ledger.borrow().snapshot().unique_bytes, ByteCount(0));
 }
 
-#[test]
 fn optional_release_keeps_required_backing_and_recharges_the_view_allowance() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
     let rows = positions(BackingAddress(8), ByteCount(400), UnitCount(100));
@@ -165,7 +163,6 @@ fn optional_release_keeps_required_backing_and_recharges_the_view_allowance() {
     assert_eq!(released.peak_optional_units, UnitCount(100));
 }
 
-#[test]
 fn position_capacity_is_charged_once_per_optional_backing_and_survives_required_release() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
     let row_ids = positions(BackingAddress(9), ByteCount(400), UnitCount(100));
@@ -198,7 +195,6 @@ fn position_capacity_is_charged_once_per_optional_backing_and_survives_required_
     assert_eq!(final_state.peak_optional_units, UnitCount(100));
 }
 
-#[test]
 fn optional_release_preview_requires_every_last_handle_and_counts_units_separately() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
     let rows = positions(BackingAddress(10), ByteCount(400), UnitCount(100));
@@ -282,7 +278,6 @@ fn optional_release_preview_requires_every_last_handle_and_counts_units_separate
     assert_eq!(ledger.borrow().snapshot().optional_units, UnitCount(0));
 }
 
-#[test]
 fn a_reused_key_cannot_change_its_immutable_size() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
     let required = Ledger::acquire(
@@ -349,3 +344,101 @@ fn a_reused_key_cannot_change_its_immutable_size() {
 }
 
 mod bounds;
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    SharedAliasIsChargedOnceAndLastConsumerReleasesIt,
+    OptionalRetentionSurvivesRequiredReleaseWithoutDoublePhysicalCharge,
+    OptionalReleaseKeepsRequiredBackingAndRechargesTheViewAllowance,
+    PositionCapacityIsChargedOncePerOptionalBackingAndSurvivesRequiredRelease,
+    OptionalReleasePreviewRequiresEveryLastHandleAndCountsUnitsSeparately,
+    AReusedKeyCannotChangeItsImmutableSize,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("shared_alias_is_charged_once_and_last_consumer_releases_it"),
+        word: Word::Succeeds,
+        input: || Scenario::SharedAliasIsChargedOnceAndLastConsumerReleasesIt,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "optional_retention_survives_required_release_without_double_physical_charge",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::OptionalRetentionSurvivesRequiredReleaseWithoutDoublePhysicalCharge,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("optional_release_keeps_required_backing_and_recharges_the_view_allowance"),
+        word: Word::Succeeds,
+        input: || Scenario::OptionalReleaseKeepsRequiredBackingAndRechargesTheViewAllowance,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "position_capacity_is_charged_once_per_optional_backing_and_survives_required_release",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::PositionCapacityIsChargedOncePerOptionalBackingAndSurvivesRequiredRelease
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "optional_release_preview_requires_every_last_handle_and_counts_units_separately",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::OptionalReleasePreviewRequiresEveryLastHandleAndCountsUnitsSeparately,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_reused_key_cannot_change_its_immutable_size"),
+        word: Word::Succeeds,
+        input: || Scenario::AReusedKeyCannotChangeItsImmutableSize,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::SharedAliasIsChargedOnceAndLastConsumerReleasesIt => {
+            shared_alias_is_charged_once_and_last_consumer_releases_it();
+            Ok(())
+        }
+        Scenario::OptionalRetentionSurvivesRequiredReleaseWithoutDoublePhysicalCharge => {
+            optional_retention_survives_required_release_without_double_physical_charge();
+            Ok(())
+        }
+        Scenario::OptionalReleaseKeepsRequiredBackingAndRechargesTheViewAllowance => {
+            optional_release_keeps_required_backing_and_recharges_the_view_allowance();
+            Ok(())
+        }
+        Scenario::PositionCapacityIsChargedOncePerOptionalBackingAndSurvivesRequiredRelease => {
+            position_capacity_is_charged_once_per_optional_backing_and_survives_required_release();
+            Ok(())
+        }
+        Scenario::OptionalReleasePreviewRequiresEveryLastHandleAndCountsUnitsSeparately => {
+            optional_release_preview_requires_every_last_handle_and_counts_units_separately();
+            Ok(())
+        }
+        Scenario::AReusedKeyCannotChangeItsImmutableSize => {
+            a_reused_key_cannot_change_its_immutable_size();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

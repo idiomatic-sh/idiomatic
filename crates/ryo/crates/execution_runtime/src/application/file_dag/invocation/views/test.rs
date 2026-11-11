@@ -1,16 +1,17 @@
 //! The exact lease getter must consume the registered borrowed view without copying storage.
 use super::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
-use ryo_relations::domain::relations::types::{CellKind, Integer};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
 use {
     ryo_execution_domain::domain::derived_views::types::*,
     ryo_execution_domain::domain::operation_schema::types::InputShape,
     ryo_values::domain::rows::service::push_row,
 };
-#[test]
 fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storage() {
     let mut table = Table {
         kinds: vec![CellKind::Number; 2],
@@ -18,7 +19,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     };
     push_row(
         &mut table,
-        &[Value::Number(Integer(1)), Value::Number(Integer(2))],
+        &[Cell::Number(Integer(1)), Cell::Number(Integer(2))],
     );
     let plan = Arc::new(
         ryo_execution_store::application::file_dag::derived::prepare::view(
@@ -72,7 +73,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
         .unwrap();
     assert_eq!(
         graph.values,
-        [Value::Number(Integer(1)), Value::Number(Integer(2))]
+        [Cell::Number(Integer(1)), Cell::Number(Integer(2))]
     );
     assert_eq!(
         pointer,
@@ -113,4 +114,37 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     ));
 }
 
-use ryo_values::domain::rows::types::Table;
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ProductionCycleLeaseBorrowsActualTraitOutputAndRefusesForeignStorage,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName(
+        "production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storage",
+    ),
+    word: Word::Succeeds,
+    input: || Scenario::ProductionCycleLeaseBorrowsActualTraitOutputAndRefusesForeignStorage,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ProductionCycleLeaseBorrowsActualTraitOutputAndRefusesForeignStorage => {
+            production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storage();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

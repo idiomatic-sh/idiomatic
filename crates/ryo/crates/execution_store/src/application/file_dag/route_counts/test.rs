@@ -13,6 +13,7 @@ use crate::application::file_dag::route_counts::ids::service::RouteLabel;
 use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
 use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
 use crate::application::file_dag::route_counts::profile::service::RouteProfile;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::HashMap;
@@ -47,7 +48,6 @@ fn capture(run: impl FnOnce(&RouteProfile)) -> RouteState {
     let mut state = state.lock().expect("an unpoisoned profile");
     std::mem::replace(&mut *state, recording())
 }
-#[test]
 fn physical_build_is_once_and_original_error_survives_nested_scopes() {
     let state = capture(|profile| {
         let _rule = profile.rule(3, &RuleId(EXAMPLE_RULE.into()));
@@ -96,7 +96,6 @@ fn physical_build_is_once_and_original_error_survives_nested_scopes() {
         3
     );
 }
-#[test]
 fn cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state() {
     let state = capture(|profile| {
         for number in [1, 2] {
@@ -124,7 +123,6 @@ fn cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state() {
     observe(&disabled, SCOPED_BUILD, KIND_EQUALITY, || Ok::<_, ()>(())).unwrap();
     assert!(disabled.0.is_none());
 }
-#[test]
 fn bounded_capture_reports_overflow_instead_of_claiming_complete_counts() {
     let state = capture(|profile| {
         for number in 0..MAX_KEYS + 3 {
@@ -136,7 +134,6 @@ fn bounded_capture_reports_overflow_instead_of_claiming_complete_counts() {
     assert_eq!(state.overflow, RouteTally(3));
 }
 
-#[test]
 fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() {
     let state = capture(|profile| {
         let _rule = profile.rule(2, &RuleId(QUERY_NAME.into()));
@@ -165,7 +162,6 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
     );
 }
 
-#[test]
 fn owner_routes_count_each_physical_equality_build_once() {
     use crate::application::file_dag::derived::owner::ViewContext;
     use crate::application::file_dag::relations::RelationOwner;
@@ -283,3 +279,84 @@ fn owner_routes_count_each_physical_equality_build_once() {
 }
 
 use ryo_derived::domain::request::types::DerivedKind;
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    PhysicalBuildIsOnceAndOriginalErrorSurvivesNestedScopes,
+    CrossRuleOriginIsAttributedAndDisabledRecordingAllocatesNoState,
+    BoundedCaptureReportsOverflowInsteadOfClaimingCompleteCounts,
+    OwnerIdentityDistinguishesLivePopulationKeysAndRulesAreNamedOnce,
+    OwnerRoutesCountEachPhysicalEqualityBuildOnce,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("physical_build_is_once_and_original_error_survives_nested_scopes"),
+        word: Word::Succeeds,
+        input: || Scenario::PhysicalBuildIsOnceAndOriginalErrorSurvivesNestedScopes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state"),
+        word: Word::Succeeds,
+        input: || Scenario::CrossRuleOriginIsAttributedAndDisabledRecordingAllocatesNoState,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("bounded_capture_reports_overflow_instead_of_claiming_complete_counts"),
+        word: Word::Succeeds,
+        input: || Scenario::BoundedCaptureReportsOverflowInsteadOfClaimingCompleteCounts,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "owner_identity_distinguishes_live_population_keys_and_rules_are_named_once",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::OwnerIdentityDistinguishesLivePopulationKeysAndRulesAreNamedOnce,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("owner_routes_count_each_physical_equality_build_once"),
+        word: Word::Succeeds,
+        input: || Scenario::OwnerRoutesCountEachPhysicalEqualityBuildOnce,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::PhysicalBuildIsOnceAndOriginalErrorSurvivesNestedScopes => {
+            physical_build_is_once_and_original_error_survives_nested_scopes();
+            Ok(())
+        }
+        Scenario::CrossRuleOriginIsAttributedAndDisabledRecordingAllocatesNoState => {
+            cross_rule_origin_is_attributed_and_disabled_recording_allocates_no_state();
+            Ok(())
+        }
+        Scenario::BoundedCaptureReportsOverflowInsteadOfClaimingCompleteCounts => {
+            bounded_capture_reports_overflow_instead_of_claiming_complete_counts();
+            Ok(())
+        }
+        Scenario::OwnerIdentityDistinguishesLivePopulationKeysAndRulesAreNamedOnce => {
+            owner_identity_distinguishes_live_population_keys_and_rules_are_named_once();
+            Ok(())
+        }
+        Scenario::OwnerRoutesCountEachPhysicalEqualityBuildOnce => {
+            owner_routes_count_each_physical_equality_build_once();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

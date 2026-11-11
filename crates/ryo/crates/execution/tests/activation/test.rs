@@ -301,8 +301,21 @@ fn main() {
     // never elapsed time. Request compilation and full intent binding precede
     // the observed derived activation boundary and are outside this claim; the
     // project cases observe phase opening through the last root delivery.
+    // nextest lists the cases first (`--list --format terse`), then runs each by its name.
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    if arguments.iter().any(|argument| argument == "--list") {
+        if !arguments.iter().any(|argument| argument == "--ignored") {
+            for case in CASES {
+                println!("{}: test", case.name.0);
+            }
+        }
+        return;
+    }
     let _profiler = dhat::Profiler::builder().testing().build();
-    let selected = std::env::args().nth(1);
+    let selected = arguments
+        .iter()
+        .find(|argument| !argument.starts_with("--"))
+        .cloned();
     let mut executed = 0;
     for case in CASES
         .iter()

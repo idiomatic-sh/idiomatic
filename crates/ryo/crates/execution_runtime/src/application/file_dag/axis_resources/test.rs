@@ -1,11 +1,12 @@
 //! Real borrowed-index traversal, duplicate order and admission timing controls.
 use super::view::AxisResource;
 use super::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::derived_views::types::{
     DerivedInputs, DerivedScratch, MembershipSpace,
 };
 use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::table_words::types::ColumnCount;
 use std::sync::Arc;
 use {
@@ -16,8 +17,8 @@ use {
     ryo_values::domain::rows::service::push_row,
 };
 
-fn number(value: Integer) -> Value {
-    Value::Number(value)
+fn number(value: Integer) -> Cell {
+    Cell::Number(value)
 }
 
 fn table(width: ColumnCount, rows: &[&[Integer]]) -> Table {
@@ -109,7 +110,6 @@ fn acquired(
         .unwrap()
 }
 
-#[test]
 fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
     let edges = table(
         ColumnCount(2),
@@ -159,7 +159,6 @@ fn borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order() {
     assert_eq!(walk.reached, vec![number(Integer(2)), number(Integer(3))]);
 }
 
-#[test]
 fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
     let edges = table(ColumnCount(2), &[&[Integer(1), Integer(2)]]);
     let domain = table(ColumnCount(1), &[]);
@@ -186,3 +185,49 @@ fn unsupported_and_empty_gates_precede_derived_handle_requirement() {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    BorrowedAxisKeepsDuplicateDirectEdgesAndBreadthOrder,
+    UnsupportedAndEmptyGatesPrecedeDerivedHandleRequirement,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order"),
+        word: Word::Succeeds,
+        input: || Scenario::BorrowedAxisKeepsDuplicateDirectEdgesAndBreadthOrder,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unsupported_and_empty_gates_precede_derived_handle_requirement"),
+        word: Word::Succeeds,
+        input: || Scenario::UnsupportedAndEmptyGatesPrecedeDerivedHandleRequirement,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::BorrowedAxisKeepsDuplicateDirectEdgesAndBreadthOrder => {
+            borrowed_axis_keeps_duplicate_direct_edges_and_breadth_order();
+            Ok(())
+        }
+        Scenario::UnsupportedAndEmptyGatesPrecedeDerivedHandleRequirement => {
+            unsupported_and_empty_gates_precede_derived_handle_requirement();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

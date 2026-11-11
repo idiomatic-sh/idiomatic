@@ -1,8 +1,8 @@
 use super::service::exact_required_files;
 use super::types::FileAccounting;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::FileId;
 
-#[test]
 fn a_complete_bucket_requires_every_declared_project_file() {
     let required = [FileId(0), FileId(1)];
     assert_eq!(
@@ -71,7 +71,6 @@ fn input_of(
     }
 }
 
-#[test]
 fn content_equal_words_are_decoded_once_and_relabelled_for_each_root() {
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::Input;
@@ -114,7 +113,6 @@ fn content_equal_words_are_decoded_once_and_relabelled_for_each_root() {
     }
 }
 
-#[test]
 fn other_words_another_shape_or_another_symbol_generation_decode_again() {
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{Input, StepId};
@@ -160,7 +158,6 @@ fn other_words_another_shape_or_another_symbol_generation_decode_again() {
     );
 }
 
-#[test]
 fn a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing() {
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::Input;
@@ -196,3 +193,73 @@ fn a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing()
     );
 }
 mod cut_refusal;
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ACompleteBucketRequiresEveryDeclaredProjectFile,
+    ContentEqualWordsAreDecodedOnceAndRelabelledForEachRoot,
+    OtherWordsAnotherShapeOrAnotherSymbolGenerationDecodeAgain,
+    ADecodeReleasesItsPackedWordsAndAnEqualSecondRootDecodesNothing,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_complete_bucket_requires_every_declared_project_file"),
+        word: Word::Succeeds,
+        input: || Scenario::ACompleteBucketRequiresEveryDeclaredProjectFile,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("content_equal_words_are_decoded_once_and_relabelled_for_each_root"),
+        word: Word::Succeeds,
+        input: || Scenario::ContentEqualWordsAreDecodedOnceAndRelabelledForEachRoot,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("other_words_another_shape_or_another_symbol_generation_decode_again"),
+        word: Word::Succeeds,
+        input: || Scenario::OtherWordsAnotherShapeOrAnotherSymbolGenerationDecodeAgain,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ADecodeReleasesItsPackedWordsAndAnEqualSecondRootDecodesNothing,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ACompleteBucketRequiresEveryDeclaredProjectFile => {
+            a_complete_bucket_requires_every_declared_project_file();
+            Ok(())
+        }
+        Scenario::ContentEqualWordsAreDecodedOnceAndRelabelledForEachRoot => {
+            content_equal_words_are_decoded_once_and_relabelled_for_each_root();
+            Ok(())
+        }
+        Scenario::OtherWordsAnotherShapeOrAnotherSymbolGenerationDecodeAgain => {
+            other_words_another_shape_or_another_symbol_generation_decode_again();
+            Ok(())
+        }
+        Scenario::ADecodeReleasesItsPackedWordsAndAnEqualSecondRootDecodesNothing => {
+            a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

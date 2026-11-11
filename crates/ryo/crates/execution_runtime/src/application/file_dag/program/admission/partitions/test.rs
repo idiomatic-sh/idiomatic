@@ -2,6 +2,7 @@
 //! them are one identity to every check, among them the lookup of the frontier cache (`same_request`), and each keeps its own set.
 use super::super::super::request_identity::RequestIdentity;
 use super::super::{Agreement, Partition, PartitionSupply, RequiredPartitions};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::files::types::{
@@ -22,7 +23,6 @@ fn corpus() -> Vec<CorpusInput> {
         .to_vec()
 }
 
-#[test]
 fn identities_that_differ_only_in_the_inapplicable_files_are_one_identity_and_keep_their_sets() {
     let files = corpus();
     let request = Arc::new(RequestIdentity::new(&files));
@@ -51,7 +51,6 @@ fn identities_that_differ_only_in_the_inapplicable_files_are_one_identity_and_ke
     assert!(with.identity().inapplicable().is_empty());
 }
 
-#[test]
 fn identities_of_two_requests_are_never_one_identity() {
     let files = corpus();
     let first = Arc::new(RequestIdentity::new(&files));
@@ -65,4 +64,54 @@ fn identities_of_two_requests_are_never_one_identity() {
         Agreement::Different,
         "the same inapplicable files do not make two runs one identity"
     );
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    IdentitiesThatDifferOnlyInTheInapplicableFilesAreOneIdentityAndKeepTheirSets,
+    IdentitiesOfTwoRequestsAreNeverOneIdentity,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "identities_that_differ_only_in_the_inapplicable_files_are_one_identity_and_keep_their_sets",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::IdentitiesThatDifferOnlyInTheInapplicableFilesAreOneIdentityAndKeepTheirSets
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("identities_of_two_requests_are_never_one_identity"),
+        word: Word::Succeeds,
+        input: || Scenario::IdentitiesOfTwoRequestsAreNeverOneIdentity,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::IdentitiesThatDifferOnlyInTheInapplicableFilesAreOneIdentityAndKeepTheirSets => {
+            identities_that_differ_only_in_the_inapplicable_files_are_one_identity_and_keep_their_sets();
+            Ok(())
+        }
+        Scenario::IdentitiesOfTwoRequestsAreNeverOneIdentity => {
+            identities_of_two_requests_are_never_one_identity();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

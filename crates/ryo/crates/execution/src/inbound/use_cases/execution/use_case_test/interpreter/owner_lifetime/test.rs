@@ -1,5 +1,6 @@
 //! Every invocation workspace of a file run holds the file's relation owner, and finishing the file drops every one of them.
 use super::super::super::super::fixtures;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::{
     CaptureIntent, DiagnosticDelivery, ExecutionUseCase as _, FileRuleIntent, ObservationDemand,
     OperatingError, RuleIndex,
@@ -16,13 +17,12 @@ use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
 use ryo_values::domain::plans::types::Operation;
 
-#[test]
 fn finishing_a_file_drops_its_relation_owner() {
     let plan = inputs::plan(vec![Operation::Select {
-        from: Input::Relation(Relation::Function),
+        from: PlanInput::Relation(Relation::Function),
         comparisons: vec![],
         kept: vec![ColumnIndex(0)],
     }]);
@@ -75,4 +75,37 @@ fn finishing_a_file_drops_its_relation_owner() {
         "file finish drops the actual owner and all mandatory workspace references"
     );
     request.finish();
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    FinishingAFileDropsItsRelationOwner,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("finishing_a_file_drops_its_relation_owner"),
+    word: Word::Succeeds,
+    input: || Scenario::FinishingAFileDropsItsRelationOwner,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::FinishingAFileDropsItsRelationOwner => {
+            finishing_a_file_drops_its_relation_owner();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

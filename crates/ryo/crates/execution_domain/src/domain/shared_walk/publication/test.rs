@@ -164,7 +164,6 @@ fn numbered(column: u32, value: i64) -> PlanComparison {
         origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
     }
 }
-#[test]
 fn generic_rows_share_one_walk_under_exact_typed_bindings_and_relation() {
     let mut by_parameter = numbered(8, 0);
     by_parameter.right = Operand::Parameter(ParameterId(0));
@@ -232,7 +231,6 @@ fn generic_rows_share_one_walk_under_exact_typed_bindings_and_relation() {
     assert!(empty.class(ClassPlace(0)).is_none());
     assert!(empty.class(ClassPlace(3)).unwrap().positions.0.is_empty());
 }
-#[test]
 fn invalid_generic_representation_or_relation_schema_declines_without_semantic_work() {
     let plans = [relation_plan(
         Relation::SourceLocation,
@@ -290,7 +288,6 @@ fn invalid_generic_representation_or_relation_schema_declines_without_semantic_w
         assert_eq!(wrong_schema.counts().passes.0, 0);
     });
 }
-#[test]
 fn an_unready_class_of_a_demanded_rule_performs_no_semantic_work() {
     let mut selected = plan("word");
     selected.steps.push(PlanStep {
