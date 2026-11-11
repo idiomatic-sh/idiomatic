@@ -1,7 +1,6 @@
-// ignore: idiomatic.arch/file-length - one case table for the executable program's compile: the demand program, the region merge, the replace gate and the step places share the program fixtures, and each row states the whole observation its compile answers.
 //! A region the recogniser did not resolve keeps its registered operators, equivalent drafted regions merge as the linear scan
 //! would in linear cost, and demand compilation preserves declared order.
-use super::fixtures::{axis, merged, reference, state};
+use super::fixtures::{Cost, Merge, axis, merge_beside_the_linear_scan, merge_cost};
 use super::{
     service::ordered_existence,
     types::{DemandAction, Route, RouteKind, RowGate, demand_program::value::DemandProgram},
@@ -43,27 +42,6 @@ enum Asked {
 struct Demand {
     prepared: DemandOrder,
     admits: Cow<'static, [usize]>,
-}
-
-/// The region merge beside the linear scan: the kept regions of each, the drafts, the drafts left,
-/// and whether its mapping, representatives and readers equal the scan's.
-#[derive(Debug, PartialEq)]
-struct Merge {
-    kept: usize,
-    kept_as_the_scan: bool,
-    drafts: usize,
-    drafts_left: usize,
-    drafts_left_as_the_scan: bool,
-    mapping_as_the_scan: bool,
-    representatives_as_the_scan: bool,
-    readers_as_the_scan: bool,
-}
-
-/// The comparisons at each rule count, and whether each is under three times the one before plus 16.
-#[derive(Debug, PartialEq)]
-struct Cost {
-    comparisons: Cow<'static, [usize]>,
-    linear: bool,
 }
 
 /// The route an unresolved region gets, and whether it has an ordered existence.
@@ -256,37 +234,6 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-fn merge_beside_the_linear_scan() -> Merge {
-    let mixed = |rule: usize| rule % 7;
-    let mut fast = state(40, mixed);
-    let mut slow = state(40, mixed);
-    let shared = merged(&mut fast).shared;
-    let live = |state: &super::fixtures::State| {
-        state.drafts.iter().map(Option::is_some).collect::<Vec<_>>()
-    };
-    Merge {
-        kept: shared.len(),
-        kept_as_the_scan: shared == reference(&mut slow),
-        drafts: fast.drafts.len(),
-        drafts_left: fast.drafts.iter().flatten().count(),
-        drafts_left_as_the_scan: live(&fast) == live(&slow),
-        mapping_as_the_scan: fast.mapping == slow.mapping,
-        representatives_as_the_scan: fast.representative == slow.representative,
-        readers_as_the_scan: fast.readers == slow.readers,
-    }
-}
-fn comparisons(rules: usize) -> usize {
-    // Even rules repeat rule 0; odd rules are distinct from every other rule.
-    let mut state = state(rules, |rule| if rule % 2 == 0 { 0 } else { 2 });
-    merged(&mut state).comparisons.0
-}
-fn merge_cost() -> Cost {
-    let counts: Vec<usize> = [50, 100, 200, 400].into_iter().map(comparisons).collect();
-    Cost {
-        linear: counts.windows(2).all(|pair| pair[1] < 3 * pair[0] + 16),
-        comparisons: Cow::Owned(counts),
-    }
-}
 /// The boundary the Replace declaration rests on: a name that left its file and has no text fails the text gate, so only
 /// a path where no such name can arrive may declare Replace over a Symbol column infallible.
 fn a_name_without_text() -> Result<RowGate, Failure> {
