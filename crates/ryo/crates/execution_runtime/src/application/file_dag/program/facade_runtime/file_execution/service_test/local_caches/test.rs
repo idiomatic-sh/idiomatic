@@ -1,10 +1,12 @@
 //! The local pattern caches a real compiled owner measured, read from the runtime's own route observation: only patterns bound
 //! at run time enter them.
+use super::super::super::*;
 use super::super::ordered_dfs::fixtures::execute_bound_request;
-use super::super::*;
 use crate::application::file_dag::fixtures::operator_contract::inputs::table_inputs;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
+use ryo_relations::domain::relations::types::{CellKind, Relation, Value as Cell};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{
@@ -12,6 +14,11 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::service::push_row;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::Table,
+};
 
 type Value = ();
 type Failure = OperatingError;

@@ -6,4 +6,4 @@ mod inputs;
 #[cfg(test)]
 mod publication;
 #[cfg(test)]
-mod test;
+mod service_test;

@@ -239,7 +239,7 @@ fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
 }
 
 #[cfg(test)]
-mod test;
+mod service_test;
 
 use ryo_derived::domain::request::types::DerivedKind;
 

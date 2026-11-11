@@ -1,13 +1,25 @@
 //! Immutable real request inputs and the production file-owner composition.
 use self::plans::Authored;
 use self::semantics::{Calls, Derived, Meanings};
-use super::super::*;
+use super::super::super::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use ryo_execution_domain::domain::step_classes::types::ClassPlace;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{FileId, Integer, Relation, Span, Value as Cell},
+};
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 pub(super) mod plans;
 pub(super) mod routes;

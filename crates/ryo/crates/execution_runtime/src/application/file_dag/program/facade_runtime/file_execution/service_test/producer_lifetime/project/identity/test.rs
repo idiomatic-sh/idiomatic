@@ -1,5 +1,5 @@
 //! One project phase execution serves every rule of the request.
-use super::super::super::super::*;
+use super::super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::FrontierInput;
@@ -8,6 +8,17 @@ use crate::application::file_dag::program::facade_runtime::types::ProjectFrontie
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{FileId, Integer, Relation, Value as Cell},
+};
+use ryo_values::domain::{
+    plan_parts::types::Input as PlanInput,
+    rows::types::{RowCount, Table},
+};
+use std::sync::Arc;
 
 /// Which files a rule has no frame for is that rule's own evidence: two rules of one project phase
 /// share its one execution although their required partitions differ in it.

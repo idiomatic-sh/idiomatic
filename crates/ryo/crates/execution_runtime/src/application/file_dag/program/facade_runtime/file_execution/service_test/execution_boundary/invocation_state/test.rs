@@ -1,10 +1,27 @@
 //! Chained registered evaluations reuse downstream invocation state and release their peaks.
+use super::super::super::super::*;
+use super::super::super::fixtures::*;
 use super::super::super::scratch_owner::test::{execute, hosted};
-use super::super::super::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_domain::domain::operating::types::Memo;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    operator::types::Emit as RowSink,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};
 use ryo_values::domain::hosted::types::HostKind;
 use ryo_values::domain::plan_parts::types::HostedNumber;
 use ryo_values::domain::row_texts::types::Cell as HostedCell;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 struct MemoSink {
     starts: Vec<usize>,
     rows: Vec<Cell>,

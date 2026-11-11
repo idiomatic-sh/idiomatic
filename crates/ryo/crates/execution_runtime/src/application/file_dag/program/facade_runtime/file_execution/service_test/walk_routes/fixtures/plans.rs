@@ -1,5 +1,8 @@
 //! Authored plans declare expected barriers without consulting the prepared walk.
-use super::super::super::*;
+use super::super::super::super::*;
+use super::super::super::fixtures::*;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_relations::domain::relations::types::{CellKind, Integer, Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -10,6 +13,12 @@ use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLitera
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::rule_requests::types::RuleSpec;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
 
 pub(crate) struct Authored {
     pub(crate) plans: Vec<Plan>,

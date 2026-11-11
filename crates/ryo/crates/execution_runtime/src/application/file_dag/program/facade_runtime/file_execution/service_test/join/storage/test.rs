@@ -1,8 +1,16 @@
 //! Stored/compact decoding and ordinary equality bag order through the compiled owner.
-use super::super::cases::test::{node, stretch, table_of};
+use super::super::super::super::*;
+use super::super::cases::test::table_of;
 use super::super::*;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Flag, Integer, Value as Cell};
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::service::row_in;
+use ryo_values::domain::{
+    plan_parts::types::{Side, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::{RowCount, Table},
+};
 #[test]
 fn exact_scalar_join_bag_order_reordered_and_empty_keys() {
     let n = |n| Cell::Number(Integer(n));

@@ -1,9 +1,6 @@
 //! Join assertions enter the actual compiled file owner and its real semantic port.
-use super::*;
-use ryo_execution_domain::domain::{
-    table_cells::types::TreeRows,
-    table_model::{service::materialize, types::RepresentationKind},
-};
+use super::fixtures::*;
+use ryo_execution_domain::domain::table_model::{service::materialize, types::RepresentationKind};
 use ryo_relations::{
     domain::relations::{
         service::to_bits,

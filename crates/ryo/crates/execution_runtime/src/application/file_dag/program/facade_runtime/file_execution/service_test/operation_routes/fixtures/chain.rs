@@ -1,15 +1,32 @@
 //! The chain runner that feeds each route through the real owner.
-use super::super::super::*;
+use super::super::super::super::*;
+use super::super::super::fixtures::*;
 use super::sources::Sources;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::fixtures::operator_contract as fixtures;
 use ryo_execution_domain::domain::executable_program::fusion::types::Fusibility;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::symbols::service::query_intern_derived;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::ParameterName;
 use ryo_values::domain::plans::service::{each_input, inputs_of, named};
 use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
 use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId},
+    plans::types::{Emit, Operation, Plan},
+    rows::types::Table,
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 /// The shape a fixture's operation is compiled in.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Chain {

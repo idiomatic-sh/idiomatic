@@ -1,7 +1,6 @@
 //! The tracing events the readiness proof records, one field map per event.
-use super::super::super::*;
-use std::collections::BTreeMap;
 use std::sync::Mutex;
+use std::{collections::BTreeMap, sync::Arc};
 #[derive(Clone, Default)]
 pub(crate) struct Events(pub(crate) Arc<Mutex<Vec<BTreeMap<String, String>>>>);
 #[derive(Default)]

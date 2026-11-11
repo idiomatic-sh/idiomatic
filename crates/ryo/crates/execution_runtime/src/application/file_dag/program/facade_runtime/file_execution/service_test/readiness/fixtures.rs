@@ -1,9 +1,28 @@
 //! Runtime admission fixtures: the omitting adapter and the obligations it is compared against.
+use super::super::super::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+    table_cells::types::{TreeForm, TreeRows},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::files::types::FilePath;
+use ryo_relations::domain::relations::types::{FileId, Integer, Relation};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
+    plans::types::Operation,
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
+use std::{rc::Rc, sync::Arc};
 pub(super) mod adapter;
 pub(super) mod events;
 use self::adapter::ReadyAdapter;
 use self::events::Events;
-use super::super::*;
+use super::super::fixtures::*;
 use crate::application::file_dag::program::kernel_session::KernelSession;
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use std::cell::Cell as Counter;

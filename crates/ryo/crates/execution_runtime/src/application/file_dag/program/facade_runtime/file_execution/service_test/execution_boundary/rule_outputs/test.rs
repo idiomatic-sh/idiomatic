@@ -1,8 +1,25 @@
 //! Rule outputs outlive workspace drops, and evaluation errors leave no mutable state behind.
-use super::super::super::*;
+use super::super::super::super::*;
+use super::super::super::fixtures::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value as Cell};
 use ryo_values::domain::hosted::types::HostKind;
 use ryo_values::domain::plan_parts::types::HostedNumber;
 use ryo_values::domain::row_texts::types::Cell as HostedCell;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId},
+    plans::types::Operation,
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 fn output_requests(
     outputs: &[(&str, usize)],
     bad_first: bool,

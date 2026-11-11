@@ -14,7 +14,7 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use std::sync::{
-    Arc, Mutex,
+    Mutex,
     atomic::{AtomicUsize, Ordering},
 };
 

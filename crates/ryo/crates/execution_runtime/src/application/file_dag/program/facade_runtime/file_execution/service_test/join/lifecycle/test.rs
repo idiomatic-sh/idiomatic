@@ -1,8 +1,27 @@
 //! Reentrant delivery and retry use one genuine prepared program and file owner.
+use super::super::super::super::*;
 use super::super::cases::test::table_of;
 use super::super::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_domain::domain::operating::types::Memo;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    operator::types::Emit as RowSink,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, Side, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::Table,
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
+use std::{rc::Rc, sync::Arc};
 
 struct Callback<'a>(
     &'a mut dyn FnMut(&mut OperatorContext<'_>, &[Cell]) -> Result<(), OperatingError>,

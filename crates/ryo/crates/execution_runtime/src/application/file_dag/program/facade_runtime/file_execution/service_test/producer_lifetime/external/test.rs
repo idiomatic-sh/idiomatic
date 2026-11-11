@@ -1,12 +1,24 @@
 //! Actual external aliases retain one production backing through terminal exits.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::fixtures::{ExternalRootExit, PreparedCase, prepare_case};
+use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingLiveness;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{FileId, Integer, Relation, Value as Cell},
+};
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::rows::errors::RowsError;
+use ryo_values::domain::{
+    rows::types::{RowCount, Table},
+    stored_facts::types::Digest,
+};
+use std::rc::Rc;
 
 /// Two diagnostic obligations share an external Union root. Distinct Join
 /// consumers acquire the real producer's equality lease during the same batch.

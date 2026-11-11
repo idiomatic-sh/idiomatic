@@ -1,13 +1,31 @@
 //! Hosted text vertices and one file owner reset the traversal across closures and graphs.
-use super::super::super::*;
+use super::super::super::super::*;
+use super::super::super::fixtures::*;
 use super::super::fixtures::{
     column, execute_request, expected, host, hosted_plan, numbers, operation,
 };
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value as Cell};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
 use ryo_values::domain::row_texts::types::Cell as HostCell;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{Input as PlanInput, StepId},
+    plans::types::Operation,
+    rows::types::RowCount,
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
+use std::{rc::Rc, sync::Arc};
 #[test]
 fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
     let text = |s: &str| HostCell::Text(s.into());

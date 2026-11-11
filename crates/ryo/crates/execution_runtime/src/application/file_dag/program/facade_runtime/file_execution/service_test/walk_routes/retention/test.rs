@@ -1,11 +1,15 @@
 //! Refused calls are not deliveries; capture is owed; release is keyed by relation.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand, observed_demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
 use ryo_execution_domain::domain::frontier_capture::types::CaptureScope;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{FileId, Value as Cell};
+use ryo_values::domain::stored_facts::types::Digest;
+use std::sync::Arc;
 
 fn captured_program() -> Program {
     Program::new(

@@ -1,6 +1,18 @@
 //! Direct catalog-relation Join routes retain their real acquired representation.
+use super::super::super::super::*;
 use super::super::*;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{service::from_bits, types::Bits};
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, Flag, Integer, Relation, Value as Cell},
+};
+use ryo_values::domain::{
+    plan_parts::types::{Side, StepId, StepScope},
+    plans::types::{Plan, PlanStep},
+    rows::types::{RowCount, Table},
+};
+use std::sync::Arc;
 
 pub(crate) fn encoded(
     relation: Relation,

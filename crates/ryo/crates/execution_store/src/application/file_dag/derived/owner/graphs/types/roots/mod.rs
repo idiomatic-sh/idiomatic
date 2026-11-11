@@ -7,4 +7,4 @@ pub mod value;
 mod constants;
 
 #[cfg(test)]
-mod test;
+mod service_test;

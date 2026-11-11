@@ -1,8 +1,10 @@
 //! Ordered graph traversals that refuse name the exact error.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::{compute, numbers, operation, subject};
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::rows::types::Table;
 use ryo_values::selects;
 fn ties_are_rejected_even_without_roots() -> Result<usize, OperatingError> {
     compute(

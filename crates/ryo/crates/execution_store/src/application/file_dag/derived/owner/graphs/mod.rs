@@ -6,4 +6,6 @@ pub(crate) mod service;
 pub mod types;
 
 #[cfg(test)]
-pub(super) mod test;
+mod fixtures;
+#[cfg(test)]
+mod service_test;

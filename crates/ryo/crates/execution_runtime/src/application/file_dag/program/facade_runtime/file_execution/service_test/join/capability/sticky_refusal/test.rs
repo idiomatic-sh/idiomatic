@@ -1,12 +1,20 @@
 //! A sink failure or a fused semantic refusal stays sticky while the kernel continues and reports success.
+use super::super::super::super::super::*;
 use super::super::super::cases::test::table_of;
 use super::super::super::*;
 use super::super::fixtures::{REFUSAL, refusal};
 use crate::outbound::operators::interface::OperatorsPort as _;
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, Side, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+};
+use std::sync::Arc;
 #[derive(Debug)]
 struct KeepsCalling {
     refuse_project: bool,

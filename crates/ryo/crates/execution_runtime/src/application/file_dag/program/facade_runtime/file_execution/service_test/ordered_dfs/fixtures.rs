@@ -1,12 +1,29 @@
 //! The graph inputs, hosted plan and request runner the ordered traversal proofs share.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value as Cell};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
 use ryo_values::domain::plan_parts::types::HostedNumber;
 use ryo_values::domain::row_texts::types::Cell as HostCell;
 use ryo_values::domain::rows::service::push_row;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, StepId, StepScope},
+    plans::types::{Operation, Plan, PlanStep},
+    rows::types::Table,
+    stored_facts::types::Digest,
+};
+use std::{rc::Rc, sync::Arc};
 pub(crate) const FROM: PlanInput = PlanInput::Relation(Relation::Function);
 pub(crate) fn column(at: u32) -> ColumnIndex {
     ColumnIndex(at)

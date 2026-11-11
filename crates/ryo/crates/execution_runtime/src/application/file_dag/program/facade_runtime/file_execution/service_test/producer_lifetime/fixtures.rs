@@ -1,5 +1,12 @@
 //! Actual compiled producer plans shared by the internal and external reader controls.
-use super::super::*;
+use ryo_relations::domain::relations::types::{Integer, Relation, Value as Cell};
+use ryo_values::domain::{
+    plan_parts::types::{
+        ColumnIndex, Input as PlanInput, JoinColumn, RepeatedRows, Side, StepId, StepScope,
+    },
+    plans::types::{Emit, Operation, Plan, PlanStep},
+    rows::types::Table,
+};
 
 #[derive(Clone, Copy)]
 pub(super) enum ProjectionOrder {

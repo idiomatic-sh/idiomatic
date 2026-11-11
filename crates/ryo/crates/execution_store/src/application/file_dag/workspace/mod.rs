@@ -405,7 +405,7 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
 
 mod service;
 #[cfg(test)]
-mod test;
+mod service_test;
 pub mod types;
 
 use ryo_values::domain::rows::types::{RowIndex, Table};

@@ -1,7 +1,22 @@
 //! Actual compiled request and services for the project lifecycle proof.
-use super::super::super::*;
+use super::super::super::super::*;
+use super::super::super::fixtures::*;
 use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_language::domain::files::types::FilePath;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{Input as PlanInput, StepId, StepScope},
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum PhaseExit {

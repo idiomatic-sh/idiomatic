@@ -1,3 +1,3 @@
 //! Publication constructor controls of the compiled program lifecycle proof.
 #[cfg(test)]
-mod test;
+mod service_test;

@@ -1,7 +1,16 @@
 //! File partitions keep identical node values separate and deliver rows in exact order.
-use super::super::super::*;
 use super::super::fixtures::{column, execute_request, host, hosted_plan, numbers, operation};
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Integer, Offset, Relation, Span, Value as Cell},
+};
+use ryo_values::domain::{
+    plan_parts::types::Input as PlanInput,
+    plans::types::Operation,
+    rows::types::{RowCount, Table},
+};
 #[test]
 fn file_partition_keys_keep_identical_node_values_separate() {
     use ryo_relations::domain::relations::types::NodeId;

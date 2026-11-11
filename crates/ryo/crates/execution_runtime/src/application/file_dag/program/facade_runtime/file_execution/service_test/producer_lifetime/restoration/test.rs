@@ -1,5 +1,5 @@
 //! Restored computation holds its real backing through last use; copied delivery needs no index.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::fixtures::{BoundSupply, CapturedProject, Exit};
 use crate::application::file_dag::program::facade_runtime::project_execution::{
     ProjectRoot, evaluate_roots,
@@ -13,7 +13,13 @@ use ryo_execution_domain::domain::coverage::types::Partials;
 use ryo_execution_store::application::file_dag::derived::owner::witness::service::{
     BackingIdentity, BackingLiveness,
 };
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rows::errors::RowsError;
+use ryo_values::domain::{
+    plan_parts::types::{StepId, StepScope},
+    rows::types::RowCount,
+};
+use std::rc::Rc;
 
 fn exercise(exit: Exit) -> Result<(), OperatingError> {
     let mut symbols = Symbols::default();

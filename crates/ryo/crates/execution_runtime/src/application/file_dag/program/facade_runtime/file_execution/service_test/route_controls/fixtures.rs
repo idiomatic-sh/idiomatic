@@ -1,13 +1,32 @@
 //! The route controls' harness: the operators that count the meanings entered, and one rule run through the real compiled owner.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_domain::domain::coverage::types::Partial;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{FileId, Relation},
+};
+use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plans::types::Plan,
+    rows::types::Table,
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 #[derive(Debug, Default)]
 pub(crate) struct MeaningCalls {

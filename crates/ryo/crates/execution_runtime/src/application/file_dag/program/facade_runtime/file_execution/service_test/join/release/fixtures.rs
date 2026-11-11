@@ -1,4 +1,5 @@
 //! Strategy inputs and the one real semantic dependency whose answers are refused.
+use super::super::super::super::*;
 use super::super::capability::fixtures::REFUSAL;
 use super::super::*;
 use crate::outbound::operators::interface::OperatorsPort as _;
@@ -6,6 +7,11 @@ use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Flag, Integer, Offset, Relation, Span, Value as Cell},
+};
+use ryo_values::domain::rows::types::{RowCount, Table};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Counts the ordered-existence meaning and refuses it on request; every other call is real.
@@ -35,7 +41,7 @@ pub(super) fn refused() -> OperatingError {
 }
 /// Three source rows whose numbers are 1, 3 and 2, with the strategy fixture's own schema.
 pub(super) fn ordered_sources() -> [Provider<'static>; 2] {
-    let (_, schema) = route_controls::test::ordered_strategy_fixture();
+    let (_, schema) = super::super::super::route_controls::test::ordered_strategy_fixture();
     let cells = [1, 3, 2]
         .into_iter()
         .flat_map(|number| {

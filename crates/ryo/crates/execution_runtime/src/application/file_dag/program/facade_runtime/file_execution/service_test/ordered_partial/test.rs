@@ -1,10 +1,20 @@
 //! A recognised ordered existence answers as its declined twin through the real compiled owner, whole and read in part.
+use super::super::super::*;
 use super::super::route_controls::fixtures::{MeaningCalls, Supplied, run_read};
 use super::super::route_controls::test::ordered_strategy_fixture;
-use super::super::*;
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
+use ryo_relations::domain::relations::{
+    service::{kinds, node_id},
+    types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
+};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
 use ryo_values::domain::stored_facts::types::PartialCause;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, StepId, StepScope},
+    plans::types::{Operation, Plan, PlanStep},
+    rows::types::{RowCount, Table},
+};
+use std::sync::Arc;
 
 /// The first location of each line, by byte: an antijoin of the locations over the self join of each line's locations. With `kept`
 /// empty the engine recognises it as an ordered existence; keeping `[0, 1]`, the same meaning, declines the shape.

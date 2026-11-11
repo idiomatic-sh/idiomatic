@@ -1,15 +1,36 @@
 //! Required derived storage follows real compiled producer consumers, including cancellation.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
 use super::fixtures::{FinalConsumer, ProjectionOrder, numbers, shared_plan};
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use crate::application::file_dag::program::runtime::types::IndexLiveness;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
 use ryo_execution_store::application::file_dag::derived::owner::witness::service::{
     BackingIdentity, BackingLiveness, BackingWitness,
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Integer, Relation, Value as Cell},
 };
 use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::rows::errors::RowsError;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::StepId,
+    rows::types::{RowCount, Table},
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 
 fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);

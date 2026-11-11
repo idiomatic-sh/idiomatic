@@ -1,7 +1,18 @@
 //! Typed populations, dense bag order, partial provenance and fused reach semantics.
+use super::super::super::super::*;
 use super::super::cases::test::{node, stretch, table_of};
 use super::super::*;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Integer, Relation, Value as Cell},
+};
 use ryo_values::domain::rows::service::{push_row, row_in};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, ReachLookup, Side},
+    plans::types::Operation,
+    rows::types::{RowCount, Table},
+};
 fn functions(count: usize, dense: bool) -> Table {
     let mut table = Table {
         kinds: kinds(Relation::Function).to_vec(),

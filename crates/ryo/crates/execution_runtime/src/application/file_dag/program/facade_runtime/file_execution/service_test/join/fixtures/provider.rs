@@ -1,14 +1,25 @@
 //! Canonical provider data and its physical encoding; no evaluator or admission factory.
-use super::super::super::*;
+use super::super::super::super::*;
+use ryo_execution_domain::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_execution_domain::domain::table_model::service::materialize;
 use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_relations::domain::relations::service::to_bits;
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn, NodeId};
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Flag, Integer, Offset, Relation, Span, Value as Cell},
+};
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::stored_facts::types::KeptWords;
 use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::{CompactTable, DecodeMode, WordSlice};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::Table,
+};
+use std::sync::Arc;
 /// Canonical provider data and its physical encoding; no evaluator or admission factory.
 pub(crate) struct Provider<'a> {
     pub(crate) relation: Relation,

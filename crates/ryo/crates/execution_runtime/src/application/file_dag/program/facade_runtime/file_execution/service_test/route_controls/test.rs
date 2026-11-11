@@ -1,9 +1,20 @@
 //! Refusal and physical-route controls through the real compiled owner.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
 use super::fixtures::{MeaningCalls, run};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
+use ryo_relations::domain::relations::{
+    service::{kinds, node_id},
+    types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
+};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
 use ryo_values::domain::stored_facts::types::PartialCause;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
+    plans::types::{Emit, Operation, Plan, PlanStep},
+    rows::types::{RowCount, Table},
+};
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
 #[test]
 fn partial_positive_rows_survive_but_partial_absence_is_refused() {

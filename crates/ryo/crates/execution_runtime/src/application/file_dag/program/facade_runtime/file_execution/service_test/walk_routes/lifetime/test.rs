@@ -1,9 +1,12 @@
 //! A shared source batch lives until its last consumer is delivered, on every exit.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::Value as Cell;
+use std::sync::Arc;
 fn program(residency: Residency) -> Program {
     Program::new(
         Authored::continuations(),

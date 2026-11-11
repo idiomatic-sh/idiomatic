@@ -2,20 +2,28 @@
 //! rules and walks one traversal beside a distinct class, and every barrier kind is accounted
 //! for. Coverage is an exhaustive match over the engine's own enums, so a new class shape,
 //! partition or barrier fails to compile until it has a case here.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::routes::{Combine, Feed, Fusion, RowRoute};
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
+use ryo_execution_domain::domain::operator::types::Emit as RowSink;
 use ryo_execution_domain::domain::shared_walk::types::{
     WalkCensus,
     walk_route::value::{WalkBarrier, WalkRoute},
 };
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
     ComparisonOrigin, Operand, PlanComparison, QueryLiteral, Test,
 };
 use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepScope},
+    plans::types::Operation,
+};
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 fn program(authored: Authored) -> Program {
     Program::new(

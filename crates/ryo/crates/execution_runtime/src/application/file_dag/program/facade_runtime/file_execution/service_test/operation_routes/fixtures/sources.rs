@@ -1,13 +1,22 @@
 //! The independent source rows of every operation route.
-use super::super::super::*;
 use crate::application::file_dag::fixtures::operator_contract as fixtures;
 use ryo_language::domain::symbols::service::text_of;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Flag, Integer, Offset, Relation, Span, Value as Cell},
+};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
 use ryo_values::domain::plan_parts::types::HostedNumber;
 use ryo_values::domain::row_texts::types::Cell as HostedCell;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, JoinColumn, Side, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::{RowCount, Table},
+};
 /// Data-only fixture assembly: scalar snapshots and canonical provider rows.
 /// Every operation, schema, publication and dispatch below belongs to production.
 #[derive(Default)]

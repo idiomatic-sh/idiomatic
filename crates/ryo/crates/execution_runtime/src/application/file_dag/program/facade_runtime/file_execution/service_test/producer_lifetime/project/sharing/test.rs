@@ -1,6 +1,6 @@
 //! One source pass and one frontier decode per population across the rules of a cohort, and
 //! retirement on every exit.
-use super::super::super::super::*;
+use super::super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::DecodeCount;
@@ -17,6 +17,17 @@ use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{FileId, Integer, Relation, Value as Cell},
+};
+use ryo_values::domain::{
+    plan_parts::types::Input as PlanInput,
+    rows::types::{RowCount, Table},
+};
+use std::sync::Arc;
 
 /// What the project walk did for one batch of four rules over the given source populations.
 struct Observed {

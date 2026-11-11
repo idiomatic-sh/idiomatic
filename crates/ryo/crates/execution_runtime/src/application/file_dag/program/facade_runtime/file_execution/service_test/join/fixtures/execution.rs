@@ -1,12 +1,29 @@
 //! The real file owner and its semantic port, invoked once per join observation.
-use super::super::super::*;
+use super::super::super::super::*;
+use super::super::super::fixtures::*;
 use super::provider::{Provider, provider};
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
 use ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{FileId, Value as Cell};
 use ryo_values::domain::compact_table::service::admit_compact;
 use ryo_values::domain::stored_facts::types::KeptWords;
 use ryo_values::domain::table_words::types::DecodeMode;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{StepId, StepScope},
+    plans::types::{Operation, Plan, PlanStep},
+    rows::types::{RowCount, Table},
+    stored_facts::types::Digest,
+};
 use std::cell::Cell as Counter;
+use std::{rc::Rc, sync::Arc};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum SourceAttempt {
     Available(usize),

@@ -1,16 +1,27 @@
 //! Independent tree and scalar Join expectations through the compiled owner.
+use super::super::super::super::*;
 use super::super::*;
+use ryo_execution_domain::domain::table_cells::types::{TreeForm, TreeRows};
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::{
     completion::service::{completion, name_kind},
     elements::types::Elements,
     kind_index::service::index_kinds,
     symbols::types::ByteSlice,
 };
+use ryo_relations::domain::relations::{
+    service::node_id,
+    types::{CellKind, FileId, Integer, Offset, Position, Span, Value as Cell},
+};
 use ryo_relations::domain::{relations::types::KindBits, terms::types::NameText};
 use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Side},
+    rows::types::Table,
+};
+use ryo_values::domain::{
     plan_parts::types::{LiteralText, Operand, PlanComparison, QueryLiteral, Test},
-    rows::service::{push_row, row_in},
+    rows::service::push_row,
 };
 pub(crate) fn node(at: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(at)))

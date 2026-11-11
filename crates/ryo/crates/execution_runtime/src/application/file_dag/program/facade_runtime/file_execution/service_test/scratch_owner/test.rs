@@ -1,11 +1,28 @@
 //! Actual invocation storage measurements through normal compiled file execution.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId},
+    plans::types::Operation,
+    rows::types::Table,
+    stored_facts::types::Digest,
+};
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
     plan_parts::types::{HostedNumber, Operand, PlanComparison, Test},
     row_texts::types::Cell as HostedCell,
 };
+use std::{rc::Rc, sync::Arc};
 pub(crate) fn hosted(kinds: &[HostKind], rows: Vec<Vec<HostedCell>>) -> HostRelation {
     HostRelation {
         name: HostName("scratch-input".into()),

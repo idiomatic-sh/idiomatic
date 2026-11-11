@@ -1,8 +1,11 @@
 //! A normalized named union is not the relation population with the same cell kinds.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::domain::rows::types::RowCount;
+use std::{rc::Rc, sync::Arc};
 
 #[test]
 fn named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay() {

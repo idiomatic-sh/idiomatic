@@ -1,5 +1,5 @@
 //! Real publication scopes retain and release project batch leases.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::FrontierInput;
@@ -12,7 +12,18 @@ use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
 use ryo_execution_store::application::file_dag::derived::owner::witness::service::BackingLiveness;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{FileId, Integer, Relation, Value as Cell},
+};
 use ryo_values::domain::rows::errors::RowsError;
+use ryo_values::domain::{
+    plan_parts::types::Input as PlanInput,
+    rows::types::{RowCount, Table},
+};
+use std::{rc::Rc, sync::Arc};
 
 #[derive(Clone, Copy)]
 enum Delivery {

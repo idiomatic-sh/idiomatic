@@ -1,11 +1,13 @@
 //! Per-row and request-owned routes beside a shared head: barrier, classification, isolation.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::routes::RowRoute;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
 use ryo_execution_domain::domain::executable_program::fusion::types::{Fusibility, Ineligible};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plans::service::kind_of;
+use std::sync::Arc;
 
 fn describe(attempt: Result<String, OperatingError>) -> String {
     attempt.unwrap_or_else(|error| format!("refused {error:?}"))

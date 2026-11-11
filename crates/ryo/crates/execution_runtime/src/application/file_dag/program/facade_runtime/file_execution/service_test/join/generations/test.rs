@@ -1,7 +1,22 @@
 //! File-generation freshness under one immutable prepared request and service set.
+use super::super::super::super::*;
 use super::super::direct::test::{request, schema_column, simple};
 use super::super::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
 use ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value as Cell};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Side, StepId},
+    stored_facts::types::Digest,
+};
+use std::{rc::Rc, sync::Arc};
 #[test]
 fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload() {
     let left = schema_column(Relation::Entry, CellKind::Number, 0);

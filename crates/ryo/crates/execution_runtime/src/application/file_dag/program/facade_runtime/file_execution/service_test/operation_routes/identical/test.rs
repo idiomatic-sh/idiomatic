@@ -1,9 +1,10 @@
 //! Fused and single-instruction programs publish identical rows in identical order.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::chain::{Chain, execute_chain};
 use super::super::fixtures::describe;
 use ryo_execution_domain::domain::executable_program::fusion::types::{Barrier, Fusibility};
 use ryo_values::domain::query_operators::types::OperationKind;
+use std::sync::Arc;
 fn engine() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
     Arc::new(crate::application::file_dag::fixtures::operators())
 }

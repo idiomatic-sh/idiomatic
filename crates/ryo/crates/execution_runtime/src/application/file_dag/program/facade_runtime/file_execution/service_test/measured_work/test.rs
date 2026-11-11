@@ -1,15 +1,25 @@
 //! The closure work, walk visits and row scratch a real compiled owner measured, read from the runtime's own route
 //! observation; the execution use case proves the same operations' answers.
+use super::super::super::*;
 use super::super::ordered_dfs::fixtures::execute_request;
-use super::super::*;
 use crate::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
 use crate::application::file_dag::fixtures::operator_contract::fixture;
 use crate::application::file_dag::fixtures::operator_contract::inputs::table_inputs;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::node_id,
+    types::{CellKind, FileId, Integer, Position, Relation, Value as Cell},
+};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::service::push_row;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows},
+    plans::types::Operation,
+    rows::types::{RowCount, Table},
+};
 
 type Value = ();
 type Failure = OperatingError;

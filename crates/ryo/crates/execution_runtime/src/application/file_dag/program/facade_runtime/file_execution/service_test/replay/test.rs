@@ -1,8 +1,30 @@
 //! Original scan/transport/key assertions through pure scanning or real compiled execution.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    operator::types::Emit as RowSink,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
 use ryo_execution_domain::domain::{
     replay::{service::scan, types::Collect},
     table_scratch::types::OperatorScratch,
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Integer, Relation, Value as Cell},
+};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{
+        ColumnIndex, Input as PlanInput, JoinColumn, RepeatedRows, Side, StepId, StepScope,
+    },
+    plans::types::{Emit, Operation, Plan, PlanStep},
+    rows::types::{RowCount, Table},
+    stored_facts::types::Digest,
 };
 use ryo_values::domain::{
     hosted::types::{HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow},
@@ -10,6 +32,7 @@ use ryo_values::domain::{
     row_texts::types::Cell as HostedCell,
     rows::errors::RowsError,
 };
+use std::sync::Arc;
 const SOURCE: &[u8] = b"replayed";
 fn files(count: u32) -> Table {
     Table {

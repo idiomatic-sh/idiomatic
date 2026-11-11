@@ -1,7 +1,13 @@
 //! Every provider kind reaches the required join capability, and empty or failed lefts never build a right index.
+use super::super::super::super::super::*;
 use super::super::super::cases::test::{node, table_of, tree_rows, wide_tree};
 use super::super::super::*;
 use super::super::fixtures::{Witness, refusal};
+use ryo_execution_domain::domain::table_cells::types::TreeForm;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_values::domain::{plan_parts::types::Side, plans::types::Operation};
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
 fn checked_refusal(op: &Operation, rows: [Rows<'_>; 2], symbols: &mut Symbols) {
     for delivery in [false, true] {

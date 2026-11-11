@@ -1,5 +1,22 @@
 //! The one-file request the execution-boundary proofs run through the real owner.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use ryo_execution_domain::domain::{
+    observation_schedule::types::RuleSchedule,
+    prepared_request::types::{Compiled, ObservationIdentity},
+};
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{Input as PlanInput, StepId},
+    plans::types::Operation,
+    rows::types::Table,
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 pub(crate) fn source(rows: Rows<'_>) -> Result<Table, OperatingError> {
     let mut plan = plan(Scenario::ProjectRetry);
     plan.steps.truncate(1);

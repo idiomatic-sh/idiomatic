@@ -1,8 +1,11 @@
 //! A source class is not a continuation result, and its consumers own immutable answers.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Calls, Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::domain::rows::types::RowCount;
+use std::{rc::Rc, sync::Arc};
 
 fn exercise(residency: Residency) -> Result<(), OperatingError> {
     let meanings = Arc::new(Meanings::default());

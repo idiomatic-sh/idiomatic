@@ -1,9 +1,12 @@
 //! A derived operation consumes a shared source head and never joins its class.
-use super::super::super::*;
+use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::domain::rows::types::RowCount;
+use std::sync::Arc;
 
 #[test]
 fn derived_group_count_barrier_follows_a_shared_head_without_a_second_pass() {

@@ -1,6 +1,10 @@
 //! The private owner reports once at normal file shutdown, including failure/empty roots.
+use super::super::super::super::*;
 use super::super::cases::test::table_of;
 use super::super::*;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_values::domain::{plan_parts::types::Side, rows::types::RowCount};
 /// Capture only the opt-in aggregate target, without adding a test dependency.
 #[derive(Clone, Default)]
 struct JoinDiagnostics {

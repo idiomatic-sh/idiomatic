@@ -1,7 +1,8 @@
 //! Authored plans for per-row and request-owned routes, and for combining operations whose
 //! inputs may fault; each is a plan of `Authored` like the rest.
-use super::super::super::*;
 use super::plans::{Authored, collected, comparison, plan, rules};
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation, HostRow,
 };
@@ -14,6 +15,10 @@ use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::row_texts::types::Cell as HostedCell;
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+};
 
 /// A request-owned or per-row operation read beside a shared head.
 #[derive(Clone, Copy, Debug)]

@@ -1,7 +1,17 @@
 //! Declared populations are refused or kept exactly, never silently shortened.
+use super::super::super::super::*;
 use super::super::super::scratch_owner::test::{execute, hosted};
-use super::super::super::*;
 use super::super::fixtures::source;
+use ryo_language::domain::symbols::types::Symbols;
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{Relation, Value as Cell},
+};
+use ryo_values::domain::{
+    plan_parts::types::{Input as PlanInput, RepeatedRows, StepId},
+    plans::types::Operation,
+    rows::types::{RowCount, Table},
+};
 #[test]
 fn malformed_declared_population_is_refused_not_silently_shortened() {
     let table = Table {

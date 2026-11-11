@@ -1,5 +1,21 @@
 //! Real request compilation and file opening must not allocate dormant siblings.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::{
+    service::node_id,
+    types::{CellKind, FileId, Integer, Position, Relation, Value as Cell},
+};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
 use ryo_values::domain::{
     observations::types::{
         BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
@@ -8,6 +24,7 @@ use ryo_values::domain::{
     plan_parts::types::{ObservationBindingId, Operand, QueryLiteral},
     records::types::ObservationReadinessLayout,
 };
+use std::sync::Arc;
 
 #[test]
 fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_aliases() {

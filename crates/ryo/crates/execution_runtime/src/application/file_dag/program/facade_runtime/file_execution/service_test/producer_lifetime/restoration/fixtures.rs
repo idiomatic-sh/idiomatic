@@ -1,6 +1,8 @@
 //! A captured file producer admitted to the real named project publication owner.
-use super::super::super::*;
+use super::super::super::super::*;
+use super::super::super::fixtures::*;
 use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember};
 use crate::application::file_dag::program::admission::RequiredPartitions;
@@ -15,6 +17,13 @@ use crate::application::file_dag::program::facade_runtime::types::{
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use ryo_execution_domain::domain::coverage::types::Partials;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_relations::domain::relations::{
+    service::kinds,
+    types::{CellKind, FileId, Integer, Relation, Value as Cell},
+};
 use ryo_values::domain::hosted::types::{
     HostColumn, HostColumnName, HostKind, HostName, HostRelation,
 };
@@ -26,6 +35,15 @@ use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::plan_parts::types::{HostedNumber, InputNumber};
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{Input as PlanInput, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    rows::types::{RowCount, Table},
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Exit {

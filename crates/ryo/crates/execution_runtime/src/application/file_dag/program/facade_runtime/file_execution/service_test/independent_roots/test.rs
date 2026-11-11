@@ -1,10 +1,19 @@
 //! Real semantic refusal at one compiled root cannot erase the independent root.
-use super::super::*;
+use super::super::super::*;
+use super::super::fixtures::*;
+use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::outbound::operators::interface::OperatorsPort as _;
+use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_relations::domain::relations::{
+    service::node_id,
+    types::{CellKind, FileId, Position, Relation, Value as Cell},
+};
 use ryo_values::domain::observations::types::{
     BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
     ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
@@ -13,6 +22,14 @@ use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 use ryo_values::domain::records::types::ProducerReadiness;
+use ryo_values::domain::{
+    files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
+    runs::types::RuleId,
+    stored_facts::types::Digest,
+};
+use std::sync::Arc;
 #[derive(Debug)]
 struct RefuseCount;
 impl crate::outbound::operators::interface::OperatorsPort for RefuseCount {
