@@ -1,5 +1,5 @@
 description = "Semantic construction belongs to the admitted derived owner; consumers borrow acquired views."
-why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required. Who reaches the owner is confined too: an identifier of `confined` (the owner's acquiring entries, and the leased views and handles it issues) written in a production file outside the owner's concept is a finding: the concept is every directory named `owner-concept` (`derived`), so acquisition is collapsed into one owner module per crate, and a new caller of `admit_view` or a new holder of an `AcquiredView` outside it is a change of who reaches the owner, which moves the code into the concept rather than naming the file in a list. The builder port itself (`DerivedPort`) can be confined the same way, so it is named only by its own hex and the compositions that hand it to the owner. Test code (the files placed as proofs, test-named files and fixtures) is not production and is left out."
+why = "The execution owner alone binds live source proofs to semantic construction, shared keys and required leases for every derived kind. Resolved dependencies to the actual semantic bridge plus precise imported build spans reject renamed, qualified and newly added-module bypasses. Resolved injected-port users may prepare immutable descriptors but may not call build outside that bridge. Portable semantic API proofs are legitimate callers of the public semantic use case; production engine consumers are not. Rust private fields and required permit/source capabilities separately prohibit forged acquisition or raw invocation authority. The method guard associates resolved semantic-port references and build calls in the same file; it does not infer receiver types across macros or follow arbitrary re-export chains, so runtime and Rust controls remain required. Who reaches the owner is confined too: an identifier of `confined` (the owner's acquiring entries, and the leased views and handles it issues) written in a production file outside the owner's concept is a finding: the concept is the one directory `owner-concept` names beneath a crate's `src/` (`application/file_dag/derived`), not any directory that shares its last name, so acquisition is collapsed into one owner module per crate, and a new caller of `admit_view` or a new holder of an `AcquiredView` outside it is a change of who reaches the owner, which moves the code into the concept rather than naming the file in a list. The builder port itself (`DerivedPort`) can be confined the same way, so it is named only by its own hex and the compositions that hand it to the owner. Test code (the files placed as proofs, test-named files and fixtures) is not production and is left out; a build call is left out of a fixtures role too, a `fixtures.rs` or a file beneath `fixtures/` whose module, or a module above it, is declared under a `cfg` naming `test` or the `fixtures` feature, while the same file declared without that gate is production."
 
 query = '''
 param confined: set<string>;
@@ -35,10 +35,30 @@ let port-builds = select l.file as file, r.span as span from semantic-users as l
 let semantic-proofs = select path as file from "tastemaker.placed" where glob_any(template, "{unit-test,item-test,value-test,composition-test,domain-test,edge-fixtures,program-runtime-proof}");
 let port-hex = select file from port-users where glob_any(source-tail, "outbound/derived/**");
 let consumer-builds = antijoin(left=port-builds, right=port-hex, left-on=["file"], right-on=["file"]);
-let production-port-builds = antijoin(left=consumer-builds, right=semantic-proofs, left-on=["file"], right-on=["file"]);
+let fixture-rust-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
+let fixture-all-cfgs = select * from "decorates" where target = "cfg";
+let fixture-cfgs = select * from fixture-all-cfgs where glob_any(arguments, "{test,*(test*,* test*,*feature = ?fixtures?*}") and not glob_any(arguments, "{not(test*,*(not(test*,* not(test*}");
+let fixture-declared = select * from "defines" where kind = "namespace";
+let fixture-gated-modules = select r."name" as "name", r."file" as "file" from fixture-cfgs as l join fixture-declared as r on l."declaration" = r."id";
+let fixture-module-places = capture(from=fixture-gated-modules, path="file", pattern="{*dir}/{stem}.rs", captures=["dir", "stem"]);
+let fixture-nested-files = capture(from=fixture-rust-files, path="file", pattern="{*dir}/{stem}/{child}.rs", captures=["dir", "stem", "child"]);
+let fixture-nested = select r."file" as "file" from fixture-module-places as l join fixture-nested-files as r on l."dir" = r."dir" and l."stem" = r."stem" and l."name" = r."child";
+let fixture-nested-trees = capture(from=fixture-rust-files, path="file", pattern="{*dir}/{stem}/{child}/{*rest}", captures=["dir", "stem", "child", "rest"]);
+let fixture-nested-tree = select r."file" as "file" from fixture-module-places as l join fixture-nested-trees as r on l."dir" = r."dir" and l."stem" = r."stem" and l."name" = r."child";
+let fixture-root-places = select * from fixture-module-places where glob_any(stem, "{lib,main,mod}");
+let fixture-sibling-files = capture(from=fixture-rust-files, path="file", pattern="{*dir}/{child}.rs", captures=["dir", "child"]);
+let fixture-root = select r."file" as "file" from fixture-root-places as l join fixture-sibling-files as r on l."dir" = r."dir" and l."name" = r."child";
+let fixture-sibling-trees = capture(from=fixture-rust-files, path="file", pattern="{*dir}/{child}/{*rest}", captures=["dir", "child", "rest"]);
+let fixture-root-tree = select r."file" as "file" from fixture-root-places as l join fixture-sibling-trees as r on l."dir" = r."dir" and l."name" = r."child";
+let fixture-gated-0 = union(left=fixture-nested, right=fixture-nested-tree);
+let fixture-gated-1 = union(left=fixture-gated-0, right=fixture-root);
+let fixture-gated = union(left=fixture-gated-1, right=fixture-root-tree);
+let fixture-roles = select * from fixture-gated where glob_any(file, "{**/fixtures.rs,**/fixtures/**}");
+let proof-port-builds = antijoin(left=consumer-builds, right=semantic-proofs, left-on=["file"], right-on=["file"]);
+let production-port-builds = antijoin(left=proof-port-builds, right=fixture-roles, left-on=["file"], right-on=["file"]);
 let ordinary = union(left=local, right=all-raw-builds);
 let build-violations = union(left=ordinary, right=production-port-builds);
-let confined-names = select file, span, text as name from "syntax-tree" where kind = "ident" and glob_any(text, $confined) and glob_any(file, "{src,**/src}/**") and not glob_any(file, concat("**/", $owner-concept, "/**")) and not glob_any(file, "{**/*_test.rs,**/test.rs,**/fixtures.rs,**/fixtures/**,**/*_test/**}");
+let confined-names = select file, span, text as name from "syntax-tree" where kind = "ident" and glob_any(text, $confined) and glob_any(file, "{src,**/src}/**") and not glob_any(file, concat("{src,**/src}/", $owner-concept, "/**")) and not glob_any(file, "{**/*_test.rs,**/test.rs,**/fixtures.rs,**/fixtures/**,**/*_test/**}");
 let production-names = antijoin(left=confined-names, right=semantic-proofs, left-on=["file"], right-on=["file"]);
 let held = select file, span from production-names;
 let violations = union(left=build-violations, right=held);
@@ -51,7 +71,7 @@ description = "The identifiers only the owner and its listed callers and holders
 
 [params.owner-concept]
 type = "string"
-description = "The name of the owner's concept directory (`derived`): a production file beneath a directory of that name, at any depth, is the owner's own and may write a confined identifier; every other production file may not."
+description = "The path of the owner's concept directory beneath a crate's `src/` (`application/file_dag/derived`): a production file beneath that directory is the owner's own and may write a confined identifier; every other production file may not, a file beneath another directory that is also named `derived` among them."
 
 [diagnostic]
 primary = "span"
@@ -60,7 +80,7 @@ help = "Declare the derived view in the operator contract and let the applicatio
 
 [given]
 include = ["src/**"]
-params = { confined = ["admit_view", "AcquiredView"], owner-concept = "derived" }
+params = { confined = ["admit_view", "AcquiredView"], owner-concept = "application/file_dag/derived" }
 files.'Cargo.toml' = '''
 [package]
 name = "view_ownership_fixture"
@@ -244,3 +264,33 @@ given.files.'src/application/file_dag.rs' = 'pub mod derived; pub mod consumer; 
 given.files.'src/application/file_dag/derived/owner/acquisition/service.rs' = 'pub struct AcquiredView; pub fn admit_view() -> AcquiredView { AcquiredView }'
 given.files.'src/application/file_dag/holder.rs' = 'use crate::application::file_dag::derived::owner::acquisition::service::AcquiredView as Lease; pub struct Holder(Lease);'
 then.findings = [{ path = "src/application/file_dag/holder.rs", line = 1 }]
+
+[[scenarios]]
+id = "domain-port-build-is-production"
+scenario = "A domain file that builds through the semantic port is production, so it is refused."
+given.files.'src/domain/other/service.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn run(port: &dyn DerivedPort) { port.build(); }'
+then.findings = [{ path = "src/domain/other/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "ungated-fixtures-port-build"
+scenario = "A recording fake that builds through the port in a fixtures file declared without a test or fixtures gate is production, so it is refused."
+given.files.'src/application/file_dag.rs' = 'pub mod derived; pub mod consumer; pub mod fixtures;'
+given.files.'src/application/file_dag/fixtures.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn record(port: &dyn DerivedPort) { port.build(); }'
+then.findings = [{ path = "src/application/file_dag/fixtures.rs", line = 1 }]
+
+[[scenarios]]
+id = "gated-fixtures-port-build"
+scenario = "A recording fake that builds through the port in a fixtures file declared under the fixtures gate is a test double: it passes."
+given.files.'src/application/file_dag.rs' = """pub mod derived; pub mod consumer;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;"""
+given.files.'src/application/file_dag/fixtures.rs' = 'use crate::outbound::derived::interface::DerivedPort; pub fn record(port: &dyn DerivedPort) { port.build(); }'
+
+[[scenarios]]
+id = "another-directory-named-derived"
+scenario = "A production file beneath another directory that is also named `derived` is not the owner's concept: its acquisition is rejected."
+given.files.'src/domain.rs' = 'pub mod derived_views; pub mod operator; pub mod other; pub mod derived;'
+given.files.'src/domain/derived.rs' = 'pub mod service;'
+given.files.'src/application/file_dag/derived/owner/acquisition/service.rs' = 'pub struct AcquiredView; pub fn admit_view() -> AcquiredView { AcquiredView }'
+given.files.'src/domain/derived/service.rs' = 'pub fn admit() { let _ = crate::application::file_dag::derived::owner::acquisition::service::admit_view(); }'
+then.findings = [{ path = "src/domain/derived/service.rs", line = 1 }]

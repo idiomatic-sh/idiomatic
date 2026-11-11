@@ -1,5 +1,5 @@
 description = "A declaration visible as plain `pub` whose name no other file in scope mentions."
-why = "A `pub` item nobody outside its file names is wider than it needs to be: its visibility promises an API that has no user, and it cannot be told apart from a leftover. Read by name, across files: a declaration (anything `defines` emits but a local variable) carrying a `pub` visibility with no `(crate)`, `(super)` or `(in..)` restriction is reported when no identifier token with its text appears in any other file the entry covers, tests and fixtures included, and none appears in the signature or a field type of another plain-`pub` item of its own file, or in a trait implementation's header, associated types or method signatures there: the `private_interfaces` lint makes a type a public item's signature names public too, and a trait's implementation is as public as the type it is for, so that use is a reason to be `pub` (a function body's mentions are not). Not read: a field of a type in a `schemas.rs`, whose fields are the wire shape serde reads and writes by name, and any item in a `fixtures.rs` or under a `fixtures/` directory, test support whose fields a fake keeps public for the tests that build it. Not seen: a use from outside the workspace (a library's real public API is reported, so a library root is best left out of the entry); a name another item also carries counts as a mention of this one, so a `pub fn new` is almost never reported."
+why = "A `pub` item nobody outside its file names is wider than it needs to be: its visibility promises an API that has no user, and it cannot be told apart from a leftover. Read by name, across files: a declaration (anything `defines` emits but a local variable) carrying a `pub` visibility with no `(crate)`, `(super)` or `(in..)` restriction is reported when no identifier token with its text appears in any other file the entry covers, tests and fixtures included, and none appears in the signature or a field type of another plain-`pub` item of its own file, or in a trait implementation's header, associated types or method signatures there: the `private_interfaces` lint makes a type a public item's signature names public too, and a trait's implementation is as public as the type it is for, so that use is a reason to be `pub` (a function body's mentions are not). Not read: a field of a type in a `schemas.rs`, whose fields are the wire shape serde reads and writes by name, and a field of a type in a `fixtures.rs` or under a `fixtures/` directory, test support whose fields a fake keeps public for the tests that build it (a fixture function or type no other file names is still reported). Not seen: a use from outside the workspace (a library's real public API is reported, so a library root is best left out of the entry); a name another item also carries counts as a mention of this one, so a `pub fn new` is almost never reported."
 
 query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
@@ -33,7 +33,7 @@ let in-signatures = select l."item" as "item", l."file" as "file", l."span" as "
 let in-other-signatures = select * from in-signatures where owner != item;
 let unreferenced = antijoin(left=unreferenced-elsewhere, right=in-other-signatures, left-on=["file", "span"], right-on=["file", "span"]);
 let schema-fields = select * from unreferenced where kind = "property" and glob_any(file, "**/schemas.rs");
-let fixture-items = select * from unreferenced where glob_any(file, "{**/fixtures/**,**/fixtures.rs}");
+let fixture-items = select * from unreferenced where kind = "property" and glob_any(file, "{**/fixtures/**,**/fixtures.rs}");
 let unread = union(left=schema-fields, right=fixture-items);
 let reported = antijoin(left=unreferenced, right=unread, left-on=["file", "span"], right-on=["file", "span"]);
 emit reported subject "file" key("span");
@@ -219,7 +219,7 @@ pub struct ConfigSchema {
 
 [[scenarios]]
 id = 'fixture-function-named-by-no-other-file'
-scenario = 'A pub function in a fixtures.rs that no other file names is not reported.'
+scenario = 'A pub function in a fixtures.rs that no other file names is reported: only the fields of a fake are left out.'
 given.files.'src/lib.rs' = '''
 #[cfg(test)]
 mod fixtures;
@@ -227,5 +227,23 @@ mod fixtures;
 given.files.'src/fixtures.rs' = '''
 pub fn sample() -> u8 {
     1
+}
+'''
+then.findings = [
+  { path = 'src/fixtures.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'fixture-field-named-by-no-other-file'
+scenario = 'A pub field of a fake in a fixtures.rs, named by no other file, is not reported.'
+given.files.'src/lib.rs' = '''
+#[cfg(test)]
+mod fixtures;
+#[cfg(test)]
+pub use fixtures::NamesFake;
+'''
+given.files.'src/fixtures.rs' = '''
+pub struct NamesFake {
+    pub calls: u8,
 }
 '''
