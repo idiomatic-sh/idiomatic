@@ -1,4 +1,4 @@
-description = "A client or store library of the core is named - imported or written as a path - only in an adapter (a file the adapter spec places, or any file beneath an outbound port's `adapters/`), its port's factory.rs and an edge's composition.rs, never in a port's types.rs or errors.rs: the rule itself admits those files, so an entry reads `**` and excludes no production role."
+description = "A client or store library of the core is named - imported or written as a path - only in an adapter (a file the adapter spec places, or any file beneath an outbound port's `adapters/`), its port's factory.rs and an edge's composition.rs (a command's or an entry's `src/resources/<resource>/<verb>/`, a contract's under `src/inbound/contracts/`, a benchmark host's), never in a port's types.rs or errors.rs: the rule itself admits those files, so an entry reads `**` and excludes no production role."
 why = "A client library (a database driver, an HTTP client, a store) is the part of an adapter that touches the outside world. The core depends on it as an ordinary dependency, with no cargo feature per adapter, so the placement is what keeps use cases and domain free of it: the library is named in the adapter that wraps it (`src/outbound/<port>/adapters/<implementation>/`), in its port's `factory.rs`, which receives the client the edge opened, and in an edge's `composition.rs`, which opens it. The libraries are those the entry lists in `libraries`, and the rule is a shared one of the product (a nested spec instance's files are not its enclosing spec's to check). A port's own `types.rs` and `errors.rs` are not excluded: the library is named in none of a port's plain files. Not seen: a path inside an attribute or a macro invocation."
 
 query = '''
@@ -8,7 +8,7 @@ let references = project(from="reference", columns=["occurrence", "file", "span"
 let mentions = union(left=imports, right=references);
 let clients = select * from mentions where glob_any(target, $libraries);
 let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{adapter,adapter-connection,adapter-writer,settings,schemas}");
-let adapter-tree = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "{**/outbound/*/adapters/**,**/outbound/*/factory.rs,**/composition.rs}");
+let adapter-tree = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "{**/outbound/*/adapters/**,**/outbound/*/factory.rs,**/src/resources/*/*/composition.rs,**/src/inbound/contracts/**/composition.rs,**/benchmarks/linters/*/composition.rs,**/benches/**/composition.rs}");
 let adapters = union(left=governed-roles, right=adapter-tree);
 let outside = antijoin(left=clients, right=adapters, left-on=["file"], right-on=["file"]);
 emit outside subject "file" key("span");
@@ -60,7 +60,7 @@ given.files.'src/lib.rs' = '''
 [[scenarios]]
 id = 'edge-s-composition-opens-client'
 scenario = "An edge's composition opens the client."
-given.files.'src/commands/greeting/show/composition.rs' = '''
+given.files.'src/resources/greeting/show/composition.rs' = '''
 pub fn compose() {
     let _ = rusqlite::Connection::open_in_memory();
 }
@@ -217,9 +217,11 @@ given.exclude = []
 given.files.'src/outbound/syntax/adapters/parser/grammar.rs' = 'use rusqlite::Connection;'
 given.files.'src/domain/grammar/service.rs' = 'use rusqlite::Connection;'
 given.files.'src/outbound/syntax/factory.rs' = 'use rusqlite::Connection;'
-given.files.'src/inbound/use_cases/parse/composition.rs' = 'use rusqlite::Connection;'
+given.files.'src/resources/syntax/parse/composition.rs' = 'use rusqlite::Connection;'
+given.files.'src/domain/grammar/composition.rs' = 'use rusqlite::Connection;'
 given.files.'src/fixtures/x.rs' = 'use rusqlite::Connection;'
 then.findings = [
   { path = 'src/domain/grammar/service.rs', line = 1 },
   { path = 'src/fixtures/x.rs', line = 1 },
+  { path = 'src/domain/grammar/composition.rs', line = 1 },
 ]
