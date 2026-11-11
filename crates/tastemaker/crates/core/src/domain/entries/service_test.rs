@@ -1,6 +1,6 @@
 //! What the `entries` service answers of counts, identities and values.
 
-use super::service::{answered, count_text, identity, interpolate};
+use super::service::{answered, count_text, derived, identity, interpolate};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::captures::types::{CaptureBinding, CaptureName, CaptureValue};
 use crate::domain::entries::types::{
@@ -11,7 +11,7 @@ use crate::domain::packages::types::{
     DefinitionKind, DefinitionName, Ownership, PackageName, VersionText,
 };
 use crate::domain::scalars::types::TextValue;
-use crate::domain::selectors::types::Selectors;
+use crate::domain::selectors::types::{PathPattern, Selectors};
 
 /// Which question is asked.
 #[derive(Clone, Copy, Debug)]
@@ -21,6 +21,7 @@ enum Question {
     RangeText,
     WhenAnswered,
     Interpolated,
+    DirectoryDerived,
 }
 
 /// What a row asks.
@@ -58,6 +59,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_capture_is_interpolated_into_text"),
         word: Word::Succeeds,
         input: || Question::Interpolated,
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_directory_capture_counts_as_a_capture"),
+        word: Word::Succeeds,
+        input: || Question::DirectoryDerived,
         expect: Expect::Value(String::new()),
     },
 ];
@@ -131,6 +138,14 @@ fn subject(question: Input) -> Value {
                 | EntryValue::Table(_)) => format!("{other:?}"),
             },
             "ryo-css",
+        ),
+        Question::DirectoryDerived => (
+            count_text(&derived(
+                &[Some(&PathPattern("{x:dir}.rs".into()))],
+                &std::collections::BTreeSet::new(),
+            ))
+            .0,
+            "at least 1",
         ),
     };
     if said == expected {
