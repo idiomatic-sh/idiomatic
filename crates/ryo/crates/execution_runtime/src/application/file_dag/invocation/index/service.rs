@@ -7,9 +7,8 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::OperatorContract;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::table_reach::borrowed::IndexedRows;
+use ryo_execution_domain::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
-use ryo_values::domain::plan_parts::types::InputNumber;
 
 /// An equality index the invocation holds: its key columns are read from the plan once, at acquisition, so a plan
 /// that is not an equality is refused there and the variants hold only what an equality index has.

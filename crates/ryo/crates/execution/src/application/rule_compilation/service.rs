@@ -170,10 +170,11 @@ impl RuleCompilation {
         hosted: &[HostRelation],
     ) -> Result<Compiled, RuleCompilationError> {
         let mut compiled = self.compile(rules, hosted)?;
-        let linked = ryo_execution_domain::domain::observation_schedule::service::link::link(
-            std::mem::take(&mut compiled.plans),
-            std::mem::take(&mut compiled.observations),
-        )?;
+        let linked =
+            ryo_execution_domain::domain::observation_schedule::service::link::service::link(
+                std::mem::take(&mut compiled.plans),
+                std::mem::take(&mut compiled.observations),
+            )?;
         compiled.plans = linked.plans;
         compiled.observations = linked.bindings;
         // Scheduling independence does not erase the per-rule producer declarations.

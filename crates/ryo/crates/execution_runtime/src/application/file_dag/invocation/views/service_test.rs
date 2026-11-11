@@ -1,6 +1,4 @@
 //! The exact lease getter must consume the registered borrowed view without copying storage.
-use super::service::*;
-use super::*;
 use crate::application::file_dag::invocation::service::InvocationResources;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
@@ -27,7 +25,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     );
     let plan = Arc::new(
         ryo_execution_store::application::file_dag::derived::prepare::service::view(
-            (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
+            (Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
                 as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &ViewRequest::CycleAdjacency {
                 source: ColumnIndex(0),
@@ -42,7 +40,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     );
     let owner = ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
+        (Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
             as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
     );
     let publication = owner.publish(ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody::Computed(table.clone())).unwrap();
@@ -86,7 +84,7 @@ fn production_cycle_lease_borrows_actual_trait_output_and_refuses_foreign_storag
     );
     let equality = Arc::new(
         ryo_execution_store::application::file_dag::derived::prepare::service::view(
-            (std::sync::Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
+            (Arc::new(ryo_execution_store::application::file_dag::fixtures::derived())
                 as Arc<dyn ryo_execution_store::outbound::derived::interface::DerivedPort>),
             &ViewRequest::Equality {
                 columns: vec![ColumnIndex(0)],

@@ -1,6 +1,4 @@
 //! The support of the `required_capability` cases.
-use super::super::super::super::super::service::*;
-use super::super::super::super::super::*;
 use super::super::super::*;
 use super::super::fixtures::{Witness, refusal};
 #[cfg(test)]

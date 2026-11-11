@@ -92,7 +92,8 @@ impl PreparedProgram {
     }
     pub(crate) fn derived(
         &self,
-    ) -> &ryo_execution_store::application::file_dag::derived::prepared::RequestDerived {
+    ) -> &ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived
+    {
         &self.derived
     }
     pub(crate) fn hosted(&self) -> &[HostRelation] {
@@ -293,7 +294,7 @@ pub(crate) fn prepare(
     walk.retain_program_consumers(&program)?;
     census::service::trace(rules, &walk, &program);
     let derived =
-        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived::new(
+        ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived::new(
             demands::service::derived_needs(&program)?,
         );
     let metadata =

@@ -7,7 +7,7 @@ pub mod presence;
 
 pub(crate) mod graph;
 pub mod graph_view;
-pub(crate) mod lease;
+pub mod lease;
 pub(crate) mod preflight;
 pub mod primitive;
 pub mod registration;

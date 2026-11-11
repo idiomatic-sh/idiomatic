@@ -1,6 +1,4 @@
 //! Direct catalog-relation Join routes retain their real acquired representation.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::*;
 use super::fixtures::{encoded, request, schema_column, simple, table};
 use crate::cases::{Case, CaseName, Expect, Word, run};

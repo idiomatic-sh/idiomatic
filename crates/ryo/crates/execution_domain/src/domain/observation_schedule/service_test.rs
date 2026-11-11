@@ -1,6 +1,6 @@
 //! Request-graph dependencies: the producers a rule may read, their schemas and the plans linked beneath them.
 use super::fixtures::{binding, bound_input, export, exporting, observing, plan, rule};
-use super::service::link::{following, link};
+use super::service::link::{service::following, service::link};
 use super::service::{schedule, schemas};
 use super::types::ResolvedObservationBinding;
 use crate::domain::rule_intent::errors::RuleIntentError;
@@ -114,7 +114,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(RuleIntentError::TooManyOutputs),
     },
 ];
-use ryo_values::domain::plan_parts::types::Input as InputSource;
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::Chain => schedule(&pair("first")).map(|_| ()),

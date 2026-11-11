@@ -75,13 +75,14 @@ impl super::super::service::KernelSession<'_, '_> {
             port: self.kernels,
             permit: permit.semantics(),
             failure: &failure,
-            binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
-                bindings: context.bindings,
-                regex_identity: None,
-                source_len: ryo_operators::domain::contract::types::SourceByteLength(
-                    context.source.0.len(),
-                ),
-            },
+            binding:
+                ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding {
+                    bindings: context.bindings,
+                    regex_identity: None,
+                    source_len: ryo_operators::domain::contract::types::SourceByteLength(
+                        context.source.0.len(),
+                    ),
+                },
         };
         let result = crate::application::file_dag::ordered_existence::service::evaluate(
             &semantics,

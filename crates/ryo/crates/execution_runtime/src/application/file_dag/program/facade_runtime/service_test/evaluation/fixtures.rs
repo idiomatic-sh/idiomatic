@@ -56,7 +56,7 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         ObservationIdentity::Independent,
     )?;
     let target = StepId((plan(scenario).steps.len() - 1) as u32);
-    let engine = Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+    let engine = Arc::new(CommonOperatorEngine::new(Arc::new(
         crate::application::file_dag::fixtures::operators(),
     )));
     let services = Arc::new(ProgramServices::new(

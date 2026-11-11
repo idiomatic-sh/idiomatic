@@ -1,6 +1,4 @@
 //! Refused calls are not deliveries; capture is owed; release is keyed by relation.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::fixtures::{Residency, demand, observed_demand};
 use super::fixtures::{
     capture, captured_program, deliver, forward, program, relations_program, rows,

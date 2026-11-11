@@ -1,7 +1,6 @@
 //! Publication of a region result and replay of an admitted publication.
 use super::super::service::SourceInputs;
 use crate::application::file_dag::program::admission::service::AdmittedInput;
-use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::admission::service::Representation;
 use crate::application::file_dag::program::admission::types::Partition;
 use crate::application::file_dag::program::admission::types::ProducerRoot;

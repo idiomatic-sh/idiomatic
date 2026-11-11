@@ -1,11 +1,8 @@
 //! The `execution` application operation.
 
 use super::super::executor::{service::PrimitiveExecutor, types::KernelCall};
-use super::constants::BRIDGE_NAME;
 use crate::application::file_dag::executor::{types::KernelAnswer, types::KernelFault};
 use crate::outbound::operators::interface::OperatorsPort;
-use ryo_execution_domain::domain::operating::types::PrimitiveSemantics;
-
 #[derive(Debug)]
 pub(crate) struct CommonOperatorEngine {
     operators: std::sync::Arc<dyn OperatorsPort>,

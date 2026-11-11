@@ -140,7 +140,7 @@ pub(crate) struct Instantiation {
 #[derive(Clone, Debug)]
 pub(crate) struct SourceRefusal {
     pub(crate) relation: ryo_relations::domain::relations::types::Relation,
-    pub(crate) error: ryo_execution_domain::domain::operating::errors::OperatingError,
+    pub(crate) error: OperatingError,
 }
 /// Whether a scope has touched any region yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

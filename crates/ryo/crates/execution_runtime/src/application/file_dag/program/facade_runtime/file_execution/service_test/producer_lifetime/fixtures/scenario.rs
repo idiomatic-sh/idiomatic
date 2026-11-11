@@ -54,7 +54,7 @@ pub(in super::super) fn exercise(final_consumer: FinalConsumer) -> Result<(), Op
     );
     assert_eq!(prepared.program().regions()[producer.0].consumers().0, 2);
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
         ))),
         derived,

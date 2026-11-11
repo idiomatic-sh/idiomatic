@@ -237,7 +237,7 @@ impl CapturedProject {
         let phase = publication_owner(
             &prepared,
             &services,
-            std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+            Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
         )?;
         let required = required_partitions(
             &prepared,

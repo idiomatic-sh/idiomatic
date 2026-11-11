@@ -1,6 +1,4 @@
 //! The support of the `measured_work` cases.
-use super::super::super::service::*;
-use super::super::super::*;
 use super::super::ordered_dfs::fixtures::execute_request;
 use crate::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
 use crate::application::file_dag::fixtures::operator_contract::fixture;

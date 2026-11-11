@@ -1,6 +1,4 @@
 //! Refusal and physical-route controls through the real compiled owner.
-use super::super::super::service::*;
-use super::super::super::*;
 use super::super::fixtures::*;
 use super::fixtures::ordered_strategy_fixture;
 use super::fixtures::{MeaningCalls, run as run_file};

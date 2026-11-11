@@ -1,7 +1,6 @@
 //! Runtime admission fixtures: the omitting adapter and the obligations it is compared against.
 pub(super) mod rows;
 use super::super::super::service::*;
-use super::super::super::*;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
 use ryo_execution_domain::domain::{

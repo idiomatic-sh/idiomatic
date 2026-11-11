@@ -19,7 +19,11 @@ impl InvocationResources<'_> {
             .as_ref()
             .and_then(|index| index.view(&self.inputs.progress));
         #[cfg(not(feature = "diagnostic-row-progress"))]
-        let view = self.inputs.index.as_ref().and_then(IndexResource::view);
+        let view = self
+            .inputs
+            .index
+            .as_ref()
+            .and_then(super::super::index::service::IndexResource::view);
         let primitive = workspace.primitive();
         let distinct = usize::from(
             primitive

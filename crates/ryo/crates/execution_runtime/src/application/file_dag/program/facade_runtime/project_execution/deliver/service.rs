@@ -116,7 +116,7 @@ impl ProjectRun<'_> {
                     })
                     .map(|input| input.with_coverage(completion.coverage(&root.reads)));
                 observations.push(
-                    crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome {
+                    ProjectOutputOutcome {
                     output: ryo_values::domain::records::types::ObservationIndex(
                         u32::try_from(index).map_err(|_| OperatingError::ShapeMismatch)?,
                     ),

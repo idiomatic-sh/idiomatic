@@ -1,23 +1,12 @@
 //! The types of the `invocation` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use super::index::service::IndexResource;
-use super::prepared_use::service::prepared;
 use super::service::AcquiredPartitions;
-use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
-use ryo_derived::domain::dfs::types::PreparedDfs;
-use ryo_derived::domain::ordered::types::OrderedMatching;
-use ryo_execution_domain::domain::operator::contract::{
-    resources::ResourceProgram, types::OperatorContract, views::NativeJoin,
-};
+use ryo_execution_domain::domain::operator::contract::views::types::NativeJoin;
 use ryo_execution_domain::domain::table_groups::types::Group;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_domain::domain::table_reach::borrowed::IndexedRows;
-use ryo_execution_domain::domain::{
-    operating::errors::OperatingError, operator::types::OperatorContext,
-};
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::{InputNumber, LiteralText};
+use ryo_values::domain::plan_parts::types::LiteralText;
 
 /// The invocation binds these acquired handles once. Primitives see only the
 /// immutable reader implemented for this value, never the owner or scheduler.

@@ -1,6 +1,5 @@
 //! The support of the `scratch_owner` cases.
 use super::super::super::service::*;
-use super::super::super::*;
 use super::super::fixtures::*;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
@@ -83,7 +82,7 @@ pub(crate) fn execute(
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
         ))),
         derived,

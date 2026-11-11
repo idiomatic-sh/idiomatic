@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// runtime's own build refuses it. The same lint holds `RequestExecution::open_project`, whose return type is crate-private.
 ///
 /// ```compile_fail,E0603
-/// use ryo_execution_runtime::application::file_dag::execution::CommonOperatorEngine;
+/// use ryo_execution_runtime::application::file_dag::execution::service::CommonOperatorEngine;
 /// ```
 /// The program compiler (`compile`) lives in `ryo_execution_domain`; `idiomatic.arch/library-surface` keeps it, the store
 /// and the runtime's application from every crate outside the engine crates.

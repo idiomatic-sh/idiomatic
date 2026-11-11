@@ -1,6 +1,5 @@
 //! Chained registered evaluations reuse downstream invocation state and release their peaks.
 use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::super::fixtures::*;
 use super::super::super::scratch_owner::fixtures::{execute, hosted};
 use super::fixtures::MemoSink;
@@ -83,7 +82,7 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
         ))),
         derived,

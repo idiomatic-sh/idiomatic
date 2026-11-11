@@ -3,7 +3,7 @@
 use super::service::derived_needs;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission;
-use ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds;
+use ryo_execution_store::application::file_dag::derived::prepared::types::RuleDerivedNeeds;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{

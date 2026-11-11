@@ -23,10 +23,7 @@ impl ReadProof {
         }
     }
     /// A read of `partition` whose coverage the completion domain computed.
-    pub(crate) fn covered(
-        partition: Partition,
-        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
-    ) -> Self {
+    pub(crate) fn covered(partition: Partition, coverage: CoverageState) -> Self {
         Self {
             partition,
             readiness: coverage,
@@ -125,10 +122,7 @@ impl AdmittedInput {
     pub(crate) fn coverage(&self) -> &CoverageState {
         &self.readiness
     }
-    pub(crate) fn with_coverage(
-        mut self,
-        coverage: ryo_execution_domain::domain::completion::types::CoverageState,
-    ) -> Self {
+    pub(crate) fn with_coverage(mut self, coverage: CoverageState) -> Self {
         match coverage {
             CoverageState::Complete => {}
             CoverageState::Partial { files, lacks } => {

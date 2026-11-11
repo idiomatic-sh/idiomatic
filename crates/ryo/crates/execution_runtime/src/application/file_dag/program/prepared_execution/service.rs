@@ -41,10 +41,7 @@ impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     ) -> Result<&ryo_values::domain::plans::types::Emit, OperatingError> {
         self.parts.inner.emit(rule)
     }
-    fn rule_digest(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<ryo_values::domain::stored_facts::types::Digest, OperatingError> {
+    fn rule_digest(&self, rule: RuleIndex) -> Result<Digest, OperatingError> {
         self.parts.inner.rule_digest(rule)
     }
     fn frontiers(

@@ -55,7 +55,7 @@ fn subject(request: Input) -> Result<Value, Failure> {
             ]),
         ],
     };
-    let operators = super::service::operators::prepare(
+    let operators = super::service::operators::service::prepare(
         &plans,
         &vec![vec![]; plans.len()],
         &[],

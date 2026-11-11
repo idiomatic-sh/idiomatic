@@ -3,22 +3,17 @@ use super::types::BoundPredicate;
 use ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::PreparedPredicates;
-use ryo_execution_domain::domain::operator::contract::views::PredicateProgram;
+use ryo_execution_domain::domain::operator::contract::views::types::PredicateProgram;
 use ryo_execution_domain::domain::table_model::types::Verdict;
-use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
+use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::Value;
+use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{
     Input, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
 };
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::stored_facts::types::ArenaBytes;
 use std::sync::atomic::Ordering;
-use {
-    ryo_execution_domain::domain::table_texts::types::Texts,
-    ryo_values::domain::files::types::SourceView,
-};
 
 use super::constants::{EMPTY_SOURCE, INVALID_PATTERN, PASS, STOP, SUBJECT};
 

@@ -9,15 +9,15 @@ use ryo_relations::domain::relations::types::Relation;
 use std::sync::Arc;
 /// The derived needs of a rule that selects every row of `relation` per file: it reads that relation, as the runtime's
 /// preparation finds of a plan of one select over it, and walks no graph.
-pub(crate) fn reads(relation: Relation) -> super::super::prepared::RuleDerivedNeeds {
-    super::super::prepared::RuleDerivedNeeds {
+pub(crate) fn reads(relation: Relation) -> super::super::prepared::types::RuleDerivedNeeds {
+    super::super::prepared::types::RuleDerivedNeeds {
         relations: Box::new([relation]),
         graph: super::cache::types::GraphAdmission::Disabled,
     }
 }
 /// The derived needs of a rule that walks the axis of `relation`: it reads that relation and walks a graph.
-pub(crate) fn walks(relation: Relation) -> super::super::prepared::RuleDerivedNeeds {
-    super::super::prepared::RuleDerivedNeeds {
+pub(crate) fn walks(relation: Relation) -> super::super::prepared::types::RuleDerivedNeeds {
+    super::super::prepared::types::RuleDerivedNeeds {
         relations: Box::new([relation]),
         graph: super::cache::types::GraphAdmission::Enabled,
     }

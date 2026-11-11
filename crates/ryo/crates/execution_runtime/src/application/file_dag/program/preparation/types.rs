@@ -86,7 +86,7 @@ pub(crate) struct PreparedProgram {
     pub(super) matchers:
         Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) derived:
-        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived,
+        ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived,
     pub(super) walk:
         ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }

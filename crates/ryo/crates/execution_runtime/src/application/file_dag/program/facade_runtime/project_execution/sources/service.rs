@@ -63,7 +63,7 @@ impl PublicationScope {
         &self,
         owner: &Rc<RelationOwner>,
         sources: &[crate::application::file_dag::frontiers::types::FrontierSource],
-        rows: &[crate::application::file_dag::frontiers::types::FrontierInput],
+        rows: &[FrontierInput],
     ) -> Result<Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>, OperatingError> {
         rows.iter()
             .map(|row| {

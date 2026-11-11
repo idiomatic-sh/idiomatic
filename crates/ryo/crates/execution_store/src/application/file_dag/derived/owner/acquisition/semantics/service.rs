@@ -5,7 +5,7 @@ use ryo_execution_domain::domain::derived_views::types::{
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::derived_fault;
-use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
+use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use std::{cell::RefCell, sync::Arc};
 
@@ -217,7 +217,9 @@ pub(crate) fn build(
             )
         }
     };
-    if let Some(error) = failure.borrow_mut().take() {
+    if let Some(error) = ryo_execution_domain::domain::operator::contract::failure::service::take(
+        &mut *failure.borrow_mut(),
+    ) {
         return Err(error);
     }
     match answer.map_err(derived_fault)? {

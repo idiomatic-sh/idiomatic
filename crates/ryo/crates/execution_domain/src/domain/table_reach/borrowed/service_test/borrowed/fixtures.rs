@@ -1,9 +1,14 @@
 //! The support of the `borrowed` cases.
-use super::super::super::*;
+use super::super::super::service::*;
+use super::super::super::types::*;
+use crate::domain::table_model::types::RepresentationInput;
+use crate::domain::table_model::types::SetMembership;
+use crate::domain::table_reach::types::Walk;
 use ryo_derived::domain::contract::types::BuildInputs;
 use ryo_derived::domain::contract::types::BuildOutcome;
 use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_derived::domain::row_cells::types::BulkRows;
@@ -11,6 +16,7 @@ use ryo_derived::domain::row_cells::types::RowCells;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_relations::domain::relations::types::{CellKind, Integer};
 use ryo_values::cases::{Case, CaseName, Expect, Word};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
 pub(super) fn membership(held: bool) -> SetMembership {
@@ -41,7 +47,7 @@ impl RowCells for Cells<'_> {
     fn kinds(&self) -> &[CellKind] {
         &self.0.kinds
     }
-    fn count(&self) -> ryo_values::domain::rows::types::RowCount {
+    fn count(&self) -> RowCount {
         self.0.count
     }
     fn cell(

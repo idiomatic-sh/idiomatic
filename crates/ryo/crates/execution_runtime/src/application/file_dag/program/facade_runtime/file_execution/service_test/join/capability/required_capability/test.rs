@@ -1,6 +1,4 @@
 //! Every provider kind reaches the required join capability, and empty or failed lefts never build a right index.
-use super::super::super::super::super::service::*;
-use super::super::super::super::super::*;
 use super::super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree};
 use super::super::super::*;
 use super::super::fixtures::Witness;

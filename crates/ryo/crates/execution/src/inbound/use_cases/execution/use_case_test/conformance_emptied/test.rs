@@ -88,7 +88,7 @@ fn compare_emptied(
 /// reflexive. Each emptied input is computed empty inside a region that runs, so the kernel answers, not the presence
 /// decision.
 fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
-    use ryo_execution_domain::domain::operator::contract::presence::PresenceMask;
+    use ryo_execution_domain::domain::operator::contract::presence::types::PresenceMask;
     let semantic = KnownSyntax;
     let rows = |case: &mut expectations::Fixture, emptied: &[usize]| {
         compare_emptied(

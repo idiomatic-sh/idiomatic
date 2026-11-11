@@ -90,7 +90,7 @@ impl ObservedPublication {
 /// ```
 #[derive(Clone)]
 pub struct ObservedPublication {
-    pub(crate) proof: crate::application::file_dag::program::admission::service::ReadProof,
+    pub(crate) proof: ReadProof,
     pub(crate) root: crate::application::file_dag::program::admission::types::ProducerRoot,
     pub(crate) publication:
         ryo_execution_store::application::file_dag::relations::handle::service::Publication,

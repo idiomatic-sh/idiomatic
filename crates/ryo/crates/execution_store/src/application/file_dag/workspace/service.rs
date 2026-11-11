@@ -197,7 +197,7 @@ impl InvocationWorkspace {
         contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
     ) -> Self {
         let mut workspace = Self::new(owner);
-        ryo_execution_domain::domain::operator::contract::workspace::begin(
+        ryo_execution_domain::domain::operator::contract::workspace::service::begin(
             &contract.workspace,
             ryo_execution_domain::domain::operator::contract::types::WorkspaceLifetime::Invocation,
             &mut workspace.primitive,

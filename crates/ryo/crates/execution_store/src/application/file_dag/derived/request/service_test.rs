@@ -2,11 +2,13 @@ use super::service::*;
 use super::types::PlanCount;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::request::types::DerivedKind;
-use ryo_execution_domain::domain::operator::contract::resources::{AxisResources, JoinResources};
+use ryo_execution_domain::domain::operator::contract::resources::{
+    types::AxisResources, types::JoinResources,
+};
 use ryo_execution_domain::domain::{
     derived_views::types::{contract::value::DerivedSlots, *},
     operating::errors::OperatingError,
-    operator::contract::resources::{IndexColumns, ResourceProgram},
+    operator::contract::resources::{types::IndexColumns, types::ResourceProgram},
 };
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, InputNumber};
@@ -65,7 +67,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         right_on: vec![ColumnIndex(1)],
         view: vec![ColumnIndex(0)],
         has_filter:
-            ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
+            ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Unfiltered,
         reach: None,
     });
     let first = views.bind_resources(&join, &kinds[..2]).unwrap();
@@ -110,7 +112,7 @@ fn plain_join_and_axis_bind_finite_ordered_inputs_and_share_identical_plans() {
         child: ColumnIndex(1),
         domain_id: ColumnIndex(0),
         has_filter:
-            ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered,
+            ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Unfiltered,
         domain_view: vec![],
         output: vec![],
         direction: Direction::Parent,

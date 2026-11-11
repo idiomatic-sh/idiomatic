@@ -1,7 +1,7 @@
 //! Invoke the normalization semantics of a producer's publication: every producer-local name becomes a portable one.
 use super::errors::PublicationError;
 use super::types::PublicationInput;
-use ryo_execution_domain::domain::finish::publication::escape_cross_publication;
+use ryo_execution_domain::domain::finish::publication::service::escape_cross_publication;
 
 /// Normalizes the names of a producer's table in the output storage the caller owns.
 ///

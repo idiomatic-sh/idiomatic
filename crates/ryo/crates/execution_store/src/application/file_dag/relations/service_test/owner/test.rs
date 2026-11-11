@@ -114,9 +114,7 @@ type Failure = OperatingError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(
-            "compact_publications_share_backing_accounting_and_expire_with_generation",
-        ),
+        name: CaseName("compact_publications_share_backing_accounting_and_expire_with_generation"),
         word: Word::Succeeds,
         input: || Published::Compact,
         expect: Expect::Value(Observed::Compact(Compact {
@@ -264,8 +262,10 @@ fn compact() -> Result<Compact, OperatingError> {
     let second_adds_only_its_record = owner.derived.publication_ownership_bytes().2
         == first_unique + size_of::<RelationResult>() + 2 * size_of::<usize>();
     let first_charges_backing_once = first_unique
-        == crate::application::file_dag::derived::ledger::capacity::service::compact_table(&compact).0
-            + size_of::<KeptWords>()
+        == crate::application::file_dag::derived::ledger::capacity::service::compact_table(
+            &compact,
+        )
+        .0 + size_of::<KeptWords>()
             + 2 * size_of::<usize>()
             + words.0.0.capacity()
             + size_of::<RelationResult>()
@@ -438,7 +438,7 @@ fn partial() -> Result<PartialPopulation, OperatingError> {
         .map(|publication| owner.inspect(publication.as_ref(), RepresentationInput::from(&rows)));
     let checks = owner.checks.get();
     let prepared =
-        crate::application::file_dag::derived::prepared::RequestDerived::new(Box::new([
+        crate::application::file_dag::derived::prepared::service::RequestDerived::new(Box::new([
             crate::application::file_dag::derived::owner::fixtures::reads(relation),
         ]));
     owner.derived.prepare_program_file(

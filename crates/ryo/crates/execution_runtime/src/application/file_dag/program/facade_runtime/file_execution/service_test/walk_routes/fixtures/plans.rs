@@ -1,6 +1,4 @@
 //! Authored plans declare expected barriers without consulting the prepared walk.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::super::fixtures::*;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 #[cfg(test)]

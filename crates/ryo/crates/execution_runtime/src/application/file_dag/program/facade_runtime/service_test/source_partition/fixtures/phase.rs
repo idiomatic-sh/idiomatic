@@ -72,8 +72,8 @@ pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
     )?;
     let engine: Arc<dyn crate::application::file_dag::executor::service::PrimitiveExecutor + Send> =
         Arc::new(CommonOperatorEngine::new(
-            (std::sync::Arc::new(crate::application::file_dag::fixtures::operators())
-                as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
+            (Arc::new(crate::application::file_dag::fixtures::operators())
+                as Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
         ));
     let corpus = ["a", "b"].map(|path| {
         CorpusInput::Available(CorpusEntry {

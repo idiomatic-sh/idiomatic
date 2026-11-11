@@ -20,7 +20,8 @@ use crate::application::file_dag::{
 };
 use ryo_execution_domain::domain::{
     operator::contract::{
-        graph_view::CachedGraphRow, resources::ResourceProgram, types::OperatorContract,
+        graph_view::types::CachedGraphRow, resources::types::ResourceProgram,
+        types::OperatorContract,
     },
     table_model::types::Rows,
 };

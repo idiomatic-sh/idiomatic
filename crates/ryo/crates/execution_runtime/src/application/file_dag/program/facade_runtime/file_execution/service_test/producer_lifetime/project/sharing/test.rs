@@ -1,7 +1,5 @@
 //! One source pass and one frontier decode per population across the rules of a cohort, and
 //! retirement on every exit.
-use super::super::super::super::super::service::*;
-use super::super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use super::fixtures::{Stored, exercise};
 use crate::application::file_dag::frontiers::types::DecodeCount;

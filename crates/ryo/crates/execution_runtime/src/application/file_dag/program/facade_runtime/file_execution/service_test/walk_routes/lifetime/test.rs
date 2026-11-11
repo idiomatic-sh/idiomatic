@@ -1,6 +1,4 @@
 //! A shared source batch lives until its last consumer is delivered, on every exit.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::fixtures::Residency;
 use super::fixtures::{deliver, forward, program};
 use crate::application::file_dag::program::native_walk::types::RetainedBatches;

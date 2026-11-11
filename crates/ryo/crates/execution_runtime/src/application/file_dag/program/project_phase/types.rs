@@ -32,7 +32,7 @@ pub(crate) struct ProjectInput<'a> {
     pub(crate) publication: &'a Partials,
     pub(crate) ordinary: PreparedFrontiers,
     pub(crate) bound: &'a [BoundInput],
-    pub(crate) arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
+    pub(crate) arenas: &'a [ArenaBytes],
 }
 /// Actual, already prepared inputs and declared roots for one project task: crate-private, so no caller outside the runtime
 /// assembles a root of its own.
@@ -54,7 +54,7 @@ pub(crate) struct FrontierRequest<'a> {
     pub(crate) first: ryo_values::domain::stored_facts::types::Bucket,
     pub(crate) facts: &'a dyn FactsFinish,
     pub(crate) project: &'a dyn FactsWorker,
-    pub(crate) project_symbols: &'a ryo_language::domain::symbols::types::Symbols,
+    pub(crate) project_symbols: &'a Symbols,
 }
 /// The place of one declared occurrence among the occurrences of its phase, counted from zero in declaration order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

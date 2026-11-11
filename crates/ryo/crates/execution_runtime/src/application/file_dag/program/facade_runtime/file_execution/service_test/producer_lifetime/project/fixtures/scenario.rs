@@ -35,7 +35,7 @@ pub(in super::super) fn exercise(
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
         &prepared,
         &services,
-        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+        Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )?;
     let owner = Rc::clone(phase.owner());
     // A project phase has no file-cache backend. Required derived views still
@@ -96,7 +96,7 @@ pub(in super::super) fn exercise(
                         vec![FrontierInput::Decoded {
                             frontier: Frontier {
                                 input: source,
-                                table: std::sync::Arc::new(table),
+                                table: Arc::new(table),
                             },
                             coverage: CoverageState::Complete,
                         }]

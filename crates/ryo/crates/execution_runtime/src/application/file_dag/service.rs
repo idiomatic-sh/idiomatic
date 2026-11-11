@@ -35,7 +35,7 @@ pub(crate) fn prepare_with_schemas<'s>(
         ryo_execution_store::application::file_dag::derived::request::service::RequestViews::new(
             semantic,
         );
-    ryo_execution_domain::domain::file_program::service::operators::prepare(
+    ryo_execution_domain::domain::file_program::service::operators::service::prepare(
         plans,
         bindings,
         hosted,

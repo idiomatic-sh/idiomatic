@@ -234,7 +234,8 @@ pub(crate) struct SemanticPermit<'scope> {
 pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
     permit: &'permit SemanticPermit<'scope>,
     meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'meaning>,
-    authority: ryo_execution_domain::domain::executable_program::physical::PhysicalAuthorization,
+    authority:
+        ryo_execution_domain::domain::executable_program::physical::types::PhysicalAuthorization,
 }
 
 /// The borrowed frame of one poll that the demand stages share; it grants nothing the poll lacked.

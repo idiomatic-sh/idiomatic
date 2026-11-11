@@ -146,18 +146,18 @@ fn closure_preparation_preserves_clustered_partition_order_and_sorts_sources()
         ColumnIndex(2),
     )
     .unwrap();
-    use ryo_execution_domain::domain::operator::contract::views::ClosureParts;
+    use ryo_execution_domain::domain::operator::contract::views::types::ClosureParts;
     assert_eq!(
         ClosureParts::len(&partitions),
-        ryo_execution_domain::domain::operator::contract::views::PartitionCount(2)
+        ryo_execution_domain::domain::operator::contract::views::types::PartitionCount(2)
     );
     let first = ClosureParts::get(
         &partitions,
-        ryo_execution_domain::domain::operator::contract::views::PartitionIndex(0),
+        ryo_execution_domain::domain::operator::contract::views::types::PartitionIndex(0),
     )?;
     let second = ClosureParts::get(
         &partitions,
-        ryo_execution_domain::domain::operator::contract::views::PartitionIndex(1),
+        ryo_execution_domain::domain::operator::contract::views::types::PartitionIndex(1),
     )?;
     assert_eq!(first.key, vec![number(Integer(9))]);
     assert_eq!(first.sources, vec![number(Integer(2)), number(Integer(4))]);

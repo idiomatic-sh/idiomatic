@@ -13,7 +13,7 @@ use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     operation_schema::types::InputShape,
     operator::contract::{
-        resources::{IndexColumns, ResourceProgram},
+        resources::{types::IndexColumns, types::ResourceProgram},
         types::OperatorContract,
     },
 };

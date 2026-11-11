@@ -2,15 +2,11 @@
 
 use super::service::{AdmittedInput, FileGeneration};
 use ryo_execution_domain::domain::{
-    coverage::types::RuleIndex,
     executable_program::types::{InputSource, RegionId},
     operating::errors::OperatingError,
-    rule_intent::types::ApplicabilityReason,
 };
-use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
-use ryo_execution_store::application::file_dag::{
-    derived::population::service::PopulationId,
-    relations::{handle::service::Publication, service::RelationOwner},
+use ryo_execution_store::application::file_dag::relations::{
+    handle::service::Publication, service::RelationOwner,
 };
 use ryo_relations::domain::relations::types::FileId;
 use std::{rc::Rc, sync::Arc};

@@ -19,5 +19,11 @@ pub fn prepare_operator(
     bindings: &[ParameterBinding],
     scope: ryo_values::domain::plan_parts::types::StepScope,
 ) -> Result<OperatorContract, OperatingError> {
-    super::contract::registration::registered(kind).prepare(operation, inputs, bindings, scope)
+    crate::domain::operator::contract::registration::service::prepare(
+        &super::contract::registration::service::registered(kind),
+        operation,
+        inputs,
+        bindings,
+        scope,
+    )
 }

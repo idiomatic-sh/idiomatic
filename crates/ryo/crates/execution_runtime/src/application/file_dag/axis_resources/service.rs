@@ -6,10 +6,8 @@ use ryo_derived::domain::contract::types::DerivedView;
 use ryo_derived::domain::membership::types::MembershipView;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
-    operating::errors::OperatingError,
-    operator::contract::resources::AxisResources,
-    table_cells::types::{TreeForm, TreeRows},
-    table_model::service::check_columns,
+    operating::errors::OperatingError, operator::contract::resources::types::AxisResources,
+    table_cells::types::TreeForm, table_model::service::check_columns,
     tree_walk::service::entity_of,
 };
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
@@ -44,7 +42,7 @@ pub(crate) fn classify<'f>(
             && entity_of(domain_view, *domain_id) == ColumnIndex(0);
         if tree.form == TreeForm::Edges
             && (*parent, *child) == (ColumnIndex(0), ColumnIndex(1))
-            && ((*has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Unfiltered && domain_view.is_empty()) || domain_of_tree)
+            && ((*has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Unfiltered && domain_view.is_empty()) || domain_of_tree)
         {
             let among = if let RepresentationInput::Tree(each) = domain {
                 (each.form == TreeForm::Elements).then_some(each)
@@ -55,7 +53,7 @@ pub(crate) fn classify<'f>(
         }
     }
     if *has_filter
-        == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+        == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
         || !domain_view.is_empty()
         || !output.is_empty()
         || matches!(

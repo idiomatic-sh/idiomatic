@@ -1,3 +1,4 @@
+// ignore: idiomatic.arch/file-length - in the fused rewrite's replaced set (rewrite-replaced.toml): one invocation's preparation and the resources it holds, which the rewrite deletes whole; the part's module file kept 171 of these lines until the part-namespace placement moved them here
 //! Invocation resources are acquired once, at the contract's demand boundary.
 use super::groups::service::groups;
 use super::index::{service::IndexResource, types::EmptyInput};
@@ -6,9 +7,9 @@ use super::types::InvocationInputs;
 use crate::application::file_dag::axis_resources::service::prepare_axis;
 use crate::application::file_dag::resources::service::appended_values;
 use ryo_execution_domain::domain::operator::contract::{
-    resources::{IndexColumns, JoinResources, ResourceProgram},
+    resources::{types::IndexColumns, types::JoinResources, types::ResourceProgram},
     types::OperatorContract,
-    views::NativeJoin,
+    views::types::NativeJoin,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::types::Texts;
@@ -37,7 +38,7 @@ pub(crate) fn continuation<'f>(
             native_join: None,
             native_storage: None,
             cycles: None,
-            closure: super::service::AcquiredPartitions::default(),
+            closure: AcquiredPartitions::default(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -68,7 +69,7 @@ pub(crate) fn prepare<'f>(
             native_join: None,
             native_storage: None,
             cycles: None,
-            closure: super::service::AcquiredPartitions::default(),
+            closure: AcquiredPartitions::default(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -176,7 +177,7 @@ pub(crate) fn prepare<'f>(
                     });
                     resources.inputs.native_storage = Some(acquired);
                 } else {
-                    if *has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered || !view.is_empty() {
+                    if *has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered || !view.is_empty() {
                         return Err(OperatingError::WrongOperation);
                     }
                     resources.inputs.index = Some(IndexResource::acquired(
@@ -315,14 +316,7 @@ pub(crate) fn prepare<'f>(
     Ok(resources)
 }
 
-use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
-use ryo_derived::domain::dfs::types::PreparedDfs;
-use ryo_derived::domain::ordered::types::OrderedMatching;
-use ryo_execution_domain::domain::table_groups::types::Group;
-use ryo_execution_domain::domain::table_reach::borrowed::IndexedRows;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
-use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::plan_parts::types::LiteralText;
 
 pub(super) fn input<'f>(
     inputs: &[RepresentationInput<'f>],
@@ -379,7 +373,7 @@ impl<'f> InvocationResources<'f> {
                 return Ok(());
             }
             if join.has_filter
-                == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+                == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
                 || !join.view.is_empty()
             {
                 return Err(OperatingError::WrongOperation);
@@ -388,7 +382,7 @@ impl<'f> InvocationResources<'f> {
         } else {
             // The ordinary values driver has no native filter/view protocol.
             if join.has_filter
-                == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+                == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
                 || !join.view.is_empty()
             {
                 return Err(OperatingError::WrongOperation);
@@ -428,13 +422,17 @@ impl AcquiredPartitions {
     }
 }
 
-impl ryo_execution_domain::domain::operator::contract::views::ClosureParts for AcquiredPartitions {
-    fn len(&self) -> ryo_execution_domain::domain::operator::contract::views::PartitionCount {
-        ryo_execution_domain::domain::operator::contract::views::PartitionCount(self.0.len())
+impl ryo_execution_domain::domain::operator::contract::views::types::ClosureParts
+    for AcquiredPartitions
+{
+    fn len(
+        &self,
+    ) -> ryo_execution_domain::domain::operator::contract::views::types::PartitionCount {
+        ryo_execution_domain::domain::operator::contract::views::types::PartitionCount(self.0.len())
     }
     fn get(
         &self,
-        at: ryo_execution_domain::domain::operator::contract::views::PartitionIndex,
+        at: ryo_execution_domain::domain::operator::contract::views::types::PartitionIndex,
     ) -> Result<&ryo_derived::domain::closure_adjacency::types::ClosurePartition, OperatingError>
     {
         let view = self

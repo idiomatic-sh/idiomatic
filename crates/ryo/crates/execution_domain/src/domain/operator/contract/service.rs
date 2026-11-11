@@ -2,7 +2,9 @@
 //! Exhaustive semantic declarations; strategy, cache admission and lifetimes are not kinds.
 use super::types::*;
 use crate::domain::operating::errors::OperatingError;
-use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
+use crate::domain::operator::contract::presence::{
+    types::InputMask, types::PresenceMask, types::RowFailure,
+};
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// One semantic input and dependency contract, independent of output delivery.
@@ -283,9 +285,9 @@ pub(crate) fn prepare_for(
     inputs: &[crate::domain::operation_schema::types::InputShape<'_>],
     bindings: &[ryo_values::domain::query_bindings::types::ParameterBinding],
     scope: ryo_values::domain::plan_parts::types::StepScope,
-) -> Result<OperatorContract, crate::domain::operating::errors::OperatingError> {
+) -> Result<OperatorContract, OperatingError> {
     if ryo_values::domain::plans::service::kind_of(operation) != expected {
-        return Err(crate::domain::operating::errors::OperatingError::WrongOperation);
+        return Err(OperatingError::WrongOperation);
     }
     let OperationSemantics {
         contract: semantics,
@@ -294,15 +296,13 @@ pub(crate) fn prepare_for(
         ..
     } = semantics(expected);
     let source_gate = match operation {
-        ryo_values::domain::plans::types::Operation::SourceMatches {
+        Operation::SourceMatches {
             span, base_line, ..
         } => SourceGate::CheckedSpan {
             span: *span,
             base_line: *base_line,
         },
-        ryo_values::domain::plans::types::Operation::Replace { text, .. } => {
-            SourceGate::CheckedText { column: *text }
-        }
+        Operation::Replace { text, .. } => SourceGate::CheckedText { column: *text },
         Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }
@@ -328,7 +328,7 @@ pub(crate) fn prepare_for(
         | Operation::FitsRendered { .. }
         | Operation::SpanBounds { .. } => SourceGate::None,
     };
-    let row_error = if let ryo_values::domain::plans::types::Operation::SourceMatches {
+    let row_error = if let Operation::SourceMatches {
         capture,
         base_line,
         capture_text,
@@ -341,26 +341,21 @@ pub(crate) fn prepare_for(
             || (*capture_line == ryo_values::domain::query_operators::types::LineOutput::Appended
                 && base_line.is_none()))
     {
-        Some(crate::domain::operating::errors::OperatingError::WrongOperation)
+        Some(OperatingError::WrongOperation)
     } else {
         None
     };
-    let literal_pattern =
-        if let ryo_values::domain::plans::types::Operation::Replace { pattern, .. }
-        | ryo_values::domain::plans::types::Operation::SourceMatches { pattern, .. } = operation
-        {
-            Some(pattern.clone())
-        } else {
-            None
-        };
+    let literal_pattern = if let Operation::Replace { pattern, .. }
+    | Operation::SourceMatches { pattern, .. } = operation
+    {
+        Some(pattern.clone())
+    } else {
+        None
+    };
     let (comparisons, predicate_input) = match operation {
-        ryo_values::domain::plans::types::Operation::Select { comparisons, .. } => {
-            (comparisons.as_slice(), 0)
-        }
-        ryo_values::domain::plans::types::Operation::Join { filter, .. } => (filter.as_slice(), 1),
-        ryo_values::domain::plans::types::Operation::Axis { domain_filter, .. } => {
-            (domain_filter.as_slice(), 2)
-        }
+        Operation::Select { comparisons, .. } => (comparisons.as_slice(), 0),
+        Operation::Join { filter, .. } => (filter.as_slice(), 1),
+        Operation::Axis { domain_filter, .. } => (domain_filter.as_slice(), 2),
         Operation::Project { .. }
         | Operation::Extend { .. }
         | Operation::Union { .. }
@@ -393,23 +388,23 @@ pub(crate) fn prepare_for(
             .to_vec(),
     };
     let schema = crate::domain::operation_schema::service::schema_of(operation, inputs, bindings);
-    let output_kinds = super::preflight::output_layout(operation, inputs, &schema);
+    let output_kinds = super::preflight::service::output_layout(operation, inputs, &schema);
     use ryo_values::domain::plans::types::Operation;
-    let resources = super::resources::prepare(operation);
-    let resources = if let super::resources::ResourceProgram::Index {
+    let resources = super::resources::service::prepare(operation);
+    let resources = if let super::resources::types::ResourceProgram::Index {
         input,
-        columns: super::resources::IndexColumns::Columns(columns),
+        columns: super::resources::types::IndexColumns::Columns(columns),
     } = &resources
         && matches!(operation, Operation::Antijoin { .. })
     {
-        super::resources::ResourceProgram::Index {
+        super::resources::types::ResourceProgram::Index {
             input: *input,
-            columns: super::resources::IndexColumns::ColumnsUnlessEmpty(columns.clone()),
+            columns: super::resources::types::IndexColumns::ColumnsUnlessEmpty(columns.clone()),
         }
     } else {
         resources.clone()
     };
-    let workspace = super::workspace::prepare(operation, inputs, &output_kinds);
+    let workspace = super::workspace::service::prepare(operation, inputs, &output_kinds);
     Ok(OperatorContract {
         derived: Default::default(),
         kind: expected,
@@ -421,14 +416,17 @@ pub(crate) fn prepare_for(
         absence_inputs,
         workspace,
         resources,
-        empty_results: super::preflight::empty_results(operation, inputs),
+        empty_results: super::preflight::service::empty_results(operation, inputs),
         source_gate,
         failure: failure(operation, inputs, scope, row_error.as_ref()),
         row_error,
         literal_pattern,
         predicates,
         effects,
-        reuse: reuse_scope(effects, super::resources::binding_dependent(operation)),
+        reuse: reuse_scope(
+            effects,
+            super::resources::service::binding_dependent(operation),
+        ),
         identity: operation.clone(),
     })
 }
@@ -436,12 +434,12 @@ pub(crate) fn prepare_for(
 /// Where equal operations share one result. Derived and physical text belong to the file, not to a rule: only a binding or
 /// the request's own source makes equal operations of different rules answer differently. Every effect chooses here, so a
 /// new one cannot be request-shared by default.
-fn reuse_scope(effects: Effects, bindings: super::resources::BindingUse) -> ReuseScope {
+fn reuse_scope(effects: Effects, bindings: super::resources::types::BindingUse) -> ReuseScope {
     let shareable = match effects {
         Effects::Pure | Effects::DerivedText | Effects::PhysicalSourceText => true,
         Effects::RequestSource => false,
     };
-    if shareable && bindings == super::resources::BindingUse::Independent {
+    if shareable && bindings == super::resources::types::BindingUse::Independent {
         ReuseScope::Request
     } else {
         ReuseScope::Rule

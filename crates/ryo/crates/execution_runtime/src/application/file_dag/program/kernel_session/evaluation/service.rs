@@ -9,7 +9,7 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     executable_program::types::instruction::value::Instruction,
     operating::{errors::OperatingError, types::InputPlace},
-    operator::contract::{primitive::PreparedInputs, types::InputMode},
+    operator::contract::{primitive::types::PreparedInputs, types::InputMode},
     table_model::service::{count_of, read_row},
 };
 use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
@@ -64,7 +64,7 @@ impl super::super::service::KernelSession<'_, '_> {
                 permit: permit.semantics(),
                 failure: &setup_failure,
                 binding:
-                    ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
+                    ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding {
                         bindings: context.bindings,
                         regex_identity: None,
                         source_len: ryo_operators::domain::contract::types::SourceByteLength(
@@ -75,7 +75,8 @@ impl super::super::service::KernelSession<'_, '_> {
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
-                    workspace.work().found(
+                    ryo_execution_domain::domain::operator::contract::lease::service::add_found(
+                        workspace.work(),
                         ryo_values::domain::plan_parts::types::InputNumber(0),
                         ryo_execution_domain::domain::operator::contract::types::FoundRows(1),
                     );
@@ -143,7 +144,7 @@ impl super::super::service::KernelSession<'_, '_> {
                                     ));
                                 }
                             };
-                            workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(shared.visits().0));
+                            ryo_execution_domain::domain::operator::contract::lease::service::add_found(workspace.work(), ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(shared.visits().0));
                             return ryo_execution_domain::domain::replay::service::selected(
                                 shared.result(),
                                 source,
@@ -270,7 +271,7 @@ impl super::super::service::KernelSession<'_, '_> {
                                                 OperatingError::ShapeMismatch,
                                             )
                                         })?;
-                                    workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
+                                    ryo_execution_domain::domain::operator::contract::lease::service::add_found(workspace.work(), ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
                                     let texts =
                                         ryo_execution_domain::domain::table_texts::types::Texts {
                                             symbols: context.symbols.as_ref(),
@@ -278,7 +279,7 @@ impl super::super::service::KernelSession<'_, '_> {
                                             paths: context.paths,
                                             arenas: context.arenas,
                                         };
-                                    if ryo_execution_domain::domain::executable_program::kernel::row_admissible(
+                                    if ryo_execution_domain::domain::executable_program::kernel::service::row_admissible(
                                         contract, row, &texts,
                                     )
                                     .map_err(InvocationFailure::Semantic)?

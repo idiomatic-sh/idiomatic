@@ -362,7 +362,5 @@ impl ProjectPhase<'_> {
 /// ```
 pub struct ProjectPhase<'a> {
     pub(crate) request: &'a RequestExecution,
-    pub(crate) publication: std::rc::Rc<
-        crate::application::file_dag::program::facade_runtime::service::PublicationScope,
-    >,
+    pub(crate) publication: std::rc::Rc<facade_runtime::service::PublicationScope>,
 }

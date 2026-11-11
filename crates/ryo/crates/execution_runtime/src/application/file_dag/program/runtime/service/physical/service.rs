@@ -1,6 +1,5 @@
 //! Semantic permits and the physical request that carries its validated authority.
 use super::super::{PermittedPhysical, SemanticPermit};
-use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
@@ -17,11 +16,13 @@ impl<'scope> SemanticPermit<'scope> {
     }
     pub(crate) fn physical<'call, 'meaning>(
         &'call self,
-        binding: &ryo_execution_domain::domain::executable_program::physical::PhysicalBinding<'_>,
+        binding: &ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding<'_>,
         meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'meaning>,
     ) -> Result<PermittedPhysical<'call, 'meaning, 'scope>, OperatingError> {
         self.validate_live()?;
-        use ryo_execution_domain::domain::executable_program::physical::{self, PhysicalRoute};
+        use ryo_execution_domain::domain::executable_program::physical::{
+            self, types::PhysicalRoute,
+        };
         let route = match self.strategy {
             RouteKind::Generic => PhysicalRoute::Registered,
             RouteKind::OrderedExistence => PhysicalRoute::Ordered(
@@ -31,7 +32,7 @@ impl<'scope> SemanticPermit<'scope> {
                 .ok_or_else(|| OperatingError::WrongOperation)?,
             ),
         };
-        let authority = physical::authorize(self.operation(), route, binding, &meaning)?;
+        let authority = physical::service::authorize(self.operation(), route, binding, &meaning)?;
         Ok(PermittedPhysical {
             permit: self,
             meaning,

@@ -1,7 +1,7 @@
 //! The types of the `semantic_rows` concept: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use ryo_derived::domain::row_cells::types::RowCells;
-use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
+use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::service::{name_text, symbol_text};
 use ryo_execution_domain::domain::table_texts::types::Texts;
@@ -28,12 +28,16 @@ pub(crate) struct AdmittedRows<'a, 'f> {
 
 impl RowCells for AdmittedRows<'_, '_> {
     fn bulk(&self) -> Option<ryo_derived::domain::row_cells::types::BulkRows<'_>> {
-        if self.failure.borrow().failed()
-            == ryo_execution_domain::domain::operator::contract::failure::LatchState::Failed
+        if ryo_execution_domain::domain::operator::contract::failure::service::failed(
+            &*self.failure.borrow(),
+        ) == ryo_execution_domain::domain::operator::contract::failure::types::LatchState::Failed
         {
             return None;
         }
-        let Ok(rows) = self.failure.borrow_mut().run(|| self.rows.bulk()) else {
+        let Ok(rows) = ryo_execution_domain::domain::operator::contract::failure::service::run(
+            &mut *self.failure.borrow_mut(),
+            || self.rows.bulk(),
+        ) else {
             return None;
         };
         match rows {
@@ -53,22 +57,25 @@ impl RowCells for AdmittedRows<'_, '_> {
         self.rows.count()
     }
     fn cell(&self, row: RowIndex, column: ColumnIndex) -> Option<Value> {
-        if self.failure.borrow().failed()
-            == ryo_execution_domain::domain::operator::contract::failure::LatchState::Failed
+        if ryo_execution_domain::domain::operator::contract::failure::service::failed(
+            &*self.failure.borrow(),
+        ) == ryo_execution_domain::domain::operator::contract::failure::types::LatchState::Failed
         {
             return None;
         }
         self.rows.cell(row, column)
     }
     fn validate(&self) -> Result<(), ryo_derived::domain::fault::types::DerivedFault> {
-        self.failure
-            .borrow_mut()
-            .run(|| self.rows.validate())
-            .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
+        ryo_execution_domain::domain::operator::contract::failure::service::run(
+            &mut *self.failure.borrow_mut(),
+            || self.rows.validate(),
+        )
+        .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
     }
     fn read_row<'a>(&'a self, row: RowIndex, buffer: &'a mut Vec<Value>) -> Option<&'a [Value]> {
-        if self.failure.borrow().failed()
-            == ryo_execution_domain::domain::operator::contract::failure::LatchState::Failed
+        if ryo_execution_domain::domain::operator::contract::failure::service::failed(
+            &*self.failure.borrow(),
+        ) == ryo_execution_domain::domain::operator::contract::failure::types::LatchState::Failed
         {
             return None;
         }
@@ -86,8 +93,9 @@ pub(crate) struct CanonicalTexts<'a, 's> {
 
 impl ryo_derived::domain::row_cells::types::ValueTexts for CanonicalTexts<'_, '_> {
     fn text(&self, value: Value) -> Option<CellText<'_>> {
-        if self.failure.borrow().failed()
-            == ryo_execution_domain::domain::operator::contract::failure::LatchState::Failed
+        if ryo_execution_domain::domain::operator::contract::failure::service::failed(
+            &*self.failure.borrow(),
+        ) == ryo_execution_domain::domain::operator::contract::failure::types::LatchState::Failed
         {
             return None;
         }
@@ -120,15 +128,16 @@ impl ryo_derived::domain::row_cells::types::CanonicalTexts for CanonicalTexts<'_
             source,
             ..
         } = self;
-        failure
-            .borrow_mut()
-            .run(|| {
+        ryo_execution_domain::domain::operator::contract::failure::service::run(
+            &mut *failure.borrow_mut(),
+            || {
                 Ok(Value::Symbol(query_intern_derived(
                     symbols,
                     ByteSlice(source.0),
                     NameText(text.0),
                 )))
-            })
-            .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
+            },
+        )
+        .map_err(|()| ryo_derived::domain::fault::types::DerivedFault::Interrupted)
     }
 }

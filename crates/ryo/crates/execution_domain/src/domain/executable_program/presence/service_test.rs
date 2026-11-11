@@ -6,7 +6,9 @@ use super::types::{FormulaId, GraphPresence, PresenceFormula, PresenceTable};
 use crate::domain::file_program::types::RequestGraph;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
-use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
+use crate::domain::operator::contract::presence::{
+    types::InputMask, types::PresenceMask, types::RowFailure,
+};
 use crate::domain::operator::contract::service::{prepare_for, semantics};
 use crate::domain::operator::contract::types::EmptyRepresentation;
 use ryo_relations::domain::relations::service::kinds;
@@ -65,7 +67,7 @@ fn graph(
     RequestGraph,
     crate::domain::file_program::types::RequestOperators,
 ) {
-    let operators = crate::domain::file_program::service::operators::prepare(
+    let operators = crate::domain::file_program::service::operators::service::prepare(
         plans,
         &vec![vec![]; plans.len()],
         &[],
@@ -1053,7 +1055,7 @@ fn declared(raiser: Raiser, raised: Raised<'_>) -> bool {
     match raiser {
         Raiser::Rows(_) => rows,
         Raiser::Pattern(_) => {
-            rows || super::narrowing::invalid_patterns(
+            rows || super::narrowing::service::invalid_patterns(
                 &operation,
                 crate::domain::matching::types::PatternMatcher(
                     &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
@@ -1178,7 +1180,7 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
         kept: vec![],
     };
     assert_eq!(
-        super::narrowing::invalid_patterns(
+        super::narrowing::service::invalid_patterns(
             &oversized,
             crate::domain::matching::types::PatternMatcher(
                 &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,

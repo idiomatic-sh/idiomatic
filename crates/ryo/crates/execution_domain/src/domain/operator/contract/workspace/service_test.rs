@@ -1,6 +1,6 @@
 //! Logical set lifetimes keep bag scopes and deferred errors explicit.
 use super::super::types::WorkspaceLifetime as Lifetime;
-use super::super::workspace::{begin, prepare};
+use super::super::workspace::{service::begin, service::prepare};
 use crate::domain::{
     operating::errors::OperatingError,
     operator::contract::types::{PrimitiveWorkspace, WorkspaceProgram},

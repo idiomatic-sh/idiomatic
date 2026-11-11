@@ -3,7 +3,7 @@
 use ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::types::PreparedPredicates;
-use ryo_execution_domain::domain::operator::contract::views::PredicateProgram;
+use ryo_execution_domain::domain::operator::contract::views::types::PredicateProgram;
 use ryo_execution_domain::domain::table_model::types::Verdict;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::Value;

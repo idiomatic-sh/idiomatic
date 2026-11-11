@@ -53,7 +53,9 @@ impl ResourceFixture {
         owner
             .derived()
             .prepare_program_file(
-                &crate::application::file_dag::derived::prepared::RequestDerived::new(needs),
+                &crate::application::file_dag::derived::prepared::service::RequestDerived::new(
+                    needs,
+                ),
                 &(0..rules)
                     .map(ryo_execution_domain::domain::coverage::types::RuleIndex)
                     .collect::<Vec<_>>(),

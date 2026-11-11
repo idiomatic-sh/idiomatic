@@ -1,10 +1,10 @@
 // ignore: idiomatic.arch/file-length - the prepared contract and the borrowed ports an operator reads it through, each port method stating its errors; splitting the contract from its ports would split one interface
 //! Prepared metadata is request-owned; invocation capabilities borrow engine-owned data.
-use super::views::{PredicateProgram, ValidatedSource};
+use super::views::{types::PredicateProgram, types::ValidatedSource};
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operating::types::PrimitiveSemantics;
-use crate::domain::operator::contract::presence::{PresenceMask, RowFailure};
-use crate::domain::table_reach::borrowed::IndexedRows;
+use crate::domain::operator::contract::presence::{types::PresenceMask, types::RowFailure};
+use crate::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::files::types::SourceView;
@@ -196,7 +196,7 @@ pub struct OperatorContract {
     /// The logical state the operation keeps between rows.
     pub workspace: WorkspaceProgram,
     /// The side resources the operation acquires before it evaluates.
-    pub resources: super::resources::ResourceProgram,
+    pub resources: super::resources::types::ResourceProgram,
     /// The results the operation answers when an input is empty.
     pub empty_results: Vec<EmptyResult>,
     /// How the operation's rows are checked against the source text.
@@ -235,9 +235,9 @@ pub trait PrimitiveResources {
     /// # Errors
     ///
     /// The [`OperatingError`] of an acquired axis that cannot be viewed.
-    fn axis(&self) -> Result<Option<super::views::PreparedAxis<'_>>, OperatingError>;
+    fn axis(&self) -> Result<Option<super::views::types::PreparedAxis<'_>>, OperatingError>;
     /// The native join lookup, while its derived acquisition is held.
-    fn native_join(&self) -> Option<super::views::NativeJoin<'_>>;
+    fn native_join(&self) -> Option<super::views::types::NativeJoin<'_>>;
     /// The prepared depth-first search, when the operation runs one.
     ///
     /// # Errors
@@ -257,7 +257,7 @@ pub trait PrimitiveResources {
     /// # Errors
     ///
     /// The [`OperatingError`] of a current partition that cannot be read.
-    fn closure(&self) -> Result<super::views::ClosureViews<'_>, OperatingError>;
+    fn closure(&self) -> Result<super::views::types::ClosureViews<'_>, OperatingError>;
     /// The ordered matching of two ordered inputs, when the operation pairs them.
     ///
     /// # Errors
@@ -292,9 +292,9 @@ pub struct PrimitiveViews<'a> {
     /// The compiled regular expression the operation matches, when it has one.
     pub regex: Option<&'a ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
     /// The reach answered from a cached graph, when one was acquired.
-    pub cached_reach: Option<super::graph_view::ReachResult<'a>>,
+    pub cached_reach: Option<super::graph_view::types::ReachResult<'a>>,
     /// The axis answered from a cached graph, when one was acquired.
-    pub cached_axis: Option<super::graph_view::AxisResult<'a>>,
+    pub cached_axis: Option<super::graph_view::types::AxisResult<'a>>,
 }
 
 /// Allocation slots owned once by the application invocation. A primitive only
@@ -444,4 +444,27 @@ pub struct DfsWorkspace {
     pub expanded: ExpandedCount,
     /// How many edges the walk examined.
     pub examined: ExaminedCount,
+}
+
+impl Default for PrimitiveWorkspace {
+    fn default() -> Self {
+        Self {
+            evaluation: Default::default(),
+            axis: Some(Default::default()),
+            positions: Default::default(),
+            dfs: Some(Default::default()),
+            closure_walk: Some(Default::default()),
+            distinct: Some(Default::default()),
+        }
+    }
+}
+
+impl Default for DistinctWorkspace {
+    fn default() -> Self {
+        Self {
+            rows: Default::default(),
+            seen: Default::default(),
+            schema: Err(OperatingError::NotRun),
+        }
+    }
 }

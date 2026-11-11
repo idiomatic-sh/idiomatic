@@ -178,7 +178,7 @@ pub(super) fn run(
     };
     let result = (|| {
         let services = Arc::new(ProgramServices::new(
-            Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+            Arc::new(CommonOperatorEngine::new(Arc::new(
                 crate::application::file_dag::fixtures::operators(),
             ))),
             derived,

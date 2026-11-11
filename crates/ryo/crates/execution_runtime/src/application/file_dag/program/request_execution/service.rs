@@ -180,12 +180,11 @@ impl RequestExecution {
         input: ProjectInput<'a>,
         symbols: &mut Symbols,
     ) -> Result<facade_runtime::project_execution::service::ProjectRun<'a>, OperatingError> {
-        let frontiers =
-            crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers {
-                publication: &input.scope.publication,
-                ordinary: input.ordinary,
-                bound_inputs: input.bound,
-            };
+        let frontiers = facade_runtime::service::ProjectFrontiers {
+            publication: &input.scope.publication,
+            ordinary: input.ordinary,
+            bound_inputs: input.bound,
+        };
         let inner = facade_runtime::project_execution::service::open_project(
             &self.program,
             input.scope.required.clone(),

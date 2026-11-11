@@ -1,6 +1,4 @@
 //! Original scan/transport/key assertions through pure scanning or real compiled execution.
-use super::super::super::service::*;
-use super::super::super::*;
 use super::fixtures::{CheckedSink, context, files, indexed_join, project_into};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;

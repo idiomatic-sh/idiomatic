@@ -1,7 +1,9 @@
 //! The `trust` service: which reads of the relations a plan trusts the absence of rows of (an antijoin, a difference, a count), and
 //! whether a relation read in part could change what such a read makes, with no IO and no ports.
 
-use super::reads::{absorb, kind_column_place, needs_with_masks, uses_of};
+use super::reads::{
+    service::absorb, service::kind_column_place, service::needs_with_masks, service::uses_of,
+};
 use ryo_relations::domain::relations::types::Relation;
 
 use super::types::{AbsenceInputs, Bearing, Blocking, Needs, Passage, RelationRead, StepReads};
@@ -274,9 +276,9 @@ pub fn project_unknowns(
 pub(crate) fn needs_of_contracts(
     plan: &Plan,
     contracts: &[std::sync::Arc<crate::domain::operator::contract::types::OperatorContract>],
-) -> Result<Vec<Vec<RelationRead>>, crate::domain::operating::errors::OperatingError> {
+) -> Result<Vec<Vec<RelationRead>>, OperatingError> {
     if contracts.len() != plan.steps.len() {
-        return Err(crate::domain::operating::errors::OperatingError::NotRun);
+        return Err(OperatingError::NotRun);
     }
     let reads = uses_of(plan);
     Ok(needs_with_masks(

@@ -9,8 +9,6 @@ use crate::application::file_dag::program::admission::types::Emptiness;
 use crate::application::file_dag::program::admission::types::Partition;
 use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::constants::PRODUCER_COVERAGE_INCOMPLETE;
-use crate::application::file_dag::program::facade_runtime::service::PublicationScope;
-use crate::application::file_dag::program::facade_runtime::types::CachedInput;
 use crate::application::file_dag::program::facade_runtime::types::FileRoot;
 use crate::application::file_dag::program::facade_runtime::types::ObservationKey;
 use crate::application::file_dag::program::facade_runtime::types::Provision;

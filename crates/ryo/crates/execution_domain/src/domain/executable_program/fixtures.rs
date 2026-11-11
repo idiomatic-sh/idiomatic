@@ -2,7 +2,7 @@
 //! merge replaced.
 use super::{
     fusion::types::RegionSharing,
-    merge::merge_equivalent,
+    merge::service::merge_equivalent,
     types::{
         DraftIndex, DraftRegion, LogicalInstruction, RegionMerge,
         demand_program::value::DemandProgram, instruction::value::Instruction,

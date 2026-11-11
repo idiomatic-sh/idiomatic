@@ -8,7 +8,7 @@ use crate::domain::{
         SchemaValidity,
     },
     operator::contract::{
-        resources::ResourceProgram,
+        resources::types::ResourceProgram,
         types::{Effects, InputMode, ReuseScope},
     },
     operator::types::ReaderMultiplicity,

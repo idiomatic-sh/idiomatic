@@ -1,7 +1,7 @@
 //! The `ordered_existence` application operation.
 
 use ryo_execution_domain::domain::operating::service::portable_fault;
-use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
+use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, self_join_recogniser::types::Extremum,
@@ -33,25 +33,30 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
     }
     fn key_cell(&mut self, row: RowIndex, column: ColumnIndex) -> Result<Value, EqualityJoinError> {
         let rows = self.rows;
-        self.failure
-            .run(|| rows.cell(row, column).ok_or(OperatingError::ShapeMismatch))
-            .map_err(|_| EqualityJoinError::Interrupted)
+        ryo_execution_domain::domain::operator::contract::failure::service::run(
+            &mut self.failure,
+            || rows.cell(row, column).ok_or(OperatingError::ShapeMismatch),
+        )
+        .map_err(|_| EqualityJoinError::Interrupted)
     }
     fn number(&mut self, row: RowIndex, column: ColumnIndex) -> Result<Integer, EqualityJoinError> {
         let rows = self.rows;
-        self.failure
-            .run(|| match rows.cell(row, column) {
+        ryo_execution_domain::domain::operator::contract::failure::service::run(
+            &mut self.failure,
+            || match rows.cell(row, column) {
                 Some(Value::Number(value)) => Ok(value),
                 _ => Err(OperatingError::ShapeMismatch),
-            })
-            .map_err(|_| EqualityJoinError::Interrupted)
+            },
+        )
+        .map_err(|_| EqualityJoinError::Interrupted)
     }
     fn emit_dominated(
         &mut self,
         row: RowIndex,
         witness: RowIndex,
     ) -> Result<(), EqualityJoinError> {
-        self.work.found(
+        ryo_execution_domain::domain::operator::contract::lease::service::add_found(
+            self.work,
             ryo_values::domain::plan_parts::types::InputNumber(0),
             ryo_execution_domain::domain::operator::contract::types::FoundRows(1),
         );
@@ -60,8 +65,9 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
         let output = self.output;
         let context = &mut self.context;
         let emit = &mut self.emit;
-        self.failure
-            .run(|| {
+        ryo_execution_domain::domain::operator::contract::failure::service::run(
+            &mut self.failure,
+            || {
                 // Real witness reconstructs the original Join coordinates. Project,
                 // DISTINCT and antijoin remain ordinary nodes with their own ports.
                 logical.clear();
@@ -77,8 +83,9 @@ impl OrderedExistenceDriver for Driver<'_, '_> {
                     );
                 }
                 emit.row(context, logical)
-            })
-            .map_err(|_| EqualityJoinError::Interrupted)
+            },
+        )
+        .map_err(|_| EqualityJoinError::Interrupted)
     }
 }
 
@@ -118,7 +125,9 @@ pub(crate) fn evaluate(
         driver: &mut driver,
         scratch,
     });
-    if let Some(error) = driver.failure.take() {
+    if let Some(error) = ryo_execution_domain::domain::operator::contract::failure::service::take(
+        &mut driver.failure,
+    ) {
         return Err(error);
     }
     match result {

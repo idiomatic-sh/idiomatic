@@ -167,7 +167,7 @@ pub(super) fn prepare(bindings: Vec<Vec<ParameterBinding>>) -> Prepared {
     )
     .unwrap();
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
         ))),
         derived,

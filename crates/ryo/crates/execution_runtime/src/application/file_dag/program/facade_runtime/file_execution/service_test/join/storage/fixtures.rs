@@ -1,6 +1,4 @@
 //! The support of the `storage` cases.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
 #[cfg(test)]

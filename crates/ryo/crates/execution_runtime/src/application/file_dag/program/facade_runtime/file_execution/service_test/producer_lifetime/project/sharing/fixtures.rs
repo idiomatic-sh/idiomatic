@@ -1,6 +1,4 @@
 //! The support of the `sharing` cases.
-use super::super::super::super::super::service::*;
-use super::super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::DecodeCount;
@@ -90,7 +88,7 @@ pub(super) fn exercise(exit: PhaseExit, values: [i64; 4], stored: Stored) -> Obs
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
         &prepared,
         &services,
-        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+        Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )
     .expect("open the publication scope");
     let required =

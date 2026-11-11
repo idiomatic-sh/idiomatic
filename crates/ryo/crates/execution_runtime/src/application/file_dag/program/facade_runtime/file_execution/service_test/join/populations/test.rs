@@ -1,6 +1,4 @@
 //! Typed populations, dense bag order, partial provenance and fused reach semantics.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::cases::fixtures::{node, stretch, table_of};
 use super::super::*;
 use super::fixtures::functions;

@@ -1,6 +1,4 @@
 //! The support of the `invocation_state` cases.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::Memo;
 use ryo_execution_domain::domain::operator::types::Emit as RowSink;

@@ -239,7 +239,7 @@ fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<Value, Fa
         },
     )];
     assert_eq!(
-        crate::domain::executable_program::kernel::row_admissible(&contract, &row, &texts),
+        crate::domain::executable_program::kernel::service::row_admissible(&contract, &row, &texts),
         Err(crate::domain::operating::errors::OperatingError::ShapeMismatch)
     );
     Ok(())
@@ -312,7 +312,7 @@ fn step_origin_place_equals_the_logical_lookup() -> Result<Value, Failure> {
         })
         .collect::<Vec<_>>();
     let bindings = vec![vec![]; plans.len()];
-    let operators = crate::domain::file_program::service::operators::prepare(
+    let operators = crate::domain::file_program::service::operators::service::prepare(
         &plans,
         &bindings,
         &[],

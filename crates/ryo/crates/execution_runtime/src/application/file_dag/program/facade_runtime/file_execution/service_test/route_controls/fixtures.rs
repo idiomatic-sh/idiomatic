@@ -1,6 +1,5 @@
 //! The route controls' harness: the operators that count the meanings entered, and one rule run through the real compiled owner.
 use super::super::super::service::*;
-use super::super::super::*;
 use super::super::fixtures::*;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
@@ -66,16 +65,16 @@ impl crate::outbound::operators::interface::OperatorsPort for MeaningCalls {
             }
             OperatorCall::Evaluate {
                 operation:
-                    ryo_values::domain::plans::types::Operation::Union { .. }
-                    | ryo_values::domain::plans::types::Operation::Intersection { .. }
-                    | ryo_values::domain::plans::types::Operation::Difference { .. }
-                    | ryo_values::domain::plans::types::Operation::Antijoin { .. },
+                    Operation::Union { .. }
+                    | Operation::Intersection { .. }
+                    | Operation::Difference { .. }
+                    | Operation::Antijoin { .. },
                 ..
             } => {
                 self.sets.fetch_add(1, Ordering::Relaxed);
             }
             OperatorCall::Evaluate {
-                operation: ryo_values::domain::plans::types::Operation::Join { .. },
+                operation: Operation::Join { .. },
                 ..
             } => {
                 self.joins.fetch_add(1, Ordering::Relaxed);
@@ -207,7 +206,7 @@ pub(crate) fn run_read(
 
 pub(crate) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
-    let schema = kinds(ryo_relations::domain::relations::types::Relation::SourceLocation).to_vec();
+    let schema = kinds(Relation::SourceLocation).to_vec();
     let number = ColumnIndex(
         schema
             .iter()
@@ -215,9 +214,7 @@ pub(crate) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
             .expect("typed numeric source") as u32,
     );
     let source = Operation::Select {
-        from: PlanInput::Relation(
-            ryo_relations::domain::relations::types::Relation::SourceLocation,
-        ),
+        from: PlanInput::Relation(Relation::SourceLocation),
         comparisons: vec![],
         kept: vec![],
     };

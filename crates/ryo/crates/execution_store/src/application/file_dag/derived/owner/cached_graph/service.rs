@@ -8,8 +8,8 @@ use crate::application::file_dag::derived::owner::service::DerivedOwner;
 use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::{
-    graph_view::{AxisResult, CachedGraphRow, ReachResult},
-    resources::ResourceProgram,
+    graph_view::{types::AxisResult, types::CachedGraphRow, types::ReachResult},
+    resources::types::ResourceProgram,
 };
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_execution_domain::domain::table_model::types::Rows;
@@ -43,7 +43,7 @@ impl CachedGraph {
                 let Some(reach) = join.reach.as_ref() else {
                     return Ok(None);
                 };
-                if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+                if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
                     || !join.view.is_empty()
                     || join.left_on.len() != join.right_on.len()
                 {
@@ -95,7 +95,7 @@ impl CachedGraph {
                 })))
             }
             ResourceProgram::Axis(axis) => {
-                if axis.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+                if axis.has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
                     || !axis.domain_view.is_empty()
                     || !axis.output.is_empty()
                     || matches!(

@@ -1,6 +1,5 @@
 //! Rule outputs outlive workspace drops, and evaluation errors leave no mutable state behind.
 use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::fixtures::output_requests;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};

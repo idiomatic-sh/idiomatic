@@ -3,13 +3,11 @@ use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
 use ryo_derived::domain::dfs::types::PreparedDfs;
 use ryo_derived::domain::ordered::types::OrderedMatching;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::contract::views::NativeJoin;
+use ryo_execution_domain::domain::operator::contract::views::types::NativeJoin;
 use ryo_execution_domain::domain::table_groups::types::Group;
-use ryo_execution_domain::domain::table_reach::borrowed::IndexedRows;
+use ryo_execution_domain::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::LiteralText;
-
-use super::super::*;
 
 use super::super::service::*;
 
@@ -44,7 +42,7 @@ impl PrimitiveResources for InvocationInputs<'_> {
     fn axis(
         &self,
     ) -> Result<
-        Option<ryo_execution_domain::domain::operator::contract::views::PreparedAxis<'_>>,
+        Option<ryo_execution_domain::domain::operator::contract::views::types::PreparedAxis<'_>>,
         OperatingError,
     > {
         #[cfg(feature = "diagnostic-row-progress")]
@@ -66,18 +64,20 @@ impl PrimitiveResources for InvocationInputs<'_> {
     fn closure(
         &self,
     ) -> Result<
-        ryo_execution_domain::domain::operator::contract::views::ClosureViews<'_>,
+        ryo_execution_domain::domain::operator::contract::views::types::ClosureViews<'_>,
         OperatingError,
     > {
         Ok(match &self.partitioned_closure {
             Some(parts) => {
-                ryo_execution_domain::domain::operator::contract::views::ClosureViews::One(
+                ryo_execution_domain::domain::operator::contract::views::types::ClosureViews::One(
                     parts.current()?,
                 )
             }
-            None => ryo_execution_domain::domain::operator::contract::views::ClosureViews::Many(
-                &self.closure,
-            ),
+            None => {
+                ryo_execution_domain::domain::operator::contract::views::types::ClosureViews::Many(
+                    &self.closure,
+                )
+            }
         })
     }
     fn ordered(&self) -> Result<Option<&OrderedMatching>, OperatingError> {

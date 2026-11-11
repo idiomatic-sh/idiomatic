@@ -85,9 +85,10 @@ impl GraphFixture {
             needs.push(crate::application::file_dag::derived::owner::fixtures::walks(*first));
         }
         let rules = needs.len();
-        let prepared = crate::application::file_dag::derived::prepared::RequestDerived::new(
-            needs.into_boxed_slice(),
-        );
+        let prepared =
+            crate::application::file_dag::derived::prepared::service::RequestDerived::new(
+                needs.into_boxed_slice(),
+            );
         self.owner
             .derived()
             .prepare_program_file(

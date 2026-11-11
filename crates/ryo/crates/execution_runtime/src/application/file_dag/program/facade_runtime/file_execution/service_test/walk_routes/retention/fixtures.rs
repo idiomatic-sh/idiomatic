@@ -1,6 +1,5 @@
 //! The support of the `retention` cases.
 use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};

@@ -3,7 +3,6 @@
 use super::super::executor::{service::PrimitiveExecutor, types::KernelCall};
 use super::constants::BRIDGE_NAME;
 use crate::application::file_dag::executor::{types::KernelAnswer, types::KernelFault};
-use crate::outbound::operators::interface::OperatorsPort;
 use ryo_execution_domain::domain::operating::types::PrimitiveSemantics;
 
 pub(crate) struct PrimitiveSemanticsBridge<'a> {
@@ -14,7 +13,7 @@ pub(crate) struct PrimitiveSemanticsBridge<'a> {
     pub(crate) port: &'a dyn PrimitiveExecutor,
     pub(crate) permit: crate::application::file_dag::program::runtime::service::SemanticPermit<'a>,
     pub(crate) binding:
-        ryo_execution_domain::domain::executable_program::physical::PhysicalBinding<'a>,
+        ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding<'a>,
     pub(crate) failure:
         &'a std::sync::OnceLock<ryo_execution_domain::domain::operating::errors::OperatingError>,
 }

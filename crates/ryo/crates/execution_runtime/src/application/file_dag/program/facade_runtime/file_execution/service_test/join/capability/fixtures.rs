@@ -1,10 +1,6 @@
 //! The operators-port witness and refusal the capability proofs share with the join proofs beside them.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
-use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_values::domain::rows::types::Table;

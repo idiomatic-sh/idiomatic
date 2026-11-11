@@ -25,13 +25,13 @@ pub(crate) mod sealed {
 /// What the runtime needs from the store to hold, read and free published relations: the one pub route to them. The owner's own
 /// workflows are not on it: a caller cannot publish a computed table, a compact source or retire a producer by hand,
 /// ```compile_fail,E0624
-/// use ryo_execution_store::application::file_dag::relations::RelationOwner;
+/// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 /// fn computed(owner: &RelationOwner, table: ryo_values::domain::rows::types::Table) {
 ///     let _ = owner.computed(table);
 /// }
 /// ```
 /// ```compile_fail,E0624
-/// use ryo_execution_store::application::file_dag::relations::RelationOwner;
+/// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 /// fn compact(owner: &RelationOwner, table: std::sync::Arc<ryo_values::domain::table_words::types::CompactTable>) {
 ///     let _ = owner.source_compact(table);
 /// }

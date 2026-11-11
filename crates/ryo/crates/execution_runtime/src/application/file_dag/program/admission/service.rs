@@ -1,7 +1,7 @@
 //! The `admission` application operation.
 
 use super::types::{
-    AliasMember, AliasSlot, AvailableBody, Emptiness, Partition, PartitionSupply, ProducerRoot,
+    AliasMember, AliasSlot, AvailableBody, Partition, PartitionSupply, ProducerRoot,
 };
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
@@ -15,7 +15,7 @@ use ryo_execution_store::application::file_dag::{
     relations::{handle::service::Publication, service::RelationOwner},
 };
 use ryo_relations::domain::relations::types::FileId;
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub(crate) struct FileGeneration {

@@ -76,7 +76,7 @@ impl ProgramExecution {
             slot.state = State::Running;
             for (frame, instruction) in slot.scratch.iter_mut().zip(region.instructions().iter()) {
                 if let Some(workspace) = frame.workspace.as_mut().filter(|_| fresh) {
-                    ryo_execution_domain::domain::operator::contract::workspace::begin(
+                    ryo_execution_domain::domain::operator::contract::workspace::service::begin(
                         &instruction.contract().workspace,
                         ryo_execution_domain::domain::operator::contract::types::WorkspaceLifetime::Invocation,
                         workspace.primitive_mut(),
@@ -265,7 +265,7 @@ impl Drop for Invocation<'_> {
                         slot.registered_calls.0 +=
                             std::mem::take(&mut workspace.observation_mut().registered_calls);
                     }
-                    for (total, delta) in fed.0.iter_mut().zip(workspace.work().take().0) {
+                    for (total, delta) in fed.0.iter_mut().zip(ryo_execution_domain::domain::operator::contract::lease::service::take_totals(workspace.work()).0) {
                         *total = total.saturating_add(delta.0);
                     }
                 }

@@ -68,7 +68,7 @@ pub(crate) fn frontier_outputs(
 pub(crate) fn derived_needs(
     program: &ExecutableProgram,
 ) -> Result<
-    Box<[ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds]>,
+    Box<[ryo_execution_store::application::file_dag::derived::prepared::types::RuleDerivedNeeds]>,
     OperatingError,
 > {
     let mut needs = Vec::with_capacity(program.rules().len());
@@ -118,7 +118,7 @@ pub(crate) fn derived_needs(
             );
         }
         needs.push(
-            ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds {
+            ryo_execution_store::application::file_dag::derived::prepared::types::RuleDerivedNeeds {
                 relations: reads.into_boxed_slice(),
                 graph: if graph {
                     ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled

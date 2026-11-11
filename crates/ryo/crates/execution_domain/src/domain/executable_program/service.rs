@@ -2,7 +2,7 @@
 #[cfg(any(test, feature = "fixtures"))]
 use super::fusion::types::Ineligible;
 use super::fusion::types::{Fusibility, RegionSharing};
-use super::merge::merge_equivalent;
+use super::merge::service::merge_equivalent;
 use super::types::demand_program::value::DemandProgram;
 use super::types::executable_program::value::ExecutableProgram;
 use super::types::instruction::value::Instruction;
@@ -203,7 +203,7 @@ pub fn compile(
     let RulePrograms {
         mut rules,
         observed_roots,
-    } = super::origins::rule_programs(
+    } = super::origins::service::rule_programs(
         plans,
         graph.program_nodes,
         graph.observations.as_ref(),
@@ -213,7 +213,7 @@ pub fn compile(
     );
     #[cfg(any(test, feature = "fixtures"))]
     let synthesized = regions.len();
-    let observation_regions = super::observed::compile_unions(
+    let observation_regions = super::observed::service::compile_unions(
         &mut regions,
         graph.observations.as_ref(),
         partitions,
@@ -238,14 +238,14 @@ pub fn compile(
         fusibility
     };
     for (at, shape) in ordered.into_iter().enumerate() {
-        let route = shape.map_or(super::types::Route::Generic, |shape| {
+        let route = shape.map_or(Route::Generic, |shape| {
             regions[shape.source.0].add_consumer();
-            super::types::Route::OrderedExistence(shape)
+            Route::OrderedExistence(shape)
         });
         regions[at].set_route(route);
     }
-    super::aliases::resolve(&mut regions, &mut rules, &observation_regions, partitions);
-    super::aliases::resolve_lineage(
+    super::aliases::service::resolve(&mut regions, &mut rules, &observation_regions, partitions);
+    super::aliases::service::resolve_lineage(
         &mut regions,
         &observation_regions,
         graph.observations.as_ref(),
@@ -297,7 +297,7 @@ pub fn compile(
             }
         }),
     );
-    super::origins::place_steps(&mut rules, &logical_regions, &regions);
+    super::origins::service::place_steps(&mut rules, &logical_regions, &regions);
     let file_readers = super::file_demand::service::readers(&regions, &rules)?;
     let program = ExecutableProgram::new(
         regions.into_boxed_slice(),
@@ -316,7 +316,7 @@ pub fn compile(
 /// The ordered existence a route evaluates, when it is one.
 pub fn ordered_existence(route: &Route) -> Option<&OrderedExistence> {
     match route {
-        super::types::Route::OrderedExistence(shape) => Some(shape),
+        Route::OrderedExistence(shape) => Some(shape),
         _ => None,
     }
 }

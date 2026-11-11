@@ -1,6 +1,5 @@
 //! The support of the `replay` cases.
 use super::super::super::service::*;
-use super::super::super::*;
 use super::super::fixtures::*;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
@@ -159,7 +158,7 @@ pub(super) fn project_into(column: u32, sink: &mut dyn RowSink) -> Result<(), Op
         ObservationIdentity::Independent,
     )?;
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
         ))),
         derived,
@@ -286,7 +285,7 @@ pub(super) fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingErro
         ObservationIdentity::Independent,
     )?;
     let services = Arc::new(ProgramServices::new(
-        Arc::new(CommonOperatorEngine::new(std::sync::Arc::new(
+        Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
         ))),
         derived,

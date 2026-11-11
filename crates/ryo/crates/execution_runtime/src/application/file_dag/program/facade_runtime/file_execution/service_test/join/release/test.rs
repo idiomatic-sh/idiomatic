@@ -1,7 +1,5 @@
 //! Delivery refusal and a semantic refusal release every strategy; the semantic error is primary.
 //! `execute` finishes the owner and asserts the shared ledger, working and owned bytes are zero.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::capability::fixtures::Witness;
 use super::super::*;
 use super::fixtures::{OrderedPort, refused};

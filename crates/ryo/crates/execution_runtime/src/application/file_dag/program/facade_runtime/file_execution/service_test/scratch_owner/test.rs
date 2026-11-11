@@ -1,6 +1,4 @@
 //! Actual invocation storage measurements through normal compiled file execution.
-use super::super::super::service::*;
-use super::super::super::*;
 use super::fixtures::{execute, hosted};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;

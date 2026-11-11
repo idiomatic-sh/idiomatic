@@ -1,6 +1,4 @@
 //! Named captures keep their identity; fused and held programs agree on rows, order and faults.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::routes::{Combine, Feed, Fusion};
 use super::super::fixtures::semantics::{Derived, Meanings};

@@ -9,7 +9,7 @@ use crate::application::file_dag::executor::{types::KernelAnswer, types::KernelF
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::portable_fault;
 use ryo_execution_domain::domain::operator::contract::{
-    context::with_primitive_context, primitive::PreparedInputs, types::*,
+    context::service::with_primitive_context, primitive::types::PreparedInputs, types::*,
 };
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::table_scratch::types::OperatorScratch;
@@ -104,7 +104,7 @@ pub(super) fn evaluate_once(
             SourceGate::None => {}
             SourceGate::CheckedSpan { span, base_line } => {
                 validated_source =
-                    ryo_execution_domain::domain::operator::contract::views::validate(
+                    ryo_execution_domain::domain::operator::contract::views::service::validate(
                         row,
                         span,
                         base_line,
@@ -156,12 +156,12 @@ pub(super) fn evaluate_once(
     };
     let (cached_reach, cached_axis) = match cached {
         Some(
-            ryo_execution_domain::domain::operator::contract::graph_view::CachedGraphRow::Reach(
+            ryo_execution_domain::domain::operator::contract::graph_view::types::CachedGraphRow::Reach(
                 view,
             ),
         ) => (Some(view), None),
         Some(
-            ryo_execution_domain::domain::operator::contract::graph_view::CachedGraphRow::Axis(
+            ryo_execution_domain::domain::operator::contract::graph_view::types::CachedGraphRow::Axis(
                 view,
             ),
         ) => (None, Some(view)),
@@ -188,7 +188,7 @@ pub(super) fn evaluate_once(
             ..
         }
     ) {
-        ryo_execution_domain::domain::operator::contract::workspace::begin(
+        ryo_execution_domain::domain::operator::contract::workspace::service::begin(
             &contract.workspace,
             WorkspaceLifetime::PrimaryRow,
             &mut *parts.primitive,
@@ -219,17 +219,18 @@ pub(super) fn evaluate_once(
         failure: &semantic_failure,
         #[cfg(feature = "diagnostic-row-progress")]
         progress: &routes,
-        binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
-            bindings: context.bindings,
-            regex_identity: regex.map(|compiled| {
-                ryo_execution_domain::domain::executable_program::types::RegexIdentity(
-                    compiled as *const _ as usize,
-                )
-            }),
-            source_len: ryo_operators::domain::contract::types::SourceByteLength(
-                context.source.0.len(),
-            ),
-        },
+        binding:
+            ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding {
+                bindings: context.bindings,
+                regex_identity: regex.map(|compiled| {
+                    ryo_execution_domain::domain::executable_program::types::RegexIdentity(
+                        compiled as *const _ as usize,
+                    )
+                }),
+                source_len: ryo_operators::domain::contract::types::SourceByteLength(
+                    context.source.0.len(),
+                ),
+            },
     };
     #[cfg(test)]
     let mut registered_calls = 0;
