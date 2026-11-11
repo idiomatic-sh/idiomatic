@@ -190,7 +190,7 @@ const WORDS: usize = 4096;
 /// The blocks and bytes one read of a stored population from the memory facts finish allocates.
 fn facts_finish_blocks()
 -> Result<(u64, u64), ryo_execution_runtime::outbound::facts::errors::FactsError> {
-    use ryo_execution::inbound::use_cases::execution::interface::FactsPort as _;
+    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
     let facts = ryo_execution_runtime::outbound::facts::factory::memory();
     let worker = facts.worker()?;
     let proof = ryo_values::domain::records::types::FrontierProof {
