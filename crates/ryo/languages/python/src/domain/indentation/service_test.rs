@@ -13,10 +13,12 @@ use crate::fixtures::reading::parsed;
 use ryo::languages::{self, ByteSlice, Position, Tree};
 use std::cell::RefCell;
 #[derive(Clone, Copy, Debug)]
-enum Input {
+enum Given {
     Source(&'static str),
     Reused,
 }
+/// What a row is given.
+type Input = Given;
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Shown {
     start: u32,
@@ -30,7 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("empty"),
         word: Word::Succeeds,
-        input: || Input::Source(""),
+        input: || Given::Source(""),
         expect: Expect::Value(Some(&[Shown {
             start: 0,
             end: 0,
@@ -41,7 +43,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("comments_only"),
         word: Word::Succeeds,
-        input: || Input::Source("# note\n"),
+        input: || Given::Source("# note\n"),
         expect: Expect::Value(Some(&[Shown {
             start: 0,
             end: 7,
@@ -52,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("balanced_indentation_survives_target_syntax_error"),
         word: Word::Succeeds,
-        input: || Input::Source("value = ur\"text\" # note\nif ready:\n    work()\n"),
+        input: || Given::Source("value = ur\"text\" # note\nif ready:\n    work()\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -71,7 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unclosed_delimiter_does_not_erase_complete_root_region"),
         word: Word::Succeeds,
-        input: || Input::Source("x= (\n"),
+        input: || Given::Source("x= (\n"),
         expect: Expect::Value(Some(&[Shown {
             start: 0,
             end: 5,
@@ -82,7 +84,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unclosed_delimiter_retains_indentation_and_comment"),
         word: Word::Succeeds,
-        input: || Input::Source("if ready:\n    call( # retained\n"),
+        input: || Given::Source("if ready:\n    call( # retained\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -101,7 +103,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("eof_without_newline"),
         word: Word::Succeeds,
-        input: || Input::Source("if yes:\n    pass"),
+        input: || Given::Source("if yes:\n    pass"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -120,7 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("nested_same_offset_dedents"),
         word: Word::Succeeds,
-        input: || Input::Source("if x:\n    if y:\n        pass\nz=0\n"),
+        input: || Given::Source("if x:\n    if y:\n        pass\nz=0\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -145,7 +147,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("leading_and_trailing_comments"),
         word: Word::Succeeds,
-        input: || Input::Source("if x:\n    # lead\n    pass\n    # trail\nx=0\n"),
+        input: || Given::Source("if x:\n    # lead\n    pass\n    # trail\nx=0\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -164,7 +166,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("tabs"),
         word: Word::Succeeds,
-        input: || Input::Source("if x:\n\tpass\nx=0\n"),
+        input: || Given::Source("if x:\n\tpass\nx=0\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -183,7 +185,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("formfeed"),
         word: Word::Succeeds,
-        input: || Input::Source("if x:\n \u{c}    pass\nx=0\n"),
+        input: || Given::Source("if x:\n \u{c}    pass\nx=0\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -202,7 +204,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("decorator"),
         word: Word::Succeeds,
-        input: || Input::Source("@decorator\ndef f():\n    pass\n"),
+        input: || Given::Source("@decorator\ndef f():\n    pass\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -221,7 +223,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("multiline_string"),
         word: Word::Succeeds,
-        input: || Input::Source("if x:\n    text = '''a\n        b\n    c'''\nnext=0\n"),
+        input: || Given::Source("if x:\n    text = '''a\n        b\n    c'''\nnext=0\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -240,7 +242,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unicode_before_indent"),
         word: Word::Succeeds,
-        input: || Input::Source("name = 'é'\nif x:\n    pass\nnext=0\n"),
+        input: || Given::Source("name = 'é'\nif x:\n    pass\nnext=0\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -259,7 +261,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("complete_tokens_preserve_indentation_after_syntax_error"),
         word: Word::Succeeds,
-        input: || Input::Source("if:\n    pass\n"),
+        input: || Given::Source("if:\n    pass\n"),
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -278,13 +280,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unbalanced_indentation_is_incomplete"),
         word: Word::Succeeds,
-        input: || Input::Source("if x:\n  pass\n pass\n"),
+        input: || Given::Source("if x:\n  pass\n pass\n"),
         expect: Expect::Value(None),
     },
     Case {
         name: CaseName("retained_valid_invalid_empty_valid_models_do_not_leak"),
         word: Word::Succeeds,
-        input: || Input::Reused,
+        input: || Given::Reused,
         expect: Expect::Value(Some(&[
             Shown {
                 start: 0,
@@ -352,8 +354,8 @@ fn read(source: &'static str, cache: &mut RefCell<IndentationIndex>) -> Value {
 fn subject(input: Input) -> Value {
     let mut cache = RefCell::new(IndentationIndex::default());
     match input {
-        Input::Source(source) => read(source, &mut cache),
-        Input::Reused => {
+        Given::Source(source) => read(source, &mut cache),
+        Given::Reused => {
             assert!(read("if yes:\n    pass", &mut cache).is_some());
             assert!(read("value = 'unterminated\n", &mut cache).is_none());
             assert_eq!(cache.borrow().state, IndentationState::Incomplete);

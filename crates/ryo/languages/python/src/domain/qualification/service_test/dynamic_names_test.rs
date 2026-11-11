@@ -1,11 +1,22 @@
 //! The dynamic names cases of the parent test file.
 
-use super::{Failure, Input, Value, subject};
 use crate::cases::Case;
 use crate::cases::CaseName;
 use crate::cases::Expect;
 use crate::cases::Word;
 use crate::cases::run;
+
+/// What a row is given: the parent table's input.
+type Input = super::Input;
+/// What a row expects: the parent table's value.
+type Value = super::Value;
+/// What a refused row expects: the parent table's failure.
+type Failure = super::Failure;
+
+/// Runs one row through the parent table's subject.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::subject(input)
+}
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[

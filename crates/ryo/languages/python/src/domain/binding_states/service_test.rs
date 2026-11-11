@@ -6,7 +6,7 @@ use crate::domain::model::types::{
 };
 use ryo::languages::{Position, Symbol};
 #[derive(Clone, Copy, Debug)]
-enum Input {
+enum Given {
     Overwrite,
     BothArms,
     DeletedArm,
@@ -16,13 +16,15 @@ enum Input {
     DeferredOverlay,
     Reparse,
 }
+/// What a row is given.
+type Input = Given;
 type Value = (&'static [Position], BindingAbsence, BindingKnowledge);
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("successive stores retain the final declaration identity"),
         word: Word::Succeeds,
-        input: || Input::Overwrite,
+        input: || Given::Overwrite,
         expect: Expect::Value((
             &[Position(20)],
             BindingAbsence::Excluded,
@@ -32,7 +34,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("two bound branches retain both declarations and exclude absence"),
         word: Word::Succeeds,
-        input: || Input::BothArms,
+        input: || Given::BothArms,
         expect: Expect::Value((
             &[Position(20), Position(30)],
             BindingAbsence::Excluded,
@@ -42,7 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("bound versus deleted branch retains possible absence"),
         word: Word::Succeeds,
-        input: || Input::DeletedArm,
+        input: || Given::DeletedArm,
         expect: Expect::Value((
             &[Position(20)],
             BindingAbsence::Possible,
@@ -52,7 +54,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("missing else preserves the incoming declaration"),
         word: Word::Succeeds,
-        input: || Input::MissingArm,
+        input: || Given::MissingArm,
         expect: Expect::Value((
             &[Position(10), Position(20)],
             BindingAbsence::Excluded,
@@ -62,7 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("zero-iteration loop preserves an unbound incoming path"),
         word: Word::Succeeds,
-        input: || Input::ZeroIterations,
+        input: || Given::ZeroIterations,
         expect: Expect::Value((
             &[Position(20)],
             BindingAbsence::Possible,
@@ -72,7 +74,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("unknown branch is not proven unbound"),
         word: Word::Succeeds,
-        input: || Input::UnknownArm,
+        input: || Given::UnknownArm,
         expect: Expect::Value((
             &[Position(20)],
             BindingAbsence::Possible,
@@ -82,7 +84,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("deferred writes cannot mutate completed parent environment"),
         word: Word::Succeeds,
-        input: || Input::DeferredOverlay,
+        input: || Given::DeferredOverlay,
         expect: Expect::Value((
             &[Position(10)],
             BindingAbsence::Excluded,
@@ -92,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("clear reuses frames without retaining prior binding candidates"),
         word: Word::Succeeds,
-        input: || Input::Reparse,
+        input: || Given::Reparse,
         expect: Expect::Value((
             &[Position(40)],
             BindingAbsence::Excluded,
@@ -109,13 +111,13 @@ fn subject(input: Input) -> Result<Value, Failure> {
     };
     if matches!(
         input,
-        Input::Overwrite | Input::MissingArm | Input::DeferredOverlay | Input::Reparse
+        Given::Overwrite | Given::MissingArm | Given::DeferredOverlay | Given::Reparse
     ) {
         assign(&mut state, root, key, Position(10));
     }
     match input {
-        Input::Overwrite => assign(&mut state, root, key, Position(20)),
-        Input::DeferredOverlay => {
+        Given::Overwrite => assign(&mut state, root, key, Position(20)),
+        Given::DeferredOverlay => {
             let deferred = open(&mut state, Some(root), Position(50));
             assert_eq!(
                 candidates(
@@ -133,27 +135,27 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 &[Position(20)]
             );
         }
-        Input::Reparse => {
+        Given::Reparse => {
             clear(&mut state);
             let reused = open(&mut state, None, Position(0));
             assert_eq!(reused, root);
             assert!(lookup(&state, reused, key).is_none());
             assign(&mut state, reused, key, Position(40));
         }
-        Input::BothArms
-        | Input::DeletedArm
-        | Input::MissingArm
-        | Input::ZeroIterations
-        | Input::UnknownArm => {
+        Given::BothArms
+        | Given::DeletedArm
+        | Given::MissingArm
+        | Given::ZeroIterations
+        | Given::UnknownArm => {
             let left = open(&mut state, Some(root), Position(0));
             let right = open(&mut state, Some(root), Position(0));
             assign(&mut state, left, key, Position(20));
             match input {
-                Input::BothArms => assign(&mut state, right, key, Position(30)),
-                Input::DeletedArm => delete(&mut state, right, key),
-                Input::UnknownArm => uncertain(&mut state, right, key),
-                Input::MissingArm | Input::ZeroIterations => {}
-                Input::Overwrite | Input::DeferredOverlay | Input::Reparse => {
+                Given::BothArms => assign(&mut state, right, key, Position(30)),
+                Given::DeletedArm => delete(&mut state, right, key),
+                Given::UnknownArm => uncertain(&mut state, right, key),
+                Given::MissingArm | Given::ZeroIterations => {}
+                Given::Overwrite | Given::DeferredOverlay | Given::Reparse => {
                     return Err(());
                 }
             }

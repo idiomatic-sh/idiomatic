@@ -1,6 +1,17 @@
 //! Embedded expressions nested in embedded expressions take their holder's visibility.
-use super::{Failure, Input, Value, subject};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+
+/// What a row is given: the parent table's input.
+type Input = super::Input;
+/// What a row expects: the parent table's value.
+type Value = super::Value;
+/// What a refused row expects: the parent table's failure.
+type Failure = super::Failure;
+
+/// Runs one row through the parent table's subject.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::subject(input)
+}
 
 /// Each expectation is fixed independently of the parser and relation implementation.
 const CASES: &[Case<Input, Value, Failure>] = &[

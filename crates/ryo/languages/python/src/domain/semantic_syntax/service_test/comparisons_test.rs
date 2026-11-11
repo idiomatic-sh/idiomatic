@@ -15,12 +15,14 @@ use ryo::languages::{self, ByteSlice, Position, Tree};
 
 /// A bounded-cost scenario.
 #[derive(Clone, Copy, Debug)]
-enum Input {
+enum Given {
     /// Classify the second and the last of this many operands of each typing form.
     Operands(u32),
     /// Walk the ancestors of a call's quoted operand nested this many blocks deep.
     Blocks(usize),
 }
+/// What a row is given.
+type Input = Given;
 /// Whether the reads stayed within the scenario's bound with the expected answers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Cost {
@@ -29,31 +31,33 @@ enum Cost {
     /// Over the bound, or an answer differed.
     Exceeded,
 }
+/// What a row expects: the cost of reading it.
+type Value = Cost;
 /// The source could not be parsed.
 type Failure = ();
 
 /// The replaced code scanned the operand list twice per argument, reading all 10,000 operands
 /// for the last one, and walked every ancestor to the module, over 64 blocks for a nested host.
-const CASES: &[Case<Input, Cost, Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a typing operand is placed reading at most two operands of 10,000"),
         word: Word::Succeeds,
-        input: || Input::Operands(10_000),
+        input: || Given::Operands(10_000),
         expect: Expect::Value(Cost::Bounded),
     },
     Case {
         name: CaseName("a quoted operand 64 blocks deep walks its expression, not its blocks"),
         word: Word::Succeeds,
-        input: || Input::Blocks(64),
+        input: || Given::Blocks(64),
         expect: Expect::Value(Cost::Bounded),
     },
 ];
 
 /// Count operand reads, or ancestor steps, for one scenario.
-fn subject(input: Input) -> Result<Cost, Failure> {
+fn subject(input: Input) -> Result<Value, Failure> {
     let bounded = match input {
-        Input::Operands(count) => operands(count),
-        Input::Blocks(depth) => blocks(depth)?,
+        Given::Operands(count) => operands(count),
+        Given::Blocks(depth) => blocks(depth)?,
     };
     Ok(if bounded {
         Cost::Bounded
