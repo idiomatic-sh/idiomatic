@@ -6,133 +6,94 @@ use ryo_execution_domain::domain::executable_program::fusion::types::{Barrier, F
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::query_operators::types::OperationKind;
 
-fn every_operation_kind_and_route_has_a_fusion_classification() {
-    let corpus = compiled_operations();
-    verify(&corpus, &|logical| corpus.program.fusibility(logical)).unwrap();
-}
-
-fn an_unclassified_instruction_is_refused() {
-    let corpus = compiled_operations();
-    let victim = corpus
-        .program
-        .regions()
-        .iter()
-        .flat_map(|region| region.instructions().iter())
-        .find(|instruction| kind_of(&instruction.operation()) == OperationKind::Join)
-        .unwrap()
-        .logical();
-    let lookup = |logical| {
-        (logical != victim)
-            .then(|| corpus.program.fusibility(logical))
-            .flatten()
-    };
-    assert_eq!(verify(&corpus, &lookup), Err(Refusal::Unclassified));
-}
-
-fn a_kind_relabelled_as_fusable_is_refused() {
-    let corpus = compiled_operations();
-    let rows = corpus
-        .program
-        .regions()
-        .iter()
-        .flat_map(|region| region.instructions().iter())
-        .find(|instruction| kind_of(&instruction.operation()) == OperationKind::Rows)
-        .unwrap()
-        .logical();
-    let lookup = |logical| {
-        if logical == rows {
-            Some(Fusibility::Fusable)
-        } else {
-            corpus.program.fusibility(logical)
-        }
-    };
-    assert_eq!(verify(&corpus, &lookup), Err(Refusal::Mismatch));
-}
-
-fn a_fused_continuation_relabelled_as_a_barrier_is_refused() {
-    let corpus = compiled_operations();
-    let fused = corpus
-        .program
-        .regions()
-        .iter()
-        .find(|region| region.instructions().len() > 1)
-        .expect("the corpus fuses one continuation")
-        .instructions()[1]
-        .logical();
-    let lookup = |logical| {
-        if logical == fused {
-            Some(Fusibility::Barrier(Barrier::SharedConsumer))
-        } else {
-            corpus.program.fusibility(logical)
-        }
-    };
-    assert_eq!(verify(&corpus, &lookup), Err(Refusal::Mismatch));
-}
-
-/// The case each row runs: one of the proofs below.
+/// The classification the coverage check is handed for the compiled corpus of every operation.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    EveryOperationKindAndRouteHasAFusionClassification,
-    AnUnclassifiedInstructionIsRefused,
-    AKindRelabelledAsFusableIsRefused,
-    AFusedContinuationRelabelledAsABarrierIsRefused,
+enum Classified {
+    /// The program's own classification.
+    AsCompiled,
+    /// A Join instruction left unclassified.
+    JoinUnclassified,
+    /// A Rows instruction relabelled as fusable.
+    RowsRelabelledFusable,
+    /// The fused continuation relabelled as a shared-consumer barrier.
+    FusedRelabelledBarrier,
 }
 
-type Input = Scenario;
+type Input = Classified;
+/// A verified classification answers nothing more.
 type Value = ();
-type Failure = String;
+type Failure = Refusal;
 
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every_operation_kind_and_route_has_a_fusion_classification"),
         word: Word::Succeeds,
-        input: || Scenario::EveryOperationKindAndRouteHasAFusionClassification,
+        input: || Classified::AsCompiled,
         expect: Expect::Value(()),
     },
     Case {
         name: CaseName("an_unclassified_instruction_is_refused"),
-        word: Word::Succeeds,
-        input: || Scenario::AnUnclassifiedInstructionIsRefused,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Classified::JoinUnclassified,
+        expect: Expect::Error(Refusal::Unclassified),
     },
     Case {
         name: CaseName("a_kind_relabelled_as_fusable_is_refused"),
-        word: Word::Succeeds,
-        input: || Scenario::AKindRelabelledAsFusableIsRefused,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Classified::RowsRelabelledFusable,
+        expect: Expect::Error(Refusal::Mismatch),
     },
     Case {
         name: CaseName("a_fused_continuation_relabelled_as_a_barrier_is_refused"),
-        word: Word::Succeeds,
-        input: || Scenario::AFusedContinuationRelabelledAsABarrierIsRefused,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Classified::FusedRelabelledBarrier,
+        expect: Expect::Error(Refusal::Mismatch),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+/// Verifies the corpus against the classification.
 fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::EveryOperationKindAndRouteHasAFusionClassification => {
-            every_operation_kind_and_route_has_a_fusion_classification();
-            Ok(())
+    let corpus = compiled_operations();
+    let first_of = |kind| {
+        corpus
+            .program
+            .regions()
+            .iter()
+            .flat_map(|region| region.instructions().iter())
+            .find(|instruction| kind_of(&instruction.operation()) == kind)
+            .map(|instruction| instruction.logical())
+    };
+    let changed = match input {
+        Classified::AsCompiled => None,
+        Classified::JoinUnclassified => first_of(OperationKind::Join).map(|at| (at, None)),
+        Classified::RowsRelabelledFusable => {
+            first_of(OperationKind::Rows).map(|at| (at, Some(Fusibility::Fusable)))
         }
-        Scenario::AnUnclassifiedInstructionIsRefused => {
-            an_unclassified_instruction_is_refused();
-            Ok(())
-        }
-        Scenario::AKindRelabelledAsFusableIsRefused => {
-            a_kind_relabelled_as_fusable_is_refused();
-            Ok(())
-        }
-        Scenario::AFusedContinuationRelabelledAsABarrierIsRefused => {
-            a_fused_continuation_relabelled_as_a_barrier_is_refused();
-            Ok(())
-        }
-    }
+        Classified::FusedRelabelledBarrier => corpus
+            .program
+            .regions()
+            .iter()
+            .find(|region| region.instructions().len() > 1)
+            .map(|region| {
+                (
+                    region.instructions()[1].logical(),
+                    Some(Fusibility::Barrier(Barrier::SharedConsumer)),
+                )
+            }),
+    };
+    let lookup = |logical| match changed {
+        Some((at, label)) if at == logical => label,
+        _ => corpus.program.fusibility(logical),
+    };
+    verify(&corpus, &lookup)
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
