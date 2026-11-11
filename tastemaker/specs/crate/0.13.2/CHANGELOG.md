@@ -6,6 +6,8 @@ Edited in place: places `collection-members@0.2.0` with `item-trait = []`, where
 
 Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0). Grouped integration tests are one Cargo test target per area, `tests/<target>/main.rs`, the directory target Cargo discovers (a `main.rs`, which `mod_module_files` does not flag); its groups are `tests/<target>/<group>.rs` beside `tests/<target>/<group>/`, at any depth, with `test.rs`, `fixtures.rs` and `fixtures/` inside a group. The root `tests/test.rs` is no longer placed: its groups would sit beside it at `tests/<group>.rs`, each a test target of its own. Scenarios `grouped-tests-license-and-cases-test` (nothing closed), `grouped-tests-root-is-a-target-directory` (`tests/test.rs` closed), `test-group-mod-rs-is-closed`.
 
+Edited in place: a test target keeps its own support beside its `main.rs`, `tests/<target>/fixtures.rs` and `tests/<target>/fixtures/{*fixture}`, as a group does (scenario `test-target-support`).
+
 # crate
 
 ## 0.13.1

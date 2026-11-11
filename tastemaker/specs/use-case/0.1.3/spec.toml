@@ -21,7 +21,7 @@ templates = [
   { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "The error the part produces, when it has one." },
 ]
 rules = [
-  { rule = "idiomatic.arch/test-directory-layout@0.1.0", include = ["use_case_test/**"], description = "Grouped proof concepts use generic role filenames and actual normal Rust registration." },
+  { rule = "idiomatic.arch/test-directory-layout@0.2.0", include = ["use_case_test/**"], description = "Grouped proof concepts use generic role filenames and actual normal Rust registration." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["use_case_test/*/test.rs"], description = "A grouped test must be reached through normal Rust module declarations." },
   { rule = "local-helpers", include = ["service.rs", "fixtures/contract.rs"], description = "Private free helpers need no contract or independent service object." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "Proofs execute a real subject over nonempty cases." },
@@ -3657,7 +3657,7 @@ fn succeeds() {
 }
 '''
 given.files.'src/inbound/use_cases/greet/use_case_test/coverage.rs' = '#[cfg(test)] mod test;'
-then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files']
+then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files', 'idiomatic.arch/test-directory-layout']
 
 [[scenarios]]
 id = "undeclared-use-case-test-group"
@@ -3733,8 +3733,12 @@ fn succeeds() {
 }
 '''
 given.files.'src/inbound/use_cases/greet/use_case_test/coverage.rs' = '#[cfg(test)] mod test;'
-then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files']
-then.findings = [{ rule = 'idiomatic.arch/orphan-rust-files', path = 'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' }]
+then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files', 'idiomatic.arch/test-directory-layout']
+then.findings = [
+  { rule = 'idiomatic.arch/orphan-rust-files', path = 'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' },
+  { rule = 'idiomatic.arch/test-directory-layout', path = 'src/inbound/use_cases/greet/use_case_test/coverage.rs' },
+  { rule = 'idiomatic.arch/test-directory-layout', path = 'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' },
+]
 
 [[scenarios]]
 id = "nested-use-case-test-group"
@@ -3816,7 +3820,7 @@ given.files.'src/inbound/use_cases/greet/use_case_test/coverage.rs' = '#[cfg(tes
 given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names.rs' = '#[cfg(test)] mod fixtures; #[cfg(test)] pub(super) mod test;'
 given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names/fixtures.rs' = 'pub(super) fn name() {}'
 given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names/test.rs' = '#[test] fn greets_every_name() {}'
-then.only = ['idiomatic.arch/use-case#closed']
+then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/test-directory-layout']
 
 [[scenarios]]
 id = "nested-group-test-plain-scenario"

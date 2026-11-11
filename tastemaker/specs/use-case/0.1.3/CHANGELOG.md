@@ -4,6 +4,8 @@ A group of the use case's cases may hold groups of its own: the group module and
 
 Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0). A group's module file is `use_case_test/<group>.rs`, at any depth, never `mod.rs` (`group-mod-rs-is-closed`). The optional `service_test.rs` is placed by `idiomatic.arch/service-test@0.1.0` (`kind = "use-case"`), whose scaffold is a case table.
 
+Edited in place: places `test-directory-layout@0.2.0`, which accepts a group's module file `use_case_test/<group>.rs` beside its directory; the group scenarios read that rule too (`then.only`), so a layout conflict shows.
+
 # use-case 0.1.2
 
 A use case places its test support along concept as `fixtures/<concept>.rs`, which `fixtures.rs` declares, with no contract: `contract-only-files` refuses only a directory below `fixtures/` and a file of another kind. The rules that excuse `fixtures.rs` excuse these files too.

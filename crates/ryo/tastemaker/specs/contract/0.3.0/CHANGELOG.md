@@ -8,6 +8,8 @@ Edited in place: places `no-runtime-fixtures@0.2.0`, where it named its earlier 
 
 Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0): a group of the part's own cases is `fixtures/<group>.rs`.
 
+Edited in place: the `contract-fixture` template's scenario places `fixtures/links.rs`, the form the spec places.
+
 ## 0.2.0
 
 A contract part may hold readers: `readers.rs` (the list of concepts), `readers/<concept>.rs`, and for each concept `composition.rs` (the readers bound to the grammar adapters that serve them, the one place that may name an adapter), `service.rs`, `types.rs`, `constants.rs`, the proof `composition_test.rs` (and its groups) or `service_test.rs`, and `fixtures.rs` with `fixtures/<file>.rs`. The part may also hold `constants.rs` and `service.rs` of its own. All are optional (`count = { min = 0 }`), so a contract without readers is unchanged. New templates `reader-list`, `reader-module`, `reader-composition`, `reader-fixtures`, `reader-fixture`. Fixtures: `contract-with-readers`, `reader-composition-without-its-role`.

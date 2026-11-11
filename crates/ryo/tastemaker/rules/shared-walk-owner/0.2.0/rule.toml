@@ -92,7 +92,7 @@ files.'execution_runtime/src/application/file_dag/program.rs' = 'mod native_walk
 files.'execution_runtime/src/application/file_dag/program/native_walk.rs' = "pub(super) struct FileWalk { generation: () }\npub(super) struct WalkResult { result: () }\npub(super) mod lease;\n"
 files.'execution_runtime/src/application/file_dag/program/kernel_session.rs' = "struct KernelSession<'a> { walk: &'a super::native_walk::FileWalk }"
 
-files.'execution_runtime/src/application/file_dag/program/native_walk/lease/mod.rs' = 'pub(super) mod service;'
+files.'execution_runtime/src/application/file_dag/program/native_walk/lease.rs' = 'pub(super) mod service;'
 files.'execution_runtime/src/application/file_dag/program/native_walk/lease/service.rs' = 'pub(crate) struct PermittedWalk { permit: (), ready: () } fn dispatch() { execution_domain::domain::shared_walk::service::evaluate(); }'
 
 [[scenarios]]
@@ -254,7 +254,7 @@ then.findings = [{ path = "execution_runtime/src/application/file_dag/program/na
 [[scenarios]]
 id = "new-neighbor-cannot-dispatch-semantics"
 scenario = "An adjacent lease helper cannot acquire the exact consuming data owner role."
-given.files.'execution_runtime/src/application/file_dag/program/native_walk/lease/mod.rs' = "pub(super) mod service; pub(super) mod rogue;"
+given.files.'execution_runtime/src/application/file_dag/program/native_walk/lease.rs' = "pub(super) mod service; pub(super) mod rogue;"
 given.files.'execution_runtime/src/application/file_dag/program/native_walk/lease/rogue.rs' = "fn bypass() { execution_domain::domain::shared_walk::service::evaluate(); }"
 then.findings = [{ path = "execution_runtime/src/application/file_dag/program/native_walk/lease/rogue.rs", line = 1 }]
 

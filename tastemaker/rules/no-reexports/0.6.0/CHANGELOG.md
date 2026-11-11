@@ -4,6 +4,8 @@ One seam that 0.5.0 reported as a re-export is not: a use case's `interface.rs` 
 
 Edited in place: the port seam is keyed on the forwarding file. A port is forwarded only by an `interface.rs` one of whose own entry traits, declared there or forwarded from there, names it; a port a sibling use case's entry names is still refused in an interface whose own entries do not. Scenario `use-case-forwards-a-port-only-a-sibling-names`.
 
+Edited in place: scenario `gated-fixtures-module-forwards-vocabulary` says it is reported.
+
 # no-reexports 0.5.0
 
 A canonical inbound use-case interface may also forward, one unrenamed item per public use, an application or domain type or trait of its crate, declared anywhere beneath `application/` or `domain/`, that its contract is made of: one the signature of one of the interface's methods names, or one that a type so named names in its fields, variants or methods, or one that such a type implements or is implemented by, transitively. The handles a use case returns and the protocol traits they implement are part of its contract. The fixtures state the accepted handle, its parts, its protocol trait and a sealed domain value it holds; an application type no signature reaches, an application service function and a sibling application module's forward stay refused. Everything else is as in 0.4.0.

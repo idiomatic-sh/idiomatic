@@ -1812,7 +1812,7 @@ then.findings = [
 
 [[scenarios]]
 id = 'gated-fixtures-module-forwards-vocabulary'
-scenario = "A `pub use` in a fixtures module gated `cfg(any(test, feature = \"fixtures\"))` is a test seam and passes."
+scenario = "A `pub use` in a fixtures module gated `cfg(any(test, feature = \"fixtures\"))` forwards an item under a second path, and is reported: a test imports it from its defining module."
 given.include = ['**/*.rs']
 given.exclude = ['**/src/lib.rs']
 given.files.'Cargo.toml' = '''

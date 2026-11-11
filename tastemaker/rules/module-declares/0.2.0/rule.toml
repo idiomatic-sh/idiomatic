@@ -1,0 +1,1635 @@
+description = "Every module declares its actual Rust children through its module file `X.rs` beside the directory `X/`, with the required test/support gating."
+why = "A directory's module file is `X.rs` beside the directory `X/`, one style (clippy `mod_module_files` refuses the other form, so this rule need not); it declares the actual child files and nested directory modules it compiles. lib.rs declares the source directory. A child written in both forms is ambiguous and refused. A normal namespace (inbound, use_cases, outbound, domain, application, collections, adapters, and their architecture members) contains declarations rather than logic. Test proof directory modules outside those namespace-owner positions may retain their existing proof items while declaring children normally. An ordinary test role is test.rs or X_test.rs and its declaration must name test in cfg; fixtures and cases must use exact cfg(test) or name both test and the fixtures feature. Existing X_test.rs sibling self-declaration with an exact #[path] remains recognized; arbitrary #[path] remains refused. Module declarations with bodies are not external child registrations. A directory containing Rust source without either supported module file remains uncompiled, and a directory module that is never declared by its parent remains uncompiled. Cargo-explicit targets keep their existing exact manifest recognition; src/bin and crate entry roots retain their existing handling."
+
+query = '''
+let listed-files = select l."path" as "file" from "filesystem.file" as l where not glob_any(l."path", "**/src/inbound/{use_cases,contracts}/*/acceptance.rs");
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let files = project(from=listed-files, columns=["file"]);
+let rs-files = capture(from=files, path="file", pattern="{*parent}/{stem}.rs", captures=["parent", "stem"]);
+let child-files = capture(from=files, path="file", pattern="{*parent}/{module}/{child}.rs", captures=["parent", "module", "child"]);
+let dir-children = select l."file" as "module-path", r."file" as "child-path", r."child" as "child" from rs-files as l join child-files as r on l."parent" = r."parent" and l."stem" = r."module";
+let lib-files = capture(from=files, path="file", pattern="{*parent}/lib.rs", captures=["parent"]);
+let lib-children-all = select l."file" as "module-path", r."file" as "child-path", r."stem" as "child" from lib-files as l join rs-files as r on l."parent" = r."parent";
+let lib-roots = select * from lib-children-all where glob_any(child, "{lib,main,build}");
+let lib-children = antijoin(left=lib-children-all, right=lib-roots, left-on=["child-path"], right-on=["child-path"]);
+let directory-modules = capture(from=files, path="file", pattern="{*parent}/mod.rs", captures=["parent"]);
+let directory-entries = capture(from=files, path="file", pattern="{*parent}/{child}/mod.rs", captures=["parent", "child"]);
+let nested-child-files = capture(from=files, path="file", pattern="{*parent}/{module}/{child}/mod.rs", captures=["parent", "module", "child"]);
+let beside-directory-children = select l."file" as "module-path", r."file" as "child-path", r."child" as "child" from rs-files as l join nested-child-files as r on l."parent" = r."parent" and l."stem" = r."module";
+let directory-flat-all = select l."file" as "module-path", r."file" as "child-path", r."stem" as "child" from directory-modules as l join rs-files as r on l."parent" = r."parent";
+let directory-root-files = select * from directory-flat-all where glob_any(child, "mod");
+let directory-flat-children = antijoin(left=directory-flat-all, right=directory-root-files, left-on=["child-path"], right-on=["child-path"]);
+let directory-nested-children = select l."file" as "module-path", r."file" as "child-path", r."child" as "child" from directory-modules as l join directory-entries as r on l."parent" = r."parent";
+let lib-directory-children = select l."file" as "module-path", r."file" as "child-path", r."child" as "child" from lib-files as l join directory-entries as r on l."parent" = r."parent";
+let children-beside = union(left=dir-children, right=beside-directory-children);
+let children-library = union(left=lib-children, right=lib-directory-children);
+let children-directory = union(left=directory-flat-children, right=directory-nested-children);
+let children-root = union(left=children-beside, right=children-library);
+let all-children = union(left=children-root, right=children-directory);
+let mod-children = select * from all-children where glob_any(child, "mod");
+let declarable = antijoin(left=all-children, right=mod-children, left-on=["module-path", "child-path"], right-on=["module-path", "child-path"]);
+let source-files = select * from tree-nodes where kind = "source-file";
+let top-edges = select r."child" as "child" from source-files as l join "syntax-child" as r on l."id" = r."parent";
+let top-items = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span" from top-edges as l join tree-nodes as r on l."child" = r."id";
+let module-items = select * from top-items where kind = "module";
+let bodies = select * from tree-nodes where kind = "item-list";
+let module-kids = select l."id" as "id", r."child" as "child" from module-items as l join "syntax-child" as r on l."id" = r."parent";
+let with-body = select l."id" as "id" from module-kids as l join bodies as r on l."child" = r."id";
+let decl-modules = antijoin(left=module-items, right=with-body, left-on=["id"], right-on=["id"]);
+let m-name-nodes-all = select * from tree-nodes where kind = "name";
+let m-kids = select l."id" as "id", r."child" as "child" from decl-modules as l join "syntax-child" as r on l."id" = r."parent";
+let m-name-nodes = select l."id" as "id", r."id" as "name-node" from m-kids as l join m-name-nodes-all as r on l."child" = r."id";
+let m-name-tokens = select l."id" as "id", r."child" as "token" from m-name-nodes as l join "syntax-child" as r on l."name-node" = r."parent";
+let m-name-texts = select l."id" as "id", r."text" as "name" from m-name-tokens as l join tree-tokens as r on l."token" = r."id";
+let decls = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", r."name" as "name" from decl-modules as l join m-name-texts as r on l."id" = r."id";
+let x-token-edges = select l."parent" as "parent", r."id" as "token", r."kind" as "kind", r."text" as "text" from "syntax-child" as l join tree-tokens as r on l."child" = r."id";
+let x-paths = select * from tree-nodes where kind = "path";
+let x-segments = select * from tree-nodes where kind = "path-segment";
+let x-name-refs = select * from tree-nodes where kind = "name-ref";
+let x-path-segment-edges = select l."id" as "pathnode", r."child" as "child" from x-paths as l join "syntax-child" as r on l."id" = r."parent";
+let x-path-segments = select l."pathnode" as "pathnode", r."id" as "segment" from x-path-segment-edges as l join x-segments as r on l."child" = r."id";
+let x-segment-ref-edges = select l."pathnode" as "pathnode", r."child" as "child" from x-path-segments as l join "syntax-child" as r on l."segment" = r."parent";
+let x-segment-refs = select l."pathnode" as "pathnode", r."id" as "nameref" from x-segment-ref-edges as l join x-name-refs as r on l."child" = r."id";
+let x-path-names = select l."pathnode" as "pathnode", r."text" as "name" from x-segment-refs as l join x-token-edges as r on l."nameref" = r."parent";
+let populated-module-set = project(from=all-children, columns=["module-path"]);
+let directory-module-set = select file as "module-path" from directory-modules;
+let library-module-set = select file as "module-path" from lib-files;
+let entry-module-set = union(left=directory-module-set, right=library-module-set);
+let module-set = union(left=populated-module-set, right=entry-module-set);
+let module-decls = select l."id" as "id", l."file" as "file", l."span" as "span", l."name" as "name" from decls as l join module-set as r on l."file" = r."module-path";
+let attr-nodes = select * from tree-nodes where kind = "attr";
+let cfg-nodes = select * from tree-nodes where kind = "cfg-meta";
+let decl-kids = select l."id" as "id", r."child" as "child" from decls as l join "syntax-child" as r on l."id" = r."parent";
+let decl-attrs = select l."id" as "id", r."id" as "attr" from decl-kids as l join attr-nodes as r on l."child" = r."id";
+let attr-kids = select l."id" as "id", r."child" as "child" from decl-attrs as l join "syntax-child" as r on l."attr" = r."parent";
+let cfg-rows = select r."id" as "id", l."id" as "decl" from attr-kids as l join cfg-nodes as r on l."child" = r."id";
+let kv-metas = select * from tree-nodes where kind = "key-value-meta";
+let literal-nodes = select * from tree-nodes where kind = "literal";
+let kv-rows = select l."id" as "id", r."id" as "meta" from attr-kids as l join kv-metas as r on l."child" = r."id";
+let kv-kids = select l."id" as "id", l."meta" as "meta", r."child" as "child" from kv-rows as l join "syntax-child" as r on l."meta" = r."parent";
+let kv-key-paths = select l."id" as "id", l."meta" as "meta", r."id" as "pathnode" from kv-kids as l join x-paths as r on l."child" = r."id";
+let kv-keys = select l."id" as "id", l."meta" as "meta", r."name" as "key" from kv-key-paths as l join x-path-names as r on l."pathnode" = r."pathnode";
+let path-keyed = select * from kv-keys where key = "path";
+let path-decl-ids = project(from=path-keyed, columns=["id"]);
+let path-decl-all = select l."id" as "id", l."file" as "file", l."span" as "span", l."name" as "name" from decls as l join path-decl-ids as r on l."id" = r."id";
+let kv-literals = select l."id" as "id", l."meta" as "meta", r."file" as "lpath", r."span" as "lspan" from kv-kids as l join literal-nodes as r on l."child" = r."id";
+let path-literals = select l."id" as "id", r."lpath" as "lpath", r."lspan" as "lspan" from path-keyed as l join kv-literals as r on l."id" = r."id" and l."meta" = r."meta";
+let literal-values = project(from="string-literal", columns=["file", "span", "value"]);
+let path-values = select l."id" as "id", r."value" as "value" from path-literals as l join literal-values as r on l."lpath" = r."file" and l."lspan" = r."span";
+let path-decl-valued = select l."id" as "id", l."file" as "file", l."span" as "span", l."name" as "name", r."value" as "value" from path-decl-all as l join path-values as r on l."id" = r."id";
+let path-decl-places = capture(from=path-decl-valued, path="file", pattern="{*dir}/{x}.rs", captures=["dir", "x"]);
+let tests-named = select * from path-decl-places where name = "tests";
+let test-files = capture(from=files, path="file", pattern="{*dir}/{x}_test.rs", captures=["dir", "x"]);
+let file-names = capture(from=files, path="file", pattern="{*dir}/{fname}", captures=["dir", "fname"]);
+let test-names = select l."file" as "file", l."dir" as "dir", l."x" as "x", r."fname" as "fname" from test-files as l join file-names as r on l."file" = r."file";
+let self-shaped = select l."id" as "id", l."file" as "file", l."span" as "span", l."name" as "name", r."file" as "child-path" from tests-named as l join test-names as r on l."dir" = r."dir" and l."x" = r."x" and l."value" = r."fname";
+let self-ids = project(from=self-shaped, columns=["id"]);
+let self-tests = project(from=self-shaped, columns=["child-path"]);
+let other-paths = antijoin(left=path-decl-all, right=self-ids, left-on=["id"], right-on=["id"]);
+let other-path-rows = project(from=other-paths, columns=["file", "span", "name"]);
+let other-path-findings = extend(from=other-path-rows, values={"problem": "carries a `#[path]` attribute that does not name this file's own test: only `<file>_test.rs` beside `<file>.rs`, declared as `mod tests;`, is declared by `#[path]`"});
+let self-children = select l."module-path" as "module-path", l."child-path" as "child-path", l."child" as "child" from declarable as l join self-tests as r on l."child-path" = r."child-path";
+let cargo-entries = project(from="entry", columns=["file", "owner", "occurrence", "key", "decoded"]);
+let cargo-headings = select * from cargo-entries where key = "test" or key = "bin" or key = "bench";
+let cargo-elements = select r."occurrence" as "element" from cargo-headings as l join "sequence-element" as r on l."occurrence" = r."owner";
+let cargo-members = select * from "mapping" where kind = "sequence-member";
+let cargo-tables = select r."id" as "table" from cargo-elements as l join cargo-members as r on l."element" = r."owner";
+let cargo-paths = select * from cargo-entries where key = "path";
+let cargo-targets = select l."file" as "manifest", l."decoded" as "target" from cargo-paths as l join cargo-tables as r on l."owner" = r."table";
+let cargo-roots = capture(from=cargo-targets, path="manifest", pattern="{*root}/Cargo.toml", captures=["root"]);
+let cargo-sources = capture(from=cargo-roots, path="target", pattern="src/{*relative}", captures=["relative"]);
+let source-relative = capture(from=files, path="file", pattern="{*root}/src/{*relative}", captures=["root", "relative"]);
+let cargo-files = select l."file" as "child-path" from source-relative as l join cargo-sources as r on l."root" = r."root" and l."relative" = r."relative";
+let expected-self = antijoin(left=declarable, right=self-children, left-on=["child-path"], right-on=["child-path"]);
+let expected = antijoin(left=expected-self, right=cargo-files, left-on=["child-path"], right-on=["child-path"]);
+let plain-decls = antijoin(left=module-decls, right=path-decl-ids, left-on=["id"], right-on=["id"]);
+let extra = antijoin(left=plain-decls, right=declarable, left-on=["file", "name"], right-on=["module-path", "child"]);
+let extra-rows = project(from=extra, columns=["file", "span", "name"]);
+let extra-findings = extend(from=extra-rows, values={"problem": "is declared here, but the directory beside this file holds no file of that name"});
+let missing = antijoin(left=expected, right=plain-decls, left-on=["module-path", "child"], right-on=["file", "name"]);
+let missing-nodes = select l."child-path" as "file", r."span" as "span", l."child" as "name" from missing as l join source-files as r on l."child-path" = r."file";
+let missing-tests = select * from missing-nodes where glob_any(name, "{*_test,test}");
+let missing-plain = antijoin(left=missing-nodes, right=missing-tests, left-on=["file"], right-on=["file"]);
+let missing-findings = extend(from=missing-plain, values={"problem": "is a file its module file never declares: the compiler does not read it"});
+let missing-test-findings = extend(from=missing-tests, values={"problem": "is a test file that neither its module file declares nor its logic file declares with `#[path]`: the compiler does not read it"});
+let twice = select l."module-path" as "file", r."span" as "span", l."child" as "name" from self-children as l join plain-decls as r on l."module-path" = r."file" and l."child" = r."name";
+let twice-rows = project(from=twice, columns=["file", "span", "name"]);
+let twice-findings = extend(from=twice-rows, values={"problem": "is declared here and again by its logic file with `#[path]`: a test file is declared once"});
+let cfg-atoms = select * from tree-nodes where kind = "cfg-atom";
+let meta-atoms = axis(from=cfg-rows, relation="syntax-child", direction=descendant, domain=cfg-atoms);
+let atom-edges = select l."id" as "meta", l."decl" as "decl", r."child" as "token" from meta-atoms as l join "syntax-child" as r on l."related" = r."parent";
+let idents = select * from tree-tokens where kind = "ident";
+let test-idents = select * from idents where text = "test";
+let strings = select * from tree-tokens where kind = "string";
+let fixtures-strings = select * from strings where glob_any(text, "?fixtures?");
+let test-hits = select l."meta" as "meta", l."decl" as "decl" from atom-edges as l join test-idents as r on l."token" = r."id";
+let fixtures-hits = select l."meta" as "meta" from atom-edges as l join fixtures-strings as r on l."token" = r."id";
+let test-cfgs = project(from=test-hits, columns=["meta", "decl"]);
+let fixtures-cfgs = project(from=fixtures-hits, columns=["meta"]);
+let test-gated = project(from=test-cfgs, columns=["decl"]);
+let shared-fixtures-gated = select l."decl" as "decl" from test-cfgs as l join fixtures-cfgs as r on l."meta" = r."meta";
+let private-test-support = select l."declaration" as "decl" from "decorates" as l where l."target" = "cfg" and l."arguments" = "test";
+let fixtures-gated = union(left=shared-fixtures-gated, right=private-test-support);
+let test-named = select * from plain-decls where glob_any(name, "{*_test,test}");
+let ungated-tests = antijoin(left=test-named, right=test-gated, left-on=["id"], right-on=["decl"]);
+let support-named = select * from plain-decls where glob_any(name, "{fixtures,cases}");
+let ungated-support = antijoin(left=support-named, right=fixtures-gated, left-on=["id"], right-on=["decl"]);
+let ungated-selves = antijoin(left=self-shaped, right=test-gated, left-on=["id"], right-on=["decl"]);
+let ungated-test-rows = project(from=ungated-tests, columns=["file", "span", "name"]);
+let ungated-test-findings = extend(from=ungated-test-rows, values={"problem": "is a test module declared without a `#[cfg(...)]` that names `test`"});
+let ungated-self-rows = project(from=ungated-selves, columns=["file", "span", "name"]);
+let ungated-self-findings = extend(from=ungated-self-rows, values={"problem": "is a test module declared without a `#[cfg(...)]` that names `test`"});
+let ungated-support-rows = project(from=ungated-support, columns=["file", "span", "name"]);
+let ungated-support-findings = extend(from=ungated-support-rows, values={"problem": "is test support declared without exact `#[cfg(test)]` or a cfg naming `test` and the `fixtures` feature"});
+let child-form-pairs = select l."module-path" as "file", l."child" as "name", l."child-path" as "first", r."child-path" as "second" from declarable as l join declarable as r on l."module-path" = r."module-path" and l."child" = r."child";
+let ambiguous-children = select * from child-form-pairs where first < second;
+let ambiguous-nodes = select l."file" as "file", r."span" as "span", l."name" as "name" from ambiguous-children as l join source-files as r on l."file" = r."file";
+let ambiguous-findings = extend(from=ambiguous-nodes, values={"problem": "has a second module file beside its `X.rs`: a child has exactly one module file, `X.rs`"});
+let dir-keys = project(from=child-files, columns=["parent", "module"]);
+let sibling-module-keys = project(from=rs-files, columns=["parent", "stem"]);
+let directory-module-keys = select parent as "parent", child as "stem" from directory-entries;
+let module-keys = union(left=sibling-module-keys, right=directory-module-keys);
+let exempt-dirs = select * from dir-keys where glob_any(module, "{src,bin}");
+let checked-1 = antijoin(left=dir-keys, right=exempt-dirs, left-on=["parent", "module"], right-on=["parent", "module"]);
+let checked = project(from=checked-1, columns=["parent", "module"]);
+let undeclared = antijoin(left=checked, right=module-keys, left-on=["parent", "module"], right-on=["parent", "stem"]);
+let dir-pairs = select l."file" as "file", r."file" as "other" from child-files as l join child-files as r on l."parent" = r."parent" and l."module" = r."module";
+let later-dir = select * from dir-pairs where other < file;
+let later-dir-paths = project(from=later-dir, columns=["file"]);
+let dir-firsts = antijoin(left=child-files, right=later-dir-paths, left-on=["file"], right-on=["file"]);
+let undeclared-files = select l."file" as "file", l."module" as "name" from dir-firsts as l join undeclared as r on l."parent" = r."parent" and l."module" = r."module";
+let undeclared-nodes = select l."file" as "file", r."span" as "span", l."name" as "name" from undeclared-files as l join source-files as r on l."file" = r."file";
+let undeclared-findings = extend(from=undeclared-nodes, values={"problem": "is a directory of .rs files with no module file `<dir>.rs` beside it: none of its files is compiled"});
+let logic-items = select * from top-items where glob_any(kind, "{fn,struct,enum,union,trait,impl,const,static,type-alias,macro-rules,macro-call}");
+let namespace-names = select * from rs-files where glob_any(stem, "{inbound,use_cases,outbound,domain,application,collections,adapters}");
+let namespace-list-paths = project(from=namespace-names, columns=["file"]);
+let namespace-members = capture(from=files, path="file", pattern="{*dir}/{namespace}/{member}.rs", captures=["dir", "namespace", "member"]);
+let namespace-member-files = select * from namespace-members where glob_any(namespace, "{use_cases,outbound,domain,application,collections,adapters}");
+let namespace-member-paths = project(from=namespace-member-files, columns=["file"]);
+let namespace-beside-paths = union(left=namespace-list-paths, right=namespace-member-paths);
+let directory-namespace-roots = capture(from=files, path="file", pattern="{*dir}/{namespace}/mod.rs", captures=["dir", "namespace"]);
+let directory-namespace-root-files = select * from directory-namespace-roots where glob_any(namespace, "{inbound,use_cases,outbound,domain,application,collections,adapters}");
+let directory-namespace-members = capture(from=files, path="file", pattern="{*dir}/{namespace}/{member}/mod.rs", captures=["dir", "namespace", "member"]);
+let directory-namespace-member-files = select * from directory-namespace-members where glob_any(namespace, "{use_cases,outbound,domain,application,collections,adapters}");
+let directory-namespace-root-paths = project(from=directory-namespace-root-files, columns=["file"]);
+let directory-namespace-member-paths = project(from=directory-namespace-member-files, columns=["file"]);
+let namespace-directory-paths = union(left=directory-namespace-root-paths, right=directory-namespace-member-paths);
+let namespace-paths = union(left=namespace-beside-paths, right=namespace-directory-paths);
+let module-logic = select l."file" as "file", l."span" as "span", l."kind" as "name" from logic-items as l join namespace-paths as r on l."file" = r."file";
+let logic-findings = extend(from=module-logic, values={"problem": "is an item in a namespace file, which declares modules and holds no code: move it into a file of the directory beside it"});
+let all-1 = union(left=extra-findings, right=missing-findings);
+let all-2 = union(left=all-1, right=missing-test-findings);
+let all-3 = union(left=all-2, right=twice-findings);
+let all-4 = union(left=all-3, right=other-path-findings);
+let all-5 = union(left=all-4, right=ungated-test-findings);
+let all-6 = union(left=all-5, right=ungated-self-findings);
+let all-7 = union(left=all-6, right=ungated-support-findings);
+let all-8 = union(left=all-7, right=ambiguous-findings);
+let all-9 = union(left=all-8, right=undeclared-findings);
+let all-10 = union(left=all-9, right=logic-findings);
+emit all-10 subject "file" key("span", "name", "problem");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{name}` {problem}"
+help = "Declare every actual child once through normal Rust mod declarations. A directory's module file is `<child>.rs` beside it: its parent declares it, and it declares the directory's own children; existence alone does not make tests executable. Gate test.rs and *_test.rs declarations with cfg(test); gate fixtures/cases with exact cfg(test), or test and the fixtures feature. Keep existing exact sibling X_test.rs self-declarations; do not use arbitrary #[path] to evade normal registration. Namespace owners still contain declarations rather than logic."
+
+[given]
+include = ['src/**']
+
+[[scenarios]]
+id = 'core-whose-module-files-declare-exactly-their'
+scenario = 'A core whose module files declare exactly their directories, each test and fixtures module gated.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+
+[[scenarios]]
+id = 'crate-prefix'
+scenario = 'A crate below a prefix, whose src directory needs no module file.'
+given.include = ['crates/greeting/src/**']
+given.files.'crates/greeting/src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod hello;
+'''
+given.files.'crates/greeting/src/inbound/hello.rs' = '''
+//! The hello part.
+'''
+given.files.'crates/greeting/src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+'''
+
+[[scenarios]]
+id = 'binary-targets-and-roots'
+scenario = 'Src/bin and the crate roots main.rs and build.rs need no module file or declaration.'
+given.include = ['crates/tool/src/**']
+given.files.'crates/tool/src/bin/other.rs' = '''
+//! Another binary.
+'''
+given.files.'crates/tool/src/build.rs' = '''
+//! The build script.
+'''
+given.files.'crates/tool/src/inbound.rs' = '''
+//! What the tool offers.
+'''
+given.files.'crates/tool/src/lib.rs' = '''
+//! The tool.
+
+pub mod inbound;
+'''
+given.files.'crates/tool/src/main.rs' = '''
+//! The binary.
+'''
+
+[[scenarios]]
+id = 'schemas-test-by-schemas'
+scenario = 'Schemas_test.rs is declared by schemas.rs, not by the module file.'
+given.files.'src/lib.rs' = '''
+//! The adapters.
+
+pub mod memory;
+'''
+given.files.'src/memory.rs' = '''
+//! The memory adapter.
+
+pub mod adapter;
+#[cfg(test)]
+mod adapter_test;
+pub mod schemas;
+'''
+given.files.'src/memory/adapter.rs' = '''
+//! The adapter.
+'''
+given.files.'src/memory/adapter_test.rs' = '''
+//! Proves the adapter.
+'''
+given.files.'src/memory/schemas.rs' = '''
+//! The wire shapes.
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+'''
+given.files.'src/memory/schemas_test.rs' = '''
+//! Proves the schemas.
+'''
+
+[[scenarios]]
+id = 'any-visibility-and-attributes'
+scenario = 'A declaration may carry any visibility and any attributes.'
+given.files.'src/inbound.rs' = '''
+//! Inbound.
+
+#[doc(hidden)]
+mod hello;
+'''
+given.files.'src/inbound/hello.rs' = '''
+//! Hello.
+'''
+given.files.'src/lib.rs' = '''
+//! The core.
+
+#[allow(unused)]
+pub(crate) mod inbound;
+'''
+
+[[scenarios]]
+id = 'inline-module-is-no-declaration'
+scenario = 'An inline module with a body is not a declaration.'
+given.files.'src/inbound.rs' = '''
+//! Inbound.
+
+pub mod hello;
+mod helpers {
+    pub fn one() -> u8 {
+        1
+    }
+}
+'''
+given.files.'src/inbound/hello.rs' = '''
+//! Hello.
+'''
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod inbound;
+'''
+
+[[scenarios]]
+id = 'two-module-files'
+scenario = 'Two module files in one run are each checked against their own directory.'
+given.files.'src/first.rs' = '''
+//! First.
+
+pub mod one;
+'''
+given.files.'src/first/one.rs' = '''
+//! One.
+'''
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod first;
+pub mod second;
+'''
+given.files.'src/second.rs' = '''
+//! Second.
+
+pub mod two;
+'''
+given.files.'src/second/two.rs' = '''
+//! Two.
+'''
+
+[[scenarios]]
+id = 'missing-declaration'
+scenario = 'A file the module file does not declare.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/use_case.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'extra-declaration'
+scenario = 'A declaration whose file is not there.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+pub mod farewell;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'lib-missing-declaration'
+scenario = 'Lib.rs does not declare a file of src.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/outbound.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'lib-extra-declaration'
+scenario = 'Lib.rs declares a module with no file.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+pub mod stray;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'nested-missing'
+scenario = 'A nested module file misses a declaration.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/outbound/names/fixtures/fake.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'schemas-test-declared-twice'
+scenario = 'The module file also declares schemas_test, which schemas.rs declares.'
+given.files.'src/lib.rs' = '''
+//! The adapters.
+
+pub mod memory;
+'''
+given.files.'src/memory.rs' = '''
+//! The memory adapter.
+
+pub mod schemas;
+#[cfg(test)]
+mod schemas_test;
+'''
+given.files.'src/memory/schemas.rs' = '''
+//! The wire shapes.
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+'''
+given.files.'src/memory/schemas_test.rs' = '''
+//! Proves the schemas.
+'''
+then.findings = [
+  { path = 'src/memory.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'ungated-test'
+scenario = 'A test module declared without cfg(test).'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'gated-by-feature-only'
+scenario = 'A test module gated by a feature that is not test.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+#[cfg(feature = "tests")]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet.rs', line = 5 },
+]
+
+[[scenarios]]
+id = 'private-fixtures'
+scenario = 'Test support gated by test alone.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(test)]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+
+[[scenarios]]
+id = 'private-cases'
+scenario = 'The case table gated by test alone.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(test)]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+
+[[scenarios]]
+id = 'mod-rs'
+scenario = 'A conventional directory module and its declared child compile normally.'
+given.files.'src/inbound/hello.rs' = '''
+//! Hello.
+'''
+given.files.'src/inbound/mod.rs' = '''
+//! Inbound.
+
+pub mod hello;
+'''
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod inbound;
+'''
+
+[[scenarios]]
+id = 'directory-without-module-file'
+scenario = 'A directory of .rs files with no module file beside it.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/interface.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'two-module-files-one-wrong'
+scenario = "A complete module file does not hide another's missing declaration."
+given.files.'src/first.rs' = '''
+//! First.
+
+pub mod one;
+'''
+given.files.'src/first/one.rs' = '''
+//! One.
+'''
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod first;
+pub mod second;
+'''
+given.files.'src/second.rs' = '''
+//! Second.
+'''
+given.files.'src/second/two.rs' = '''
+//! Two.
+'''
+then.findings = [
+  { path = 'src/second/two.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'self-declared-test'
+scenario = 'A test file declared by its logic file with a path attribute.'
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod outcome;
+'''
+given.files.'src/outcome.rs' = '''
+//! The outcome.
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// Done.
+pub fn done() {}
+'''
+given.files.'src/outcome_test.rs' = '''
+//! Proves the outcome.
+'''
+
+[[scenarios]]
+id = 'both-conventions'
+scenario = 'One tree with a test declared by its module file and one declared by its logic file.'
+given.files.'src/inbound.rs' = '''
+//! Inbound.
+
+pub mod hello;
+#[cfg(test)]
+mod hello_test;
+'''
+given.files.'src/inbound/hello.rs' = '''
+//! Hello.
+'''
+given.files.'src/inbound/hello_test.rs' = '''
+//! Proves hello.
+'''
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod inbound;
+pub mod outcome;
+'''
+given.files.'src/outcome.rs' = '''
+//! The outcome.
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// Done.
+pub fn done() {}
+'''
+given.files.'src/outcome_test.rs' = '''
+//! Proves the outcome.
+'''
+
+[[scenarios]]
+id = 'module-file-declares-its-own-test'
+scenario = "A module file declares its directory's files and its own test."
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod timings;
+'''
+given.files.'src/timings.rs' = '''
+//! The timings.
+
+pub mod heap;
+
+#[cfg(test)]
+#[path = "timings_test.rs"]
+mod tests;
+'''
+given.files.'src/timings/heap.rs' = '''
+//! The heap.
+'''
+given.files.'src/timings_test.rs' = '''
+//! Proves the timings.
+'''
+
+[[scenarios]]
+id = 'path-names-another-file'
+scenario = 'A path attribute naming a file that is not the sibling test.'
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod outcome;
+'''
+given.files.'src/outcome.rs' = '''
+//! The outcome.
+
+#[cfg(test)]
+#[path = "other_test.rs"]
+mod tests;
+
+/// Done.
+pub fn done() {}
+'''
+given.files.'src/outcome_test.rs' = '''
+//! Proves the outcome.
+'''
+then.findings = [
+  { path = 'src/outcome.rs', line = 3 },
+  { path = 'src/outcome_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'ungated-self-declaration'
+scenario = 'A self-declared test without cfg(test).'
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod outcome;
+'''
+given.files.'src/outcome.rs' = '''
+//! The outcome.
+
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// Done.
+pub fn done() {}
+'''
+given.files.'src/outcome_test.rs' = '''
+//! Proves the outcome.
+'''
+then.findings = [
+  { path = 'src/outcome.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'test-declared-twice'
+scenario = 'A test declared by its module file and by its logic file.'
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod outcome;
+#[cfg(test)]
+mod outcome_test;
+'''
+given.files.'src/outcome.rs' = '''
+//! The outcome.
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// Done.
+pub fn done() {}
+'''
+given.files.'src/outcome_test.rs' = '''
+//! Proves the outcome.
+'''
+then.findings = [
+  { path = 'src/lib.rs', line = 4 },
+]
+
+[[scenarios]]
+id = 'path-module-with-another-name'
+scenario = 'A path attribute on a module not named tests.'
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod outcome;
+'''
+given.files.'src/outcome.rs' = '''
+//! The outcome.
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod checks;
+
+/// Done.
+pub fn done() {}
+'''
+given.files.'src/outcome_test.rs' = '''
+//! Proves the outcome.
+'''
+then.findings = [
+  { path = 'src/outcome.rs', line = 3 },
+  { path = 'src/outcome_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'path-to-missing-file'
+scenario = 'A self-declaration whose test file is not there.'
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod outcome;
+'''
+given.files.'src/outcome.rs' = '''
+//! The outcome.
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// Done.
+pub fn done() {}
+'''
+then.findings = [
+  { path = 'src/outcome.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'path-module-for-data'
+scenario = 'A path attribute on a module that is not a test.'
+given.files.'src/config.rs' = '''
+//! The config.
+
+#[path = "defaults.rs"]
+mod defaults;
+'''
+given.files.'src/defaults.rs' = '''
+//! The defaults.
+'''
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod config;
+'''
+then.findings = [
+  { path = 'src/config.rs', line = 3 },
+  { path = 'src/defaults.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'test-declared-by-neither'
+scenario = 'A test file declared neither by the module file nor by its logic file.'
+given.files.'src/lib.rs' = '''
+//! The core.
+
+pub mod outcome;
+'''
+given.files.'src/outcome.rs' = '''
+//! The outcome.
+
+/// Done.
+pub fn done() {}
+'''
+given.files.'src/outcome_test.rs' = '''
+//! Proves the outcome.
+'''
+then.findings = [
+  { path = 'src/outcome_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'logic-in-module-file'
+scenario = 'A module file holding a function beside its declarations.'
+given.files.'src/cases.rs' = '''
+//! The case table the tests share.
+'''
+given.files.'src/inbound.rs' = '''
+//! What the core offers.
+
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+//! The use cases.
+
+pub mod greet;
+
+pub fn extra() -> u8 {
+    1
+}
+'''
+given.files.'src/inbound/use_cases/greet.rs' = '''
+//! The `greet` use case.
+
+pub mod interface;
+pub mod use_case;
+#[cfg(test)]
+mod use_case_test;
+'''
+given.files.'src/inbound/use_cases/greet/interface.rs' = '''
+//! What `greet` promises.
+'''
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+//! The `greet` use case.
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! Proves `greet`.
+'''
+given.files.'src/lib.rs' = '''
+//! The greeting core.
+
+pub mod inbound;
+pub mod outbound;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+'''
+given.files.'src/outbound.rs' = '''
+//! What the core asks of the outside.
+
+pub mod names;
+'''
+given.files.'src/outbound/names.rs' = '''
+//! The `names` port.
+
+pub mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/outbound/names/fixtures.rs' = '''
+pub mod contract;
+pub mod fake;
+'''
+given.files.'src/outbound/names/fixtures/contract.rs' = '''
+//! The contract of `names`.
+'''
+given.files.'src/outbound/names/fixtures/fake.rs' = '''
+//! A fake of `names`.
+'''
+given.files.'src/outbound/names/interface.rs' = '''
+//! What `names` asks.
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases.rs', line = 5 },
+]
+
+[[scenarios]]
+id = "explicit-cargo-test-root"
+given.include = ["app/**"]
+scenario = "Cargo compiles an explicit relative integration target beneath src without a parent mod declaration."
+given.files.'app/Cargo.toml' = '''
+[package]
+name="app"
+version="0.1.0"
+edition="2024"
+[[test]]
+name="process"
+path="src/driver/adapter_test.rs"
+'''
+given.files.'app/src/lib.rs' = 'mod driver;'
+given.files.'app/src/driver.rs' = ''
+given.files.'app/src/driver/adapter_test.rs' = '#[test] fn observes_process() {}'
+[[scenarios]]
+id = "cargo-lookalike-is-not-a-target"
+given.include = ["app/**"]
+scenario = "A package metadata path does not make an undeclared adjacent test executable."
+given.files.'app/Cargo.toml' = '''
+[package]
+name="app"
+version="0.1.0"
+edition="2024"
+[package.metadata.proof]
+path="src/driver/adapter_test.rs"
+'''
+given.files.'app/src/lib.rs' = 'mod driver;'
+given.files.'app/src/driver.rs' = ''
+given.files.'app/src/driver/adapter_test.rs' = '#[test] fn observes_process() {}'
+then.findings = [{ path = "app/src/driver/adapter_test.rs", line = 1 }]
+
+[[scenarios]]
+id = "directory-test-and-fixture-groups-register-normally"
+scenario = "Conventional proof and fixture directory modules are reached through normal parent declarations, with test role gating."
+given.files.'src/lib.rs' = "#[cfg(test)] mod proof;"
+given.files.'src/proof/mod.rs' = "#[cfg(test)] pub(super) mod alpha;\n#[cfg(any(test, feature = \"fixtures\"))] pub(super) mod fixtures;"
+given.files.'src/proof/alpha/mod.rs' = "#[cfg(test)] pub(super) mod test;"
+given.files.'src/proof/alpha/test.rs' = "#[test] fn actual_contract() {}"
+given.files.'src/proof/fixtures/mod.rs' = "pub(super) fn prepared_data() {}"
+
+[[scenarios]]
+id = "beside-module-registers-directory-child"
+scenario = "A stock X.rs module declares its nested child through X/child/mod.rs."
+given.files.'src/lib.rs' = "mod proof;"
+given.files.'src/proof.rs' = "#[cfg(test)] mod alpha;"
+given.files.'src/proof/alpha/mod.rs' = "#[cfg(test)] pub(super) mod test;"
+given.files.'src/proof/alpha/test.rs' = "#[test] fn actual_contract() {}"
+
+[[scenarios]]
+id = "directory-module-does-not-exempt-unregistered-group"
+scenario = "An existing directory module still needs the parent declaration that makes its tests reachable."
+given.files.'src/lib.rs' = "#[cfg(test)] mod proof;"
+given.files.'src/proof/mod.rs' = "// No declaration for the omitted group."
+given.files.'src/proof/omitted/mod.rs' = "#[cfg(test)] pub(super) mod test;"
+given.files.'src/proof/omitted/test.rs' = "#[test] fn would_be_uncompiled() {}"
+then.findings = [{ path = "src/proof/omitted/mod.rs", line = 1 }]
+
+[[scenarios]]
+id = "directory-module-does-not-exempt-unregistered-test-role"
+scenario = "The test.rs role must be declared by its own conventional directory module."
+given.files.'src/lib.rs' = "#[cfg(test)] mod proof;"
+given.files.'src/proof/mod.rs' = "// No declaration for the test role."
+given.files.'src/proof/test.rs' = "#[test] fn would_be_uncompiled() {}"
+then.findings = [{ path = "src/proof/test.rs", line = 1 }]
+
+[[scenarios]]
+id = "directory-module-without-child-file-is-an-error"
+scenario = "A mod.rs declaration cannot point at a child that has neither supported file form."
+given.files.'src/lib.rs' = "#[cfg(test)] mod proof;"
+given.files.'src/proof/mod.rs' = "#[cfg(test)] mod missing;"
+then.findings = [{ path = "src/proof/mod.rs", line = 1 }]
+
+[[scenarios]]
+id = "directory-test-role-requires-test-cfg"
+scenario = "Generic test.rs carries the same explicit test gating requirement as a sibling X_test.rs."
+given.files.'src/lib.rs' = "#[cfg(test)] mod proof;"
+given.files.'src/proof/mod.rs' = "pub(super) mod test;"
+given.files.'src/proof/test.rs' = "#[test] fn actual_contract() {}"
+then.findings = [{ path = "src/proof/mod.rs", line = 1 }]
+
+[[scenarios]]
+id = "two-supported-file-forms-are-still-ambiguous"
+scenario = "Recognizing directory modules does not accept both competing files for one Rust child."
+given.files.'src/lib.rs' = "mod proof;"
+given.files.'src/proof.rs' = ""
+given.files.'src/proof/mod.rs' = ""
+then.findings = [{ path = "src/lib.rs", line = 1 }]
+
+[[scenarios]]
+id = "directory-namespace-owner-still-cannot-hold-logic"
+scenario = "Conventional mod.rs does not exempt architectural namespace owners from separation of declarations and logic."
+given.files.'src/lib.rs' = "mod domain;"
+given.files.'src/domain/mod.rs' = "pub mod concept;"
+given.files.'src/domain/concept/mod.rs' = "pub fn misplaced_logic() {}"
+then.findings = [{ path = "src/domain/concept/mod.rs", line = 1 }]
+
+[[scenarios]]
+id = "population-directory-service"
+scenario = "A private population directory and generic service compile through normal parent and child declarations."
+given.files."src/lib.rs" = "mod program;\n"
+given.files."src/program.rs" = "mod project_population;\n"
+given.files."src/program/project_population/mod.rs" = "pub(super) mod service;\n"
+given.files."src/program/project_population/service.rs" = "pub(super) struct ProjectFrontierPopulation { id: usize }\n"
+
+[[scenarios]]
+id = "population-parent-missing"
+scenario = "A placed population namespace still needs its parent module declaration."
+given.files."src/lib.rs" = "mod program;\n"
+given.files."src/program.rs" = "//! The program has not declared the population module.\n"
+given.files."src/program/project_population/mod.rs" = "pub(super) mod service;\n"
+given.files."src/program/project_population/service.rs" = "pub(super) struct ProjectFrontierPopulation { id: usize }\n"
+then.findings = [{ path = "src/program/project_population/mod.rs", line = 1 }]
+
+[[scenarios]]
+id = "population-service-missing"
+scenario = "An existing service file without its namespace declaration remains uncompiled."
+given.files."src/lib.rs" = "mod program;\n"
+given.files."src/program.rs" = "mod project_population;\n"
+given.files."src/program/project_population/mod.rs" = "//! A directory module without the service declaration.\n"
+given.files."src/program/project_population/service.rs" = "pub(super) struct ProjectFrontierPopulation { id: usize }\n"
+then.findings = [{ path = "src/program/project_population/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "private-directory-fixtures"
+scenario = "private directory fixtures"
+given.files.'src/lib.rs' = "#[cfg(test)] mod fixtures;"
+given.files.'src/fixtures/mod.rs' = "pub(super) mod graph;"
+given.files.'src/fixtures/graph/mod.rs' = "pub(super) struct Data;"
+
+[[scenarios]]
+id = "ungated-directory-fixtures"
+scenario = "ungated directory fixtures"
+given.files.'src/lib.rs' = "mod fixtures;"
+given.files.'src/fixtures/mod.rs' = "pub(super) mod graph;"
+given.files.'src/fixtures/graph/mod.rs' = "pub(super) struct Data;"
+then.findings = [{ path = "src/lib.rs", line = 1 }]
+
+[[scenarios]]
+id = "negated-directory-fixtures"
+scenario = "negated directory fixtures"
+given.files.'src/lib.rs' = "#[cfg(not(test))] mod fixtures;"
+given.files.'src/fixtures/mod.rs' = "pub(super) mod graph;"
+given.files.'src/fixtures/graph/mod.rs' = "pub(super) struct Data;"
+then.findings = [{ path = "src/lib.rs", line = 1 }]
