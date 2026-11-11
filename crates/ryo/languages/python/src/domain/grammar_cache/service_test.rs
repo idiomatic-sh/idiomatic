@@ -16,7 +16,6 @@ use crate::cases::Expect;
 use crate::cases::Word;
 use crate::cases::run;
 use crate::domain::format_syntax::types::FormatParseResult;
-use crate::domain::format_syntax::types::FormatSummary;
 use crate::domain::format_syntax::types::ParsedFormat;
 
 struct FirstGrammar;
