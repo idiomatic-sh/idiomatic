@@ -9,58 +9,84 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-#[derive(Clone, Copy)]
-enum Scenario {
-    Invocation,
-    PrimaryRow,
-    Unprepared,
-    DeferredError,
+/// What was begun on a fresh workspace before its logical set is read.
+#[derive(Clone, Copy, Debug)]
+enum Begun {
+    /// Nothing.
+    Nothing,
+    /// A first-occurrence program for the invocation, whose kinds are the fault `ShapeMismatch`.
+    FaultyKinds,
+    /// A reach-less join's own workspace program, for a primary row.
     ReachlessJoin,
 }
-type Input = Scenario;
-type Value = [Addition; 3];
+/// What a row asks of a workspace.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// Whether the number 1 is new each time it is added to the set of a first-occurrence program of this lifetime, the program
+    /// begun for that lifetime, then for a primary row, then for that lifetime again.
+    Rows(Lifetime),
+    /// The logical set's schema after this was begun.
+    Begin(Begun),
+}
+/// What a workspace answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    /// Whether each addition was new.
+    Additions([Addition; 3]),
+    /// The set's schema is ready.
+    Ready,
+    /// The workspace holds no logical set.
+    NoSet,
+}
+type Input = Ask;
+type Value = Answer;
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("invocation_set_survives_rows_and_resets_for_retry"),
         word: Word::Succeeds,
-        input: || Scenario::Invocation,
-        expect: Expect::Value([Addition::Added, Addition::Existing, Addition::Added]),
+        input: || Ask::Rows(Lifetime::Invocation),
+        expect: Expect::Value(Answer::Additions([
+            Addition::Added,
+            Addition::Existing,
+            Addition::Added,
+        ])),
     },
     Case {
         name: CaseName("reach_set_restarts_for_each_primary_row"),
         word: Word::Succeeds,
-        input: || Scenario::PrimaryRow,
-        expect: Expect::Value([Addition::Added, Addition::Added, Addition::Added]),
+        input: || Ask::Rows(Lifetime::PrimaryRow),
+        expect: Expect::Value(Answer::Additions([Addition::Added; 3])),
     },
     Case {
         name: CaseName("unprepared_logical_set_fails_closed"),
         word: Word::Refuses,
-        input: || Scenario::Unprepared,
+        input: || Ask::Begin(Begun::Nothing),
         expect: Expect::Error(OperatingError::NotRun),
     },
     Case {
         name: CaseName("unused_schema_fault_remains_pending"),
         word: Word::Refuses,
-        input: || Scenario::DeferredError,
+        input: || Ask::Begin(Begun::FaultyKinds),
         expect: Expect::Error(OperatingError::ShapeMismatch),
     },
     Case {
         name: CaseName("a_join_without_reach_keeps_no_workspace"),
         word: Word::Refuses,
-        input: || Scenario::ReachlessJoin,
+        input: || Ask::Begin(Begun::ReachlessJoin),
         expect: Expect::Error(OperatingError::NotRun),
     },
 ];
-/// The state of a fresh workspace after a reach-less join's own workspace program begins a primary row.
-fn reachless_join() -> Result<Value, Failure> {
+/// A reach-less join's own workspace program.
+fn reachless_join() -> WorkspaceProgram {
+    use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::{
         plan_parts::types::{ColumnIndex, Input as PlanInput},
         plans::types::Operation,
     };
     let join = Operation::Join {
-        left: PlanInput::Relation(ryo_relations::domain::relations::types::Relation::SyntaxTree),
-        right: PlanInput::Relation(ryo_relations::domain::relations::types::Relation::SyntaxTree),
+        left: PlanInput::Relation(Relation::SyntaxTree),
+        right: PlanInput::Relation(Relation::SyntaxTree),
         left_on: vec![ColumnIndex(0)],
         right_on: vec![ColumnIndex(0)],
         output: Vec::new(),
@@ -68,88 +94,56 @@ fn reachless_join() -> Result<Value, Failure> {
         view: Vec::new(),
         reach: None,
     };
-    let program = prepare(&join, &[], &Ok(vec![CellKind::Number]));
-    let mut workspace = PrimitiveWorkspace::default();
-    begin(&program, Lifetime::PrimaryRow, &mut workspace);
-    let state = workspace
-        .distinct
-        .as_ref()
-        .ok_or(OperatingError::WrongBinding)?;
-    state
-        .schema
-        .clone()
-        .map(|()| [Addition::Added, Addition::Added, Addition::Added])
+    prepare(&join, &[], &Ok(vec![CellKind::Number]))
 }
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    if matches!(scenario, Scenario::ReachlessJoin) {
-        return reachless_join();
+fn begun(what: Begun) -> Result<Value, Failure> {
+    let mut workspace = PrimitiveWorkspace::default();
+    match what {
+        Begun::Nothing => {}
+        Begun::FaultyKinds => begin(
+            &WorkspaceProgram::FirstOccurrences {
+                lifetime: Lifetime::Invocation,
+                kinds: Err(OperatingError::ShapeMismatch),
+            },
+            Lifetime::Invocation,
+            &mut workspace,
+        ),
+        Begun::ReachlessJoin => begin(&reachless_join(), Lifetime::PrimaryRow, &mut workspace),
     }
-    if matches!(scenario, Scenario::Unprepared | Scenario::DeferredError) {
-        let mut workspace = PrimitiveWorkspace::default();
-        if matches!(scenario, Scenario::DeferredError) {
-            begin(
-                &WorkspaceProgram::FirstOccurrences {
-                    lifetime: Lifetime::Invocation,
-                    kinds: Err(OperatingError::ShapeMismatch),
-                },
-                Lifetime::Invocation,
-                &mut workspace,
-            );
-        }
-        let state = workspace
-            .distinct
-            .as_ref()
-            .ok_or(OperatingError::WrongBinding)?;
-        return state
-            .schema
-            .clone()
-            .map(|()| [Addition::Added, Addition::Added, Addition::Added]);
+    match workspace.distinct.as_ref() {
+        None => Ok(Answer::NoSet),
+        Some(state) => state.schema.clone().map(|()| Answer::Ready),
     }
-    let lifetime = match scenario {
-        Scenario::Invocation => Lifetime::Invocation,
-        Scenario::PrimaryRow => Lifetime::PrimaryRow,
-        Scenario::Unprepared | Scenario::DeferredError | Scenario::ReachlessJoin => {
-            return Err(OperatingError::WrongOperation);
-        }
-    };
+}
+fn rows(lifetime: Lifetime) -> Result<Value, Failure> {
     let program = WorkspaceProgram::FirstOccurrences {
         lifetime,
         kinds: Ok(vec![CellKind::Number]),
     };
     let mut workspace = PrimitiveWorkspace::default();
-    let mut found = Vec::new();
-    begin(&program, lifetime, &mut workspace);
-    let state = workspace
-        .distinct
-        .as_mut()
-        .ok_or(OperatingError::WrongBinding)?;
-    state.schema.clone()?;
-    found.push(first_time(
-        &mut state.rows,
-        &mut state.seen,
-        &[Cell::Number(Integer(1))],
-    ));
-    begin(&program, Lifetime::PrimaryRow, &mut workspace);
-    let state = workspace
-        .distinct
-        .as_mut()
-        .ok_or(OperatingError::WrongBinding)?;
-    found.push(first_time(
-        &mut state.rows,
-        &mut state.seen,
-        &[Cell::Number(Integer(1))],
-    ));
-    begin(&program, lifetime, &mut workspace);
-    let state = workspace
-        .distinct
-        .as_mut()
-        .ok_or(OperatingError::WrongBinding)?;
-    found.push(first_time(
-        &mut state.rows,
-        &mut state.seen,
-        &[Cell::Number(Integer(1))],
-    ));
-    found.try_into().map_err(|_| OperatingError::ShapeMismatch)
+    let mut found = [Addition::Existing; 3];
+    for (each, begun) in found
+        .iter_mut()
+        .zip([lifetime, Lifetime::PrimaryRow, lifetime])
+    {
+        begin(&program, begun, &mut workspace);
+        let Some(state) = workspace.distinct.as_mut() else {
+            return Ok(Answer::NoSet);
+        };
+        state.schema.clone()?;
+        *each = first_time(
+            &mut state.rows,
+            &mut state.seen,
+            &[Cell::Number(Integer(1))],
+        );
+    }
+    Ok(Answer::Additions(found))
+}
+fn subject(ask: Input) -> Result<Value, Failure> {
+    match ask {
+        Ask::Rows(lifetime) => rows(lifetime),
+        Ask::Begin(what) => begun(what),
+    }
 }
 #[test]
 fn succeeds() {

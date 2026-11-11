@@ -158,10 +158,10 @@ fn operation(declared: Declared) -> Operation {
 /// Where a slot's pattern lives, to tell whether two slots are one.
 fn address(slots: &PreparedMatchers, slot: Slot) -> Option<*const ()> {
     match slot {
-        Slot::Regex(pattern) => match slots.regex(TextView(pattern), matcher())? {
-            Ok(regex) => Some(std::ptr::from_ref(regex).cast()),
-            Err(_) => None,
-        },
+        Slot::Regex(pattern) => slots
+            .regex(TextView(pattern), matcher())?
+            .ok()
+            .map(|regex| std::ptr::from_ref(regex).cast()),
         Slot::Glob(test, pattern) => slots
             .glob(test, TextView(pattern), matcher())
             .map(|glob| std::ptr::from_ref(glob).cast()),

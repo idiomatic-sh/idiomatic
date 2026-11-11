@@ -1,5 +1,7 @@
 //! The `text_gate` service's cases, on comparisons alone: which columns the comparisons left to decide read.
 
+use std::borrow::Cow;
+
 use super::service::needed_of_rest;
 use crate::domain::table_cells::types::ColumnPlaces;
 use crate::domain::table_scratch::types::ComparisonNumbers;
@@ -9,18 +11,12 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, LiteralText, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
 };
 
-/// What a row of the cases does.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// Names the columns of the comparisons numbered, each once.
-    NeedsTheColumnsOfTheRest,
-}
-
-/// What a row of the cases does.
-type Input = Scenario;
-/// The columns that come out, written as bits: place `n` is the bit `1 << n`.
-type Value = usize;
-type Failure = ();
+/// The numbers of the comparisons already decided, among the four of `comparisons` and an equality of column 2 with a
+/// parameter.
+type Input = &'static [usize];
+/// The column places needed to decide the rest, the needed places having held the place 9 before.
+type Value = Cow<'static, [usize]>;
+type Failure = std::convert::Infallible;
 
 fn named(column: u32, test: Test, literal: &str) -> PlanComparison {
     PlanComparison {
@@ -51,11 +47,7 @@ fn comparisons() -> Vec<PlanComparison> {
     ]
 }
 
-fn bits(places: &[usize]) -> Value {
-    places.iter().fold(0, |all, place| all | (1 << place))
-}
-
-fn columns(which: &[usize]) -> Value {
+fn subject(which: Input) -> Result<Value, Failure> {
     let mut comparisons = comparisons();
     comparisons.push(PlanComparison {
         test: Test::Equal,
@@ -69,24 +61,18 @@ fn columns(which: &[usize]) -> Value {
         &ComparisonNumbers(which.to_vec()),
         &mut needed,
     );
-    bits(&needed.0)
+    Ok(Cow::Owned(needed.0))
 }
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("only_the_columns_of_the_rest_are_needed"),
     word: Word::Succeeds,
-    input: || Scenario::NeedsTheColumnsOfTheRest,
-    expect: Expect::Value(0b101),
+    input: || &[0, 4],
+    expect: Expect::Value(Cow::Borrowed(&[0, 2])),
 }];
-
-fn subject(scenario: Input) -> Value {
-    match scenario {
-        Scenario::NeedsTheColumnsOfTheRest => columns(&[0, 4]),
-    }
-}
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CASES, Word::Succeeds, subject);
 }

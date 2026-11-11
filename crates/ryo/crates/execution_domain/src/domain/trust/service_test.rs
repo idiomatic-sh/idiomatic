@@ -12,22 +12,26 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::stored_facts::types::PartialCause;
 
-/// What a row of the cases does.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// Asks whether a read of `defines` that keeps the kinds of the comparison matters when rows of this kind could be missing.
-    Matters(Test, &'static str, &'static str),
-    /// Asks whether a read that keeps every kind matters when any row could be missing.
-    MattersWhenAny,
-    /// Asks whether a read of one relation is blocked by a relation read in part that it does not read.
-    Blocked,
+/// What a row asks of trust.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// Whether a read of `defines` keeping the kinds that compare so with this text (every kind when none) bears on `defines`
+    /// read in part, lacking rows of this kind (any row when none).
+    Matters(Option<(Test, &'static str)>, Option<&'static str>),
+    /// Whether reads of these relations are blocked by `defines` read in part, lacking any row.
+    Blocked(&'static [Relation]),
 }
 
-/// What a row of the cases does.
-type Input = Scenario;
-/// A yes or no as a number.
-type Value = usize;
-type Failure = ();
+/// What trust answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    Bearing(Bearing),
+    Blocking(Blocking),
+}
+
+type Input = Ask;
+type Value = Answer;
+type Failure = std::convert::Infallible;
 
 fn partial(kind: Option<&str>) -> Partial {
     Partial {
@@ -38,71 +42,70 @@ fn partial(kind: Option<&str>) -> Partial {
     }
 }
 
-fn subject(scenario: Input) -> Value {
-    match scenario {
-        Scenario::Matters(test, literal, missing) => {
+fn subject(ask: Input) -> Result<Value, Failure> {
+    Ok(match ask {
+        Ask::Matters(kinds, missing) => {
             let read = RelationRead {
                 relation: Relation::Defines,
-                kinds: vec![PlanComparison {
-                    test,
-                    left: Operand::Column(ColumnIndex(1)),
-                    right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
-                    origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-                }],
+                kinds: kinds
+                    .map(|(test, literal)| PlanComparison {
+                        test,
+                        left: Operand::Column(ColumnIndex(1)),
+                        right: Operand::Literal(QueryLiteral::Text(LiteralText(literal.into()))),
+                        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+                    })
+                    .into_iter()
+                    .collect(),
             };
-            usize::from(matters(&read, &partial(Some(missing))) == Bearing::Matters)
+            Answer::Bearing(matters(&read, &partial(missing)))
         }
-        Scenario::MattersWhenAny => {
-            let read = RelationRead {
-                relation: Relation::Defines,
-                kinds: Vec::new(),
-            };
-            usize::from(matters(&read, &partial(None)) == Bearing::Matters)
+        Ask::Blocked(relations) => {
+            let reads: Vec<RelationRead> = relations
+                .iter()
+                .map(|relation| RelationRead {
+                    relation: *relation,
+                    kinds: Vec::new(),
+                })
+                .collect();
+            Answer::Blocking(blocked(&reads, &[partial(None)]))
         }
-        Scenario::Blocked => {
-            let read = RelationRead {
-                relation: Relation::Reference,
-                kinds: Vec::new(),
-            };
-            usize::from(blocked(&[read], &[partial(None)]) == Blocking::Blocked)
-        }
-    }
+    })
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("rows_of_a_kind_the_read_does_not_let_through_cannot_matter"),
         word: Word::Succeeds,
-        input: || Scenario::Matters(Test::Equal, "enum", "variable"),
-        expect: Expect::Value(0),
+        input: || Ask::Matters(Some((Test::Equal, "enum")), Some("variable")),
+        expect: Expect::Value(Answer::Bearing(Bearing::DoesNotMatter)),
     },
     Case {
         name: CaseName("rows_of_a_kind_a_glob_of_kinds_lets_through_matter"),
         word: Word::Succeeds,
-        input: || Scenario::Matters(Test::GlobAny, "{struct,variable}", "variable"),
-        expect: Expect::Value(1),
+        input: || Ask::Matters(Some((Test::GlobAny, "{struct,variable}")), Some("variable")),
+        expect: Expect::Value(Answer::Bearing(Bearing::Matters)),
     },
     Case {
         name: CaseName("a_glob_of_kinds_that_leaves_the_kind_out_cannot_matter"),
         word: Word::Succeeds,
-        input: || Scenario::Matters(Test::GlobAny, "{struct,enum}", "variable"),
-        expect: Expect::Value(0),
+        input: || Ask::Matters(Some((Test::GlobAny, "{struct,enum}")), Some("variable")),
+        expect: Expect::Value(Answer::Bearing(Bearing::DoesNotMatter)),
     },
     Case {
         name: CaseName("a_read_that_keeps_every_kind_matters_when_any_row_could_be_missing"),
         word: Word::Succeeds,
-        input: || Scenario::MattersWhenAny,
-        expect: Expect::Value(1),
+        input: || Ask::Matters(None, None),
+        expect: Expect::Value(Answer::Bearing(Bearing::Matters)),
     },
     Case {
         name: CaseName("a_relation_read_in_part_blocks_only_the_reads_of_that_relation"),
         word: Word::Succeeds,
-        input: || Scenario::Blocked,
-        expect: Expect::Value(0),
+        input: || Ask::Blocked(&[Relation::Reference]),
+        expect: Expect::Value(Answer::Blocking(Blocking::Free)),
     },
 ];
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CASES, Word::Succeeds, subject);
 }
