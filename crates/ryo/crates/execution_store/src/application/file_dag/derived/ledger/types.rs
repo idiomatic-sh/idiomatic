@@ -74,10 +74,10 @@ pub(crate) struct LedgerSnapshot {
 
 #[derive(Debug)]
 pub(crate) struct LedgerEntry {
-    pub(super) bytes: ByteCount,
-    pub(super) retention_units: UnitCount,
-    pub(super) required: HoldCount,
-    pub(super) optional: HoldCount,
+    pub(crate) bytes: ByteCount,
+    pub(crate) retention_units: UnitCount,
+    pub(crate) required: HoldCount,
+    pub(crate) optional: HoldCount,
 }
 
 #[derive(Debug)]

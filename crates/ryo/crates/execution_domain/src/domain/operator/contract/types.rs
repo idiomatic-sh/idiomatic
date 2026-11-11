@@ -209,8 +209,8 @@ pub struct OperatorContract {
     pub literal_pattern: Option<ryo_values::domain::plan_parts::types::LiteralText>,
     /// The predicate program bound to the operation.
     pub predicates: PreparedPredicates,
-    pub(crate) effects: Effects,
-    pub(crate) reuse: ReuseScope,
+    pub effects: Effects,
+    pub reuse: ReuseScope,
     /// Exact typed fields, not a hash-only or Debug-text key.
     pub identity: Operation,
 }
@@ -305,7 +305,7 @@ pub struct PrimitiveWorkspace {
     pub evaluation: ryo_operators::domain::evaluation::types::EvaluationScratch,
     /// The work of the axis walk, when the operation walks an axis.
     pub axis: Option<AxisWorkspace>,
-    pub(crate) positions: Vec<ryo_relations::domain::relations::types::Position>,
+    pub positions: Vec<ryo_relations::domain::relations::types::Position>,
     /// The work of the ordered depth-first search, when the operation runs one.
     pub dfs: Option<DfsWorkspace>,
     /// The walk of a closure traversal, when the operation runs one.
@@ -372,8 +372,10 @@ pub struct PreparedPredicates {
 
 /// Binding/effect identity constrains sharing, never engine admission.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ReuseScope {
+pub enum ReuseScope {
+    /// Shared across the rules of one request.
     Request,
+    /// Shared within one rule only.
     Rule,
 }
 
@@ -401,7 +403,7 @@ pub struct EmptyResult {
 pub struct AxisWorkspace {
     /// The walk the axis performs.
     pub walk: crate::domain::table_reach::types::Walk,
-    pub(crate) found: Vec<ryo_relations::domain::relations::types::Position>,
+    pub found: Vec<ryo_relations::domain::relations::types::Position>,
 }
 
 /// The vertices one invocation of the ordered depth-first search has expanded.

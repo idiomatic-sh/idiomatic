@@ -39,9 +39,9 @@ pub(super) struct PreparedNamed {
 /// The delivery, observation and capture a file declared for one rule.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct DeclaredIntent {
-    pub(super) delivery: ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery,
-    pub(super) demand: ryo_execution_domain::domain::rule_intent::types::ObservationDemand,
-    pub(super) capture_intent: ryo_execution_domain::domain::rule_intent::types::CaptureIntent,
+    pub(crate) delivery: ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery,
+    pub(crate) demand: ryo_execution_domain::domain::rule_intent::types::ObservationDemand,
+    pub(crate) capture_intent: ryo_execution_domain::domain::rule_intent::types::CaptureIntent,
 }
 /// The slot of a bound observation among the observation regions of a program.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -103,7 +103,7 @@ pub(crate) struct RegionProbe {
     pub(crate) inputs: Option<InputRelease>,
 }
 /// What a file binds when its first entry point reads it: its selected readers and the roots presence may find absent.
-pub(crate) struct PendingActivation {
+pub(super) struct PendingActivation {
     pub(super) readers: Vec<ryo_execution_domain::domain::executable_program::types::RegionId>,
     pub(super) candidates: Vec<RootCandidate>,
     pub(super) gate: PresenceGate,
