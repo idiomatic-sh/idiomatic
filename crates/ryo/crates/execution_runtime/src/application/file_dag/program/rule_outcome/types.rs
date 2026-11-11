@@ -11,7 +11,7 @@ pub enum RootOutcome {
         table: Table,
         affected: Vec<Option<ryo_relations::domain::relations::types::FileId>>,
     },
-    Skipped(crate::application::file_dag::program::admission::ApplicabilityProof),
+    Skipped(crate::application::file_dag::program::admission::service::ApplicabilityProof),
     Unknown(OperatingError),
     Failed(OperatingError),
     NoQuery,

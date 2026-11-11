@@ -1,6 +1,8 @@
 //! The kernel invocation that omits only the ready callback and counts what it skipped.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::events::Events;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::runtime::service::{
     KernelInvocation, KernelPermit, ReadySelection,
 };
@@ -10,7 +12,10 @@ use crate::application::file_dag::program::runtime::types::{
 use ryo_execution_domain::domain::executable_program::types::{
     LogicalInstruction, instruction::value::Instruction,
 };
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit as RowSink;
+#[cfg(test)]
+use ryo_execution_domain::domain::operator::types::OperatorContext;
 use std::cell::Cell as Counter;
 pub(crate) struct ReadyAdapter<'a> {
     pub(crate) actual: &'a dyn KernelInvocation,

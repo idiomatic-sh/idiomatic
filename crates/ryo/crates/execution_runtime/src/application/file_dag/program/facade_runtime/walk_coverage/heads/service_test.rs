@@ -1,7 +1,7 @@
 //! Expected eligibility never reads prepared classes, routes, census or trace events.
 use super::super::fixtures::catalog::{CompiledCorpus, compiled, prepare};
 use super::super::fixtures::plan;
-use super::{expected, supported_head};
+use super::{service::expected, service::supported_head};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;

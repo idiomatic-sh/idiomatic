@@ -1,8 +1,11 @@
 //! Declared populations are refused or kept exactly, never silently shortened.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::super::scratch_owner::fixtures::{execute, hosted};
 use super::super::fixtures::source;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,

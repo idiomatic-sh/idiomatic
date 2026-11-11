@@ -7,11 +7,11 @@ use super::types::{
 };
 #[cfg(test)]
 use super::types::{ProducerLeaseEvent, ReaderInitializations};
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::AvailableInput;
-use crate::application::file_dag::program::admission::Emptiness;
-use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::AvailableInput;
+use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::types::Emptiness;
+use crate::application::file_dag::program::admission::types::Partition;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;

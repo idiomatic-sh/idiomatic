@@ -1,5 +1,7 @@
 //! Validation of admitted protocol handovers; no scheduling or dependency acquisition.
-use crate::application::file_dag::program::admission::{AdmittedInput, ReadProof};
+use crate::application::file_dag::program::admission::{
+    service::AdmittedInput, service::ReadProof,
+};
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
@@ -88,8 +90,8 @@ impl ObservedPublication {
 /// ```
 #[derive(Clone)]
 pub struct ObservedPublication {
-    pub(crate) proof: crate::application::file_dag::program::admission::ReadProof,
-    pub(crate) root: crate::application::file_dag::program::admission::ProducerRoot,
+    pub(crate) proof: crate::application::file_dag::program::admission::service::ReadProof,
+    pub(crate) root: crate::application::file_dag::program::admission::types::ProducerRoot,
     pub(crate) publication:
         ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     pub(crate) population:

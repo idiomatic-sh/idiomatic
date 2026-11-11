@@ -45,7 +45,7 @@ pub(super) fn prepare(
     project: &dyn FactsWorker,
     project_symbols: &Symbols,
     symbols: &mut Symbols,
-    required: &crate::application::file_dag::program::admission::RequiredPartitions,
+    required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     policy: PreparationPolicy<'_>,
 ) -> Result<PreparedFrontiers, FrontiersError> {
     let roots = &program
@@ -258,7 +258,7 @@ pub(crate) fn validate_bucket(
     input: InputNumber,
     first: Bucket,
     bucket: Bucket,
-    required: &crate::application::file_dag::program::admission::RequiredPartitions,
+    required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     payload: &crate::outbound::facts::types::KeptBucket,
 ) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError> {
     use ryo_execution_domain::domain::completion::types::{FileLacks, MissingRows};
@@ -387,7 +387,7 @@ impl FrontierCache {
         project: &dyn crate::outbound::facts::interface::FactsWorker,
         project_symbols: &ryo_language::domain::symbols::types::Symbols,
         symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
         policy: PreparationPolicy<'_>,
     ) -> Result<PreparedFrontiers, FrontiersError> {
         let ready = match policy {

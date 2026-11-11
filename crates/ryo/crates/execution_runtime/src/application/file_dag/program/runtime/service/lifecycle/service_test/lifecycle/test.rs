@@ -3,7 +3,7 @@ use super::super::super::fixtures::{
     EvaluationCount, Reentry, RuntimeProbe, RuntimeProbeMode, Sink, SinkMode, context,
 };
 use super::super::super::inputs::fixtures::{CompiledCase, TestInputs, compiled};
-use crate::application::file_dag::program::admission::Inputs;
+use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use crate::application::file_dag::program::runtime::service::Slot;
 use crate::application::file_dag::program::runtime::service::State;

@@ -54,7 +54,7 @@ fn prepare_closure(
     keys: &[ColumnIndex],
     source: ColumnIndex,
     destination: ColumnIndex,
-) -> Result<crate::application::file_dag::invocation::AcquiredPartitions, OperatingError> {
+) -> Result<crate::application::file_dag::invocation::service::AcquiredPartitions, OperatingError> {
     let owner = std::rc::Rc::new(ryo_execution_store::application::file_dag::relations::service::RelationOwner::fixture(
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
         (std::sync::Arc::new(
@@ -76,7 +76,8 @@ fn prepare_closure(
             destination,
             owner,
         )?;
-    let mut parts = crate::application::file_dag::invocation::AcquiredPartitions::default();
+    let mut parts =
+        crate::application::file_dag::invocation::service::AcquiredPartitions::default();
     while cursor.advance()? == ryo_execution_store::application::file_dag::closure_partitions::types::PartitionAdvance::Advanced {
         parts.push(cursor.take_current()?);
     }

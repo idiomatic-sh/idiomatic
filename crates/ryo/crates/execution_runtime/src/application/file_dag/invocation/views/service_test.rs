@@ -1,7 +1,11 @@
 //! The exact lease getter must consume the registered borrowed view without copying storage.
+use super::service::*;
 use super::*;
+use crate::application::file_dag::invocation::service::InvocationResources;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

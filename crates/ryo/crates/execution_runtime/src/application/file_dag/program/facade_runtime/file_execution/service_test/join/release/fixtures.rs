@@ -1,4 +1,5 @@
 //! Strategy inputs and the one real semantic dependency whose answers are refused.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::capability::fixtures::REFUSAL;
 use super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree};
@@ -8,7 +9,9 @@ use crate::outbound::operators::interface::OperatorsPort as _;
 use fixtures::execution::*;
 #[cfg(test)]
 use fixtures::provider::*;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_cells::types::TreeForm;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;

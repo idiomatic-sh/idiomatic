@@ -1,9 +1,13 @@
 //! A shared source batch lives until its last consumer is delivered, on every exit.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::fixtures::Residency;
 use super::fixtures::{deliver, forward, program};
-use crate::application::file_dag::program::native_walk::RetainedBatches;
+use crate::application::file_dag::program::native_walk::types::RetainedBatches;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 
 fn success_of_the_last_consumer_retires_the_shared_batch_and_keeps_its_accounting() {

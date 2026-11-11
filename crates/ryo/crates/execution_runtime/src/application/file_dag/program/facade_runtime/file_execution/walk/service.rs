@@ -1,21 +1,21 @@
 //! Binding intents and preparing the shared walk of one file.
-use crate::application::file_dag::program::admission::ApplicabilityProof;
-use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::service::ApplicabilityProof;
+use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::types::Partition;
 use crate::application::file_dag::program::constants::{EXECUTION_TARGET, PRESENCE_FILE};
 use crate::application::file_dag::program::constants::{
     METADATA_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, SOURCE_FACTS_INCOMPLETE,
     SYNTAX_UNDETERMINED,
 };
-use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
-use crate::application::file_dag::program::facade_runtime::file_execution::classify;
-use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
-use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::readiness_of;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
 use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FileRoot, FrontierCommit, NamedReadiness, PendingActivation, PreparedNamed,
     PresenceGate, RootCandidate, WalkPreparation,
 };
-use crate::application::file_dag::program::native_walk::Deliveries;
+use crate::application::file_dag::program::native_walk::types::Deliveries;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::presence::types::RegionPresence;
@@ -300,13 +300,14 @@ impl FileRun<'_> {
             ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
         };
         let mut context = self.context.borrow(symbols, self.program, rule)?;
-        let kernels = crate::application::file_dag::program::kernel_session::KernelSession::file(
-            self.services.kernels(),
-            self.program,
-            Rc::clone(&self.owner),
-            read,
-            &self.walk,
-        );
+        let kernels =
+            crate::application::file_dag::program::kernel_session::service::KernelSession::file(
+                self.services.kernels(),
+                self.program,
+                Rc::clone(&self.owner),
+                read,
+                &self.walk,
+            );
         let mut sources = SourceInputs {
             execution: &self.execution,
             state: self.execution.file_state(),
@@ -353,7 +354,7 @@ impl FileRun<'_> {
             };
             let result = result.and_then(|input| {
                 if input.observation_ready()?
-                    == crate::application::file_dag::program::admission::ObservationReadiness::Ready
+                    == crate::application::file_dag::program::admission::types::ObservationReadiness::Ready
                 {
                     Ok(input)
                 } else {

@@ -1,7 +1,7 @@
 //! Data of one execution's shared services, its publication scope and its file roots.
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::ApplicabilityProof;
-use crate::application::file_dag::program::admission::AvailableInput;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::ApplicabilityProof;
+use crate::application::file_dag::program::admission::service::AvailableInput;
 
 /// Whether the frontier a file root publishes has been committed by its owner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

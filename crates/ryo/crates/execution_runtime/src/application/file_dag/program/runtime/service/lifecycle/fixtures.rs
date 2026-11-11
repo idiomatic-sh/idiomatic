@@ -1,6 +1,6 @@
 //! Compiled program lifecycle proof with a real owner.
 use super::inputs::fixtures::{TestInputs, value};
-use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::runtime::service::KernelInvocation;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;

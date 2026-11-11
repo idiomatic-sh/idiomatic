@@ -1,5 +1,6 @@
 //! Delivery refusal and a semantic refusal release every strategy; the semantic error is primary.
 //! `execute` finishes the owner and asserts the shared ledger, working and owned bytes are zero.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::capability::fixtures::Witness;
 use super::super::*;
@@ -8,6 +9,7 @@ use super::fixtures::{cancelled, ordered, tree_join};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;

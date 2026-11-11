@@ -1,5 +1,23 @@
 //! The captured project a restoration scenario restores from.
 use super::*;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 pub(in super::super) struct CapturedProject {
     pub(in super::super) prepared: Arc<PreparedProgram>,
     pub(in super::super) phase: PublicationScope,
@@ -232,24 +250,25 @@ impl CapturedProject {
             &services,
         )?;
         let length = capture.words.0.len();
-        let token = crate::application::file_dag::program::restored::validate_restored_frontier(
-            &prepared,
-            RuleIndex(0),
-            InputNumber(0),
-            Bucket(0),
-            capture.bucket,
-            &required,
-            crate::outbound::facts::types::KeptBucket {
-                words: Arc::new(KeptWords(capture.words)),
-                sources: vec![crate::outbound::facts::types::BucketSource {
-                    file: FileId(0),
-                    start: crate::outbound::facts::types::KeptWordsStart(0),
-                    length: crate::outbound::facts::types::KeptWordsLength(length),
-                    proof: capture.proof,
-                }],
-            },
-            &phase,
-        )?;
+        let token =
+            crate::application::file_dag::program::restored::service::validate_restored_frontier(
+                &prepared,
+                RuleIndex(0),
+                InputNumber(0),
+                Bucket(0),
+                capture.bucket,
+                &required,
+                crate::outbound::facts::types::KeptBucket {
+                    words: Arc::new(KeptWords(capture.words)),
+                    sources: vec![crate::outbound::facts::types::BucketSource {
+                        file: FileId(0),
+                        start: crate::outbound::facts::types::KeptWordsStart(0),
+                        length: crate::outbound::facts::types::KeptWordsLength(length),
+                        proof: capture.proof,
+                    }],
+                },
+                &phase,
+            )?;
         let partials = Partials::default();
         let mut project_producer = open_project(
             &prepared,

@@ -1,7 +1,8 @@
 //! Runtime admission fixtures: the omitting adapter and the obligations it is compared against.
 pub(super) mod rows;
+use super::super::super::service::*;
 use super::super::super::*;
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use ryo_execution_domain::domain::table_cells::fixtures::{SMALL_SOURCE, SmallTree, small_tree};
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
@@ -24,7 +25,7 @@ pub(super) mod events;
 use self::adapter::ReadyAdapter;
 use self::events::Events;
 use super::super::fixtures::*;
-use crate::application::file_dag::program::kernel_session::KernelSession;
+use crate::application::file_dag::program::kernel_session::service::KernelSession;
 use crate::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use std::cell::Cell as Counter;

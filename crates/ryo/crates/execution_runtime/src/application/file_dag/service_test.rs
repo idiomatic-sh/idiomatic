@@ -1,7 +1,7 @@
 //! Binding identity and file generations through the actual compiled request API.
-use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
-use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::open_file;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
@@ -27,8 +27,8 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{
-        ColumnIndex, Input as PlanInput, Operand, ParameterId, ParameterName, PlanComparison, RepeatedRows,
-        StepId, StepScope, Test, WholeNumber,
+        ColumnIndex, Input as PlanInput, Operand, ParameterId, ParameterName, PlanComparison,
+        RepeatedRows, StepId, StepScope, Test, WholeNumber,
     },
     plans::types::{Emit, Operation, Plan, PlanStep},
     query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
@@ -227,8 +227,8 @@ pub(super) fn run_rule(
         reads: Reads(reads.get()),
     }
 }
-fn identical_binding_dependent_operations_do_not_share_rule_graph_results()
--> Result<Value, Failure> {
+fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> Result<Value, Failure>
+{
     let Prepared { prepared, services } = prepare(vec![
         vec![ParameterBinding::Number(WholeNumber(3))],
         vec![ParameterBinding::Number(WholeNumber(2))],

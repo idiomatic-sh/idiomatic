@@ -1,5 +1,13 @@
 //! The project producer lifetime scenario every exit runs.
 use super::*;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 pub(in super::super) fn exercise(
     exit: PhaseExit,
     delivery: Delivery,
@@ -69,7 +77,7 @@ pub(in super::super) fn exercise(
             count: RowCount(2),
         };
         runs.push(
-            crate::application::file_dag::program::facade_runtime::project_execution::open_project(
+            crate::application::file_dag::program::facade_runtime::project_execution::service::open_project(
                 &prepared,
                 required.clone(),
                 ScopePartials::Project {
@@ -228,7 +236,7 @@ pub(in super::super) fn exercise(
             if at == 3 && matches!(exit, PhaseExit::RefuseLaterCohort) {
                 continue;
             }
-            let mut replay = crate::application::file_dag::program::facade_runtime::project_execution::open_project(
+            let mut replay = crate::application::file_dag::program::facade_runtime::project_execution::service::open_project(
                 &prepared,
                 required.clone(),
                 ScopePartials::Project {

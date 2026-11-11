@@ -1,11 +1,11 @@
 //! Opening one publication scope and naming the physical files of one project request.
-use crate::application::file_dag::executor::PrimitiveExecutor;
-use crate::application::file_dag::program::admission::AvailableInput;
-use crate::application::file_dag::program::admission::RequiredPartitions;
+use crate::application::file_dag::executor::service::PrimitiveExecutor;
+use crate::application::file_dag::program::admission::service::AvailableInput;
+use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::facade_runtime::types::PresenceGate;
 use crate::application::file_dag::program::facade_runtime::types::Truth;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use crate::application::file_dag::program::request_identity::RequestIdentity;
+use crate::application::file_dag::program::request_identity::service::RequestIdentity;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use ryo_execution_domain::domain::coverage::types::{Covered, RuleIndex};
 use ryo_execution_domain::domain::operating::errors::OperatingError;

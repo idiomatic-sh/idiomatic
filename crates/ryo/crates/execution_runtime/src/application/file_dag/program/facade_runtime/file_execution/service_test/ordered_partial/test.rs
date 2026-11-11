@@ -1,7 +1,9 @@
 //! A recognised ordered existence answers as its declined twin through the real compiled owner, whole and read in part.
+use super::super::super::service::*;
 use super::super::super::*;
 use super::super::route_controls::fixtures::{MeaningCalls, Supplied, run_read};
 use super::fixtures::first_of_each_line;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
 use ryo_relations::domain::relations::{

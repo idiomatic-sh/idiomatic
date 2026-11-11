@@ -1,7 +1,24 @@
 //! Rule outputs outlive workspace drops, and evaluation errors leave no mutable state behind.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::fixtures::output_requests;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value as Cell};

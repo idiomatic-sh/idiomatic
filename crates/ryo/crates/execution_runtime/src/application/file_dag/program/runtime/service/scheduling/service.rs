@@ -1,7 +1,7 @@
 //! Root-set scheduler: prepare, demand, publish lookup and observation roots.
 use super::super::{InvocationOutcome, KernelInvocation, ProgramExecution, RuntimeState, State};
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::Inputs;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::constants::EXECUTION_TARGET;
 use crate::application::file_dag::program::constants::READINESS_QUEUE;
 use crate::application::file_dag::program::runtime::types::{PollMode, ReaderCount};

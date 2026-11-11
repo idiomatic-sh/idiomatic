@@ -3,7 +3,7 @@ use super::super::{
     FRESH_GENERATION_READS, Prepared, RuleRun, TRANSFERRED_INDEPENDENT, language_columns, prepare,
     run_rule,
 };
-use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::open_file;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;

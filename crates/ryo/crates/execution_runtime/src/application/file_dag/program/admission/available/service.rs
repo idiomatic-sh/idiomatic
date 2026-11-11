@@ -1,6 +1,7 @@
 //! Source availability: a published input or a first-borrow source inspected once.
 use super::super::{
-    AdmittedInput, AvailableBody, AvailableInput, Partition, ProducerRoot, ReadProof,
+    service::AdmittedInput, service::AvailableInput, service::ReadProof, types::AvailableBody,
+    types::Partition, types::ProducerRoot,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;

@@ -1,5 +1,5 @@
 //! Independent runtime scratch, inputs, counters and observed results; no issuance or interpreter state.
-use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
 #[cfg(test)]
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;

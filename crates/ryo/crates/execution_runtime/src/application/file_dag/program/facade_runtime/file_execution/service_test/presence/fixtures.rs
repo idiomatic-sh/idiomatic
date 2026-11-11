@@ -1,7 +1,9 @@
 //! The support of the `presence` cases.
 pub(super) mod routing;
-use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::application::file_dag::program::facade_runtime::file_execution::{FileRun, open_file};
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::file_execution::{
+    service::FileRun, service::open_file,
+};
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::facade_runtime::types::RegionProbe;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;

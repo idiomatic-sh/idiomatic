@@ -287,13 +287,13 @@ impl ProjectPhase<'_> {
             } else {
                 Err(OperatingError::NotRead)
             };
-            roots.push(facade_runtime::project_execution::ProjectRoot {
+            roots.push(facade_runtime::project_execution::types::ProjectRoot {
                 rule: task.rule,
                 demand: task.demand,
                 run,
             });
         }
-        facade_runtime::project_execution::evaluate_roots(roots, symbols, guard)
+        facade_runtime::project_execution::service::evaluate_roots(roots, symbols, guard)
     }
     /// One admitted occurrence: scoped over the files its rule applies to, and its frontiers prepared for its demand from its
     /// rule's first bucket.

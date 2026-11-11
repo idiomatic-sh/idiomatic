@@ -1,10 +1,10 @@
 //! Delivery of one project rule through its admitted roots.
-use crate::application::file_dag::program::facade_runtime::file_execution::classify;
-use crate::application::file_dag::program::facade_runtime::file_execution::outcome_of;
-use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRun;
-use crate::application::file_dag::program::facade_runtime::source_admission::ProjectSources;
-use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
-use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::outcome_of;
+use crate::application::file_dag::program::facade_runtime::project_execution::service::ProjectRun;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::table_of;
+use crate::application::file_dag::program::facade_runtime::source_admission::types::ProjectSources;
 use crate::application::file_dag::program::observed_publication::service::ObservedPublication;
 use crate::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
@@ -32,13 +32,14 @@ impl ProjectRun<'_> {
         let context = &mut context;
         let metadata = self.program.rule_metadata(rule)?;
         let unavailable = |_relation| Err(OperatingError::NotRead);
-        let kernels = crate::application::file_dag::program::kernel_session::KernelSession::project(
-            self.services.kernels(),
-            self.program,
-            Rc::clone(&self.owner),
-            &unavailable,
-            &self.publication.walk,
-        );
+        let kernels =
+            crate::application::file_dag::program::kernel_session::service::KernelSession::project(
+                self.services.kernels(),
+                self.program,
+                Rc::clone(&self.owner),
+                &unavailable,
+                &self.publication.walk,
+            );
         let mut absent = FxHashMap::default();
         let mut sources = SourceInputs {
             execution: self.execution,

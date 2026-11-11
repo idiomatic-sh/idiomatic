@@ -50,7 +50,7 @@ impl CompiledRules {
         digest: &dyn DigestPort,
         rules: Vec<ryo_values::domain::stores::types::StoredRule>,
     ) -> Result<PreparedRuleIdentities, RuleCompilationError> {
-        super::identity::with_producers(
+        super::identity::service::with_producers(
             digest,
             rules,
             &self.inner.plans,
@@ -292,7 +292,7 @@ pub(crate) fn observed(
     hosted: &[HostRelation],
     digest: &dyn DigestPort,
 ) {
-    super::observing::compiled(rules, plans, bindings, hosted, digest);
+    super::observing::service::compiled(rules, plans, bindings, hosted, digest);
 }
 
 /// The rule at `place` of the request, or the refusal for a place the compiler reported past its rules.

@@ -52,7 +52,7 @@ pub struct FileInput<'a, 'facts> {
 /// The members of a file session, reachable only inside the runtime.
 pub(crate) struct SessionParts<'a, 'facts> {
     pub(crate) inner:
-        crate::application::file_dag::program::facade_runtime::file_execution::FileRun<'a>,
+        crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun<'a>,
     pub(crate) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(crate) file: ryo_relations::domain::relations::types::FileId,

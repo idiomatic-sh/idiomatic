@@ -1,7 +1,7 @@
 //! Kernel, semantic and physical permits issued from an admitted invocation.
 use super::super::{BoundInputs, KernelAdmission, KernelPermit, ProgramExecution, SemanticPermit};
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::ProducerRoot;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::runtime::types::InstructionIndex;
 use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::executable_program::types::InputSource;

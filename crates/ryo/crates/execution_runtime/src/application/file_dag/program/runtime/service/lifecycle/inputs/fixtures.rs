@@ -1,8 +1,8 @@
 //! Compiled program lifecycle proof with a real owner.
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::Emptiness;
-use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::types::Emptiness;
+use crate::application::file_dag::program::admission::types::Partition;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -122,7 +122,7 @@ pub(crate) fn compiled() -> CompiledCase {
         semantic,
     ));
     let partition = Partition::File(
-        crate::application::file_dag::program::admission::FileGeneration::from_owner(
+        crate::application::file_dag::program::admission::service::FileGeneration::from_owner(
             FileId(0),
             &owner,
         ),
@@ -185,12 +185,12 @@ impl TestInputs {
     }
     fn computed(
         &self,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::types::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
         table: Table,
     ) -> Result<AdmittedInput, OperatingError> {
-        let read = crate::application::file_dag::program::admission::contributed_proof(
+        let read = crate::application::file_dag::program::admission::service::contributed_proof(
             partition,
             inputs,
             &self.owner,
@@ -224,8 +224,10 @@ impl Inputs for TestInputs {
         source: InputSource,
         partition: &Partition,
         _: &mut OperatorContext<'_>,
-    ) -> Result<crate::application::file_dag::program::admission::AvailableInput, OperatingError>
-    {
+    ) -> Result<
+        crate::application::file_dag::program::admission::service::AvailableInput,
+        OperatingError,
+    > {
         self.admitted.push(source);
         let InputSource::Relation(relation) = source else {
             return Err(OperatingError::NotRead);
@@ -235,10 +237,10 @@ impl Inputs for TestInputs {
             relation,
             rows: &rows,
         })?;
-        crate::application::file_dag::program::admission::AvailableInput::source(
+        crate::application::file_dag::program::admission::service::AvailableInput::source(
             Rc::clone(&self.owner),
             publication,
-            crate::application::file_dag::program::admission::ProducerRoot::Input(source),
+            crate::application::file_dag::program::admission::types::ProducerRoot::Input(source),
             partition.clone(),
             ryo_execution_domain::domain::completion::types::CoverageState::Complete,
             rows,
@@ -246,7 +248,7 @@ impl Inputs for TestInputs {
     }
     fn admit(
         &mut self,
-        input: &crate::application::file_dag::program::admission::AvailableInput,
+        input: &crate::application::file_dag::program::admission::service::AvailableInput,
         partition: &Partition,
         _: &mut OperatorContext<'_>,
     ) -> Result<AdmittedInput, OperatingError> {
@@ -275,12 +277,12 @@ impl Inputs for TestInputs {
     }
     fn publish(
         &mut self,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::types::ProducerRoot,
         partition: &Partition,
         inputs: &[AdmittedInput],
-        representation: crate::application::file_dag::program::admission::Representation,
+        representation: crate::application::file_dag::program::admission::service::Representation,
     ) -> Result<AdmittedInput, OperatingError> {
-        use crate::application::file_dag::program::admission::Representation;
+        use crate::application::file_dag::program::admission::service::Representation;
         let Representation::Computed(rows) = representation;
         self.computed(root, partition, inputs, rows)
     }

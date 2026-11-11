@@ -6,7 +6,9 @@ use ryo_execution_store::application::file_dag::relations::interface::RelationsP
 use std::rc::Rc;
 
 fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases() {
-    use crate::application::file_dag::program::admission::{ProducerRoot, ReadProof};
+    use crate::application::file_dag::program::admission::{
+        service::ReadProof, types::ProducerRoot,
+    };
 
     use ryo_execution_domain::domain::table_model::types::RepresentationInput;
     use ryo_values::domain::rows::types::{RowCount, Table};
@@ -67,7 +69,7 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
         }
         for (publication, proof) in [(&a, &a_proof), (&b, &b_proof)] {
             let admitted =
-                crate::application::file_dag::program::admission::AdmittedInput::from_publication(
+                crate::application::file_dag::program::admission::service::AdmittedInput::from_publication(
                     Rc::clone(&owner),
                     publication.clone(),
                     proof,
@@ -85,7 +87,7 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
         }
         for (publication, proof) in [(&b, &a_proof), (&a, &b_proof)] {
             assert!(matches!(
-                crate::application::file_dag::program::admission::AdmittedInput::from_publication(
+                crate::application::file_dag::program::admission::service::AdmittedInput::from_publication(
                     Rc::clone(&owner),
                     publication.clone(),
                     proof,

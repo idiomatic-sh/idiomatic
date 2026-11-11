@@ -1,9 +1,20 @@
 //! Actual compiled request and services for the external lifecycle proof.
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 pub(super) mod exit;
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::super::fixtures::*;
 use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use ryo_execution_domain::domain::{

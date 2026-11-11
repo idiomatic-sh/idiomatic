@@ -9,7 +9,7 @@ struct FrontierKey {
     rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     first: ryo_values::domain::stored_facts::types::Bucket,
     ready: Option<Vec<InputReadiness>>,
-    required: crate::application::file_dag::program::admission::RequiredPartitions,
+    required: crate::application::file_dag::program::admission::types::RequiredPartitions,
     providers: Providers,
 }
 
@@ -37,7 +37,7 @@ impl FrontierCache {
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
         first: ryo_values::domain::stored_facts::types::Bucket,
         ready: Option<&[InputReadiness]>,
-        required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
         providers: Providers,
         acquire: impl FnOnce() -> Result<PreparedFrontiers, E>,
     ) -> Result<PreparedFrontiers, E> {
@@ -53,7 +53,7 @@ impl FrontierCache {
                 && key.ready.as_deref() == ready
                 && key.providers == providers
                 && key.required.same_request(required)
-                    == crate::application::file_dag::program::admission::Agreement::Same)
+                    == crate::application::file_dag::program::admission::types::Agreement::Same)
                 .then(|| entry.rows.upgrade().map(|rows| (rows, entry)))
                 .flatten()
         }) {
@@ -103,11 +103,11 @@ impl PreparedFrontiers {
     pub(crate) fn validate_scope(
         &self,
         program: &std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
-        required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     ) -> Result<(), ryo_execution_domain::domain::operating::errors::OperatingError> {
         if !std::sync::Arc::ptr_eq(&self.program, program)
             || self.required.same_request(required)
-                == crate::application::file_dag::program::admission::Agreement::Different
+                == crate::application::file_dag::program::admission::types::Agreement::Different
         {
             return Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead);
         }

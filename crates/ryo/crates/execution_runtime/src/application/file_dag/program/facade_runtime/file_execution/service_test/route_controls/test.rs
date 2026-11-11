@@ -1,8 +1,10 @@
 //! Refusal and physical-route controls through the real compiled owner.
+use super::super::super::service::*;
 use super::super::super::*;
 use super::super::fixtures::*;
 use super::fixtures::ordered_strategy_fixture;
 use super::fixtures::{MeaningCalls, run as run_file};
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
 use ryo_relations::domain::relations::{

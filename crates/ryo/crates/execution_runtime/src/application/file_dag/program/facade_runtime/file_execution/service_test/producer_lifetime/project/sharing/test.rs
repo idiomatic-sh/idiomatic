@@ -1,12 +1,17 @@
 //! One source pass and one frontier decode per population across the rules of a cohort, and
 //! retirement on every exit.
+use super::super::super::super::super::service::*;
 use super::super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use super::fixtures::{Stored, exercise};
 use crate::application::file_dag::frontiers::types::DecodeCount;
 use crate::application::file_dag::program::native_walk::project::service::ProjectWalk;
-use crate::application::file_dag::program::native_walk::{Deliveries, RetainedBatches};
+use crate::application::file_dag::program::native_walk::{
+    types::Deliveries, types::RetainedBatches,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 
 fn one_population_is_read_once_for_every_rule_of_its_cohort() {
     let seen = exercise(PhaseExit::Complete, [2, 2, 2, 2], Stored::Decoded);

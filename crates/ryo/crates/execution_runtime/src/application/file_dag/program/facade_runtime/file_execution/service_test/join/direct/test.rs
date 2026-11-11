@@ -1,10 +1,12 @@
 //! Direct catalog-relation Join routes retain their real acquired representation.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::*;
 use super::fixtures::{encoded, request, schema_column, simple, table};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Integer, Relation, Value as Cell};

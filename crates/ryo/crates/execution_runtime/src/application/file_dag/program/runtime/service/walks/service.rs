@@ -1,8 +1,8 @@
 //! Walk-source admission for a live kernel permit.
 use super::super::KernelPermit;
-use crate::application::file_dag::program::admission::AdmittedWalkSource;
-use crate::application::file_dag::program::admission::FileGeneration;
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::service::AdmittedWalkSource;
+use crate::application::file_dag::program::admission::service::FileGeneration;
+use crate::application::file_dag::program::admission::types::Partition;
 use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
@@ -15,7 +15,7 @@ impl KernelPermit<'_> {
         match self.partition {
             Partition::File(actual)
                 if actual.matches(expected, self.generation)
-                    == crate::application::file_dag::program::admission::Agreement::Same =>
+                    == crate::application::file_dag::program::admission::types::Agreement::Same =>
             {
                 Ok(())
             }

@@ -1,7 +1,9 @@
 //! A rule's inapplicable files are its own evidence beside the project identity: two identities of one request that differ only in
 //! them are one identity to every check, among them the lookup of the frontier cache (`same_request`), and each keeps its own set.
-use super::super::super::request_identity::RequestIdentity;
-use super::super::{Agreement, Partition, PartitionSupply, RequiredPartitions};
+use super::super::super::request_identity::service::RequestIdentity;
+use super::super::{
+    types::Agreement, types::Partition, types::PartitionSupply, types::RequiredPartitions,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::FileId;

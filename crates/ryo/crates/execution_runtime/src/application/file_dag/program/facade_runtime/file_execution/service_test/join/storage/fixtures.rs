@@ -1,9 +1,11 @@
 //! The support of the `storage` cases.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
 #[cfg(test)]
 use fixtures::execution::*;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_relations::domain::relations::{service::to_bits, types::FactColumn};

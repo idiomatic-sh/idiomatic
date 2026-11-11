@@ -12,7 +12,7 @@ use ryo_execution_domain::domain::{
 pub(crate) struct PermittedWalk<'call, 'context, 'scope> {
     permit: &'call KernelPermit<'scope>,
     prepared: &'call PreparedProgram,
-    source: crate::application::file_dag::program::admission::AdmittedWalkSource<'call>,
+    source: crate::application::file_dag::program::admission::service::AdmittedWalkSource<'call>,
     context: &'call mut OperatorContext<'context>,
     ready: &'call [ClassPlace],
     work: &'call mut WalkWork,
@@ -21,7 +21,9 @@ impl<'call, 'context, 'scope> PermittedWalk<'call, 'context, 'scope> {
     pub(crate) fn new(
         permit: &'call KernelPermit<'scope>,
         prepared: &'call PreparedProgram,
-        source: crate::application::file_dag::program::admission::AdmittedWalkSource<'call>,
+        source: crate::application::file_dag::program::admission::service::AdmittedWalkSource<
+            'call,
+        >,
         context: &'call mut OperatorContext<'context>,
         ready: &'call [ClassPlace],
         work: &'call mut WalkWork,

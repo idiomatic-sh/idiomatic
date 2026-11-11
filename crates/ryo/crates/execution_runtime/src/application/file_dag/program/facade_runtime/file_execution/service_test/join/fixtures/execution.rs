@@ -1,14 +1,32 @@
 //! The real file owner and its semantic port, invoked once per join observation.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::super::fixtures::*;
 use super::provider::{Provider, provider};
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
 use ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{FileId, Value as Cell};

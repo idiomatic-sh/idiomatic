@@ -1,8 +1,8 @@
 //! Delivery of the canonical publication of one file.
-use crate::application::file_dag::program::admission::Inputs;
+use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::constants::FILE_STREAM_CONSUMER;
-use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
-use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -73,13 +73,14 @@ impl FileRun<'_> {
             } => CompletionPolicy::file_inputs(rule, self.file, evaluation, publication),
             ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
         };
-        let kernels = crate::application::file_dag::program::kernel_session::KernelSession::file(
-            self.services.kernels(),
-            self.program,
-            Rc::clone(&self.owner),
-            read,
-            &self.walk,
-        );
+        let kernels =
+            crate::application::file_dag::program::kernel_session::service::KernelSession::file(
+                self.services.kernels(),
+                self.program,
+                Rc::clone(&self.owner),
+                read,
+                &self.walk,
+            );
         let mut sources = SourceInputs {
             execution: &self.execution,
             state: self.execution.file_state(),

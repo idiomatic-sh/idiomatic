@@ -70,7 +70,7 @@ pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
         Arc::clone(&derived),
         ObservationIdentity::Independent,
     )?;
-    let engine: Arc<dyn crate::application::file_dag::executor::PrimitiveExecutor + Send> =
+    let engine: Arc<dyn crate::application::file_dag::executor::service::PrimitiveExecutor + Send> =
         Arc::new(CommonOperatorEngine::new(
             (std::sync::Arc::new(crate::application::file_dag::fixtures::operators())
                 as std::sync::Arc<dyn crate::outbound::operators::interface::OperatorsPort>),
@@ -183,7 +183,7 @@ pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
     } else {
         Rc::clone(&owner)
     };
-    let walk = super::super::super::super::super::native_walk::FileWalk::new(
+    let walk = super::super::super::super::super::native_walk::service::FileWalk::new(
         FileGeneration::from_owner(FileId(0), &walk_owner),
     );
     let project_walk =
@@ -192,7 +192,7 @@ pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
     project_walk.owe(
         &prepared,
         RuleIndex(0),
-        crate::application::file_dag::program::native_walk::Deliveries(1),
+        crate::application::file_dag::program::native_walk::types::Deliveries(1),
     );
     let kernels = match (&scope, case) {
         (_, SourceCase::FileAsProject) => KernelSession::project(
@@ -218,7 +218,7 @@ pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
     };
     let mut observed = rustc_hash::FxHashMap::default();
     let mut sources =
-        crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs {
+        crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs {
             execution: &execution,
             state: execution.file_state(),
             completion: completion.clone(),

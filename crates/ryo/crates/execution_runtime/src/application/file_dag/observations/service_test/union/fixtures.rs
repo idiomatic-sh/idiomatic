@@ -1,6 +1,6 @@
 //! The support of the `union` cases.
-use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::application::file_dag::program::facade_runtime::file_execution::open_file;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::open_file;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;

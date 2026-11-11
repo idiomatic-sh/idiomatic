@@ -1,8 +1,8 @@
 //! Deferred frontier sources of one project phase: their populations and invocation identity.
 use crate::application::file_dag::frontiers::types::FrontierInput;
-use crate::application::file_dag::program::admission::AvailableInput;
-use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::program::admission::ProducerRoot;
+use crate::application::file_dag::program::admission::service::AvailableInput;
+use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::facade_runtime::service::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::project_population::types::BoundKey;
@@ -134,7 +134,7 @@ impl PublicationScope {
         let mut bindings = Vec::new();
         for binding in bound.iter().flatten() {
             bindings.push(BoundKey::Input(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(
-                crate::application::file_dag::program::facade_runtime::source_admission::observation_slot(prepared, rule, binding.input)?.0,
+                crate::application::file_dag::program::facade_runtime::source_admission::service::observation_slot(prepared, rule, binding.input)?.0,
             ))));
             match &binding.members {
                 Err(error) => bindings.push(BoundKey::Refused(error.clone())),

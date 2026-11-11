@@ -1,7 +1,8 @@
 //! The admitted input: identity, rows, coverage and generation validation.
 use super::super::{
-    AdmittedInput, AdmittedWalkSource, Agreement, ObservationReadiness, Partition, PartitionSupply,
-    PopulationProof, ProducerRoot, ReadProof,
+    service::AdmittedInput, service::AdmittedWalkSource, service::PopulationProof,
+    service::ReadProof, types::Agreement, types::ObservationReadiness, types::Partition,
+    types::PartitionSupply, types::ProducerRoot,
 };
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::{

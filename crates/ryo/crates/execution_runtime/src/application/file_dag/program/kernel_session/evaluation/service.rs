@@ -1,5 +1,5 @@
 //! Registered-operator evaluation of a kernel session.
-use crate::application::file_dag::invocation::InvocationResources;
+use crate::application::file_dag::invocation::service::InvocationResources;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
@@ -16,7 +16,7 @@ use ryo_execution_store::application::file_dag::workspace::service::InvocationWo
 use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;
 
-impl super::super::KernelSession<'_, '_> {
+impl super::super::service::KernelSession<'_, '_> {
     pub(crate) fn evaluate_session(
         &self,
         instruction: &Instruction,
@@ -56,20 +56,22 @@ impl super::super::KernelSession<'_, '_> {
         let workspace = &mut invocation_workspace;
         let contract = instruction.contract().as_ref();
         let setup_failure = std::sync::OnceLock::new();
-        let setup_semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
-            #[cfg(feature = "diagnostic-row-progress")]
-            progress: self.owner.routes(),
-            port: self.kernels,
-            permit: permit.semantics(),
-            failure: &setup_failure,
-            binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
-                bindings: context.bindings,
-                regex_identity: None,
-                source_len: ryo_operators::domain::contract::types::SourceByteLength(
-                    context.source.0.len(),
-                ),
-            },
-        };
+        let setup_semantics =
+            crate::application::file_dag::execution::types::PrimitiveSemanticsBridge {
+                #[cfg(feature = "diagnostic-row-progress")]
+                progress: self.owner.routes(),
+                port: self.kernels,
+                permit: permit.semantics(),
+                failure: &setup_failure,
+                binding:
+                    ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
+                        bindings: context.bindings,
+                        regex_identity: None,
+                        source_len: ryo_operators::domain::contract::types::SourceByteLength(
+                            context.source.0.len(),
+                        ),
+                    },
+            };
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
@@ -80,7 +82,7 @@ impl super::super::KernelSession<'_, '_> {
                     let mut resources =
                         crate::application::file_dag::invocation::service::continuation(contract)
                             .map_err(InvocationFailure::Semantic)?;
-                    crate::application::file_dag::execution::lease::evaluate(
+                    crate::application::file_dag::execution::lease::service::evaluate(
                         self.kernels,
                         contract,
                         permit,
@@ -115,7 +117,7 @@ impl super::super::KernelSession<'_, '_> {
                                 self.prepared,
                                 permit,
                                 source,
-                                crate::application::file_dag::program::native_walk::WalkDelivery::Rows,
+                                crate::application::file_dag::program::native_walk::types::WalkDelivery::Rows,
                                 context,
                                 self.kernels,
                             )
@@ -188,7 +190,7 @@ impl super::super::KernelSession<'_, '_> {
                     let meaning = &contract.semantics;
                     match meaning.shape {
                         InputMode::Views => {
-                            crate::application::file_dag::execution::lease::evaluate(
+                            crate::application::file_dag::execution::lease::service::evaluate(
                                 self.kernels,
                                 contract,
                                 permit,
@@ -217,7 +219,7 @@ impl super::super::KernelSession<'_, '_> {
                                     })
                                 })?,
                             };
-                            crate::application::file_dag::execution::lease::evaluate(
+                            crate::application::file_dag::execution::lease::service::evaluate(
                                 self.kernels,
                                 contract,
                                 permit,
@@ -297,7 +299,7 @@ impl super::super::KernelSession<'_, '_> {
                                             .map_err(InvocationFailure::Semantic)?,
                                         );
                                     }
-                                    crate::application::file_dag::execution::lease::evaluate(
+                                    crate::application::file_dag::execution::lease::service::evaluate(
                                         self.kernels,
                                         contract,
                                         permit,

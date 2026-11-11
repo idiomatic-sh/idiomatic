@@ -1,4 +1,5 @@
 //! Every provider kind reaches the required join capability, and empty or failed lefts never build a right index.
+use super::super::super::super::super::service::*;
 use super::super::super::super::super::*;
 use super::super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree};
 use super::super::super::*;
@@ -9,7 +10,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use fixtures::execution::*;
 #[cfg(test)]
 use fixtures::provider::*;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_cells::types::TreeForm;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};

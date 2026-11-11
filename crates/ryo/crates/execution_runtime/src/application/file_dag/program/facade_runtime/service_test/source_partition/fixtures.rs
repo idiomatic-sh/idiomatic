@@ -2,11 +2,11 @@
 pub(super) mod phase;
 use super::super::*;
 use crate::application::file_dag::program::admission::{
-    FileGeneration, Partition, contributed_proof,
+    service::FileGeneration, service::contributed_proof, types::Partition,
 };
-use crate::application::file_dag::program::context::RunContext;
+use crate::application::file_dag::program::context::service::RunContext;
 use crate::application::file_dag::program::facade_runtime::service::required_partitions;
-use crate::application::file_dag::program::kernel_session::KernelSession;
+use crate::application::file_dag::program::kernel_session::service::KernelSession;
 use crate::application::file_dag::program::runtime::service::{
     InvocationOutcome, ProgramExecution,
 };

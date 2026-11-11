@@ -1,5 +1,5 @@
 //! The read-only views of a prepared program.
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::preparation::types::RuleTotal;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
 use crate::application::file_dag::program::prepared_execution::interface::ProgramPreparedExecutionPort;

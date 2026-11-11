@@ -1,14 +1,26 @@
 //! Chained registered evaluations reuse downstream invocation state and release their peaks.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::super::fixtures::*;
 use super::super::super::scratch_owner::fixtures::{execute, hosted};
 use super::fixtures::MemoSink;
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};

@@ -1,8 +1,11 @@
 //! Original scan/transport/key assertions through pure scanning or real compiled execution.
+use super::super::super::service::*;
 use super::super::super::*;
 use super::fixtures::{CheckedSink, context, files, indexed_join, project_into};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::replay::{service::scan, types::Collect};
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::Table;

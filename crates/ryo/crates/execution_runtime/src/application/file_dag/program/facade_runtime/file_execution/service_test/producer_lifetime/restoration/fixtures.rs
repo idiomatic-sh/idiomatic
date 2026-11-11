@@ -1,18 +1,19 @@
 //! A captured file producer admitted to the real named project publication owner.
 pub(super) mod captured;
 pub(super) mod scenario;
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::super::fixtures::*;
 use super::super::fixtures::{FinalConsumer, ProjectionOrder, shared_plan};
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::{BoundInput, BoundMember};
-use crate::application::file_dag::program::admission::RequiredPartitions;
+use crate::application::file_dag::program::admission::types::RequiredPartitions;
 use crate::application::file_dag::program::facade_runtime::project_execution::{
-    ProjectRoot, evaluate_roots,
+    service::ProjectRun, service::open_project,
 };
 use crate::application::file_dag::program::facade_runtime::project_execution::{
-    ProjectRun, open_project,
+    service::evaluate_roots, types::ProjectRoot,
 };
 use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
 use crate::application::file_dag::program::facade_runtime::service::PublicationScope;

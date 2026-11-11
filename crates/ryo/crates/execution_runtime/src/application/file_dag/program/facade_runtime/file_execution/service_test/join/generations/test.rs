@@ -1,18 +1,30 @@
 //! File-generation freshness under one immutable prepared request and service set.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::direct::fixtures::{request, schema_column, simple};
 use super::super::*;
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::table_model::types::RepresentationKind;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
 use ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::RecordedDerived;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation, Value as Cell};

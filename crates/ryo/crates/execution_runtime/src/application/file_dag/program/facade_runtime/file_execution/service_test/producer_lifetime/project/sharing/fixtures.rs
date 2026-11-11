@@ -1,4 +1,5 @@
 //! The support of the `sharing` cases.
+use super::super::super::super::super::service::*;
 use super::super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
@@ -6,11 +7,19 @@ use crate::application::file_dag::frontiers::types::DecodeCount;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::frontiers::types::PackedFrontier;
-use crate::application::file_dag::program::facade_runtime::project_execution::ProjectRoot;
-use crate::application::file_dag::program::facade_runtime::project_execution::evaluate_roots;
+use crate::application::file_dag::program::facade_runtime::project_execution::service::evaluate_roots;
+use crate::application::file_dag::program::facade_runtime::project_execution::types::ProjectRoot;
 use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
-use crate::application::file_dag::program::native_walk::RetainedBatches;
+use crate::application::file_dag::program::native_walk::types::RetainedBatches;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::shared_walk::types::WalkCounts;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
@@ -123,7 +132,7 @@ pub(super) fn exercise(exit: PhaseExit, values: [i64; 4], stored: Stored) -> Obs
             ProjectRoot {
                 rule: RuleIndex(at),
                 demand,
-                run: crate::application::file_dag::program::facade_runtime::project_execution::open_project(
+                run: crate::application::file_dag::program::facade_runtime::project_execution::service::open_project(
                     &prepared,
                     required.clone(),
                     ScopePartials::Project {

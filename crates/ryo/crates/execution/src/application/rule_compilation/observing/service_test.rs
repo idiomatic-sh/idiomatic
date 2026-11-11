@@ -1,5 +1,5 @@
 //! Observer normalization preserves column mappings, bag semantics and diagnostic ownership.
-use super::prefix;
+use super::service::prefix;
 use crate::application::rule_compilation::constants::{
     BAG_PRESERVING_PROJECTION, CALL_TEXT, COMPOSED_PREFIX, DISTINCT_IS_BARRIER, IDENTITY_SELECT,
     RELATION_ROOTED_FILTER, ZERO_WIDTH_PROJECTION,

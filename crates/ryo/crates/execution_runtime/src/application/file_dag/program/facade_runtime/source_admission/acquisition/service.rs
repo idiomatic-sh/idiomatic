@@ -1,11 +1,11 @@
 //! Demand-triggered source supply for one region input.
-use super::super::SourceInputs;
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::AvailableInput;
-use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::program::admission::ProducerRoot;
-use crate::application::file_dag::program::admission::ReadProof;
+use super::super::service::SourceInputs;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::AvailableInput;
+use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::service::ReadProof;
+use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::constants::{
     OBSERVATION_UNAVAILABLE, PRODUCER_COVERAGE_INCOMPLETE, PRODUCER_ROOT_INCOMPLETE,
     PRODUCER_WITHOUT_QUERY, SOURCE_FACTS_INCOMPLETE,
@@ -107,12 +107,13 @@ impl SourceInputs<'_, '_> {
                     .execution
                     .published(self.state, union)?
                     .ok_or_else(|| OperatingError::NotRun)?;
-                let admitted = crate::application::file_dag::program::admission::alias_observation(
-                    self.program.program(),
-                    crate::application::file_dag::program::admission::AliasSlot(slot),
-                    &input,
-                    &self.owner,
-                )?;
+                let admitted =
+                    crate::application::file_dag::program::admission::service::alias_observation(
+                        self.program.program(),
+                        crate::application::file_dag::program::admission::types::AliasSlot(slot),
+                        &input,
+                        &self.owner,
+                    )?;
                 self.observations
                     .insert(ObservationKey(slot), admitted.clone());
                 Ok(admitted)
@@ -234,15 +235,15 @@ impl SourceInputs<'_, '_> {
                         admitted?
                     }
                 };
-                if admitted.observation_ready()? == crate::application::file_dag::program::admission::ObservationReadiness::Waiting {
+                if admitted.observation_ready()? == crate::application::file_dag::program::admission::types::ObservationReadiness::Waiting {
                     return Err(OperatingError::ObservationIncomplete {
                         reason: PRODUCER_COVERAGE_INCOMPLETE.into(),
                     });
                 }
-                crate::application::file_dag::program::admission::alias_member(
+                crate::application::file_dag::program::admission::service::alias_member(
                     self.program,
-                    crate::application::file_dag::program::admission::AliasSlot(slot),
-                    crate::application::file_dag::program::admission::AliasMember(member),
+                    crate::application::file_dag::program::admission::types::AliasSlot(slot),
+                    crate::application::file_dag::program::admission::types::AliasMember(member),
                     &admitted,
                     partition,
                     &self.owner,

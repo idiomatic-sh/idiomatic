@@ -1,5 +1,25 @@
 //! The readiness cases: their rows, the observation they read and the subject that runs them.
 use super::*;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+#[cfg(test)]
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 pub(crate) fn observe(omit: bool) -> Coverage {
     let events = Events::default();
     let observer = tracing::Dispatch::new(events.clone());

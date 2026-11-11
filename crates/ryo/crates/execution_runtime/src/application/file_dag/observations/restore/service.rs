@@ -1,5 +1,5 @@
 //! Restore demanded file roots through the same request owner, once per physical bucket.
-use crate::application::file_dag::observations::cross::incomplete;
+use crate::application::file_dag::observations::cross::service::incomplete;
 use crate::application::file_dag::observations::types::CrossRoot;
 use crate::application::file_dag::observations::types::{
     CrossPublications, FileFrontiers, FrontierCompatibility, FrontierPopulation, FrontierSlot,
@@ -255,7 +255,7 @@ pub(crate) fn restore_frontiers(
                         reason: error.to_string(),
                     })?;
             let restored =
-                crate::application::file_dag::program::restored::validate_restored_frontier(
+                crate::application::file_dag::program::restored::service::validate_restored_frontier(
                     program,
                     root.producer,
                     root.frontier,

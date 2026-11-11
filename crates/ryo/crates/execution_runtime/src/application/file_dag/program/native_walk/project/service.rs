@@ -1,12 +1,13 @@
 //! One admitted project-stage source population is scanned once for every rule of its cohort.
 use super::super::lease::service::PermittedWalk;
 use super::super::{
-    Deliveries, Fate, FileWalk, Owed, SourceWork, WalkDelivery, WalkResult, WalkSourceIdentity,
+    service::FileWalk, service::Owed, service::SourceWork, service::WalkResult,
+    service::WalkSourceIdentity, types::Deliveries, types::Fate, types::WalkDelivery,
 };
 use crate::application::file_dag::executor::{
-    KernelAnswer, KernelCall, KernelFault, PrimitiveExecutor,
+    service::PrimitiveExecutor, types::KernelAnswer, types::KernelCall, types::KernelFault,
 };
-use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::runtime::service::{KernelPermit, ReadySelection};
 use crate::application::file_dag::program::runtime::types::Submission;
@@ -329,8 +330,8 @@ impl ProjectWalk {
         self.retired.set(retired);
     }
     #[cfg(test)]
-    pub(crate) fn retained(&self) -> super::super::RetainedBatches {
-        super::super::RetainedBatches(self.batches.borrow().len())
+    pub(crate) fn retained(&self) -> super::super::types::RetainedBatches {
+        super::super::types::RetainedBatches(self.batches.borrow().len())
     }
     #[cfg(test)]
     pub(crate) fn counts(&self) -> WalkCounts {

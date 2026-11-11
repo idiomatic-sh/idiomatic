@@ -6,7 +6,7 @@ use super::super::super::super::fixtures::{
         heads::operations,
     },
 };
-use super::super::super::super::heads::expected;
+use super::super::super::super::heads::service::expected;
 use crate::cases::{Case, CaseName, Expect, Word};
 use ryo_execution_domain::domain::executable_program::types::{InputSource, LogicalInstruction};
 use ryo_execution_domain::domain::shared_walk::types::walk_route::value::{

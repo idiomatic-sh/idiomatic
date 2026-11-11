@@ -8,7 +8,7 @@ pub(crate) fn prepared_frontiers(
     sources: Arc<[FrontierSource]>,
     rows: Arc<[FrontierInput]>,
     program: Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
-    required: crate::application::file_dag::program::admission::RequiredPartitions,
+    required: crate::application::file_dag::program::admission::types::RequiredPartitions,
     refused: Arc<[ryo_execution_domain::domain::frontiers::types::RefusedFrontier]>,
 ) -> PreparedFrontiers {
     PreparedFrontiers {

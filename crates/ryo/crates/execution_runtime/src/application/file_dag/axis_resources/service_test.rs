@@ -1,12 +1,20 @@
 //! Real borrowed-index traversal, duplicate order and admission timing controls.
-use super::view::AxisResource;
+use super::service::*;
+use super::types::*;
+use super::view::service::AxisResource;
 use super::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::derived_views::types::{
     DerivedInputs, DerivedScratch, MembershipSpace,
 };
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::operator::contract::resources::AxisResources;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::table_words::types::ColumnCount;
 use std::sync::Arc;
 use {

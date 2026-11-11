@@ -141,7 +141,7 @@ impl RequestExecution {
             symbols,
             input.source,
         );
-        let inner = facade_runtime::file_execution::open_file(
+        let inner = facade_runtime::file_execution::service::open_file(
             &self.program,
             input.file,
             ScopePartials::File {
@@ -179,14 +179,14 @@ impl RequestExecution {
         &'a self,
         input: ProjectInput<'a>,
         symbols: &mut Symbols,
-    ) -> Result<facade_runtime::project_execution::ProjectRun<'a>, OperatingError> {
+    ) -> Result<facade_runtime::project_execution::service::ProjectRun<'a>, OperatingError> {
         let frontiers =
             crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers {
                 publication: &input.scope.publication,
                 ordinary: input.ordinary,
                 bound_inputs: input.bound,
             };
-        let inner = facade_runtime::project_execution::open_project(
+        let inner = facade_runtime::project_execution::service::open_project(
             &self.program,
             input.scope.required.clone(),
             ScopePartials::Project {

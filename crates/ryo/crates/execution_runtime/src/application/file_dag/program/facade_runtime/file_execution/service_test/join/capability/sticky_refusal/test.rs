@@ -1,4 +1,5 @@
 //! A sink failure or a fused semantic refusal stays sticky while the kernel continues and reports success.
+use super::super::super::super::super::service::*;
 use super::super::super::super::super::*;
 use super::super::super::cases::fixtures::table_of;
 use super::super::super::*;
@@ -10,6 +11,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use fixtures::execution::*;
 #[cfg(test)]
 use fixtures::provider::*;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::{

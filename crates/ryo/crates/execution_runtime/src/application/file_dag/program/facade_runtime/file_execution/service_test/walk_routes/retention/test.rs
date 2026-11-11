@@ -1,11 +1,15 @@
 //! Refused calls are not deliveries; capture is owed; release is keyed by relation.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::fixtures::{Residency, demand, observed_demand};
 use super::fixtures::{
     capture, captured_program, deliver, forward, program, relations_program, rows,
 };
-use crate::application::file_dag::program::native_walk::RetainedBatches;
+use crate::application::file_dag::program::native_walk::types::RetainedBatches;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
 use ryo_language::domain::symbols::types::Symbols;
 

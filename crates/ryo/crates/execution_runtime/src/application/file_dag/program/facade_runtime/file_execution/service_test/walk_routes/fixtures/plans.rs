@@ -1,7 +1,15 @@
 //! Authored plans declare expected barriers without consulting the prepared walk.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::super::fixtures::*;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::observations::types::{

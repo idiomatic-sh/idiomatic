@@ -1,6 +1,8 @@
 //! The support of the `succeeding` cases.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::fixtures::{compute, expected, numbers, operation};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::cases::{Case, CaseName, Expect, Word};

@@ -31,10 +31,10 @@ impl ProgramExecution {
                 .ok_or_else(|| InvocationFailure::Semantic(OperatingError::NotRun))?;
             let input = inputs
                 .publish(
-                    crate::application::file_dag::program::admission::ProducerRoot::Region(id),
+                    crate::application::file_dag::program::admission::types::ProducerRoot::Region(id),
                     &self.partition,
                     &[],
-                    crate::application::file_dag::program::admission::Representation::empty(
+                    crate::application::file_dag::program::admission::service::Representation::empty(
                         last.contract().output_kinds.clone(),
                     )
                     .map_err(InvocationFailure::Semantic)?,
@@ -70,10 +70,10 @@ impl ProgramExecution {
         let input = call
             .inputs
             .publish(
-                crate::application::file_dag::program::admission::ProducerRoot::Region(id),
+                crate::application::file_dag::program::admission::types::ProducerRoot::Region(id),
                 &self.partition,
                 &[],
-                crate::application::file_dag::program::admission::Representation::empty(
+                crate::application::file_dag::program::admission::service::Representation::empty(
                     last.contract().output_kinds.clone(),
                 )
                 .map_err(InvocationFailure::Semantic)?,
@@ -170,10 +170,10 @@ impl ProgramExecution {
             let coverage = source.coverage().clone();
             let publication = inputs
                 .publish(
-                    crate::application::file_dag::program::admission::ProducerRoot::Region(id),
+                    crate::application::file_dag::program::admission::types::ProducerRoot::Region(id),
                     &self.partition,
                     &[source],
-                    crate::application::file_dag::program::admission::Representation::Computed(
+                    crate::application::file_dag::program::admission::service::Representation::Computed(
                         rows,
                     ),
                 )

@@ -1,5 +1,22 @@
 //! The producer lifetime scenario every exit runs.
 use super::*;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 pub(in super::super) fn exercise(final_consumer: FinalConsumer) -> Result<(), OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
     let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);

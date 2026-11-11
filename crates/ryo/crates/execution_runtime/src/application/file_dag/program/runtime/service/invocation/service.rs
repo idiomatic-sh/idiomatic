@@ -3,7 +3,7 @@ use super::super::{
     AdmissionProgress, Continue, Invocation, InvocationOutcome, KernelInvocation, KernelPermit,
     Poll, ProgramExecution, RuntimeState, Slot, State, Terminal,
 };
-use crate::application::file_dag::program::admission::Inputs;
+use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::constants::EXECUTION_TARGET;
 use crate::application::file_dag::program::constants::OUTCOME_FAILED;
 use crate::application::file_dag::program::constants::OUTCOME_MISSING;

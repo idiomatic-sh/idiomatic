@@ -1,9 +1,13 @@
 //! A normalized named union is not the relation population with the same cell kinds.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rows::types::RowCount;
 use std::{rc::Rc, sync::Arc};

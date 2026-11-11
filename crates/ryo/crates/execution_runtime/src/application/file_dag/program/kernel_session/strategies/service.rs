@@ -9,12 +9,12 @@ use ryo_execution_store::application::file_dag::relations::interface::RelationsP
 use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
 use std::rc::Rc;
 
-impl super::super::KernelSession<'_, '_> {
+impl super::super::service::KernelSession<'_, '_> {
     pub(crate) fn ordered_session(
         &self,
         shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,
-        input: &crate::application::file_dag::program::admission::AdmittedInput,
+        input: &crate::application::file_dag::program::admission::service::AdmittedInput,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
@@ -69,7 +69,7 @@ impl super::super::KernelSession<'_, '_> {
             )
         });
         let failure = std::sync::OnceLock::new();
-        let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+        let semantics = crate::application::file_dag::execution::types::PrimitiveSemanticsBridge {
             #[cfg(feature = "diagnostic-row-progress")]
             progress: self.owner.routes(),
             port: self.kernels,
@@ -83,7 +83,7 @@ impl super::super::KernelSession<'_, '_> {
                 ),
             },
         };
-        let result = crate::application::file_dag::ordered_existence::evaluate(
+        let result = crate::application::file_dag::ordered_existence::service::evaluate(
             &semantics,
             shape,
             &number,

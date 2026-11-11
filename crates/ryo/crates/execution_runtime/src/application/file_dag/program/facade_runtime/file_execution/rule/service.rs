@@ -1,14 +1,14 @@
 //! Evaluation of one rule over the prepared file.
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::types::Partition;
 use crate::application::file_dag::program::constants::{
     FILE_RULE_CONSUMER, SOURCE_FACTS_INCOMPLETE,
 };
-use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
-use crate::application::file_dag::program::facade_runtime::file_execution::classify;
-use crate::application::file_dag::program::facade_runtime::file_execution::outcome_of;
-use crate::application::file_dag::program::facade_runtime::file_execution::readiness_of;
-use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
-use crate::application::file_dag::program::facade_runtime::source_admission::observation_table;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::classify;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::outcome_of;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::readiness_of;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::observation_table;
 use crate::application::file_dag::program::facade_runtime::types::DeclaredIntent;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
@@ -90,13 +90,14 @@ impl FileRun<'_> {
             } => CompletionPolicy::file_inputs(rule, self.file, evaluation, publication),
             ScopePartials::Project { .. } => return Err(OperatingError::WrongOperation),
         };
-        let kernels = crate::application::file_dag::program::kernel_session::KernelSession::file(
-            self.services.kernels(),
-            self.program,
-            Rc::clone(&self.owner),
-            read,
-            &self.walk,
-        );
+        let kernels =
+            crate::application::file_dag::program::kernel_session::service::KernelSession::file(
+                self.services.kernels(),
+                self.program,
+                Rc::clone(&self.owner),
+                read,
+                &self.walk,
+            );
         let mut sources = SourceInputs {
             execution: &self.execution,
             state: self.execution.file_state(),

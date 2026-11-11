@@ -44,7 +44,7 @@ pub(crate) struct PreparedFrontiers {
     pub(in crate::application::file_dag::frontiers) program:
         std::sync::Arc<ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram>,
     pub(in crate::application::file_dag::frontiers) required:
-        crate::application::file_dag::program::admission::RequiredPartitions,
+        crate::application::file_dag::program::admission::types::RequiredPartitions,
     pub(in crate::application::file_dag::frontiers) refused:
         std::sync::Arc<[ryo_execution_domain::domain::frontiers::types::RefusedFrontier]>,
 }

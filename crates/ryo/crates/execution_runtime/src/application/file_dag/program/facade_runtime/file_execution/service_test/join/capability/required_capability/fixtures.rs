@@ -1,9 +1,11 @@
 //! The support of the `required_capability` cases.
+use super::super::super::super::super::service::*;
 use super::super::super::super::super::*;
 use super::super::super::*;
 use super::super::fixtures::{Witness, refusal};
 #[cfg(test)]
 use fixtures::execution::*;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plans::types::Operation;
 use std::sync::Arc;

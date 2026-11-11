@@ -1,6 +1,7 @@
 //! Generation, request and partition identity: what a partition supplies and who it matches.
 use super::super::{
-    Agreement, ApplicabilityProof, FileGeneration, Partition, PartitionSupply, RequiredPartitions,
+    service::ApplicabilityProof, service::FileGeneration, types::Agreement, types::Partition,
+    types::PartitionSupply, types::RequiredPartitions,
 };
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex, operating::errors::OperatingError,
@@ -39,7 +40,9 @@ impl FileGeneration {
 
 impl RequiredPartitions {
     pub(crate) fn from_request(
-        request: &Arc<crate::application::file_dag::program::request_identity::RequestIdentity>,
+        request: &Arc<
+            crate::application::file_dag::program::request_identity::service::RequestIdentity,
+        >,
         files: &[ryo_values::domain::files::types::CorpusInput],
         covered: &[ryo_execution_domain::domain::coverage::types::Covered],
         skipped: &[ryo_values::domain::runs::types::Skipped],

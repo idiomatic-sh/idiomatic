@@ -2,7 +2,7 @@
 use super::super::{
     ProgramExecution, ProjectState, RetirementWork, RootReaders, RuntimeState, Slot, State,
 };
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::types::Partition;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::CallCount;
 #[cfg(test)]
@@ -143,10 +143,12 @@ impl RuntimeState {
     pub(crate) fn bind(
         &self,
         owner: &ryo_execution_store::application::file_dag::relations::service::RelationOwner,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::types::ProducerRoot,
         publication: &ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     ) -> Result<(), OperatingError> {
-        if let crate::application::file_dag::program::admission::ProducerRoot::Region(id) = root {
+        if let crate::application::file_dag::program::admission::types::ProducerRoot::Region(id) =
+            root
+        {
             owner.bind_producer(
                 self.scope,
                 ryo_execution_store::application::file_dag::relations::types::ProducerId(id.0),
@@ -297,7 +299,7 @@ impl ProgramExecution {
     /// source scope. The consumer's requested partition is never an input.
     pub(crate) fn source_partition(
         &self,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::types::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
         use ryo_execution_domain::domain::executable_program::types::InputSource;
         use ryo_execution_domain::domain::source_partitions::types::PartitionRequirement;
@@ -307,8 +309,10 @@ impl ProgramExecution {
             return Err(OperatingError::NotRead);
         }
         let source = match root {
-            crate::application::file_dag::program::admission::ProducerRoot::Input(source) => source,
-            crate::application::file_dag::program::admission::ProducerRoot::Region(id) => {
+            crate::application::file_dag::program::admission::types::ProducerRoot::Input(
+                source,
+            ) => source,
+            crate::application::file_dag::program::admission::types::ProducerRoot::Region(id) => {
                 InputSource::Region(id)
             }
         };
@@ -328,10 +332,10 @@ impl ProgramExecution {
     pub(crate) fn validate_project(
         &self,
         program: &Arc<ExecutableProgram>,
-        required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     ) -> Result<(), OperatingError> {
         if Arc::ptr_eq(&self.program, program)
-            && matches!(&self.partition, Partition::Project(actual) if actual.same_request(required) == crate::application::file_dag::program::admission::Agreement::Same)
+            && matches!(&self.partition, Partition::Project(actual) if actual.same_request(required) == crate::application::file_dag::program::admission::types::Agreement::Same)
         {
             Ok(())
         } else {

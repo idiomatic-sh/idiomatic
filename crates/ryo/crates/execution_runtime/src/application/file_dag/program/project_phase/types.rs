@@ -19,7 +19,8 @@ use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// The files one occurrence's rule reads in its phase, sharing the phase's publication: crate-private, as the scoping is.
 pub(crate) struct PhaseScope {
-    pub(crate) required: crate::application::file_dag::program::admission::RequiredPartitions,
+    pub(crate) required:
+        crate::application::file_dag::program::admission::types::RequiredPartitions,
     pub(crate) publication: std::rc::Rc<
         crate::application::file_dag::program::facade_runtime::service::PublicationScope,
     >,

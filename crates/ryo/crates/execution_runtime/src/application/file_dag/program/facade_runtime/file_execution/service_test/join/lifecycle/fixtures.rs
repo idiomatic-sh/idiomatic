@@ -1,20 +1,42 @@
 //! The support of the `lifecycle` cases.
+use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
+use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+#[cfg(test)]
+use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
+use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 #[cfg(test)]
 use fixtures::execution::*;
 #[cfg(test)]
 use fixtures::provider::*;
+use rustc_hash::FxHashMap;
+#[cfg(test)]
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::types::Memo;
+#[cfg(test)]
+use ryo_execution_domain::domain::operator::types::OperatorContext;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::table_model::service::materialize;
+use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     operator::types::Emit as RowSink,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value as Cell};
@@ -217,13 +239,14 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<(), OperatingError>
         .rule_metadata(RuleIndex(1))?
         .emit_root
         .clone()?;
-    let kernels = super::super::super::super::super::super::kernel_session::KernelSession::file(
-        file.services.kernels(),
-        file.program,
-        Rc::clone(&owner),
-        &read,
-        &file.walk,
-    );
+    let kernels =
+        super::super::super::super::super::super::kernel_session::service::KernelSession::file(
+            file.services.kernels(),
+            file.program,
+            Rc::clone(&owner),
+            &read,
+            &file.walk,
+        );
     let completion = CompletionPolicy::file_inputs(RuleIndex(0), file.file, &[], &[]);
     let inner_completion = CompletionPolicy::file_inputs(RuleIndex(1), file.file, &[], &[]);
     let mut context = file

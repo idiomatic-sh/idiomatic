@@ -1,10 +1,10 @@
 //! Publication of a region result and replay of an admitted publication.
-use super::super::SourceInputs;
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::program::admission::ProducerRoot;
-use crate::application::file_dag::program::admission::Representation;
+use super::super::service::SourceInputs;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::service::Representation;
+use crate::application::file_dag::program::admission::types::Partition;
+use crate::application::file_dag::program::admission::types::ProducerRoot;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
@@ -20,15 +20,16 @@ impl SourceInputs<'_, '_> {
     ) -> Result<AdmittedInput, OperatingError> {
         let actual_partition = self.execution.source_partition(root)?;
         actual_partition.require_supply(partition)?;
-        let mut read = crate::application::file_dag::program::admission::contributed_proof(
-            &actual_partition,
-            inputs,
-            &self.owner,
-        )?;
+        let mut read =
+            crate::application::file_dag::program::admission::service::contributed_proof(
+                &actual_partition,
+                inputs,
+                &self.owner,
+            )?;
         if let (ProducerRoot::Region(region), Representation::Computed(rows)) =
             (root, &mut representation)
             && read.observation()
-                == crate::application::file_dag::program::admission::ObservationReadiness::Waiting
+                == crate::application::file_dag::program::admission::types::ObservationReadiness::Waiting
         {
             // A region starts with the admitted operands, then contains only
             // pure unary continuations. Absence operations publish before any
@@ -46,7 +47,7 @@ impl SourceInputs<'_, '_> {
                 .filter(|shape| {
                     inputs.len() == 1
                         && inputs[0].has_root(ProducerRoot::Region(shape.source))
-                            == crate::application::file_dag::program::admission::Agreement::Same
+                            == crate::application::file_dag::program::admission::types::Agreement::Same
                 });
             let instruction = code
                 .instructions()
@@ -125,7 +126,7 @@ impl SourceInputs<'_, '_> {
                     ryo_execution_domain::domain::completion::service::partial_any(vec![None])
                 }
             };
-            read = crate::application::file_dag::program::admission::ReadProof::covered(
+            read = crate::application::file_dag::program::admission::service::ReadProof::covered(
                 actual_partition.clone(),
                 coverage,
             );
@@ -153,6 +154,6 @@ impl SourceInputs<'_, '_> {
         output: &mut dyn ryo_execution_domain::domain::operator::types::Emit,
     ) -> Result<(), OperatingError> {
         let rows = input.rows(&self.owner, self.read)?;
-        crate::application::file_dag::execution::output::replay(&rows, context, output)
+        crate::application::file_dag::execution::output::service::replay(&rows, context, output)
     }
 }

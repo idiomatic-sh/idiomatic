@@ -1,5 +1,12 @@
 //! The external root exit scenario.
 use super::*;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 /// Two diagnostic obligations share an external Union root. Distinct Join
 /// consumers acquire the real producer's equality lease during the same batch.
 /// Unlike an internal-only producer, the externally held Union must stay live

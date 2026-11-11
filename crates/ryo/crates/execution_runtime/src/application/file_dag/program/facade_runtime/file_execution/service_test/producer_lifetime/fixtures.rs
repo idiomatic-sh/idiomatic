@@ -1,8 +1,9 @@
 //! Actual compiled producer plans shared by the internal and external reader controls.
 pub(super) mod scenario;
+use super::super::super::service::*;
 use super::super::super::*;
 use super::super::fixtures::*;
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use crate::application::file_dag::program::runtime::types::IndexLiveness;
 use ryo_execution_domain::domain::{

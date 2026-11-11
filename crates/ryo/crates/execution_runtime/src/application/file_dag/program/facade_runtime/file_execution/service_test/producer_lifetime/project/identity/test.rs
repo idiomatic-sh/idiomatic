@@ -1,4 +1,5 @@
 //! One project phase execution serves every rule of the request.
+use super::super::super::super::super::service::*;
 use super::super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
@@ -6,6 +7,7 @@ use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
@@ -63,7 +65,7 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
             ],
             count: RowCount(1),
         };
-        crate::application::file_dag::program::facade_runtime::project_execution::open_project(
+        crate::application::file_dag::program::facade_runtime::project_execution::service::open_project(
             &prepared,
             required.clone(),
             ScopePartials::Project {

@@ -16,7 +16,7 @@ use ryo_execution_domain::domain::stored_graph::types::{
     VisitEpoch,
 };
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_runtime::application::file_dag::testing::CompleteTableRows;
+use ryo_execution_runtime::application::file_dag::testing::types::CompleteTableRows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};

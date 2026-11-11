@@ -1,6 +1,15 @@
 //! The restoration scenario every exit runs.
 use super::captured::CapturedProject;
 use super::*;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 pub(in super::super) fn exercise(exit: Exit) -> Result<(), OperatingError> {
     let mut symbols = Symbols::default();
     let captured = CapturedProject::new(exit, &mut symbols)?;

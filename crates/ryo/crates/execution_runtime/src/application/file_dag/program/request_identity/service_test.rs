@@ -1,5 +1,5 @@
 //! Request identity: corpus substitution and per-run generation.
-use super::super::request_identity::RequestIdentity;
+use super::super::request_identity::service::RequestIdentity;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::files::types::CorpusInput;
