@@ -11,15 +11,25 @@ use ryo_values::{
         plans::types::Operation,
     },
 };
+use std::borrow::Cow;
 #[derive(Clone, Copy, Debug)]
 struct Scenario {
     text: &'static str,
     pattern: &'static str,
     replacement: &'static str,
-    expected: &'static str,
 }
 type Input = Scenario;
-type Value = bool;
+/// What the replacement published: its rows and cells, whether the first cell is the original symbol, and every
+/// first two cells' texts.
+#[derive(Debug, PartialEq, Eq)]
+struct Replaced {
+    rows: usize,
+    cells: usize,
+    kept_original: bool,
+    /// The texts of the first two cells.
+    texts: [Option<Cow<'static, str>>; 2],
+}
+type Value = Replaced;
 type Failure = OperatingError;
 fn subject(input: Input) -> Result<Value, Failure> {
     let plan = inputs::plan(vec![
@@ -45,15 +55,29 @@ fn subject(input: Input) -> Result<Value, Failure> {
         vec![fixtures::requests::texts("texts", &[input.text])],
         &mut symbols,
     )?;
-    assert_eq!(output.count.0, 1);
-    assert_eq!(output.cells.len(), 2);
-    assert_eq!(
-        output.cells[0],
-        ryo_relations::domain::relations::types::Value::Symbol(original)
-    );
-    assert_eq!(inputs::text(output.cells[0], &symbols), input.text);
-    assert_eq!(inputs::text(output.cells[1], &symbols), input.expected);
-    Ok(true)
+    Ok(Replaced {
+        rows: output.count.0,
+        cells: output.cells.len(),
+        kept_original: output.cells.first()
+            == Some(&ryo_relations::domain::relations::types::Value::Symbol(
+                original,
+            )),
+        texts: [0, 1].map(|at| {
+            output
+                .cells
+                .get(at)
+                .map(|cell| Cow::Owned(inputs::text(*cell, &symbols).to_string()))
+        }),
+    })
+}
+/// One row whose first cell is the original `text` and second its replacement `replaced`.
+const fn replaced(text: &'static str, replaced: &'static str) -> Expect<Value, Failure> {
+    Expect::Value(Replaced {
+        rows: 1,
+        cells: 2,
+        kept_original: true,
+        texts: [Some(Cow::Borrowed(text)), Some(Cow::Borrowed(replaced))],
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -63,9 +87,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "alpha \t beta\n gamma",
             pattern: r"\s+",
             replacement: "",
-            expected: "alphabetagamma",
         },
-        expect: Expect::Value(true),
+        expect: replaced("alpha \t beta\n gamma", "alphabetagamma"),
     },
     Case {
         name: CaseName("unicode_boundaries"),
@@ -74,9 +97,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "é\u{2003}雪",
             pattern: r"\s+",
             replacement: "-",
-            expected: "é-雪",
         },
-        expect: Expect::Value(true),
+        expect: replaced("é\u{2003}雪", "é-雪"),
     },
     Case {
         name: CaseName("replacement_is_literal"),
@@ -85,9 +107,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "abc",
             pattern: "(b)",
             replacement: r"$1\x",
-            expected: r"a$1\xc",
         },
-        expect: Expect::Value(true),
+        expect: replaced("abc", r"a$1\xc"),
     },
     Case {
         name: CaseName("empty_match_progress"),
@@ -96,9 +117,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "é",
             pattern: "",
             replacement: "-",
-            expected: "-é-",
         },
-        expect: Expect::Value(true),
+        expect: replaced("é", "-é-"),
     },
     Case {
         name: CaseName("unmatched_text_preserved"),
@@ -107,9 +127,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "alpha",
             pattern: "z",
             replacement: "x",
-            expected: "alpha",
         },
-        expect: Expect::Value(true),
+        expect: replaced("alpha", "alpha"),
     },
     Case {
         name: CaseName("invalid_pattern_refused"),
@@ -118,7 +137,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             text: "alpha",
             pattern: "[",
             replacement: "",
-            expected: "",
         },
         expect: Expect::Refusal(|error| {
             selects!(matches!(error, OperatingError::InvalidRegex { .. }))

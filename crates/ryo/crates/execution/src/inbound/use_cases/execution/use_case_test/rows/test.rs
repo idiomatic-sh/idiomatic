@@ -13,7 +13,15 @@ use ryo_values::{
 };
 use std::borrow::Cow;
 type Input = (&'static [&'static str], Option<ParameterBinding>);
-type Value = Cow<'static, str>;
+/// What the rows published: the row count, how many rows of key-width cells the cells make, and their texts, a row's
+/// cells joined by a space and rows by a bar.
+#[derive(Debug, PartialEq, Eq)]
+struct Listed {
+    rows: usize,
+    chunks: usize,
+    text: Cow<'static, str>,
+}
+type Value = Listed;
 type Failure = OperatingError;
 fn tables(rows: &[&[(&str, &str)]]) -> ParameterBinding {
     ParameterBinding::Tables(
@@ -56,8 +64,19 @@ fn subject((keys, binding): Input) -> Result<Value, Failure> {
                 .join(" ")
         })
         .collect();
-    assert_eq!(rows.len(), output.count.0);
-    Ok(Cow::Owned(rows.join("|")))
+    Ok(Listed {
+        rows: output.count.0,
+        chunks: rows.len(),
+        text: Cow::Owned(rows.join("|")),
+    })
+}
+/// `rows` rows, each a chunk of the cells, with these texts.
+const fn listed(rows: usize, text: &'static str) -> Expect<Value, Failure> {
+    Expect::Value(Listed {
+        rows,
+        chunks: rows,
+        text: Cow::Borrowed(text),
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -76,19 +95,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 ])),
             )
         },
-        expect: Expect::Value(Cow::Borrowed("a::Parse languages|b::Lint linter")),
+        expect: listed(2, "a::Parse languages|b::Lint linter"),
     },
     Case {
         name: CaseName("no_tables_are_no_rows"),
         word: Word::Succeeds,
         input: || (&["path"], Some(tables(&[]))),
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: listed(0, ""),
     },
     Case {
         name: CaseName("an_empty_list_of_any_kind_is_no_tables"),
         word: Word::Succeeds,
         input: || (&["path"], Some(ParameterBinding::Texts(Vec::new()))),
-        expect: Expect::Value(Cow::Borrowed("")),
+        expect: listed(0, ""),
     },
     Case {
         name: CaseName("a_table_without_a_key_asked_for_is_refused"),

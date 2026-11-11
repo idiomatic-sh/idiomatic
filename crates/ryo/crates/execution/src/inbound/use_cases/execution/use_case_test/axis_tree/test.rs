@@ -4,6 +4,7 @@ use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::service::node_position;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Integer;
@@ -24,11 +25,13 @@ use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
+use std::borrow::Cow;
 
-type Value = usize;
+/// The positions of the nodes found, in order.
+type Value = Cow<'static, [u32]>;
 type Failure = OperatingError;
-/// A scenario: what a row computes with the item, answering how many rows came out.
-type Input = fn() -> Result<Value, OperatingError>;
+/// A direction, and the position of the node it walks from.
+type Input = (Direction, u32);
 const FROM: Source = Source::Relation(Relation::Function);
 fn column(index: u32) -> ColumnIndex {
     ColumnIndex(index)
@@ -177,77 +180,112 @@ fn walks_the_tree(direction: Direction, start: u32) -> Result<Vec<Cell>, Operati
     found.sort();
     Ok(found)
 }
-fn descendants_in_the_tree_are_everything_below() -> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::Descendant, 0)? == [node(1), node(2), node(3)]
-            && walks_the_tree(Direction::Descendant, 2)? == [node(3)]
-            && walks_the_tree(Direction::Descendant, 3)?.is_empty(),
-    ))
-}
-fn ancestors_in_the_tree_are_the_parents_up_to_the_root() -> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::Ancestor, 3)? == [node(0), node(2)]
-            && walks_the_tree(Direction::Ancestor, 0)?.is_empty(),
-    ))
-}
-fn the_nearest_ancestor_in_the_tree_is_the_parent() -> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::NearestAncestor, 3)? == [node(2)],
-    ))
-}
-fn the_parent_and_the_children_in_the_tree() -> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::Parent, 3)? == [node(2)]
-            && walks_the_tree(Direction::Child, 0)? == [node(1), node(2)]
-            && walks_the_tree(Direction::Parent, 0)?.is_empty(),
-    ))
-}
-fn the_siblings_in_the_tree_are_the_children_beside_under_the_same_parent()
--> Result<Value, OperatingError> {
-    Ok(usize::from(
-        walks_the_tree(Direction::PreviousSibling, 2)? == [node(1)]
-            && walks_the_tree(Direction::NextSibling, 1)? == [node(2)]
-            && walks_the_tree(Direction::PreviousSibling, 1)?.is_empty()
-            && walks_the_tree(Direction::NextSibling, 2)?.is_empty()
-            && walks_the_tree(Direction::NextSibling, 3)?.is_empty()
-            && walks_the_tree(Direction::PreviousSibling, 0)?.is_empty(),
-    ))
-}
-/// The rows of this part's cases.
+/// The rows of this part's cases: a direction and the node it walks from, and the positions it finds.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("descendants_in_the_tree_are_everything_below"),
         word: Word::Succeeds,
-        input: || descendants_in_the_tree_are_everything_below,
-        expect: Expect::Value(1),
+        input: || (Direction::Descendant, 0),
+        expect: Expect::Value(Cow::Borrowed(&[1, 2, 3])),
+    },
+    Case {
+        name: CaseName("the_descendants_of_the_node_at_2_are_the_token_below_it"),
+        word: Word::Succeeds,
+        input: || (Direction::Descendant, 2),
+        expect: Expect::Value(Cow::Borrowed(&[3])),
+    },
+    Case {
+        name: CaseName("the_token_at_3_has_no_descendants"),
+        word: Word::Succeeds,
+        input: || (Direction::Descendant, 3),
+        expect: Expect::Value(Cow::Borrowed(&[])),
     },
     Case {
         name: CaseName("ancestors_in_the_tree_are_the_parents_up_to_the_root"),
         word: Word::Succeeds,
-        input: || ancestors_in_the_tree_are_the_parents_up_to_the_root,
-        expect: Expect::Value(1),
+        input: || (Direction::Ancestor, 3),
+        expect: Expect::Value(Cow::Borrowed(&[0, 2])),
+    },
+    Case {
+        name: CaseName("the_root_has_no_ancestors"),
+        word: Word::Succeeds,
+        input: || (Direction::Ancestor, 0),
+        expect: Expect::Value(Cow::Borrowed(&[])),
     },
     Case {
         name: CaseName("the_nearest_ancestor_in_the_tree_is_the_parent"),
         word: Word::Succeeds,
-        input: || the_nearest_ancestor_in_the_tree_is_the_parent,
-        expect: Expect::Value(1),
+        input: || (Direction::NearestAncestor, 3),
+        expect: Expect::Value(Cow::Borrowed(&[2])),
     },
     Case {
         name: CaseName("the_parent_and_the_children_in_the_tree"),
         word: Word::Succeeds,
-        input: || the_parent_and_the_children_in_the_tree,
-        expect: Expect::Value(1),
+        input: || (Direction::Parent, 3),
+        expect: Expect::Value(Cow::Borrowed(&[2])),
+    },
+    Case {
+        name: CaseName("the_children_of_the_root_are_the_nodes_at_1_and_2"),
+        word: Word::Succeeds,
+        input: || (Direction::Child, 0),
+        expect: Expect::Value(Cow::Borrowed(&[1, 2])),
+    },
+    Case {
+        name: CaseName("the_root_has_no_parent"),
+        word: Word::Succeeds,
+        input: || (Direction::Parent, 0),
+        expect: Expect::Value(Cow::Borrowed(&[])),
     },
     Case {
         name: CaseName("the_siblings_in_the_tree_are_the_children_beside_under_the_same_parent"),
         word: Word::Succeeds,
-        input: || the_siblings_in_the_tree_are_the_children_beside_under_the_same_parent,
-        expect: Expect::Value(1),
+        input: || (Direction::PreviousSibling, 2),
+        expect: Expect::Value(Cow::Borrowed(&[1])),
+    },
+    Case {
+        name: CaseName("the_next_sibling_of_the_first_child_is_the_second"),
+        word: Word::Succeeds,
+        input: || (Direction::NextSibling, 1),
+        expect: Expect::Value(Cow::Borrowed(&[2])),
+    },
+    Case {
+        name: CaseName("the_first_child_has_no_previous_sibling"),
+        word: Word::Succeeds,
+        input: || (Direction::PreviousSibling, 1),
+        expect: Expect::Value(Cow::Borrowed(&[])),
+    },
+    Case {
+        name: CaseName("the_last_child_has_no_next_sibling"),
+        word: Word::Succeeds,
+        input: || (Direction::NextSibling, 2),
+        expect: Expect::Value(Cow::Borrowed(&[])),
+    },
+    Case {
+        name: CaseName("an_only_child_has_no_next_sibling"),
+        word: Word::Succeeds,
+        input: || (Direction::NextSibling, 3),
+        expect: Expect::Value(Cow::Borrowed(&[])),
+    },
+    Case {
+        name: CaseName("the_root_has_no_previous_sibling"),
+        word: Word::Succeeds,
+        input: || (Direction::PreviousSibling, 0),
+        expect: Expect::Value(Cow::Borrowed(&[])),
     },
 ];
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    scenario()
+fn subject((direction, start): Input) -> Result<Value, Failure> {
+    walks_the_tree(direction, start).map(|found| {
+        found
+            .iter()
+            .filter_map(|cell| {
+                if let Cell::Node(node) = cell {
+                    Some(node_position(*node).0)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    })
 }
 #[test]
 fn succeeds() {

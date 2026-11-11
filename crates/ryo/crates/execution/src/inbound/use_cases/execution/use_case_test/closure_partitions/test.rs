@@ -15,21 +15,52 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input as Source;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
-use ryo_values::selects;
+use std::borrow::Cow;
 
-type Value = usize;
-type Failure = OperatingError;
-/// A scenario: what a row computes with the item, answering how many rows came out.
-type Input = fn() -> Result<Value, OperatingError>;
-const FROM: Source = Source::Relation(Relation::Function);
-fn column(index: u32) -> ColumnIndex {
-    ColumnIndex(index)
+/// One closure request: edges of `width` number columns, partitioned by the `keys` columns.
+#[derive(Clone, Copy, Debug)]
+struct Request {
+    width: usize,
+    edges: &'static [&'static [i64]],
+    keys: &'static [u32],
 }
-/// A table of numbers, one row for each slice.
-fn numbers(rows: &[&[i64]]) -> Table {
-    let width = rows.first().map_or(1, |row| row.len());
+/// What a partitioned closure is asked over: successive requests, each its own owner; edges reusing node ids across
+/// two files, partitioned by file; or `n` partitions of the same three edges, interleaved.
+#[derive(Clone, Copy, Debug)]
+enum Partitions {
+    Requests(&'static [Request]),
+    ReusedNodeIds,
+    Tiny(i64),
+}
+/// One request's answer: its schema, its row count, its number rows sorted then flattened, and any non-number cell.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Rows {
+    kinds: Cow<'static, [CellKind]>,
+    rows: usize,
+    cells: Cow<'static, [i64]>,
+    other_cells: usize,
+}
+#[derive(Debug, PartialEq, Eq)]
+enum Observed {
+    /// Each successive request's rows.
+    Requests(Cow<'static, [Rows]>),
+    /// The file-partitioned answer's schema and rows, and whether a pair crossed the files (node 1 reaching node 3).
+    ReusedNodeIds {
+        kinds: Cow<'static, [CellKind]>,
+        rows: usize,
+        crossed: bool,
+    },
+    /// The tiny partitions' rows and distinct rows.
+    Tiny { rows: usize, distinct: usize },
+}
+type Input = Partitions;
+type Value = Observed;
+type Failure = OperatingError;
+/// A table of `width` number columns, one row for each slice.
+fn numbers(width: usize, rows: &[&[i64]]) -> Table {
     let mut table = Table {
         kinds: vec![CellKind::Number; width],
         ..Table::default()
@@ -44,299 +75,264 @@ fn numbers(rows: &[&[i64]]) -> Table {
     }
     table
 }
-/// The caller receives the completed owner's answer; it never supplies workspace or a permit.
-fn table(
-    operation: &Operation,
-    inputs: &[&Table],
-    bindings: &[ParameterBinding],
-) -> Result<Table, OperatingError> {
+/// The closure of `edges` partitioned by `keys`, through the completed owner: the caller never supplies workspace or a permit.
+fn grouped(edges: &Table, keys: &[u32]) -> Result<Table, OperatingError> {
     fixtures::requests::table_request(
-        operation.clone(),
-        inputs,
-        bindings.to_vec(),
+        Operation::Closure {
+            edges: Source::Relation(Relation::Function),
+            keys: keys.iter().copied().map(ColumnIndex).collect(),
+            source: ColumnIndex(0),
+            destination: ColumnIndex(1),
+        },
+        &[edges],
+        Vec::<ParameterBinding>::new(),
         &mut Symbols::default(),
     )
 }
-fn closure(edges: &Table) -> Result<Table, OperatingError> {
-    table(
-        &Operation::Closure {
-            edges: FROM,
-            keys: Vec::new(),
-            source: column(0),
-            destination: column(1),
-        },
-        &[edges],
-        &[],
-    )
-}
-fn assert_pairs(out: &Table, expected: &[[i64; 2]]) {
-    let mut actual: Vec<_> = out
-        .cells
-        .chunks_exact(2)
-        .map(|row| {
-            [
-                *row.first().expect("source column"),
-                *row.get(1).expect("destination column"),
-            ]
-        })
-        .collect();
-    actual.sort_unstable();
-    let mut expected: Vec<_> = expected
-        .iter()
-        .map(|pair| pair.map(|n| Cell::Number(Integer(n))))
-        .collect();
-    expected.sort_unstable();
-    assert_eq!(out.kinds, [CellKind::Number; 2]);
-    assert_eq!(out.count.0, expected.len());
-    assert_eq!(actual, expected);
-}
-fn grouped(edges: &Table, keys: &[u32]) -> Result<Table, OperatingError> {
-    table(
-        &Operation::Closure {
-            edges: FROM,
-            keys: keys.iter().copied().map(column).collect(),
-            source: column(0),
-            destination: column(1),
-        },
-        &[edges],
-        &[],
-    )
-}
-fn assert_rows(out: &Table, width: usize, expected: &[&[i64]]) {
-    let mut actual: Vec<_> = out
+fn rows(out: Table) -> Rows {
+    let width = out.kinds.len().max(1);
+    let mut numbers: Vec<Vec<i64>> = out
         .cells
         .chunks_exact(width)
-        .map(<[Cell]>::to_vec)
-        .collect();
-    let mut wanted: Vec<Vec<_>> = expected
-        .iter()
         .map(|row| {
             row.iter()
-                .map(|number| Cell::Number(Integer(*number)))
+                .filter_map(|cell| {
+                    if let Cell::Number(number) = cell {
+                        Some(number.0)
+                    } else {
+                        None
+                    }
+                })
                 .collect()
         })
         .collect();
-    actual.sort_unstable();
-    wanted.sort_unstable();
-    assert_eq!(out.kinds, vec![CellKind::Number; width]);
-    assert_eq!(out.count.0, wanted.len());
-    assert_eq!(actual, wanted);
+    numbers.sort_unstable();
+    let cells: Vec<i64> = numbers.into_iter().flatten().collect();
+    Rows {
+        other_cells: out.cells.len() - cells.len(),
+        rows: out.count.0,
+        kinds: out.kinds.into(),
+        cells: cells.into(),
+    }
 }
-fn partitions_do_not_cross() -> Result<Value, OperatingError> {
-    let out = grouped(
-        &numbers(&[&[1, 2, 10], &[2, 3, 20], &[2, 4, 10], &[1, 2, 10]]),
-        &[2],
-    )?;
-    assert_rows(
-        &out,
-        3,
-        &[&[10, 1, 2], &[10, 1, 4], &[10, 2, 4], &[20, 2, 3]],
-    );
-    Ok(out.count.0)
-}
-fn multiple_partition_keys_keep_argument_order() -> Result<Value, OperatingError> {
-    let out = grouped(
-        &numbers(&[
-            &[1, 2, 10, 100],
-            &[2, 3, 10, 200],
-            &[2, 4, 10, 100],
-            &[1, 1, 20, 100],
-        ]),
-        &[3, 2],
-    )?;
-    assert_rows(
-        &out,
-        4,
-        &[
-            &[100, 10, 1, 2],
-            &[100, 10, 1, 4],
-            &[100, 10, 2, 4],
-            &[200, 10, 2, 3],
-            &[100, 20, 1, 1],
-        ],
-    );
-    Ok(out.count.0)
-}
-fn partitioned_cycles_and_disconnected_starts() -> Result<Value, OperatingError> {
-    let out = grouped(
-        &numbers(&[
-            &[1, 2, 10],
-            &[1, 3, 20],
-            &[2, 1, 10],
-            &[4, 5, 10],
-            &[1, 2, 10],
-            &[3, 3, 20],
-            &[1, 4, 10],
-        ]),
-        &[2],
-    )?;
-    assert_rows(
-        &out,
-        3,
-        &[
-            &[10, 1, 1],
-            &[10, 1, 2],
-            &[10, 1, 4],
-            &[10, 1, 5],
-            &[10, 2, 1],
-            &[10, 2, 2],
-            &[10, 2, 4],
-            &[10, 2, 5],
-            &[10, 4, 5],
-            &[20, 1, 3],
-            &[20, 3, 3],
-        ],
-    );
-    Ok(out.count.0)
-}
-fn partitioned_empty_and_unpartitioned_owners_keep_exact_outputs() -> Result<Value, OperatingError>
-{
-    let partitioned = grouped(&numbers(&[&[1, 2, 10], &[2, 3, 20]]), &[2])?;
-    assert_rows(&partitioned, 3, &[&[10, 1, 2], &[20, 2, 3]]);
-    let ordinary = closure(&numbers(&[&[1, 2], &[2, 3]]))?;
-    assert_pairs(&ordinary, &[[1, 2], [1, 3], [2, 3]]);
-    let empty = Table {
-        kinds: vec![CellKind::Number; 3],
-        ..Table::default()
-    };
-    let empty_output = grouped(&empty, &[2])?;
-    assert_rows(&empty_output, 3, &[]);
-    let later_partition = grouped(&numbers(&[&[8, 9, 30]]), &[2])?;
-    assert_rows(&later_partition, 3, &[&[30, 8, 9]]);
-    let unpartitioned = grouped(&numbers(&[&[1, 2], &[2, 3]]), &[])?;
-    assert_pairs(&unpartitioned, &[[1, 2], [1, 3], [2, 3]]);
-    Ok(unpartitioned.count.0)
-}
-fn file_partitions_keep_reused_node_ids_separate() -> Result<Value, OperatingError> {
-    use ryo_relations::domain::relations::types::{FileId, NodeId};
-    let mut edges = Table {
-        kinds: vec![CellKind::Node, CellKind::Node, CellKind::File],
-        ..Table::default()
-    };
-    push_row(
-        &mut edges,
-        &[
-            Cell::Node(NodeId(1)),
-            Cell::Node(NodeId(2)),
-            Cell::File(FileId(10)),
-        ],
-    );
-    push_row(
-        &mut edges,
-        &[
-            Cell::Node(NodeId(2)),
-            Cell::Node(NodeId(3)),
-            Cell::File(FileId(20)),
-        ],
-    );
-    let out = grouped(&edges, &[2])?;
-    assert_eq!(out.kinds, [CellKind::File, CellKind::Node, CellKind::Node]);
-    assert_eq!(out.count.0, 2);
-    assert!(
-        !out.cells
-            .chunks_exact(3)
-            .any(|row| matches!(row, [_, Cell::Node(NodeId(1)), Cell::Node(NodeId(3))]))
-    );
-    Ok(out.count.0)
-}
-fn endpoints_are_checked_on_empty_partition_input() -> Result<Value, OperatingError> {
-    let empty = Table {
-        kinds: vec![CellKind::Number],
-        ..Table::default()
-    };
-    grouped(&empty, &[0]).map(|out| out.count.0)
-}
-fn partition_columns_are_checked_on_empty_input() -> Result<Value, OperatingError> {
-    let empty = Table {
-        kinds: vec![CellKind::Number; 2],
-        ..Table::default()
-    };
-    grouped(&empty, &[9]).map(|out| out.count.0)
-}
-fn many_tiny_partitions_bound_working_graph_and_output() -> Result<Value, OperatingError> {
-    let n = 2048;
-    let mut edges = Table {
-        kinds: vec![CellKind::Number; 3],
-        ..Table::default()
-    };
-    // Interleave both partitions and repeated sources; every graph has just three edges.
-    for edge in [[1, 2], [2, 3], [1, 4]] {
-        for partition in 0..n {
-            push_row(
-                &mut edges,
-                &[
-                    Cell::Number(Integer(edge[0])),
-                    Cell::Number(Integer(edge[1])),
-                    Cell::Number(Integer(partition)),
-                ],
-            );
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Partitions::Requests(requests) => requests
+            .iter()
+            .map(|request| grouped(&numbers(request.width, request.edges), request.keys).map(rows))
+            .collect::<Result<Vec<_>, _>>()
+            .map(|answers| Observed::Requests(answers.into())),
+        Partitions::ReusedNodeIds => {
+            use ryo_relations::domain::relations::types::{FileId, NodeId};
+            let mut edges = Table {
+                kinds: vec![CellKind::Node, CellKind::Node, CellKind::File],
+                ..Table::default()
+            };
+            for (from, to, file) in [(1, 2, 10), (2, 3, 20)] {
+                push_row(
+                    &mut edges,
+                    &[
+                        Cell::Node(NodeId(from)),
+                        Cell::Node(NodeId(to)),
+                        Cell::File(FileId(file)),
+                    ],
+                );
+            }
+            let out = grouped(&edges, &[2])?;
+            Ok(Observed::ReusedNodeIds {
+                crossed: out
+                    .cells
+                    .chunks_exact(3)
+                    .any(|row| matches!(row, [_, Cell::Node(NodeId(1)), Cell::Node(NodeId(3))])),
+                rows: out.count.0,
+                kinds: out.kinds.into(),
+            })
+        }
+        Partitions::Tiny(n) => {
+            let mut edges = Table {
+                kinds: vec![CellKind::Number; 3],
+                ..Table::default()
+            };
+            // Interleave both partitions and repeated sources; every graph has just three edges.
+            for edge in [[1, 2], [2, 3], [1, 4]] {
+                for partition in 0..n {
+                    push_row(
+                        &mut edges,
+                        &[
+                            Cell::Number(Integer(edge[0])),
+                            Cell::Number(Integer(edge[1])),
+                            Cell::Number(Integer(partition)),
+                        ],
+                    );
+                }
+            }
+            let out = grouped(&edges, &[2])?;
+            let mut distinct: Vec<_> = out.cells.chunks_exact(3).collect();
+            distinct.sort_unstable();
+            distinct.dedup();
+            Ok(Observed::Tiny {
+                rows: out.count.0,
+                distinct: distinct.len(),
+            })
         }
     }
-    let out = grouped(&edges, &[2])?;
-    assert_eq!(
-        out.count.0,
-        4 * usize::try_from(n).expect("positive partition count")
-    );
-    let mut rows: Vec<_> = out.cells.chunks_exact(3).collect();
-    rows.sort_unstable();
-    rows.dedup();
-    assert_eq!(rows.len(), out.count.0);
-    Ok(out.count.0)
 }
+const fn request(width: usize, edges: &'static [&'static [i64]], keys: &'static [u32]) -> Request {
+    Request { width, edges, keys }
+}
+const fn numbered(width: usize, rows: usize, cells: &'static [i64]) -> Rows {
+    Rows {
+        kinds: Cow::Borrowed(match width {
+            2 => &[CellKind::Number; 2],
+            3 => &[CellKind::Number; 3],
+            _ => &[CellKind::Number; 4],
+        }),
+        rows,
+        cells: Cow::Borrowed(cells),
+        other_cells: 0,
+    }
+}
+const fn answered(requests: &'static [Rows]) -> Expect<Value, Failure> {
+    Expect::Value(Observed::Requests(Cow::Borrowed(requests)))
+}
+const INDEPENDENT: &[Rows] = &[numbered(3, 4, &[10, 1, 2, 10, 1, 4, 10, 2, 4, 20, 2, 3])];
+const ORDERED: &[Rows] = &[numbered(
+    4,
+    5,
+    &[
+        100, 10, 1, 2, 100, 10, 1, 4, 100, 10, 2, 4, 100, 20, 1, 1, 200, 10, 2, 3,
+    ],
+)];
+const CYCLES: &[Rows] = &[numbered(
+    3,
+    11,
+    &[
+        10, 1, 1, 10, 1, 2, 10, 1, 4, 10, 1, 5, 10, 2, 1, 10, 2, 2, 10, 2, 4, 10, 2, 5, 10, 4, 5,
+        20, 1, 3, 20, 3, 3,
+    ],
+)];
+const SUCCESSIVE: &[Rows] = &[
+    numbered(3, 2, &[10, 1, 2, 20, 2, 3]),
+    numbered(2, 3, &[1, 2, 1, 3, 2, 3]),
+    numbered(3, 0, &[]),
+    numbered(3, 1, &[30, 8, 9]),
+    numbered(2, 3, &[1, 2, 1, 3, 2, 3]),
+];
+const NO_COLUMN: Expect<Value, Failure> =
+    Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 1 }));
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("file_partitions_keep_reused_node_ids_separate"),
         word: Word::Succeeds,
-        input: || file_partitions_keep_reused_node_ids_separate,
-        expect: Expect::Value(2),
+        input: || Partitions::ReusedNodeIds,
+        expect: Expect::Value(Observed::ReusedNodeIds {
+            kinds: Cow::Borrowed(&[CellKind::File, CellKind::Node, CellKind::Node]),
+            rows: 2,
+            crossed: false,
+        }),
     },
     Case {
         name: CaseName("empty_partition_input_checks_endpoint_columns"),
         word: Word::Refuses,
-        input: || endpoints_are_checked_on_empty_partition_input,
-        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
+        input: || Partitions::Requests(const { &[request(1, &[], &[0])] }),
+        expect: NO_COLUMN,
     },
     Case {
         name: CaseName("partitions_are_independent"),
         word: Word::Succeeds,
-        input: || partitions_do_not_cross,
-        expect: Expect::Value(4),
+        input: || {
+            Partitions::Requests(
+                const {
+                    &[request(
+                        3,
+                        &[&[1, 2, 10], &[2, 3, 20], &[2, 4, 10], &[1, 2, 10]],
+                        &[2],
+                    )]
+                },
+            )
+        },
+        expect: answered(INDEPENDENT),
     },
     Case {
         name: CaseName("multiple_keys_keep_output_order"),
         word: Word::Succeeds,
-        input: || multiple_partition_keys_keep_argument_order,
-        expect: Expect::Value(5),
+        input: || {
+            Partitions::Requests(
+                const {
+                    &[request(
+                        4,
+                        &[
+                            &[1, 2, 10, 100],
+                            &[2, 3, 10, 200],
+                            &[2, 4, 10, 100],
+                            &[1, 1, 20, 100],
+                        ],
+                        &[3, 2],
+                    )]
+                },
+            )
+        },
+        expect: answered(ORDERED),
     },
     Case {
         name: CaseName("partitioned_cycles_and_starts"),
         word: Word::Succeeds,
-        input: || partitioned_cycles_and_disconnected_starts,
-        expect: Expect::Value(11),
+        input: || {
+            Partitions::Requests(
+                const {
+                    &[request(
+                        3,
+                        &[
+                            &[1, 2, 10],
+                            &[1, 3, 20],
+                            &[2, 1, 10],
+                            &[4, 5, 10],
+                            &[1, 2, 10],
+                            &[3, 3, 20],
+                            &[1, 4, 10],
+                        ],
+                        &[2],
+                    )]
+                },
+            )
+        },
+        expect: answered(CYCLES),
     },
     Case {
         name: CaseName("partitioned_empty_and_unpartitioned_owners_keep_exact_outputs"),
         word: Word::Succeeds,
-        input: || partitioned_empty_and_unpartitioned_owners_keep_exact_outputs,
-        expect: Expect::Value(3),
+        input: || {
+            Partitions::Requests(
+                const {
+                    &[
+                        request(3, &[&[1, 2, 10], &[2, 3, 20]], &[2]),
+                        request(2, &[&[1, 2], &[2, 3]], &[]),
+                        request(3, &[], &[2]),
+                        request(3, &[&[8, 9, 30]], &[2]),
+                        request(2, &[&[1, 2], &[2, 3]], &[]),
+                    ]
+                },
+            )
+        },
+        expect: answered(SUCCESSIVE),
     },
     Case {
         name: CaseName("many_tiny_partitions_bound_work_and_output"),
         word: Word::Succeeds,
-        input: || many_tiny_partitions_bound_working_graph_and_output,
-        expect: Expect::Value(8192),
+        input: || Partitions::Tiny(2048),
+        expect: Expect::Value(Observed::Tiny {
+            rows: 8192,
+            distinct: 8192,
+        }),
     },
     Case {
         name: CaseName("empty_partition_input_still_checks_columns"),
         word: Word::Refuses,
-        input: || partition_columns_are_checked_on_empty_input,
-        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
+        input: || Partitions::Requests(const { &[request(2, &[], &[9])] }),
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 9 })),
     },
 ];
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    scenario()
-}
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);

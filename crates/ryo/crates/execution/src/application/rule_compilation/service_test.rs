@@ -7,7 +7,8 @@ use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use fixtures::{
-    bounded, changed_ids, oversized_requests, population, rule, separate_request_eviction,
+    Compiled, bounded, changed_ids, module_catalog_identity, oversized_requests, population,
+    refused_program, rule, separate_request_eviction, unlocked_port,
 };
 use ryo_execution_domain::domain::operator::constants::{OPERATORS, describe};
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
@@ -25,12 +26,13 @@ use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;
+use std::borrow::Cow;
 use std::sync::{Arc, PoisonError, atomic::Ordering};
 
 /// One operation over a real compilation service and substituted compiler port.
 type Input = fn() -> Result<Value, Failure>;
-/// Cache population, compiler calls, and a scenario-specific invariant.
-type Value = [usize; 3];
+/// Cache population, compiler calls, and the scenario's further observations.
+type Value = Compiled;
 /// The exact compilation or request-binding refusal.
 type Failure = RuleCompilationError;
 
@@ -40,13 +42,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("one_cached_plan_binds_each_request_even_after_a_missing_binding"),
         word: Word::Succeeds,
         input: || request_bindings,
-        expect: Expect::Value([1, 1, 1]),
+        expect: Expect::Value(Compiled {
+            kept: 1,
+            calls: 1,
+            observed: Cow::Borrowed(&[
+                ("refused for a missing binding", 1),
+                ("requests bound apart", 1),
+            ]),
+        }),
     },
     Case {
         name: CaseName("query_and_hosted_schema_changes_replace_a_cached_plan"),
         word: Word::Succeeds,
         input: || program_identity,
-        expect: Expect::Value([1, 3, 1]),
+        expect: Expect::Value(Compiled {
+            kept: 1,
+            calls: 3,
+            observed: Cow::Borrowed(&[("the changed query is cached", 1)]),
+        }),
     },
     Case {
         name: CaseName(
@@ -54,19 +67,56 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || module_catalog_identity,
-        expect: Expect::Value([1, 4, 1]),
+        expect: Expect::Value(Compiled {
+            kept: 1,
+            calls: 4,
+            observed: Cow::Borrowed(&[
+                ("the snapshot shares the modules", 1),
+                ("the snapshot shares the root text", 1),
+                ("equal contents share the modules", 0),
+                ("calls after equal contents", 1),
+                ("the snapshot keeps the original bytes", 1),
+                ("calls after changed bytes", 2),
+                ("calls after a changed document id", 3),
+                ("the cache shares the modules", 1),
+                ("the cache shares the root text", 1),
+            ]),
+        }),
     },
     Case {
         name: CaseName("failed_queries_are_not_cached_and_keep_their_owner"),
         word: Word::Succeeds,
         input: || refused_program,
-        expect: Expect::Value([1, 3, 1]),
+        expect: Expect::Value(Compiled {
+            kept: 1,
+            calls: 3,
+            observed: Cow::Borrowed(&[
+                ("refused for its owner", 1),
+                ("kept after the refusal", 0),
+                ("refused for its owner", 1),
+                ("kept after the refusal", 0),
+            ]),
+        }),
     },
     Case {
         name: CaseName("compiler_can_access_shared_state_without_a_held_cache_lock"),
         word: Word::Succeeds,
         input: || unlocked_port,
-        expect: Expect::Value([1, 1, 1]),
+        expect: Expect::Value(Compiled {
+            kept: 1,
+            calls: 1,
+            observed: Cow::Borrowed(&[("calls under a held cache lock", 0)]),
+        }),
+    },
+    Case {
+        name: CaseName("a_blank_rule_never_reaches_the_compiler"),
+        word: Word::Succeeds,
+        input: || blank_id_calls,
+        expect: Expect::Value(Compiled {
+            kept: 0,
+            calls: 0,
+            observed: Cow::Borrowed(&[("refused", 1)]),
+        }),
     },
     Case {
         name: CaseName("blank_rule_is_refused_before_any_compile"),
@@ -78,25 +128,63 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("changed_ids_across_requests_keep_a_nonempty_bounded_session"),
         word: Word::Succeeds,
         input: || changed_ids,
-        expect: Expect::Value([COMPILED_PLANS, (COMPILED_PLANS / 1024 + 2) * 1024, 1]),
+        expect: Expect::Value(Compiled {
+            kept: COMPILED_PLANS,
+            calls: (COMPILED_PLANS / 1024 + 2) * 1024,
+            observed: Cow::Borrowed(&[
+                ("most kept", COMPILED_PLANS),
+                ("requests answered short", 0),
+                ("requests leaving more than the cap", 0),
+            ]),
+        }),
     },
     Case {
         name: CaseName("oversized_requests_keep_exactly_the_cap_and_return_every_plan"),
         word: Word::Succeeds,
         input: || oversized_requests,
-        expect: Expect::Value([COMPILED_PLANS, COMPILED_PLANS * 3 + 1, 1]),
+        expect: Expect::Value(Compiled {
+            kept: COMPILED_PLANS,
+            calls: COMPILED_PLANS * 3 + 1,
+            observed: Cow::Borrowed(&[
+                ("big", COMPILED_PLANS + 1),
+                ("kept after it", COMPILED_PLANS),
+                ("bigger", COMPILED_PLANS * 2),
+                ("kept after it", COMPILED_PLANS),
+            ]),
+        }),
     },
     Case {
         name: CaseName("separate_requests_evict_only_one_oldest_plan_at_a_time"),
         word: Word::Succeeds,
         input: || separate_request_eviction,
-        expect: Expect::Value([COMPILED_PLANS, COMPILED_PLANS + 1, 1]),
+        expect: Expect::Value(Compiled {
+            kept: COMPILED_PLANS,
+            calls: COMPILED_PLANS + 1,
+            observed: Cow::Borrowed(&[
+                ("old", COMPILED_PLANS / 2),
+                ("newer", COMPILED_PLANS - COMPILED_PLANS / 2),
+                ("latest", 1),
+                ("old-0 kept", 0),
+                ("old-1 kept", 1),
+                ("newer-0 kept", 1),
+                ("last newer kept", 1),
+                ("latest-0 kept", 1),
+            ]),
+        }),
     },
     Case {
         name: CaseName("compiled_plans_obeys_COMPILED_PLANS_and_preserves_FIFO_answers"),
         word: Word::Succeeds,
         input: || bounded,
-        expect: Expect::Value([COMPILED_PLANS, COMPILED_PLANS + 1, 1]),
+        expect: Expect::Value(Compiled {
+            kept: COMPILED_PLANS,
+            calls: COMPILED_PLANS + 1,
+            observed: Cow::Borrowed(&[
+                ("answered", COMPILED_PLANS + 1),
+                ("rule-0 kept", 0),
+                ("rule-1 kept", 1),
+            ]),
+        }),
     },
 ];
 
@@ -112,12 +200,12 @@ fn request_bindings() -> Result<Value, Failure> {
     let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
         .compiling_into(plans.clone());
     let mut asked = rule("bound", "select");
-    let refused = service
-        .compile(&[asked.clone()], &[])
-        .expect_err("a missing binding is refused");
-    assert!(matches!(
+    let refused = service.compile(&[asked.clone()], &[]).err();
+    let missing = usize::from(matches!(
         refused,
-        RuleCompilationError::Rules(RuleRequestsError::MissingParameter { .. })
+        Some(RuleCompilationError::Rules(
+            RuleRequestsError::MissingParameter { .. }
+        ))
     ));
     asked.given.push(Given {
         name: ParameterName("limit".into()),
@@ -127,11 +215,18 @@ fn request_bindings() -> Result<Value, Failure> {
     asked.given.first_mut().expect("given parameter").value =
         ParameterBinding::Number(WholeNumber(9));
     let second = service.compile(&[asked], &[])?;
-    Ok([
-        population(&plans),
-        compiler.calls.load(Ordering::SeqCst),
-        usize::from(first.bindings != second.bindings),
-    ])
+    Ok(Compiled {
+        kept: population(&plans),
+        calls: compiler.calls.load(Ordering::SeqCst),
+        observed: vec![
+            ("refused for a missing binding", missing),
+            (
+                "requests bound apart",
+                usize::from(first.bindings != second.bindings),
+            ),
+        ]
+        .into(),
+    })
 }
 
 /// The shared identity includes complete query bundles and the declared hosted schema.
@@ -155,133 +250,15 @@ fn program_identity() -> Result<Value, Failure> {
     let _cached_schema = service.compile(&[rule("same", "changed")], &hosted)?;
     let kept = plans.0.lock().unwrap_or_else(PoisonError::into_inner);
     let cached = &kept.plans[&RuleId("same".into())];
-    assert_eq!(cached.query, rule("same", "changed").query);
-    Ok([kept.plans.len(), compiler.calls.load(Ordering::SeqCst), 1])
-}
-
-/// The real bounded cache compares exact catalog contents, never allocation identity.
-fn module_catalog_identity() -> Result<Value, Failure> {
-    use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
-    let compiler = Arc::new(QueryLanguageFake::default());
-    let plans = CompiledPlans::default();
-    let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
-        .compiling_into(plans.clone());
-    let module = source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
-        "shared/module",
-    ))
-    .expect("nonblank module id");
-    let mut asked = rule("catalog", "select");
-    asked.query = query_bundle(
-        asked.query.root,
-        [document_source(module.clone(), "original bytes\nλ")],
-    )
-    .expect("unique module identity");
-    let snapshot = asked.query.clone();
-    assert!(Arc::ptr_eq(&snapshot.modules, &asked.query.modules));
-    assert!(Arc::ptr_eq(&snapshot.root.text.0, &asked.query.root.text.0));
-    let _first = service.compile(&[asked.clone()], &[])?;
-    let mut equal_contents = asked.clone();
-    equal_contents.query.modules = Arc::new((*asked.query.modules).clone());
-    assert!(!Arc::ptr_eq(
-        &equal_contents.query.modules,
-        &asked.query.modules
-    ));
-    let _equal_snapshot_hit = service.compile(&[equal_contents], &[])?;
-    assert_eq!(compiler.calls.load(Ordering::SeqCst), 1);
-    Arc::make_mut(&mut asked.query.modules)
-        .get_mut(&module)
-        .unwrap()
-        .text = "changed bytes".into();
-    assert_eq!(&*snapshot.modules[&module].text, "original bytes\nλ");
-    let _changed_bytes_miss = service.compile(&[asked.clone()], &[])?;
-    assert_eq!(compiler.calls.load(Ordering::SeqCst), 2);
-    let renamed_id = source_id(ryo_values::domain::query_tokens::types::QuerySpelling(
-        "shared/renamed",
-    ))
-    .expect("nonblank renamed id");
-    Arc::make_mut(&mut asked.query.modules)
-        .get_mut(&module)
-        .unwrap()
-        .id = renamed_id.clone();
-    let _changed_document_id_miss = service.compile(&[asked.clone()], &[])?;
-    assert_eq!(compiler.calls.load(Ordering::SeqCst), 3);
-    let renamed = Arc::make_mut(&mut asked.query.modules)
-        .remove(&module)
-        .unwrap();
-    let _absent = Arc::make_mut(&mut asked.query.modules).insert(renamed_id, renamed);
-    let _changed_id_miss = service.compile(&[asked.clone()], &[])?;
-    let _stable_snapshot_hit = service.compile(&[asked.clone()], &[])?;
-    let kept = plans.0.lock().unwrap_or_else(PoisonError::into_inner);
-    let cached = &kept.plans[&asked.id].query;
-    assert!(Arc::ptr_eq(&cached.modules, &asked.query.modules));
-    assert!(Arc::ptr_eq(&cached.root.text.0, &asked.query.root.text.0));
-    Ok([kept.plans.len(), compiler.calls.load(Ordering::SeqCst), 1])
-}
-
-/// Repeated refused compiles never become a cache hit, and a later valid query still succeeds.
-fn refused_program() -> Result<Value, Failure> {
-    let compiler = Arc::new(QueryLanguageFake::default());
-    let plans = CompiledPlans::default();
-    let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
-        .compiling_into(plans.clone());
-    for _ in 0_u8..2_u8 {
-        let error = service
-            .compile(&[rule("owner", REFUSED)], &[])
-            .expect_err("compiler refusal is preserved");
-        assert!(matches!(error, RuleCompilationError::Query { id, .. } if id == "owner"));
-        assert_eq!(population(&plans), 0);
-    }
-    let _answer = service.compile(&[rule("owner", "select")], &[])?;
-    Ok([population(&plans), compiler.calls.load(Ordering::SeqCst), 1])
-}
-
-/// A substituted compiler that proves no service cache lock crosses the port call.
-struct LockCheckingCompiler {
-    /// The same session state the service owns.
-    plans: CompiledPlans,
-    /// Existing compiler fake for typed answers and observations.
-    compiler: QueryLanguageFake,
-}
-impl QueryLanguagePort for LockCheckingCompiler {
-    fn validate(
-        &self,
-        bundle: &QueryBundle,
-        hosted: &[HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<ValidateReport, QueryLanguageError> {
-        self.compiler.validate(bundle, hosted, observations)
-    }
-    fn compile(
-        &self,
-        bundle: &QueryBundle,
-        hosted: &[HostedRelation],
-        observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<Plan, QueryLanguageError> {
-        let available = self
-            .plans
-            .0
-            .try_lock()
-            .expect("no cache lock may cross a compiler call");
-        drop(available);
-        self.compiler.compile(bundle, hosted, observations)
-    }
-}
-
-/// Execute through the lock-checking port rather than inspecting implementation syntax.
-fn unlocked_port() -> Result<Value, Failure> {
-    let plans = CompiledPlans::default();
-    let compiler = Arc::new(LockCheckingCompiler {
-        plans: plans.clone(),
-        compiler: QueryLanguageFake::default(),
-    });
-    let service = RuleCompilation::new(Arc::<LockCheckingCompiler>::clone(&compiler))
-        .compiling_into(plans.clone());
-    let _answer = service.compile(&[rule("lock", "select")], &[])?;
-    Ok([
-        population(&plans),
-        compiler.compiler.calls.load(Ordering::SeqCst),
-        1,
-    ])
+    Ok(Compiled {
+        kept: kept.plans.len(),
+        calls: compiler.calls.load(Ordering::SeqCst),
+        observed: vec![(
+            "the changed query is cached",
+            usize::from(cached.query == rule("same", "changed").query),
+        )]
+        .into(),
+    })
 }
 
 /// Identity validation is part of compilation and precedes any injected compiler invocation.
@@ -289,8 +266,25 @@ fn blank_id() -> Result<Value, Failure> {
     let compiler = Arc::new(QueryLanguageFake::default());
     let result = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
         .compile(&[rule("", "select")], &[]);
-    assert_eq!(compiler.calls.load(Ordering::SeqCst), 0);
-    result.map(|answer| [answer.plans.len(), 0, 0])
+    result.map(|answer| Compiled {
+        kept: answer.plans.len(),
+        calls: compiler.calls.load(Ordering::SeqCst),
+        observed: Cow::Borrowed(&[]),
+    })
+}
+
+/// The compiler's calls after a blank rule's compile, and whether it was refused.
+fn blank_id_calls() -> Result<Value, Failure> {
+    let compiler = Arc::new(QueryLanguageFake::default());
+    let refused = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
+        .compile(&[rule("", "select")], &[])
+        .err()
+        .map_or(0, |_| 1);
+    Ok(Compiled {
+        kept: 0,
+        calls: compiler.calls.load(Ordering::SeqCst),
+        observed: vec![("refused", refused)].into(),
+    })
 }
 
 /// Run the service and preserve its typed result.
