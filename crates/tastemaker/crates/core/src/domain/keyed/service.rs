@@ -309,8 +309,20 @@ pub(crate) fn compare_data(
         }
     }
     in_order(&wanted, &mut made);
-    let _ = instance_values;
-    compare(&wanted, &made, exact)
+    let mut mismatches = compare(&wanted, &made, exact);
+    if let Some(table) = instance_values {
+        // A value within an entry of the instance's table is the instance's: only the entry's name is held exactly.
+        let prefix = format!("{table}{KEY_PATH_SEPARATOR}");
+        mismatches.retain(|mismatch| match mismatch {
+            Mismatch::Extra(declaration) => !declaration
+                .name
+                .0
+                .strip_prefix(&*prefix)
+                .is_some_and(|within| within.contains(KEY_PATH_SEPARATOR)),
+            Mismatch::Missing(_) => true,
+        });
+    }
+    mismatches
 }
 
 /// `made` with the values of each sequence of the template's `wanted` matched in order: each value of the template is
