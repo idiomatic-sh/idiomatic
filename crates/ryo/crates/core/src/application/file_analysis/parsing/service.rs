@@ -7,8 +7,8 @@ use crate::application::file_analysis::constants::EXECUTION_DIAGNOSTIC;
 use crate::application::file_analysis::constants::INPUT_EDGE_DID_NOT_SUPPLY_EXECUTABLE;
 use crate::application::file_analysis::constants::PROVIDER_PARSE;
 use crate::domain::admission::errors::AdmissionError;
+use crate::domain::admission::service::admit_columns;
 use crate::domain::admission::service::admit_elements;
-use crate::domain::admission::service::admit_view;
 use crate::domain::admission::service::limits_of;
 use crate::domain::reading::service::begin;
 use crate::domain::reading::service::engine_asked;
@@ -83,7 +83,7 @@ impl FileAnalysis {
         let limits = limits_of(&tables.elements, &tables.bytes, number);
         admit_elements(&tables.elements, &limits).map_err(refused)?;
         for relation in wanted {
-            admit_view(&worker.facts.rows(*relation)?, &limits).map_err(refused)?;
+            admit_columns(&worker.facts.rows(*relation)?, &limits).map_err(refused)?;
         }
         Ok(())
     }

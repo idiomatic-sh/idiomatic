@@ -1,6 +1,6 @@
-// ignore: idiomatic.arch/file-length - the wire schema of one document, the native observation row: every struct and enum here is a field of that one serde document, and the adapter places one schemas.rs beside it
 //! The native receipt row: read back by the inventory and written by the case observer.
 //! Unknown fields are refused; the documents are a contract.
+use super::super::process_row::schemas::{KindSchema, ProcessRowSchema};
 use crate::outbound::receipts::errors::ReceiptsError;
 use ryo_benchmark_contracts::domain::documents::types::finding::value::{
     ExpectedFindings, FindingOffset, RecordedFinding, SkippedPair,
@@ -10,12 +10,10 @@ use ryo_benchmark_contracts::domain::documents::types::observation_document::val
     ProcessRecord, ProjectContextRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord,
     SourceIdentity, ToolContractRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
-    ArtifactPointer, DiscrepancyValidation, ExpectationKind,
-};
+use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyValidation;
 use ryo_benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest,
-    ReasonText, RuleName, SchemaName, Sha256Text, Signal, YesNo,
+    ReasonText, RuleName, SchemaName, Sha256Text, YesNo,
 };
 use ryo_benchmark_contracts::domain::reports::types::{
     ComparisonContract, CoverageAccounting, ExecutionMetadata,
@@ -142,35 +140,9 @@ enum ContractSchema {
 }
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
-enum KindSchema {
-    Diagnostics,
-    ProcessFailure,
-}
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "kebab-case")]
 enum BasisSchema {
     LanguageDefect,
     ToolContractDifference,
-}
-#[derive(Debug, Serialize)]
-struct ProcessArtifactsSchema {
-    stdout: serde_json::Value,
-    stderr: serde_json::Value,
-    invocation: serde_json::Value,
-}
-#[derive(Debug, Serialize)]
-struct ProcessObservationSchema {
-    kind: KindSchema,
-    exit: i64,
-    signal: Option<i64>,
-    actual_request_root: String,
-    observer_no_deadline: bool,
-    executable_sha256: Option<String>,
-    settings_sha256: Option<String>,
-    metadata_error: Option<String>,
-    template_sha256: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    artifacts: Option<ProcessArtifactsSchema>,
 }
 #[derive(Debug, Serialize)]
 struct ValidationSchema {
@@ -224,7 +196,7 @@ struct ObservationSchema {
     raw_parity_matches_intended: Option<bool>,
     diagnostics_match_intended: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    process_observation: Option<ProcessObservationSchema>,
+    process_observation: Option<ProcessRowSchema>,
 }
 
 fn wire_contract(value: ComparisonContract) -> ContractSchema {
@@ -233,20 +205,11 @@ fn wire_contract(value: ComparisonContract) -> ContractSchema {
         ComparisonContract::CompleteReport => ContractSchema::CompleteReport,
     }
 }
-fn wire_kind(value: ExpectationKind) -> KindSchema {
-    match value {
-        ExpectationKind::Diagnostics => KindSchema::Diagnostics,
-        ExpectationKind::ProcessFailure => KindSchema::ProcessFailure,
-    }
-}
 fn wire_basis(value: DiscrepancyBasis) -> BasisSchema {
     match value {
         DiscrepancyBasis::LanguageDefect => BasisSchema::LanguageDefect,
         DiscrepancyBasis::ToolContract => BasisSchema::ToolContractDifference,
     }
-}
-fn wire_pointer(value: &ArtifactPointer) -> serde_json::Value {
-    serde_json::json!({"path": value.path.0, "sha256": value.sha256.0})
 }
 
 impl From<&ObservationDocument> for ObservationSchema {
@@ -353,7 +316,7 @@ impl From<&ObservationDocument> for ObservationSchema {
                     process_observation_group_sha256: pin_text(
                         &proof.process_observation_group_sha256,
                     ),
-                    reference_expectation_kind: wire_kind(proof.reference_expectation_kind),
+                    reference_expectation_kind: proof.reference_expectation_kind.into(),
                     settings_sha256: text(&proof.settings_sha256),
                     actual_executable_sha256: text(&proof.actual_executable_sha256),
                     profile_sha256: text(&proof.profile_sha256),
@@ -374,32 +337,7 @@ impl From<&ObservationDocument> for ObservationSchema {
                 IntentMatch::Unreported => None,
             },
             process_observation: match &value.process_observation {
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => Some({
-                ProcessObservationSchema {
-                    kind: wire_kind(process.kind),
-                    exit: process.exit.0,
-                    signal: match process.signal {
-                        Signal::Number(number) => Some(number.0),
-                        Signal::Absent => None,
-                    },
-                    actual_request_root: process.actual_request_root.0.clone(),
-                    observer_no_deadline: is(process.observer_no_deadline),
-                    executable_sha256: pin_text(&process.executable_sha256),
-                    settings_sha256: pin_text(&process.settings_sha256),
-                    metadata_error: reason_text(&process.metadata_error),
-                    template_sha256: pin_text(&process.template_sha256),
-                    artifacts: match &process.artifacts {
-                        ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(artifacts) => Some(
-                            ProcessArtifactsSchema {
-                                stdout: wire_pointer(&artifacts.stdout),
-                                stderr: wire_pointer(&artifacts.stderr),
-                                invocation: wire_pointer(&artifacts.invocation),
-                            },
-                        ),
-                        ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Unattached => None,
-                    },
-                }
-                }),
+                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => Some(process.into()),
                 ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::NotObserved => None,
             },
         }

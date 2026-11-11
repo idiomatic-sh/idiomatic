@@ -97,11 +97,12 @@ impl Fixture {
     pub fn replay(&self, loaded: &Loaded) -> Verdict {
         verdict(self.validate(&self.document, loaded))
     }
-    /// The refusal of the offline validator over `loaded`.
+    /// The refusal of the offline validator over `loaded`, or the counts it accepted instead.
     pub fn refusal(&self, loaded: &Loaded) -> String {
-        self.validate(&self.document, loaded)
-            .unwrap_err()
-            .to_string()
+        match self.validate(&self.document, loaded) {
+            Err(error) => error.to_string(),
+            Ok(counts) => format!("{counts:?}"),
+        }
     }
     fn validate(
         &self,

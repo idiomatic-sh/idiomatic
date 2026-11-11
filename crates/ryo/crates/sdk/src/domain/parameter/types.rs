@@ -57,3 +57,52 @@ pub struct ParameterCell {
     /// The text.
     pub value: ParameterText,
 }
+
+// The conversion into the core's value is the crate's own: a public `From` impl would put the core's types on the SDK's surface.
+impl ParameterValue {
+    /// The value as the core binds a parameter to it.
+    pub(crate) fn into_engine(self) -> ryo_core::inbound::use_cases::lint::types::ParameterValue {
+        use ryo_core::inbound::use_cases::lint::types::{
+            ParameterCell as CoreCell, ParameterTable as CoreTable, ParameterValue as CoreValue,
+        };
+        use ryo_values::domain::plan_parts::types::{
+            FlagState as CoreFlag, LiteralText as CoreText, WholeNumber,
+        };
+        match self {
+            Self::Number(number) => CoreValue::Number(WholeNumber(number.0)),
+            Self::Flag(flag) => CoreValue::Flag(match flag {
+                FlagState::On => CoreFlag::Raised,
+                FlagState::Off => CoreFlag::Lowered,
+            }),
+            Self::Text(text) => CoreValue::Text(CoreText(text.0)),
+            Self::Numbers(numbers) => {
+                CoreValue::Numbers(numbers.0.into_iter().map(WholeNumber).collect())
+            }
+            Self::Texts(texts) => {
+                CoreValue::Texts(texts.into_iter().map(|text| CoreText(text.0)).collect())
+            }
+            Self::TextSets(sets) => CoreValue::TextSets(
+                sets.into_iter()
+                    .map(|set| set.into_iter().map(|text| CoreText(text.0)).collect())
+                    .collect(),
+            ),
+            Self::Tables(tables) => CoreValue::Tables(
+                tables
+                    .into_iter()
+                    .map(|table| {
+                        CoreTable(
+                            table
+                                .0
+                                .into_iter()
+                                .map(|cell| CoreCell {
+                                    key: CoreText(cell.key.0),
+                                    value: CoreText(cell.value.0),
+                                })
+                                .collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+        }
+    }
+}

@@ -1,7 +1,7 @@
 //! The `fields` service's cases: the role of an edge of the tree under its parent, one row for each role of the vocabulary, on source
 //! read through the parse. The roles are the properties of TypeScript-ESTree that hold a child (`@typescript-eslint/visitor-keys`).
 
-use super::fixtures::{Dialect, Edge, edge, subject};
+use super::fixtures::{Dialect, Edge, edge};
 use super::service::fields;
 use super::types::Field;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -9,11 +9,29 @@ use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
+#[cfg(test)]
+mod classes_test;
+#[cfg(test)]
+mod control_test;
+#[cfg(test)]
+mod jsx_test;
+#[cfg(test)]
+mod modules_test;
+#[cfg(test)]
+mod positions_test;
+#[cfg(test)]
+mod types_test;
+
 /// What a row is given.
 type Input = Edge;
 /// The name of the role the edge plays.
 type Value = &'static str;
 type Failure = ();
+
+/// Reads one row's input through the concept fixtures' shared reading.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::fixtures::subject(input)
+}
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
@@ -233,12 +251,12 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
 fn all_cases() -> impl Iterator<Item = &'static Case<Input, Value, Failure>> {
     [
         CASES,
-        super::positions_test::CASES,
-        super::jsx_test::CASES,
-        super::modules_test::CASES,
-        super::control_test::CASES,
-        super::types_test::CASES,
-        super::classes_test::CASES,
+        positions_test::CASES,
+        jsx_test::CASES,
+        modules_test::CASES,
+        control_test::CASES,
+        types_test::CASES,
+        classes_test::CASES,
     ]
     .into_iter()
     .flat_map(|table| table.iter())

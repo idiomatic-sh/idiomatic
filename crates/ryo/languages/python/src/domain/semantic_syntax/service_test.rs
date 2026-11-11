@@ -18,7 +18,7 @@ use crate::fixtures::reading::parsed;
 use ryo::languages::{self, ByteSlice, Position, Tree};
 /// Source text only; no linter supplies expected facts.
 #[derive(Clone, Copy, Debug)]
-enum Input {
+enum Given {
     /// A fixed independent source example.
     Source(&'static str),
     /// Compare named native and embedded calls with explicit provenance categories.
@@ -26,6 +26,8 @@ enum Input {
     /// One retained table and model move between unrelated files.
     Reparse,
 }
+/// What a row is given.
+type Input = Given;
 /// Qualified embedded calls and their physical byte intervals.
 type Value = (usize, &'static str, u32, u32);
 type Failure = ();
@@ -34,32 +36,32 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("embedded lambda parameter shadows builtin"),
         word: Word::Succeeds,
-        input: || Input::NamedCalls("x: \"(lambda exec: exec(code))(custom)\"\n", "exec"),
+        input: || Given::NamedCalls("x: \"(lambda exec: exec(code))(custom)\"\n", "exec"),
         expect: Expect::Value((1, "local:", 18, 28)),
     },
     Case {
         name: CaseName("embedded comprehension target shadows builtin"),
         word: Word::Succeeds,
-        input: || Input::NamedCalls("x: \"[exec(code) for exec in values]\"\n", "exec"),
+        input: || Given::NamedCalls("x: \"[exec(code) for exec in values]\"\n", "exec"),
         expect: Expect::Value((1, "local:", 5, 15)),
     },
     Case {
         name: CaseName("embedded walrus target shadows builtin"),
         word: Word::Succeeds,
-        input: || Input::NamedCalls("x: \"(exec := custom, exec(code))\"\n", "exec"),
+        input: || Given::NamedCalls("x: \"(exec := custom, exec(code))\"\n", "exec"),
         expect: Expect::Value((1, "local:", 21, 31)),
     },
     Case {
         name: CaseName("embedded assignments cannot change native builtin"),
         word: Word::Succeeds,
-        input: || Input::NamedCalls("x: \"(exec := custom, exec(code))\"\nexec(code)\n", "exec"),
+        input: || Given::NamedCalls("x: \"(exec := custom, exec(code))\"\nexec(code)\n", "exec"),
         expect: Expect::Value((2, "builtin:builtins.exec|local:", 34, 44)),
     },
     Case {
         name: CaseName("embedded assignment cannot hide native outer import"),
         word: Word::Succeeds,
         input: || {
-            Input::NamedCalls(
+            Given::NamedCalls(
                 "def f():\n    x: \"(alias := custom, alias())\"\n    alias()\nfrom alpha import run as alias\n",
                 "alias",
             )
@@ -69,20 +71,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("embedded parameter default evaluates outer scope"),
         word: Word::Succeeds,
-        input: || Input::NamedCalls("x: \"(lambda exec=exec(code): exec(code))()\"\n", "exec"),
+        input: || Given::NamedCalls("x: \"(lambda exec=exec(code): exec(code))()\"\n", "exec"),
         expect: Expect::Value((2, "builtin:builtins.exec|local:", 17, 27)),
     },
     Case {
         name: CaseName("comprehension first iterable evaluates outer scope"),
         word: Word::Succeeds,
-        input: || Input::NamedCalls("x: \"[exec(code) for exec in exec(code)]\"\n", "exec"),
+        input: || Given::NamedCalls("x: \"[exec(code) for exec in exec(code)]\"\n", "exec"),
         expect: Expect::Value((2, "local:|builtin:builtins.exec", 5, 15)),
     },
     Case {
         name: CaseName("cast keyword type operand"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import cast\nimport alpha\nx = cast(typ=\"alpha.run()\", val=value)\n",
             )
         },
@@ -92,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("NewType positional operand"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import NewType\nimport alpha\nT = NewType(\"T\", \"alpha.run()\")\n",
             )
         },
@@ -102,7 +104,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("NewType keyword operand"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import NewType\nimport alpha\nT = NewType(name=\"T\", tp=\"alpha.run()\")\n",
             )
         },
@@ -112,7 +114,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("NewType name remains value"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import NewType\nimport alpha\nT = NewType(\"alpha.run()\", int)\n",
             )
         },
@@ -122,7 +124,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("TypeVar default type operand"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import TypeVar\nimport alpha\nT = TypeVar(\"T\", default=\"alpha.run()\")\n",
             )
         },
@@ -132,7 +134,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("cast type operand"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import cast\nimport alpha\nx = cast(\"alpha.run()\", value)\n",
             )
         },
@@ -142,7 +144,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("cast value operand"),
         word: Word::Succeeds,
         input: || {
-            Input::Source("from typing import cast\nimport alpha\nx = cast(int, \"alpha.run()\")\n")
+            Given::Source("from typing import cast\nimport alpha\nx = cast(int, \"alpha.run()\")\n")
         },
         expect: Expect::Value((0, "", 0, 0)),
     },
@@ -150,7 +152,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("shadowed cast"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import cast\nimport alpha\ncast = custom\nx = cast(\"alpha.run()\", value)\n",
             )
         },
@@ -160,7 +162,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("type variable constraint"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import TypeVar\nimport alpha\nT = TypeVar(\"T\", \"alpha.run()\")\n",
             )
         },
@@ -170,7 +172,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("type variable bound"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import TypeVar\nimport alpha\nT = TypeVar(\"T\", bound=\"alpha.run()\")\n",
             )
         },
@@ -180,7 +182,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("type variable name is a value"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import TypeVar\nimport alpha\nT = TypeVar(\"alpha.run()\")\n",
             )
         },
@@ -190,7 +192,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("shadowed type variable constructor"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import TypeVar\nimport alpha\nTypeVar = custom\nT = TypeVar(\"T\", bound=\"alpha.run()\")\n",
             )
         },
@@ -200,7 +202,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("explicit type alias"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import TypeAlias\nimport alpha\nT: TypeAlias = \"alpha.run()\"\n",
             )
         },
@@ -210,7 +212,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("shadowed type alias marker"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import TypeAlias\nimport alpha\nTypeAlias = custom\nT: TypeAlias = \"alpha.run()\"\n",
             )
         },
@@ -221,44 +223,44 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "retained model forgets embedded identities across valid invalid empty and ordinary files",
         ),
         word: Word::Succeeds,
-        input: || Input::Reparse,
+        input: || Given::Reparse,
         expect: Expect::Value((2, "fresh", 0, 0)),
     },
     Case {
         name: CaseName("simple content offsets"),
         word: Word::Succeeds,
-        input: || Input::Source("import alpha\nx: \"alpha.run()\"\n"),
+        input: || Given::Source("import alpha\nx: \"alpha.run()\"\n"),
         expect: Expect::Value((1, "alpha.run", 17, 28)),
     },
     Case {
         name: CaseName("escaped logical tokens retain whole-host physical span"),
         word: Word::Succeeds,
-        input: || Input::Source("import alpha\nx: \"alpha.r\\x75n()\"\n"),
+        input: || Given::Source("import alpha\nx: \"alpha.r\\x75n()\"\n"),
         expect: Expect::Value((1, "alpha.run", 16, 32)),
     },
     Case {
         name: CaseName("concatenation retains whole-host physical span"),
         word: Word::Succeeds,
-        input: || Input::Source("import alpha\nx: \"alpha.\" \"run()\"\n"),
+        input: || Given::Source("import alpha\nx: \"alpha.\" \"run()\"\n"),
         expect: Expect::Value((1, "alpha.run", 16, 32)),
     },
     Case {
         name: CaseName("quoted annotation resolves a later module import"),
         word: Word::Succeeds,
-        input: || Input::Source("x: \"alpha.run()\"\nimport alpha\n"),
+        input: || Given::Source("x: \"alpha.run()\"\nimport alpha\n"),
         expect: Expect::Value((1, "alpha.run", 4, 15)),
     },
     Case {
         name: CaseName("ordinary runtime strings are not expressions"),
         word: Word::Succeeds,
-        input: || Input::Source("import alpha\nx = \"alpha.run()\"\n"),
+        input: || Given::Source("import alpha\nx = \"alpha.run()\"\n"),
         expect: Expect::Value((0, "", 0, 0)),
     },
     Case {
         name: CaseName("Literal arguments are values"),
         word: Word::Succeeds,
         input: || {
-            Input::Source("from typing import Literal as L\nimport alpha\nx: L[\"alpha.run()\"]\n")
+            Given::Source("from typing import Literal as L\nimport alpha\nx: L[\"alpha.run()\"]\n")
         },
         expect: Expect::Value((0, "", 0, 0)),
     },
@@ -266,7 +268,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("Annotated metadata is not a type"),
         word: Word::Succeeds,
         input: || {
-            Input::Source(
+            Given::Source(
                 "from typing import Annotated as A\nimport alpha\nx: A[int, \"alpha.run()\"]\n",
             )
         },
@@ -275,15 +277,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("invalid quoted syntax gives no invented expression"),
         word: Word::Succeeds,
-        input: || Input::Source("x: \"alpha.(\"\n"),
+        input: || Given::Source("x: \"alpha.(\"\n"),
         expect: Expect::Value((0, "", 0, 0)),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
     let (source, selected) = match input {
-        Input::Source(source) => (source, None),
-        Input::NamedCalls(source, name) => (source, Some(name)),
-        Input::Reparse => {
+        Given::Source(source) => (source, None),
+        Given::NamedCalls(source, name) => (source, Some(name)),
+        Given::Reparse => {
             return reparse(
                 &[
                     ReplaySample(languages::NameText("x: \"one()\"\n"), languages::Count(1)),

@@ -26,7 +26,11 @@ pub(crate) mod queries;
 #[cfg(test)]
 pub(crate) mod re_exported_publication;
 #[cfg(test)]
+pub(crate) mod refusal;
+#[cfg(test)]
 pub(crate) mod refused_and_empty_producers;
+#[cfg(test)]
+pub(crate) mod request;
 #[cfg(test)]
 pub(crate) mod rules;
 #[cfg(test)]

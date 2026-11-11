@@ -155,27 +155,64 @@ fn subject((files, asked): Input) -> Result<Value, Failure> {
     ))
 }
 
+/// Which scenario of the contract's fixtures a row runs: each runs the contract over inputs of its own.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    /// The `positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots` scenario.
+    NamespacePartial,
+    /// The `module_identity_only_preserves_inputs_without_projecting_or_validating` scenario.
+    ModuleIdentityOnly,
+    /// The `metadata_rejection_and_dependency_refusal_have_independent_applicability` scenario.
+    IndependentApplicability,
+    /// The `primary_metadata_rejection_keeps_real_dependency_projection` scenario.
+    PrimaryMetadataRejection,
+}
+
+/// The scenarios' rows: what each observed, each check in order, joined by `|`.
+const SCENARIOS: &[Case<Scenario, &'static str, ()>] = &[
+    Case {
+        name: CaseName(
+            "positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::NamespacePartial,
+        expect: Expect::Value(
+            "true|true|true|true|true|true|true|true|true|true|true|true|true|true|true",
+        ),
+    },
+    Case {
+        name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
+        word: Word::Succeeds,
+        input: || Scenario::ModuleIdentityOnly,
+        expect: Expect::Value("1|(1, 1)|0|true|true|true|true"),
+    },
+    Case {
+        name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),
+        word: Word::Succeeds,
+        input: || Scenario::IndependentApplicability,
+        expect: Expect::Value("true|true|true|1|1|true|1|0|true|1|true|true"),
+    },
+    Case {
+        name: CaseName("primary_metadata_rejection_keeps_real_dependency_projection"),
+        word: Word::Succeeds,
+        input: || Scenario::PrimaryMetadataRejection,
+        expect: Expect::Value("true|1|\"requests>=2\"|true|1|true"),
+    },
+];
+
+/// Runs the scenario the row names.
+fn scenario(given: Scenario) -> Result<&'static str, ()> {
+    let observed = match given {
+        Scenario::NamespacePartial => fixtures::namespace_partial::positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots(),
+        Scenario::ModuleIdentityOnly => fixtures::module_identity_only::module_identity_only_preserves_inputs_without_projecting_or_validating(),
+        Scenario::IndependentApplicability => fixtures::independent_applicability::metadata_rejection_and_dependency_refusal_have_independent_applicability(),
+        Scenario::PrimaryMetadataRejection => fixtures::primary_metadata_rejection::primary_metadata_rejection_keeps_real_dependency_projection(),
+    };
+    Ok(Box::leak(observed.into_boxed_str()))
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-    run(
-        fixtures::primary_metadata_rejection::CASES,
-        Word::Succeeds,
-        fixtures::primary_metadata_rejection::subject,
-    );
-    run(
-        fixtures::independent_applicability::CASES,
-        Word::Succeeds,
-        fixtures::independent_applicability::subject,
-    );
-    run(
-        fixtures::module_identity_only::CASES,
-        Word::Succeeds,
-        fixtures::module_identity_only::subject,
-    );
-    run(
-        fixtures::namespace_partial::CASES,
-        Word::Succeeds,
-        fixtures::namespace_partial::subject,
-    );
+    run(SCENARIOS, Word::Succeeds, scenario);
 }

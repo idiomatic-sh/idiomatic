@@ -1,6 +1,6 @@
 //! A `use` that renames binds a path only where the innermost block or inline module that holds the `use` holds the path, with no
 //! inline module between them; elsewhere the path names what it writes.
-use super::{Failure, Input, Repository, Value, declares, facts, subject, writes};
+use super::{Repository, declares, facts, writes};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::module_tree::types::{Segment, Spelling, Written};
 use ryo::languages::{Offset, Span};
@@ -114,6 +114,18 @@ fn an_alias_in_an_inline_module_and_the_path_in_another_of_the_same_name() -> Re
         engine_alias("shared", &["m"], (21, 44), Some((15, 47))),
         engine_path(&["m"], (76, 92)),
     ])
+}
+
+/// What a row is given: the parent table's input.
+type Input = super::Input;
+/// What a row expects: the parent table's value.
+type Value = super::Value;
+/// What a refused row expects: the parent table's failure.
+type Failure = super::Failure;
+
+/// Runs one row through the parent table's subject.
+fn subject(input: Input) -> Value {
+    super::subject(input)
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[

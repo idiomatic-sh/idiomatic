@@ -4,7 +4,7 @@ use super::constants::NO_RESERVED_ARENA;
 use super::types::CrossedWithPublications;
 use super::types::OutputPublication;
 use super::types::ProgramEvaluated;
-use crate::application::cross_file::publication::pack_roots;
+use crate::application::cross_file::publication::service::pack_roots;
 use crate::application::cross_file::rendering::service::Rendering;
 use crate::application::cross_file::types::ProjectCrossing;
 use crate::domain::answering::types::Crossed;

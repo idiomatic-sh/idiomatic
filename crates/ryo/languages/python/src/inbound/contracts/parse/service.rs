@@ -81,6 +81,20 @@ pub(super) fn complete_file(
     }
 }
 
+/// Begins the semantic session of one file in `slot`, when the syntax adapter has one for its kind of source.
+pub(super) fn begin_file(
+    syntax: &dyn SyntaxPort,
+    request: &languages::ParseRequest<'_>,
+    tree: &languages::Elements,
+    slot: &mut languages::SemanticSlot,
+) {
+    if let Some(session) =
+        syntax.begin_semantics(tree, source_kind(request.path), std::mem::take(slot))
+    {
+        *slot = languages::SemanticSlot::Begun(session);
+    }
+}
+
 /// Reads the tree of one file into the worker's table.
 pub(super) fn read_file(
     syntax: &dyn SyntaxPort,

@@ -1,9 +1,8 @@
-// ignore: idiomatic.arch/file-length - one trait implementation: the Parse contract of the Python language is a single impl block, which Rust does not split across files
 //! The `parse` contract: it implements the contract another crate declares, with nothing of its own beside it. It says which files
 //! are Python and builds, completes and answers, for every syntax relation of ryo's catalog, how Python reads it or that it is not in the language.
 
 use super::constants::CAPABILITIES;
-use super::service::{complete_file, prepare_model, read_file, source_kind};
+use super::service::{begin_file, complete_file, prepare_model, read_file};
 use crate::domain::language::constants::UNKNOWN_REASONS;
 use crate::domain::language::service::reads;
 use crate::domain::model::types::Declarations;
@@ -73,13 +72,7 @@ impl Parse for ParseContract {
         tree: &languages::Elements,
         slot: &mut languages::SemanticSlot,
     ) {
-        let kind = source_kind(request.path);
-        if let Some(session) = self
-            .syntax
-            .begin_semantics(tree, kind, std::mem::take(slot))
-        {
-            *slot = languages::SemanticSlot::Begun(session);
-        }
+        begin_file(self.syntax.as_ref(), request, tree, slot);
     }
 
     fn capabilities(&self) -> &'static [languages::OptionalCapability] {

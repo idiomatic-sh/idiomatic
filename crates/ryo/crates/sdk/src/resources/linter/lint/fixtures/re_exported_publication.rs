@@ -14,11 +14,12 @@ use crate::domain::parameter::types::ParameterName;
 use crate::domain::parameter::types::ParameterText;
 use crate::domain::parameter::types::ParameterValue;
 use crate::resources::linter::lint::entry::lint_with;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use std::collections::BTreeMap;
 
 /// A publication re-exported by a second rule survives a cold run, a warm run, a replay of the consumer and a fresh engine.
-pub(crate) fn re_exported_publication() -> Outcome {
+pub(crate) fn re_exported_publication() -> Result<Outcome, LintError> {
     let root = case_directory();
     let store = tempfile::tempdir().expect("store");
     let engine = |cache| {
@@ -74,7 +75,7 @@ emit empty subject path key(path);"#,
     let mut last = (0, 0, true, 0);
     for marker in ["never-a", "never-a", label, label, "never-b", "never-a"] {
         let requested = request(marker);
-        let fresh = lint_with(&engine(Cache::None), requested.clone()).expect("a report");
+        let fresh = lint_with(&engine(Cache::None), requested.clone())?;
         let expected = usize::from(marker != label);
         assert_eq!(fresh.findings.len(), expected);
         if expected != 0 {
@@ -86,14 +87,11 @@ emit empty subject path key(path);"#,
         }
         assert!(fresh.unknowns.is_empty());
         last = summary(&fresh);
+        assert_eq!(lint_with(&cached, requested.clone())?, fresh);
         assert_eq!(
-            lint_with(&cached, requested.clone()).expect("a report"),
-            fresh
-        );
-        assert_eq!(
-            lint_with(&engine(Cache::At(store.path().to_owned())), requested).expect("a report"),
+            lint_with(&engine(Cache::At(store.path().to_owned())), requested)?,
             fresh
         );
     }
-    last
+    Ok(last)
 }

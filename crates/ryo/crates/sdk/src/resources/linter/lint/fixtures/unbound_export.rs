@@ -5,11 +5,12 @@ use super::directory::case_directory;
 use super::outcome::{Outcome, summary};
 use super::rules::{listed, ordinary, rule_id};
 use crate::resources::linter::lint::entry::lint_with;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use std::collections::BTreeMap;
 
 /// An export nothing binds demands no reader and changes no ordinary result.
-pub(crate) fn unbound_export() -> Outcome {
+pub(crate) fn unbound_export() -> Result<Outcome, LintError> {
     let root = case_directory();
     // This fixture reports Missing::Any if Identifier is demanded. An unused
     // export must be pruned before request wants, not merely ignored at rendering.
@@ -33,14 +34,11 @@ pub(crate) fn unbound_export() -> Outcome {
     let unbound = request(
         "let found = select path from \"filesystem.file\"; let unavailable = select id from \"identifier\"; observe unavailable as unused; emit found subject path key(path);",
     );
-    let expected = lint_with(&engine, plain).expect("a report");
+    let expected = lint_with(&engine, plain)?;
     assert_eq!(expected.findings.len(), 1);
     assert!(expected.unknowns.is_empty());
     for _ in 0..2 {
-        assert_eq!(
-            lint_with(&engine, unbound.clone()).expect("a report"),
-            expected
-        );
+        assert_eq!(lint_with(&engine, unbound.clone())?, expected);
     }
-    summary(&expected)
+    Ok(summary(&expected))
 }

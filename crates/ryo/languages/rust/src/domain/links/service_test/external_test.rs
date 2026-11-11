@@ -1,5 +1,5 @@
 //! Paths that leave their package: an external crate names nothing of the repository, an external target with parent segments, and a path into a library the package depends on.
-use super::{Failure, Input, Repository, Value, declares, facts, package, subject, writes};
+use super::{Repository, declares, facts, package, writes};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 fn a_path_to_an_external_crate_names_nothing_of_the_repository() -> Repository {
@@ -57,6 +57,18 @@ fn a_path_into_a_library_the_package_depends_on() -> Repository {
         ],
         externs: vec![("a", "bee", "b", "b/src/lib.rs")],
     }
+}
+
+/// What a row is given: the parent table's input.
+type Input = super::Input;
+/// What a row expects: the parent table's value.
+type Value = super::Value;
+/// What a refused row expects: the parent table's failure.
+type Failure = super::Failure;
+
+/// Runs one row through the parent table's subject.
+fn subject(input: Input) -> Value {
+    super::subject(input)
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[

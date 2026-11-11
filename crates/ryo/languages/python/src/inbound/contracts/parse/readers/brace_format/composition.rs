@@ -6,8 +6,9 @@ use super::constants::{
     PLACEHOLDER_RECURSION_EXCEEDED, UNKNOWN_CONVERSION, UNKNOWN_INPUT, UNMATCHED_BRACKET,
 };
 use super::types::{FieldCounts, OutcomeLabels};
+use crate::application::brace_format::service::prepare;
 use crate::domain::brace_format::constants::INCOMPLETE;
-use crate::domain::brace_format::service::{occurrences, prepare, result, state};
+use crate::domain::brace_format::service::{occurrences, result, state};
 use crate::domain::brace_format::types::{
     BraceFieldContext, BraceFormatError, BraceFormatResult, BraceFormatState, BraceSelector,
     SelectorRange,
@@ -17,7 +18,7 @@ use crate::domain::{
     model::types::Declarations, nodes::types::Node, semantic_syntax::types::Visibility,
     syntax::service::kind_bits, syntax::types::Kind,
 };
-use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
+use crate::outbound::brace_format::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
 use ryo::languages;
 
 /// One outcome row per source string occurrence.
@@ -153,7 +154,7 @@ fn selector_name(selector: &BraceSelector) -> languages::NameText<'_> {
 ryo::reads! {
     BraceFormatParseItem => languages::BraceFormatParse, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffLiteralBraceFormat>(tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
+        given index = prepare(&RuffLiteralBraceFormat, tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             given result = result(&index, occurrence);
@@ -178,7 +179,7 @@ ryo::reads! {
 ryo::reads! {
     BraceFormatFieldItem => languages::BraceFormatField, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffLiteralBraceFormat>(tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
+        given index = prepare(&RuffLiteralBraceFormat, tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             when result(&index, occurrence) {

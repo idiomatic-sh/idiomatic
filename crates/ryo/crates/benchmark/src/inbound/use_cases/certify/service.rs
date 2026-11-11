@@ -188,7 +188,9 @@ pub(super) fn prepare(
     candidate: &Path,
 ) -> Result<RegisteredContext, Error> {
     let loaded = store.load(registration)?;
-    crate::application::inventory_verification::service::require_authority(&loaded, suite, store)?;
+    crate::application::inventory_verification::authority::service::require_authority(
+        &loaded, suite, store,
+    )?;
     let mut paths = crate::application::registered_certification::service::admit(
         &loaded,
         suite,
@@ -200,8 +202,10 @@ pub(super) fn prepare(
         candidate,
     )?;
     for entry in &loaded.rules {
-        crate::application::inventory_verification::service::verify_context(entry, suite, store)
-            .map_err(|reason| Error::Invalid(reason.0))?;
+        crate::application::inventory_verification::authority::service::verify_context(
+            entry, suite, store,
+        )
+        .map_err(|reason| Error::Invalid(reason.0))?;
         paths.extend(
             crate::application::registered_certification::service::pin_rule(
                 entry,

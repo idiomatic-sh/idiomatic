@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
+use crate::application::derived::service::Derived;
 use ryo_execution::inbound::use_cases::publication::interface::PublicationUseCase;
 use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
@@ -43,6 +43,6 @@ pub fn operators() -> Arc<dyn OperatorsPort> {
 
 /// The derived access over the engine's derived use cases, as the prepare use case's composition builds it.
 #[must_use]
-pub fn derived() -> DerivedAccess {
-    ryo_execution::derived()
+pub fn derived() -> Derived {
+    Derived::from(ryo_execution::derived())
 }

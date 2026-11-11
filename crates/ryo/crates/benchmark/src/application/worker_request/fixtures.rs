@@ -1,9 +1,17 @@
 //! Real SDK session lifecycle probes; child selection is confined to test support.
 use super::service::{configure, prepare};
-use crate::outbound::engine::{factory, interface::EnginePort as _};
+use crate::outbound::engine::{
+    factory,
+    interface::EnginePort as _,
+    types::{
+        configured_engine_session::value::ConfiguredEngineSession,
+        loaded_engine_session::value::LoadedEngineSession,
+    },
+};
 use ryo::linter::{Languages, RelativePath, RuleId};
 use ryo_benchmark_contracts::domain::{
     context::types::{CaseContext, project_context_mode::value::ProjectContextMode},
+    reports::errors::ReportsError,
     requests::types::{WorkerRequest, WorkerState},
 };
 use std::{collections::BTreeMap, path::Path};
@@ -29,59 +37,65 @@ impl Scenario {
             Self::Abandoned => "abandoned",
         }
     }
-    fn parse(value: &str) -> Self {
+    fn parse(value: &str) -> Option<Self> {
         match value {
-            "success" => Self::Success,
-            "load-refusal" => Self::LoadRefusal,
-            "configure-refusal" => Self::ConfigureRefusal,
-            "execute-refusal" => Self::ExecuteRefusal,
-            "abandoned" => Self::Abandoned,
-            _ => panic!("unknown test child scenario"),
+            "success" => Some(Self::Success),
+            "load-refusal" => Some(Self::LoadRefusal),
+            "configure-refusal" => Some(Self::ConfigureRefusal),
+            "execute-refusal" => Some(Self::ExecuteRefusal),
+            "abandoned" => Some(Self::Abandoned),
+            _ => None,
         }
     }
 }
 
-/// Each actual global subscriber runs in a fresh process, preserving its one-shot contract.
-pub(super) fn trace_sessions() {
+/// Each actual global subscriber runs in a fresh process, preserving its one-shot contract: what each child process
+/// printed of its own session, after its scenario's label. The child runs the whole table, whose row for this scenario
+/// states the parent's answer and not the child's, so the child's exit status says nothing and is not read.
+pub(super) fn trace_sessions() -> String {
     let child = std::env::args()
         .find_map(|argument| argument.strip_prefix(CHILD_SCENARIO).map(str::to_owned));
     match child {
-        Some(scenario) => {
-            let scenario = Scenario::parse(&scenario);
-            actual_session(scenario);
-            println!("{VERIFIED}{}", scenario.label());
+        Some(label) => {
+            let observed = Scenario::parse(&label)
+                .map_or_else(|| "unknown scenario".to_owned(), actual_session);
+            println!("{VERIFIED}{label}:{observed}");
+            observed
         }
-        None => {
-            for scenario in [
-                Scenario::Success,
-                Scenario::LoadRefusal,
-                Scenario::ConfigureRefusal,
-                Scenario::ExecuteRefusal,
-                Scenario::Abandoned,
-            ] {
-                let output = std::process::Command::new(std::env::current_exe().unwrap())
-                    .args(["--exact", RUNNER, "--test-threads=1", "--nocapture"])
-                    .args(["--skip", &format!("{CHILD_SCENARIO}{}", scenario.label())])
-                    .output()
-                    .unwrap();
-                assert!(
-                    output.status.success(),
-                    "scenario {:?}: stdout={} stderr={}",
-                    scenario,
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                assert!(
-                    String::from_utf8_lossy(&output.stdout)
-                        .contains(&format!("{VERIFIED}{}", scenario.label())),
-                    "the child must execute the actual lifecycle case; zero-test success is not proof"
-                );
+        None => [
+            Scenario::Success,
+            Scenario::LoadRefusal,
+            Scenario::ConfigureRefusal,
+            Scenario::ExecuteRefusal,
+            Scenario::Abandoned,
+        ]
+        .into_iter()
+        .map(|scenario| {
+            let label = scenario.label();
+            match std::process::Command::new(std::env::current_exe().unwrap_or_default())
+                .args(["--exact", RUNNER, "--test-threads=1", "--nocapture"])
+                .args(["--skip", &format!("{CHILD_SCENARIO}{label}")])
+                .output()
+            {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let marker = format!("{VERIFIED}{label}:");
+                    let observed = stdout
+                        .lines()
+                        .find_map(|line| line.split_once(&marker).map(|(_, observed)| observed))
+                        .unwrap_or("no observation");
+                    format!("{label} {observed}")
+                }
+                Err(error) => format!("{label} not started: {error}"),
             }
-        }
+        })
+        .collect::<Vec<_>>()
+        .join("; "),
     }
 }
 
-fn actual_session(scenario: Scenario) {
+fn actual_session(scenario: Scenario) -> String {
+    let mut seen: Vec<String> = Vec::new();
     let scratch = tempfile::tempdir().unwrap();
     let trace = scratch.path().join("trace.json");
     let rules = scratch.path().join("rules");
@@ -91,60 +105,92 @@ fn actual_session(scenario: Scenario) {
         std::fs::write(rules.join("R1/query.ryoql"), "let failures = select path as file, span from \"filesystem.read-failure\"; emit failures subject file key(file);").unwrap();
     }
     let request = request(scenario, scratch.path(), rules);
-    let prepared = prepare(request).unwrap();
-    let engine = factory::local(Languages::default(), Some(trace.clone()));
-    let loaded = engine.load(&prepared.request);
-    if matches!(scenario, Scenario::LoadRefusal) {
-        assert!(matches!(loaded, Err(ref error) if error.to_string() == "no candidate queries"));
-        verify_trace(&trace, false, false, false);
-        return;
+    match prepare(request) {
+        Ok(prepared) => {
+            let engine = factory::local(Languages::default(), Some(trace.clone()));
+            session(
+                scenario,
+                &prepared.request,
+                engine.load(&prepared.request),
+                &mut seen,
+            );
+            // The SDK's actual compile span happens inside execute, after ownership transfer.
+            // Early guard destruction cannot leave it in the final flushed trace.
+            seen.push(verify_trace(&trace));
+        }
+        Err(error) => seen.push(format!("{error:?}")),
     }
-    let session = loaded.unwrap();
-    {
-        let span = tracing::info_span!("engine_session_after_load");
-        let _entered = span.enter();
-    }
-    if matches!(scenario, Scenario::Abandoned) {
-        drop(session);
-        verify_trace(&trace, true, false, false);
-        return;
-    }
-    let configured = configure(&prepared.request, session);
-    if matches!(scenario, Scenario::ConfigureRefusal) {
-        assert!(
-            matches!(configured, Err(ref error) if error.to_string() == "selected or required producer has no registered query: R404")
-        );
-        verify_trace(&trace, true, false, false);
-        return;
-    }
-    let configured = configured.unwrap();
-    {
-        let span = tracing::info_span!("engine_session_after_configure");
-        let _entered = span.enter();
-    }
-    let report = configured.execute();
-    match scenario {
-        Scenario::Success => assert_eq!(report.unwrap().report.diagnostics.len(), 1),
-        Scenario::ExecuteRefusal => assert!(
-            report
-                .unwrap_err()
-                .to_string()
-                .contains("incomplete candidate")
-        ),
-        Scenario::LoadRefusal | Scenario::ConfigureRefusal | Scenario::Abandoned => unreachable!(),
-    }
-    // The SDK's actual compile span happens inside execute, after ownership transfer.
-    // Early guard destruction cannot leave it in the final flushed trace.
-    verify_trace(&trace, true, true, true);
+    seen.join(",")
 }
-fn verify_trace(path: &Path, loaded: bool, configured: bool, executed: bool) {
-    let bytes = std::fs::read(path).unwrap();
-    let value: serde_json::Value =
-        serde_json::from_slice(&bytes).expect("guard flushes complete Chrome JSON");
-    let text = value.to_string();
-    assert_eq!(text.contains("engine_session_after_load"), loaded);
-    assert_eq!(text.contains("engine_session_after_configure"), configured);
-    assert_eq!(text.contains("\"compile\""), executed);
+/// What the scenario's session answered from load to execute: the refusal its scenario looks for, or the outcome it got instead.
+fn session(
+    scenario: Scenario,
+    request: &WorkerRequest,
+    loaded: Result<LoadedEngineSession<'_>, ReportsError>,
+    seen: &mut Vec<String>,
+) {
+    match (scenario, loaded) {
+        (Scenario::LoadRefusal, loaded) => seen.push(format!(
+            "{:?}",
+            matches!(loaded, Err(ref error) if error.to_string() == "no candidate queries")
+        )),
+        (_, Err(error)) => seen.push(format!("{error:?}")),
+        (Scenario::Abandoned, Ok(session)) => {
+            {
+                let span = tracing::info_span!("engine_session_after_load");
+                let _entered = span.enter();
+            }
+            drop(session);
+        }
+        (
+            Scenario::Success | Scenario::ConfigureRefusal | Scenario::ExecuteRefusal,
+            Ok(session),
+        ) => {
+            {
+                let span = tracing::info_span!("engine_session_after_load");
+                let _entered = span.enter();
+            }
+            configured(scenario, configure(request, session), seen);
+        }
+    }
+}
+/// What the configured session answered: the refusal its scenario looks for, or the outcome it got instead.
+fn configured(
+    scenario: Scenario,
+    configured: Result<ConfiguredEngineSession<'_>, ReportsError>,
+    seen: &mut Vec<String>,
+) {
+    match (scenario, configured) {
+        (Scenario::ConfigureRefusal, configured) => seen.push(format!("{:?}", matches!(configured, Err(ref error) if error.to_string() == "selected or required producer has no registered query: R404"))),
+        (_, Err(error)) => seen.push(format!("{error:?}")),
+        (_, Ok(configured)) => {
+            {
+                let span = tracing::info_span!("engine_session_after_configure");
+                let _entered = span.enter();
+            }
+            match (scenario, configured.execute()) {
+                (Scenario::ExecuteRefusal, Err(error)) => seen.push(format!(
+                    "{:?}",
+                    error.to_string().contains("incomplete candidate")
+                )),
+                (_, Ok(report)) => seen.push(format!("{:?}", report.report.diagnostics.len())),
+                (_, Err(error)) => seen.push(format!("{error:?}")),
+            }
+        }
+    }
+}
+/// Which of the three spans the flushed trace holds: after load, after configure, and the compile.
+fn verify_trace(path: &Path) -> String {
+    let text = std::fs::read(path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .map_or_else(|| "no complete trace".to_owned(), |value| value.to_string());
+    format!(
+        "load {} configure {} compile {}",
+        text.contains("engine_session_after_load"),
+        text.contains("engine_session_after_configure"),
+        text.contains("\"compile\"")
+    )
 }
 fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> WorkerRequest {
     let (root, manifest, mode, file) = if matches!(scenario, Scenario::ExecuteRefusal) {

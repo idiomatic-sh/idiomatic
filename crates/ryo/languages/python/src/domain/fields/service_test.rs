@@ -33,8 +33,8 @@ struct Edge {
 
 /// What a row is given.
 type Input = Edge;
-/// The name of the role the edge plays.
-type Value = &'static str;
+/// The role `role_of` answers for the edge, the role the parse recorded for it, and the name of the role.
+type Value = (languages::FieldId, languages::FieldId, &'static str);
 type Failure = ();
 
 const fn edge(source: &'static str, parent: Kind, child: Kind, nth: usize) -> Edge {
@@ -59,7 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("none"),
+        expect: Expect::Value((languages::FieldId(0), languages::FieldId(0), "none")),
     },
     Case {
         name: CaseName("body_is_the_role_of_its_edge"),
@@ -72,7 +72,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("body"),
+        expect: Expect::Value((languages::FieldId(1), languages::FieldId(1), "body")),
     },
     Case {
         name: CaseName("name_is_the_role_of_its_edge"),
@@ -85,7 +85,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("name"),
+        expect: Expect::Value((languages::FieldId(2), languages::FieldId(2), "name")),
     },
     Case {
         name: CaseName("args_is_the_role_of_its_edge"),
@@ -98,7 +98,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("args"),
+        expect: Expect::Value((languages::FieldId(3), languages::FieldId(3), "args")),
     },
     Case {
         name: CaseName("decorator_list_is_the_role_of_its_edge"),
@@ -111,7 +111,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("decorator-list"),
+        expect: Expect::Value((
+            languages::FieldId(4),
+            languages::FieldId(4),
+            "decorator-list",
+        )),
     },
     Case {
         name: CaseName("returns_is_the_role_of_its_edge"),
@@ -124,7 +128,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("returns"),
+        expect: Expect::Value((languages::FieldId(5), languages::FieldId(5), "returns")),
     },
     Case {
         name: CaseName("type_params_is_the_role_of_its_edge"),
@@ -137,7 +141,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("type-params"),
+        expect: Expect::Value((languages::FieldId(6), languages::FieldId(6), "type-params")),
     },
     Case {
         name: CaseName("bases_is_the_role_of_its_edge"),
@@ -150,7 +154,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("bases"),
+        expect: Expect::Value((languages::FieldId(7), languages::FieldId(7), "bases")),
     },
     Case {
         name: CaseName("keywords_is_the_role_of_its_edge"),
@@ -163,7 +167,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("keywords"),
+        expect: Expect::Value((languages::FieldId(8), languages::FieldId(8), "keywords")),
     },
     Case {
         name: CaseName("value_is_the_role_of_its_edge"),
@@ -176,7 +180,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("value"),
+        expect: Expect::Value((languages::FieldId(9), languages::FieldId(9), "value")),
     },
     Case {
         name: CaseName("targets_is_the_role_of_its_edge"),
@@ -189,7 +193,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("targets"),
+        expect: Expect::Value((languages::FieldId(10), languages::FieldId(10), "targets")),
     },
     Case {
         name: CaseName("target_is_the_role_of_its_edge"),
@@ -202,7 +206,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("target"),
+        expect: Expect::Value((languages::FieldId(11), languages::FieldId(11), "target")),
     },
     Case {
         name: CaseName("op_is_the_role_of_its_edge"),
@@ -215,7 +219,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("op"),
+        expect: Expect::Value((languages::FieldId(12), languages::FieldId(12), "op")),
     },
     Case {
         name: CaseName("annotation_is_the_role_of_its_edge"),
@@ -228,7 +232,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 1,
             )
         },
-        expect: Expect::Value("annotation"),
+        expect: Expect::Value((languages::FieldId(13), languages::FieldId(13), "annotation")),
     },
 ];
 
@@ -269,7 +273,6 @@ fn subject(given: Input) -> Result<Value, Failure> {
         })
         .nth(given.nth)
         .ok_or(())?;
-    assert_eq!(role_of(&tree, found), languages::field_at(&elements, found));
     let name = languages::text_of(
         &symbols,
         tree.source,
@@ -278,7 +281,11 @@ fn subject(given: Input) -> Result<Value, Failure> {
     .map_or("none", |name| {
         &*Box::leak(name.0.to_owned().into_boxed_str())
     });
-    Ok(name)
+    Ok((
+        role_of(&tree, found),
+        languages::field_at(&elements, found),
+        name,
+    ))
 }
 
 #[test]
@@ -289,7 +296,7 @@ fn succeeds() {
 #[cfg(test)]
 mod control_flow_roles_test;
 #[cfg(test)]
-mod coverage_test;
+mod coverage;
 #[cfg(test)]
 mod expression_roles_test;
 #[cfg(test)]

@@ -37,3 +37,15 @@ pub enum MemoryBudget {
     /// This many bytes.
     Bytes(NonZeroU64),
 }
+
+// The conversion into the engine's budget is the crate's own: a public `From` impl would put the engine's types on the SDK's surface.
+impl MemoryBudget {
+    /// The most memory a run may use, as the memory factory takes it.
+    pub(crate) const fn into_engine(self) -> ryo_values::domain::runs::types::Budget {
+        use ryo_values::domain::runs::types::{Budget, MemoryBytes};
+        match self {
+            Self::Bytes(bytes) => Budget::Bytes(MemoryBytes(bytes.get())),
+            Self::Machine => Budget::Machine,
+        }
+    }
+}

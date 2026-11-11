@@ -11,6 +11,7 @@ use crate::domain::host::types::HostColumnName;
 use crate::domain::host::types::HostKind;
 use crate::domain::host::types::HostRelationName;
 use crate::domain::language::types::Languages;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::CaseSource;
 use crate::resources::linter::lint::types::Corpus;
@@ -85,7 +86,7 @@ fn shared_calls(root: &std::path::Path) -> [LintRequest; 2] {
 /// Two different calls on one linter, one after the other, interleaved and in parallel, give exactly what the same calls give on a
 /// fresh linter each: nothing a call leaves in the linter reaches another. The value is the first call's, over a directory holding
 /// one file.
-pub(crate) fn shared() -> Outcome {
+pub(crate) fn shared() -> Result<Outcome, LintError> {
     let root = tempfile::tempdir().expect("a temporary directory");
     std::fs::write(root.path().join("notes.txt"), "text").expect("a file");
     let linter = || {
@@ -96,9 +97,8 @@ pub(crate) fn shared() -> Outcome {
             Cache::None,
         )
     };
-    let fresh = |request: LintRequest| {
-        crate::resources::linter::lint::entry::lint_with(&linter(), request).expect("a report")
-    };
+    let fresh =
+        |request: LintRequest| crate::resources::linter::lint::entry::lint_with(&linter(), request);
     let [first, second] = shared_calls(root.path());
     let expected = [fresh(first.clone()), fresh(second.clone())];
     assert_ne!(
@@ -108,7 +108,6 @@ pub(crate) fn shared() -> Outcome {
     let shared = linter();
     let call = |request: &LintRequest| {
         crate::resources::linter::lint::entry::lint_with(&shared, request.clone())
-            .expect("a report")
     };
     for round in 0_u8..3 {
         assert_eq!(call(&first), expected[0], "round {round}, first");
@@ -133,14 +132,16 @@ pub(crate) fn shared() -> Outcome {
         }
     });
     let untouched = std::fs::read_dir(root.path()).is_ok_and(|entries| entries.count() == 1);
-    let columns = expected[0]
+    let [first_report, _] = expected;
+    let first_report = first_report?;
+    let columns = first_report
         .findings
         .first()
         .map_or(0, |finding| finding.columns.len());
-    (
-        expected[0].findings.len(),
-        expected[0].unread.len(),
+    Ok((
+        first_report.findings.len(),
+        first_report.unread.len(),
         untouched,
         columns,
-    )
+    ))
 }

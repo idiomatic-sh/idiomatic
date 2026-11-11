@@ -2,18 +2,32 @@
 //! read through the parse; and, for every file the fixtures pin, the role of every element is the field of `go/ast` that holds it, as
 //! `tests/fixtures/standard/dump.go` reads it with `reflect` and `output.txt` pins it.
 
-use super::fixtures::{Given, edge, subject};
+use super::fixtures::{Given, edge};
 use super::service::{field_name, fields};
 use super::types::AstField;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 
+#[cfg(test)]
+mod declarations_test;
+#[cfg(test)]
+mod pinned_test;
+#[cfg(test)]
+mod punctuation_test;
+#[cfg(test)]
+mod statements_test;
+
 /// What a row is given.
 type Input = Given;
 /// The name of the role the edge plays, or the pinned files whose roles differ from `go/ast`'s, joined with ` | `.
 type Value = &'static str;
 type Failure = ();
+
+/// Reads one row's input through the concept fixtures' shared reading.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::fixtures::subject(input)
+}
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
@@ -218,10 +232,10 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
 fn all_cases() -> impl Iterator<Item = &'static Case<Input, Value, Failure>> {
     [
         CASES,
-        super::punctuation_test::CASES,
-        super::statements_test::CASES,
-        super::declarations_test::CASES,
-        super::pinned_test::CASES,
+        punctuation_test::CASES,
+        statements_test::CASES,
+        declarations_test::CASES,
+        pinned_test::CASES,
     ]
     .into_iter()
     .flat_map(|table| table.iter())

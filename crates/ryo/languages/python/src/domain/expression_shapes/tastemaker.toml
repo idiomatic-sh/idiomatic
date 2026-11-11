@@ -1,1 +1,0 @@
-specs = [{ spec = "idiomatic.arch/concept", include = ["."], params = { item-trait = [] } }]

@@ -1,6 +1,6 @@
 //! The expression roles cases of the parent test file.
 
-use super::{Failure, Input, Value, edge, subject};
+use super::edge;
 use crate::cases::Case;
 use crate::cases::CaseName;
 use crate::cases::Expect;
@@ -10,6 +10,18 @@ use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
+
+/// What a row is given: the parent table's input.
+type Input = super::Input;
+/// What a row expects: the parent table's value.
+type Value = super::Value;
+/// What a refused row expects: the parent table's failure.
+type Failure = super::Failure;
+
+/// Runs one row through the parent table's subject.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::subject(input)
+}
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
@@ -24,7 +36,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("values"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(32),
+            ryo::languages::FieldId(32),
+            "values",
+        )),
     },
     Case {
         name: CaseName("left_is_the_role_of_its_edge"),
@@ -37,7 +53,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("left"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(33),
+            ryo::languages::FieldId(33),
+            "left",
+        )),
     },
     Case {
         name: CaseName("right_is_the_role_of_its_edge"),
@@ -50,13 +70,21 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 1,
             )
         },
-        expect: Expect::Value("right"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(34),
+            ryo::languages::FieldId(34),
+            "right",
+        )),
     },
     Case {
         name: CaseName("operand_is_the_role_of_its_edge"),
         word: Word::Succeeds,
         input: || edge("-a\n", Kind::Node(Node::UnaryOp), Kind::Node(Node::Name), 0),
-        expect: Expect::Value("operand"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(35),
+            ryo::languages::FieldId(35),
+            "operand",
+        )),
     },
     Case {
         name: CaseName("keys_is_the_role_of_its_edge"),
@@ -69,7 +97,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("keys"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(36),
+            ryo::languages::FieldId(36),
+            "keys",
+        )),
     },
     Case {
         name: CaseName("elt_is_the_role_of_its_edge"),
@@ -82,7 +114,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("elt"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(37),
+            ryo::languages::FieldId(37),
+            "elt",
+        )),
     },
     Case {
         name: CaseName("generators_is_the_role_of_its_edge"),
@@ -95,7 +131,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("generators"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(38),
+            ryo::languages::FieldId(38),
+            "generators",
+        )),
     },
     Case {
         name: CaseName("key_is_the_role_of_its_edge"),
@@ -108,7 +148,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("key"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(39),
+            ryo::languages::FieldId(39),
+            "key",
+        )),
     },
     Case {
         name: CaseName("ifs_is_the_role_of_its_edge"),
@@ -121,7 +165,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 2,
             )
         },
-        expect: Expect::Value("ifs"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(40),
+            ryo::languages::FieldId(40),
+            "ifs",
+        )),
     },
     Case {
         name: CaseName("is_async_is_the_role_of_its_edge"),
@@ -134,7 +182,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("is-async"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(41),
+            ryo::languages::FieldId(41),
+            "is-async",
+        )),
     },
     Case {
         name: CaseName("ops_is_the_role_of_its_edge"),
@@ -147,7 +199,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("ops"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(42),
+            ryo::languages::FieldId(42),
+            "ops",
+        )),
     },
     Case {
         name: CaseName("comparators_is_the_role_of_its_edge"),
@@ -160,13 +216,21 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 1,
             )
         },
-        expect: Expect::Value("comparators"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(43),
+            ryo::languages::FieldId(43),
+            "comparators",
+        )),
     },
     Case {
         name: CaseName("func_is_the_role_of_its_edge"),
         word: Word::Succeeds,
         input: || edge("f(x)\n", Kind::Node(Node::Call), Kind::Node(Node::Name), 0),
-        expect: Expect::Value("func"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(44),
+            ryo::languages::FieldId(44),
+            "func",
+        )),
     },
     Case {
         name: CaseName("conversion_is_the_role_of_its_edge"),
@@ -179,7 +243,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("conversion"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(45),
+            ryo::languages::FieldId(45),
+            "conversion",
+        )),
     },
     Case {
         name: CaseName("format_spec_is_the_role_of_its_edge"),
@@ -192,7 +260,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("format-spec"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(46),
+            ryo::languages::FieldId(46),
+            "format-spec",
+        )),
     },
     Case {
         name: CaseName("attr_is_the_role_of_its_edge"),
@@ -205,7 +277,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("attr"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(47),
+            ryo::languages::FieldId(47),
+            "attr",
+        )),
     },
     Case {
         name: CaseName("slice_is_the_role_of_its_edge"),
@@ -218,19 +294,31 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("slice"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(48),
+            ryo::languages::FieldId(48),
+            "slice",
+        )),
     },
     Case {
         name: CaseName("id_is_the_role_of_its_edge"),
         word: Word::Succeeds,
         input: || edge("a\n", Kind::Node(Node::Name), Kind::Token(Token::Name), 0),
-        expect: Expect::Value("id"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(49),
+            ryo::languages::FieldId(49),
+            "id",
+        )),
     },
     Case {
         name: CaseName("elts_is_the_role_of_its_edge"),
         word: Word::Succeeds,
         input: || edge("[a]\n", Kind::Node(Node::List), Kind::Node(Node::Name), 0),
-        expect: Expect::Value("elts"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(50),
+            ryo::languages::FieldId(50),
+            "elts",
+        )),
     },
     Case {
         name: CaseName("lower_is_the_role_of_its_edge"),
@@ -243,7 +331,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 0,
             )
         },
-        expect: Expect::Value("lower"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(51),
+            ryo::languages::FieldId(51),
+            "lower",
+        )),
     },
     Case {
         name: CaseName("upper_is_the_role_of_its_edge"),
@@ -256,7 +348,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 1,
             )
         },
-        expect: Expect::Value("upper"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(52),
+            ryo::languages::FieldId(52),
+            "upper",
+        )),
     },
     Case {
         name: CaseName("step_is_the_role_of_its_edge"),
@@ -269,7 +365,11 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
                 2,
             )
         },
-        expect: Expect::Value("step"),
+        expect: Expect::Value((
+            ryo::languages::FieldId(53),
+            ryo::languages::FieldId(53),
+            "step",
+        )),
     },
 ];
 

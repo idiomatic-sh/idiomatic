@@ -172,3 +172,17 @@ impl Languages {
         }
     }
 }
+
+// The conversion into the engine's choice is the crate's own: a public `From` impl would put the engine's types on the SDK's surface.
+impl SourceLanguage {
+    /// Which language reads the source, as the core takes it.
+    pub(crate) fn into_engine(self) -> ryo_core::inbound::use_cases::lint::types::SourceProvider {
+        use ryo_core::inbound::use_cases::lint::types::SourceProvider;
+        match self {
+            Self::Recognized => SourceProvider::Recognized,
+            Self::Named(name) => SourceProvider::Named(
+                ryo_values::domain::descriptions::types::LanguageName(name.0),
+            ),
+        }
+    }
+}

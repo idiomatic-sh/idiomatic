@@ -7,10 +7,12 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::settings::PythonTargetVersion as Version;
 
 #[derive(Clone, Copy)]
-struct Input {
+struct Given {
     version: Version,
     module: &'static str,
 }
+/// What a row is given.
+type Input = Given;
 type Value = StandardLibraryMembership;
 type Failure = ();
 
@@ -18,7 +20,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("dotted_absolute_root"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py310,
             module: "os.path",
         },
@@ -27,7 +29,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("tomllib_before_311"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py310,
             module: "tomllib",
         },
@@ -36,7 +38,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("tomllib_from_311"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py311,
             module: "tomllib",
         },
@@ -45,7 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("older_release_unverified"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py38,
             module: "graphlib",
         },
@@ -54,7 +56,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("graphlib_in_verified_release"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py310,
             module: "graphlib",
         },
@@ -63,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("distutils_through_311"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py311,
             module: "distutils.core",
         },
@@ -72,7 +74,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("distutils_removed_312"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py312,
             module: "distutils.core",
         },
@@ -81,7 +83,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("external_module"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py315,
             module: "numpy",
         },
@@ -90,7 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("latest_tracks_configured_parser"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Latest,
             module: "profiling",
         },
@@ -99,7 +101,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("empty_is_not_module"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py310,
             module: "",
         },
@@ -108,7 +110,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("relative_is_not_absolute"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py310,
             module: ".local",
         },
@@ -117,7 +119,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("windows_module_on_posix"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py310,
             module: "winreg",
         },
@@ -126,7 +128,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("posix_module_on_windows"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py310,
             module: "fcntl",
         },
@@ -135,7 +137,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("future_is_stdlib_even_with_special_import_section"),
         word: Word::Succeeds,
-        input: || Input {
+        input: || Given {
             version: Version::Py310,
             module: "__future__",
         },

@@ -9,6 +9,7 @@ use super::service::{answer, from_storing, named_provider, reused, wanting};
 use super::types::{LintReport, LintRequest, LintRun, Wanting};
 use crate::application::cross_file::service::CrossFile;
 use crate::application::cross_file::types::PhasePorts;
+use crate::application::derived::service::Derived;
 use crate::application::engine::service::{Compilation, Execution};
 use crate::application::file_analysis::service::FileAnalysis;
 use crate::application::file_analysis::streaming::service::FileVisits;
@@ -40,7 +41,6 @@ use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedReporting as _;
 use ryo_execution::inbound::use_cases::execution::interface::ReplayClosure;
 use ryo_execution::inbound::use_cases::metadata::interface::{MetadataUseCase as _, Needs};
-use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
 use ryo_execution::inbound::use_cases::prepare::types::{PlanSource, PrepareRequest};
 use ryo_execution::outbound::matching::interface::MatchingPort;
@@ -84,7 +84,7 @@ pub struct LintUseCaseImpl {
     memory: Arc<dyn MemoryPort>,
     /// Pure primitive meanings supplied by the composition edge.
     operators: Arc<dyn OperatorsPort>,
-    derived: DerivedAccess,
+    derived: Derived,
     /// Takes the findings the rules write.
     rows: Arc<dyn RowSinkPort>,
     /// Digests the rules and files whose results the store keeps between runs.
@@ -119,7 +119,7 @@ impl LintUseCaseImpl {
         query_language: Arc<dyn QueryLanguagePort>,
         memory: Arc<dyn MemoryPort>,
         operators: Arc<dyn OperatorsPort>,
-        derived: impl Into<DerivedAccess>,
+        derived: impl Into<Derived>,
         scheduler: Arc<dyn SchedulerPort>,
         workers: WorkerCount,
         rows: Arc<dyn RowSinkPort>,
@@ -244,9 +244,8 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let unknown = self.language.unknown_reasons();
         let execution = Execution::new(
-            Arc::clone(&self.operators),
-            self.derived.clone(),
-            Arc::clone(&self.digest),
+            self.derived
+                .prepare(Arc::clone(&self.operators), Arc::clone(&self.digest)),
         );
         let digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let request_failed = |error: &dyn std::fmt::Display| {

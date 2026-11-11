@@ -2,7 +2,7 @@
 //! read through the parse. The roles are those the labels of `rust.ungram` give; the adapter of the syntax port holds them to the typed
 //! accessors of the library.
 
-use super::fixtures::{Edge, edge, subject};
+use super::fixtures::{Edge, edge};
 use super::service::fields;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::labels::types::Field;
@@ -10,11 +10,23 @@ use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
+#[cfg(test)]
+mod bodies_test;
+#[cfg(test)]
+mod identity_test;
+#[cfg(test)]
+mod lists_test;
+
 /// What a row is given.
 type Input = Edge;
 /// The name of the role the edge plays.
 type Value = &'static str;
 type Failure = ();
+
+/// Reads one row's input through the concept fixtures' shared reading.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::fixtures::subject(input)
+}
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
@@ -219,9 +231,9 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
 fn all_cases() -> impl Iterator<Item = &'static Case<Input, Value, Failure>> {
     [
         CASES,
-        super::identity_test::CASES,
-        super::lists_test::CASES,
-        super::bodies_test::CASES,
+        identity_test::CASES,
+        lists_test::CASES,
+        bodies_test::CASES,
     ]
     .into_iter()
     .flat_map(|table| table.iter())

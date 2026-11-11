@@ -73,3 +73,74 @@ pub enum ProjectDependencyState {
     /// The path was examined and no file was present.
     Missing,
 }
+
+// The conversions from and into the engine's project lookups are the crate's own: a public `From` impl would put the engine's types
+// on the SDK's surface.
+impl ProjectSearchScope {
+    /// The search roots as the engine reads them.
+    pub(crate) fn into_engine(
+        self,
+    ) -> ryo_language::domain::project_context::types::ProjectSearchScope {
+        use ryo_language::domain::project_context::types::ProjectSearchScope as Engine;
+        match self {
+            Self::Undeclared => Engine::Undeclared,
+            Self::Declared(roots) => Engine::Declared(
+                roots
+                    .into_iter()
+                    .map(|root| ryo_language::domain::files::types::FilePath(root.0))
+                    .collect(),
+            ),
+        }
+    }
+}
+
+impl GivenProjectInventory {
+    /// The given inventory as the engine reads it.
+    pub(crate) fn into_engine(
+        self,
+    ) -> ryo_language::domain::project_context::types::GivenProjectInventory {
+        use ryo_language::domain::project_context::types as engine;
+        engine::GivenProjectInventory {
+            entries: self
+                .entries
+                .into_iter()
+                .map(|entry| engine::EntryObservation {
+                    path: ryo_language::domain::files::types::FilePath(entry.path.0),
+                    state: match entry.state {
+                        ProjectEntryState::File => engine::ObservedEntryState::File,
+                        ProjectEntryState::Directory => engine::ObservedEntryState::Directory,
+                        ProjectEntryState::Other => engine::ObservedEntryState::Other,
+                        ProjectEntryState::Missing => engine::ObservedEntryState::Missing,
+                        ProjectEntryState::Unknown => engine::ObservedEntryState::Unknown,
+                    },
+                })
+                .collect(),
+            completeness: match self.completeness {
+                ProjectInventoryCompleteness::Partial => {
+                    engine::ProjectInventoryCompleteness::Partial
+                }
+                ProjectInventoryCompleteness::CompleteWithinDeclaredScope => {
+                    engine::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
+                }
+            },
+        }
+    }
+}
+
+impl ProjectDependency {
+    /// A dependency the run examined, as the caller reads it.
+    pub(crate) fn from_engine(
+        dependency: ryo_core::inbound::use_cases::lint::types::ProjectDependency,
+    ) -> Self {
+        use ryo_core::inbound::use_cases::lint::types::ProjectDependencyState as Engine;
+        Self {
+            path: RelativePath(dependency.path.0),
+            state: match dependency.state {
+                Engine::Present(digest) => {
+                    ProjectDependencyState::Present(DependencyFingerprint(digest.0))
+                }
+                Engine::Missing => ProjectDependencyState::Missing,
+            },
+        }
+    }
+}

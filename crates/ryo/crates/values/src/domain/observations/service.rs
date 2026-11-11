@@ -153,7 +153,7 @@ pub fn validate_frontiers<'a>(
     map: &'a crate::domain::records::types::FrontierReadiness,
     layout: crate::domain::records::types::ObservationReadinessLayout,
     slots: crate::domain::records::types::ObservationReadinessCount,
-) -> Result<super::validated::ValidatedFrontiers<'a>, ObservationsError> {
+) -> Result<super::types::validated_frontiers::value::ValidatedFrontiers<'a>, ObservationsError> {
     use ObservationsError::Invalid;
     let words = usize::try_from(slots.0).map_err(|_| Invalid)?.div_ceil(64);
     if map.version != super::constants::READINESS_VERSION
@@ -185,7 +185,7 @@ pub fn validate_frontiers<'a>(
         }
         previous = Some(refusal.slot);
     }
-    Ok(super::validated::ValidatedFrontiers(map))
+    Ok(super::types::validated_frontiers::value::ValidatedFrontiers(map))
 }
 /// Read the already-validated generation. Missing state is an explicit Unknown, not complete-empty.
 ///
@@ -193,7 +193,7 @@ pub fn validate_frontiers<'a>(
 ///
 /// [`ObservationsError::Invalid`] when the slot is outside the map.
 pub fn frontier_state(
-    map: super::validated::ValidatedFrontiers<'_>,
+    map: super::types::validated_frontiers::value::ValidatedFrontiers<'_>,
     slot: crate::domain::records::types::ObservationReadinessSlot,
 ) -> Result<crate::domain::records::types::ProducerReadiness, ObservationsError> {
     use crate::domain::records::types::FrontierRefusalReason;
@@ -250,7 +250,7 @@ fn bit(
 ///
 /// [`ObservationsError::Invalid`] when the range overflows or reaches past the map's slots.
 pub fn frontier_identity(
-    validated: super::validated::ValidatedFrontiers<'_>,
+    validated: super::types::validated_frontiers::value::ValidatedFrontiers<'_>,
     range: super::types::ObservationReadinessRange,
 ) -> Result<ObservationIdentityBytes, ObservationsError> {
     use crate::domain::records::types::ObservationReadinessSlot;

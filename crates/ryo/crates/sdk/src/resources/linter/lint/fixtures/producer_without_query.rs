@@ -8,13 +8,14 @@ use super::rules::{listed, ordinary, rule_id};
 use crate::domain::observation::types::ObservationBindingName;
 use crate::domain::observation::types::ObservationKind;
 use crate::resources::linter::lint::entry::lint_with;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::ObservationBinding;
 use crate::resources::linter::lint::types::ObservationProducer;
 use std::collections::BTreeMap;
 
 /// A selected producer that has no query never becomes a complete empty input of its consumer.
-pub(crate) fn producer_without_query() -> Outcome {
+pub(crate) fn producer_without_query() -> Result<Outcome, LintError> {
     let root = case_directory();
     let store = tempfile::tempdir().expect("store");
     let engine = provider_linter(
@@ -37,7 +38,7 @@ pub(crate) fn producer_without_query() -> Outcome {
     let request = listed(root.path(), BTreeMap::from([(consumer.clone(), rule)]));
     let mut last = (0, 0, true, 0);
     for _ in 0..2 {
-        let answer = lint_with(&engine, request.clone()).expect("a report");
+        let answer = lint_with(&engine, request.clone())?;
         assert!(answer.findings.is_empty());
         assert!(
             answer
@@ -47,5 +48,5 @@ pub(crate) fn producer_without_query() -> Outcome {
         );
         last = summary(&answer);
     }
-    last
+    Ok(last)
 }

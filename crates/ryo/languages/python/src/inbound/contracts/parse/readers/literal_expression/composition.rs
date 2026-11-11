@@ -1,8 +1,9 @@
 //! Bind syntactic literal validity independently of embedded AST publication.
 use super::constants::PYTHON_STRING_ANNOTATION;
+use crate::application::literal_expression_parsing::service::prepare;
 use crate::domain::{
     literal_expression_parsing::{
-        service::{INCOMPLETE, outcome_name, prepare},
+        service::{INCOMPLETE, outcome_name},
         types::LiteralParseState,
     },
     model::types::Declarations,
@@ -19,7 +20,7 @@ pub(crate) struct LiteralExpressionParseItem;
 ryo::reads! {
     LiteralExpressionParseItem => languages::LiteralExpressionParse, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffStringAnnotation>(tree, &model.literal_expression_parsing, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
+        given index = prepare(&RuffStringAnnotation, tree, &model.literal_expression_parsing, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         each (index.occurrences.iter()) as occurrence {
             given dialect = languages::intern_derived(symbols, tree.source, languages::NameText(PYTHON_STRING_ANNOTATION));
             given outcome = languages::intern_derived(symbols, tree.source, outcome_name(occurrence.outcome));

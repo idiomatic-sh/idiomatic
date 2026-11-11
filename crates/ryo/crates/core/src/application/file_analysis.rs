@@ -2,6 +2,8 @@
 pub mod constants;
 pub mod errors;
 pub(crate) mod evaluation;
+#[cfg(test)]
+mod fixtures;
 pub(crate) mod gating;
 pub(crate) mod outcome;
 pub(crate) mod parsing;

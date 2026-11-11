@@ -125,3 +125,5 @@ pub(crate) enum ReadinessBit {
 /// Text bytes written into an identity, length first.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ObservationText<'a>(pub &'a [u8]);
+/// The checked view of frontier readiness, sealed: only the observations service constructs it.
+pub mod validated_frontiers;

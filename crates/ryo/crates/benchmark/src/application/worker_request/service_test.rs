@@ -1,6 +1,5 @@
-// ignore: idiomatic.arch/file-length - the cases of one service, worker_request: one table of rows over one subject, which a split would duplicate
 //! Selected missing inputs are prepared once before the SDK adapter receives the request.
-use super::service::{configure, prepare};
+use super::service::prepare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use ryo_benchmark_contracts::domain::context::types::ContextManifest;
@@ -10,48 +9,36 @@ use ryo_benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+#[cfg(test)]
+mod sdk;
+
 #[derive(Clone, Copy)]
 enum Scenario {
     Sealed,
     UndeclaredMissing,
     WrongMode,
-    ActualSdk,
     TraceSessions,
-    PreparedContext,
 }
 type Input = Scenario;
-type Value = usize;
+/// What the scenario observed: the inputs prepared as missing, or each child session's trace.
+type Value = &'static str;
 type Failure = &'static str;
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName(
-            "a prepared context's disabled pair leaves the selected pairs and its sibling rule's findings on a retained store",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::PreparedContext,
-        expect: Expect::Value(1),
-    },
     Case {
         name: CaseName(
             "actual trace guards survive loading configuration SDK errors and abandonment",
         ),
         word: Word::Succeeds,
         input: || Scenario::TraceSessions,
-        expect: Expect::Value(1),
+        expect: Expect::Value(
+            "success 1,load true configure true compile true; load-refusal true,load false configure false compile false; configure-refusal true,load true configure false compile false; execute-refusal true,load true configure true compile true; abandoned load true configure false compile false",
+        ),
     },
     Case {
         name: CaseName("only selected sealed absences are passed to the SDK adapter"),
         word: Word::Succeeds,
         input: || Scenario::Sealed,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName(
-            "actual SDK observes declared missing input without masking provider refusal",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::ActualSdk,
-        expect: Expect::Value(1),
+        expect: Expect::Value("{RelativePath(\"missing.py\")}"),
     },
     Case {
         name: CaseName("unsealed requested absence cannot enter the SDK"),
@@ -68,16 +55,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(scenario, Scenario::TraceSessions) {
-        super::fixtures::trace_sessions();
-        return Ok(1);
-    }
-    if matches!(scenario, Scenario::PreparedContext) {
-        prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule();
-        return Ok(1);
-    }
-    if matches!(scenario, Scenario::ActualSdk) {
-        actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread();
-        return Ok(1);
+        return Ok(Box::leak(
+            super::fixtures::trace_sessions().into_boxed_str(),
+        ));
     }
     let missing = if matches!(scenario, Scenario::UndeclaredMissing) {
         vec![]
@@ -132,23 +112,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     prepare(request)
         .map(|prepared| {
-            let prepared = prepared.missing;
-            assert!(
-                prepared
-                    .selected_missing
-                    .contains(&ryo::linter::RelativePath("missing.py".into()))
-            );
-            assert!(
-                !prepared
-                    .selected_missing
-                    .contains(&ryo::linter::RelativePath("readable.py".into()))
-            );
-            assert!(
-                !prepared
-                    .selected_missing
-                    .contains(&ryo::linter::RelativePath("unrequested.py".into()))
-            );
-            prepared.selected_missing.len()
+            let selected = format!("{:?}", prepared.missing.selected_missing);
+            &*Box::leak(selected.into_boxed_str())
         })
         .map_err(|error| match error {
             ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
@@ -176,230 +141,4 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
-}
-
-fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread() {
-    use crate::outbound::engine::interface::EnginePort as _;
-    use ryo_benchmark_contracts::domain::context::types::CaseContext;
-    use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-    use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
-    use ryo_benchmark_contracts::domain::requests::types::WorkerState;
-    let scratch = tempfile::tempdir().unwrap();
-    let rules = scratch.path().join("rules");
-    std::fs::create_dir_all(rules.join("R1")).unwrap();
-    std::fs::write(rules.join("R1/query.ryoql"), "let failures = select path as file, span from \"filesystem.read-failure\"; emit failures subject file key(file);").unwrap();
-    let boundary = scratch.path().join("snapshot");
-    let manifest = crate::outbound::context::interface::ContextPort::materialize(
-        &crate::outbound::context::factory::local(),
-        &boundary,
-        &CaseContext {
-            logical_root: "project".into(),
-            auxiliary_files: Default::default(),
-            missing: vec!["project/missing.py".into()],
-        },
-        &Default::default(),
-    )
-    .unwrap();
-    let request = WorkerRequest {
-        performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
-            vec![ryo::linter::RuleId::try_from("R1").unwrap()],
-        ),
-        rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
-        given_project_inventory: Default::default(),
-        project_context_mode: ProjectContextMode::ListedDisk,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
-            manifest,
-        ),
-        root: boundary.join("project"),
-        rules,
-        query_modules: Default::default(),
-        rule_applicability: Default::default(),
-        parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        files: vec![ryo::linter::RelativePath("missing.py".into())],
-        state: WorkerState::Fresh,
-    };
-    let engine = crate::outbound::engine::factory::local_with_frontend_diagnostic(
-        ryo::linter::Languages::default(), None,
-        crate::outbound::engine::types::FrontendDiagnosticProjection {
-            rule: ryo::linter::RuleId::try_from("P001").unwrap(),
-            query: ryo::query::RyoQlQuery::try_from("let diagnostics = select id, file, span from \"syntax-error\"; emit diagnostics subject file key(id);").unwrap(),
-        },
-    );
-    let prepared = prepare(request.clone()).unwrap();
-    assert_eq!(
-        prepared.missing.selected_missing,
-        request.files.iter().cloned().collect()
-    );
-    let session = engine.load(&prepared.request).unwrap();
-    let configured = configure(&prepared.request, session).unwrap();
-    let report = configured.execute().unwrap().report;
-    assert_eq!(report.diagnostics.len(), 1);
-    assert_eq!(report.diagnostics[0].file, request.files[0]);
-    assert_eq!(report.diagnostics[0].start.0, 0);
-    assert_eq!(report.diagnostics[0].end.0, 0);
-    let mut readable = request;
-    let source = [(
-        ryo::linter::RelativePath("input.txt".into()),
-        ryo::linter::SourceText("value = 1\n".into()),
-    )]
-    .into();
-    readable.context_manifest =
-        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
-            crate::outbound::context::interface::ContextPort::materialize(
-                &crate::outbound::context::factory::local(),
-                &boundary,
-                &CaseContext {
-                    logical_root: "project".into(),
-                    ..Default::default()
-                },
-                &source,
-            )
-            .unwrap(),
-        );
-    readable.files = vec![ryo::linter::RelativePath("input.txt".into())];
-    let prepared = prepare(readable).unwrap();
-    assert!(prepared.missing.selected_missing.is_empty());
-    let session = engine.load(&prepared.request).unwrap();
-    let configured = configure(&prepared.request, session).unwrap();
-    assert!(
-        configured
-            .execute()
-            .unwrap_err()
-            .to_string()
-            .contains("incomplete candidate"),
-        "a readable source refused by all providers is not a declared input absence"
-    );
-}
-
-/// Two rules over two declared-missing files with a prepared rule context: the hosted tables and a disabled pair reach the SDK, the
-/// selected pairs the engine is given are the rules times the files less the disabled pairs, and the rule nothing disables keeps both
-/// findings on a retained store while the other rule's exclusion and hosted rows change.
-fn prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule() {
-    use crate::outbound::engine::interface::EnginePort as _;
-    use ryo_benchmark_contracts::domain::context::types::{
-        CaseContext, ExternalPrefix, PreparedRuleContext, RuleConfiguration, RuleContextTables,
-        TableName,
-    };
-    use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
-    use ryo_benchmark_contracts::domain::requests::types::{
-        CohortSelection, ContextSeal, InputDeclaration, ParserSelection, ProviderSelection,
-        RuleContextPreparation, SearchRoots,
-    };
-    let scratch = tempfile::tempdir().unwrap();
-    let rules = scratch.path().join("rules");
-    for (id, query) in [
-        (
-            "A001",
-            "let failures = select path as file, span from \"filesystem.read-failure\"; emit failures subject file key(file);",
-        ),
-        (
-            "B002",
-            "let failures = select path as file, span from \"filesystem.read-failure\"; let configured = select code from \"config.selected\" where code = \"B002\"; let selected = join(left=failures, right=configured, left-on=[], right-on=[], output={file:[left,file],span:[left,span],code:[right,code]}); let disabled = select file, code from \"config.disabled\"; let enabled = antijoin(left=selected, right=disabled, left-on=[file,code], right-on=[file,code]); let external = select prefix from \"config.external\" where prefix = \"V\"; let found = join(left=enabled, right=external, left-on=[], right-on=[], output={file:[left,file],span:[left,span]}); emit found subject file key(file);",
-        ),
-    ] {
-        std::fs::create_dir_all(rules.join(id)).unwrap();
-        std::fs::write(rules.join(id).join("query.ryoql"), query).unwrap();
-    }
-    let boundary = scratch.path().join("snapshot");
-    let manifest = crate::outbound::context::interface::ContextPort::materialize(
-        &crate::outbound::context::factory::local(),
-        &boundary,
-        &CaseContext {
-            logical_root: "project".into(),
-            auxiliary_files: Default::default(),
-            missing: vec!["project/missing.py".into(), "project/pkg/missing.py".into()],
-        },
-        &Default::default(),
-    )
-    .unwrap();
-    let selected: Vec<_> = ["A001", "B002"]
-        .into_iter()
-        .map(|id| ryo::linter::RuleId::try_from(id).unwrap())
-        .collect();
-    let files = vec![
-        ryo::linter::RelativePath("missing.py".into()),
-        ryo::linter::RelativePath("pkg/missing.py".into()),
-    ];
-    let engine = crate::outbound::engine::factory::local(ryo::linter::Languages::default(), None);
-    let store = scratch.path().join("store");
-    for (prefix, disabled, sibling, configured, pairs) in [
-        ("V", false, 2, 2, 4),
-        ("V", true, 2, 1, 3),
-        ("V", true, 2, 1, 3),
-        ("W", false, 2, 0, 4),
-        ("V", false, 2, 2, 4),
-    ] {
-        let request = WorkerRequest {
-            performance: Default::default(),
-            selected_rules: CohortSelection::Explicit(selected.clone()),
-            rule_observations: InputDeclaration::Undeclared,
-            rule_context: RuleContextPreparation::Prepared(PreparedRuleContext {
-                tables: RuleContextTables {
-                    selected: TableName("config.selected".into()),
-                    disabled: TableName("config.disabled".into()),
-                    external: TableName("config.external".into()),
-                },
-                configuration: RuleConfiguration {
-                    external_prefixes: vec![ExternalPrefix(prefix.into())],
-                    disabled_rules: if disabled {
-                        BTreeMap::from([(files[0].clone(), vec![selected[1].clone()])])
-                    } else {
-                        BTreeMap::new()
-                    },
-                },
-            }),
-            project_search_roots: SearchRoots::Undeclared,
-            given_project_inventory: Default::default(),
-            project_context_mode: ProjectContextMode::ListedDisk,
-            context_manifest: ContextSeal::Sealed(manifest.clone()),
-            root: boundary.join("project"),
-            rules: rules.clone(),
-            query_modules: Default::default(),
-            rule_applicability: Default::default(),
-            parser_configuration: ParserSelection::Unspecified,
-            source_language: ProviderSelection::Unspecified,
-            files: files.clone(),
-            state: WorkerState::Retained(store.clone()),
-        };
-        let prepared = prepare(request).unwrap();
-        let session = engine.load(&prepared.request).unwrap();
-        let report = configure(&prepared.request, session)
-            .unwrap()
-            .execute()
-            .unwrap()
-            .report;
-        let found = |rule: &ryo::linter::RuleId| {
-            report
-                .diagnostics
-                .iter()
-                .filter(|finding| &finding.rule == rule)
-                .count()
-        };
-        let case = format!("prefix={prefix}, disabled={disabled}");
-        assert_eq!(found(&selected[0]), sibling, "{case}");
-        assert_eq!(found(&selected[1]), configured, "{case}");
-        if disabled {
-            assert!(
-                report
-                    .diagnostics
-                    .iter()
-                    .all(|finding| finding.rule != selected[1] || finding.file == files[1]),
-                "{case}"
-            );
-        }
-        assert!(
-            matches!(&report.coverage, CoverageAccounting::Accounted(coverage) if coverage.selected.0 == pairs),
-            "{case}: {:?}",
-            report.coverage
-        );
-    }
 }

@@ -2,7 +2,7 @@ closed = false
 # The rust language's own placement (paths are directory-relative).
 # The parser crates rust reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the language's
 # allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and nothing else does.
-variables = { domain-libraries = ["std::sync::Mutex", "std::sync::PoisonError"], libraries = ["ra_ap_syntax::*", "ra_ap_parser::*", "toml::*", "globset::*", "std::fs::*", "rustc_literal_escaper::*", "cargo_platform::*", "serde::*", "postcard::*", "rayon::*"] }
+variables = { domain-libraries = [], libraries = ["ra_ap_syntax::*", "ra_ap_parser::*", "toml::*", "globset::*", "std::fs::*", "rustc_literal_escaper::*", "cargo_platform::*", "serde::*", "postcard::*", "rayon::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },

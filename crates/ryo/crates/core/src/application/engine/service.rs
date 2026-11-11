@@ -13,13 +13,11 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
 
 /// The engine's rule compilation, with the plans it keeps.
 pub(crate) struct Compilation(CompileRulesUseCaseImpl);
@@ -65,14 +63,10 @@ impl std::fmt::Debug for Execution {
 }
 
 impl Execution {
-    /// Execution over the operators, the derived views and the digest the edge injects.
+    /// Execution over the prepare use case its composition built: the operators, the derived views and the digest the edge injects.
     #[must_use]
-    pub fn new(
-        operators: Arc<dyn OperatorsPort>,
-        derived: impl Into<DerivedAccess>,
-        digest: Arc<dyn DigestPort>,
-    ) -> Self {
-        Self(PrepareUseCaseImpl::new(operators, derived, digest))
+    pub fn new(prepare: PrepareUseCaseImpl) -> Self {
+        Self(prepare)
     }
 
     /// Begins the execution of a prepared program over the corpus it runs on, telling `observer` of the engine's work.
