@@ -1,28 +1,9 @@
-use super::types::{
-    Backing, BackingAddress, BackingKey, BackingTag, ByteCount, Credit, LeaseClass, UnitCount,
-};
+use super::fixtures::{backing, positions};
+use super::types::{BackingAddress, ByteCount, Credit, LeaseClass, UnitCount};
 use crate::application::file_dag::derived::ledger::service::Ledger;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
-
-fn backing(key: BackingAddress, bytes: ByteCount) -> Backing {
-    Backing {
-        key: BackingKey {
-            tag: BackingTag(1),
-            address: key,
-        },
-        bytes,
-        retention_units: UnitCount(0),
-    }
-}
-
-fn positions(key: BackingAddress, bytes: ByteCount, capacity: UnitCount) -> Backing {
-    Backing {
-        retention_units: capacity,
-        ..backing(key, bytes)
-    }
-}
 
 fn shared_alias_is_charged_once_and_last_consumer_releases_it() {
     let ledger = Rc::new(RefCell::new(Ledger::default()));
@@ -358,9 +339,35 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(()),
     },
     Case {
+        name: CaseName(
+            "optional_retention_survives_required_release_without_double_physical_charge",
+        ),
+        word: Word::Succeeds,
+        input: || optional_retention_survives_required_release_without_double_physical_charge,
+        expect: Expect::Value(()),
+    },
+    Case {
         name: CaseName("optional_release_keeps_required_backing_and_recharges_the_view_allowance"),
         word: Word::Succeeds,
         input: || optional_release_keeps_required_backing_and_recharges_the_view_allowance,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "position_capacity_is_charged_once_per_optional_backing_and_survives_required_release",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            position_capacity_is_charged_once_per_optional_backing_and_survives_required_release
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "optional_release_preview_requires_every_last_handle_and_counts_units_separately",
+        ),
+        word: Word::Succeeds,
+        input: || optional_release_preview_requires_every_last_handle_and_counts_units_separately,
         expect: Expect::Value(()),
     },
     Case {

@@ -2,9 +2,10 @@
 //! A rule that cannot match a file is never instantiated there: its root publishes the empty, complete table its full run
 //! would, no region only it reaches gets a slot or a reader count, and nothing that could have a row or a row error is
 //! skipped. Language-free: fixture relations, fixture rows and compiled programs only.
+use super::fixtures::routing::{error, routed};
 use super::fixtures::{
-    TEXT, at, compare, equal, error, facts, join_on_file, plan, prepare, regions_of, routed, rows,
-    rule_b, run, run_intent, select, step,
+    TEXT, at, compare, equal, facts, join_on_file, plan, prepare, regions_of, rows, rule_b, run,
+    run_intent, select, step,
 };
 use crate::application::file_dag::program::facade_runtime::types::{InputRelease, Instantiated};
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;

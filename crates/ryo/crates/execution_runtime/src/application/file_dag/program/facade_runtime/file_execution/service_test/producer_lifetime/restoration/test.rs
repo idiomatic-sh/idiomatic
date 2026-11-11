@@ -1,6 +1,6 @@
 //! Restored computation holds its real backing through last use; copied delivery needs no index.
 use super::fixtures::Exit;
-use super::fixtures::exercise;
+use super::fixtures::scenario::exercise;
 
 #[test]
 fn restored_named_duplicate_delivery_releases_lookup_at_last_use_and_replays_terminal_results() {

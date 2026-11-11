@@ -1,5 +1,5 @@
 //! The omission falsifier runs the actual runtime and all other KernelSession calls.
-use super::fixtures::{CASES, subject};
+use super::fixtures::rows::{CASES, subject};
 use crate::cases::{Word, run};
 #[test]
 fn succeeds() {

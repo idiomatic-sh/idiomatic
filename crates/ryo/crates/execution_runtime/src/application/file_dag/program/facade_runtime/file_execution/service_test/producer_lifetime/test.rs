@@ -1,6 +1,6 @@
 //! Required derived storage follows real compiled producer consumers, including cancellation.
 use super::fixtures::FinalConsumer;
-use super::fixtures::exercise;
+use super::fixtures::scenario::exercise;
 
 #[test]
 fn shared_published_producer_keeps_index_until_its_final_real_consumer() {

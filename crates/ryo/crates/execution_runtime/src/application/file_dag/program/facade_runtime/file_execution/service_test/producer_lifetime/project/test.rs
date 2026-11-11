@@ -1,6 +1,7 @@
 //! Real publication scopes retain and release project batch leases.
+use super::fixtures::Delivery;
 use super::fixtures::PhaseExit;
-use super::fixtures::{Delivery, exercise};
+use super::fixtures::scenario::exercise;
 
 #[test]
 fn project_batch_success_releases_actual_phase_leases() {
