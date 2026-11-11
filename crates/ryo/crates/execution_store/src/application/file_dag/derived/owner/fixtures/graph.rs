@@ -5,7 +5,7 @@ use crate::application::file_dag::derived::owner::graphs::types::handles::servic
 #[cfg(test)]
 use crate::application::file_dag::derived::owner::graphs::{
     service::slot,
-    types::{handles::service::RootAnswer, roots::value::DemandAnswers},
+    types::{handles::service::RootAnswer, roots::value::service::DemandAnswers},
 };
 #[cfg(test)]
 use crate::application::file_dag::derived::owner::service::ViewContext;
