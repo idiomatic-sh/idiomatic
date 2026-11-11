@@ -4,9 +4,11 @@
 mod fixtures;
 use fixtures::file::measure;
 use fixtures::project::measure_project;
-use fixtures::subscriber::{Access, Sample};
+use fixtures::subscriber::{Access, Sample, Window, project_cost_matches, same_cost};
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use std::borrow::Cow;
+use std::cell::RefCell;
 
 #[global_allocator]
 static ALLOCATOR: dhat::Alloc = dhat::Alloc;
@@ -25,171 +27,180 @@ enum Input {
     ProjectUncounted,
     FactsFinishBorrows,
 }
-fn same_cost(left: Sample, right: Sample) {
-    assert_eq!(left.work, right.work);
-    assert_eq!(left.graph_hits, right.graph_hits);
-    assert_eq!(
-        left.blocks, right.blocks,
-        "dormant roots cannot add activation allocations"
-    );
-    assert_eq!(
-        left.bytes, right.bytes,
-        "dormant roots cannot grow activation allocations"
-    );
+/// What a case compared, in counters (exact) and allocation relations (allocation sizes are the allocator's).
+#[derive(Debug, PartialEq, Eq)]
+enum Answer {
+    /// The rule-relation lookups, relation visits and graph probes of one measurement.
+    Work([u64; 3]),
+    /// Two whole samples.
+    Samples([Sample; 2]),
+    /// The small measurement's counters, whether it allocated, and whether the large one is the same sample.
+    Selector {
+        work: [u64; 3],
+        graph_hits: u64,
+        allocates: bool,
+        same: bool,
+    },
+    /// The small measurement's counters, both visited rule sums, whether the large one costs the same, and whether it is
+    /// the same sample.
+    Tail {
+        work: [u64; 3],
+        graph_hits: u64,
+        rule_sums: [[u64; 2]; 2],
+        same_cost: bool,
+        same: bool,
+    },
+    /// The dense measurement's work, whether its allocations grew over the sparse one's, and the sparse oracle's verdict
+    /// on the sparse and the dense measurement.
+    Dense {
+        work: [u64; 3],
+        grows: bool,
+        oracle: [bool; 2],
+    },
+    /// Both measurements' counted accesses, and whether they cost the same.
+    ProjectSparse {
+        accesses: [Access; 2],
+        same_cost: bool,
+    },
+    /// The sparse and dense reads, whether the allocations grew, and the sparse oracle's verdict on each.
+    ProjectDense {
+        reads: [u64; 2],
+        grows: bool,
+        oracle: [bool; 2],
+    },
+    /// Whether the uncounted scan left the counters unchanged, and whether the small cost matches the honest and the
+    /// uncounted measurement.
+    Uncounted {
+        counters_unchanged: bool,
+        matches: [bool; 2],
+    },
+    /// The words kept, whether the read made at most two blocks, and whether it copied fewer bytes than the words.
+    Facts {
+        kept: usize,
+        at_most_two_blocks: bool,
+        words_not_copied: bool,
+    },
 }
-/// Equal counted accesses, work and allocations: nothing but the demanded roots was touched.
-fn project_cost_matches(left: (Sample, Access), right: (Sample, Access)) -> bool {
-    left.0 == right.0 && left.1.reads == right.1.reads
-}
-fn subject(input: Input) -> Result<(), OperatingError> {
+/// Every measurement's window, in order, and what the case compared.
+type Value = (Cow<'static, [Window]>, Answer);
+fn subject(input: Input) -> Result<Value, OperatingError> {
     const TOTAL: usize = 131;
-    match input {
-        Input::Sparse => {
-            let sparse = measure(TOTAL, &[0]);
-            assert_eq!(
-                sparse.work, [1; 3],
-                "sparse intent must not read dormant rule metadata"
-            );
-        }
-        Input::Empty => {
-            let small = measure(3, &[]);
-            let dormant = measure(TOTAL, &[]);
-            assert_eq!(small, Sample::default());
-            assert_eq!(dormant, Sample::default());
-        }
+    let windows = RefCell::new(vec![]);
+    let measure = |total: usize, demanded: &[usize]| {
+        let (sample, window) = measure(total, demanded);
+        windows.borrow_mut().push(window);
+        sample
+    };
+    let measure_project = |total: usize, demanded: &[usize], intrusion: &dyn Fn(usize)| {
+        let (sample, access, window) = measure_project(total, demanded, intrusion);
+        windows.borrow_mut().push(window);
+        (sample, access)
+    };
+    let answer = match input {
+        Input::Sparse => Answer::Work(measure(TOTAL, &[0]).work),
+        Input::Empty => Answer::Samples([measure(3, &[]), measure(TOTAL, &[])]),
         Input::Selector => {
             let small = measure(3, &[0]);
             let dormant = measure(TOTAL, &[0]);
-            assert_eq!(small.work, [1; 3]);
-            assert_eq!(small.graph_hits, 0);
-            assert!(small.blocks > 0 && small.bytes > 0);
-            assert_eq!(
-                small, dormant,
-                "sparse intent must not allocate dormant metadata"
-            );
+            Answer::Selector {
+                work: small.work,
+                graph_hits: small.graph_hits,
+                allocates: small.blocks > 0 && small.bytes > 0,
+                same: small == dormant,
+            }
         }
-        Input::Graph => {
-            let small = measure(3, &[1]);
-            let tail = measure(TOTAL, &[129]);
-            assert_eq!(small.work, [1, 3, 1]);
-            assert_eq!(small.graph_hits, 1);
-            assert_eq!(small.rule_sums, [1; 2]);
-            assert_eq!(tail.rule_sums, [129; 2]);
-            same_cost(small, tail);
-        }
-        Input::Mixed => {
-            let small = measure(3, &[0, 1, 2]);
-            let dormant = measure(TOTAL, &[0, 1, 2]);
-            assert_eq!(small.work, [3, 5, 2]);
-            assert_eq!(small.rule_sums, [3, 1]);
-            assert_eq!(small.graph_hits, 1);
-            assert_eq!(
-                small, dormant,
-                "sparse intent must not allocate dormant metadata"
-            );
-        }
-        Input::TailSelectors => {
-            let small = measure(3, &[0, 2]);
-            let tail = measure(TOTAL, &[130, 0]);
-            assert_eq!(small.work, [2; 3]);
-            assert_eq!(small.rule_sums, [2; 2]);
-            assert_eq!(tail.rule_sums, [130; 2]);
-            same_cost(small, tail);
+        Input::Graph | Input::Mixed | Input::TailSelectors => {
+            let (small, tail) = match input {
+                Input::Graph => (measure(3, &[1]), measure(TOTAL, &[129])),
+                Input::Mixed => (measure(3, &[0, 1, 2]), measure(TOTAL, &[0, 1, 2])),
+                _ => (measure(3, &[0, 2]), measure(TOTAL, &[130, 0])),
+            };
+            Answer::Tail {
+                work: small.work,
+                graph_hits: small.graph_hits,
+                rule_sums: [small.rule_sums, tail.rule_sums],
+                same_cost: same_cost(small, tail),
+                same: small == tail,
+            }
         }
         Input::Dense => {
             let sparse = measure(TOTAL, &[0]);
             let dense = measure(TOTAL, &(0..TOTAL).collect::<Vec<_>>());
-            assert_eq!(dense.work, [131, 261, 2]);
-            // Dense activation admits more relations: its allocations grow in bytes, not necessarily in number.
-            assert!(dense.blocks >= sparse.blocks && dense.bytes > sparse.bytes);
-            // The negative control offers the actual all-demand activation to
-            // the sparse oracle. It must reject extra work and allocations.
-            // This is the same production entry. This is demand sensitivity, not an implementation mutant.
+            // The negative control offers the actual all-demand activation to the sparse oracle, which must reject its
+            // extra work and allocations: demand sensitivity through the same production entry, not an implementation mutant.
             let sparse_holds = |sample: Sample| {
                 sample.work == sparse.work
                     && sample.blocks <= sparse.blocks
                     && sample.bytes <= sparse.bytes
             };
-            assert!(sparse_holds(sparse));
-            assert!(
-                !sparse_holds(dense),
-                "the oracle must falsify dense processing"
-            );
+            Answer::Dense {
+                work: dense.work,
+                // Dense activation admits more relations: its allocations grow in bytes, not necessarily in number.
+                grows: dense.blocks >= sparse.blocks && dense.bytes > sparse.bytes,
+                oracle: [sparse_holds(sparse), sparse_holds(dense)],
+            }
         }
         Input::ProjectSparse => {
             let small = measure_project(3, &[1], &|_| {});
-            let tail = measure_project(131, &[129], &|_| {});
-            assert!(
-                small.1.reads > 0 && tail.1.reads > 0,
-                "the demanded project root reads its own metadata"
-            );
-            assert_eq!(small.1.read_rules, small.1.reads);
-            assert_eq!(
-                tail.1.read_rules,
-                129 * tail.1.reads,
-                "every counted access names the demanded rule, never a dormant one"
-            );
-            assert_eq!(small.1.reads, tail.1.reads);
-            same_cost(small.0, tail.0);
+            let tail = measure_project(TOTAL, &[129], &|_| {});
+            Answer::ProjectSparse {
+                accesses: [small.1, tail.1],
+                same_cost: same_cost(small.0, tail.0),
+            }
         }
         Input::ProjectDense => {
-            let sparse = measure_project(131, &[0], &|_| {});
-            let dense = measure_project(131, &(0..131).collect::<Vec<_>>(), &|_| {});
-            assert!(dense.1.reads > sparse.1.reads);
-            assert!(dense.0.blocks > sparse.0.blocks && dense.0.bytes > sparse.0.bytes);
+            let sparse = measure_project(TOTAL, &[0], &|_| {});
+            let dense = measure_project(TOTAL, &(0..TOTAL).collect::<Vec<_>>(), &|_| {});
             let sparse_holds = |sample: (Sample, Access)| {
                 sample.1.reads == sparse.1.reads
                     && sample.0.blocks <= sparse.0.blocks
                     && sample.0.bytes <= sparse.0.bytes
             };
-            assert!(sparse_holds(sparse));
-            assert!(
-                !sparse_holds(dense),
-                "the oracle must falsify dense project processing"
-            );
+            Answer::ProjectDense {
+                reads: [sparse.1.reads, dense.1.reads],
+                grows: dense.0.blocks > sparse.0.blocks && dense.0.bytes > sparse.0.bytes,
+                oracle: [sparse_holds(sparse), sparse_holds(dense)],
+            }
         }
         Input::ProjectUncounted => {
-            // A scan over every dormant rule that reports no counter. Only the
-            // independent allocation measurement can see it.
+            // A scan over every dormant rule that reports no counter: only the independent allocation measurement sees it.
             let scan = |total: usize| {
                 std::hint::black_box((0..total).map(|rule| vec![rule]).collect::<Vec<_>>());
             };
             let small = measure_project(3, &[1], &|_| {});
-            let honest = measure_project(131, &[129], &|_| {});
-            let uncounted = measure_project(131, &[129], &scan);
-            assert_eq!(
-                honest.1, uncounted.1,
-                "the uncounted scan leaves every counter unchanged"
-            );
-            assert!(project_cost_matches(small, honest));
-            assert!(
-                !project_cost_matches(small, uncounted),
-                "allocation measurement must detect an uncounted dormant scan"
-            );
+            let honest = measure_project(TOTAL, &[129], &|_| {});
+            let uncounted = measure_project(TOTAL, &[129], &scan);
+            Answer::Uncounted {
+                counters_unchanged: honest.1 == uncounted.1,
+                matches: [
+                    project_cost_matches(small, honest),
+                    project_cost_matches(small, uncounted),
+                ],
+            }
         }
         Input::FactsFinishBorrows => {
-            let (blocks, bytes) =
+            let (kept, blocks, bytes) =
                 facts_finish_blocks().map_err(|error| OperatingError::ObservationIncomplete {
                     reason: error.to_string(),
                 })?;
             // One block for the sources and one for the joined list: no block for the words, which are the worker's own.
             // Before one copy (checkpoint 322) the same read made four: the clone of the words and the sources, then the
             // concatenation of each.
-            assert!(blocks <= 2, "the finish allocated {blocks} blocks");
-            assert!(
-                usize::try_from(bytes).is_ok_and(|bytes| bytes < WORDS),
-                "the finish copied the words: {bytes} bytes"
-            );
+            Answer::Facts {
+                kept,
+                at_most_two_blocks: blocks <= 2,
+                words_not_copied: usize::try_from(bytes).is_ok_and(|bytes| bytes < WORDS),
+            }
         }
-    }
-    Ok(())
+    };
+    Ok((Cow::Owned(windows.into_inner()), answer))
 }
 /// How many packed bytes the stored population of the facts finish case holds.
 const WORDS: usize = 4096;
 
-/// The blocks and bytes one read of a stored population from the memory facts finish allocates.
+/// The words it kept, and the blocks and bytes one read of a stored population from the memory facts finish allocates.
 fn facts_finish_blocks()
--> Result<(u64, u64), ryo_execution_runtime::outbound::facts::errors::FactsError> {
+-> Result<(usize, u64, u64), ryo_execution_runtime::outbound::facts::errors::FactsError> {
     use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
     let facts = ryo_execution_runtime::outbound::facts::factory::memory();
     let worker = facts.worker()?;
@@ -211,19 +222,31 @@ fn facts_finish_blocks()
     let before = dhat::HeapStats::get();
     let kept = finished.kept(ryo_values::domain::stored_facts::types::Bucket(3))?;
     let after = dhat::HeapStats::get();
-    assert_eq!(kept.words.0.0.len(), WORDS);
     Ok((
+        kept.words.0.0.len(),
         after.total_blocks - before.total_blocks,
         after.total_bytes - before.total_bytes,
     ))
 }
 
-const CASES: &[Case<Input, (), OperatingError>] = &[
+/// A measurement that saw no activation work and no allocation.
+const IDLE: Sample = Sample {
+    work: [0; 3],
+    rule_sums: [0; 2],
+    graph_hits: 0,
+    blocks: 0,
+    bytes: 0,
+};
+const OPENED: Window = Window::opened(0);
+const fn windows(windows: &'static [Window]) -> Cow<'static, [Window]> {
+    Cow::Borrowed(windows)
+}
+const CASES: &[Case<Input, Value, OperatingError>] = &[
     Case {
         name: CaseName("same_131_rule_sparse_intent_reads_only_its_required_metadata"),
         word: Word::Succeeds,
         input: || Input::Sparse,
-        expect: Expect::Value(()),
+        expect: Expect::Value((windows(&[OPENED]), Answer::Work([1; 3]))),
     },
     Case {
         name: CaseName(
@@ -231,7 +254,7 @@ const CASES: &[Case<Input, (), OperatingError>] = &[
         ),
         word: Word::Succeeds,
         input: || Input::Empty,
-        expect: Expect::Value(()),
+        expect: Expect::Value((windows(&[OPENED, OPENED]), Answer::Samples([IDLE, IDLE]))),
     },
     Case {
         name: CaseName(
@@ -239,25 +262,60 @@ const CASES: &[Case<Input, (), OperatingError>] = &[
         ),
         word: Word::Succeeds,
         input: || Input::Selector,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[OPENED, OPENED]),
+            Answer::Selector {
+                work: [1; 3],
+                graph_hits: 0,
+                allocates: true,
+                same: true,
+            },
+        )),
     },
     Case {
         name: CaseName("tail_graph_activation_probes_only_the_relevant_rule"),
         word: Word::Succeeds,
         input: || Input::Graph,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[OPENED, OPENED]),
+            Answer::Tail {
+                work: [1, 3, 1],
+                graph_hits: 1,
+                rule_sums: [[1; 2], [129; 2]],
+                same_cost: true,
+                same: false,
+            },
+        )),
     },
     Case {
         name: CaseName("mixed_graph_and_selector_activation_scales_with_three_relevant_roots"),
         word: Word::Succeeds,
         input: || Input::Mixed,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[OPENED, OPENED]),
+            Answer::Tail {
+                work: [3, 5, 2],
+                graph_hits: 1,
+                rule_sums: [[3, 1], [3, 1]],
+                same_cost: true,
+                same: true,
+            },
+        )),
     },
     Case {
         name: CaseName("noncontiguous_selector_intents_use_their_own_sorted_rule_ranges"),
         word: Word::Succeeds,
         input: || Input::TailSelectors,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[OPENED, OPENED]),
+            Answer::Tail {
+                work: [2; 3],
+                graph_hits: 0,
+                rule_sums: [[2; 2], [130; 2]],
+                same_cost: true,
+                same: false,
+            },
+        )),
     },
     Case {
         name: CaseName(
@@ -265,7 +323,14 @@ const CASES: &[Case<Input, (), OperatingError>] = &[
         ),
         word: Word::Succeeds,
         input: || Input::Dense,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[OPENED, OPENED]),
+            Answer::Dense {
+                work: [131, 261, 2],
+                grows: true,
+                oracle: [true, false],
+            },
+        )),
     },
     Case {
         name: CaseName(
@@ -273,7 +338,22 @@ const CASES: &[Case<Input, (), OperatingError>] = &[
         ),
         word: Word::Succeeds,
         input: || Input::ProjectSparse,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[Window::opened(2), Window::opened(2)]),
+            Answer::ProjectSparse {
+                accesses: [
+                    Access {
+                        reads: 5,
+                        read_rules: 5,
+                    },
+                    Access {
+                        reads: 5,
+                        read_rules: 645,
+                    },
+                ],
+                same_cost: true,
+            },
+        )),
     },
     Case {
         name: CaseName(
@@ -281,19 +361,39 @@ const CASES: &[Case<Input, (), OperatingError>] = &[
         ),
         word: Word::Succeeds,
         input: || Input::ProjectDense,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[Window::opened(2), Window::opened(262)]),
+            Answer::ProjectDense {
+                reads: [5, 655],
+                grows: true,
+                oracle: [true, false],
+            },
+        )),
     },
     Case {
         name: CaseName("an_uncounted_dormant_project_scan_is_detected_by_allocation"),
         word: Word::Succeeds,
         input: || Input::ProjectUncounted,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[Window::opened(2), Window::opened(2), Window::opened(2)]),
+            Answer::Uncounted {
+                counters_unchanged: true,
+                matches: [true, false],
+            },
+        )),
     },
     Case {
         name: CaseName("the_facts_finish_reads_a_stored_population_without_copying_its_words"),
         word: Word::Succeeds,
         input: || Input::FactsFinishBorrows,
-        expect: Expect::Value(()),
+        expect: Expect::Value((
+            windows(&[]),
+            Answer::Facts {
+                kept: WORDS,
+                at_most_two_blocks: true,
+                words_not_copied: true,
+            },
+        )),
     },
 ];
 fn main() {

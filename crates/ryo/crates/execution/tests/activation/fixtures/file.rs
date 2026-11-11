@@ -1,5 +1,5 @@
 use super::program::{corpus, engine, prepared};
-use super::subscriber::{Activation, Sample};
+use super::subscriber::{Activation, Sample, Window};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -17,7 +17,7 @@ use ryo_relations::domain::relations::types::FileId;
 use std::cell::Cell;
 
 /// Only declared relevant intents change; the installed engine and public entry stay identical.
-pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
+pub(crate) fn measure(total: usize, demanded: &[usize]) -> (Sample, Window) {
     let engine = engine();
     let prepared = prepared(&engine, total);
     let corpus = corpus();
@@ -64,9 +64,17 @@ pub(crate) fn measure(total: usize, demanded: &[usize]) -> Sample {
             file.finish().unwrap();
         });
     }
-    assert_eq!(reads.get(), 0, "activation must not evaluate a provider");
     request.finish();
     let state = observed.0.lock().unwrap();
-    assert_eq!((state.starts, state.ends, state.active), (2, 2, false));
-    state.sample
+    (
+        state.sample,
+        Window {
+            starts: state.starts,
+            ends: state.ends,
+            active: state.active,
+            misordered: state.misordered,
+            provider_reads: reads.get(),
+            delivered: 0,
+        },
+    )
 }

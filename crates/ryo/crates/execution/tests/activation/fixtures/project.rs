@@ -1,5 +1,5 @@
 use super::program::{corpus, engine, prepared};
-use super::subscriber::{Access, Activation, Sample};
+use super::subscriber::{Access, Activation, Sample, Window};
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
@@ -23,7 +23,7 @@ pub(crate) fn measure_project(
     total: usize,
     demanded: &[usize],
     intrusion: &dyn Fn(usize),
-) -> (Sample, Access) {
+) -> (Sample, Access, Window) {
     let engine = engine();
     let prepared = prepared(&engine, total);
     let corpus = corpus();
@@ -47,6 +47,7 @@ pub(crate) fn measure_project(
             ryo_execution::inbound::use_cases::execution::interface::RefusedFiles::default();
             total
         ];
+    let delivered = std::cell::Cell::new(0);
     for _ in 0..2 {
         let request = ExecutionUseCaseImpl::new().execution(&prepared, &corpus, None);
         let partials = Partials::default();
@@ -82,7 +83,7 @@ pub(crate) fn measure_project(
             ) else {
                 panic!("an infallible guard cannot refuse")
             };
-            assert_eq!(outcomes.len(), demanded.len());
+            delivered.set(delivered.get() + outcomes.len());
             for outcome in outcomes {
                 outcome.unwrap();
             }
@@ -93,6 +94,16 @@ pub(crate) fn measure_project(
         request.finish();
     }
     let state = observed.0.lock().unwrap();
-    assert_eq!((state.starts, state.ends, state.active), (2, 2, false));
-    (state.sample, state.access)
+    (
+        state.sample,
+        state.access,
+        Window {
+            starts: state.starts,
+            ends: state.ends,
+            active: state.active,
+            misordered: state.misordered,
+            provider_reads: 0,
+            delivered: delivered.get(),
+        },
+    )
 }

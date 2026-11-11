@@ -18,8 +18,45 @@ pub(crate) struct Access {
     /// Sum of the rule indices those reads named.
     pub read_rules: u64,
 }
+/// How the measured windows of a measurement went: begins and ends seen, whether one is still open, events out of
+/// order (a begin inside a window or an end outside one), provider reads, and occurrences delivered.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Window {
+    pub starts: usize,
+    pub ends: usize,
+    pub active: bool,
+    pub misordered: usize,
+    pub provider_reads: usize,
+    pub delivered: usize,
+}
+impl Window {
+    /// A measurement whose two windows each opened and closed once, in order, with no provider read, that delivered
+    /// `delivered` occurrences across them.
+    pub(crate) const fn opened(delivered: usize) -> Self {
+        Self {
+            starts: 2,
+            ends: 2,
+            active: false,
+            misordered: 0,
+            provider_reads: 0,
+            delivered,
+        }
+    }
+}
+/// Equal work, graph hits and allocations: dormant roots added and grew nothing.
+pub(crate) fn same_cost(left: Sample, right: Sample) -> bool {
+    left.work == right.work
+        && left.graph_hits == right.graph_hits
+        && left.blocks == right.blocks
+        && left.bytes == right.bytes
+}
+/// Equal counted accesses, work and allocations: nothing but the demanded roots was touched.
+pub(crate) fn project_cost_matches(left: (Sample, Access), right: (Sample, Access)) -> bool {
+    left.0 == right.0 && left.1.reads == right.1.reads
+}
 #[derive(Default)]
 pub(in crate::fixtures) struct State {
+    pub(in crate::fixtures) misordered: usize,
     pub(in crate::fixtures) active: bool,
     pub(in crate::fixtures) starts: usize,
     pub(in crate::fixtures) ends: usize,
@@ -81,7 +118,7 @@ impl tracing::Subscriber for Activation {
         event.record(&mut fields);
         let mut state = self.0.lock().unwrap();
         if fields.event == 1 {
-            assert!(!state.active);
+            state.misordered += usize::from(state.active);
             let heap = dhat::HeapStats::get();
             state.before = (heap.total_blocks, heap.total_bytes);
             state.sample = Sample::default();
@@ -89,7 +126,7 @@ impl tracing::Subscriber for Activation {
             state.starts += 1;
             state.active = true;
         } else if fields.event == 2 {
-            assert!(state.active);
+            state.misordered += usize::from(!state.active);
             let heap = dhat::HeapStats::get();
             state.sample.blocks = heap.total_blocks - state.before.0;
             state.sample.bytes = heap.total_bytes - state.before.1;
