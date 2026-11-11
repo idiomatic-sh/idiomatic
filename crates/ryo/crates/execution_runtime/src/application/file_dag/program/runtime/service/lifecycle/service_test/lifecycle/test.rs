@@ -8,6 +8,7 @@ use crate::application::file_dag::program::runtime::service::InvocationOutcome;
 use crate::application::file_dag::program::runtime::service::Slot;
 use crate::application::file_dag::program::runtime::service::State;
 use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::{
@@ -17,7 +18,6 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;
 use std::rc::Rc;
 
-#[test]
 fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
     let CompiledCase { execution, roots } = compiled();
     let probe = RuntimeProbe::new(
@@ -74,7 +74,6 @@ fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
     );
 }
 
-#[test]
 fn same_region_reentry_refuses_without_corrupting_successful_publication() {
     let CompiledCase { execution, roots } = compiled();
     let probe = RuntimeProbe::new(
@@ -117,7 +116,6 @@ fn same_region_reentry_refuses_without_corrupting_successful_publication() {
     );
 }
 
-#[test]
 fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
     let CompiledCase { execution, roots } = compiled();
     let probe = RuntimeProbe::new(Rc::clone(&execution), RuntimeProbeMode::Plain);
@@ -182,7 +180,6 @@ fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
     );
 }
 
-#[test]
 fn a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is() {
     use ryo_execution_domain::domain::readiness::types::{ReadinessCounts, ReadinessEvents};
     // `Plain` declines the shared walk, so its region is evaluated inside its preparation poll; `Joined` waits for its
@@ -221,7 +218,6 @@ fn a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is(
     }
 }
 
-#[test]
 fn reached_slots_initialize_reader_obligations_once() {
     let CompiledCase { execution, roots } = compiled();
     execution
@@ -239,7 +235,6 @@ fn reached_slots_initialize_reader_obligations_once() {
     assert_eq!(slots.len(), 2);
 }
 
-#[test]
 fn repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup() {
     let CompiledCase { execution, roots } = compiled();
     execution
@@ -364,4 +359,98 @@ fn repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup
         matches!(execution.finish(), Err(OperatingError::NotRun)),
         "without a primary result, finish reports the real first cleanup refusal"
     );
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    NestedDemandPreservesBothFramesAndExactSemanticFailure,
+    SameRegionReentryRefusesWithoutCorruptingSuccessfulPublication,
+    DownstreamErrorKeepsPublicationAndRetryDoesNotRepeatSemantics,
+    ARegionEvaluatedInItsPreparationIsCountedOnceAsADispatchedOneIs,
+    ReachedSlotsInitializeReaderObligationsOnce,
+    RepeatedConsumerReleaseIsAtomicAndPrimarySemanticFailureWinsCleanup,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("nested_demand_preserves_both_frames_and_exact_semantic_failure"),
+        word: Word::Succeeds,
+        input: || Scenario::NestedDemandPreservesBothFramesAndExactSemanticFailure,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("same_region_reentry_refuses_without_corrupting_successful_publication"),
+        word: Word::Succeeds,
+        input: || Scenario::SameRegionReentryRefusesWithoutCorruptingSuccessfulPublication,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("downstream_error_keeps_publication_and_retry_does_not_repeat_semantics"),
+        word: Word::Succeeds,
+        input: || Scenario::DownstreamErrorKeepsPublicationAndRetryDoesNotRepeatSemantics,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ARegionEvaluatedInItsPreparationIsCountedOnceAsADispatchedOneIs,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("reached_slots_initialize_reader_obligations_once"),
+        word: Word::Succeeds,
+        input: || Scenario::ReachedSlotsInitializeReaderObligationsOnce,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::RepeatedConsumerReleaseIsAtomicAndPrimarySemanticFailureWinsCleanup,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::NestedDemandPreservesBothFramesAndExactSemanticFailure => {
+            nested_demand_preserves_both_frames_and_exact_semantic_failure();
+            Ok(())
+        }
+        Scenario::SameRegionReentryRefusesWithoutCorruptingSuccessfulPublication => {
+            same_region_reentry_refuses_without_corrupting_successful_publication();
+            Ok(())
+        }
+        Scenario::DownstreamErrorKeepsPublicationAndRetryDoesNotRepeatSemantics => {
+            downstream_error_keeps_publication_and_retry_does_not_repeat_semantics();
+            Ok(())
+        }
+        Scenario::ARegionEvaluatedInItsPreparationIsCountedOnceAsADispatchedOneIs => {
+            a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is();
+            Ok(())
+        }
+        Scenario::ReachedSlotsInitializeReaderObligationsOnce => {
+            reached_slots_initialize_reader_obligations_once();
+            Ok(())
+        }
+        Scenario::RepeatedConsumerReleaseIsAtomicAndPrimarySemanticFailureWinsCleanup => {
+            repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

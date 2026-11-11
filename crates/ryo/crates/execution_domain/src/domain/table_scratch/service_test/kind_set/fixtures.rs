@@ -6,13 +6,13 @@ use ryo_relations::domain::relations::types::KindBits;
 use ryo_values::cases::{Case, CaseName, Expect, Word};
 
 /// A scenario: what a row asks of the part.
-pub(super) type Input = fn() -> Result<Value, ()>;
+pub(crate) type Input = fn() -> Result<Value, ()>;
 
 /// What a scenario answers: a yes as one.
-type Value = usize;
+pub(crate) type Value = usize;
 
 /// This part has no failure of its own.
-pub(super) type Failure = ();
+pub(crate) type Failure = ();
 
 /// A kind is in a set when its bit is, and a kind beyond the set is out.
 pub(super) fn a_kind_is_in_the_set_by_its_bit() -> Value {
@@ -28,13 +28,13 @@ pub(super) fn a_kind_is_in_the_set_by_its_bit() -> Value {
 }
 
 /// The rows of this part's cases.
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[Case {
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("a_kind_is_in_the_set_by_its_bit"),
     word: Word::Succeeds,
     input: || || Ok(a_kind_is_in_the_set_by_its_bit()),
     expect: Expect::Value(1),
 }];
 
-pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }

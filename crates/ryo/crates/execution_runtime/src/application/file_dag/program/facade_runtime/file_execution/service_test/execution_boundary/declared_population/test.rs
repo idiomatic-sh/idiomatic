@@ -2,6 +2,7 @@
 use super::super::super::super::*;
 use super::super::super::scratch_owner::fixtures::{execute, hosted};
 use super::super::fixtures::source;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,
@@ -12,7 +13,6 @@ use ryo_values::domain::{
     plans::types::Operation,
     rows::types::{RowCount, Table},
 };
-#[test]
 fn malformed_declared_population_is_refused_not_silently_shortened() {
     let table = Table {
         kinds: kinds(Relation::SyntaxTree).to_vec(),
@@ -26,7 +26,6 @@ fn malformed_declared_population_is_refused_not_silently_shortened() {
         Err(OperatingError::ShapeMismatch)
     ));
 }
-#[test]
 fn zero_width_bags_keep_their_declared_population() {
     let (result, _) = execute(
         Operation::Project {
@@ -40,4 +39,50 @@ fn zero_width_bags_keep_their_declared_population() {
     let output = result.unwrap();
     assert_eq!(output.count.0, 3);
     assert!(output.cells.is_empty());
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    MalformedDeclaredPopulationIsRefusedNotSilentlyShortened,
+    ZeroWidthBagsKeepTheirDeclaredPopulation,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("malformed_declared_population_is_refused_not_silently_shortened"),
+        word: Word::Succeeds,
+        input: || Scenario::MalformedDeclaredPopulationIsRefusedNotSilentlyShortened,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("zero_width_bags_keep_their_declared_population"),
+        word: Word::Succeeds,
+        input: || Scenario::ZeroWidthBagsKeepTheirDeclaredPopulation,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::MalformedDeclaredPopulationIsRefusedNotSilentlyShortened => {
+            malformed_declared_population_is_refused_not_silently_shortened();
+            Ok(())
+        }
+        Scenario::ZeroWidthBagsKeepTheirDeclaredPopulation => {
+            zero_width_bags_keep_their_declared_population();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

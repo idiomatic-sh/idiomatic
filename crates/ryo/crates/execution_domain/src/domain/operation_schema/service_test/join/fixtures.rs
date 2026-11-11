@@ -15,14 +15,14 @@ pub(super) enum Scenario {
     FirstOnly,
 }
 
-type Input = Scenario;
+pub(crate) type Input = Scenario;
 
 /// How many columns the join answers.
-type Value = usize;
+pub(crate) type Value = usize;
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     let operation = Operation::Join {
         left: Source::Relation(Relation::Entry),
         right: Source::Relation(Relation::SequenceElement),
@@ -48,7 +48,7 @@ pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
 }
 
 /// The rows of this part's cases.
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_join_with_its_two_inputs_answers_its_output_columns"),
         word: Word::Succeeds,

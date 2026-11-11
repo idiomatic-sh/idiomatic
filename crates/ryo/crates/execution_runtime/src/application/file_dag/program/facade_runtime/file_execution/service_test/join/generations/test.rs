@@ -4,6 +4,7 @@ use super::super::direct::fixtures::{request, schema_column, simple};
 use super::super::*;
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
 use ryo_execution_domain::domain::table_model::types::RepresentationKind;
@@ -22,7 +23,6 @@ use ryo_values::domain::{
 };
 use std::cell::Cell as Counter;
 use std::{rc::Rc, sync::Arc};
-#[test]
 fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload() {
     let left = schema_column(Relation::Entry, CellKind::Number, 0);
     let right = schema_column(Relation::SequenceElement, CellKind::Number, 0);
@@ -245,4 +245,41 @@ fn one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_
         ))
     ));
     assert!(actual.derived_builds.is_empty());
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    OnePreparedRequestReopensSameFileAfterDeliveryFailureEmptySkipAndChangedPayload,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName(
+        "one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload",
+    ),
+    word: Word::Succeeds,
+    input: || {
+        Scenario::OnePreparedRequestReopensSameFileAfterDeliveryFailureEmptySkipAndChangedPayload
+    },
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::OnePreparedRequestReopensSameFileAfterDeliveryFailureEmptySkipAndChangedPayload => {
+            one_prepared_request_reopens_same_file_after_delivery_failure_empty_skip_and_changed_payload();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

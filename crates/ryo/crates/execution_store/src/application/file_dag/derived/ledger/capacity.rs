@@ -3,7 +3,7 @@
 use super::types::{ByteCount, SlotCount};
 
 #[cfg(test)]
-mod test;
+mod service_test;
 
 /// Account actual capacity rather than live length.
 pub(crate) fn vector<T>(values: &Vec<T>) -> ByteCount {

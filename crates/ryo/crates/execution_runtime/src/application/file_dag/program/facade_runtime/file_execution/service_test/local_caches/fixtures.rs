@@ -19,11 +19,11 @@ use ryo_values::domain::{
     rows::types::Table,
 };
 
-pub(super) type Value = ();
+pub(crate) type Value = ();
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) type Input = fn() -> Result<Value, Failure>;
+pub(crate) type Input = fn() -> Result<Value, Failure>;
 
 pub(super) const FROM: PlanInput = PlanInput::Relation(Relation::Function);
 
@@ -154,13 +154,13 @@ pub(super) fn only_dynamic_patterns_enter_local_caches() -> Result<Value, Failur
     Ok(())
 }
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[Case {
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName(stringify!(only_dynamic_patterns_enter_local_caches)),
     word: Word::Succeeds,
     input: || only_dynamic_patterns_enter_local_caches,
     expect: Expect::Value(()),
 }];
 
-pub(super) fn subject(input: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(input: Input) -> Result<Value, Failure> {
     input()
 }

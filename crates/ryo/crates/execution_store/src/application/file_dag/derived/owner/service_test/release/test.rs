@@ -3,18 +3,9 @@ use super::super::super::*;
 use super::super::fixtures::{acquire, acquire_pair, owner, pair_plan, plan, population, source};
 use crate::application::file_dag::derived::owner::index::service as indexes;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
-use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
-use ryo_derived::domain::contract::types::DerivedView;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::rows::types::Table;
-use {
-    ryo_execution_domain::domain::operation_schema::types::InputShape,
-    ryo_values::domain::rows::service::push_row,
-};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 
-#[test]
 fn release_drops_only_the_dependent_required_view() {
     let relation_owner = owner(EntryLimit(0));
     let owner = relation_owner.derived();
@@ -62,14 +53,13 @@ fn release_drops_only_the_dependent_required_view() {
     assert_eq!(owner.released_entries(), 2);
 }
 
-#[test]
 fn two_population_view_survives_either_release_and_repin_without_duplicate_dependencies() {
     let relation_owner = owner(EntryLimit(0));
     let owner = relation_owner.derived();
     let mut ordered_source = source();
     ordered_source.cells = [3, 1, 2]
         .into_iter()
-        .map(|value| Value::Number(Integer(value)))
+        .map(|value| CellValue::Number(Integer(value)))
         .collect();
     let publications = [
         relation_owner.computed(ordered_source.clone()).unwrap(),
@@ -130,4 +120,54 @@ fn two_population_view_survives_either_release_and_repin_without_duplicate_depen
         }
     }
     assert_eq!(owner.counts().0, 64);
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ReleaseDropsOnlyTheDependentRequiredView,
+    TwoPopulationViewSurvivesEitherReleaseAndRepinWithoutDuplicateDependencies,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("release_drops_only_the_dependent_required_view"),
+        word: Word::Succeeds,
+        input: || Scenario::ReleaseDropsOnlyTheDependentRequiredView,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "two_population_view_survives_either_release_and_repin_without_duplicate_dependencies",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::TwoPopulationViewSurvivesEitherReleaseAndRepinWithoutDuplicateDependencies
+        },
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ReleaseDropsOnlyTheDependentRequiredView => {
+            release_drops_only_the_dependent_required_view();
+            Ok(())
+        }
+        Scenario::TwoPopulationViewSurvivesEitherReleaseAndRepinWithoutDuplicateDependencies => {
+            two_population_view_survives_either_release_and_repin_without_duplicate_dependencies();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

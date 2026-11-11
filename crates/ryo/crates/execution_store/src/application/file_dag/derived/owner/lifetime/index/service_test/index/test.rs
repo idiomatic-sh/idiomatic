@@ -1,9 +1,9 @@
 //! Actual shared-index acquisition, owner aliases, eviction and final consumer release.
 use super::fixtures::{fixture, hold, reclaim};
 use crate::application::file_dag::derived::owner::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_relations::domain::relations::types::FactColumn;
-#[test]
 fn one_owner_reclaims_index_only_after_the_final_live_consumer_releases() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![10, 20])];
     let fixture = fixture(&columns);
@@ -36,7 +36,6 @@ fn one_owner_reclaims_index_only_after_the_final_live_consumer_releases() {
         0
     );
 }
-#[test]
 fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![10, 20])];
     let fixture = fixture(&columns);
@@ -78,4 +77,50 @@ fn backend_clear_preserves_one_required_backing_until_last_consumer_drops() {
             .0,
         0
     );
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    OneOwnerReclaimsIndexOnlyAfterTheFinalLiveConsumerReleases,
+    BackendClearPreservesOneRequiredBackingUntilLastConsumerDrops,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("one_owner_reclaims_index_only_after_the_final_live_consumer_releases"),
+        word: Word::Succeeds,
+        input: || Scenario::OneOwnerReclaimsIndexOnlyAfterTheFinalLiveConsumerReleases,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("backend_clear_preserves_one_required_backing_until_last_consumer_drops"),
+        word: Word::Succeeds,
+        input: || Scenario::BackendClearPreservesOneRequiredBackingUntilLastConsumerDrops,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::OneOwnerReclaimsIndexOnlyAfterTheFinalLiveConsumerReleases => {
+            one_owner_reclaims_index_only_after_the_final_live_consumer_releases();
+            Ok(())
+        }
+        Scenario::BackendClearPreservesOneRequiredBackingUntilLastConsumerDrops => {
+            backend_clear_preserves_one_required_backing_until_last_consumer_drops();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

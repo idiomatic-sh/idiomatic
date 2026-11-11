@@ -257,13 +257,13 @@ pub(in super::super) enum Refusal {
     MissingSubmission,
 }
 
-type Input = Scenario;
+pub(crate) type Input = Scenario;
 
-pub(in super::super) type Value = ();
+pub(crate) type Value = ();
 
-type Failure = Refusal;
+pub(crate) type Failure = Refusal;
 
-pub(in super::super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("runtime obligations precede actual ready callbacks and equivalent replay"),
         word: Word::Succeeds,
@@ -296,7 +296,7 @@ pub(in super::super) fn verify(observed: Coverage) -> Result<(), Refusal> {
     Ok(())
 }
 
-pub(in super::super) fn subject(scenario: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     let omit = matches!(scenario, Scenario::Omitted);
     let observed = observe(omit);
     assert_eq!(

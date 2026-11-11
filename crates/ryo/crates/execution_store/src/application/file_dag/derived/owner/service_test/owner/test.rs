@@ -1,20 +1,12 @@
 //! Required sharing and optional retention are independent ownership decisions.
 use super::super::super::*;
-use super::super::fixtures::{acquire, acquire_pair, owner, pair_plan, plan, population, source};
+use super::super::fixtures::{acquire, owner, plan, population, source};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 use crate::application::file_dag::derived::owner::index::service as indexes;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
-use crate::application::file_dag::relations::{RelationOwner, handle::service::PublishedInput};
 use ryo_derived::domain::contract::types::DerivedView;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
-use ryo_values::domain::plan_parts::types::ColumnIndex;
-use {
-    ryo_execution_domain::domain::operation_schema::types::InputShape,
-    ryo_values::domain::rows::service::push_row,
-};
 
-#[test]
 fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
     let relation_owner = owner(EntryLimit(0));
     let owner = relation_owner.derived();
@@ -56,7 +48,6 @@ fn pinned_population_shares_even_with_zero_entry_and_retained_budget() {
     assert_eq!(owner.released_entries(), 1);
 }
 
-#[test]
 fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
     let relation_owner = owner(EntryLimit(1));
     let owner = relation_owner.derived();
@@ -87,7 +78,6 @@ fn expired_weak_entry_is_replaced_without_retaining_stale_storage() {
     drop(second);
 }
 
-#[test]
 fn optional_misses_do_not_accumulate_identity_metadata() {
     let relation_owner = owner(EntryLimit(0));
     let owner = relation_owner.derived();
@@ -113,7 +103,6 @@ fn optional_misses_do_not_accumulate_identity_metadata() {
     );
 }
 
-#[test]
 fn population_and_semantic_context_are_part_of_the_view_identity() {
     let relation_owner = owner(EntryLimit(0));
     let owner = relation_owner.derived();
@@ -164,4 +153,70 @@ fn population_and_semantic_context_are_part_of_the_view_identity() {
     );
 }
 
-use ryo_values::domain::rows::types::Table;
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    PinnedPopulationSharesEvenWithZeroEntryAndRetainedBudget,
+    ExpiredWeakEntryIsReplacedWithoutRetainingStaleStorage,
+    OptionalMissesDoNotAccumulateIdentityMetadata,
+    PopulationAndSemanticContextArePartOfTheViewIdentity,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("pinned_population_shares_even_with_zero_entry_and_retained_budget"),
+        word: Word::Succeeds,
+        input: || Scenario::PinnedPopulationSharesEvenWithZeroEntryAndRetainedBudget,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("expired_weak_entry_is_replaced_without_retaining_stale_storage"),
+        word: Word::Succeeds,
+        input: || Scenario::ExpiredWeakEntryIsReplacedWithoutRetainingStaleStorage,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("optional_misses_do_not_accumulate_identity_metadata"),
+        word: Word::Succeeds,
+        input: || Scenario::OptionalMissesDoNotAccumulateIdentityMetadata,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("population_and_semantic_context_are_part_of_the_view_identity"),
+        word: Word::Succeeds,
+        input: || Scenario::PopulationAndSemanticContextArePartOfTheViewIdentity,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::PinnedPopulationSharesEvenWithZeroEntryAndRetainedBudget => {
+            pinned_population_shares_even_with_zero_entry_and_retained_budget();
+            Ok(())
+        }
+        Scenario::ExpiredWeakEntryIsReplacedWithoutRetainingStaleStorage => {
+            expired_weak_entry_is_replaced_without_retaining_stale_storage();
+            Ok(())
+        }
+        Scenario::OptionalMissesDoNotAccumulateIdentityMetadata => {
+            optional_misses_do_not_accumulate_identity_metadata();
+            Ok(())
+        }
+        Scenario::PopulationAndSemanticContextArePartOfTheViewIdentity => {
+            population_and_semantic_context_are_part_of_the_view_identity();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

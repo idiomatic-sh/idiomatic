@@ -5,12 +5,12 @@ use super::super::fixtures::routes::{Combine, Feed, Fusion};
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency};
 use super::fixtures::decide;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::executable_program::fusion::types::{
     Barrier, Fusibility, Ineligible,
 };
 use std::sync::Arc;
 
-#[test]
 fn a_named_capture_root_is_not_fused_into() {
     let program = Program::new(
         Authored::named_continuation(),
@@ -43,7 +43,6 @@ fn a_named_capture_root_is_not_fused_into() {
     );
 }
 
-#[test]
 fn fused_and_held_combinations_agree_on_rows_order_and_error_precedence() {
     for combine in Combine::ALL {
         for left in Feed::ALL {
@@ -66,7 +65,6 @@ fn fused_and_held_combinations_agree_on_rows_order_and_error_precedence() {
     }
 }
 
-#[test]
 fn an_empty_left_does_not_hide_a_failing_right_differently_when_fused() {
     for combine in Combine::ALL {
         let fused = decide(combine, Feed::Empty, Feed::Failing, Fusion::Fused).unwrap();
@@ -76,7 +74,6 @@ fn an_empty_left_does_not_hide_a_failing_right_differently_when_fused() {
     }
 }
 
-#[test]
 fn competing_faults_reach_the_same_side_first_when_fused() {
     for combine in Combine::ALL {
         let fused = decide(combine, Feed::Failing, Feed::Failing, Fusion::Fused).unwrap();
@@ -88,4 +85,72 @@ fn competing_faults_reach_the_same_side_first_when_fused() {
             fused.answer
         );
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ANamedCaptureRootIsNotFusedInto,
+    FusedAndHeldCombinationsAgreeOnRowsOrderAndErrorPrecedence,
+    AnEmptyLeftDoesNotHideAFailingRightDifferentlyWhenFused,
+    CompetingFaultsReachTheSameSideFirstWhenFused,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_named_capture_root_is_not_fused_into"),
+        word: Word::Succeeds,
+        input: || Scenario::ANamedCaptureRootIsNotFusedInto,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("fused_and_held_combinations_agree_on_rows_order_and_error_precedence"),
+        word: Word::Succeeds,
+        input: || Scenario::FusedAndHeldCombinationsAgreeOnRowsOrderAndErrorPrecedence,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an_empty_left_does_not_hide_a_failing_right_differently_when_fused"),
+        word: Word::Succeeds,
+        input: || Scenario::AnEmptyLeftDoesNotHideAFailingRightDifferentlyWhenFused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("competing_faults_reach_the_same_side_first_when_fused"),
+        word: Word::Succeeds,
+        input: || Scenario::CompetingFaultsReachTheSameSideFirstWhenFused,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ANamedCaptureRootIsNotFusedInto => {
+            a_named_capture_root_is_not_fused_into();
+            Ok(())
+        }
+        Scenario::FusedAndHeldCombinationsAgreeOnRowsOrderAndErrorPrecedence => {
+            fused_and_held_combinations_agree_on_rows_order_and_error_precedence();
+            Ok(())
+        }
+        Scenario::AnEmptyLeftDoesNotHideAFailingRightDifferentlyWhenFused => {
+            an_empty_left_does_not_hide_a_failing_right_differently_when_fused();
+            Ok(())
+        }
+        Scenario::CompetingFaultsReachTheSameSideFirstWhenFused => {
+            competing_faults_reach_the_same_side_first_when_fused();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

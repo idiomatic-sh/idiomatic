@@ -5,6 +5,7 @@ use super::super::super::*;
 use super::super::fixtures::refusal;
 use super::fixtures::KeepsCalling;
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
 #[cfg(test)]
@@ -16,7 +17,6 @@ use ryo_values::domain::{
     plans::types::{Operation, PlanStep},
 };
 use std::sync::Arc;
-#[test]
 fn sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success() {
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
     let right = table_of(
@@ -41,7 +41,6 @@ fn sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success() 
     assert!(matches!(actual.result, Err(OperatingError::NotRun)));
     assert!(actual.prefix.is_empty());
 }
-#[test]
 fn fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_success() {
     let left_table = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
     let right_table = table_of(
@@ -99,4 +98,54 @@ fn fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_suc
         actual.prefix.is_empty(),
         "failed semantic publication delivers no prefix"
     );
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Proof {
+    SinkFailureWinsAfterAKernelCommitsMultipleRowsAndReportsSuccess,
+    FusedSemanticRefusalStaysStickyWhenTheKernelContinuesAndReportsSuccess,
+}
+
+type Input = Proof;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success",
+        ),
+        word: Word::Succeeds,
+        input: || Proof::SinkFailureWinsAfterAKernelCommitsMultipleRowsAndReportsSuccess,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_success",
+        ),
+        word: Word::Succeeds,
+        input: || Proof::FusedSemanticRefusalStaysStickyWhenTheKernelContinuesAndReportsSuccess,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Proof::SinkFailureWinsAfterAKernelCommitsMultipleRowsAndReportsSuccess => {
+            sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success();
+            Ok(())
+        }
+        Proof::FusedSemanticRefusalStaysStickyWhenTheKernelContinuesAndReportsSuccess => {
+            fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_success();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -4,6 +4,7 @@ use super::super::super::fixtures::*;
 use super::super::super::scratch_owner::fixtures::{execute, hosted};
 use super::fixtures::MemoSink;
 use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
@@ -21,7 +22,6 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::sync::Arc;
-#[test]
 fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     let mut plan = plan(Scenario::ProjectRetry);
     plan.steps = vec![
@@ -118,7 +118,6 @@ fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     );
     file.finish().unwrap();
 }
-#[test]
 fn partition_observations_keep_large_then_small_peak_and_release() {
     let mut rows = (0..32)
         .map(|at| {
@@ -148,4 +147,50 @@ fn partition_observations_keep_large_then_small_peak_and_release() {
     assert_eq!(observed.closure_partition_rows, 32);
     assert!(observed.closure_partition_capacity >= 64);
     // execute calls normal file.finish and checks the real owner's required bytes are zero.
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Proof {
+    ChainedRegisteredEvaluationsReuseDownstreamInvocationState,
+    PartitionObservationsKeepLargeThenSmallPeakAndRelease,
+}
+
+type Input = Proof;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("chained_registered_evaluations_reuse_downstream_invocation_state"),
+        word: Word::Succeeds,
+        input: || Proof::ChainedRegisteredEvaluationsReuseDownstreamInvocationState,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("partition_observations_keep_large_then_small_peak_and_release"),
+        word: Word::Succeeds,
+        input: || Proof::PartitionObservationsKeepLargeThenSmallPeakAndRelease,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Proof::ChainedRegisteredEvaluationsReuseDownstreamInvocationState => {
+            chained_registered_evaluations_reuse_downstream_invocation_state();
+            Ok(())
+        }
+        Proof::PartitionObservationsKeepLargeThenSmallPeakAndRelease => {
+            partition_observations_keep_large_then_small_peak_and_release();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

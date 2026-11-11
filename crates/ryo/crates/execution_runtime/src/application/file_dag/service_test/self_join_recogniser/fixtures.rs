@@ -12,13 +12,13 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
 /// A scenario: what a row asks of the part.
-pub(super) type Input = fn() -> Result<Value, Failure>;
+pub(crate) type Input = fn() -> Result<Value, Failure>;
 
 /// What a scenario answers.
-pub(super) type Value = ();
+pub(crate) type Value = ();
 
 /// This part has no failure of its own.
-pub(super) type Failure = ();
+pub(crate) type Failure = ();
 
 pub(super) fn fixture() -> Plan {
     let schema = kinds(Relation::SourceLocation).to_vec();
@@ -144,13 +144,13 @@ pub(super) fn a_second_rules_bag_sensitive_terminal_select_declines_the_shape()
 }
 
 /// The rows of this part's cases.
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[Case {
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("request_binding_rejects_a_second_rules_bag_sensitive_terminal_select"),
     word: Word::Succeeds,
     input: || a_second_rules_bag_sensitive_terminal_select_declines_the_shape,
     expect: Expect::Value(()),
 }];
 
-pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     scenario()
 }

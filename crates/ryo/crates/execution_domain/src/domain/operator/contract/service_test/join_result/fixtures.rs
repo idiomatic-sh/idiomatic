@@ -14,18 +14,18 @@ pub(super) struct Terminal {
     pub(super) recorded: Option<OperatingError>,
 }
 
-type Input = Terminal;
+pub(crate) type Input = Terminal;
 
-pub(super) type Value = ();
+pub(crate) type Value = ();
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) fn subject(terminal: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(terminal: Input) -> Result<Value, Failure> {
     written_result(terminal.answer, terminal.recorded)
 }
 
 /// The rows of this part's cases.
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_recorded_engine_error_wins_over_a_written_terminal"),
         word: Word::Refuses,

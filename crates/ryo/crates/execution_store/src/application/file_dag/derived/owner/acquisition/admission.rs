@@ -3,4 +3,4 @@ pub mod service;
 pub(crate) mod types;
 
 #[cfg(test)]
-mod test;
+mod service_test;

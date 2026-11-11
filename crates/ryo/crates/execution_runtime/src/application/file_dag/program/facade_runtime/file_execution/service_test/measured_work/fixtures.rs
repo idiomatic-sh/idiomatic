@@ -20,11 +20,11 @@ use ryo_values::domain::{
     rows::types::{RowCount, Table},
 };
 
-pub(super) type Value = ();
+pub(crate) type Value = ();
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) type Input = fn() -> Result<Value, Failure>;
+pub(crate) type Input = fn() -> Result<Value, Failure>;
 
 pub(super) const FROM: PlanInput = PlanInput::Relation(Relation::Function);
 
@@ -257,7 +257,7 @@ pub(super) fn unary_pilots_keep_bounded_row_scratch() -> Result<Value, Failure> 
     Ok(())
 }
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(
             successive_owners_hold_only_their_own_partition_rows
@@ -292,6 +292,6 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-pub(super) fn subject(input: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(input: Input) -> Result<Value, Failure> {
     input()
 }

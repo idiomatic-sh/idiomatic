@@ -6,7 +6,7 @@ pub mod profile;
 pub mod progress;
 mod service;
 #[cfg(test)]
-mod test;
+mod service_test;
 pub mod types;
 
 use std::collections::HashMap;

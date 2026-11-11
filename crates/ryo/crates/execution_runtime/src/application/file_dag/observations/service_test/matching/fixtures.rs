@@ -32,18 +32,18 @@ pub(super) enum Scenario {
     MissingSlot,
 }
 
-type Input = Scenario;
+pub(crate) type Input = Scenario;
 
-pub(super) type Value = ();
+pub(crate) type Value = ();
 
 #[derive(Debug, PartialEq)]
 pub(super) enum Refusal {
     ObservationIncomplete,
 }
 
-type Failure = Refusal;
+pub(crate) type Failure = Refusal;
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("two_local_zero_inputs_keep_their_distinct_request_producers"),
         word: Word::Succeeds,
@@ -64,7 +64,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     let outcome = match scenario {
         Scenario::QualifiedSlots => two_local_zero_inputs_keep_their_distinct_request_producers(),
         Scenario::UndeclaredFrontier => undeclared_frontier_ordinal_is_a_typed_refusal(),

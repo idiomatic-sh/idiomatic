@@ -2,18 +2,12 @@
 use super::super::fixtures::{ENDPOINTS, SOURCE, number, rows};
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use fixtures::graph::GraphFixture;
-use ryo_execution_domain::domain::{
-    stored_graph::types::{GraphWalk, Orientation},
-    table_model::types::Rows,
-};
-use ryo_relations::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
-};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
-use std::hash::BuildHasher;
+use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
+use ryo_relations::domain::relations::types::{FactColumn, Integer, Relation};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
 
-#[test]
 fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_consumer() {
     let fixture = GraphFixture::new(&[Relation::Function], &[], 0);
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
@@ -67,7 +61,6 @@ fn zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_co
     assert_eq!(fixture.snapshot().graph_backings, 0);
 }
 
-#[test]
 fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
     let fixture = GraphFixture::new(
         &[Relation::Function, Relation::Identifier],
@@ -85,7 +78,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
     let domain = fixture
         .domain(
             &graph,
-            Input::Relation(Relation::Identifier),
+            PlanInput::Relation(Relation::Identifier),
             &domain_input,
             ColumnIndex(0),
         )
@@ -174,7 +167,7 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
     assert!(matches!(
         fixture.domain(
             &graph,
-            Input::Relation(Relation::Identifier),
+            PlanInput::Relation(Relation::Identifier),
             &domain_input,
             ColumnIndex(0)
         ),
@@ -205,7 +198,6 @@ fn old_completed_answer_owns_exact_context_through_clear_and_changed_facts() {
     assert_eq!(fixture.snapshot().unique_bytes, 0);
 }
 
-#[test]
 fn unavailable_canonical_source_declines_without_retaining_duplicate_graphs() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let input = rows(&columns);
@@ -231,4 +223,63 @@ fn unavailable_canonical_source_declines_without_retaining_duplicate_graphs() {
         assert_eq!(observed.counts.builds, 0);
         assert_eq!(observed.optional_bytes, 0);
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ZeroOptionalBudgetSharesLiveGraphAndRebuildsOnlyAfterLastOpaqueConsumer,
+    OldCompletedAnswerOwnsExactContextThroughClearAndChangedFacts,
+    UnavailableCanonicalSourceDeclinesWithoutRetainingDuplicateGraphs,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_consumer",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ZeroOptionalBudgetSharesLiveGraphAndRebuildsOnlyAfterLastOpaqueConsumer,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("old_completed_answer_owns_exact_context_through_clear_and_changed_facts"),
+        word: Word::Succeeds,
+        input: || Scenario::OldCompletedAnswerOwnsExactContextThroughClearAndChangedFacts,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unavailable_canonical_source_declines_without_retaining_duplicate_graphs"),
+        word: Word::Succeeds,
+        input: || Scenario::UnavailableCanonicalSourceDeclinesWithoutRetainingDuplicateGraphs,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ZeroOptionalBudgetSharesLiveGraphAndRebuildsOnlyAfterLastOpaqueConsumer => {
+            zero_optional_budget_shares_live_graph_and_rebuilds_only_after_last_opaque_consumer();
+            Ok(())
+        }
+        Scenario::OldCompletedAnswerOwnsExactContextThroughClearAndChangedFacts => {
+            old_completed_answer_owns_exact_context_through_clear_and_changed_facts();
+            Ok(())
+        }
+        Scenario::UnavailableCanonicalSourceDeclinesWithoutRetainingDuplicateGraphs => {
+            unavailable_canonical_source_declines_without_retaining_duplicate_graphs();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

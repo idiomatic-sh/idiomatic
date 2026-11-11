@@ -3,13 +3,13 @@ use super::super::super::service::semantics;
 use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::query_operators::types::OperationKind;
 
-type Input = OperationKind;
+pub(crate) type Input = OperationKind;
 
-type Value = u8;
+pub(crate) type Value = u8;
 
-pub(super) type Failure = ();
+pub(crate) type Failure = ();
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("select_declares_its_driving_populations"),
         word: Word::Succeeds,
@@ -168,6 +168,6 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-pub(super) fn subject(kind: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(kind: Input) -> Result<Value, Failure> {
     Ok(semantics(kind).contract.row_inputs.0)
 }

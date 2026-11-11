@@ -6,13 +6,13 @@ use ryo_execution_store::application::file_dag::derived::owner::acquisition::fam
     Scenario, exercise,
 };
 
-type Input = DerivedKind;
+pub(crate) type Input = DerivedKind;
 
-type Value = DerivedKind;
+pub(crate) type Value = DerivedKind;
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("actual_Equality"),
         word: Word::Succeeds,
@@ -69,6 +69,6 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-pub(super) fn subject(kind: DerivedKind) -> Result<DerivedKind, OperatingError> {
+pub(crate) fn subject(kind: DerivedKind) -> Result<DerivedKind, OperatingError> {
     exercise(kind, Scenario::Succeeds)
 }

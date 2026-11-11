@@ -1,4 +1,5 @@
 //! Nearest-ancestor answers through the shared derived forest, with exact domain and generation identity.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 use crate::application::file_dag::derived::owner::graphs::fixtures::{ENDPOINTS, SOURCE, rows};
 use crate::application::file_dag::derived::owner::{
@@ -6,11 +7,12 @@ use crate::application::file_dag::derived::owner::{
 };
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_relations::domain::relations::types::{CellKind, FactColumn, Integer, Relation, Value};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
+use ryo_relations::domain::relations::types::{
+    CellKind, FactColumn, Integer, Relation, Value as CellValue,
+};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
 use std::sync::Arc;
 
-#[test]
 fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
     let columns = [FactColumn(vec![1, 2, 8]), FactColumn(vec![2, 3, 2])];
     let rows = rows(&columns);
@@ -24,7 +26,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
     let membership = fixture
         .domain(
             &graph,
-            Input::Relation(Relation::Identifier),
+            PlanInput::Relation(Relation::Identifier),
             &domain_rows,
             ColumnIndex(0),
         )
@@ -33,7 +35,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
     let again = fixture
         .domain(
             &graph,
-            Input::Relation(Relation::Identifier),
+            PlanInput::Relation(Relation::Identifier),
             &domain_rows,
             ColumnIndex(0),
         )
@@ -49,7 +51,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
         .graph()
         .vertex(
             ryo_derived::domain::vertices::types::PartitionId(0),
-            Value::Number(Integer(1)),
+            CellValue::Number(Integer(1)),
         )
         .expect("stored vertex")
         .0;
@@ -68,7 +70,7 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
     assert_eq!(
         first.map(|vertex| graph.graph().vertices()
             [usize::try_from(vertex).expect("a vertex id fits in usize")]),
-        Some(Value::Number(Integer(3)))
+        Some(CellValue::Number(Integer(3)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
     assert_eq!(
@@ -88,13 +90,13 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
     // A computed domain cannot borrow stable relation membership identity.
     let table = ryo_values::domain::rows::types::Table {
         kinds: vec![CellKind::Number],
-        cells: vec![Value::Number(Integer(2))],
+        cells: vec![CellValue::Number(Integer(2))],
         count: ryo_values::domain::rows::types::RowCount(1),
     };
     let different = fixture
         .domain(
             &graph,
-            Input::Relation(Relation::Identifier),
+            PlanInput::Relation(Relation::Identifier),
             &Rows::Computed(&table),
             ColumnIndex(0),
         )
@@ -114,14 +116,13 @@ fn nearest_memo_is_shared_only_for_exact_domain_and_generation() {
     assert_eq!(
         changed.map(|vertex| graph.graph().vertices()
             [usize::try_from(vertex).expect("a vertex id fits in usize")]),
-        Some(Value::Number(Integer(2)))
+        Some(CellValue::Number(Integer(2)))
     );
     assert_eq!(fixture.snapshot().nearest, 1);
     assert!(fixture.snapshot().memo_bytes <= super::super::super::super::service::MEMO_LIMIT);
     assert!(fixture.snapshot().bytes <= LIMIT);
 }
 
-#[test]
 fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let rows = rows(&columns);
@@ -135,7 +136,7 @@ fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
     let membership = fixture
         .domain(
             &graph,
-            Input::Relation(Relation::Identifier),
+            PlanInput::Relation(Relation::Identifier),
             &domain_rows,
             ColumnIndex(0),
         )
@@ -148,7 +149,7 @@ fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
             .graph()
             .vertex(
                 ryo_derived::domain::vertices::types::PartitionId(0),
-                Value::Number(Integer(root)),
+                CellValue::Number(Integer(root)),
             )
             .unwrap()
             .0;
@@ -165,7 +166,53 @@ fn nearest_handles_absent_parent_and_normal_parent_through_derived_forest() {
         assert_eq!(
             answer.map(|id| graph.graph().vertices()
                 [usize::try_from(id).expect("a vertex id fits in usize")]),
-            expected.map(|n| Value::Number(Integer(n)))
+            expected.map(|n| CellValue::Number(Integer(n)))
         );
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    NearestMemoIsSharedOnlyForExactDomainAndGeneration,
+    NearestHandlesAbsentParentAndNormalParentThroughDerivedForest,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("nearest_memo_is_shared_only_for_exact_domain_and_generation"),
+        word: Word::Succeeds,
+        input: || Scenario::NearestMemoIsSharedOnlyForExactDomainAndGeneration,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("nearest_handles_absent_parent_and_normal_parent_through_derived_forest"),
+        word: Word::Succeeds,
+        input: || Scenario::NearestHandlesAbsentParentAndNormalParentThroughDerivedForest,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::NearestMemoIsSharedOnlyForExactDomainAndGeneration => {
+            nearest_memo_is_shared_only_for_exact_domain_and_generation();
+            Ok(())
+        }
+        Scenario::NearestHandlesAbsentParentAndNormalParentThroughDerivedForest => {
+            nearest_handles_absent_parent_and_normal_parent_through_derived_forest();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

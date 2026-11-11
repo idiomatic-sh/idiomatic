@@ -2,6 +2,7 @@
 use super::super::super::*;
 use super::super::route_controls::fixtures::{MeaningCalls, Supplied, run_read};
 use super::fixtures::first_of_each_line;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
@@ -16,7 +17,6 @@ use std::sync::Arc;
 
 /// A recognised ordered existence over a computed source answers what its declined twin answers, whole and read in part: read in
 /// part, it is partial in the file and in the repository.
-#[test]
 fn a_recognised_ordered_existence_read_in_part_answers_as_its_declined_twin() {
     let schema = kinds(Relation::SourceLocation).to_vec();
     // Two locations of file 0 on the same line, at bytes 5 and 1.
@@ -96,4 +96,37 @@ fn a_recognised_ordered_existence_read_in_part_answers_as_its_declined_twin() {
             assert!(recognised.starts_with("complete"), "{recognised}");
         }
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ARecognisedOrderedExistenceReadInPartAnswersAsItsDeclinedTwin,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("a_recognised_ordered_existence_read_in_part_answers_as_its_declined_twin"),
+    word: Word::Succeeds,
+    input: || Scenario::ARecognisedOrderedExistenceReadInPartAnswersAsItsDeclinedTwin,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ARecognisedOrderedExistenceReadInPartAnswersAsItsDeclinedTwin => {
+            a_recognised_ordered_existence_read_in_part_answers_as_its_declined_twin();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

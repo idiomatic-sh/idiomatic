@@ -1,6 +1,6 @@
 //! The subject of the source partition cases: one project phase run over the partitioned sources.
 use super::*;
-pub(in super::super) fn subject(case: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
     let SmallTree {
         elements,
         mut symbols,

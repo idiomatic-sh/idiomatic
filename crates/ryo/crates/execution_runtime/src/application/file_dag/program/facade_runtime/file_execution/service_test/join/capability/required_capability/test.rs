@@ -4,6 +4,7 @@ use super::super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree}
 use super::super::super::*;
 use super::super::fixtures::Witness;
 use super::fixtures::checked_refusal;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
 #[cfg(test)]
@@ -19,7 +20,6 @@ use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::{DecodeMode, WordSlice};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-#[test]
 fn computed_stored_compact_and_tree_providers_reach_the_same_required_capability() {
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
     let right = table_of(
@@ -80,7 +80,6 @@ fn computed_stored_compact_and_tree_providers_reach_the_same_required_capability
         &mut symbols,
     );
 }
-#[test]
 fn empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index() {
     let left = table_of(&[CellKind::Number], &[]);
     let right = table_of(
@@ -148,4 +147,54 @@ fn empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index()
     .unwrap();
     assert!(matches!(actual.result, Err(OperatingError::NotRead)));
     assert_eq!(actual.work.index_rows, 0);
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ComputedStoredCompactAndTreeProvidersReachTheSameRequiredCapability,
+    EmptyOrFailedLeftNeverEntersTheJoinCapabilityOrBuildsARhsIndex,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "computed_stored_compact_and_tree_providers_reach_the_same_required_capability",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ComputedStoredCompactAndTreeProvidersReachTheSameRequiredCapability,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::EmptyOrFailedLeftNeverEntersTheJoinCapabilityOrBuildsARhsIndex,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ComputedStoredCompactAndTreeProvidersReachTheSameRequiredCapability => {
+            computed_stored_compact_and_tree_providers_reach_the_same_required_capability();
+            Ok(())
+        }
+        Scenario::EmptyOrFailedLeftNeverEntersTheJoinCapabilityOrBuildsARhsIndex => {
+            empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

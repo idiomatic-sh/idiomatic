@@ -333,16 +333,16 @@ pub(super) fn equal_retained_hashes_use_exact_text_and_preserve_original_cells()
 }
 
 /// A scenario: what a row asks of the part.
-pub(super) type Input = fn() -> Value;
+pub(crate) type Input = fn() -> Value;
 
 /// What a scenario answers: a yes as one.
-type Value = usize;
+pub(crate) type Value = usize;
 
 /// A scenario that checks its own claims never fails as a whole.
-type Failure = std::convert::Infallible;
+pub(crate) type Failure = std::convert::Infallible;
 
 /// The rows of this part's cases.
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("ordinal_overflow_follows_the_last_representable_visit"),
         word: Word::Succeeds,
@@ -363,6 +363,6 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(scenario())
 }

@@ -4,7 +4,7 @@ use ryo_derived::domain::membership::types::MembershipView;
 pub(crate) mod view;
 use view::AxisResource;
 #[cfg(test)]
-mod test;
+mod service_test;
 
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{

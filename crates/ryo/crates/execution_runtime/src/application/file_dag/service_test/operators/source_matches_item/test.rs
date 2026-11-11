@@ -1,9 +1,9 @@
 //! Physical occurrence spans and capture rows through actual compiled execution.
 use super::super::fixtures::span;
 use super::fixtures::{captured, evaluate, evaluate_lines};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::constants::NO_SPAN;
-#[test]
 fn nonzero_offset_utf8_and_repeated_source_text_keep_exact_order_and_bag() {
     assert_eq!(
         evaluate("Zéé!".as_bytes(), &[span(1, 5), span(1, 5)], "é"),
@@ -12,7 +12,6 @@ fn nonzero_offset_utf8_and_repeated_source_text_keep_exact_order_and_bag() {
     assert_eq!(evaluate(b"abc", &[span(0, 3)], "z"), Ok(vec![]));
 }
 
-#[test]
 fn zero_width_and_absent_spans_are_explicit() {
     assert_eq!(
         evaluate("éx".as_bytes(), &[span(0, 3)], ""),
@@ -24,7 +23,6 @@ fn zero_width_and_absent_spans_are_explicit() {
     );
 }
 
-#[test]
 fn malformed_or_non_utf8_boundary_spans_refuse_before_their_row_emits() {
     for (source, invalid) in [
         (&b"abc"[..], span(2, 1)),
@@ -43,7 +41,6 @@ fn malformed_or_non_utf8_boundary_spans_refuse_before_their_row_emits() {
     );
 }
 
-#[test]
 fn optional_line_uses_match_start_and_counts_crlf_and_single_endings_once() {
     assert_eq!(
         evaluate_lines(b"a\r\nb\rc\nd", span(0, 8), 1, "\nb|b\\rc|\nd|c"),
@@ -61,7 +58,6 @@ fn optional_line_uses_match_start_and_counts_crlf_and_single_endings_once() {
     );
 }
 
-#[test]
 fn optional_line_rejects_zero_and_overflow() {
     assert_eq!(
         evaluate_lines(b"x", span(0, 1), 0, "x"),
@@ -73,7 +69,6 @@ fn optional_line_rejects_zero_and_overflow() {
     );
 }
 
-#[test]
 fn named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches() {
     assert_eq!(
         captured(
@@ -99,4 +94,94 @@ fn named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches() {
             (span(2, 2), span(2, 2), "".into())
         ])
     );
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    NonzeroOffsetUtf8AndRepeatedSourceTextKeepExactOrderAndBag,
+    ZeroWidthAndAbsentSpansAreExplicit,
+    MalformedOrNonUtf8BoundarySpansRefuseBeforeTheirRowEmits,
+    OptionalLineUsesMatchStartAndCountsCrlfAndSingleEndingsOnce,
+    OptionalLineRejectsZeroAndOverflow,
+    NamedCapturePreservesOffsetsOrderBagAndSkipsUnmatchedBranches,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("nonzero_offset_utf8_and_repeated_source_text_keep_exact_order_and_bag"),
+        word: Word::Succeeds,
+        input: || Scenario::NonzeroOffsetUtf8AndRepeatedSourceTextKeepExactOrderAndBag,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("zero_width_and_absent_spans_are_explicit"),
+        word: Word::Succeeds,
+        input: || Scenario::ZeroWidthAndAbsentSpansAreExplicit,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("malformed_or_non_utf8_boundary_spans_refuse_before_their_row_emits"),
+        word: Word::Succeeds,
+        input: || Scenario::MalformedOrNonUtf8BoundarySpansRefuseBeforeTheirRowEmits,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("optional_line_uses_match_start_and_counts_crlf_and_single_endings_once"),
+        word: Word::Succeeds,
+        input: || Scenario::OptionalLineUsesMatchStartAndCountsCrlfAndSingleEndingsOnce,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("optional_line_rejects_zero_and_overflow"),
+        word: Word::Succeeds,
+        input: || Scenario::OptionalLineRejectsZeroAndOverflow,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches"),
+        word: Word::Succeeds,
+        input: || Scenario::NamedCapturePreservesOffsetsOrderBagAndSkipsUnmatchedBranches,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::NonzeroOffsetUtf8AndRepeatedSourceTextKeepExactOrderAndBag => {
+            nonzero_offset_utf8_and_repeated_source_text_keep_exact_order_and_bag();
+            Ok(())
+        }
+        Scenario::ZeroWidthAndAbsentSpansAreExplicit => {
+            zero_width_and_absent_spans_are_explicit();
+            Ok(())
+        }
+        Scenario::MalformedOrNonUtf8BoundarySpansRefuseBeforeTheirRowEmits => {
+            malformed_or_non_utf8_boundary_spans_refuse_before_their_row_emits();
+            Ok(())
+        }
+        Scenario::OptionalLineUsesMatchStartAndCountsCrlfAndSingleEndingsOnce => {
+            optional_line_uses_match_start_and_counts_crlf_and_single_endings_once();
+            Ok(())
+        }
+        Scenario::OptionalLineRejectsZeroAndOverflow => {
+            optional_line_rejects_zero_and_overflow();
+            Ok(())
+        }
+        Scenario::NamedCapturePreservesOffsetsOrderBagAndSkipsUnmatchedBranches => {
+            named_capture_preserves_offsets_order_bag_and_skips_unmatched_branches();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -219,16 +219,16 @@ pub(super) fn missing_destination_cells_are_skipped_as_in_full_traversal() -> Va
 }
 
 /// A scenario: what a row asks of the part.
-pub(super) type Input = fn() -> Value;
+pub(crate) type Input = fn() -> Value;
 
 /// What a scenario answers: a yes as one.
-type Value = usize;
+pub(crate) type Value = usize;
 
 /// A scenario that checks its own claims never fails as a whole.
-type Failure = std::convert::Infallible;
+pub(crate) type Failure = std::convert::Infallible;
 
 /// The rows of this part's cases.
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
             "nearest_matches_first_admitted_breadth_vertex_for_branches_duplicates_cycles_and_ties",
@@ -263,6 +263,6 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(scenario())
 }

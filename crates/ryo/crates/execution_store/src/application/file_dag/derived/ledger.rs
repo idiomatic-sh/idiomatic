@@ -14,9 +14,9 @@ mod credit;
 mod fixtures;
 pub(crate) mod lease;
 pub(crate) mod service;
-mod snapshot;
 #[cfg(test)]
-mod test;
+mod service_test;
+mod snapshot;
 pub mod types;
 
 use types::{Backing, ByteCount, HoldCount, LeaseClass, LedgerEntry, SlotCount, UnitCount};

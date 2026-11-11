@@ -1,14 +1,14 @@
 //! Required publication aliases share normalization and release its backing at the last consumer.
 use super::super::super::super::RelationOwner;
 use super::super::fixtures::{columns, read, row};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::{operating::errors::OperatingError, table_model::types::Rows};
 use ryo_relations::domain::relations::{
     service::kinds,
-    types::{CellKind, ColumnsView, Integer, Relation, Value},
+    types::{CellKind, ColumnsView, Integer, Relation, Value as CellValue},
 };
 use std::sync::Arc;
 
-#[test]
 fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     let owner = RelationOwner::new(
         crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
@@ -65,7 +65,6 @@ fn lazy_source_normalization_is_shared_and_lives_until_the_last_consumer() {
     assert_eq!(owner.derived.publication_ownership_bytes(), (0, 0, 0));
 }
 
-#[test]
 fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation() {
     use ryo_values::domain::rows::types::{RowCount, Table};
     let owner = RelationOwner::new(
@@ -76,7 +75,10 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
     let publication = owner
         .computed(Table {
             kinds: vec![CellKind::Number],
-            cells: vec![Value::Number(Integer(41)), Value::Number(Integer(43))],
+            cells: vec![
+                CellValue::Number(Integer(41)),
+                CellValue::Number(Integer(43)),
+            ],
             count: RowCount(2),
         })
         .unwrap();
@@ -103,8 +105,8 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         assert_eq!(
             read(&rows),
             [
-                vec![Value::Number(Integer(41))],
-                vec![Value::Number(Integer(43))]
+                vec![CellValue::Number(Integer(41))],
+                vec![CellValue::Number(Integer(43))]
             ]
         );
         assert_eq!(owner.derived.publication_ownership_bytes(), charged);
@@ -132,4 +134,55 @@ fn computed_publication_clones_keep_required_backing_until_last_handle_in_live_g
         owner.current_generation().is_live(),
         crate::application::file_dag::relations::types::Liveness::Live
     );
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    LazySourceNormalizationIsSharedAndLivesUntilTheLastConsumer,
+    ComputedPublicationClonesKeepRequiredBackingUntilLastHandleInLiveGeneration,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("lazy_source_normalization_is_shared_and_lives_until_the_last_consumer"),
+        word: Word::Succeeds,
+        input: || Scenario::LazySourceNormalizationIsSharedAndLivesUntilTheLastConsumer,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::ComputedPublicationClonesKeepRequiredBackingUntilLastHandleInLiveGeneration
+        },
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::LazySourceNormalizationIsSharedAndLivesUntilTheLastConsumer => {
+            lazy_source_normalization_is_shared_and_lives_until_the_last_consumer();
+            Ok(())
+        }
+        Scenario::ComputedPublicationClonesKeepRequiredBackingUntilLastHandleInLiveGeneration => {
+            computed_publication_clones_keep_required_backing_until_last_handle_in_live_generation(
+            );
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

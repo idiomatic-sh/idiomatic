@@ -3,6 +3,7 @@ use super::super::super::super::*;
 use super::super::cases::fixtures::{node, stretch, table_of};
 use super::super::*;
 use super::fixtures::functions;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
 #[cfg(test)]
@@ -22,7 +23,6 @@ use ryo_values::domain::{
     plans::types::Operation,
     rows::types::RowCount,
 };
-#[test]
 fn composite_typed_keys_keep_duplicate_bag_order_under_stored_and_zero_budget_routes() {
     let left = functions(256, false);
     let columns = (0..left.kinds.len())
@@ -97,7 +97,6 @@ fn composite_typed_keys_keep_duplicate_bag_order_under_stored_and_zero_budget_ro
         }
     }
 }
-#[test]
 fn dense_pairs_keep_all_65552_rows_and_first_last_order_without_optional_retention() {
     let left = functions(4097, true);
     let right = table_of(
@@ -152,7 +151,6 @@ fn dense_pairs_keep_all_65552_rows_and_first_last_order_without_optional_retenti
         );
     }
 }
-#[test]
 fn partial_empty_population_keeps_exact_empty_rows_and_partial_provenance() {
     let left = functions(256, false);
     let right = table_of(&[CellKind::Node], &[&[node(99)]]);
@@ -180,7 +178,6 @@ fn partial_empty_population_keeps_exact_empty_rows_and_partial_provenance() {
     assert!(actual.result.unwrap().cells.is_empty());
     assert_eq!(actual.affected, vec![Some(FileId(0))]);
 }
-#[test]
 fn reach_join_keeps_lazy_acquisition_exact_cycle_order_duplicates_and_refusals() {
     let n = |n| Cell::Number(Integer(n));
     let left = table_of(&[CellKind::Number], &[&[n(1)], &[n(1)]]);
@@ -272,4 +269,78 @@ fn reach_join_keeps_lazy_acquisition_exact_cycle_order_duplicates_and_refusals()
         [1, 2, 3, 9, 1, 2, 3, 9].map(|at| vec![n(at)])
     );
     assert_eq!(actual.work.traversal_queue_len, 0);
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    CompositeTypedKeysKeepDuplicateBagOrderUnderStoredAndZeroBudgetRoutes,
+    DensePairsKeepAll65552RowsAndFirstLastOrderWithoutOptionalRetention,
+    PartialEmptyPopulationKeepsExactEmptyRowsAndPartialProvenance,
+    ReachJoinKeepsLazyAcquisitionExactCycleOrderDuplicatesAndRefusals,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "composite_typed_keys_keep_duplicate_bag_order_under_stored_and_zero_budget_routes",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::CompositeTypedKeysKeepDuplicateBagOrderUnderStoredAndZeroBudgetRoutes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "dense_pairs_keep_all_65552_rows_and_first_last_order_without_optional_retention",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::DensePairsKeepAll65552RowsAndFirstLastOrderWithoutOptionalRetention,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("partial_empty_population_keeps_exact_empty_rows_and_partial_provenance"),
+        word: Word::Succeeds,
+        input: || Scenario::PartialEmptyPopulationKeepsExactEmptyRowsAndPartialProvenance,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "reach_join_keeps_lazy_acquisition_exact_cycle_order_duplicates_and_refusals",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ReachJoinKeepsLazyAcquisitionExactCycleOrderDuplicatesAndRefusals,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::CompositeTypedKeysKeepDuplicateBagOrderUnderStoredAndZeroBudgetRoutes => {
+            composite_typed_keys_keep_duplicate_bag_order_under_stored_and_zero_budget_routes();
+            Ok(())
+        }
+        Scenario::DensePairsKeepAll65552RowsAndFirstLastOrderWithoutOptionalRetention => {
+            dense_pairs_keep_all_65552_rows_and_first_last_order_without_optional_retention();
+            Ok(())
+        }
+        Scenario::PartialEmptyPopulationKeepsExactEmptyRowsAndPartialProvenance => {
+            partial_empty_population_keeps_exact_empty_rows_and_partial_provenance();
+            Ok(())
+        }
+        Scenario::ReachJoinKeepsLazyAcquisitionExactCycleOrderDuplicatesAndRefusals => {
+            reach_join_keeps_lazy_acquisition_exact_cycle_order_duplicates_and_refusals();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

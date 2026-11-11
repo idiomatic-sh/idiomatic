@@ -244,13 +244,13 @@ pub(super) fn shared_walk_census_includes_every_synthetic_observation_union()
     Ok(())
 }
 
-pub(super) type Input = fn() -> Result<(), OperatingError>;
+pub(crate) type Input = fn() -> Result<(), OperatingError>;
 
-pub(super) type Value = ();
+pub(crate) type Value = ();
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_census_includes_every_synthetic_observation_union"),
         word: Word::Succeeds,
@@ -265,6 +265,6 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-pub(super) fn subject(input: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(input: Input) -> Result<Value, Failure> {
     input()
 }

@@ -4,7 +4,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     constants::NO_SPAN,
-    types::{FileId, Offset, Relation, Span, Value},
+    types::{FileId, Offset, Relation, Span, Value as CellValue},
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::{
@@ -13,9 +13,9 @@ use ryo_values::domain::{
     plans::types::Operation,
 };
 
-pub(super) type Input = (Span, Span, &'static [u8]);
+pub(crate) type Input = (Span, Span, &'static [u8]);
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
 pub(super) const fn span(start: u32, end: u32) -> Span {
     Span {
@@ -24,7 +24,7 @@ pub(super) const fn span(start: u32, end: u32) -> Span {
     }
 }
 
-pub(super) fn subject((left, right, source): Input) -> Result<Span, Failure> {
+pub(crate) fn subject((left, right, source): Input) -> Result<Span, Failure> {
     let steps = vec![
         compiled::select(Relation::SyntaxTree, &[ColumnIndex(0), ColumnIndex(4)]),
         compiled::select(Relation::SemanticSyntax, &[ColumnIndex(0), ColumnIndex(4)]),
@@ -94,18 +94,27 @@ pub(super) fn subject((left, right, source): Input) -> Result<Span, Failure> {
     assert_eq!(collected, streamed);
     let output = collected?;
     assert_eq!(output.count.0, 2);
-    assert_eq!(&output.cells[..2], &[Value::Span(left), Value::Span(right)]);
-    let Value::Span(result) = output.cells[2] else {
+    assert_eq!(
+        &output.cells[..2],
+        &[CellValue::Span(left), CellValue::Span(right)]
+    );
+    let CellValue::Span(result) = output.cells[2] else {
         panic!("span output required")
     };
     assert_eq!(
         &output.cells[3..],
-        &[Value::Span(left), Value::Span(right), Value::Span(result)]
+        &[
+            CellValue::Span(left),
+            CellValue::Span(right),
+            CellValue::Span(result)
+        ]
     );
     Ok(result)
 }
 
-pub(super) const CASES: &[Case<Input, Span, Failure>] = &[
+/// The value of a row.
+pub(crate) type Value = Span;
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("suffix_contained_in_boolop"),
         word: Word::Succeeds,

@@ -1,10 +1,10 @@
 //! Compiled program lifecycle proof with a real owner.
 use super::super::super::super::inputs::fixtures::{CompiledCase, compiled};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::rc::Rc;
 
-#[test]
 fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases() {
     use crate::application::file_dag::program::admission::{ProducerRoot, ReadProof};
 
@@ -100,4 +100,41 @@ fn publication_constructor_rejects_same_owner_proof_substitution_even_for_canoni
         .unwrap_or_else(|_| panic!("single production owner"))
         .finish()
         .unwrap();
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    PublicationConstructorRejectsSameOwnerProofSubstitutionEvenForCanonicalAliases,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName(
+        "publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases",
+    ),
+    word: Word::Succeeds,
+    input: || {
+        Scenario::PublicationConstructorRejectsSameOwnerProofSubstitutionEvenForCanonicalAliases
+    },
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::PublicationConstructorRejectsSameOwnerProofSubstitutionEvenForCanonicalAliases => {
+            publication_constructor_rejects_same_owner_proof_substitution_even_for_canonical_aliases();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

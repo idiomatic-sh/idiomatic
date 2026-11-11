@@ -1,4 +1,5 @@
 //! Generation-local sharing, exact identity and bounded admission through the real owner.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 use super::super::super::fixtures::{ENDPOINTS, SOURCE, rows};
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
@@ -6,14 +7,10 @@ use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_relations::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
-};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
+use ryo_relations::domain::relations::types::{FactColumn, Integer, Relation, Value as CellValue};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
 use std::sync::Arc;
 
-#[test]
 fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
     let columns = [FactColumn(vec![1, 2, 1, 90]), FactColumn(vec![2, 3, 2, 91])];
     let rows = rows(&columns);
@@ -24,7 +21,7 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .unwrap();
     let mut walk = GraphWalk::default();
     let actual = fixture
-        .reach(&first, &[], Value::Number(Integer(1)), &mut walk)
+        .reach(&first, &[], CellValue::Number(Integer(1)), &mut walk)
         .unwrap()
         .expect("memo admitted");
     let values: Vec<_> = actual
@@ -35,7 +32,7 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .collect();
     assert_eq!(
         values,
-        [Value::Number(Integer(2)), Value::Number(Integer(3))]
+        [CellValue::Number(Integer(2)), CellValue::Number(Integer(3))]
     );
     let first_state = fixture.snapshot();
     assert_eq!(
@@ -52,7 +49,7 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
         .unwrap();
     assert!(Arc::ptr_eq(first.raw_graph(), second.raw_graph()));
     let again = fixture
-        .reach(&second, &[], Value::Number(Integer(1)), &mut walk)
+        .reach(&second, &[], CellValue::Number(Integer(1)), &mut walk)
         .unwrap()
         .expect("memo hit");
     assert_eq!(actual.data_identity(), again.data_identity());
@@ -76,7 +73,6 @@ fn shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal() {
     assert!(fixture.snapshot().bytes <= LIMIT);
 }
 
-#[test]
 fn budget_refusal_keeps_complete_local_graph_without_retaining_handles() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let rows = rows(&columns);
@@ -97,7 +93,7 @@ fn budget_refusal_keeps_complete_local_graph_without_retaining_handles() {
     let mut walk = GraphWalk::default();
     assert!(
         fixture
-            .reach(&graph, &[], Value::Number(Integer(1)), &mut walk)
+            .reach(&graph, &[], CellValue::Number(Integer(1)), &mut walk)
             .unwrap()
             .is_none()
     );
@@ -115,7 +111,6 @@ fn budget_refusal_keeps_complete_local_graph_without_retaining_handles() {
     assert_eq!(absent.snapshot().graphs, 0);
 }
 
-#[test]
 fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
     use ryo_execution_domain::domain::coverage::types::{Lacking, LackingKind, Partial};
     use ryo_values::domain::stored_facts::types::PartialCause;
@@ -160,7 +155,6 @@ fn physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs() {
     assert_ne!(old.graph().vertices(), new.graph().vertices());
 }
 
-#[test]
 fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_is_live() {
     let columns = [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![2, 3, 4, 5])];
     let rows = rows(&columns);
@@ -229,7 +223,6 @@ fn adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_i
     assert_eq!(admitted.counts.builds, 1);
 }
 
-#[test]
 fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 3])];
     let rows = rows(&columns);
@@ -242,7 +235,7 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
     let domain = fixture
         .domain(
             &graph,
-            Input::Relation(Relation::Identifier),
+            PlanInput::Relation(Relation::Identifier),
             &self::rows(&domain_columns),
             ColumnIndex(0),
         )
@@ -286,7 +279,7 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
         fixture.reach(
             &graph,
             &[],
-            Value::Number(Integer(1)),
+            CellValue::Number(Integer(1)),
             &mut GraphWalk::default()
         ),
         Err(ryo_execution_domain::domain::operating::errors::OperatingError::NotRead)
@@ -307,4 +300,87 @@ fn retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands()
     let released = fixture.snapshot();
     assert_eq!(released.required_bytes, 0);
     assert_eq!(released.unique_bytes, 0);
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    SharedAdjacencyBuildsOnceAndSparseRootMemoAvoidsRetraversal,
+    BudgetRefusalKeepsCompleteLocalGraphWithoutRetainingHandles,
+    PhysicalPartialityRaggedViewsAndNextGenerationNeverHitOldGraphs,
+    AdjacencyAdmissionReclaimsDormantPayloadButFallsBackWhileTheIndexIsLive,
+    RetiredImmutableHandlesKeepTheirLeaseButCannotAuthorizeNewDemands,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal"),
+        word: Word::Succeeds,
+        input: || Scenario::SharedAdjacencyBuildsOnceAndSparseRootMemoAvoidsRetraversal,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("budget_refusal_keeps_complete_local_graph_without_retaining_handles"),
+        word: Word::Succeeds,
+        input: || Scenario::BudgetRefusalKeepsCompleteLocalGraphWithoutRetainingHandles,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs"),
+        word: Word::Succeeds,
+        input: || Scenario::PhysicalPartialityRaggedViewsAndNextGenerationNeverHitOldGraphs,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_is_live",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::AdjacencyAdmissionReclaimsDormantPayloadButFallsBackWhileTheIndexIsLive,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::RetiredImmutableHandlesKeepTheirLeaseButCannotAuthorizeNewDemands,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::SharedAdjacencyBuildsOnceAndSparseRootMemoAvoidsRetraversal => {
+            shared_adjacency_builds_once_and_sparse_root_memo_avoids_retraversal();
+            Ok(())
+        }
+        Scenario::BudgetRefusalKeepsCompleteLocalGraphWithoutRetainingHandles => {
+            budget_refusal_keeps_complete_local_graph_without_retaining_handles();
+            Ok(())
+        }
+        Scenario::PhysicalPartialityRaggedViewsAndNextGenerationNeverHitOldGraphs => {
+            physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs();
+            Ok(())
+        }
+        Scenario::AdjacencyAdmissionReclaimsDormantPayloadButFallsBackWhileTheIndexIsLive => {
+            adjacency_admission_reclaims_dormant_payload_but_falls_back_while_the_index_is_live();
+            Ok(())
+        }
+        Scenario::RetiredImmutableHandlesKeepTheirLeaseButCannotAuthorizeNewDemands => {
+            retired_immutable_handles_keep_their_lease_but_cannot_authorize_new_demands();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -5,9 +5,9 @@
 use super::fixtures::{
     accounted, admitted_head, after_barrier, after_scope, barrier_fixture, counted, program, shares,
 };
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::query_operators::types::OperationKind;
 
-#[test]
 fn every_admitted_class_is_shared_across_rules_in_one_traversal() {
     let mut scope = after_scope(None);
     let mut cases = 0;
@@ -23,7 +23,6 @@ fn every_admitted_class_is_shared_across_rules_in_one_traversal() {
     assert!(cases > 0, "at least one admitted class shape");
 }
 
-#[test]
 fn every_barrier_kind_is_accounted_for() {
     let mut barrier = after_barrier(None);
     while let Some(kind) = barrier {
@@ -34,4 +33,50 @@ fn every_barrier_kind_is_accounted_for() {
         );
         barrier = after_barrier(Some(kind));
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    EveryAdmittedClassIsSharedAcrossRulesInOneTraversal,
+    EveryBarrierKindIsAccountedFor,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("every_admitted_class_is_shared_across_rules_in_one_traversal"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryAdmittedClassIsSharedAcrossRulesInOneTraversal,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("every_barrier_kind_is_accounted_for"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryBarrierKindIsAccountedFor,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::EveryAdmittedClassIsSharedAcrossRulesInOneTraversal => {
+            every_admitted_class_is_shared_across_rules_in_one_traversal();
+            Ok(())
+        }
+        Scenario::EveryBarrierKindIsAccountedFor => {
+            every_barrier_kind_is_accounted_for();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

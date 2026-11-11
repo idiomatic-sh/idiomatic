@@ -384,7 +384,7 @@ impl RequestViews {
 }
 
 #[cfg(test)]
-mod test;
+mod service_test;
 
 pub(crate) mod types;
 

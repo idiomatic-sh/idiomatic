@@ -1,5 +1,6 @@
 //! File partitions keep identical node values separate and deliver rows in exact order.
 use super::super::fixtures::{column, execute_request, host, hosted_plan, numbers, operation};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
@@ -11,7 +12,6 @@ use ryo_values::domain::{
     plans::types::Operation,
     rows::types::{RowCount, Table},
 };
-#[test]
 fn file_partition_keys_keep_identical_node_values_separate() {
     use ryo_relations::domain::relations::types::NodeId;
     let n = |at| Cell::Node(NodeId(at));
@@ -111,7 +111,6 @@ fn file_partition_keys_keep_identical_node_values_separate() {
     );
     assert!(!out.cells.chunks_exact(6).any(|row| row[3] == n(3)));
 }
-#[test]
 fn row_delivery_and_collected_visits_keep_exact_order_and_duplicates() {
     let hosts = [
         host(&numbers(1, &[&[1], &[1]]), "roots"),
@@ -148,4 +147,50 @@ fn row_delivery_and_collected_visits_keep_exact_order_and_duplicates() {
         collected.cells,
         [1, 1, 3, 13, 0, 1, 3, 1, 31, 1, 1, 1, 2, 12, 2].map(|n| Cell::Number(Integer(n)))
     );
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    FilePartitionKeysKeepIdenticalNodeValuesSeparate,
+    RowDeliveryAndCollectedVisitsKeepExactOrderAndDuplicates,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("file_partition_keys_keep_identical_node_values_separate"),
+        word: Word::Succeeds,
+        input: || Scenario::FilePartitionKeysKeepIdenticalNodeValuesSeparate,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("row_delivery_and_collected_visits_keep_exact_order_and_duplicates"),
+        word: Word::Succeeds,
+        input: || Scenario::RowDeliveryAndCollectedVisitsKeepExactOrderAndDuplicates,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::FilePartitionKeysKeepIdenticalNodeValuesSeparate => {
+            file_partition_keys_keep_identical_node_values_separate();
+            Ok(())
+        }
+        Scenario::RowDeliveryAndCollectedVisitsKeepExactOrderAndDuplicates => {
+            row_delivery_and_collected_visits_keep_exact_order_and_duplicates();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

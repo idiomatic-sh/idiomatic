@@ -3,18 +3,18 @@ use super::super::super::service::LIMIT;
 use super::super::super::types::ByteLimit;
 use super::fixtures::{acquire, equality, new};
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{Lacking, LackingKind, Partial};
 
 use ryo_execution_domain::domain::table_model::service::matching_stored;
 
 use ryo_relations::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, Flag, Integer, Relation, Value,
+    CellKind, ColumnsView, FactColumn, Flag, Integer, Relation, Value as CellValue,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::stored_facts::types::PartialCause;
 use std::sync::Arc;
 
-#[test]
 fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
     let columns = [
         FactColumn(vec![2, 1, 2, 2]),
@@ -37,7 +37,7 @@ fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
             view,
             &on,
             equality(&second),
-            &[Value::Number(Integer(2))],
+            &[CellValue::Number(Integer(2))],
             #[cfg(feature = "diagnostic-row-progress")]
             &ryo_execution_domain::domain::operating::types::IgnoredProgress,
         )
@@ -47,7 +47,6 @@ fn immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers() {
     );
 }
 
-#[test]
 fn relation_order_repeats_schema_and_population_are_distinct_cache_keys() {
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![2, 1])];
     let view = ColumnsView {
@@ -101,7 +100,6 @@ fn relation_order_repeats_schema_and_population_are_distinct_cache_keys() {
     );
 }
 
-#[test]
 fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
     let partials = [Partial {
         relation: Relation::Function,
@@ -123,7 +121,6 @@ fn any_physical_partial_kind_and_inactive_relations_are_ineligible() {
     assert_eq!(cache.snapshot().indexes, 0);
 }
 
-#[test]
 fn actual_capacities_and_arc_metadata_remain_bounded_on_refusal() {
     let columns = [FactColumn((0..1024).collect())];
     let view = ColumnsView {
@@ -152,7 +149,6 @@ fn actual_capacities_and_arc_metadata_remain_bounded_on_refusal() {
     assert_eq!(cache.snapshot().required_bytes, 0);
 }
 
-#[test]
 fn cache_drop_releases_generation_and_new_file_id_reuse_starts_empty() {
     let columns = [FactColumn(vec![1, 1])];
     let view = ColumnsView {
@@ -178,7 +174,6 @@ fn cache_drop_releases_generation_and_new_file_id_reuse_starts_empty() {
     assert_eq!(next.snapshot().indexes, 1);
 }
 
-#[test]
 fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
     let columns = [FactColumn(vec![1, 2, 0])];
     let view = ColumnsView {
@@ -196,7 +191,7 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
             view,
             &[ColumnIndex(0)],
             equality(&reused),
-            &[Value::Flag(Flag::Raised)],
+            &[CellValue::Flag(Flag::Raised)],
             #[cfg(feature = "diagnostic-row-progress")]
             &ryo_execution_domain::domain::operating::types::IgnoredProgress,
         )
@@ -209,7 +204,7 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
             view,
             &[ColumnIndex(0)],
             equality(&reused),
-            &[Value::Number(Integer(1))],
+            &[CellValue::Number(Integer(1))],
             #[cfg(feature = "diagnostic-row-progress")]
             &ryo_execution_domain::domain::operating::types::IgnoredProgress,
         )
@@ -218,7 +213,6 @@ fn invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse() {
     );
 }
 
-#[test]
 fn repeated_admissions_never_evict_live_entries_or_exceed_actual_retention() {
     let columns = [FactColumn(vec![1, 1, 1])];
     let view = ColumnsView {
@@ -244,7 +238,6 @@ fn repeated_admissions_never_evict_live_entries_or_exceed_actual_retention() {
     );
 }
 
-#[test]
 fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
     use ryo_language::domain::symbols::{
         service::intern_derived,
@@ -274,7 +267,7 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
             view,
             &[ColumnIndex(0)],
             equality(&reused),
-            &[Value::Symbol(original)],
+            &[CellValue::Symbol(original)],
             #[cfg(feature = "diagnostic-row-progress")]
             &ryo_execution_domain::domain::operating::types::IgnoredProgress,
         )
@@ -284,7 +277,6 @@ fn derived_symbol_growth_does_not_change_a_frozen_stored_key() {
     );
 }
 
-#[test]
 fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
     // One FxHash step sees only the running hash plus the word, so the key (1, -mix(0, 1)) hashes as (0, 0).
     let collision = ryo_derived::domain::key::service::mix(
@@ -314,7 +306,7 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
             view,
             &on,
             index,
-            &[Value::Number(Integer(0)), Value::Number(Integer(0))],
+            &[CellValue::Number(Integer(0)), CellValue::Number(Integer(0))],
             #[cfg(feature = "diagnostic-row-progress")]
             &ryo_execution_domain::domain::operating::types::IgnoredProgress,
         )
@@ -325,3 +317,126 @@ fn a_reused_index_still_resolves_full_composite_hash_collisions_exactly() {
 }
 
 use ryo_values::domain::rows::types::RowIndex;
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ImmutableDuplicateRowsShareOneCompleteIndexWithoutCloningBuffers,
+    RelationOrderRepeatsSchemaAndPopulationAreDistinctCacheKeys,
+    AnyPhysicalPartialKindAndInactiveRelationsAreIneligible,
+    ActualCapacitiesAndArcMetadataRemainBoundedOnRefusal,
+    CacheDropReleasesGenerationAndNewFileIdReuseStartsEmpty,
+    InvalidColumnsNeverAdmitAndNormalizedFlagsStillMatchOnReuse,
+    RepeatedAdmissionsNeverEvictLiveEntriesOrExceedActualRetention,
+    DerivedSymbolGrowthDoesNotChangeAFrozenStoredKey,
+    AReusedIndexStillResolvesFullCompositeHashCollisionsExactly,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers"),
+        word: Word::Succeeds,
+        input: || Scenario::ImmutableDuplicateRowsShareOneCompleteIndexWithoutCloningBuffers,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("relation_order_repeats_schema_and_population_are_distinct_cache_keys"),
+        word: Word::Succeeds,
+        input: || Scenario::RelationOrderRepeatsSchemaAndPopulationAreDistinctCacheKeys,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("any_physical_partial_kind_and_inactive_relations_are_ineligible"),
+        word: Word::Succeeds,
+        input: || Scenario::AnyPhysicalPartialKindAndInactiveRelationsAreIneligible,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("actual_capacities_and_arc_metadata_remain_bounded_on_refusal"),
+        word: Word::Succeeds,
+        input: || Scenario::ActualCapacitiesAndArcMetadataRemainBoundedOnRefusal,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("cache_drop_releases_generation_and_new_file_id_reuse_starts_empty"),
+        word: Word::Succeeds,
+        input: || Scenario::CacheDropReleasesGenerationAndNewFileIdReuseStartsEmpty,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse"),
+        word: Word::Succeeds,
+        input: || Scenario::InvalidColumnsNeverAdmitAndNormalizedFlagsStillMatchOnReuse,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("repeated_admissions_never_evict_live_entries_or_exceed_actual_retention"),
+        word: Word::Succeeds,
+        input: || Scenario::RepeatedAdmissionsNeverEvictLiveEntriesOrExceedActualRetention,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("derived_symbol_growth_does_not_change_a_frozen_stored_key"),
+        word: Word::Succeeds,
+        input: || Scenario::DerivedSymbolGrowthDoesNotChangeAFrozenStoredKey,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_reused_index_still_resolves_full_composite_hash_collisions_exactly"),
+        word: Word::Succeeds,
+        input: || Scenario::AReusedIndexStillResolvesFullCompositeHashCollisionsExactly,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ImmutableDuplicateRowsShareOneCompleteIndexWithoutCloningBuffers => {
+            immutable_duplicate_rows_share_one_complete_index_without_cloning_buffers();
+            Ok(())
+        }
+        Scenario::RelationOrderRepeatsSchemaAndPopulationAreDistinctCacheKeys => {
+            relation_order_repeats_schema_and_population_are_distinct_cache_keys();
+            Ok(())
+        }
+        Scenario::AnyPhysicalPartialKindAndInactiveRelationsAreIneligible => {
+            any_physical_partial_kind_and_inactive_relations_are_ineligible();
+            Ok(())
+        }
+        Scenario::ActualCapacitiesAndArcMetadataRemainBoundedOnRefusal => {
+            actual_capacities_and_arc_metadata_remain_bounded_on_refusal();
+            Ok(())
+        }
+        Scenario::CacheDropReleasesGenerationAndNewFileIdReuseStartsEmpty => {
+            cache_drop_releases_generation_and_new_file_id_reuse_starts_empty();
+            Ok(())
+        }
+        Scenario::InvalidColumnsNeverAdmitAndNormalizedFlagsStillMatchOnReuse => {
+            invalid_columns_never_admit_and_normalized_flags_still_match_on_reuse();
+            Ok(())
+        }
+        Scenario::RepeatedAdmissionsNeverEvictLiveEntriesOrExceedActualRetention => {
+            repeated_admissions_never_evict_live_entries_or_exceed_actual_retention();
+            Ok(())
+        }
+        Scenario::DerivedSymbolGrowthDoesNotChangeAFrozenStoredKey => {
+            derived_symbol_growth_does_not_change_a_frozen_stored_key();
+            Ok(())
+        }
+        Scenario::AReusedIndexStillResolvesFullCompositeHashCollisionsExactly => {
+            a_reused_index_still_resolves_full_composite_hash_collisions_exactly();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

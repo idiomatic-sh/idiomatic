@@ -220,13 +220,13 @@ pub(super) fn many_interleaved_partitions_bound_expansions() -> Result<usize, Op
     Ok(out.count.0)
 }
 
-pub(super) type Input = fn() -> Result<usize, OperatingError>;
+pub(crate) type Input = fn() -> Result<usize, OperatingError>;
 
-type Value = usize;
+pub(crate) type Value = usize;
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("numeric_depth_first_order_and_diamond"),
         word: Word::Succeeds,

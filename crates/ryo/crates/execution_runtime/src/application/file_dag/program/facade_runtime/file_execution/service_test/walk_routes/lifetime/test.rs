@@ -3,9 +3,9 @@ use super::super::super::super::*;
 use super::super::fixtures::Residency;
 use super::fixtures::{deliver, forward, program};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::symbols::types::Symbols;
 
-#[test]
 fn success_of_the_last_consumer_retires_the_shared_batch_and_keeps_its_accounting() {
     let program = program(Residency::Stable);
     let mut symbols = Symbols::default();
@@ -46,7 +46,6 @@ fn success_of_the_last_consumer_retires_the_shared_batch_and_keeps_its_accountin
     file.finish().unwrap();
 }
 
-#[test]
 fn error_of_the_last_consumer_retires_the_shared_batch() {
     let program = program(Residency::Stable);
     let mut symbols = Symbols::default();
@@ -76,7 +75,6 @@ fn error_of_the_last_consumer_retires_the_shared_batch() {
     file.finish().unwrap();
 }
 
-#[test]
 fn cancellation_of_the_last_consumer_retires_the_shared_batch() {
     let program = program(Residency::Stable);
     let mut symbols = Symbols::default();
@@ -97,7 +95,6 @@ fn cancellation_of_the_last_consumer_retires_the_shared_batch() {
     file.finish().unwrap();
 }
 
-#[test]
 fn an_aliased_consumer_cancelled_early_does_not_retire_a_batch_other_rules_still_owe() {
     let program = program(Residency::Stable);
     let mut symbols = Symbols::default();
@@ -143,7 +140,6 @@ fn an_aliased_consumer_cancelled_early_does_not_retire_a_batch_other_rules_still
 /// test-only `lease_any` on the batch map. It proves a held lease stays readable across
 /// retirement and that a later demand finds no batch; it does not exercise the permit path
 /// of a real nested kernel demand.
-#[test]
 fn a_held_lease_stays_readable_across_reentrant_demands_and_retirement() {
     let program = program(Residency::Unstable);
     let class = program.head_class(RuleIndex(1)).unwrap();
@@ -182,7 +178,6 @@ fn a_held_lease_stays_readable_across_reentrant_demands_and_retirement() {
     file.finish().unwrap();
 }
 
-#[test]
 fn files_retire_their_own_batches_independently() {
     let program = program(Residency::Stable);
     let (mut first_symbols, mut second_symbols) = (Symbols::default(), Symbols::default());
@@ -214,4 +209,98 @@ fn files_retire_their_own_batches_independently() {
     assert_eq!(first.walk_counts(), second.walk_counts());
     first.finish().unwrap();
     second.finish().unwrap();
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    SuccessOfTheLastConsumerRetiresTheSharedBatchAndKeepsItsAccounting,
+    ErrorOfTheLastConsumerRetiresTheSharedBatch,
+    CancellationOfTheLastConsumerRetiresTheSharedBatch,
+    AnAliasedConsumerCancelledEarlyDoesNotRetireABatchOtherRulesStillOwe,
+    AHeldLeaseStaysReadableAcrossReentrantDemandsAndRetirement,
+    FilesRetireTheirOwnBatchesIndependently,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "success_of_the_last_consumer_retires_the_shared_batch_and_keeps_its_accounting",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::SuccessOfTheLastConsumerRetiresTheSharedBatchAndKeepsItsAccounting,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("error_of_the_last_consumer_retires_the_shared_batch"),
+        word: Word::Succeeds,
+        input: || Scenario::ErrorOfTheLastConsumerRetiresTheSharedBatch,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("cancellation_of_the_last_consumer_retires_the_shared_batch"),
+        word: Word::Succeeds,
+        input: || Scenario::CancellationOfTheLastConsumerRetiresTheSharedBatch,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "an_aliased_consumer_cancelled_early_does_not_retire_a_batch_other_rules_still_owe",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::AnAliasedConsumerCancelledEarlyDoesNotRetireABatchOtherRulesStillOwe,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_held_lease_stays_readable_across_reentrant_demands_and_retirement"),
+        word: Word::Succeeds,
+        input: || Scenario::AHeldLeaseStaysReadableAcrossReentrantDemandsAndRetirement,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("files_retire_their_own_batches_independently"),
+        word: Word::Succeeds,
+        input: || Scenario::FilesRetireTheirOwnBatchesIndependently,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::SuccessOfTheLastConsumerRetiresTheSharedBatchAndKeepsItsAccounting => {
+            success_of_the_last_consumer_retires_the_shared_batch_and_keeps_its_accounting();
+            Ok(())
+        }
+        Scenario::ErrorOfTheLastConsumerRetiresTheSharedBatch => {
+            error_of_the_last_consumer_retires_the_shared_batch();
+            Ok(())
+        }
+        Scenario::CancellationOfTheLastConsumerRetiresTheSharedBatch => {
+            cancellation_of_the_last_consumer_retires_the_shared_batch();
+            Ok(())
+        }
+        Scenario::AnAliasedConsumerCancelledEarlyDoesNotRetireABatchOtherRulesStillOwe => {
+            an_aliased_consumer_cancelled_early_does_not_retire_a_batch_other_rules_still_owe();
+            Ok(())
+        }
+        Scenario::AHeldLeaseStaysReadableAcrossReentrantDemandsAndRetirement => {
+            a_held_lease_stays_readable_across_reentrant_demands_and_retirement();
+            Ok(())
+        }
+        Scenario::FilesRetireTheirOwnBatchesIndependently => {
+            files_retire_their_own_batches_independently();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

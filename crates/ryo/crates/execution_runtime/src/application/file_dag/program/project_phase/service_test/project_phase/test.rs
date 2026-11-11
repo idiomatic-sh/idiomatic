@@ -9,11 +9,11 @@ use crate::application::file_dag::program::project_phase::interface::ProgramProj
 use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use crate::application::file_dag::program::request_execution::service::begin;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::coverage::types::{InapplicableFiles, RefusedFiles};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 
-#[test]
 fn an_omitted_declared_root_gets_no_outcome_and_no_guard_and_every_submitted_root_gets_one() {
     let all = [root(0), root(1), root(2)];
     for count in 0..=all.len() {
@@ -34,7 +34,6 @@ fn an_omitted_declared_root_gets_no_outcome_and_no_guard_and_every_submitted_roo
     );
 }
 
-#[test]
 fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
     let extra = Root {
         declared: 0,
@@ -73,7 +72,6 @@ fn an_extra_root_is_refused_by_name_without_displacing_the_declared_roots() {
 }
 
 /// The scope and frontiers come from rule 0; the task names rule 1, which is in range.
-#[test]
 fn an_in_range_root_the_session_did_not_declare_is_refused_by_name() {
     let undeclared = Root {
         declared: 0,
@@ -97,7 +95,6 @@ fn an_in_range_root_the_session_did_not_declare_is_refused_by_name() {
 }
 
 /// The guard is asked about the undeclared in-range root by name; its refusal ends the batch there.
-#[test]
 fn a_guard_refusal_at_an_undeclared_in_range_root_completes_only_the_roots_before_it() {
     let undeclared = Root {
         declared: 0,
@@ -121,7 +118,6 @@ fn a_guard_refusal_at_an_undeclared_in_range_root_completes_only_the_roots_befor
 
 /// A root submitted twice is two submissions: each gets its own outcome, neither is dropped, and a duplicated undeclared root is
 /// refused every time rather than once.
-#[test]
 fn a_duplicated_root_keeps_one_outcome_per_submission() {
     let twice = submit(Entry::Phase, 3, &[root(0), root(0)], None);
     assert!(twice.refused.is_none());
@@ -142,7 +138,6 @@ fn a_duplicated_root_keeps_one_outcome_per_submission() {
 }
 
 /// Both holders of roots, ordinary and named: collected delivery and the host guard callback.
-#[test]
 fn every_holder_of_roots_refuses_an_incomplete_extra_or_undeclared_root() {
     let extra = Root {
         declared: 0,
@@ -179,7 +174,6 @@ fn every_holder_of_roots_refuses_an_incomplete_extra_or_undeclared_root() {
     }
 }
 
-#[test]
 fn a_scope_belongs_to_its_own_phase() {
     assert!(matches!(
         foreign_phase_outcome(),
@@ -189,7 +183,6 @@ fn a_scope_belongs_to_its_own_phase() {
 
 /// A scope is opened only for a rule the program declared, in the request's project phase and in the phase its observation stage
 /// owns; and the phase's frontiers are prepared only for a declared rule.
-#[test]
 fn frontiers_and_scopes_of_an_undeclared_rule_are_refused() {
     for entry in [Entry::Phase, Entry::Stage] {
         let prepared = program(entry, 3);
@@ -233,4 +226,123 @@ fn frontiers_and_scopes_of_an_undeclared_rule_are_refused() {
         }
         request.finish();
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    AnOmittedDeclaredRootGetsNoOutcomeAndNoGuardAndEverySubmittedRootGetsOne,
+    AnExtraRootIsRefusedByNameWithoutDisplacingTheDeclaredRoots,
+    AnInRangeRootTheSessionDidNotDeclareIsRefusedByName,
+    AGuardRefusalAtAnUndeclaredInRangeRootCompletesOnlyTheRootsBeforeIt,
+    ADuplicatedRootKeepsOneOutcomePerSubmission,
+    EveryHolderOfRootsRefusesAnIncompleteExtraOrUndeclaredRoot,
+    AScopeBelongsToItsOwnPhase,
+    FrontiersAndScopesOfAnUndeclaredRuleAreRefused,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "an_omitted_declared_root_gets_no_outcome_and_no_guard_and_every_submitted_root_gets_one",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::AnOmittedDeclaredRootGetsNoOutcomeAndNoGuardAndEverySubmittedRootGetsOne
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an_extra_root_is_refused_by_name_without_displacing_the_declared_roots"),
+        word: Word::Succeeds,
+        input: || Scenario::AnExtraRootIsRefusedByNameWithoutDisplacingTheDeclaredRoots,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("an_in_range_root_the_session_did_not_declare_is_refused_by_name"),
+        word: Word::Succeeds,
+        input: || Scenario::AnInRangeRootTheSessionDidNotDeclareIsRefusedByName,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "a_guard_refusal_at_an_undeclared_in_range_root_completes_only_the_roots_before_it",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::AGuardRefusalAtAnUndeclaredInRangeRootCompletesOnlyTheRootsBeforeIt,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_duplicated_root_keeps_one_outcome_per_submission"),
+        word: Word::Succeeds,
+        input: || Scenario::ADuplicatedRootKeepsOneOutcomePerSubmission,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("every_holder_of_roots_refuses_an_incomplete_extra_or_undeclared_root"),
+        word: Word::Succeeds,
+        input: || Scenario::EveryHolderOfRootsRefusesAnIncompleteExtraOrUndeclaredRoot,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_scope_belongs_to_its_own_phase"),
+        word: Word::Succeeds,
+        input: || Scenario::AScopeBelongsToItsOwnPhase,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("frontiers_and_scopes_of_an_undeclared_rule_are_refused"),
+        word: Word::Succeeds,
+        input: || Scenario::FrontiersAndScopesOfAnUndeclaredRuleAreRefused,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::AnOmittedDeclaredRootGetsNoOutcomeAndNoGuardAndEverySubmittedRootGetsOne => {
+            an_omitted_declared_root_gets_no_outcome_and_no_guard_and_every_submitted_root_gets_one(
+            );
+            Ok(())
+        }
+        Scenario::AnExtraRootIsRefusedByNameWithoutDisplacingTheDeclaredRoots => {
+            an_extra_root_is_refused_by_name_without_displacing_the_declared_roots();
+            Ok(())
+        }
+        Scenario::AnInRangeRootTheSessionDidNotDeclareIsRefusedByName => {
+            an_in_range_root_the_session_did_not_declare_is_refused_by_name();
+            Ok(())
+        }
+        Scenario::AGuardRefusalAtAnUndeclaredInRangeRootCompletesOnlyTheRootsBeforeIt => {
+            a_guard_refusal_at_an_undeclared_in_range_root_completes_only_the_roots_before_it();
+            Ok(())
+        }
+        Scenario::ADuplicatedRootKeepsOneOutcomePerSubmission => {
+            a_duplicated_root_keeps_one_outcome_per_submission();
+            Ok(())
+        }
+        Scenario::EveryHolderOfRootsRefusesAnIncompleteExtraOrUndeclaredRoot => {
+            every_holder_of_roots_refuses_an_incomplete_extra_or_undeclared_root();
+            Ok(())
+        }
+        Scenario::AScopeBelongsToItsOwnPhase => {
+            a_scope_belongs_to_its_own_phase();
+            Ok(())
+        }
+        Scenario::FrontiersAndScopesOfAnUndeclaredRuleAreRefused => {
+            frontiers_and_scopes_of_an_undeclared_rule_are_refused();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

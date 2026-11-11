@@ -2,6 +2,7 @@
 use super::super::super::*;
 use super::super::fixtures::*;
 use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
@@ -26,7 +27,6 @@ use ryo_values::domain::{
 };
 use std::sync::Arc;
 
-#[test]
 fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_aliases() {
     const PRODUCERS: usize = 128;
     let columns = vec![ObservationColumn {
@@ -272,4 +272,39 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
     );
     assert!(file.readiness_counts().evaluations.0 <= 3);
     file.finish().unwrap();
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Proof {
+    OpeningAndPreparingOneRuleUsesOnlyItsReachedMetadataAndPreservesAliases,
+}
+
+type Input = Proof;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName(
+        "opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_aliases",
+    ),
+    word: Word::Succeeds,
+    input: || Proof::OpeningAndPreparingOneRuleUsesOnlyItsReachedMetadataAndPreservesAliases,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Proof::OpeningAndPreparingOneRuleUsesOnlyItsReachedMetadataAndPreservesAliases => {
+            opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_aliases();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

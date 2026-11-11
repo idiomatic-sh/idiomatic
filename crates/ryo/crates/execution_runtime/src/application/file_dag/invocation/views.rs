@@ -37,4 +37,4 @@ impl InvocationResources<'_> {
 }
 
 #[cfg(test)]
-mod test;
+mod service_test;

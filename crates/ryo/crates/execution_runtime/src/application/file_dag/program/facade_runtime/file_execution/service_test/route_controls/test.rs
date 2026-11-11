@@ -2,7 +2,8 @@
 use super::super::super::*;
 use super::super::fixtures::*;
 use super::fixtures::ordered_strategy_fixture;
-use super::fixtures::{MeaningCalls, run};
+use super::fixtures::{MeaningCalls, run as run_file};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
@@ -16,7 +17,6 @@ use ryo_values::domain::{
 };
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-#[test]
 fn partial_positive_rows_survive_but_partial_absence_is_refused() {
     let relation = Relation::SemanticSyntax;
     let source = Table {
@@ -59,7 +59,7 @@ fn partial_positive_rows_survive_but_partial_absence_is_refused() {
         lacking: Lacking::Any,
         at: ryo_execution_domain::domain::coverage::types::PartialPlace::Repository,
     }];
-    let RootOutcome::Partial { table, affected } = run(
+    let RootOutcome::Partial { table, affected } = run_file(
         positive,
         &[(relation, source.clone())],
         &partials,
@@ -81,7 +81,7 @@ fn partial_positive_rows_survive_but_partial_absence_is_refused() {
         right: PlanInput::Relation(relation),
     };
     let calls = Arc::new(MeaningCalls::default());
-    let RootOutcome::Partial { table, affected } = run(
+    let RootOutcome::Partial { table, affected } = run_file(
         absent,
         &[(relation, source.clone()), (Relation::SyntaxTree, source)],
         &partials,
@@ -97,7 +97,6 @@ fn partial_positive_rows_survive_but_partial_absence_is_refused() {
         "absence never enters row meaning on incomplete RHS"
     );
 }
-#[test]
 fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
     let (request, schema) = ordered_strategy_fixture();
     let number = schema
@@ -129,7 +128,7 @@ fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
     // numbers. Make it an authored root to retain the assertion under the real protocol.
     let mut dominated = request.clone();
     dominated.emit.step = StepId(3);
-    let RootOutcome::Complete(table) = run(
+    let RootOutcome::Complete(table) = run_file(
         dominated,
         &[(Relation::SourceLocation, source.clone())],
         &[],
@@ -160,7 +159,7 @@ fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
                 request.emit.step = StepId(5);
             }
             let calls = Arc::new(MeaningCalls::default());
-            let RootOutcome::Complete(table) = run(
+            let RootOutcome::Complete(table) = run_file(
                 request,
                 &[(Relation::SourceLocation, source.clone())],
                 &[],
@@ -184,4 +183,50 @@ fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
             );
         }
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Proof {
+    PartialPositiveRowsSurviveButPartialAbsenceIsRefused,
+    OrderedStrategyAndRealExtraConsumerDeclinePreserveTheSameRoot,
+}
+
+type Input = Proof;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("partial_positive_rows_survive_but_partial_absence_is_refused"),
+        word: Word::Succeeds,
+        input: || Proof::PartialPositiveRowsSurviveButPartialAbsenceIsRefused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root"),
+        word: Word::Succeeds,
+        input: || Proof::OrderedStrategyAndRealExtraConsumerDeclinePreserveTheSameRoot,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Proof::PartialPositiveRowsSurviveButPartialAbsenceIsRefused => {
+            partial_positive_rows_survive_but_partial_absence_is_refused();
+            Ok(())
+        }
+        Proof::OrderedStrategyAndRealExtraConsumerDeclinePreserveTheSameRoot => {
+            ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

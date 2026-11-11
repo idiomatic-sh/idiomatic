@@ -2,6 +2,7 @@
 use super::super::super::super::*;
 use super::super::*;
 use super::fixtures::{encoded, request, schema_column, simple, table};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
 use ryo_execution_domain::domain::table_model::types::RepresentationKind;
@@ -10,7 +11,6 @@ use ryo_relations::domain::relations::types::{CellKind, Flag, Integer, Relation,
 use ryo_relations::domain::relations::{service::from_bits, types::Bits};
 use ryo_values::domain::{plan_parts::types::Side, rows::types::RowCount};
 
-#[test]
 fn stored_and_compact_direct_join_composite_reordered_empty_and_unlike_keys_do_not_materialize_rhs()
 {
     let n = |n| Cell::Number(Integer(n));
@@ -167,7 +167,6 @@ fn stored_and_compact_direct_join_composite_reordered_empty_and_unlike_keys_do_n
         }
     }
 }
-#[test]
 fn invalid_direct_join_keys_keep_exact_error_index_across_computed_stored_and_both_deliveries() {
     let l = schema_column(Relation::Entry, CellKind::Number, 0);
     let r = schema_column(Relation::SequenceElement, CellKind::Number, 0);
@@ -203,4 +202,58 @@ fn invalid_direct_join_keys_keep_exact_error_index_across_computed_stored_and_bo
             assert_eq!(results[0], results[1]);
         }
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    StoredAndCompactDirectJoinCompositeReorderedEmptyAndUnlikeKeysDoNotMaterializeRhs,
+    InvalidDirectJoinKeysKeepExactErrorIndexAcrossComputedStoredAndBothDeliveries,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "stored_and_compact_direct_join_composite_reordered_empty_and_unlike_keys_do_not_materialize_rhs",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::StoredAndCompactDirectJoinCompositeReorderedEmptyAndUnlikeKeysDoNotMaterializeRhs
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "invalid_direct_join_keys_keep_exact_error_index_across_computed_stored_and_both_deliveries",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::InvalidDirectJoinKeysKeepExactErrorIndexAcrossComputedStoredAndBothDeliveries
+        },
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::StoredAndCompactDirectJoinCompositeReorderedEmptyAndUnlikeKeysDoNotMaterializeRhs => {
+            stored_and_compact_direct_join_composite_reordered_empty_and_unlike_keys_do_not_materialize_rhs();
+            Ok(())
+        }
+        Scenario::InvalidDirectJoinKeysKeepExactErrorIndexAcrossComputedStoredAndBothDeliveries => {
+            invalid_direct_join_keys_keep_exact_error_index_across_computed_stored_and_both_deliveries();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

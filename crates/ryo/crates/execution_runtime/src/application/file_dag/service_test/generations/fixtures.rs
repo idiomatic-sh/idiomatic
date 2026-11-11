@@ -11,7 +11,7 @@ use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
 use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{FileId, Integer, Value};
+use ryo_relations::domain::relations::types::{FileId, Integer, Value as CellValue};
 use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::{plan_parts::types::WholeNumber, query_bindings::types::ParameterBinding};
 use std::sync::Arc;
@@ -82,13 +82,13 @@ pub(super) fn two_file_generation_owners_cannot_reuse_the_other_files_results()
     );
     assert!(first_reads.0 > 0);
     assert!(second_reads.0 > 0, "{FRESH_GENERATION_READS}");
-    assert_eq!(left.cells, vec![Value::File(FileId(1))]);
-    assert_eq!(right.cells, vec![Value::File(FileId(9))]);
+    assert_eq!(left.cells, vec![CellValue::File(FileId(1))]);
+    assert_eq!(right.cells, vec![CellValue::File(FileId(9))]);
     first.finish().unwrap();
     second.finish().unwrap();
     assert_eq!(
         left.cells,
-        vec![Value::File(FileId(1))],
+        vec![CellValue::File(FileId(1))],
         "{TRANSFERRED_INDEPENDENT}"
     );
     Ok(1)
@@ -101,13 +101,17 @@ pub(super) type Scenario = fn() -> Result<Answer, Failure>;
 type Answer = usize;
 
 /// This part has no failure of its own.
-pub(super) type Failure = ();
+pub(crate) type Failure = ();
 
-pub(super) fn subject(scenario: Scenario) -> Result<Answer, Failure> {
+pub(crate) fn subject(scenario: Scenario) -> Result<Answer, Failure> {
     scenario()
 }
 
-pub(super) const CASES: &[Case<Scenario, Answer, Failure>] = &[Case {
+/// The input of a row.
+pub(crate) type Input = Scenario;
+/// The value of a row.
+pub(crate) type Value = Answer;
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("two_file_generation_owners_cannot_reuse_the_other_files_results"),
     word: Word::Succeeds,
     input: || two_file_generation_owners_cannot_reuse_the_other_files_results,

@@ -2,17 +2,11 @@
 use super::super::fixtures::{ENDPOINTS, SOURCE, number, rows};
 use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use fixtures::graph::GraphFixture;
-use ryo_execution_domain::domain::{
-    stored_graph::types::{GraphWalk, Orientation},
-    table_model::types::Rows,
-};
-use ryo_relations::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
-};
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input};
-use std::hash::BuildHasher;
-#[test]
+use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
+use ryo_relations::domain::relations::types::{FactColumn, Integer, Relation};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
 fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates() {
     let fixture = GraphFixture::with_identity(
         &[Relation::Function, Relation::Identifier],
@@ -35,7 +29,7 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
         let domain = fixture
             .domain(
                 &graph,
-                Input::Relation(Relation::Identifier),
+                PlanInput::Relation(Relation::Identifier),
                 &input,
                 ColumnIndex(0),
             )
@@ -72,4 +66,37 @@ fn exhausted_domain_identity_uses_local_membership_without_retained_duplicates()
     assert_eq!(observed.domains, 0);
     assert_eq!(observed.nearest, 0);
     assert_eq!(observed.counts.builds, 1);
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ExhaustedDomainIdentityUsesLocalMembershipWithoutRetainedDuplicates,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("exhausted_domain_identity_uses_local_membership_without_retained_duplicates"),
+    word: Word::Succeeds,
+    input: || Scenario::ExhaustedDomainIdentityUsesLocalMembershipWithoutRetainedDuplicates,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ExhaustedDomainIdentityUsesLocalMembershipWithoutRetainedDuplicates => {
+            exhausted_domain_identity_uses_local_membership_without_retained_duplicates();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

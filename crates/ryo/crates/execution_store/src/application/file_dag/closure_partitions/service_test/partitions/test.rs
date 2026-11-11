@@ -1,13 +1,13 @@
 //! The proofs of the partitioned closure cursor.
 use super::super::super::fixtures::working_capacity;
 use super::fixtures::{number, ordering_bytes, scope, working_cells};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::push_row;
 
-#[test]
 fn interleaved_partitions_keep_one_reused_adjacency() {
     let partitions = 2048;
     let mut input = Table {
@@ -72,7 +72,6 @@ fn interleaved_partitions_keep_one_reused_adjacency() {
     );
 }
 
-#[test]
 fn separate_keys_never_share_edges() {
     let mut input = Table {
         kinds: vec![CellKind::Number; 3],
@@ -119,7 +118,6 @@ fn separate_keys_never_share_edges() {
     )));
 }
 
-#[test]
 fn advancing_releases_only_the_previous_partition_lease() {
     let mut input = Table {
         kinds: vec![CellKind::Number; 3],
@@ -210,7 +208,6 @@ fn advancing_releases_only_the_previous_partition_lease() {
     assert_eq!(owner.derived().publication_ownership_bytes().0, 0);
 }
 
-#[test]
 fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
     let input = Table {
         kinds: vec![CellKind::Number; 3],
@@ -265,3 +262,71 @@ fn empty_order_and_wrong_prepared_order_are_refused_precisely() {
 }
 
 use ryo_values::domain::rows::types::Table;
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    InterleavedPartitionsKeepOneReusedAdjacency,
+    SeparateKeysNeverShareEdges,
+    AdvancingReleasesOnlyThePreviousPartitionLease,
+    EmptyOrderAndWrongPreparedOrderAreRefusedPrecisely,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("interleaved_partitions_keep_one_reused_adjacency"),
+        word: Word::Succeeds,
+        input: || Scenario::InterleavedPartitionsKeepOneReusedAdjacency,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("separate_keys_never_share_edges"),
+        word: Word::Succeeds,
+        input: || Scenario::SeparateKeysNeverShareEdges,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("advancing_releases_only_the_previous_partition_lease"),
+        word: Word::Succeeds,
+        input: || Scenario::AdvancingReleasesOnlyThePreviousPartitionLease,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("empty_order_and_wrong_prepared_order_are_refused_precisely"),
+        word: Word::Succeeds,
+        input: || Scenario::EmptyOrderAndWrongPreparedOrderAreRefusedPrecisely,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::InterleavedPartitionsKeepOneReusedAdjacency => {
+            interleaved_partitions_keep_one_reused_adjacency();
+            Ok(())
+        }
+        Scenario::SeparateKeysNeverShareEdges => {
+            separate_keys_never_share_edges();
+            Ok(())
+        }
+        Scenario::AdvancingReleasesOnlyThePreviousPartitionLease => {
+            advancing_releases_only_the_previous_partition_lease();
+            Ok(())
+        }
+        Scenario::EmptyOrderAndWrongPreparedOrderAreRefusedPrecisely => {
+            empty_order_and_wrong_prepared_order_are_refused_precisely();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

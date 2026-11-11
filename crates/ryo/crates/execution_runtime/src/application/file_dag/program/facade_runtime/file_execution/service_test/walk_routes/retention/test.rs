@@ -5,10 +5,10 @@ use super::fixtures::{
     capture, captured_program, deliver, forward, program, relations_program, rows,
 };
 use crate::application::file_dag::program::native_walk::RetainedBatches;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::row_emission::types::RowEmission;
 use ryo_language::domain::symbols::types::Symbols;
 
-#[test]
 fn a_rule_owing_rows_and_capture_keeps_the_batch_until_its_capture_is_delivered() {
     let program = captured_program();
     let mut symbols = Symbols::default();
@@ -49,7 +49,6 @@ fn a_rule_owing_rows_and_capture_keeps_the_batch_until_its_capture_is_delivered(
     file.finish().unwrap();
 }
 
-#[test]
 fn a_refused_entry_point_call_does_not_consume_the_delivery_it_would_have_been() {
     let program = program(Residency::Stable);
     let mut symbols = Symbols::default();
@@ -96,7 +95,6 @@ fn a_refused_entry_point_call_does_not_consume_the_delivery_it_would_have_been()
     file.finish().unwrap();
 }
 
-#[test]
 fn retrying_a_cancelled_forwarded_delivery_after_retirement_finds_no_batch_and_walks_nothing() {
     let program = program(Residency::Stable);
     let mut symbols = Symbols::default();
@@ -129,7 +127,6 @@ fn retrying_a_cancelled_forwarded_delivery_after_retirement_finds_no_batch_and_w
     file.finish().unwrap();
 }
 
-#[test]
 fn a_relation_is_released_while_another_relation_is_still_owed() {
     let program = relations_program();
     let mut symbols = Symbols::default();
@@ -162,7 +159,6 @@ fn a_relation_is_released_while_another_relation_is_still_owed() {
     file.finish().unwrap();
 }
 
-#[test]
 fn a_batch_stays_while_a_rule_of_another_class_on_its_relation_still_owes() {
     let program = relations_program();
     // The first delivery walks every relation the file reads: two batches. Class
@@ -194,4 +190,91 @@ fn a_batch_stays_while_a_rule_of_another_class_on_its_relation_still_owes() {
         assert_eq!(file.walk.retained(), RetainedBatches(0));
         file.finish().unwrap();
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ARuleOwingRowsAndCaptureKeepsTheBatchUntilItsCaptureIsDelivered,
+    ARefusedEntryPointCallDoesNotConsumeTheDeliveryItWouldHaveBeen,
+    RetryingACancelledForwardedDeliveryAfterRetirementFindsNoBatchAndWalksNothing,
+    ARelationIsReleasedWhileAnotherRelationIsStillOwed,
+    ABatchStaysWhileARuleOfAnotherClassOnItsRelationStillOwes,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "a_rule_owing_rows_and_capture_keeps_the_batch_until_its_capture_is_delivered",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ARuleOwingRowsAndCaptureKeepsTheBatchUntilItsCaptureIsDelivered,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "a_refused_entry_point_call_does_not_consume_the_delivery_it_would_have_been",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ARefusedEntryPointCallDoesNotConsumeTheDeliveryItWouldHaveBeen,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "retrying_a_cancelled_forwarded_delivery_after_retirement_finds_no_batch_and_walks_nothing",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Scenario::RetryingACancelledForwardedDeliveryAfterRetirementFindsNoBatchAndWalksNothing
+        },
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_relation_is_released_while_another_relation_is_still_owed"),
+        word: Word::Succeeds,
+        input: || Scenario::ARelationIsReleasedWhileAnotherRelationIsStillOwed,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_batch_stays_while_a_rule_of_another_class_on_its_relation_still_owes"),
+        word: Word::Succeeds,
+        input: || Scenario::ABatchStaysWhileARuleOfAnotherClassOnItsRelationStillOwes,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ARuleOwingRowsAndCaptureKeepsTheBatchUntilItsCaptureIsDelivered => {
+            a_rule_owing_rows_and_capture_keeps_the_batch_until_its_capture_is_delivered();
+            Ok(())
+        }
+        Scenario::ARefusedEntryPointCallDoesNotConsumeTheDeliveryItWouldHaveBeen => {
+            a_refused_entry_point_call_does_not_consume_the_delivery_it_would_have_been();
+            Ok(())
+        }
+        Scenario::RetryingACancelledForwardedDeliveryAfterRetirementFindsNoBatchAndWalksNothing => {
+            retrying_a_cancelled_forwarded_delivery_after_retirement_finds_no_batch_and_walks_nothing();
+            Ok(())
+        }
+        Scenario::ARelationIsReleasedWhileAnotherRelationIsStillOwed => {
+            a_relation_is_released_while_another_relation_is_still_owed();
+            Ok(())
+        }
+        Scenario::ABatchStaysWhileARuleOfAnotherClassOnItsRelationStillOwes => {
+            a_batch_stays_while_a_rule_of_another_class_on_its_relation_still_owes();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -40,7 +40,7 @@ pub(super) enum SourceCase {
     FrontierRefusal,
     FrontierScope,
 }
-pub(super) const CASES: &[Case<SourceCase, &'static str, OperatingError>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_file_invocation_accepts_its_required_generation_owner"),
         word: Word::Succeeds,
@@ -121,8 +121,8 @@ pub(super) const CASES: &[Case<SourceCase, &'static str, OperatingError>] = &[
     },
 ];
 
-type Input = SourceCase;
+pub(crate) type Input = SourceCase;
 
-pub(super) type Value = &'static str;
+pub(crate) type Value = &'static str;
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;

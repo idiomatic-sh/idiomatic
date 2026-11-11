@@ -3,6 +3,7 @@ use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
 use super::fixtures::JoinDiagnostics;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
 #[cfg(test)]
@@ -12,7 +13,6 @@ use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
 use ryo_values::domain::{plan_parts::types::Side, rows::types::RowCount};
 
-#[test]
 fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
     let n = |n| Cell::Number(Integer(n));
     let left = table_of(&[CellKind::Number], &[&[n(1)], &[n(1)], &[n(9)]]);
@@ -82,4 +82,37 @@ fn file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit() {
             );
         }
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    FileIndexDiagnosticIsOneAggregatePerOwnerNeverPerProbeOrHit,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit"),
+    word: Word::Succeeds,
+    input: || Scenario::FileIndexDiagnosticIsOneAggregatePerOwnerNeverPerProbeOrHit,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::FileIndexDiagnosticIsOneAggregatePerOwnerNeverPerProbeOrHit => {
+            file_index_diagnostic_is_one_aggregate_per_owner_never_per_probe_or_hit();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

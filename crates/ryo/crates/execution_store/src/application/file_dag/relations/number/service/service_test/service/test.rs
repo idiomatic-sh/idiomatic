@@ -1,6 +1,7 @@
 //! Numeric source identity and release contracts use the actual owner.
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use ryo_execution_domain::domain::self_join_recogniser::types::{
@@ -11,7 +12,6 @@ use ryo_relations::domain::relations::{
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-#[test]
 fn number_witness_rejects_wrong_producer_and_recycled_generation() {
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
@@ -106,7 +106,6 @@ fn number_witness_rejects_wrong_producer_and_recycled_generation() {
             .is_none()
     );
 }
-#[test]
 fn producer_scope_rebinding_refuses_before_registering_an_alias() {
     use crate::application::file_dag::derived::owner::fixtures::resources::ResourceFixture;
     use ryo_values::domain::rows::types::Table;
@@ -163,7 +162,6 @@ fn producer_scope_rebinding_refuses_before_registering_an_alias() {
     assert_ne!(owner.result_population(independent.as_ref()), identity);
 }
 
-#[test]
 fn qualified_producers_release_only_their_actual_population() {
     use crate::application::file_dag::derived::owner::{
         ViewContext,
@@ -277,7 +275,6 @@ fn qualified_producers_release_only_their_actual_population() {
 }
 
 /// A computed numeric source is admitted when its cells fill its rows, and refused when they do not.
-#[test]
 fn number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one() {
     let relation = Relation::SourceLocation;
     let schema = kinds(relation);
@@ -337,4 +334,74 @@ fn number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one(
         Ok(false),
         "a ragged table is refused"
     );
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    NumberWitnessRejectsWrongProducerAndRecycledGeneration,
+    ProducerScopeRebindingRefusesBeforeRegisteringAnAlias,
+    QualifiedProducersReleaseOnlyTheirActualPopulation,
+    NumberWitnessAdmitsARectangularComputedSourceAndRefusesARaggedOne,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("number_witness_rejects_wrong_producer_and_recycled_generation"),
+        word: Word::Succeeds,
+        input: || Scenario::NumberWitnessRejectsWrongProducerAndRecycledGeneration,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("producer_scope_rebinding_refuses_before_registering_an_alias"),
+        word: Word::Succeeds,
+        input: || Scenario::ProducerScopeRebindingRefusesBeforeRegisteringAnAlias,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("qualified_producers_release_only_their_actual_population"),
+        word: Word::Succeeds,
+        input: || Scenario::QualifiedProducersReleaseOnlyTheirActualPopulation,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::NumberWitnessAdmitsARectangularComputedSourceAndRefusesARaggedOne,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::NumberWitnessRejectsWrongProducerAndRecycledGeneration => {
+            number_witness_rejects_wrong_producer_and_recycled_generation();
+            Ok(())
+        }
+        Scenario::ProducerScopeRebindingRefusesBeforeRegisteringAnAlias => {
+            producer_scope_rebinding_refuses_before_registering_an_alias();
+            Ok(())
+        }
+        Scenario::QualifiedProducersReleaseOnlyTheirActualPopulation => {
+            qualified_producers_release_only_their_actual_population();
+            Ok(())
+        }
+        Scenario::NumberWitnessAdmitsARectangularComputedSourceAndRefusesARaggedOne => {
+            number_witness_admits_a_rectangular_computed_source_and_refuses_a_ragged_one();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

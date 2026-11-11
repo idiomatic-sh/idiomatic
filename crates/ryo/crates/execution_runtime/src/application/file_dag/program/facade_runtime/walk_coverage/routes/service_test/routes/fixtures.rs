@@ -146,7 +146,13 @@ pub(super) enum RouteScenario {
     RelabelledBarrier,
 }
 
-pub(super) const ROUTE_CASES: &[Case<RouteScenario, (), RouteRefusal>] = &[
+/// The input of a row.
+pub(crate) type Input = RouteScenario;
+/// The value of a row.
+pub(crate) type Value = ();
+/// The failure of a row.
+pub(crate) type Failure = RouteRefusal;
+pub(crate) const ROUTE_CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every variant's classifier route matches its meaning"),
         word: Word::Succeeds,
@@ -190,7 +196,7 @@ pub(super) fn head_of(corpus: &Corpus, kind: OperationKind) -> LogicalInstructio
         .logical()
 }
 
-pub(super) fn route_subject(scenario: RouteScenario) -> Result<(), RouteRefusal> {
+pub(crate) fn route_subject(scenario: RouteScenario) -> Result<(), RouteRefusal> {
     match scenario {
         RouteScenario::Classifier => verify_classifier(),
         RouteScenario::Program => verify_program(&compiled_operations()),

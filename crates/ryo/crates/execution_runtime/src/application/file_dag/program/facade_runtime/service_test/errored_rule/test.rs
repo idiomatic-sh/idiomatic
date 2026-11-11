@@ -5,6 +5,7 @@
 use super::super::*;
 use super::fixtures::written_rule;
 use crate::application::file_dag::program::preparation::service::prepare;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_values::domain::observations::types::{
@@ -13,7 +14,6 @@ use ryo_values::domain::observations::types::{
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
 use ryo_values::domain::plans::types::PlanStep;
 
-#[test]
 fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
     let sound = plan(Scenario::Words);
     let mut errored = plan(Scenario::Words);
@@ -90,4 +90,37 @@ fn only_the_rule_with_an_errored_step_is_refused_on_its_roots() {
             "the named output's source is the same error"
         );
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Proof {
+    OnlyTheRuleWithAnErroredStepIsRefusedOnItsRoots,
+}
+
+type Input = Proof;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("only_the_rule_with_an_errored_step_is_refused_on_its_roots"),
+    word: Word::Succeeds,
+    input: || Proof::OnlyTheRuleWithAnErroredStepIsRefusedOnItsRoots,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Proof::OnlyTheRuleWithAnErroredStepIsRefusedOnItsRoots => {
+            only_the_rule_with_an_errored_step_is_refused_on_its_roots();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

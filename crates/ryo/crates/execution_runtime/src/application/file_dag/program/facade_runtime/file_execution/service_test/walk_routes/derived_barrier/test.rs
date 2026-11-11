@@ -4,11 +4,11 @@ use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, demand};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
 
-#[test]
 fn derived_group_count_barrier_follows_a_shared_head_without_a_second_pass() {
     let program = Program::new(
         Authored::grouped(),
@@ -73,4 +73,37 @@ fn derived_group_count_barrier_follows_a_shared_head_without_a_second_pass() {
         "both consumers delivered, so the batch retired"
     );
     file.finish().unwrap();
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    DerivedGroupCountBarrierFollowsASharedHeadWithoutASecondPass,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("derived_group_count_barrier_follows_a_shared_head_without_a_second_pass"),
+    word: Word::Succeeds,
+    input: || Scenario::DerivedGroupCountBarrierFollowsASharedHeadWithoutASecondPass,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::DerivedGroupCountBarrierFollowsASharedHeadWithoutASecondPass => {
+            derived_group_count_barrier_follows_a_shared_head_without_a_second_pass();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

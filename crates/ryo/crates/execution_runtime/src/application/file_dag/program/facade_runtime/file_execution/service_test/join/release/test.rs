@@ -5,13 +5,13 @@ use super::super::capability::fixtures::Witness;
 use super::super::*;
 use super::fixtures::{OrderedPort, refused};
 use super::fixtures::{cancelled, ordered, tree_join};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
 use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-#[test]
 fn native_tree_join_delivery_refusal_releases_and_the_completed_join_delivers() {
     let witness = Arc::new(Witness::default());
     let cancelled = tree_join(witness.clone(), cancelled());
@@ -23,7 +23,6 @@ fn native_tree_join_delivery_refusal_releases_and_the_completed_join_delivers() 
     assert_eq!(complete.prefix.len(), 2);
 }
 
-#[test]
 fn native_tree_join_semantic_refusal_is_primary_over_the_sink_refusal() {
     let witness = Arc::new(Witness {
         refuse: true,
@@ -35,7 +34,6 @@ fn native_tree_join_semantic_refusal_is_primary_over_the_sink_refusal() {
     assert!(actual.prefix.is_empty(), "the sink is never reached");
 }
 
-#[test]
 fn ordered_strategy_delivery_refusal_releases_and_the_completed_root_delivers() {
     let port = Arc::new(OrderedPort::default());
     let actual = ordered(port.clone(), cancelled()).unwrap();
@@ -49,7 +47,6 @@ fn ordered_strategy_delivery_refusal_releases_and_the_completed_root_delivers() 
     assert_eq!(complete.result.unwrap().count, RowCount(1));
 }
 
-#[test]
 fn ordered_strategy_semantic_refusal_is_primary_over_the_sink_refusal() {
     let port = Arc::new(OrderedPort {
         refuse: true,
@@ -59,4 +56,76 @@ fn ordered_strategy_semantic_refusal_is_primary_over_the_sink_refusal() {
     assert!(port.calls.load(Ordering::Relaxed) > 0);
     assert_eq!(actual.result.unwrap_err(), refused());
     assert!(actual.prefix.is_empty(), "the sink is never reached");
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    NativeTreeJoinDeliveryRefusalReleasesAndTheCompletedJoinDelivers,
+    NativeTreeJoinSemanticRefusalIsPrimaryOverTheSinkRefusal,
+    OrderedStrategyDeliveryRefusalReleasesAndTheCompletedRootDelivers,
+    OrderedStrategySemanticRefusalIsPrimaryOverTheSinkRefusal,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "native_tree_join_delivery_refusal_releases_and_the_completed_join_delivers",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::NativeTreeJoinDeliveryRefusalReleasesAndTheCompletedJoinDelivers,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("native_tree_join_semantic_refusal_is_primary_over_the_sink_refusal"),
+        word: Word::Succeeds,
+        input: || Scenario::NativeTreeJoinSemanticRefusalIsPrimaryOverTheSinkRefusal,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "ordered_strategy_delivery_refusal_releases_and_the_completed_root_delivers",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedStrategyDeliveryRefusalReleasesAndTheCompletedRootDelivers,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("ordered_strategy_semantic_refusal_is_primary_over_the_sink_refusal"),
+        word: Word::Succeeds,
+        input: || Scenario::OrderedStrategySemanticRefusalIsPrimaryOverTheSinkRefusal,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::NativeTreeJoinDeliveryRefusalReleasesAndTheCompletedJoinDelivers => {
+            native_tree_join_delivery_refusal_releases_and_the_completed_join_delivers();
+            Ok(())
+        }
+        Scenario::NativeTreeJoinSemanticRefusalIsPrimaryOverTheSinkRefusal => {
+            native_tree_join_semantic_refusal_is_primary_over_the_sink_refusal();
+            Ok(())
+        }
+        Scenario::OrderedStrategyDeliveryRefusalReleasesAndTheCompletedRootDelivers => {
+            ordered_strategy_delivery_refusal_releases_and_the_completed_root_delivers();
+            Ok(())
+        }
+        Scenario::OrderedStrategySemanticRefusalIsPrimaryOverTheSinkRefusal => {
+            ordered_strategy_semantic_refusal_is_primary_over_the_sink_refusal();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

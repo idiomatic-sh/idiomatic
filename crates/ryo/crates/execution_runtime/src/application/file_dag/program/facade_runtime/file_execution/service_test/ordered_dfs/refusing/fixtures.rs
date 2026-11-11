@@ -56,13 +56,13 @@ pub(super) fn empty_input_kind_mismatch_is_rejected() -> Result<usize, Operating
     .map(|out| out.count.0)
 }
 
-pub(super) type Input = fn() -> Result<usize, OperatingError>;
+pub(crate) type Input = fn() -> Result<usize, OperatingError>;
 
-type Value = usize;
+pub(crate) type Value = usize;
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("ties_refused_even_with_empty_roots"),
         word: Word::Refuses,

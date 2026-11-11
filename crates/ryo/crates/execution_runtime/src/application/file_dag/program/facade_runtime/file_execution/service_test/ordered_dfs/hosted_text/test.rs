@@ -5,6 +5,7 @@ use super::super::fixtures::{
     column, execute_request, expected, host, hosted_plan, numbers, operation,
 };
 use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
@@ -26,7 +27,6 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::{rc::Rc, sync::Arc};
-#[test]
 fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
     let text = |s: &str| HostCell::Text(s.into());
     let number = |n| HostCell::Number(Integer(n));
@@ -166,7 +166,6 @@ fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
     assert_eq!(observed.dfs_expanded, 6);
     assert_eq!(observed.dfs_examined, 6);
 }
-#[test]
 fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
     let hosts = [
         host(&numbers(1, &[&[1]]), "first-roots"),
@@ -285,4 +284,50 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
     let owner = Rc::clone(&file.owner);
     file.finish().unwrap();
     assert_eq!(owner.derived().working_bytes(), 0);
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    TextVerticesAndPartitionKeysUseTheActualHostedTextOwner,
+    OneFileOwnerResetsDfsAcrossClosureEmptyAndDifferentGraph,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("text_vertices_and_partition_keys_use_the_actual_hosted_text_owner"),
+        word: Word::Succeeds,
+        input: || Scenario::TextVerticesAndPartitionKeysUseTheActualHostedTextOwner,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("one_file_owner_resets_dfs_across_closure_empty_and_different_graph"),
+        word: Word::Succeeds,
+        input: || Scenario::OneFileOwnerResetsDfsAcrossClosureEmptyAndDifferentGraph,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::TextVerticesAndPartitionKeysUseTheActualHostedTextOwner => {
+            text_vertices_and_partition_keys_use_the_actual_hosted_text_owner();
+            Ok(())
+        }
+        Scenario::OneFileOwnerResetsDfsAcrossClosureEmptyAndDifferentGraph => {
+            one_file_owner_resets_dfs_across_closure_empty_and_different_graph();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

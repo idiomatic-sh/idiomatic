@@ -3,6 +3,7 @@ use super::super::super::*;
 use super::super::fixtures::*;
 use super::fixtures::{RefuseCount, columns};
 use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
@@ -26,7 +27,6 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::sync::Arc;
-#[test]
 fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
     for failed_emit in [true, false] {
         let output_columns = columns(failed_emit);
@@ -199,4 +199,37 @@ fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
         }
         file.finish().unwrap();
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Proof {
+    FailedEmitAndFailedObservationDoNotEraseTheIndependentRoot,
+}
+
+type Input = Proof;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("failed_emit_and_failed_observation_do_not_erase_the_independent_root"),
+    word: Word::Succeeds,
+    input: || Proof::FailedEmitAndFailedObservationDoNotEraseTheIndependentRoot,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Proof::FailedEmitAndFailedObservationDoNotEraseTheIndependentRoot => {
+            failed_emit_and_failed_observation_do_not_erase_the_independent_root();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -1,4 +1,5 @@
 //! Graph admission reclaims only dormant resources owned by the real file owner.
+use crate::cases::{Case, CaseName, Expect, Word, run};
 
 use super::super::super::constants;
 use super::fixtures::{columns, rows};
@@ -9,7 +10,6 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
-#[test]
 fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {
     let columns = columns();
     let rows = rows(&columns);
@@ -50,7 +50,6 @@ fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {
     assert!(reclaimed.bytes + cost <= reclaimed.limit);
 }
 
-#[test]
 fn impossible_admission_does_not_mutate_even_dormant_payload_or_capacity() {
     let columns = columns();
     let rows = rows(&columns);
@@ -71,7 +70,6 @@ fn impossible_admission_does_not_mutate_even_dormant_payload_or_capacity() {
     assert_eq!(after.counts.reclaimed_bytes, 0);
 }
 
-#[test]
 fn fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order() {
     let columns = columns();
     let rows = rows(&columns);
@@ -99,7 +97,6 @@ fn fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order() {
     assert!(after.bytes <= before.bytes - first);
 }
 
-#[test]
 fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
     let columns = columns();
     let rows = rows(&columns);
@@ -140,7 +137,6 @@ fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
     );
 }
 
-#[test]
 fn enabling_graph_demand_does_not_reserve_unused_ordinary_capacity() {
     let columns = columns();
     let rows = rows(&columns);
@@ -156,4 +152,83 @@ fn enabling_graph_demand_does_not_reserve_unused_ordinary_capacity() {
     let after = fixture.snapshot();
     assert_eq!(after.bytes, before.bytes);
     assert_eq!(after.indexes, 1);
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ALiveIndexBlocksCreditUntilItsConsumerReleasesTheHandle,
+    ImpossibleAdmissionDoesNotMutateEvenDormantPayloadOrCapacity,
+    FifoReclaimsOnlyEnoughDormantEntriesAndPreservesSurvivorOrder,
+    OwnerReclaimsTheOldestCompleteIndexBeforeNewerIndexes,
+    EnablingGraphDemandDoesNotReserveUnusedOrdinaryCapacity,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_live_index_blocks_credit_until_its_consumer_releases_the_handle"),
+        word: Word::Succeeds,
+        input: || Scenario::ALiveIndexBlocksCreditUntilItsConsumerReleasesTheHandle,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("impossible_admission_does_not_mutate_even_dormant_payload_or_capacity"),
+        word: Word::Succeeds,
+        input: || Scenario::ImpossibleAdmissionDoesNotMutateEvenDormantPayloadOrCapacity,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order"),
+        word: Word::Succeeds,
+        input: || Scenario::FifoReclaimsOnlyEnoughDormantEntriesAndPreservesSurvivorOrder,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("owner_reclaims_the_oldest_complete_index_before_newer_indexes"),
+        word: Word::Succeeds,
+        input: || Scenario::OwnerReclaimsTheOldestCompleteIndexBeforeNewerIndexes,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("enabling_graph_demand_does_not_reserve_unused_ordinary_capacity"),
+        word: Word::Succeeds,
+        input: || Scenario::EnablingGraphDemandDoesNotReserveUnusedOrdinaryCapacity,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ALiveIndexBlocksCreditUntilItsConsumerReleasesTheHandle => {
+            a_live_index_blocks_credit_until_its_consumer_releases_the_handle();
+            Ok(())
+        }
+        Scenario::ImpossibleAdmissionDoesNotMutateEvenDormantPayloadOrCapacity => {
+            impossible_admission_does_not_mutate_even_dormant_payload_or_capacity();
+            Ok(())
+        }
+        Scenario::FifoReclaimsOnlyEnoughDormantEntriesAndPreservesSurvivorOrder => {
+            fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order();
+            Ok(())
+        }
+        Scenario::OwnerReclaimsTheOldestCompleteIndexBeforeNewerIndexes => {
+            owner_reclaims_the_oldest_complete_index_before_newer_indexes();
+            Ok(())
+        }
+        Scenario::EnablingGraphDemandDoesNotReserveUnusedOrdinaryCapacity => {
+            enabling_graph_demand_does_not_reserve_unused_ordinary_capacity();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

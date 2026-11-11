@@ -3,18 +3,18 @@ use super::super::super::*;
 use super::fixtures::{context, owner, table, use_};
 use crate::application::file_dag::derived::owner::ViewContext;
 use crate::application::file_dag::relations::handle::service::Publication;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_execution_domain::domain::{
     derived_views::types::*, operating::errors::OperatingError, table_model::types::Rows,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
-    CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
+    CellKind, ColumnsView, FactColumn, Integer, Relation, Value as CellValue,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::rc::Rc;
 
-#[test]
 fn admission_requires_a_live_matching_publication_in_test_builds_too() {
     let owner = owner();
     let mut workspace = InvocationWorkspace::new(Rc::clone(&owner));
@@ -48,7 +48,6 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
         Err(OperatingError::NotRead)
     ));
 }
-#[test]
 fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof() {
     let owner = owner();
     let published = owner.computed(table(&[3, 1, 3], 1)).unwrap();
@@ -116,7 +115,6 @@ fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof(
         "expired proof never reaches the builder"
     );
 }
-#[test]
 fn distinct_published_populations_never_share_slot_only_identities() {
     let owner = owner();
     let published = owner.computed(table(&[1, 0], 2)).unwrap();
@@ -169,7 +167,7 @@ fn distinct_published_populations_never_share_slot_only_identities() {
             panic!("ordered")
         };
         assert!(
-            matches!(rows.right[0].keys[0],ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(value)))if value==expected)
+            matches!(rows.right[0].keys[0],ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(CellValue::Number(Integer(value)))if value==expected)
         );
         retained_views.push(view);
     }
@@ -185,11 +183,11 @@ fn distinct_published_populations_never_share_slot_only_identities() {
     );
     assert!(matches!(
         first.right[0].keys[0],
-        ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(9)))
+        ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(CellValue::Number(Integer(9)))
     ));
     assert!(matches!(
         second.right[0].keys[0],
-        ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(Value::Number(Integer(4)))
+        ryo_derived::domain::ordered::types::OwnedOrderedKey::Value(CellValue::Number(Integer(4)))
     ));
     assert_eq!(
         owner.derived().counts().0,
@@ -217,7 +215,6 @@ fn distinct_published_populations_never_share_slot_only_identities() {
         Err(OperatingError::NotRead)
     ));
 }
-#[test]
 fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     let owner = owner();
     let columns = [FactColumn(vec![1, 2]), FactColumn(vec![3])];
@@ -264,7 +261,6 @@ fn normalized_physical_input_is_admitted_but_unproved_transform_is_not() {
     ));
 }
 
-#[test]
 fn recapturing_publications_replaces_population_without_replacing_owner() {
     let owner = owner();
     let use_ = use_(
@@ -298,3 +294,84 @@ fn recapturing_publications_replaces_population_without_replacing_owner() {
 }
 
 use ryo_derived::domain::request::types::DerivedKind;
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    AdmissionRequiresALiveMatchingPublicationInTestBuildsToo,
+    ImmutableDemandChecksIdentityOnceAcrossViewsAndRefusesExpiredProof,
+    DistinctPublishedPopulationsNeverShareSlotOnlyIdentities,
+    NormalizedPhysicalInputIsAdmittedButUnprovedTransformIsNot,
+    RecapturingPublicationsReplacesPopulationWithoutReplacingOwner,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("admission_requires_a_live_matching_publication_in_test_builds_too"),
+        word: Word::Succeeds,
+        input: || Scenario::AdmissionRequiresALiveMatchingPublicationInTestBuildsToo,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::ImmutableDemandChecksIdentityOnceAcrossViewsAndRefusesExpiredProof,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("distinct_published_populations_never_share_slot_only_identities"),
+        word: Word::Succeeds,
+        input: || Scenario::DistinctPublishedPopulationsNeverShareSlotOnlyIdentities,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("normalized_physical_input_is_admitted_but_unproved_transform_is_not"),
+        word: Word::Succeeds,
+        input: || Scenario::NormalizedPhysicalInputIsAdmittedButUnprovedTransformIsNot,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("recapturing_publications_replaces_population_without_replacing_owner"),
+        word: Word::Succeeds,
+        input: || Scenario::RecapturingPublicationsReplacesPopulationWithoutReplacingOwner,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::AdmissionRequiresALiveMatchingPublicationInTestBuildsToo => {
+            admission_requires_a_live_matching_publication_in_test_builds_too();
+            Ok(())
+        }
+        Scenario::ImmutableDemandChecksIdentityOnceAcrossViewsAndRefusesExpiredProof => {
+            immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof();
+            Ok(())
+        }
+        Scenario::DistinctPublishedPopulationsNeverShareSlotOnlyIdentities => {
+            distinct_published_populations_never_share_slot_only_identities();
+            Ok(())
+        }
+        Scenario::NormalizedPhysicalInputIsAdmittedButUnprovedTransformIsNot => {
+            normalized_physical_input_is_admitted_but_unproved_transform_is_not();
+            Ok(())
+        }
+        Scenario::RecapturingPublicationsReplacesPopulationWithoutReplacingOwner => {
+            recapturing_publications_replaces_population_without_replacing_owner();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

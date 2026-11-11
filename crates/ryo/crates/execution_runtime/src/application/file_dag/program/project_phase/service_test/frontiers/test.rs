@@ -7,6 +7,7 @@ use crate::application::file_dag::program::project_phase::interface::ProgramProj
 use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use crate::application::file_dag::program::request_execution::service::begin;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{
     Covered, InapplicableFiles, RefusedFiles, RuleIndex,
 };
@@ -16,7 +17,6 @@ use ryo_language::domain::symbols::types::Symbols;
 
 /// Frontiers one request prepared are not admitted by another request's phase over the same program and corpus
 /// (`PreparedFrontiers::validate_scope`).
-#[test]
 fn frontiers_from_another_request_are_refused() {
     let prepared = program(Entry::Phase, 1);
     let corpus = corpus();
@@ -72,7 +72,6 @@ fn frontiers_from_another_request_are_refused() {
 }
 
 /// Frontiers prepared over one coverage are not admitted beside a scope over another (`PreparedFrontiers::validate_scope`).
-#[test]
 fn frontiers_over_another_coverage_are_refused() {
     let prepared = program(Entry::Phase, 2);
     let corpus = corpus();
@@ -121,7 +120,6 @@ fn frontiers_over_another_coverage_are_refused() {
 
 /// A root whose emit is not demanded answers `NoQuery` for it. The project phase's one call always demands the emit, so this is
 /// the only proof of the arm; execution's producer cases (`consumers`, `union`) name this test beside their weaker check.
-#[test]
 fn a_root_whose_emit_is_not_demanded_answers_no_query() {
     let prepared = program(Entry::Phase, 1);
     let corpus = corpus();
@@ -156,7 +154,6 @@ fn a_root_whose_emit_is_not_demanded_answers_no_query() {
 /// A root whose observations are not demanded invokes none of its observation roots, and its outcome publishes nothing. Preparation
 /// reads the producer's project relation through empty facts, so nothing refuses the observation root's read: the proof is the
 /// outcome's empty observations, which a `Required` demand would fill with one outcome per cross-file observation root.
-#[test]
 fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
     let prepared = producer_program();
     let corpus = corpus();
@@ -211,7 +208,6 @@ fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
 
 /// Each phase a request opens owns its own publication: a scope one phase still holds, its root evaluated, makes that phase's
 /// finish refuse, and leaves another phase of the same request free to finish.
-#[test]
 fn finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication() {
     let prepared = program(Entry::Phase, 3);
     let corpus = corpus();
@@ -243,4 +239,83 @@ fn finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication() {
     );
     drop(scope);
     request.finish();
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    FrontiersFromAnotherRequestAreRefused,
+    FrontiersOverAnotherCoverageAreRefused,
+    ARootWhoseEmitIsNotDemandedAnswersNoQuery,
+    ARootWhoseObservationsAreNotRequiredInvokesNoObservationRoot,
+    FinishRefusesWhileAScopeOfItsOwnPhaseSharesThePublication,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("frontiers_from_another_request_are_refused"),
+        word: Word::Succeeds,
+        input: || Scenario::FrontiersFromAnotherRequestAreRefused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("frontiers_over_another_coverage_are_refused"),
+        word: Word::Succeeds,
+        input: || Scenario::FrontiersOverAnotherCoverageAreRefused,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_root_whose_emit_is_not_demanded_answers_no_query"),
+        word: Word::Succeeds,
+        input: || Scenario::ARootWhoseEmitIsNotDemandedAnswersNoQuery,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("a_root_whose_observations_are_not_required_invokes_no_observation_root"),
+        word: Word::Succeeds,
+        input: || Scenario::ARootWhoseObservationsAreNotRequiredInvokesNoObservationRoot,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication"),
+        word: Word::Succeeds,
+        input: || Scenario::FinishRefusesWhileAScopeOfItsOwnPhaseSharesThePublication,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::FrontiersFromAnotherRequestAreRefused => {
+            frontiers_from_another_request_are_refused();
+            Ok(())
+        }
+        Scenario::FrontiersOverAnotherCoverageAreRefused => {
+            frontiers_over_another_coverage_are_refused();
+            Ok(())
+        }
+        Scenario::ARootWhoseEmitIsNotDemandedAnswersNoQuery => {
+            a_root_whose_emit_is_not_demanded_answers_no_query();
+            Ok(())
+        }
+        Scenario::ARootWhoseObservationsAreNotRequiredInvokesNoObservationRoot => {
+            a_root_whose_observations_are_not_required_invokes_no_observation_root();
+            Ok(())
+        }
+        Scenario::FinishRefusesWhileAScopeOfItsOwnPhaseSharesThePublication => {
+            finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

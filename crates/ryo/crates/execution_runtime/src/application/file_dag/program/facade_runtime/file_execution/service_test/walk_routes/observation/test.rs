@@ -3,11 +3,11 @@ use super::super::super::super::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::semantics::{Derived, Meanings};
 use super::super::fixtures::{Population, Program, Residency, cells, demand};
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rows::types::RowCount;
 use std::{rc::Rc, sync::Arc};
 
-#[test]
 fn named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay() {
     let meanings = Arc::new(Meanings::default());
     let derived = Arc::new(Derived::new());
@@ -117,4 +117,37 @@ fn named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay
     file.finish().unwrap();
     assert_eq!(owner.derived().working_bytes(), 0);
     assert_eq!(named.cells, cells(&[1, 3]));
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    NamedPopulationBarrierCannotReuseADirectRelationClassOrEraseReplay,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay"),
+    word: Word::Succeeds,
+    input: || Scenario::NamedPopulationBarrierCannotReuseADirectRelationClassOrEraseReplay,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::NamedPopulationBarrierCannotReuseADirectRelationClassOrEraseReplay => {
+            named_population_barrier_cannot_reuse_a_direct_relation_class_or_erase_replay();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

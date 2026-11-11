@@ -4,6 +4,7 @@ use super::super::cases::fixtures::table_of;
 use super::super::*;
 use super::fixtures::{assert_representation_parity, fact_column};
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 #[cfg(test)]
 use fixtures::execution::*;
 #[cfg(test)]
@@ -22,7 +23,6 @@ use ryo_values::domain::{
     plans::types::{Operation, PlanStep},
     rows::types::{RowCount, Table},
 };
-#[test]
 fn exact_scalar_join_bag_order_reordered_and_empty_keys() {
     let n = |n| Cell::Number(Integer(n));
     let left = table_of(&[CellKind::Number; 2], &[&[n(1), n(10)], &[n(2), n(20)]]);
@@ -48,7 +48,6 @@ fn exact_scalar_join_bag_order_reordered_and_empty_keys() {
     assert_eq!(actual.cells, [n(10), n(100), n(10), n(200)]);
 }
 
-#[test]
 fn stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows() {
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];
     let columns = [
@@ -96,7 +95,6 @@ fn stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows() {
         assert_representation_parity(&op, &left, right.clone(), &computed);
     }
 }
-#[test]
 fn repeated_projected_positions_preserve_reordered_key_cells_and_flags() {
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];
     let columns = [
@@ -162,7 +160,6 @@ fn repeated_projected_positions_preserve_reordered_key_cells_and_flags() {
         );
     }
 }
-#[test]
 fn malformed_storage_materializes_its_complete_prefix_before_owner_admission() {
     let columns = [fact_column(&[1, 1, 1]), fact_column(&[10, 11])];
     let mut logical = Table::default();
@@ -190,7 +187,6 @@ fn malformed_storage_materializes_its_complete_prefix_before_owner_admission() {
     .unwrap();
     assert_eq!(out.cells, [10, 11].map(|n| Cell::Number(Integer(n))));
 }
-#[test]
 fn unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact() {
     let n = |n| Cell::Number(Integer(n));
     let left = table_of(&[CellKind::Number], &[&[n(2)]]);
@@ -260,7 +256,6 @@ fn unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact() {
     }
 }
 
-#[test]
 fn malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complete_prefix() {
     let n = |n| Cell::Number(Integer(n));
     let left = table_of(&[CellKind::Number], &[&[n(1)]]);
@@ -313,4 +308,96 @@ fn malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complet
     .unwrap();
     assert_eq!(actual.prefix, vec![vec![n(10)], vec![n(11)]]);
     assert!(actual.result.is_ok());
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Proof {
+    ExactScalarJoinBagOrderReorderedAndEmptyKeys,
+    StoredRightCompositeReorderedEmptyAndUnlikeKeysPreserveRows,
+    RepeatedProjectedPositionsPreserveReorderedKeyCellsAndFlags,
+    MalformedStorageMaterializesItsCompletePrefixBeforeOwnerAdmission,
+    UnsortedDuplicateRowsSinkPrefixAndSourceRefusalsAreExact,
+    MalformedProviderIsNormalizedByTheRealOwnerBeforeJoiningItsCompletePrefix,
+}
+
+type Input = Proof;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("exact_scalar_join_bag_order_reordered_and_empty_keys"),
+        word: Word::Succeeds,
+        input: || Proof::ExactScalarJoinBagOrderReorderedAndEmptyKeys,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows"),
+        word: Word::Succeeds,
+        input: || Proof::StoredRightCompositeReorderedEmptyAndUnlikeKeysPreserveRows,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("repeated_projected_positions_preserve_reordered_key_cells_and_flags"),
+        word: Word::Succeeds,
+        input: || Proof::RepeatedProjectedPositionsPreserveReorderedKeyCellsAndFlags,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("malformed_storage_materializes_its_complete_prefix_before_owner_admission"),
+        word: Word::Succeeds,
+        input: || Proof::MalformedStorageMaterializesItsCompletePrefixBeforeOwnerAdmission,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName("unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact"),
+        word: Word::Succeeds,
+        input: || Proof::UnsortedDuplicateRowsSinkPrefixAndSourceRefusalsAreExact,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complete_prefix",
+        ),
+        word: Word::Succeeds,
+        input: || Proof::MalformedProviderIsNormalizedByTheRealOwnerBeforeJoiningItsCompletePrefix,
+        expect: Expect::Value(()),
+    },
+];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Proof::ExactScalarJoinBagOrderReorderedAndEmptyKeys => {
+            exact_scalar_join_bag_order_reordered_and_empty_keys();
+            Ok(())
+        }
+        Proof::StoredRightCompositeReorderedEmptyAndUnlikeKeysPreserveRows => {
+            stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows();
+            Ok(())
+        }
+        Proof::RepeatedProjectedPositionsPreserveReorderedKeyCellsAndFlags => {
+            repeated_projected_positions_preserve_reordered_key_cells_and_flags();
+            Ok(())
+        }
+        Proof::MalformedStorageMaterializesItsCompletePrefixBeforeOwnerAdmission => {
+            malformed_storage_materializes_its_complete_prefix_before_owner_admission();
+            Ok(())
+        }
+        Proof::UnsortedDuplicateRowsSinkPrefixAndSourceRefusalsAreExact => {
+            unsorted_duplicate_rows_sink_prefix_and_source_refusals_are_exact();
+            Ok(())
+        }
+        Proof::MalformedProviderIsNormalizedByTheRealOwnerBeforeJoiningItsCompletePrefix => {
+            malformed_provider_is_normalized_by_the_real_owner_before_joining_its_complete_prefix();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

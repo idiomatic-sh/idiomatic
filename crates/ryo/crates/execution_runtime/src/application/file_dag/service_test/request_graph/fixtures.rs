@@ -23,13 +23,13 @@ pub(super) enum Scenario {
     InvalidContractShape,
 }
 
-type Input = Scenario;
+pub(crate) type Input = Scenario;
 
-pub(super) type Value = ();
+pub(crate) type Value = ();
 
-type Failure = OperatingError;
+pub(crate) type Failure = OperatingError;
 
-pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("caller_origins_do_not_split_pure_identity"),
         word: Word::Succeeds,
@@ -89,7 +89,7 @@ pub(super) fn graph(
     Ok(compile_prepared(plans, &operators))
 }
 
-pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     let first = plan();
     match scenario {
         Scenario::Origins => {

@@ -5,6 +5,7 @@ use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::FrontierInput;
 use crate::application::file_dag::frontiers::types::FrontierSource;
 use crate::application::file_dag::program::facade_runtime::service::ProjectFrontiers;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::Partials, table_model::types::Frontier,
 };
@@ -22,7 +23,6 @@ use std::sync::Arc;
 
 /// Which files a rule has no frame for is that rule's own evidence: two rules of one project phase
 /// share its one execution although their required partitions differ in it.
-#[test]
 fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
     let PreparedCase {
         prepared,
@@ -99,4 +99,37 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
         )
         .unwrap_or_else(|error| panic!("rule {rule} opens the shared phase execution: {error:?}"));
     }
+}
+
+/// The case each row runs: one of the proofs below.
+#[derive(Clone, Copy, Debug)]
+enum Scenario {
+    ProjectRulesWithDifferentInapplicableFilesShareOnePhaseExecution,
+}
+
+type Input = Scenario;
+type Value = ();
+type Failure = String;
+
+/// One row per proof: its name, and the scenario that runs it.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("project_rules_with_different_inapplicable_files_share_one_phase_execution"),
+    word: Word::Succeeds,
+    input: || Scenario::ProjectRulesWithDifferentInapplicableFilesShareOnePhaseExecution,
+    expect: Expect::Value(()),
+}];
+
+/// Runs one scenario; its assertions are the case's expectation.
+fn subject(input: Input) -> Result<Value, Failure> {
+    match input {
+        Scenario::ProjectRulesWithDifferentInapplicableFilesShareOnePhaseExecution => {
+            project_rules_with_different_inapplicable_files_share_one_phase_execution();
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
