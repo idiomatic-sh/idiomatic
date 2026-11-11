@@ -13,7 +13,7 @@ templates = [
   { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The error the part produces, when it has one." },
   { template = "idiomatic.arch/schemas@0.1.0", file = "schemas.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The shape of the data the part does not control and its checked conversion into the core's types and back: the only file with a validation." },
   { template = "idiomatic.arch/schemas-test@0.1.0", file = "schemas_test.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The accepted and the refused inputs of the part's schemas." },
-  { template = "document-module", file = "{document}.rs", count = { min = 0 }, description = "The module of one external document the adapter reads or writes, declaring its `schemas` and nothing else; present only when the adapter has per-document schemas." },
+  { template = "document-module", file = "{document:dir}.rs", count = { min = 0 }, description = "The module of one external document the adapter reads or writes, declaring its `schemas` and nothing else; present only when the adapter has per-document schemas." },
   { template = "idiomatic.arch/schemas@0.1.0", alias = "document-schemas", file = "{document}/schemas.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The shape of one external document of the adapter and its checked conversion into the port's types and back, when the adapter handles several documents and each has its own schemas." },
   { template = "idiomatic.arch/schemas-test@0.1.0", alias = "document-schemas-test", file = "{document}/schemas_test.rs", count = { min = 0 }, params = { kind = "adapter" }, description = "The accepted and the refused inputs of one document's schemas." },
 ]
@@ -1623,7 +1623,7 @@ pub mod journal;
 pub mod cases;
 '''
 then.findings = [
-  { rule = 'idiomatic.arch/adapter/document-module#template', path = 'src/journal/adapters/memory/interface.rs' },
+  { rule = 'idiomatic.arch/adapter#closed', path = 'src/journal/adapters/memory/interface.rs' },
 ]
 
 [[scenarios]]
