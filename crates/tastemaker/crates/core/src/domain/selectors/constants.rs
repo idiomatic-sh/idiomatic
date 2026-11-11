@@ -40,5 +40,8 @@ pub const WITHIN_SEGMENT: &str = "[^/]*";
 pub const DIRECTORY_NOT_LAST: &str = "a `{name:dir}` capture is written only in the last segment of a template entry's `file`, the segment that names the file";
 /// Why a `{name:dir}` capture in a selector list is refused: a selector is a path test that reads no workspace.
 pub const DIRECTORY_IN_SELECTOR: &str = "a `{name:dir}` capture is written only in a template entry's `file`, never in a selector list, which reads no workspace";
+/// Why a capture whose name holds a `:` is refused: `{name:dir}` is the one mark, and a misspelt one is no plain capture.
+pub const UNKNOWN_MARK: &str =
+    "a capture's name holds no `:`; the one mark is `:dir`, written `{name:dir}`";
 /// The expression of a `?`: one character.
 pub const ONE_CHARACTER: &str = "[^/]";

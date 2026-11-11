@@ -15,6 +15,8 @@ pub const CAPTURE_CLOSE: char = '}';
 pub const SPAN_MARK: char = '*';
 /// What marks a capture whose value names a directory beside the file: `{name:dir}`.
 pub const DIRECTORY_MARK: &str = ":dir";
+/// What opens a mark after a capture's name: a name holds none, so `{*name:dir}` and `{name:dirs}` are refused.
+pub const MARK_OPEN: char = ':';
 /// A path pattern's wildcard of any text within a segment.
 pub const STAR: char = '*';
 /// A path pattern's wildcard of one character.

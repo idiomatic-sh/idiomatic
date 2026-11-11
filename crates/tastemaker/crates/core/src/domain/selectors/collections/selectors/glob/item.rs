@@ -7,6 +7,7 @@
 use std::collections::BTreeSet;
 
 use super::super::interface::SelectorsItem;
+use crate::domain::captures::constants::MARK_OPEN;
 use crate::domain::captures::service::{captured_names, pieces};
 use crate::domain::captures::types::{CaptureName, Interpolations, PatternPiece, Template};
 use crate::domain::paths::service::join;
@@ -14,8 +15,8 @@ use crate::domain::paths::types::{PathText, RepoPath, Segment};
 use crate::domain::selectors::constants::{
     ANY_DEPTH, ANY_DEPTH_LEADING, ANY_DEPTH_MIDDLE, ANY_DEPTH_TRAILING, BASE_ITSELF,
     CAPTURE_SEGMENT, CAPTURE_SEGMENTS, DIRECTORY_IN_SELECTOR, DIRECTORY_NOT_LAST, ONE_CHARACTER,
-    REGEX_SPECIALS, WHOLE_DEPTH, WHOLE_DEPTH_LEADING, WHOLE_DEPTH_MIDDLE, WHOLE_DEPTH_TRAILING,
-    WITHIN_SEGMENT,
+    REGEX_SPECIALS, UNKNOWN_MARK, WHOLE_DEPTH, WHOLE_DEPTH_LEADING, WHOLE_DEPTH_MIDDLE,
+    WHOLE_DEPTH_TRAILING, WITHIN_SEGMENT,
 };
 use crate::domain::selectors::errors::SelectorsError;
 use crate::domain::selectors::types::{
@@ -69,7 +70,8 @@ pub(crate) fn interpolated(pattern: &PathPattern, values: &Interpolations) -> In
 ///
 /// # Errors
 ///
-/// `Pattern` when the spelled glob or expression does not compile, or a `{name:dir}` is written before the last segment.
+/// `Pattern` when the spelled glob or expression does not compile, a capture's name holds a `:` other than the one
+/// `:dir` mark, or a `{name:dir}` is written before the last segment.
 pub(crate) fn place(
     base: &RepoPath,
     pattern: &PathPattern,
@@ -87,6 +89,7 @@ pub(crate) fn place(
             directories: Vec::new(),
         });
     }
+    marks(pattern)?;
     let directories = directory_captures(pattern)?;
     let Spelled { spelling, prefix } = spell(pattern, &values);
     let repeats = if spelling.groups.iter().collect::<BTreeSet<_>>().len() == spelling.groups.len()
@@ -120,6 +123,29 @@ pub(crate) fn place(
         values,
         directories,
     })
+}
+
+/// Refuses a capture whose name holds a `:`: `{*name:dir}` and `{name:dirs}` are misspelt marks, never plain captures.
+///
+/// # Errors
+///
+/// `Pattern` when one does.
+fn marks(pattern: &PathPattern) -> Result<(), SelectorsError> {
+    let misspelt = pieces(Template(&pattern.0))
+        .iter()
+        .any(|piece| match piece {
+            PatternPiece::Capture(name)
+            | PatternPiece::Span(name)
+            | PatternPiece::Directory(name) => name.0.contains(MARK_OPEN),
+            PatternPiece::Literal(_) | PatternPiece::Star | PatternPiece::Question => false,
+        });
+    if misspelt {
+        return Err(SelectorsError::Pattern {
+            pattern: pattern.0.to_string(),
+            reason: UNKNOWN_MARK.to_owned(),
+        });
+    }
+    Ok(())
 }
 
 /// The `{name:dir}` captures of the pattern's last segment, the one that names the file.

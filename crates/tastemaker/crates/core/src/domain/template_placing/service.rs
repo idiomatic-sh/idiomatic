@@ -272,6 +272,10 @@ fn beside(
     captures: &Captures,
     files: &[RepoPath],
 ) -> Beside {
+    // An entry with no `{name:dir}` places every file it matches, with no lookup.
+    if matcher.directories.is_empty() {
+        return Beside::Present;
+    }
     let Some(holding) = parent(file) else {
         return Beside::Absent;
     };
