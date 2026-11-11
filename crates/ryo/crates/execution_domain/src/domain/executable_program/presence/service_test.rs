@@ -322,7 +322,7 @@ enum Plans {
     /// Two cross-file selects.
     CrossFile,
     /// A select on a column the syntax tree does not have, then a select.
-    InvalidSchema,
+    UnknownColumn,
     /// The span bounds of syntax tree rows, selected for `never`.
     FallibleUpstream,
 }
@@ -606,7 +606,7 @@ fn plans_of(plans: Plans) -> (Vec<Plan>, Option<Relation>) {
             cross.steps[1].scope = StepScope::CrossFile;
             (vec![cross], None)
         }
-        Plans::InvalidSchema => (
+        Plans::UnknownColumn => (
             vec![plan(vec![
                 select(tree, vec![equal(99, "x")]),
                 select(at(0), vec![equal(1, "y")]),
@@ -1485,7 +1485,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_step_over_an_invalid_schema_and_its_consumers_are_always"),
         word: Word::Succeeds,
-        input: || Asked::Fold(Plans::InvalidSchema),
+        input: || Asked::Fold(Plans::UnknownColumn),
         expect: Expect::Value(skip(true, Shape::Always, &[], &[])),
     },
     Case {
