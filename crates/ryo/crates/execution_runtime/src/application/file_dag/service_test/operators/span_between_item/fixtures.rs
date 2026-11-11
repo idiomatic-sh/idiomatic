@@ -15,7 +15,7 @@ use ryo_values::domain::{
 
 pub(super) type Input = (Span, Span, &'static [u8]);
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) const fn span(start: u32, end: u32) -> Span {
     Span {

@@ -120,11 +120,11 @@ pub(super) const CASES: &[Case<SourceCase, &'static str, OperatingError>] = &[
     },
 ];
 
-pub(super) type Input = SourceCase;
+type Input = SourceCase;
 
 pub(super) type Value = &'static str;
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) fn subject(case: Input) -> Result<Value, Failure> {
     let SmallTree {

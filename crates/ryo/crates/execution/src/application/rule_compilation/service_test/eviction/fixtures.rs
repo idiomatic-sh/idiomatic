@@ -16,7 +16,7 @@ pub(super) type Input = fn() -> Result<Value, Failure>;
 pub(super) type Value = [usize; 3];
 
 /// The exact compilation or request-binding refusal.
-pub(super) type Failure = RuleCompilationError;
+type Failure = RuleCompilationError;
 
 /// Independently meaningful cache bound and eviction contracts.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[

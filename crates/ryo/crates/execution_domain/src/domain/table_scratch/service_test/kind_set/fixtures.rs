@@ -9,7 +9,7 @@ use ryo_values::cases::{Case, CaseName, Expect, Word};
 pub(super) type Input = fn() -> Result<Value, ()>;
 
 /// What a scenario answers: a yes as one.
-pub(super) type Value = usize;
+type Value = usize;
 
 /// This part has no failure of its own.
 pub(super) type Failure = ();

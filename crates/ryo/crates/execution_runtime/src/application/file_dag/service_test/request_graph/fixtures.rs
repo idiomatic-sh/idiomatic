@@ -23,11 +23,11 @@ pub(super) enum Scenario {
     InvalidContractShape,
 }
 
-pub(super) type Input = Scenario;
+type Input = Scenario;
 
 pub(super) type Value = ();
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

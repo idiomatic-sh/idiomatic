@@ -14,11 +14,11 @@ pub(super) struct Terminal {
     pub(super) recorded: Option<OperatingError>,
 }
 
-pub(super) type Input = Terminal;
+type Input = Terminal;
 
 pub(super) type Value = ();
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) fn subject(terminal: Input) -> Result<Value, Failure> {
     written_result(terminal.answer, terminal.recorded)

@@ -30,11 +30,11 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 use ryo_values::domain::stored_facts::types::Digest;
 use std::sync::Arc;
 
-pub(in super::super) type Input = Scenario;
+type Input = Scenario;
 
 pub(in super::super) type Value = (usize, &'static str);
 
-pub(in super::super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
     let SmallTree {

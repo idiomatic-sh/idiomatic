@@ -400,11 +400,11 @@ pub(super) enum Refusal {
     MissingSubmission,
 }
 
-pub(super) type Input = Scenario;
+type Input = Scenario;
 
 pub(super) type Value = ();
 
-pub(super) type Failure = Refusal;
+type Failure = Refusal;
 
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

@@ -222,10 +222,10 @@ pub(super) fn missing_destination_cells_are_skipped_as_in_full_traversal() -> Va
 pub(super) type Input = fn() -> Value;
 
 /// What a scenario answers: a yes as one.
-pub(super) type Value = usize;
+type Value = usize;
 
 /// A scenario that checks its own claims never fails as a whole.
-pub(super) type Failure = std::convert::Infallible;
+type Failure = std::convert::Infallible;
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[

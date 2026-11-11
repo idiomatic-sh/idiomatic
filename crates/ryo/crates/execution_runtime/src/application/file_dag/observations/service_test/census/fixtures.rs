@@ -248,7 +248,7 @@ pub(super) type Input = fn() -> Result<(), OperatingError>;
 
 pub(super) type Value = ();
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

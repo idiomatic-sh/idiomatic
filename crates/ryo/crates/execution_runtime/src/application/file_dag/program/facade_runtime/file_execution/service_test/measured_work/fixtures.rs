@@ -22,7 +22,7 @@ use ryo_values::domain::{
 
 pub(super) type Value = ();
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) type Input = fn() -> Result<Value, Failure>;
 

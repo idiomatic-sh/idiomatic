@@ -6,11 +6,11 @@ use ryo_execution_store::application::file_dag::derived::owner::acquisition::fam
     Scenario, exercise,
 };
 
-pub(super) type Input = DerivedKind;
+type Input = DerivedKind;
 
-pub(super) type Value = DerivedKind;
+type Value = DerivedKind;
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

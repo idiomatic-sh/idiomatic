@@ -15,12 +15,12 @@ pub(super) enum Scenario {
     FirstOnly,
 }
 
-pub(super) type Input = Scenario;
+type Input = Scenario;
 
 /// How many columns the join answers.
-pub(super) type Value = usize;
+type Value = usize;
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
     let operation = Operation::Join {

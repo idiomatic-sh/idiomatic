@@ -222,9 +222,9 @@ pub(super) fn many_interleaved_partitions_bound_expansions() -> Result<usize, Op
 
 pub(super) type Input = fn() -> Result<usize, OperatingError>;
 
-pub(super) type Value = usize;
+type Value = usize;
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

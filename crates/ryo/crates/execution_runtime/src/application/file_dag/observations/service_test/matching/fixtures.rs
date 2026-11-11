@@ -32,7 +32,7 @@ pub(super) enum Scenario {
     MissingSlot,
 }
 
-pub(super) type Input = Scenario;
+type Input = Scenario;
 
 pub(super) type Value = ();
 
@@ -41,7 +41,7 @@ pub(super) enum Refusal {
     ObservationIncomplete,
 }
 
-pub(super) type Failure = Refusal;
+type Failure = Refusal;
 
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

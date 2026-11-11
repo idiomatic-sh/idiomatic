@@ -58,9 +58,9 @@ pub(super) fn empty_input_kind_mismatch_is_rejected() -> Result<usize, Operating
 
 pub(super) type Input = fn() -> Result<usize, OperatingError>;
 
-pub(super) type Value = usize;
+type Value = usize;
 
-pub(super) type Failure = OperatingError;
+type Failure = OperatingError;
 
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {

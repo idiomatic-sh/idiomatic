@@ -98,7 +98,7 @@ pub(super) fn two_file_generation_owners_cannot_reuse_the_other_files_results()
 pub(super) type Scenario = fn() -> Result<Answer, Failure>;
 
 /// What a scenario answers: a yes as one.
-pub(super) type Answer = usize;
+type Answer = usize;
 
 /// This part has no failure of its own.
 pub(super) type Failure = ();

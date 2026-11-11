@@ -3,9 +3,9 @@ use super::super::super::service::semantics;
 use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::query_operators::types::OperationKind;
 
-pub(super) type Input = OperationKind;
+type Input = OperationKind;
 
-pub(super) type Value = u8;
+type Value = u8;
 
 pub(super) type Failure = ();
 
