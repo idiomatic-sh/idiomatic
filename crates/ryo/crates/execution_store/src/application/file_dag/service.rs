@@ -6,7 +6,7 @@ use super::relations::{
 };
 pub(crate) mod permit;
 use permit::service::ScopePermit;
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 /// The partial facts a scope evaluates and publishes under: a file's, or the project's.
 #[derive(Debug)]

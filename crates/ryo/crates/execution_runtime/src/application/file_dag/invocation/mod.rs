@@ -11,10 +11,8 @@ use index::IndexResource;
 use prepared_use::service::prepared;
 #[cfg(test)]
 mod observation;
-use ryo_derived::domain::closure_adjacency::types::ClosurePartition;
 use ryo_derived::domain::cycle_adjacency::types::CycleGraph;
 use ryo_derived::domain::dfs::types::PreparedDfs;
-use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_derived::domain::ordered::types::OrderedMatching;
 use ryo_execution_domain::domain::operator::contract::{
     resources::ResourceProgram, types::OperatorContract, views::NativeJoin,
@@ -26,10 +24,7 @@ use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::types::OperatorContext,
 };
 use ryo_relations::domain::relations::types::Value;
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, InputNumber, LiteralText},
-    plans::types::Operation,
-};
+use ryo_values::domain::plan_parts::types::{InputNumber, LiteralText};
 
 fn input<'f>(
     inputs: &[RepresentationInput<'f>],
@@ -141,8 +136,6 @@ fn partitioned<'f>(
     let closure = prepared(contract, DerivedKind::ClosureAdjacency)?;
     admitted.partitioned(order, closure, input, context)
 }
-
-use ryo_values::domain::rows::types::Table;
 
 /// The closure partitions an invocation acquired, in partition order: the views the store leased, held as one
 /// list so the engine can lend them to the domain's partition access (a foreign list cannot implement it).

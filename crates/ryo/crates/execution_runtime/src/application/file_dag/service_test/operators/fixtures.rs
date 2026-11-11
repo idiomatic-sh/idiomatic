@@ -34,7 +34,7 @@ use ryo_values::domain::{
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 /// One syntax row's file and span.
 #[derive(Clone, Copy, Debug)]

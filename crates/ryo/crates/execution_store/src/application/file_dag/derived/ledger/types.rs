@@ -1,6 +1,4 @@
 //! The values the ledger counts and the records it keeps.
-use rustc_hash::FxHashMap;
-use std::{cell::RefCell, rc::Rc};
 
 /// Physical bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

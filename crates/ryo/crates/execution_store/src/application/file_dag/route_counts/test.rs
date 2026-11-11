@@ -9,7 +9,6 @@ use super::types::{
 use super::{event, identity, observe, owner};
 use crate::application::file_dag::derived::constants::{OWNER_HIT, OWNER_REQUEST};
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
-use crate::application::file_dag::route_counts::ids::service::RouteLabel;
 use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
 use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
 use crate::application::file_dag::route_counts::profile::service::RouteProfile;
@@ -277,8 +276,6 @@ fn owner_routes_count_each_physical_equality_build_once() {
         assert_eq!(count.failures, RouteTally(0));
     }
 }
-
-use ryo_derived::domain::request::types::DerivedKind;
 
 /// The case each row runs: one of the proofs below.
 #[derive(Clone, Copy, Debug)]

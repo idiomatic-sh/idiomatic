@@ -6,7 +6,7 @@ use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_model::types::{PhysicalShape, RepresentationKind};
 use ryo_execution_domain::domain::table_model::{
-    service::{kind, materialize, registered},
+    service::{materialize, registered},
     types::{PublishedRelation, Rows},
 };
 use ryo_relations::domain::relations::types::{CellKind, Relation};
@@ -27,7 +27,6 @@ use admission::service::BorrowedInput;
 use generation::service::GenerationLease;
 use handle::service::PublishedInput;
 use number::service::AdmittedNumber;
-use packed::service::PackedPublication;
 use publication::types::{
     ProducerKey, ProducerPopulation, RelationBody, RelationResult, SourceDescriptor,
 };

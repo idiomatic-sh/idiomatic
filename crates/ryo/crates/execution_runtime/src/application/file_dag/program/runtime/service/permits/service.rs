@@ -9,7 +9,6 @@ use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
-use std::sync::Arc;
 
 impl<'scope> KernelPermit<'scope> {
     pub(crate) fn code(

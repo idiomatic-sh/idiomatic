@@ -4,7 +4,6 @@ use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::frontiers::types::ReadinessProof;
-use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_execution_domain::domain::coverage::types::Covered;

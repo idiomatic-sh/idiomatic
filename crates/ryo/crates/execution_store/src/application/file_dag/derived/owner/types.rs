@@ -1,9 +1,5 @@
 //! Counters, orders and answers of the derived owner, each named for what it counts.
 use crate::application::file_dag::derived::ledger::types::ByteCount;
-use crate::outbound::derived::interface::DerivedPort;
-use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
-use ryo_derived::domain::request::types::DerivedRequest;
-use std::sync::Arc;
 
 /// The order in which an entry was admitted; a smaller order was admitted first.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]

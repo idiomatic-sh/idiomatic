@@ -10,7 +10,6 @@ use ryo_execution_domain::domain::{
 use ryo_values::domain::plan_parts::types::InputNumber;
 use std::sync::Arc;
 
-use ryo_relations::domain::relations::types::{Position, Value};
 /// One invocation's mutable allocations and the admitted publications it reads, released when it ends.
 pub struct InvocationWorkspace {
     work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
@@ -407,5 +406,3 @@ mod service;
 #[cfg(test)]
 mod service_test;
 pub mod types;
-
-use ryo_values::domain::rows::types::{RowIndex, Table};

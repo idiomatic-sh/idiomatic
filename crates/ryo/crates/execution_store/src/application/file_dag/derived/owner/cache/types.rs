@@ -3,7 +3,6 @@
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
 use crate::application::file_dag::derived::owner::types::{BuildCount, RefusalCount, ReuseCount};
-use ryo_execution_domain::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices};
 use ryo_relations::domain::relations::types::Relation;
 
 /// Whether an eligible graph consumer may request bounded adjacency admission.

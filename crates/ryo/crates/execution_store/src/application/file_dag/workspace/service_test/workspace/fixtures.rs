@@ -9,6 +9,7 @@ use ryo_execution_domain::domain::{
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value};
 use ryo_values::domain::rows::types::RowCount;
+use ryo_values::domain::rows::types::Table;
 use std::{rc::Rc, sync::Arc};
 
 pub(super) fn table(values: &[i64], width: usize) -> Table {

@@ -1,7 +1,6 @@
 //! Central acquisition, mandatory working ownership and optional retained capacity.
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::owner::service::DerivedAccess;
 use crate::application::file_dag::derived::population::service::PopulationId;
 use acquisition::semantics::storage::DerivedStorage;
 use footprint::service::storage_bytes;

@@ -2,7 +2,6 @@
 use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::*;
 
-use crate::application::file_dag::derived::population::service::PopulationId;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
 use ryo_execution_domain::domain::self_join_recogniser::types::{
     NumberRequirement, SchemaWidth, StoredNumberOrigin,

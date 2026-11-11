@@ -8,7 +8,6 @@ use super::admission::RequiredPartitions;
 use super::facade_runtime::service::PublicationScope;
 use crate::application::file_dag::program::observed_publication::service::ObservedPublication;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
-use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     completion::types::CoverageState, coverage::types::RuleIndex,
@@ -16,7 +15,6 @@ use ryo_execution_domain::domain::{
     operator::types::OperatorContext,
 };
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
-use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::{
     plan_parts::types::InputNumber,
     stored_facts::types::{Bucket, KeptWords},

@@ -82,8 +82,6 @@ fn prepare_closure(
     }
     Ok(parts)
 }
-#[cfg(test)]
-use super::*;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::table_words::types::ColumnCount;
 fn number(value: Integer) -> Cell {
