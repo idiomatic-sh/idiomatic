@@ -157,12 +157,12 @@ pub(super) struct Refused {
 
 /// The delivered rows, or the refusal.
 fn delivered(actual: Observation) -> Result<Observed, Refused> {
-    match actual.result {
-        Ok(_) => Ok(Observed::Delivered {
+    match actual.result.err() {
+        None => Ok(Observed::Delivered {
             prefix: Cow::Owned(actual.prefix.concat()),
             index_cells: actual.work.index_cells,
         }),
-        Err(error) => Err(Refused {
+        Some(error) => Err(Refused {
             error,
             prefix: Cow::Owned(actual.prefix.concat()),
             index_rows: actual.work.index_rows,

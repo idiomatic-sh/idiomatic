@@ -44,80 +44,65 @@ const fn leaked(before: usize, after: usize) -> Answer {
     Answer::Leaked(Leaked { before, after })
 }
 
+/// Every family reads its own view.
+const EVERY_FAMILY_READ: &[(DerivedKind, Answer)] = &[
+    (DerivedKind::Equality, Answer::Read(DerivedKind::Equality)),
+    (DerivedKind::Adjacency, Answer::Read(DerivedKind::Adjacency)),
+    (
+        DerivedKind::Membership,
+        Answer::Read(DerivedKind::Membership),
+    ),
+    (
+        DerivedKind::PartitionOrder,
+        Answer::Read(DerivedKind::PartitionOrder),
+    ),
+    (
+        DerivedKind::ClosureAdjacency,
+        Answer::Read(DerivedKind::ClosureAdjacency),
+    ),
+    (
+        DerivedKind::CycleAdjacency,
+        Answer::Read(DerivedKind::CycleAdjacency),
+    ),
+    (
+        DerivedKind::OrderedKeys,
+        Answer::Read(DerivedKind::OrderedKeys),
+    ),
+    (
+        DerivedKind::OrderedDfs,
+        Answer::Read(DerivedKind::OrderedDfs),
+    ),
+    (
+        DerivedKind::NativeLookup,
+        Answer::Read(DerivedKind::NativeLookup),
+    ),
+];
+
+/// Every pinned family stays charged; `ClosureAdjacency`, driven through its cursor, never reaches the pinned exit.
+const EVERY_PINNED_FAMILY_LEAKS: &[(DerivedKind, Answer)] = &[
+    (DerivedKind::Equality, leaked(968, 1376)),
+    (DerivedKind::Adjacency, leaked(968, 1992)),
+    (DerivedKind::Membership, leaked(968, 1220)),
+    (DerivedKind::PartitionOrder, leaked(968, 1104)),
+    (DerivedKind::ClosureAdjacency, Answer::Released),
+    (DerivedKind::CycleAdjacency, leaked(968, 1304)),
+    (DerivedKind::OrderedKeys, leaked(968, 1696)),
+    (DerivedKind::OrderedDfs, leaked(968, 2456)),
+    (DerivedKind::NativeLookup, leaked(897, 1017)),
+];
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every_family_releases_its_last_consumer_on_success_cancellation_and_error"),
         word: Word::Succeeds,
         input: || Route::Stored(Scenario::Succeeds),
-        expect: Expect::Value(Cow::Borrowed(&[
-            (DerivedKind::Equality, Answer::Read(DerivedKind::Equality)),
-            (DerivedKind::Adjacency, Answer::Read(DerivedKind::Adjacency)),
-            (
-                DerivedKind::Membership,
-                Answer::Read(DerivedKind::Membership),
-            ),
-            (
-                DerivedKind::PartitionOrder,
-                Answer::Read(DerivedKind::PartitionOrder),
-            ),
-            (
-                DerivedKind::ClosureAdjacency,
-                Answer::Read(DerivedKind::ClosureAdjacency),
-            ),
-            (
-                DerivedKind::CycleAdjacency,
-                Answer::Read(DerivedKind::CycleAdjacency),
-            ),
-            (
-                DerivedKind::OrderedKeys,
-                Answer::Read(DerivedKind::OrderedKeys),
-            ),
-            (
-                DerivedKind::OrderedDfs,
-                Answer::Read(DerivedKind::OrderedDfs),
-            ),
-            (
-                DerivedKind::NativeLookup,
-                Answer::Read(DerivedKind::NativeLookup),
-            ),
-        ])),
+        expect: Expect::Value(Cow::Borrowed(EVERY_FAMILY_READ)),
     },
     Case {
         name: CaseName("every_family_releases_its_last_consumer_on_cancellation"),
         word: Word::Succeeds,
         input: || Route::Stored(Scenario::Cancelled),
-        expect: Expect::Value(Cow::Borrowed(&[
-            (DerivedKind::Equality, Answer::Read(DerivedKind::Equality)),
-            (DerivedKind::Adjacency, Answer::Read(DerivedKind::Adjacency)),
-            (
-                DerivedKind::Membership,
-                Answer::Read(DerivedKind::Membership),
-            ),
-            (
-                DerivedKind::PartitionOrder,
-                Answer::Read(DerivedKind::PartitionOrder),
-            ),
-            (
-                DerivedKind::ClosureAdjacency,
-                Answer::Read(DerivedKind::ClosureAdjacency),
-            ),
-            (
-                DerivedKind::CycleAdjacency,
-                Answer::Read(DerivedKind::CycleAdjacency),
-            ),
-            (
-                DerivedKind::OrderedKeys,
-                Answer::Read(DerivedKind::OrderedKeys),
-            ),
-            (
-                DerivedKind::OrderedDfs,
-                Answer::Read(DerivedKind::OrderedDfs),
-            ),
-            (
-                DerivedKind::NativeLookup,
-                Answer::Read(DerivedKind::NativeLookup),
-            ),
-        ])),
+        expect: Expect::Value(Cow::Borrowed(EVERY_FAMILY_READ)),
     },
     Case {
         name: CaseName("every_family_refuses_a_retargeted_descriptor"),
@@ -209,38 +194,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_stored_lease_survives_retirement_while_a_new_demand_refuses"),
         word: Word::Succeeds,
         input: || Route::Stored(Scenario::Held),
-        expect: Expect::Value(Cow::Borrowed(&[
-            (DerivedKind::Equality, Answer::Read(DerivedKind::Equality)),
-            (DerivedKind::Adjacency, Answer::Read(DerivedKind::Adjacency)),
-            (
-                DerivedKind::Membership,
-                Answer::Read(DerivedKind::Membership),
-            ),
-            (
-                DerivedKind::PartitionOrder,
-                Answer::Read(DerivedKind::PartitionOrder),
-            ),
-            (
-                DerivedKind::ClosureAdjacency,
-                Answer::Read(DerivedKind::ClosureAdjacency),
-            ),
-            (
-                DerivedKind::CycleAdjacency,
-                Answer::Read(DerivedKind::CycleAdjacency),
-            ),
-            (
-                DerivedKind::OrderedKeys,
-                Answer::Read(DerivedKind::OrderedKeys),
-            ),
-            (
-                DerivedKind::OrderedDfs,
-                Answer::Read(DerivedKind::OrderedDfs),
-            ),
-            (
-                DerivedKind::NativeLookup,
-                Answer::Read(DerivedKind::NativeLookup),
-            ),
-        ])),
+        expect: Expect::Value(Cow::Borrowed(EVERY_FAMILY_READ)),
     },
     Case {
         name: CaseName(
@@ -248,75 +202,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Route::Production(Exit::Succeeds),
-        expect: Expect::Value(Cow::Borrowed(&[
-            (DerivedKind::Equality, Answer::Read(DerivedKind::Equality)),
-            (DerivedKind::Adjacency, Answer::Read(DerivedKind::Adjacency)),
-            (
-                DerivedKind::Membership,
-                Answer::Read(DerivedKind::Membership),
-            ),
-            (
-                DerivedKind::PartitionOrder,
-                Answer::Read(DerivedKind::PartitionOrder),
-            ),
-            (
-                DerivedKind::ClosureAdjacency,
-                Answer::Read(DerivedKind::ClosureAdjacency),
-            ),
-            (
-                DerivedKind::CycleAdjacency,
-                Answer::Read(DerivedKind::CycleAdjacency),
-            ),
-            (
-                DerivedKind::OrderedKeys,
-                Answer::Read(DerivedKind::OrderedKeys),
-            ),
-            (
-                DerivedKind::OrderedDfs,
-                Answer::Read(DerivedKind::OrderedDfs),
-            ),
-            (
-                DerivedKind::NativeLookup,
-                Answer::Read(DerivedKind::NativeLookup),
-            ),
-        ])),
+        expect: Expect::Value(Cow::Borrowed(EVERY_FAMILY_READ)),
     },
     Case {
         name: CaseName("every_family_leaves_through_its_production_entry_on_cancellation"),
         word: Word::Succeeds,
         input: || Route::Production(Exit::Cancelled),
-        expect: Expect::Value(Cow::Borrowed(&[
-            (DerivedKind::Equality, Answer::Read(DerivedKind::Equality)),
-            (DerivedKind::Adjacency, Answer::Read(DerivedKind::Adjacency)),
-            (
-                DerivedKind::Membership,
-                Answer::Read(DerivedKind::Membership),
-            ),
-            (
-                DerivedKind::PartitionOrder,
-                Answer::Read(DerivedKind::PartitionOrder),
-            ),
-            (
-                DerivedKind::ClosureAdjacency,
-                Answer::Read(DerivedKind::ClosureAdjacency),
-            ),
-            (
-                DerivedKind::CycleAdjacency,
-                Answer::Read(DerivedKind::CycleAdjacency),
-            ),
-            (
-                DerivedKind::OrderedKeys,
-                Answer::Read(DerivedKind::OrderedKeys),
-            ),
-            (
-                DerivedKind::OrderedDfs,
-                Answer::Read(DerivedKind::OrderedDfs),
-            ),
-            (
-                DerivedKind::NativeLookup,
-                Answer::Read(DerivedKind::NativeLookup),
-            ),
-        ])),
+        expect: Expect::Value(Cow::Borrowed(EVERY_FAMILY_READ)),
     },
     Case {
         name: CaseName("every_family_leaves_through_its_production_entry_on_error"),
@@ -365,33 +257,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("an_exit_that_forgets_to_release_its_lease_fails_the_control"),
         word: Word::Succeeds,
         input: || Route::Forgetful(Scenario::Succeeds),
-        expect: Expect::Value(Cow::Borrowed(&[
-            (DerivedKind::Equality, leaked(968, 1376)),
-            (DerivedKind::Adjacency, leaked(968, 1992)),
-            (DerivedKind::Membership, leaked(968, 1220)),
-            (DerivedKind::PartitionOrder, leaked(968, 1104)),
-            (DerivedKind::ClosureAdjacency, Answer::Released),
-            (DerivedKind::CycleAdjacency, leaked(968, 1304)),
-            (DerivedKind::OrderedKeys, leaked(968, 1696)),
-            (DerivedKind::OrderedDfs, leaked(968, 2456)),
-            (DerivedKind::NativeLookup, leaked(897, 1017)),
-        ])),
+        expect: Expect::Value(Cow::Borrowed(EVERY_PINNED_FAMILY_LEAKS)),
     },
     Case {
         name: CaseName("a_cancelled_exit_that_forgets_to_release_its_lease_fails_the_control"),
         word: Word::Succeeds,
         input: || Route::Forgetful(Scenario::Cancelled),
-        expect: Expect::Value(Cow::Borrowed(&[
-            (DerivedKind::Equality, leaked(968, 1376)),
-            (DerivedKind::Adjacency, leaked(968, 1992)),
-            (DerivedKind::Membership, leaked(968, 1220)),
-            (DerivedKind::PartitionOrder, leaked(968, 1104)),
-            (DerivedKind::ClosureAdjacency, Answer::Released),
-            (DerivedKind::CycleAdjacency, leaked(968, 1304)),
-            (DerivedKind::OrderedKeys, leaked(968, 1696)),
-            (DerivedKind::OrderedDfs, leaked(968, 2456)),
-            (DerivedKind::NativeLookup, leaked(897, 1017)),
-        ])),
+        expect: Expect::Value(Cow::Borrowed(EVERY_PINNED_FAMILY_LEAKS)),
     },
 ];
 
