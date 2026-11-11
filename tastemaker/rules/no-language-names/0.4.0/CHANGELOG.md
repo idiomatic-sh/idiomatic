@@ -1,0 +1,5 @@
+# no-language-names 0.4.0
+
+A language name is matched as a whole word only. 0.3.0 also read a string for the files it named, by globs that matched anywhere in the text (`*.py[!a-zA-Z0-9_]*`, `*Cargo.toml*`, `*crate::*`, `*go.mod*`), and reported every bare extension in a core: a message that points at the repository's own `tools/install.py`, or the version-control directory `.git`, was a finding with no language in it, and the only way past was an ignore. Those globs are gone, and a core's bare extension is reported only when its word is a language's name (`.toml` beside `languages/toml/`), one the entry gives, or the extension of a source file a language reads (`.rs`, `.py`, `.ts`, `.tsx`, `.js`, `.go`).
+
+Scenarios: `string-holds-a-language-name-as-a-word` (`"python_rules"`, reported), `core-names-a-language-extension` (reported), `file-names-hold-no-language-name` (`".git"`, `"install.py"`, not reported); `core-names-an-extension` and `go-written-and-given-as-default` lose the rows the file globs found, and the five `string-names-*` scenarios go with those globs. Everything else is as in 0.3.0.
