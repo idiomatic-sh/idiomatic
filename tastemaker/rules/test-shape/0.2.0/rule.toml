@@ -1,4 +1,4 @@
-description = "Every `#[test]` function of a `*_test.rs` is a runner named for a case word, `succeeds`, `refuses`, `fails` or `rejects`, and each runner calls `run` with its own case word; any other test, and a runner that runs nothing, is a finding. With `reads = \"case-tables\"` the entry holds only a file that declares a `CASES` table to this shape: a group test with plain `#[test]` scenarios is held by `scenario-test`."
+description = "Every `#[test]` function of a `*_test.rs` is a runner named for a case word, `succeeds`, `refuses`, `fails` or `rejects`, and each runner calls `run` with its own case word; any other test, and a runner that runs nothing, is a finding. With `reads = \"case-tables\"` the entry holds only a file that declares a `CASES` table to this shape, and to the table's skeleton (`type Input`, `type Value`, `type Failure`, `const CASES: &[Case<Input, Value, Failure>]`, `fn subject`): a group test with plain `#[test]` scenarios is held by `scenario-test`."
 why = "Every test says its cases in one table and runs them by case word, so a test file holds a `CASES` table and a runner for each case word it has rows of (`test-runners-match-rows`), and a fifth test is a case that skipped the table. Read as written: a function with an attribute whose path ends in `test` (`#[test]`, `#[tokio::test]`) in the files the entry selects. The body of a runner is read too: it calls `run` with its own case word (`Word::Succeeds` in `succeeds`) among its arguments, so a runner emptied to `{}` or run with another runner's word is a finding. A contract's `pub fn check` is not a test and is not seen; a test written by a macro is not seen."
 
 query = '''
@@ -111,8 +111,44 @@ let table-files = project(from=table-files-rows, columns=["file"]);
 let every = select * from shaped where $reads = "every-test";
 let tabled = select l."file" as "file", l."span" as "span" from shaped as l join table-files as r on l."file" = r."file";
 let tables = select * from tabled where $reads = "case-tables";
-let bad = union(left=every, right=tables);
-emit bad subject "file" key("span");
+let runner-rows = union(left=every, right=tables);
+let runner-found = extend(from=runner-rows, values={"problem": "this test is not a runner named for a case word, or its body does not run the `CASES` table through `run` with its own case word"});
+let skeleton-items = select * from tree-nodes where glob_any(kind, "{type-alias,fn,const}");
+let skeleton-kids = select l."id" as "item", l."kind" as "kind", l."file" as "file", r."child" as "child" from skeleton-items as l join "syntax-child" as r on l."id" = r."parent";
+let skeleton-name-nodes = select l."item" as "item", l."kind" as "kind", l."file" as "file", r."id" as "name" from skeleton-kids as l join names as r on l."child" = r."id";
+let skeleton-name-kids = select l."item" as "item", l."kind" as "kind", l."file" as "file", r."child" as "token" from skeleton-name-nodes as l join "syntax-child" as r on l."name" = r."parent";
+let skeleton-declared = select l."item" as "item", l."kind" as "kind", l."file" as "file", r."text" as "text" from skeleton-name-kids as l join tree-tokens as r on l."token" = r."id";
+let case-const-names = select * from skeleton-declared where kind = "const" and text = "CASES";
+let case-consts = select l."item" as "item", l."file" as "file", r."span" as "span" from case-const-names as l join tree-nodes as r on l."item" = r."id";
+let read-case-consts = select * from case-consts where $reads = "case-tables";
+let want-input = extend(from=read-case-consts, values={"kind": "type-alias", "text": "Input", "problem": "a case table's file declares `type Input`, the input of its rows"});
+let want-value = extend(from=read-case-consts, values={"kind": "type-alias", "text": "Value", "problem": "a case table's file declares `type Value`, what its rows expect on success"});
+let want-failure = extend(from=read-case-consts, values={"kind": "type-alias", "text": "Failure", "problem": "a case table's file declares `type Failure`, what its rows expect on refusal"});
+let want-subject = extend(from=read-case-consts, values={"kind": "fn", "text": "subject", "problem": "a case table's file declares `fn subject`, which its runners call on each row's input"});
+let wanted-a = union(left=want-input, right=want-value);
+let wanted-b = union(left=want-failure, right=want-subject);
+let wanted = union(left=wanted-a, right=wanted-b);
+let missing = antijoin(left=wanted, right=skeleton-declared, left-on=["file", "kind", "text"], right-on=["file", "kind", "text"]);
+let missing-found = project(from=missing, columns=["file", "span", "problem"]);
+let ref-types = select * from tree-nodes where kind = "ref-type";
+let case-type-edges = select l."item" as "item", l."file" as "file", l."span" as "span", r."child" as "child" from read-case-consts as l join "syntax-child" as r on l."item" = r."parent";
+let case-types = select l."item" as "item", l."file" as "file", l."span" as "span", r."id" as "id" from case-type-edges as l join ref-types as r on l."child" = r."id";
+let case-type-refs = axis(from=case-types, relation="syntax-child", direction=descendant, domain=name-refs);
+let case-type-ref-kids = select l."item" as "item", r."child" as "token" from case-type-refs as l join "syntax-child" as r on l."related" = r."parent";
+let case-type-words = select l."item" as "item", r."text" as "text" from case-type-ref-kids as l join tree-tokens as r on l."token" = r."id";
+let typed-case = select * from case-type-words where text = "Case";
+let typed-input = select * from case-type-words where text = "Input";
+let typed-value = select * from case-type-words where text = "Value";
+let typed-failure = select * from case-type-words where text = "Failure";
+let typed-1 = select l."item" as "item" from typed-case as l join typed-input as r on l."item" = r."item";
+let typed-2 = select l."item" as "item" from typed-1 as l join typed-value as r on l."item" = r."item";
+let typed = select l."item" as "item" from typed-2 as l join typed-failure as r on l."item" = r."item";
+let untyped = antijoin(left=read-case-consts, right=typed, left-on=["item"], right-on=["item"]);
+let untyped-rows = project(from=untyped, columns=["file", "span"]);
+let untyped-found = extend(from=untyped-rows, values={"problem": "a case table is typed `&[Case<Input, Value, Failure>]`, over the file's three aliases"});
+let skeleton-found = union(left=missing-found, right=untyped-found);
+let bad = union(left=runner-found, right=skeleton-found);
+emit bad subject "file" key("span", "problem");
 '''
 
 [params.reads]
@@ -121,8 +157,8 @@ description = "Which test files the rule reads: `every-test`, every file the ent
 
 [diagnostic]
 primary = "span"
-message = "this test is not a runner named for a case word, or its body does not run the `CASES` table through `run` with its own case word"
-help = "Make it a row of the file's `CASES` table (a name, one case word, an input, the expected value or error variant) and let the runner of its case word run it; the runners are named `succeeds`, `refuses`, `fails` and `rejects`, one for each case word the table has rows of."
+message = "{problem}"
+help = "Make it a row of the file's `CASES` table (a name, one case word, an input, the expected value or error variant) and let the runner of its case word run it; the runners are named `succeeds`, `refuses`, `fails` and `rejects`, one for each case word the table has rows of. With `reads = \"case-tables\"` a file that declares `CASES` also holds the table's skeleton, as the `unit-test` template writes it: `type Input`, `type Value`, `type Failure`, `const CASES: &[Case<Input, Value, Failure>]` and `fn subject`."
 
 [given]
 include = ['**/*_test.rs']
@@ -492,12 +528,71 @@ given.include = ['**/test.rs']
 given.files.'src/owner/service_test/order/test.rs' = '''
 use crate::cases::{Case, Word, run};
 
-const CASES: &[Case<u8, u8, ()>] = &[];
+type Input = u8;
+type Value = u8;
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(input)
+}
 
 #[test]
 fn succeeds() {}
 '''
-then.findings = [{ path = 'src/owner/service_test/order/test.rs', line = 5 }]
+then.findings = [{ path = 'src/owner/service_test/order/test.rs', line = 13 }]
+
+[[scenarios]]
+id = 'case-tables-holds-the-skeleton'
+scenario = 'With `reads = "case-tables"`, a file that declares `CASES` holds the table skeleton: a `subject` under another name is reported at the table.'
+given.params = { reads = "case-tables" }
+given.include = ['**/*_test.rs']
+given.files.'src/owner/service_test.rs' = '''
+use crate::cases::{Case, Word, run};
+
+type Input = u8;
+type Value = u8;
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+fn call(input: Input) -> Result<Value, Failure> {
+    Ok(input)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, call);
+}
+'''
+then.findings = [{ path = 'src/owner/service_test.rs', line = 7 }]
+
+[[scenarios]]
+id = 'case-tables-holds-the-typed-table'
+scenario = 'With `reads = "case-tables"`, a table typed without the three aliases is reported once for each missing alias and once for its type.'
+given.params = { reads = "case-tables" }
+given.include = ['**/*_test.rs']
+given.files.'src/owner/adapters/memory/adapter_test.rs' = '''
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<u8, u8, ()>] = &[];
+
+fn subject(input: u8) -> Result<u8, ()> {
+    Ok(input)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { path = 'src/owner/adapters/memory/adapter_test.rs', line = 3 },
+  { path = 'src/owner/adapters/memory/adapter_test.rs', line = 3 },
+  { path = 'src/owner/adapters/memory/adapter_test.rs', line = 3 },
+  { path = 'src/owner/adapters/memory/adapter_test.rs', line = 3 },
+]
 
 [[scenarios]]
 id = 'case-tables-only-leaves-a-scenario'

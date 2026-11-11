@@ -56,12 +56,12 @@ rules = [
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
   { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
-  { rule = "idiomatic.arch/test-shape@0.2.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }], params = { reads = "every-test" }, description = "Every test of a part is a runner named for a case word over a `CASES` table." },
+  { rule = "idiomatic.arch/test-shape@0.2.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }], exclude = ["service_test.rs"], params = { reads = "every-test" }, description = "Every test of a part is a runner named for a case word over a `CASES` table." },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
   { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
   { rule = "idiomatic.arch/scenario-test@0.1.0", include = [{ placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A group's scenario test holds `use` lines and at least one `#[test]` function: its helpers come from the group's fixtures, and it exports nothing." },
   { alias = "group-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "group-module" }, { placed-by = "part-group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
-  { alias = "group-test-shape", rule = "idiomatic.arch/test-shape@0.2.0", include = [{ placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], params = { reads = "case-tables" }, description = "A group test that declares a `CASES` table is held to the runner shape, as a test beside its source is." },
+  { alias = "group-test-shape", rule = "idiomatic.arch/test-shape@0.2.0", include = ["service_test.rs", { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], params = { reads = "case-tables" }, description = "The proof `service_test.rs` and a group test, when it declares a `CASES` table, are held to the runner shape and to the table skeleton (`type Input`, `type Value`, `type Failure`, `const CASES: &[Case<Input, Value, Failure>]`, `fn subject`); a `service_test.rs` with no table is the namespace of its groups." },
   { alias = "service-test-form", rule = "idiomatic.arch/test-group-namespace@0.1.0", include = ["service_test.rs"], params = { case-table = "exempt" }, description = "The service's proof is a case table, or the namespace of its groups (only `mod x;` declarations): a file that declares `CASES` is left to the case-table rules, any other is held here." },
 ]
 
@@ -2060,10 +2060,43 @@ fn greets() {
 '''
 then.only = ['idiomatic.arch/test-group-namespace', 'idiomatic.arch/test-shape']
 then.findings = [
-  { rule = 'idiomatic.arch/test-shape', path = 'src/domain/greeting/service_test.rs', line = 1 },
   { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/service_test.rs', line = 1 },
   { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/service_test.rs', line = 1 },
 ]
+
+
+[[scenarios]]
+id = 'service-test-case-table-without-subject'
+scenario = "A service_test.rs that declares CASES holds the table skeleton: one whose `subject` goes by another name is refused at the table."
+given.files.'src/domain/greeting/service.rs' = '''
+//! Greets.
+pub fn greet() -> u8 {
+    1
+}
+'''
+given.files.'src/domain/greeting/service_test.rs' = '''
+//! The greeting service's cases, on values alone.
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = u8;
+type Value = u8;
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: 1, expect: Expect::Value(1) },
+];
+
+fn call(input: Input) -> Result<Value, Failure> {
+    Ok(input)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, call);
+}
+'''
+then.only = ['idiomatic.arch/test-group-namespace', 'idiomatic.arch/test-shape']
+then.findings = [{ rule = 'idiomatic.arch/test-shape', path = 'src/domain/greeting/service_test.rs', line = 8 }]
 
 
 [[scenarios]]
