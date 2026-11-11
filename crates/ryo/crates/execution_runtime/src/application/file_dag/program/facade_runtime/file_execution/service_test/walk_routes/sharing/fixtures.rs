@@ -151,7 +151,7 @@ pub(super) fn accounted(program: &Program) -> (WalkCensus, Accounted) {
 
 /// One file generation's walk: the rules that completed, the passes and the source rows.
 #[derive(Debug, PartialEq)]
-pub(super) struct FileWalk {
+pub(super) struct GenerationRun {
     pub(super) completed: usize,
     pub(super) passes: u64,
     pub(super) source_rows: u64,
@@ -167,7 +167,7 @@ pub(super) struct Shared {
     pub(super) scopes: [StepScope; 2],
     pub(super) sources: [Relation; 2],
     /// Per file generation, in a per-file partition; none in the project's.
-    pub(super) files: Option<[FileWalk; 2]>,
+    pub(super) files: Option<[GenerationRun; 2]>,
 }
 
 /// Rules 0 and 1 author the same admitted `head` in `scope`, rule 2 another predicate over
@@ -196,14 +196,14 @@ pub(super) fn shares(scope: StepScope, head: Operation) -> Result<Shared, Operat
                     ));
                 }
                 let work = file.walk_counts();
-                files.push(FileWalk {
+                files.push(GenerationRun {
                     completed,
                     passes: work.passes.0,
                     source_rows: work.source_rows.0,
                 });
                 file.finish()?;
             }
-            let [first, second]: [FileWalk; 2] =
+            let [first, second]: [GenerationRun; 2] =
                 files.try_into().map_err(|_| OperatingError::NotRun)?;
             Some([first, second])
         }

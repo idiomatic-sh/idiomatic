@@ -3,14 +3,14 @@
 //! for. The fixtures match the engine's own enums exhaustively, so a new class shape or barrier
 //! fails to compile until it is decided there, and then has its row here.
 use super::fixtures::{
-    Accounted, FileWalk, Shared, accounted, admitted_head, barrier_fixture, counted, program,
+    Accounted, GenerationRun, Shared, accounted, admitted_head, barrier_fixture, counted, program,
     shares,
 };
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::shared_walk::types::walk_route::value::WalkBarrier;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
-use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::query_operators::types::OperationKind;
 
 /// What the sharing contract is asked: an admitted class head of a kind in a partition, or the
@@ -26,7 +26,10 @@ enum Sharing {
 enum Observed {
     Shared(Shared),
     /// The accounting, and the instructions the census counts behind the barrier.
-    Barrier { accounted: Accounted, behind: usize },
+    Barrier {
+        accounted: Accounted,
+        behind: usize,
+    },
 }
 
 const ACCOUNTED: Accounted = Accounted {
@@ -47,12 +50,12 @@ const fn shared(scope: StepScope) -> Shared {
         sources: [Relation::LanguageTarget, Relation::LanguageTarget],
         files: match scope {
             StepScope::PerFile => Some([
-                FileWalk {
+                GenerationRun {
                     completed: 3,
                     passes: 1,
                     source_rows: 3,
                 },
-                FileWalk {
+                GenerationRun {
                     completed: 3,
                     passes: 1,
                     source_rows: 3,
