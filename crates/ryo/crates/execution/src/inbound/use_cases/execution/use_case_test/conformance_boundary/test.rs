@@ -2,10 +2,10 @@
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use super::super::conformance::test::{compare_delivery, repeated, same_rows};
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::n;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::matrix;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::{SOURCE, assert_expected};
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::n;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::matrix;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::{SOURCE, assert_expected};
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,
     plans::types::Operation,

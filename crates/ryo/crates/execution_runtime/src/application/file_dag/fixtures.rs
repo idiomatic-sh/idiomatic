@@ -17,3 +17,5 @@ pub fn pattern_matcher() -> ryo_execution_domain::domain::matching::types::Patte
         &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
     )
 }
+#[cfg(any(test, feature = "fixtures"))]
+pub mod operator_contract;

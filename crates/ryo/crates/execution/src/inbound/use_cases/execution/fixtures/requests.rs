@@ -34,7 +34,7 @@ use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::stored_facts::types::Digest;
 use std::cell::Cell;
 use std::sync::Arc;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::table_inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs::table_inputs;
 
 pub(crate) fn published(
     plan: Plan,

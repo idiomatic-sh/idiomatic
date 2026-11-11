@@ -3,9 +3,9 @@
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use super::super::super::conformance::test::{author, compare_delivery, repeated};
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::numbers;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::numbers;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::{
     plan_parts::types::ColumnIndex,

@@ -2,6 +2,7 @@
 use super::errors::RuleCompilationError;
 use super::service::CompiledPlans;
 use super::service::RuleCompilation;
+use fixtures::{population, rule};
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::fixtures::fake::{QueryLanguageFake, REFUSED};
 use crate::outbound::query_language::interface::QueryLanguagePort;
@@ -20,7 +21,7 @@ use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
-use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+use ryo_values::domain::runs::types::RuleId;
 use std::sync::{Arc, PoisonError, atomic::Ordering};
 
 /// One operation over a real compilation service and substituted compiler port.
@@ -71,30 +72,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(RuleCompilationError::Rules(RuleRequestsError::BlankRuleId)),
     },
 ];
-
-/// A legitimate parameter-free rule with exact query identity.
-pub(super) fn rule(id: &str, text: &str) -> RuleSpec {
-    RuleSpec {
-        id: RuleId(id.into()),
-        query: QueryBundle::from(QueryText(text.into())),
-        applicability: RuleApplicability::Always,
-        given: Vec::new(),
-        observations: Vec::new(),
-        spelled: RuleParameters("".into()),
-        include: Vec::new(),
-        exclude: Vec::new(),
-    }
-}
-
-/// The shared cache's actual population after an operation.
-pub(super) fn population(plans: &CompiledPlans) -> usize {
-    plans
-        .0
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .plans
-        .len()
-}
 
 /// A successful compile can survive a refused binding, but every later request binds its own value.
 fn request_bindings() -> Result<Value, Failure> {
@@ -339,4 +316,7 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
-use ryo_values::domain::rule_requests::types::{Given, RuleParameters, RuleSpec};
+use ryo_values::domain::rule_requests::types::Given;
+mod eviction;
+#[cfg(test)]
+mod fixtures;

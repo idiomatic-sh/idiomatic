@@ -5,7 +5,7 @@ use crate::inbound::use_cases::execution::interface::ExecutionUseCase;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::Partials;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::project_phase::interface::{
     ProjectRootExecution as _, ProjectStage as _,
 };

@@ -119,3 +119,4 @@ fn succeeds() {
 }
 
 use ryo_values::domain::rows::types::Table;
+mod ordered;

@@ -57,3 +57,4 @@ fn subject((set, kind): Input) -> Result<Value, Failure> {
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+mod kind_set;

@@ -1,6 +1,6 @@
 //! The `kind_sets` service's cases: the elements of a named kind are found among that kind, and a file nothing read teaches nothing.
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::completion::service::{completion, name_kind};

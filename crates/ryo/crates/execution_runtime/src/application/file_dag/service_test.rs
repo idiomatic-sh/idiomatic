@@ -318,4 +318,8 @@ fn succeeds() {
 }
 
 #[cfg(test)]
-mod generations_test;
+mod generations;
+pub(crate) mod operators;
+mod layout;
+mod request_graph;
+mod self_join_recogniser;

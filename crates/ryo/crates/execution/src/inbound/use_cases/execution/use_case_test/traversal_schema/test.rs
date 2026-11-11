@@ -6,7 +6,7 @@ use ryo_execution_domain::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::{service::kinds_of, types::Rows},
 };
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::{
     elements::types::Elements,

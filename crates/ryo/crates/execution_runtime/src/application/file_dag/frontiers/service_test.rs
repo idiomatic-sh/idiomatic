@@ -195,3 +195,4 @@ fn a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing()
         Some(Input::Relation(Relation::Identifier))
     );
 }
+mod cut_refusal;

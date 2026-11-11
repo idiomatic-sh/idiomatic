@@ -6,7 +6,7 @@ use super::super::admission_order::test::{
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::operator::contract::service::semantics;
 use ryo_execution_domain::domain::operator::contract::types::PreflightOrder;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;

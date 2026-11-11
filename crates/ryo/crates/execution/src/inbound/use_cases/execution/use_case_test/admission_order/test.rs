@@ -1,7 +1,7 @@
 //! Exact conflicting failures through the mandatory public execution owner.
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;

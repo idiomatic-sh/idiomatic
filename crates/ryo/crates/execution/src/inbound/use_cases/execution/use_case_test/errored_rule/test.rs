@@ -10,7 +10,7 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use super::super::super::{fixtures, interface::*};
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use crate::outbound::query_language::{
     errors::QueryLanguageError, fixtures::fake::QueryLanguageFake, interface::QueryLanguagePort,
 };
@@ -49,7 +49,7 @@ use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::stored_facts::types::Digest;
 use std::collections::BTreeMap;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::text;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs::text;
 
 /// Which authoring error the second rule carries.
 #[derive(Clone, Copy)]

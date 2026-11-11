@@ -242,4 +242,4 @@ fn frontiers_and_scopes_of_an_undeclared_rule_are_refused() {
 }
 
 #[cfg(test)]
-mod frontiers_test;
+mod frontiers;

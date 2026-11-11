@@ -1,8 +1,8 @@
 //! Proves every operation schema against its actual empty and populated evaluator.
 
 use super::super::super::fixtures;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::KnownSyntax;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_domain::domain::operation_schema::fixtures::{bindings, operations, tables};
 use ryo_execution_domain::domain::operation_schema::service::schema_of;
