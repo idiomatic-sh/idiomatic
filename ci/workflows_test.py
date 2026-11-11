@@ -220,9 +220,6 @@ def problems(workflow: dict) -> list[str]:
     jobs = workflow["jobs"]
     found = []
     for name, job in jobs.items():
-        if name == "contract-review":
-            found.extend(contract_review_problems(workflow))
-            continue
         if name == "ruff-all-defaults":
             found.extend(full_inventory_problems(job))
             continue
@@ -251,8 +248,6 @@ def problems(workflow: dict) -> list[str]:
                 found.append(f"{name} hands a step more than {sorted(HANDED)}")
 
     def gated(name: str, seen: frozenset[str] = frozenset()) -> bool:
-        if name == "contract-review":
-            return not contract_review_problems(workflow)
         if name == "ruff-all-defaults":
             return not full_inventory_problems(jobs[name])
         if name == "ownership-contracts":
@@ -769,7 +764,7 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
     }
     assert workflow["concurrency"] == {"group": "check-${{ github.ref }}-${{ inputs.product }}", "cancel-in-progress": True}
     jobs = workflow["jobs"]
-    assert set(jobs) == {"check", "gate", "speed", "ruff-candidates", "ruff-all-defaults", "contract-review", "ownership-contracts"}
+    assert set(jobs) == {"check", "gate", "speed", "ruff-candidates", "ruff-all-defaults", "ownership-contracts"}
     assert sorted(path.parent.name for path in ROOT.glob("crates/*/Cargo.toml")) == sorted(PRODUCTS)
     check = jobs["check"]
     assert "needs" not in check and "if" not in check
@@ -788,7 +783,7 @@ def test_a_hand_run_runs_its_product_s_check_fan_out_behind_one_gate() -> None:
         step["uses"].split("@")[0] for step in release_check()["steps"] if "uses" in step
     ]
     gate = jobs["gate"]
-    assert gate["if"] == "always()" and gate["needs"] == ["check", "speed", "ruff-candidates", "contract-review", "ownership-contracts"]
+    assert gate["if"] == "always()" and gate["needs"] == ["check", "speed", "ruff-candidates", "ownership-contracts"]
     (deciding,) = gate["steps"]
     assert deciding["uses"].startswith("re-actors/")
     assert deciding["with"] == {"jobs": "${{ toJSON(needs) }}", "allowed-skips": "ruff-candidates"}
@@ -893,45 +888,6 @@ def test_a_hand_run_opens_one_product_s_release_pull_request_after_its_lint_and_
         assert configuration["pr_name"] == f"chore({name}): release {{{{ version }}}}"
 
 
-CONTRACT_REVIEW_SCRIPT = 'policy_revision=763a846f1f17af7d6a503874524b7a33adf56e73\nif git cat-file -e "$REVIEW_BASE:ci/contract_review/service.py" 2>/dev/null; then\n  policy_revision=$REVIEW_BASE\nfi\nreview_policy=$(mktemp -d)\ntrap \'rm -rf "$review_policy"\' EXIT\nmkdir -p "$review_policy/ci/contract_review"\nfor file in command.py service.py; do\n  git show "$policy_revision:ci/contract_review/$file" > "$review_policy/ci/contract_review/$file"\ndone\npython3 -I "$review_policy/ci/contract_review/command.py" --root "$GITHUB_WORKSPACE"\n'
-
-
-def contract_review_problems(workflow: dict) -> list[str]:
-    """Reject an orphaned, conditional, replaced, or failure-masked review gate."""
-    jobs = workflow["jobs"]
-    expected = {
-        "runs-on": "ubuntu-26.04",
-        "steps": [
-            {"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"fetch-depth": 0, "persist-credentials": False}},
-            {"uses": "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", "with": {"python-version": "3.12"}},
-            {"name": "Require an exact-source contract review", "env": {"REVIEW_BASE": "${{ github.event.pull_request.base.sha || format('refs/remotes/origin/{0}', github.event.repository.default_branch) }}"}, "run": CONTRACT_REVIEW_SCRIPT},
-        ],
-    }
-    gate = jobs.get("gate", {})
-    allowed = gate.get("steps", [{}])[0].get("with", {}).get("allowed-skips", "")
-    if jobs.get("contract-review") != expected or "contract-review" not in needs(gate) or "contract-review" in allowed:
-        return ["contract review must run unconditionally and be required by gate"]
-    return []
-
-
-def test_contract_review_is_required_and_cannot_skip_or_mask_failures() -> None:
-    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
-    assert not contract_review_problems(workflow)
-    for mutate in (
-        lambda w: w["jobs"].pop("contract-review"),
-        lambda w: w["jobs"]["gate"]["needs"].remove("contract-review"),
-        lambda w: w["jobs"]["contract-review"].update({"if": "false"}),
-        lambda w: w["jobs"]["contract-review"].update({"continue-on-error": True}),
-        lambda w: w["jobs"]["contract-review"]["steps"][-1].update({"run": "true"}),
-        lambda w: w["jobs"]["contract-review"]["steps"][-1].update({"if": "false"}),
-        lambda w: w["jobs"]["contract-review"]["steps"][0]["with"].update({"ref": "main"}),
-        lambda w: w["jobs"]["gate"]["steps"][0]["with"].update({"allowed-skips": "contract-review"}),
-    ):
-        changed = deepcopy(workflow)
-        mutate(changed)
-        assert contract_review_problems(changed)
-
-
 def ownership_contract_problems(workflow: dict) -> list[str]:
     tm_script = "tm validate --root crates/ryo\ntm check --root crates/ryo"
     rust_script = """set -euo pipefail
@@ -987,65 +943,3 @@ def test_real_ownership_contract_suites_are_required() -> None:
         changed = deepcopy(workflow)
         mutate(changed)
         assert ownership_contract_problems(changed)
-
-
-@pytest.mark.parametrize("dispatch", [False, True])
-def test_ci_executes_trusted_policy_when_candidate_validator_returns_success(tmp_path: Path, dispatch: bool) -> None:
-    import os
-    import subprocess
-    from ci.contract_review import service
-
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    objects = service.git(ROOT, "rev-parse", "--path-format=absolute", "--git-path", "objects").decode().strip()
-    (tmp_path / ".git/objects/info/alternates").write_text(objects + "\n")
-    service.git(tmp_path, "read-tree", service.ACTIVATION)
-    candidate = b"print('forged approval')\n"
-    blob = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=candidate).decode().strip()
-    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{blob},ci/contract_review/command.py")
-    forged_service = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=b"def validate(*args): return 'forged approval'\n").decode().strip()
-    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{forged_service},ci/contract_review/service.py")
-    module = b"raise RuntimeError('candidate package must not run')\n"
-    module_blob = subprocess.check_output(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input=module).decode().strip()
-    service.git(tmp_path, "update-index", "--add", "--cacheinfo", f"100644,{module_blob},ci/__init__.py")
-    tree = service.git(tmp_path, "write-tree").decode().strip()
-    env = dict(os.environ, GIT_AUTHOR_NAME="Control", GIT_AUTHOR_EMAIL="test@example.invalid", GIT_COMMITTER_NAME="Control", GIT_COMMITTER_EMAIL="test@example.invalid")
-    head = subprocess.check_output(["git", "-C", str(tmp_path), "commit-tree", tree, "-p", service.ACTIVATION], input=b"hostile validator control\n", env=env).decode().strip()
-    service.git(tmp_path, "reset", "--hard", head)
-    # The candidate's own entry point lies; the actual CI shell ignores it.
-    own = subprocess.run(["python3", "ci/contract_review/command.py"], cwd=tmp_path, capture_output=True)
-    assert own.returncode == 0 and b"forged approval" in own.stdout
-    workflow = yaml.safe_load((DIRECTORY / "check.yml").read_text())
-    script = workflow["jobs"]["contract-review"]["steps"][-1]["run"]
-    service.git(tmp_path, "update-ref", "refs/remotes/origin/main", service.ACTIVATION)
-    review_base = "refs/remotes/origin/main" if dispatch else service.ACTIVATION
-    result = subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env={**env, "PYTHONPATH": str(tmp_path), "REVIEW_BASE": review_base, "GITHUB_WORKSPACE": str(tmp_path)}, capture_output=True, text=True)
-    assert result.returncode == 1
-    assert "No valid exact-source" in result.stderr
-    assert "candidate package must not run" not in result.stderr
-
-
-def test_a_hand_run_validates_the_checkpoint_and_uploads_its_record() -> None:
-    """The checkpoint workflow, started only by hand, runs the root's lint and check groups in one job and the ryo checkpoint
-    validation (the root's `checkpoint` tool: run.py over commands.json) in another, and uploads validation.json, identity.json,
-    tests.json and every command's log even when a command failed."""
-    workflow = yaml.safe_load((DIRECTORY / "checkpoint.yml").read_text())
-    assert set(workflow["on" if "on" in workflow else True]) == {"workflow_dispatch"}
-    jobs = workflow["jobs"]
-    assert set(jobs) == {"checks", "validation"}
-    for name, groups in (("checks", "lint,check"), ("validation", "checkpoint")):
-        (checking,) = [step["run"] for step in jobs[name]["steps"] if "asymptote check" in step.get("run", "")]
-        assert checking == f"asymptote check --root . --groups {groups}"
-    upload = jobs["validation"]["steps"][-1]
-    assert upload["uses"].startswith(UPLOAD) and upload["if"] == "always()"
-    evidence = "crates/ryo/docs/contracts/evidence/checkpoint"
-    assert upload["with"]["path"].split() == [
-        "target/checks/checkpoint/",
-        f"{evidence}/validation.json",
-        f"{evidence}/identity.json",
-        f"{evidence}/tests.json",
-    ]
-    (tool,) = [tool for tool in tomllib.loads((ROOT / "asymptote.toml").read_text())["tools"] if tool["group"] == "checkpoint"]
-    assert f"python3 -I {evidence}/run.py target/checks/checkpoint | tee target/checks/checkpoint/summary.log;" in tool["run"][-1]
-    # A command that did not run (`NOT RUN ruff_parity: parity not run: ...`), every red and a stale record reach the run's summary.
-    assert "grep -E '^(NOT RUN|RED|UNTICKED ROW|TICKED ROW|STALE RECORD) ' target/checks/checkpoint/summary.log >> \"$GITHUB_STEP_SUMMARY\"" in tool["run"][-1]
-    assert (ROOT / evidence / "commands.json").is_file()

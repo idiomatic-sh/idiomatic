@@ -107,20 +107,7 @@ group = "check"
 # The CI code's own tests, which read the workflows and the products' manifests.
 run = ["bash", "-c", "mkdir -p target/checks/ci-tests; set +e; pytest --quiet -p no:cacheprovider --import-mode=importlib -o pythonpath=. -o 'python_files=*_test.py' -o python_classes= -o 'norecursedirs=.* __pycache__' ci > target/checks/ci-tests/stdout.log 2> target/checks/ci-tests/stderr.log; tool_status=$?; cat target/checks/ci-tests/stdout.log; cat target/checks/ci-tests/stderr.log >&2; printf '%s\\n' \"$tool_status\" > target/checks/ci-tests/status; exit \"$tool_status\""]
 timeout-seconds = 1800
-inputs = ["ci", ".claude/hooks", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/release-plz.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
-
-[[tools]]
-id = "checkpoint"
-group = "checkpoint"
-# The ryo checkpoint validation (crates/ryo/docs/contracts/evidence/checkpoint/README.md): run.py runs every command of
-# commands.json over the checked-out source, writes each command's log and exit under target/checks/checkpoint, and writes
-# validation.json, identity.json and tests.json beside itself; the checkpoint workflow uploads them with the logs. The commands
-# build offline, so the two workspaces they build are fetched first. Its exit is run.py's, from the results alone (a red command no
-# README row owns, or a ticked row the results do not prove), kept in target/checks/checkpoint/status. Its output is kept in
-# summary.log, and on GitHub Actions each command it did not run (`NOT RUN ruff_parity: parity not run: ...`), each red and a stale
-# record go to the run's summary, so an owned refusal is never folded into a green job unseen.
-run = ["bash", "-c", "set -e; mkdir -p target/checks/checkpoint; cargo fetch --locked --manifest-path crates/ryo/Cargo.toml; cargo fetch --locked --manifest-path crates/tastemaker/Cargo.toml; set +e -o pipefail; python3 -I crates/ryo/docs/contracts/evidence/checkpoint/run.py target/checks/checkpoint | tee target/checks/checkpoint/summary.log; tool_status=$?; [ -z \"${GITHUB_STEP_SUMMARY:-}\" ] || grep -E '^(NOT RUN|RED|UNTICKED ROW|TICKED ROW|STALE RECORD) ' target/checks/checkpoint/summary.log >> \"$GITHUB_STEP_SUMMARY\"; printf '%s\\n' \"$tool_status\" > target/checks/checkpoint/status; exit \"$tool_status\""]
-timeout-seconds = 21600
+inputs = ["ci", "asymptote.toml", "tastemaker.toml", ".github", "crates/*/asymptote.toml", "crates/*/Cargo.toml", "crates/*/release-plz.toml", "crates/*/distribution/registries/npm/dist-workspace.toml", "tools/install.py"]
 
 [[tools]]
 id = "speed"

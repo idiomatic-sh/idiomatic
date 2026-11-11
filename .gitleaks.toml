@@ -12,7 +12,6 @@ description = "SHA-256 digest of a recorded source file or relation in a record"
 condition = "AND"
 paths = [
   '''^crates/ryo/languages/python/benchmarks/linters/ruff/(results|profiles)/''',
-  '''^crates/ryo/docs/contracts/(audits|evidence)/''',
   '''^crates/ryo/languages/python/tests/fixtures/compiler-features/provenance\.json$''',
 ]
 regexTarget = "line"
