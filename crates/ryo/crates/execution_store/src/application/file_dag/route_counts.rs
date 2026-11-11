@@ -4,6 +4,7 @@ pub mod ids;
 pub mod profile;
 #[cfg(feature = "diagnostic-row-progress")]
 pub mod progress;
+mod record;
 pub(crate) mod service;
 #[cfg(test)]
 mod service_test;

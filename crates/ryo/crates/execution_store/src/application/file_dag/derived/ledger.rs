@@ -6,7 +6,6 @@ mod constants;
 mod credit;
 #[cfg(test)]
 mod fixtures;
-pub(crate) mod lease;
 pub(crate) mod service;
 #[cfg(test)]
 mod service_test;

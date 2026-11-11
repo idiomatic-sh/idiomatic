@@ -10,8 +10,8 @@
 /// ```
 /// use ryo_execution_store::outbound::route_counts::factory::json;
 /// use ryo_execution_store::outbound::route_counts::interface::RouteCountsPort as _;
-/// use ryo_execution_store::outbound::route_counts::types::RouteValue;
-/// assert_eq!(json().document(&RouteValue::Count(3)).0, "3");
+/// use ryo_execution_store::outbound::route_counts::types::{RecordCount, RouteValue};
+/// assert_eq!(json().document(&RouteValue::Count(RecordCount(3))).0, "3");
 /// ```
 #[must_use]
 pub fn json() -> impl crate::outbound::route_counts::interface::RouteCountsPort {

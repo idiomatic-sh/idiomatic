@@ -6,14 +6,14 @@ use crate::outbound::route_counts::types::{RouteDocument, RouteValue};
 pub(super) fn write(out: &mut RouteDocument, value: &RouteValue) {
     match value {
         RouteValue::Absent => out.0.push_str(constants::NULL),
-        RouteValue::Flag(flag) => out.0.push_str(if *flag {
+        RouteValue::Flag(flag) => out.0.push_str(if flag.0 {
             constants::TRUE
         } else {
             constants::FALSE
         }),
-        RouteValue::Count(count) => out.0.push_str(&count.to_string()),
-        RouteValue::Tally(tally) => out.0.push_str(&tally.to_string()),
-        RouteValue::Text(text) => quote(out, text.chars()),
+        RouteValue::Count(count) => out.0.push_str(&count.0.to_string()),
+        RouteValue::Tally(tally) => out.0.push_str(&tally.0.to_string()),
+        RouteValue::Text(text) => quote(out, text.0.chars()),
         RouteValue::List(items) => {
             out.0.push(constants::OPEN_ARRAY);
             for (position, item) in items.iter().enumerate() {
@@ -30,7 +30,7 @@ pub(super) fn write(out: &mut RouteDocument, value: &RouteValue) {
                 if position > 0 {
                     out.0.push(constants::SEPARATOR);
                 }
-                quote(out, field.key.chars());
+                quote(out, field.key.0.chars());
                 out.0.push(constants::ASSIGN);
                 write(out, &field.value);
             }

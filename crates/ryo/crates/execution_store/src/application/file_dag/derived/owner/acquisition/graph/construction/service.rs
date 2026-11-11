@@ -1,7 +1,7 @@
 //! Physical graph kernels publish completed immutable storage to the common owner.
 use super::types::{BuiltDomain, BuiltGraph};
 use crate::application::file_dag::derived::constants;
-use crate::application::file_dag::derived::ledger::lease::service::append_backing;
+use crate::application::file_dag::derived::ledger::service::append_backing;
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };

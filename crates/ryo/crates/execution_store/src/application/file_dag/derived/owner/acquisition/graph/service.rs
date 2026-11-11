@@ -3,7 +3,7 @@ use super::{
     construction::service as build,
     identity::service::{domain_identity, source},
 };
-use crate::application::file_dag::derived::ledger::lease::service::append_backing;
+use crate::application::file_dag::derived::ledger::service::append_backing;
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };

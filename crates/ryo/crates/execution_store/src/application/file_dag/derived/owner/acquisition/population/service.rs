@@ -260,7 +260,7 @@ impl DerivedOwner {
         }
         state.entries.insert(
             key,
-            Entry {
+            OwnerEntry {
                 admission,
                 _plan: Arc::clone(plan),
                 weak: Arc::downgrade(&storage),

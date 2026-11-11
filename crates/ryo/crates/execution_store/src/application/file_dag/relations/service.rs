@@ -2,9 +2,10 @@
 
 use super::super::derived::population::service::PopulationId;
 use super::generation::service::GenerationLease;
+use super::handle::service::PublishedInput;
 use super::number::service::service::AdmittedNumber;
+use super::publication::types::SourceDescriptor;
 use super::publication::types::{ProducerKey, ProducerPopulation};
-use super::types::SourceViews;
 use super::types::{CheckCount, PinnedViewCount, ReuseEligibility, Sameness};
 use rustc_hash::FxHashMap;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -286,4 +287,10 @@ pub(crate) fn same_admitted_rows(
     right: RepresentationInput<'_>,
 ) -> Sameness {
     super::identity::service::same(left, right)
+}
+
+pub(super) struct SourceViews {
+    pub(crate) population: SourceDescriptor,
+    pub(crate) canonical_population: PopulationId,
+    pub(crate) views: FxHashMap<SourceDescriptor, PublishedInput>,
 }

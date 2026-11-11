@@ -1,46 +1,25 @@
-//! The route accounting's records: what each of its values states, which a format then writes.
-use super::types::{
-    RouteCountRow, RouteOwnerId, RouteOwnership, RoutePlanId, RouteRuleName, RouteRuleRow,
-    RouteTally,
-};
-use crate::application::file_dag::route_counts::ids::service::RouteLabel;
-use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
-use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
-use crate::outbound::route_counts::interface::RouteCountsPort;
-use crate::outbound::route_counts::types::{RouteDocument, RouteField, RouteValue};
-
-/// A value that states itself as a route record, which a format then writes.
-pub(super) trait Record {
-    /// The value as a route record.
-    fn record(&self) -> RouteValue;
-}
-/// The document `format` writes for `value`.
-pub(super) fn document(
-    format: &dyn RouteCountsPort,
-    value: &(impl Record + ?Sized),
-) -> RouteDocument {
-    format.document(&value.record())
-}
-/// One named field of a record.
-pub(super) fn field(key: &'static str, value: &(impl Record + ?Sized)) -> RouteField {
-    RouteField {
-        key,
-        value: value.record(),
-    }
-}
-
+//! The route accounting's profile: the scopes of a file and an origin, the counts they keep and the documents a file ends with.
 use super::constants::MAX_KEYS;
 use super::ids::service::RouteFileIndex;
 #[cfg(feature = "diagnostic-row-progress")]
 use super::profile::service::CapturedOrigin;
 use super::profile::service::with_state;
 use super::profile::service::{FileScope, OriginScope, RouteProfile};
+use super::record::service::document;
 #[cfg(feature = "diagnostic-row-progress")]
 use super::types::RouteProgressState;
 use super::types::{
     BuildRoute, RouteActivity, RouteCount, RouteKey, RouteOrigin, RouteOutcome, RoutePopulations,
     RouteState,
 };
+use super::types::{
+    RouteCountRow, RouteOwnerId, RouteOwnership, RoutePlanId, RouteRuleName, RouteRuleRow,
+    RouteTally,
+};
+use crate::application::file_dag::route_counts::ids::service::{
+    RouteLabel, RouteNodeIndex, RouteRuleIndex,
+};
+use crate::outbound::route_counts::interface::RouteCountsPort;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::HashMap;
 

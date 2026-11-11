@@ -1,4 +1,5 @@
 //! Diagnostic vocabulary of the opt-in route accounting.
+use crate::outbound::route_counts::types::RecordKey;
 pub(super) const MAX_KEYS: usize = 32_768;
 pub(super) const RESOURCE_ROUTES_TARGET: &str =
     ryo_values::domain::table_words::constants::RESOURCE_ROUTES_TARGET;
@@ -71,27 +72,27 @@ pub(super) const COUNTER_KERNEL_OUTPUT_ROWS: &str = "kernel_output_rows";
 #[cfg(feature = "diagnostic-row-progress")]
 pub(super) const COUNTER_POSITION_ROWS_YIELDED: &str = "position_rows_yielded";
 
-pub(super) const KEY_RULE: &str = "rule";
-pub(super) const KEY_NODE: &str = "node";
-pub(super) const KEY_OWNER: &str = "owner";
-pub(super) const KEY_OWNER_ID: &str = "owner_id";
-pub(super) const KEY_CONSUMER: &str = "consumer";
-pub(super) const KEY_PLAN: &str = "plan";
-pub(super) const KEY_POPULATIONS: &str = "populations";
-pub(super) const KEY_ROUTE: &str = "route";
-pub(super) const KEY_FAMILY: &str = "family";
-pub(super) const KEY_CALLS: &str = "calls";
-pub(super) const KEY_SUCCESSES: &str = "successes";
-pub(super) const KEY_FAILURES: &str = "failures";
-pub(super) const KEY_INDEX: &str = "index";
-pub(super) const KEY_NAME: &str = "name";
+pub(super) const KEY_RULE: RecordKey = RecordKey("rule");
+pub(super) const KEY_NODE: RecordKey = RecordKey("node");
+pub(super) const KEY_OWNER: RecordKey = RecordKey("owner");
+pub(super) const KEY_OWNER_ID: RecordKey = RecordKey("owner_id");
+pub(super) const KEY_CONSUMER: RecordKey = RecordKey("consumer");
+pub(super) const KEY_PLAN: RecordKey = RecordKey("plan");
+pub(super) const KEY_POPULATIONS: RecordKey = RecordKey("populations");
+pub(super) const KEY_ROUTE: RecordKey = RecordKey("route");
+pub(super) const KEY_FAMILY: RecordKey = RecordKey("family");
+pub(super) const KEY_CALLS: RecordKey = RecordKey("calls");
+pub(super) const KEY_SUCCESSES: RecordKey = RecordKey("successes");
+pub(super) const KEY_FAILURES: RecordKey = RecordKey("failures");
+pub(super) const KEY_INDEX: RecordKey = RecordKey("index");
+pub(super) const KEY_NAME: RecordKey = RecordKey("name");
 #[cfg(feature = "diagnostic-row-progress")]
-pub(super) const KEY_COUNTER: &str = "counter";
+pub(super) const KEY_COUNTER: RecordKey = RecordKey("counter");
 #[cfg(feature = "diagnostic-row-progress")]
-pub(super) const KEY_COUNT: &str = "count";
+pub(super) const KEY_COUNT: RecordKey = RecordKey("count");
 #[cfg(feature = "diagnostic-row-progress")]
-pub(super) const KEY_RULE_NAME: &str = "rule_name";
+pub(super) const KEY_RULE_NAME: RecordKey = RecordKey("rule_name");
 #[cfg(feature = "diagnostic-row-progress")]
-pub(super) const KEY_INPUT_CARDINALITIES: &str = "input_cardinalities";
+pub(super) const KEY_INPUT_CARDINALITIES: RecordKey = RecordKey("input_cardinalities");
 #[cfg(feature = "diagnostic-row-progress")]
-pub(super) const KEY_NODE_NAMESPACE: &str = "node_namespace";
+pub(super) const KEY_NODE_NAMESPACE: RecordKey = RecordKey("node_namespace");

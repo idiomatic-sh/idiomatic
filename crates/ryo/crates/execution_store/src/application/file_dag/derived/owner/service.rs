@@ -96,19 +96,16 @@ impl<T: DerivedPort + 'static> From<Arc<T>> for DerivedAccess {
 }
 
 use super::acquisition::semantics::storage::service::DerivedStorage;
-#[cfg(test)]
-use super::types::ReleasedEntries;
+use super::graph_key::service::RequirementIdentity;
 use super::types::{
-    BuildCounts, Entry, EntryLimit, FilePreparation, Key, MembershipOrder, PinCount, ScopeId,
-    State, ViewCount,
+    AdmissionOrder, BuildCount, BuildCounts, EntryLimit, FilePreparation, HitCount,
+    MembershipOrder, PinCount, PopulationCount, RefusalCount, ReleasedEntries, ScopeId, ViewCount,
 };
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::population::service::PopulationId;
-use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::DerivedContract, *},
-    operating::errors::OperatingError,
-};
+use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::derived_views::types::contract::value::DerivedContract;
 use std::{cell::RefCell, sync::Weak};
 
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
@@ -174,28 +171,6 @@ pub struct DerivedOwner {
 }
 
 impl DerivedOwner {
-    /// Prepares the contract of a view request against its input schemas.
-    ///
-    /// # Errors
-    ///
-    /// None in practice: preparation records a schema the semantic capability refuses in the contract, which its
-    /// validation returns.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
-    /// let _ = DerivedOwner::prepare_view;
-    /// ```
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn prepare_view(
-        &self,
-        request: &ViewRequest,
-        schemas: &[ryo_execution_domain::domain::operation_schema::types::InputShape<'_>],
-    ) -> Result<DerivedContract, OperatingError> {
-        super::super::prepare::service::view(self.semantic.clone(), request, schemas)
-    }
-
     pub(crate) fn new(
         max_entries: EntryLimit,
         semantic: impl Into<DerivedAccess>,
@@ -301,7 +276,7 @@ impl DerivedOwner {
             .sum::<usize>();
         ByteCount(
             plans
-                + table::<(Key, Entry)>(SlotCount(state.entries.capacity()))
+                + table::<(Key, OwnerEntry)>(SlotCount(state.entries.capacity()))
                     .0
                     .saturating_mul(2)
                 + table::<(PopulationId, PinCount)>(SlotCount(state.pins.capacity()))
@@ -332,4 +307,50 @@ pub(super) fn link(state: &mut State, key: Key, populations: &[PopulationId]) {
             .or_insert_with(|| state.spare_dependencies.pop().unwrap_or_default())
             .push(key.clone());
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(super) struct Key {
+    pub(crate) plan: RequirementIdentity,
+    pub(crate) populations: [PopulationId; 2],
+    pub(crate) len: PopulationCount,
+    pub(crate) context: ViewContext,
+}
+
+pub(super) struct OwnedView {
+    pub(crate) storage: Arc<DerivedStorage>,
+    pub(crate) _lease: Arc<super::super::ledger::service::ResourceLease>,
+}
+
+pub(super) struct OwnerEntry {
+    pub(crate) admission: AdmissionOrder,
+    pub(crate) _plan: Arc<DerivedContract>,
+    pub(crate) weak: Weak<DerivedStorage>,
+    pub(crate) required: Option<OwnedView>,
+    pub(crate) retained: Option<OwnedView>,
+    pub(crate) backings: Arc<[super::super::ledger::types::Backing]>,
+    pub(crate) lease: Weak<super::super::ledger::service::ResourceLease>,
+    pub(crate) bytes: ByteCount,
+    pub(crate) working: ByteCount,
+    pub(crate) backend: ByteCount,
+}
+
+#[derive(Default)]
+pub(super) struct State {
+    pub(crate) next_admission: AdmissionOrder,
+    pub(crate) entries: hashbrown::HashMap<Key, OwnerEntry>,
+    pub(crate) pins: FxHashMap<PopulationId, PinCount>,
+    pub(crate) dependents: FxHashMap<PopulationId, Vec<Key>>,
+    pub(crate) spare_dependencies: Vec<Vec<Key>>,
+    pub(crate) released_entries: ReleasedEntries,
+    pub(crate) builds: BuildCount,
+    pub(crate) hits: HitCount,
+    pub(crate) refusals: RefusalCount,
+    pub(crate) required_bytes: ByteCount,
+    pub(crate) peak_required_bytes: ByteCount,
+    pub(crate) retained_bytes: ByteCount,
+    pub(crate) overlap_bytes: ByteCount,
+    pub(crate) required_views: ViewCount,
+    pub(crate) peak_required_views: ViewCount,
+    pub(crate) required_backend_bytes: ByteCount,
 }

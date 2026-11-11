@@ -48,3 +48,27 @@ pub mod graph;
 pub mod graph_snapshot;
 pub mod observations;
 pub mod resources;
+
+impl super::service::DerivedOwner {
+    /// Prepares the contract of a view request against its input schemas.
+    ///
+    /// # Errors
+    ///
+    /// None in practice: preparation records a schema the semantic capability refuses in the contract, which its
+    /// validation returns.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::prepare_view;
+    /// ```
+    pub fn prepare_view(
+        &self,
+        request: &ViewRequest,
+        schemas: &[InputShape<'_>],
+    ) -> Result<DerivedContract, ryo_execution_domain::domain::operating::errors::OperatingError>
+    {
+        super::super::prepare::service::view(self.semantic.clone(), request, schemas)
+    }
+}

@@ -102,7 +102,7 @@ impl DerivedOwner {
             crate::application::file_dag::derived::owner::backings::service::view(&storage)?
                 .to_vec();
         for backing in backings {
-            crate::application::file_dag::derived::ledger::lease::service::append_backing(
+            crate::application::file_dag::derived::ledger::service::append_backing(
                 &mut required,
                 *backing,
             )?;

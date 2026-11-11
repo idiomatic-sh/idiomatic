@@ -4,7 +4,9 @@ use super::adapter::RouteCountsJsonAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::route_counts::fixtures::contract;
 use crate::outbound::route_counts::interface::RouteCountsPort as _;
-use crate::outbound::route_counts::types::{RouteField, RouteValue};
+use crate::outbound::route_counts::types::{
+    RecordCount, RecordFlag, RecordKey, RecordText, RouteField, RouteValue,
+};
 use std::borrow::Cow;
 
 /// A route record the json adapter writes.
@@ -41,19 +43,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// The json the adapter writes for one input.
 fn subject(input: Input) -> Result<Value, Failure> {
     let record = match input {
-        Written::QuotedText => RouteValue::Text("a\"b\n".to_owned()),
+        Written::QuotedText => RouteValue::Text(RecordText("a\"b\n".to_owned())),
         Written::Record => RouteValue::Record(vec![
             RouteField {
-                key: "owned",
-                value: RouteValue::Flag(true),
+                key: RecordKey("owned"),
+                value: RouteValue::Flag(RecordFlag(true)),
             },
             RouteField {
-                key: "plan",
+                key: RecordKey("plan"),
                 value: RouteValue::Absent,
             },
             RouteField {
-                key: "populations",
-                value: RouteValue::List(vec![RouteValue::Count(3), RouteValue::Count(4)]),
+                key: RecordKey("populations"),
+                value: RouteValue::List(vec![
+                    RouteValue::Count(RecordCount(3)),
+                    RouteValue::Count(RecordCount(4)),
+                ]),
             },
         ]),
     };
