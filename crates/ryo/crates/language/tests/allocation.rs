@@ -21,9 +21,7 @@ use ryo_language::inbound::use_cases::parse::service::baseline;
 use ryo_language::inbound::use_cases::parse::types::Recognition;
 use ryo_language::inbound::use_cases::parse::types::{ParseRequest, SourceFile};
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::collections::relations::function::item::{
-    Function, FunctionRow,
-};
+use ryo_relations::domain::relations::fixtures::{Function, FunctionRow};
 use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position, Rows};
 
 /// Counts every allocation the test makes, so a run's allocations are read back.
@@ -236,7 +234,7 @@ impl ParseUseCase for Language {
         }
     }
 
-    ryo_relations::each_relation!(all_but_function);
+    ryo_relations::domain::relations::fixtures::each_relation!(all_but_function);
 }
 
 /// Runs the allocation row over the double and says whether it held.

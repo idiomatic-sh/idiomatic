@@ -29,6 +29,8 @@ tokio.workspace = true
 trybuild.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-language = { path = ".", features = ["fixtures"] }
+# The relations fixtures: the allocation test's double answers the catalog through them.
+idiomatic-sh-ryo-relations = { path = "../relations", features = ["fixtures"] }
 
 [[test]]
 name = "allocation"
