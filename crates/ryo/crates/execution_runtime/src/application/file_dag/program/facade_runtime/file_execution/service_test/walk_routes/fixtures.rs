@@ -2,7 +2,6 @@
 use self::plans::Authored;
 use self::semantics::{Calls, Derived, Meanings};
 use super::super::super::service::*;
-use super::super::super::*;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
@@ -227,9 +226,4 @@ pub(super) fn observed_demand() -> RuleDemand {
         observations: ObservationDemand::Required,
     }
 }
-pub(super) fn cells(values: &[i64]) -> Vec<Cell> {
-    values
-        .iter()
-        .map(|number| Cell::Number(Integer(*number)))
-        .collect()
-}
+

@@ -1,6 +1,4 @@
 //! One project phase execution serves every rule of the request.
-use super::super::super::super::super::service::*;
-use super::super::super::super::super::*;
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use crate::application::file_dag::frontiers::fixtures::prepared_frontiers;
 use crate::application::file_dag::frontiers::types::FrontierInput;
@@ -25,18 +23,33 @@ use std::sync::Arc;
 
 /// Which files a rule has no frame for is that rule's own evidence: two rules of one project phase
 /// share its one execution although their required partitions differ in it.
-fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
+///
+/// Per rule of the phase, the files it has no frame for.
+type Input = [&'static [FileId]; 2];
+/// Per rule, the error opening the shared phase execution refused it with, if any.
+type Value = [Option<ryo_execution_domain::domain::operating::errors::OperatingError>; 2];
+type Failure = String;
+
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("project_rules_with_different_inapplicable_files_share_one_phase_execution"),
+    word: Word::Succeeds,
+    input: || [&[FileId(0)], &[]],
+    expect: Expect::Value([None, None]),
+}];
+
+/// Opens the project phase for each rule with its required partitions.
+fn subject(inapplicable: Input) -> Result<Value, Failure> {
     let PreparedCase {
         prepared,
         services,
         corpus,
-    } = prepare_case(PhaseExit::Complete).expect("prepared case");
+    } = prepare_case(PhaseExit::Complete).map_err(|error| format!("{error:?}"))?;
     let phase = crate::application::file_dag::program::facade_runtime::service::publication_owner(
         &prepared,
         &services,
-        std::sync::Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
+        Arc::new(crate::outbound::digest::fixtures::fake::DigestFake),
     )
-    .expect("publication owner");
+    .map_err(|error| format!("{error:?}"))?;
     let required = |inapplicable: &[FileId]| {
         crate::application::file_dag::program::facade_runtime::service::required_partitions(
             &prepared,
@@ -48,14 +61,15 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
             &[],
             &services,
         )
-        .expect("required partitions")
+        .map_err(|error| format!("{error:?}"))
     };
     let source = PlanInput::Relation(Relation::LanguageTarget);
     let source_root = prepared.program().rules()[0].frontier[0].clone();
     let partials = Partials::default();
     let mut symbols = Symbols::default();
-    for rule in 0..2 {
-        let required = required(&[FileId(0)][..1 - rule]);
+    let mut opened = [None, None];
+    for (rule, (open, files)) in opened.iter_mut().zip(inapplicable).enumerate() {
+        let required = required(files)?;
         let table = Table {
             kinds: kinds(Relation::LanguageTarget).to_vec(),
             cells: vec![
@@ -65,7 +79,7 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
             ],
             count: RowCount(1),
         };
-        crate::application::file_dag::program::facade_runtime::project_execution::service::open_project(
+        *open = crate::application::file_dag::program::facade_runtime::project_execution::service::open_project(
             &prepared,
             required.clone(),
             ScopePartials::Project {
@@ -99,36 +113,9 @@ fn project_rules_with_different_inapplicable_files_share_one_phase_execution() {
             &[],
             Arc::clone(&services),
         )
-        .unwrap_or_else(|error| panic!("rule {rule} opens the shared phase execution: {error:?}"));
+        .err();
     }
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    ProjectRulesWithDifferentInapplicableFilesShareOnePhaseExecution,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("project_rules_with_different_inapplicable_files_share_one_phase_execution"),
-    word: Word::Succeeds,
-    input: || Scenario::ProjectRulesWithDifferentInapplicableFilesShareOnePhaseExecution,
-    expect: Expect::Value(()),
-}];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::ProjectRulesWithDifferentInapplicableFilesShareOnePhaseExecution => {
-            project_rules_with_different_inapplicable_files_share_one_phase_execution();
-            Ok(())
-        }
-    }
+    Ok(opened)
 }
 
 #[test]

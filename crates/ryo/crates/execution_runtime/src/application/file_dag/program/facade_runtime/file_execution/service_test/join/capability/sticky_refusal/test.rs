@@ -1,9 +1,7 @@
 //! A sink failure or a fused semantic refusal stays sticky while the kernel continues and reports success.
-use super::super::super::super::super::service::*;
-use super::super::super::super::super::*;
 use super::super::super::cases::fixtures::table_of;
 use super::super::super::*;
-use super::super::fixtures::refusal;
+use super::super::fixtures::REFUSAL;
 use super::fixtures::KeepsCalling;
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -20,135 +18,140 @@ use ryo_values::domain::{
     plans::types::{Operation, PlanStep},
 };
 use std::sync::Arc;
-fn sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success() {
-    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
-    let right = table_of(
-        &[CellKind::Number, CellKind::Number],
-        &[&[Cell::Number(Integer(7)), Cell::Number(Integer(1))]],
-    );
-    let actual = invoke(
-        &operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]),
-        [Rows::Computed(&left), Rows::Computed(&right)],
-        &mut Symbols::default(),
-        b"",
-        true,
-        Arc::new(KeepsCalling {
-            refuse_project: false,
-        }),
-        Faults {
-            sink_after: Some(0),
-            ..Faults::default()
-        },
-    )
-    .unwrap();
-    assert!(matches!(actual.result, Err(OperatingError::NotRun)));
-    assert!(actual.prefix.is_empty());
+/// Where a join of `7` with `(7, 1)` fails while its kernel keeps calling and reports success.
+#[derive(Clone, Copy, Debug)]
+enum Failing {
+    /// The sink refuses the first row the join commits.
+    Sink,
+    /// The fused project after the join refuses its row in the operator semantics.
+    FusedProject,
 }
-fn fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_success() {
+
+/// A refused run: its error, the rows delivered before it, and the instructions it ran in.
+#[derive(Debug, PartialEq)]
+struct Refused {
+    error: OperatingError,
+    delivered: usize,
+    instructions: usize,
+}
+
+type Input = Failing;
+/// The rows a run published.
+type Value = usize;
+type Failure = Refused;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success"),
+        word: Word::Refuses,
+        input: || Failing::Sink,
+        expect: Expect::Error(Refused {
+            error: OperatingError::NotRun,
+            delivered: 0,
+            instructions: 1,
+        }),
+    },
+    Case {
+        // The failure occurs in the real fused Join→Project continuation, and a failed semantic
+        // publication delivers no prefix.
+        name: CaseName(
+            "fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_success",
+        ),
+        word: Word::Refuses,
+        input: || Failing::FusedProject,
+        expect: Expect::Error(Refused {
+            error: OperatingError::Table(
+                ryo_values::domain::rows::errors::RowsError::NoSuchColumn { index: REFUSAL },
+            ),
+            delivered: 0,
+            instructions: 2,
+        }),
+    },
+];
+
+/// Runs the join with the failing part.
+fn subject(failing: Input) -> Result<Value, Failure> {
     let left_table = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
     let right_table = table_of(
         &[CellKind::Number; 2],
         &[&[Cell::Number(Integer(7)), Cell::Number(Integer(1))]],
     );
-    let mut steps = vec![];
-    let (left, l) = provider(Rows::Computed(&left_table), 0, &mut steps);
-    let (right, r) = provider(Rows::Computed(&right_table), 1, &mut steps);
-    let join = steps.len() as u32;
-    let mut op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
-    let Operation::Join {
-        left: from,
-        right: other,
-        ..
-    } = &mut op
-    else {
-        panic!("the fixture builds a Join")
+    let refused = |error| Refused {
+        error,
+        delivered: 0,
+        instructions: 0,
     };
-    *from = l;
-    *other = r;
-    steps.push(PlanStep {
-        scope: StepScope::PerFile,
-        operation: op,
-    });
-    steps.push(PlanStep {
-        scope: StepScope::PerFile,
-        operation: Operation::Project {
-            from: PlanInput::Step(StepId(join)),
-            columns: vec![ColumnIndex(0)],
-            distinct: RepeatedRows::Kept,
-        },
-    });
-    let mut request = plan(Scenario::ProjectRetry);
-    request.emit.step = StepId((steps.len() - 1) as u32);
-    request.steps = steps;
-    let actual = execute(
-        request,
-        [left, right],
-        &mut Symbols::default(),
-        b"",
-        true,
-        Arc::new(KeepsCalling {
-            refuse_project: true,
-        }),
-        Faults::default(),
-    )
-    .unwrap();
-    assert_eq!(
-        actual.instructions, 2,
-        "the failure must occur in the real fused Join→Project continuation"
-    );
-    refusal(actual.result);
-    assert!(
-        actual.prefix.is_empty(),
-        "failed semantic publication delivers no prefix"
-    );
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Proof {
-    SinkFailureWinsAfterAKernelCommitsMultipleRowsAndReportsSuccess,
-    FusedSemanticRefusalStaysStickyWhenTheKernelContinuesAndReportsSuccess,
-}
-
-type Input = Proof;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName(
-            "sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success",
-        ),
-        word: Word::Succeeds,
-        input: || Proof::SinkFailureWinsAfterAKernelCommitsMultipleRowsAndReportsSuccess,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_success",
-        ),
-        word: Word::Succeeds,
-        input: || Proof::FusedSemanticRefusalStaysStickyWhenTheKernelContinuesAndReportsSuccess,
-        expect: Expect::Value(()),
-    },
-];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Proof::SinkFailureWinsAfterAKernelCommitsMultipleRowsAndReportsSuccess => {
-            sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success();
-            Ok(())
+    let actual = match failing {
+        Failing::Sink => invoke(
+            &operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]),
+            [Rows::Computed(&left_table), Rows::Computed(&right_table)],
+            &mut Symbols::default(),
+            b"",
+            true,
+            Arc::new(KeepsCalling {
+                refuse_project: false,
+            }),
+            Faults {
+                sink_after: Some(0),
+                ..Faults::default()
+            },
+        )
+        .map_err(refused)?,
+        Failing::FusedProject => {
+            let mut steps = vec![];
+            let (left, l) = provider(Rows::Computed(&left_table), 0, &mut steps);
+            let (right, r) = provider(Rows::Computed(&right_table), 1, &mut steps);
+            let join = steps.len() as u32;
+            let mut op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
+            let Operation::Join {
+                left: from,
+                right: other,
+                ..
+            } = &mut op
+            else {
+                panic!("the fixture builds a Join")
+            };
+            *from = l;
+            *other = r;
+            steps.push(PlanStep {
+                scope: StepScope::PerFile,
+                operation: op,
+            });
+            steps.push(PlanStep {
+                scope: StepScope::PerFile,
+                operation: Operation::Project {
+                    from: PlanInput::Step(StepId(join)),
+                    columns: vec![ColumnIndex(0)],
+                    distinct: RepeatedRows::Kept,
+                },
+            });
+            let mut request = plan(Scenario::ProjectRetry);
+            request.emit.step = StepId((steps.len() - 1) as u32);
+            request.steps = steps;
+            execute(
+                request,
+                [left, right],
+                &mut Symbols::default(),
+                b"",
+                true,
+                Arc::new(KeepsCalling {
+                    refuse_project: true,
+                }),
+                Faults::default(),
+            )
+            .map_err(refused)?
         }
-        Proof::FusedSemanticRefusalStaysStickyWhenTheKernelContinuesAndReportsSuccess => {
-            fused_semantic_refusal_stays_sticky_when_the_kernel_continues_and_reports_success();
-            Ok(())
-        }
-    }
+    };
+    let delivered = actual.prefix.len();
+    let instructions = actual.instructions;
+    actual.result.map(|table| table.count.0).map_err(|error| Refused {
+        error,
+        delivered,
+        instructions,
+    })
 }
 
 #[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }
