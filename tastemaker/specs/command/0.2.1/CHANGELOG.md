@@ -2,7 +2,7 @@
 
 ## 0.2.1
 
-Places `test-shape@0.2.0` with `reads = "every-test"` and `no-runtime-fixtures@0.2.0`, where 0.2.0 named their 0.1.0: a product that places this spec beside the specs that moved to those versions locks one version of each rule. What each entry reads is as in 0.2.0; `no-runtime-fixtures@0.2.0` also reads an item gated `cfg(any(test, feature = "fixtures"))` as test-only. 0.2.0 stays as published: the v1 products lock it.
+Places `no-runtime-fixtures@0.2.0`, where 0.2.0 named its 0.1.0: a product that places this spec beside the specs that moved to that version locks one version of the rule. What each entry reads is as in 0.2.0; `no-runtime-fixtures@0.2.0` also reads an item gated `cfg(any(test, feature = "fixtures"))` as test-only. 0.2.0 stays as published: the v1 products lock it.
 
 ## 0.2.0
 

@@ -1,4 +1,4 @@
-description = "An adapter's tests, its `adapter_test.rs` or one of its groups under `adapter_test/`, run the contract rows the core exports for its port, `crate::outbound::<port>::fixtures::contract::CASES` (or calls the exported `check` or `check_with` runner)."
+description = "An adapter's `adapter_test.rs` runs the contract rows the core exports for its port, `crate::outbound::<port>::fixtures::contract::CASES` (or calls the exported `check` or `check_with` runner)."
 why = "Every adapter proves the port's promised behavior by running the rows the core exports under its `fixtures` feature, so no test is named `passes_the_interface_test` and each row of the contract fails by its name; the adapter-test template's declarations cannot show the use of the rows they exist for. The evidence is a written path: a reference to `...::outbound::<port>::fixtures::contract::CASES`, or to the name a file imports that as (`use...::CASES as CONTRACT`), or a call of `...::contract::check` or `check_with` (a port may export a runner beside its rows), written out or by an imported name. A reference alone does not execute rows: the rows must be the first argument of a call of run, or the exported check must be called; and a `check` reached through a re-export is not seen. Which port's rows they are stays the template's and the reviewer's: a rule cannot compare the port segment of a written `::` path with the directory of the adapter's port, because a query cannot split a written path."
 
 query = '''
@@ -32,19 +32,7 @@ let runner-calls = select l."call" as "call" from callee-nodes as l join runners
 let executed-rows = select l."file" as "file" from row-calls as l join runner-calls as r on l."call" = r."call";
 let calling-1 = union(left=qualified, right=imported-calls);
 let calling = union(left=calling-1, right=executed-rows);
-let adapter-tests = select * from required where glob_any(file, "{adapter_test.rs,**/adapter_test.rs}");
-let calling-files = project(from=calling, columns=["file"]);
-let nested-tests = capture(from=adapter-tests, path="file", pattern="{*dir}/adapter_test.rs", captures=["dir"]);
-let nested-groups = capture(from=calling-files, path="file", pattern="{*dir}/adapter_test/{*rest}", captures=["dir", "rest"]);
-let nested-proven = select l."file" as "file" from nested-tests as l join nested-groups as r on l."dir" = r."dir";
-let top-tests = select * from adapter-tests where glob_any(file, "adapter_test.rs");
-let top-groups = capture(from=calling-files, path="file", pattern="adapter_test/{*rest}", captures=["rest"]);
-let keyed-top-tests = extend(from=top-tests, values={"pair": 1});
-let keyed-top-groups = extend(from=top-groups, values={"pair": 1});
-let top-proven = select l."file" as "file" from keyed-top-tests as l join keyed-top-groups as r on l."pair" = r."pair";
-let group-proven = union(left=nested-proven, right=top-proven);
-let proven = union(left=calling-files, right=group-proven);
-let silent = antijoin(left=adapter-tests, right=proven, left-on=["file"], right-on=["file"]);
+let silent = antijoin(left=required, right=calling, left-on=["file"], right-on=["file"]);
 emit silent subject "file" key("file");
 '''
 

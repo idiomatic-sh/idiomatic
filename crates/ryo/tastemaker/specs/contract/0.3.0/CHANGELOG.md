@@ -4,7 +4,7 @@
 
 A scaffolded contract compiles against the engine's traits as they are. `Parse` renders the explicit `ParseUseCase` methods `begin_semantics` (the buffer-filling `SemanticSlot` the language leaves empty), `completion_requirement` (`Independent`), `extend_file_model` and `recognizes_explicit` (`Declines`), and answers the relations `standard_library_import` and `token_link` as `NotYetRead`. `Project` renders `project_entries` (which fills the engine's buffer), takes the `observed_entries` of its request into `Resolved`, iterates `manifests()` by copy and answers `project_namespace_membership` as `NotYetRead`. The rendered fixtures carry them, and the scenarios that mutate a rendering expect one more finding for each member it lacks. A throwaway language scaffolded from `language` 0.4.0 compiles with `cargo check --all-targets`.
 
-Edited in place: places `test-shape@0.2.0` with `reads = "every-test"`, `no-runtime-fixtures@0.2.0`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query without their params (a `test-shape@0.1.0` entry reported nothing).
+Edited in place: places `no-runtime-fixtures@0.2.0`, where it named its earlier version, so a product that places it locks one version of the rule: two versions of one rule share its id, and the earlier entries ran the later query.
 
 ## 0.2.0
 

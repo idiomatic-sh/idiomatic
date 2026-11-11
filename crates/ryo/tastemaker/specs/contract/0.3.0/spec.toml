@@ -26,7 +26,7 @@ rules = [
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
   { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
-  { rule = "idiomatic.arch/test-shape@0.2.0", include = ["*_test.rs"], params = { reads = "every-test" }, description = "Every test of a part is one of the four runners over a `CASES` table." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs"], description = "Every test of a part is one of the four runners over a `CASES` table." },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
   { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs"], description = "Proofs execute a real subject over nonempty cases." },

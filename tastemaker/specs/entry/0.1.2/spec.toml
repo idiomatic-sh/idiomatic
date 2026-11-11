@@ -10,8 +10,6 @@ templates = [
   { template = "idiomatic.arch/connections@0.1.0", file = "connections.rs", count = { when = { condition = "opens-client" }, then = 1, else = 0 }, description = "The edge's connections: the stores it opens and the clients it returns, the only I/O of the edge." },
   { template = "idiomatic.arch/schemas@0.1.0", file = "schemas.rs", params = { kind = "entry" }, description = "The shape of the data the part does not control and its checked conversion into the core's types and back: the only file with a validation." },
   { template = "idiomatic.arch/schemas-test@0.1.0", file = "schemas_test.rs", params = { kind = "entry" }, description = "The accepted and the refused inputs of the part's schemas." },
-  { alias = "kind-schemas", template = "idiomatic.arch/schemas@0.1.0", file = "schemas/{kind}.rs", exclude = ["schemas/*_test.rs"], count = { min = 0 }, params = { kind = "entry" }, description = "The shape of one stored kind the entry does not control, when the entry's schemas split by kind: `schemas.rs` declares one module per kind." },
-  { alias = "kind-schemas-test", template = "idiomatic.arch/schemas-test@0.1.0", file = "schemas/{kind}_test.rs", count = { min = 0 }, params = { kind = "entry" }, description = "The accepted and the refused inputs of one kind's schemas, beside them." },
   { template = "idiomatic.arch/composition-test@0.1.0", file = "composition_test.rs", count = { min = 0 }, description = "The real compose path run over fake connections, as rows of cases: consequential substitution, shared-instance and error-order proofs." },
   { template = "idiomatic.arch/edge-fixtures@0.1.0", file = "fixtures.rs", count = { min = 0 }, description = "The edge's test data, compiled only for tests and under the `fixtures` feature." },
   { template = "entry-fixture", file = "fixtures/{*fixture}", count = { min = 0 }, description = "One file of an entry's `fixtures/` tree when its test data is too long for `fixtures.rs`: the data one case needs, at any depth beneath `fixtures/`, of which the template asks nothing." },
@@ -22,13 +20,13 @@ rules = [
   { rule = "idiomatic.arch/composition-wiring@0.1.0", include = ["composition.rs"], description = "Production builders supply replaceable dependencies; compose and its helpers wire only the supplied choices." },
   { rule = "idiomatic.arch/hollow-services@0.1.0", include = ["composition.rs"], description = "An edge's composition holds `Services` only with a service in it." },
   { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*_test.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
-  { rule = "idiomatic.arch/schema-name@0.1.0", include = ["schemas.rs", "schemas/*.rs"], exclude = ["schemas/*_test.rs"], description = "A schemas.rs names its wire shapes <Name>Schema and their refusals <Name>SchemaError, converts with TryFrom and does nothing else." },
-  { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["schemas.rs", "schemas/*.rs"], exclude = ["schemas/*_test.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them." },
+  { rule = "idiomatic.arch/schema-name@0.1.0", include = ["schemas.rs"], description = "A schemas.rs names its wire shapes <Name>Schema and their refusals <Name>SchemaError, converts with TryFrom and does nothing else." },
+  { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["schemas.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them." },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
-  { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs", "schemas/*.rs"], exclude = ["schemas.rs", "schemas/*.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
+  { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
   { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
-  { rule = "idiomatic.arch/test-shape@0.2.0", include = ["*_test.rs"], params = { reads = "every-test" }, description = "Every test of a part is a runner named for a case word over a `CASES` table." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
   { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
 ]
@@ -3123,7 +3121,7 @@ then.findings = [
 
 [[scenarios]]
 id = 'schemas-split-by-kind'
-scenario = "An entry's schemas split by stored kind: schemas/{kind}.rs and its test are placed, and held to the schemas rules."
+scenario = "An entry's schemas are one file: a `schemas/` directory of per-kind schemas and their tests is closed, file by file."
 given.files.'src/resources/greeting/show/composition.rs' = '''
 //! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
 //! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
@@ -3317,179 +3315,7 @@ given.files.'src/resources/greeting/show/schemas/format_test.rs' = '''
 '''
 then.only = ['idiomatic.arch/entry#closed', 'idiomatic.arch/schema-name']
 
-[[scenarios]]
-id = 'non-schema-file-under-schemas'
-scenario = "A file under schemas/ that is no kind's schemas is refused: a helper is held by schema-name, and a file of no role is closed."
-given.files.'src/resources/greeting/show/composition.rs' = '''
-//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
-//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
-//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
-//! implements a port.
-
-use super::connections::GreetingShowConnections;
-
-/// The dependencies the caller supplies.
-pub(crate) struct GreetingShowParts {
-    pub greeting: &'static str,
-}
-
-/// Wires the service from the clients and the supplied dependencies; it only constructs.
-pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
-    let GreetingShowConnections { store } = connections;
-    let GreetingShowParts { greeting } = parts;
-    let _ = (store, greeting);
-}
-'''
-given.files.'src/resources/greeting/show/connections.rs' = '''
-//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
-//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
-
-/// The clients of the stores `greeting show` reaches, opened once.
-pub(crate) struct GreetingShowConnections {
-    pub(crate) store: std::path::PathBuf,
-}
-
-/// Opens the stores and returns their clients.
-pub(crate) fn connect() -> GreetingShowConnections {
-    GreetingShowConnections {
-        store: std::path::PathBuf::from("greetings.toml"),
-    }
-}
-'''
-given.files.'src/resources/greeting/show/entry.rs' = '''
-//! `greeting show`: connects, composes, calls the service once.
-
-/// `greeting show`, against the service its composition builds.
-pub fn show(request: ShowRequest) -> Result<ShowReport, ShowError> {
-    super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
-}
-
-/// How the answer is printed.
-#[derive(Debug, PartialEq)]
-pub enum Format {
-    Text,
-    Json,
-}
-'''
-given.files.'src/resources/greeting/show/entry_test.rs' = '''
-//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
-
-use super::entry::show;
-use crate::cases::{Case, Expect, Word, run};
-
-/// What a row gives the function: the input the user gives.
-type Input = ();
-/// What the function answers when it succeeds.
-type Value = ();
-/// Why the function ends in error.
-type Failure = std::convert::Infallible;
-
-/// The rows of this function's cases: a name, one case word, the input the user gives, and the answer it returns or the error variant it ends with.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: "shows the greeting",
-        word: Word::Succeeds,
-        input: || (),
-        expect: Expect::Value(()),
-    },
-];
-
-/// Calls `greeting show` the way a user does; the author states it.
-fn subject(input: Input) -> Result<Value, Failure> {
-    show();
-    Ok(input)
-}
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
-}
-'''
-given.files.'src/resources/greeting/show/schemas.rs' = '''
-//! The shape of the data this entry does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
-
-use super::entry::Format;
-
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
-
-/// The format as the caller spells it.
-pub(super) struct FormatSchema {
-    pub(super) text: String,
-}
-
-/// Why a format was refused.
-pub(super) enum FormatSchemaError {
-    Unknown,
-}
-
-impl TryFrom<FormatSchema> for Format {
-    type Error = FormatSchemaError;
-
-    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
-        match schema.text.as_str() {
-            "text" => Ok(Format::Text),
-            "json" => Ok(Format::Json),
-            _ => Err(FormatSchemaError::Unknown),
-        }
-    }
-}
-'''
-given.files.'src/resources/greeting/show/schemas_test.rs' = '''
-//! What the schemas of this entry accept and refuse, one row of `CASES` for each input.
-
-use super::schemas::{FormatSchema, FormatSchemaError};
-use super::entry::Format;
-use crate::cases::{Case, Expect, Word, run};
-
-type Input = &'static str;
-type Value = Format;
-type Failure = FormatSchemaError;
-
-/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: "accepts the text format",
-        word: Word::Succeeds,
-        input: || "text",
-        expect: Expect::Value(Format::Text),
-    },
-    Case {
-        name: "refuses a format nobody knows",
-        word: Word::Refuses,
-        input: || "xml",
-        expect: Expect::Error(FormatSchemaError::Unknown),
-    },
-];
-
-/// Converts one wire input through the schemas; the author states it.
-fn subject(text: Input) -> Result<Value, Failure> {
-    Format::try_from(FormatSchema { text: text.to_owned() })
-}
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
-}
-
-#[test]
-fn refuses() {
-    run(CASES, Word::Refuses, subject);
-}
-'''
-given.files.'src/resources/greeting/show/schemas/helpers.rs' = '''
-//! Helpers.
-
-pub(super) fn trimmed(text: &str) -> &str {
-    text.trim()
-}
-'''
-given.files.'src/resources/greeting/show/schemas/notes.md' = '''
-Notes.
-'''
-then.only = ['idiomatic.arch/entry#closed', 'idiomatic.arch/schema-name']
 then.findings = [
-  { rule = 'idiomatic.arch/schema-name', path = 'src/resources/greeting/show/schemas/helpers.rs', line = 3 },
-  { rule = 'idiomatic.arch/entry#closed', path = 'src/resources/greeting/show/schemas/notes.md' },
+  { rule = 'idiomatic.arch/entry#closed', path = 'src/resources/greeting/show/schemas/format.rs' },
+  { rule = 'idiomatic.arch/entry#closed', path = 'src/resources/greeting/show/schemas/format_test.rs' },
 ]

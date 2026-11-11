@@ -1,8 +1,6 @@
 # entry 0.1.2
 
-An entry's schemas may split by stored kind: `schemas/{kind}.rs` is placed by the `schemas` template beside `schemas.rs`, which declares one module per kind, with `schemas/{kind}_test.rs` by `schemas-test`, each `count = { min = 0 }`; `schema-name` and `schema-visibility` read them as they read `schemas.rs`. A file under `schemas/` that is no kind's schemas is refused (`schema-name`), and one of no role is closed. 0.1.1 is removed with this version, not kept as published: no lock names it, nothing has been released, and an unreleased version keeps no copy for compatibility.
-
-Edited in place: places `test-shape@0.2.0` with `reads = "every-test"`, `no-runtime-fixtures@0.2.0`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query without their params (a `test-shape@0.1.0` entry reported nothing).
+Places `no-runtime-fixtures@0.2.0` where 0.1.1 named its earlier version, so a product that places it locks one version of the rule: two versions of one rule share its id, and the earlier entry ran the later query. Nothing else changes: an entry's schemas are its one `schemas.rs`, and scenario `schemas-split-by-kind` holds a `schemas/` directory of per-kind files closed. 0.1.1 is removed with this version, not kept as published: no lock names it, nothing has been released.
 
 # entry
 
