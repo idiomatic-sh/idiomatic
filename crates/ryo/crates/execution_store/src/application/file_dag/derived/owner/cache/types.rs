@@ -34,17 +34,14 @@ pub(crate) struct CacheBackend {
     /// Successful root and nearest memo payload admitted within its smaller sub-budget.
     pub(in crate::application::file_dag::derived::owner) memo_bytes: ByteCount,
     /// Complete immutable graph populations.
-    pub(in crate::application::file_dag::derived::owner) graphs: Vec<
-        crate::application::file_dag::derived::owner::graphs::types::retained::types::GraphEntry,
-    >,
+    pub(in crate::application::file_dag::derived::owner) graphs:
+        Vec<crate::application::file_dag::derived::owner::graphs::retained::types::GraphEntry>,
     /// Exact stable domain memberships.
-    pub(in crate::application::file_dag::derived::owner) graph_domains: Vec<
-        crate::application::file_dag::derived::owner::graphs::types::retained::types::DomainEntry,
-    >,
+    pub(in crate::application::file_dag::derived::owner) graph_domains:
+        Vec<crate::application::file_dag::derived::owner::graphs::retained::types::DomainEntry>,
     /// Mutable nearest answers remain owned by this generation.
-    pub(in crate::application::file_dag::derived::owner) nearest: Vec<
-        crate::application::file_dag::derived::owner::graphs::types::retained::types::NearestMemo,
-    >,
+    pub(in crate::application::file_dag::derived::owner) nearest:
+        Vec<crate::application::file_dag::derived::owner::graphs::retained::types::NearestMemo>,
     /// Aggregate requested/traversed work and graph admission accounting.
     pub(in crate::application::file_dag::derived::owner) graph_counts:
         ryo_execution_domain::domain::stored_graph::types::GraphCounts,

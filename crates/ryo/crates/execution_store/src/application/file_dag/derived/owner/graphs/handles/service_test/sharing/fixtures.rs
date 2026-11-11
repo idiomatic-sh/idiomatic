@@ -1,6 +1,6 @@
 //! The asks of the `sharing` cases and what each observed.
 use crate::application::file_dag::derived::owner::graphs::fixtures::{ENDPOINTS, SOURCE, rows};
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };

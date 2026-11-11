@@ -6,7 +6,7 @@ use super::fixtures::{
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 use crate::application::file_dag::derived::owner::graphs::fixtures::{ENDPOINTS, SOURCE, rows};
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };

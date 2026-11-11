@@ -1,5 +1,5 @@
 //! The source, endpoints and rows that the graphs cases and their nested parts' cases share.
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };

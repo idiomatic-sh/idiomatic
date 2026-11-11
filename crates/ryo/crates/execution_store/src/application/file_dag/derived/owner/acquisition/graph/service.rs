@@ -14,10 +14,10 @@ use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 use crate::application::file_dag::derived::owner::graph_key::service::{
     GraphRequirement, GraphViewIdentity,
 };
-use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
+use crate::application::file_dag::derived::owner::graphs::handles::service::{
     DomainHandle, GraphHandle,
 };
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::service::ViewContext;
 use crate::application::file_dag::workspace::service::GraphInput;
 use ryo_execution_domain::domain::{

@@ -1,11 +1,10 @@
 //! Test setup uses the production owner, original-row admission and physical dispatch.
-use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
+use crate::application::file_dag::derived::owner::graphs::handles::service::{
     DomainHandle, GraphHandle,
 };
 #[cfg(test)]
 use crate::application::file_dag::derived::owner::graphs::{
-    service::slot,
-    types::{handles::service::RootAnswer, roots::value::service::DemandAnswers},
+    handles::service::RootAnswer, roots::value::service::DemandAnswers, service::slot,
 };
 #[cfg(test)]
 use crate::application::file_dag::derived::owner::service::ViewContext;

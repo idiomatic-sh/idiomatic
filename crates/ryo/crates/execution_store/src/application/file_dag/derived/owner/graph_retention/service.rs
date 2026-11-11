@@ -7,11 +7,9 @@ use std::sync::Arc;
 use super::super::super::{
     ledger::types::Backing,
     owner::graphs::{
+        handles::{service::GraphHandle, types::GraphSharing},
+        retained::types::{DomainEntry, GraphEntry},
         service::{replace, room, slot},
-        types::{
-            handles::{service::GraphHandle, types::GraphSharing},
-            retained::types::{DomainEntry, GraphEntry},
-        },
     },
 };
 use super::super::service::*;

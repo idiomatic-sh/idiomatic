@@ -7,9 +7,9 @@ use crate::application::file_dag::derived::ledger::types::{
 };
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::application::file_dag::derived::{
-    owner::cache::types::CacheBackend, owner::graphs::types::handles::service::GraphHandle,
+    owner::cache::types::CacheBackend, owner::graphs::handles::service::GraphHandle,
     owner::service::DerivedOwner, population::service::PopulationId,
 };
 use ryo_execution_domain::domain::{

@@ -1,6 +1,6 @@
 //! The support of the `graph` cases.
 use super::super::fixtures::{ENDPOINTS, SOURCE, number, rows};
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::*;
 use fixtures::graph::GraphFixture;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -96,9 +96,7 @@ pub(super) fn held(fixture: &GraphFixture) -> Held {
     }
 }
 
-pub(super) fn reached(
-    answer: &graphs::types::handles::service::RootAnswer,
-) -> Cow<'static, [Cell]> {
+pub(super) fn reached(answer: &graphs::handles::service::RootAnswer) -> Cow<'static, [Cell]> {
     Cow::Owned(
         answer
             .values()

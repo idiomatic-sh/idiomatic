@@ -1,6 +1,6 @@
 //! Real owner handles remain valid/accounted across clear and cannot poison refill.
 use super::fixtures::{Completed, Declined, Held, Lifetime, Observed, Shared, observe};
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::stored_graph::types::Orientation;

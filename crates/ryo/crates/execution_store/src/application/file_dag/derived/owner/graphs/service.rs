@@ -1,6 +1,6 @@
 //! Complete compact graph/domain acquisition under one unchanged per-file byte allowance.
 
-use super::types::reserve::types::Reserve;
+use super::reserve::types::Reserve;
 use crate::application::file_dag::derived::ledger::types::{ByteCount, SlotCount};
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 

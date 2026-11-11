@@ -83,9 +83,9 @@ impl DerivedOwner {
         input: &crate::application::file_dag::workspace::service::GraphInput<'_>,
         cache: &mut CacheBackend,
     ) -> Result<
-        Option<crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle>,
+        Option<crate::application::file_dag::derived::owner::graphs::handles::service::GraphHandle>,
         OperatingError,
-    >{
+    > {
         if !std::ptr::eq(self, input.owner()) {
             return Err(OperatingError::NotRead);
         }
@@ -94,11 +94,11 @@ impl DerivedOwner {
     pub(crate) fn acquire_graph_domain(
         &self,
         plan: &Arc<DerivedContract>,
-        graph: &crate::application::file_dag::derived::owner::graphs::types::handles::service::GraphHandle,
+        graph: &crate::application::file_dag::derived::owner::graphs::handles::service::GraphHandle,
         input: &crate::application::file_dag::workspace::service::GraphInput<'_>,
         cache: &mut CacheBackend,
     ) -> Result<
-        crate::application::file_dag::derived::owner::graphs::types::handles::service::DomainHandle,
+        crate::application::file_dag::derived::owner::graphs::handles::service::DomainHandle,
         OperatingError,
     > {
         if !std::ptr::eq(self, input.owner()) {

@@ -1,6 +1,6 @@
 //! An exhausted domain identity keeps local membership without retained duplicates.
 use super::super::fixtures::{ENDPOINTS, SOURCE, number, rows};
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::application::file_dag::derived::owner::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use fixtures::graph::GraphFixture;

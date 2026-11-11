@@ -8,7 +8,7 @@ use crate::application::file_dag::derived::ledger::service::ResourceLease;
 use crate::application::file_dag::derived::ledger::types::Backing;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
-use crate::application::file_dag::derived::owner::graphs::types::retained::types::ReachedVertices;
+use crate::application::file_dag::derived::owner::graphs::retained::types::ReachedVertices;
 use ryo_derived::domain::adjacency::types::compact_graph::value::CompactGraph;
 use ryo_derived::domain::positions::types::DenseMarks;
 use ryo_execution_domain::domain::stored_graph::types::{GraphDomain, Orientation};
