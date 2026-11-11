@@ -1,90 +1,86 @@
 //! Parser values normalize every Python radix without evaluating unary or arithmetic expressions.
-use super::fixtures::{float_text, literals};
 
-#[test]
-fn integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives() {
-    let values = literals(
-        "0x10\n0o20\n0b10000\n1_000\n9007199254740993\n18446744073709551616\n340282366920938463463374607431768211457\nTrue\nFalse\n1j\nNone\n'42'\nb'42'\n",
-    );
-    assert_eq!(
-        values
-            .iter()
-            .map(|value| (value.kind, value.value.as_str()))
-            .collect::<Vec<_>>(),
-        [
-            ("integer", "16"),
-            ("integer", "16"),
-            ("integer", "16"),
-            ("integer", "1000"),
-            ("integer", "9007199254740993"),
-            ("integer", "18446744073709551616"),
-            ("integer", "340282366920938463463374607431768211457"),
-        ]
-    );
+use super::fixtures::{
+    floats_round_trip_and_keep_their_numeric_kind,
+    integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives,
+    literals_inside_interpolations_remain_real_numeric_occurrences,
+    unary_signs_and_arithmetic_remain_separate_syntax,
+};
+use crate::cases::{Case, CaseName, Expect, Word, run};
+
+/// Which scenario a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Given {
+    /// The `integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives` scenario.
+    IntegerPayloadsAreCanonicalArbitraryPrecisionAndExcludeOtherPrimitives,
+    /// The `unary_signs_and_arithmetic_remain_separate_syntax` scenario.
+    UnarySignsAndArithmeticRemainSeparateSyntax,
+    /// The `floats_round_trip_and_keep_their_numeric_kind` scenario.
+    FloatsRoundTripAndKeepTheirNumericKind,
+    /// The `literals_inside_interpolations_remain_real_numeric_occurrences` scenario.
+    LiteralsInsideInterpolationsRemainRealNumericOccurrences,
+}
+/// What a row is given.
+type Input = Given;
+/// What the scenario observed, each check in order, joined by `|`.
+type Value = &'static str;
+/// A scenario is never refused.
+type Failure = ();
+
+/// The rows of this group's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives",
+        ),
+        word: Word::Succeeds,
+        input: || Given::IntegerPayloadsAreCanonicalArbitraryPrecisionAndExcludeOtherPrimitives,
+        expect: Expect::Value(
+            "[(\"integer\", \"16\"), (\"integer\", \"16\"), (\"integer\", \"16\"), (\"integer\", \"1000\"), (\"integer\", \"9007199254740993\"), (\"integer\", \"18446744073709551616\"), (\"integer\", \"340282366920938463463374607431768211457\")]",
+        ),
+    },
+    Case {
+        name: CaseName("unary_signs_and_arithmetic_remain_separate_syntax"),
+        word: Word::Succeeds,
+        input: || Given::UnarySignsAndArithmeticRemainSeparateSyntax,
+        expect: Expect::Value("[\"42\", \"16\", \"1\", \"2\", \"0.0\"]"),
+    },
+    Case {
+        name: CaseName("floats_round_trip_and_keep_their_numeric_kind"),
+        word: Word::Succeeds,
+        input: || Given::FloatsRoundTripAndKeepTheirNumericKind,
+        expect: Expect::Value(
+            "\"float\"|4607182418800017408|true|\"float\"|4652007308841189376|true|\"float\"|4652007308841189376|true|\"float\"|1|true|\"float\"|0|true|\"float\"|9218868437227405312|true|6|\"-0.0\"|\"-inf\"|\"NaN\"|true|1|true|9223372036854775809|true|9218868437227405311|true|18442240474082181119",
+        ),
+    },
+    Case {
+        name: CaseName("literals_inside_interpolations_remain_real_numeric_occurrences"),
+        word: Word::Succeeds,
+        input: || Given::LiteralsInsideInterpolationsRemainRealNumericOccurrences,
+        expect: Expect::Value("[\"16\", \"1.0\"]"),
+    },
+];
+
+/// Runs the scenario the row names.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let observed = match given {
+        Given::IntegerPayloadsAreCanonicalArbitraryPrecisionAndExcludeOtherPrimitives => {
+            integer_payloads_are_canonical_arbitrary_precision_and_exclude_other_primitives()
+        }
+        Given::UnarySignsAndArithmeticRemainSeparateSyntax => {
+            unary_signs_and_arithmetic_remain_separate_syntax()
+        }
+        Given::FloatsRoundTripAndKeepTheirNumericKind => {
+            floats_round_trip_and_keep_their_numeric_kind()
+        }
+        Given::LiteralsInsideInterpolationsRemainRealNumericOccurrences => {
+            literals_inside_interpolations_remain_real_numeric_occurrences()
+        }
+    };
+    Ok(Box::leak(observed.into_boxed_str()))
 }
 
 #[test]
-fn unary_signs_and_arithmetic_remain_separate_syntax() {
-    assert_eq!(
-        literals("-42\n+0x10\n1 + 2\n-0.0\n")
-            .iter()
-            .map(|value| value.value.as_str())
-            .collect::<Vec<_>>(),
-        ["42", "16", "1", "2", "0.0"]
-    );
-}
-
-#[test]
-fn floats_round_trip_and_keep_their_numeric_kind() {
-    let values = literals("1.0\n1e3\n1_000.0\n5e-324\n1e-9999\n1e9999\n");
-    let expected = [
-        1.0_f64,
-        1000.0,
-        1000.0,
-        f64::from_bits(1),
-        0.0,
-        f64::INFINITY,
-    ];
-    for (value, expected) in values.iter().zip(expected) {
-        assert_eq!(value.kind, "float");
-        assert_eq!(
-            value
-                .value
-                .parse::<f64>()
-                .expect("round-trip text")
-                .to_bits(),
-            expected.to_bits()
-        );
-        assert!(!expected.is_finite() || value.value.contains(['.', 'e', 'E']));
-    }
-    assert_eq!(values.len(), expected.len());
-    assert_eq!(float_text((-0.0_f64).to_bits()), "-0.0");
-    assert_eq!(float_text(f64::NEG_INFINITY.to_bits()), "-inf");
-    assert_eq!(float_text(f64::NAN.to_bits()), "NaN");
-    for bits in [
-        1_u64,
-        1_u64 | (1_u64 << 63),
-        f64::MAX.to_bits(),
-        f64::MIN.to_bits(),
-    ] {
-        let text = float_text(bits);
-        assert!(text.len() <= 350);
-        assert_eq!(
-            text.parse::<f64>()
-                .expect("finite float spelling")
-                .to_bits(),
-            bits
-        );
-    }
-}
-
-#[test]
-fn literals_inside_interpolations_remain_real_numeric_occurrences() {
-    assert_eq!(
-        literals("f'1{0x10}2{1.0}'\n")
-            .iter()
-            .map(|value| value.value.as_str())
-            .collect::<Vec<_>>(),
-        ["16", "1.0"]
-    );
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

@@ -1,48 +1,40 @@
 //! The terminal index is lazy, memoized and cleared on source replacement.
-use super::super::super::{
-    service::{outcome, prepare},
-    types::IndexState,
-};
-use crate::domain::model::types::Declarations;
-use crate::fixtures::reading::{initialize_model, parsed};
-use ryo::languages::{self, ByteSlice, Tree};
+
+use super::fixtures::is_lazy_retained_and_invalidated_between_files;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+
+/// Which scenario a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Given {
+    /// The `is_lazy_retained_and_invalidated_between_files` scenario.
+    IsLazyRetainedAndInvalidatedBetweenFiles,
+}
+/// What a row is given.
+type Input = Given;
+/// What the scenario observed, each check in order, joined by `|`.
+type Value = &'static str;
+/// A scenario is never refused.
+type Failure = ();
+
+/// The rows of this group's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("is_lazy_retained_and_invalidated_between_files"),
+    word: Word::Succeeds,
+    input: || Given::IsLazyRetainedAndInvalidatedBetweenFiles,
+    expect: Expect::Value("Fresh|Complete|true|Fresh|true|true"),
+}];
+
+/// Runs the scenario the row names.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let observed = match given {
+        Given::IsLazyRetainedAndInvalidatedBetweenFiles => {
+            is_lazy_retained_and_invalidated_between_files()
+        }
+    };
+    Ok(Box::leak(observed.into_boxed_str()))
+}
 
 #[test]
-fn is_lazy_retained_and_invalidated_between_files() {
-    let first = parsed(b"def f():\n    raise ValueError()\n").expect("source parses");
-    let first_tree = Tree {
-        elements: &first.elements,
-        source: ByteSlice(first.bytes),
-        file: languages::FileId(0),
-    };
-    let mut model = Declarations::default();
-    initialize_model(&first_tree, &mut model);
-    assert_eq!(model.terminal_flow.borrow().state, IndexState::Fresh);
-    let index = prepare(&first_tree, &model.terminal_flow);
-    assert_eq!(index.state, IndexState::Complete);
-    let function = (0..index.nodes.len()).find_map(|slot| {
-        let position = languages::Position(u32::try_from(slot).ok()?);
-        (outcome(&index, position) == Some(languages::NameText("raise"))).then_some(position)
-    });
-    assert!(function.is_some());
-    let capacity = index.nodes.capacity();
-    drop(index);
-
-    let second = parsed(b"def g():\n    pass\n").expect("replacement source parses");
-    let second_tree = Tree {
-        elements: &second.elements,
-        source: ByteSlice(second.bytes),
-        file: languages::FileId(0),
-    };
-    initialize_model(&second_tree, &mut model);
-    assert_eq!(model.terminal_flow.borrow().state, IndexState::Fresh);
-    let replacement = prepare(&second_tree, &model.terminal_flow);
-    assert!(replacement.nodes.capacity() >= capacity);
-    assert!(
-        replacement
-            .nodes
-            .iter()
-            .any(|summary| summary.function_terminal
-                == super::super::super::types::TerminalOutcome::Implicit)
-    );
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }
