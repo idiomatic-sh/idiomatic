@@ -545,7 +545,7 @@ then.findings = [
 [[scenarios]]
 id = 'namespace-read-through-the-language-placement'
 scenario = 'The same namespace read through the include the language placement gives, the files beside the part and their group tests (`src/domain/*/*.rs`, `src/domain/*/*_test/**/test.rs`): its groups are read, and it passes. The rule reads only the files its entry includes, so each entry that places it on a part also includes the group tests of the part.'
-given.include = ['src/greeting/domain/*/*.rs', 'src/greeting/domain/*/*_test/**/test.rs']
+given.include = ['src/greeting/domain/*/*.rs', 'src/greeting/domain/*/*_test/**/*.rs']
 given.files.'src/greeting/domain/short/errors.rs' = '''
 //! The short concept's failures.
 
@@ -578,3 +578,41 @@ fn succeeds() {
 }
 '''
 
+[[scenarios]]
+id = 'namespace-without-succeeds-read-through-the-language-placement'
+scenario = 'A namespace read through the language placement whose groups hold no `succeeds` row is reported at the namespace.'
+given.include = ['src/greeting/domain/*/*.rs', 'src/greeting/domain/*/*_test/**/*.rs']
+given.files.'src/greeting/domain/short/errors.rs' = '''
+//! The short concept's failures.
+
+/// Why a short operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShortError {
+    /// The input was empty.
+    #[error("empty")]
+    Empty,
+}
+'''
+given.files.'src/greeting/domain/short/service_test.rs' = '''
+//! The short service's cases, in groups.
+
+#[cfg(test)]
+mod order;
+'''
+given.files.'src/greeting/domain/short/service_test/order.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/greeting/domain/short/service_test/order/test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Refuses, input: one, expect: Expect::Error(Failure::Empty) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { path = 'src/greeting/domain/short/service_test.rs', line = 3 },
+]

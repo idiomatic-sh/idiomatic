@@ -4,6 +4,8 @@ Places `no-runtime-fixtures@0.2.0` where 0.1.1 named its earlier version, so a p
 
 Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
 
+Edited in place: the `unit-cases` entry reads `*_test/**/*.rs` beside its own files, the flat groups and the group directories of a namespace test, which the rule reads only when its entry includes them.
+
 # entry
 
 ## 0.1.0
