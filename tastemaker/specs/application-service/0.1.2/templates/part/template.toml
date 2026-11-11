@@ -1,5 +1,5 @@
-description = "A file of a nested part of the operation: its module file, an interface, schemas, errors or a proof of it, beneath the operation's directory."
-why = "An operation may keep a cohesive sub-operation in a directory of its own (`publication/`, `admission/`), and that part has the files a part has: its module file holding its items, its interface, its schemas, its errors and its proofs, and its own nested parts. The pattern places every such file by its role, so a new nested part touches no manifest; the operation's rules still hold the part's code, and its module tree is held by the crate's `orphan-rust-files`."
+description = "The module file of a nested part of the operation, holding the part's items."
+why = "A operation may keep a cohesive part in a directory of its own, whose `mod.rs` holds the part's items as the module file it was before it became a directory. The pattern places that module file only; the part's errors, interface, schemas, types, service and tests are placed by their own role templates and held by the operation's role rules, which read them at any depth."
 content = '''
 //! A part of the `{{ part }}` operation.
 '''
