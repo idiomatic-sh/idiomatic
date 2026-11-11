@@ -22,12 +22,38 @@ pub struct Derived(DerivedAccess);
 
 impl Derived {
     /// The access an engine prepares with: a clone of the one held.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_core::application::derived::service::Derived;
+    ///
+    /// let derived = Derived::from(ryo_execution::derived());
+    /// let first = derived.access();
+    /// let second = derived.access();
+    /// ```
     #[must_use]
     pub fn access(&self) -> DerivedAccess {
         self.0.clone()
     }
 
     /// The engine's prepare use case over `operators` and `digest`, preparing with a clone of the held access.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_core::application::derived::service::Derived;
+    /// use std::sync::Arc;
+    ///
+    /// let derived = Derived::from(ryo_execution::derived());
+    /// let operators = ryo_execution_runtime::outbound::operators::factory::use_case(
+    ///     ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl::new(Arc::new(
+    ///         ryo_operators::outbound::matching::factory::use_case(),
+    ///     )),
+    /// );
+    /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
+    /// let prepare = derived.prepare(Arc::new(operators), Arc::new(digest));
+    /// ```
     #[must_use]
     pub fn prepare(
         &self,
