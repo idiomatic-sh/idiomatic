@@ -1,12 +1,12 @@
 # crate 0.13.2
 
-Places by role what a product listed file by file: the crate's grouped integration tests, `tests/test.rs` and `tests/{*group}/` at any depth (`mod.rs`, `test.rs`, `fixtures.rs` and its `fixtures/` tree), the proof of its case runner `src/cases_test.rs`, and its license `LICENSE*`, each with `count = { min = 0 }`. The license pattern writes out no file name, so a spec that places the license with a template of its own (the command line's MIT text) is the more specific entry and places it. A test group is never beneath `tests/fixtures/`, which holds the inputs `fixture-tree` places. A new crate-local template, `integration-test`, places a group's test and test support. Scenarios `grouped-tests-license-and-cases-test` (nothing closed) and `file-of-no-role-in-a-test-group` (closed). Everything else is as in 0.13.1.
+Places by role what a product listed file by file: the crate's grouped integration tests, `tests/test.rs` and `tests/{*group}/` at any depth (`mod.rs`, `test.rs`, `fixtures.rs` and its `fixtures/` tree), the proof of its case runner `src/cases_test.rs`, and its license `LICENSE*`, each with `count = { min = 0 }`. The license pattern writes out no file name, so a spec that places the license with a template of its own (the command line's MIT text) is the more specific entry and places it. A test group is never beneath `tests/fixtures/`, which holds the inputs `fixture-tree` places. A new crate-local template, `integration-test`, places a group's test and test support. Scenarios `grouped-tests-license-and-cases-test` (nothing closed) and `file-of-no-role-in-a-test-group` (closed). Everything else is as in 0.13.1. 0.13.1 is removed with this version, not kept as published: no lock names it, nothing has been released, and an unreleased version keeps no copy for compatibility.
 
 # crate
 
 ## 0.13.1
 
-An engine library crate, an application layer with no use case of its own (ryo's execution store, which the engine above it calls), keeps the test support `src/cases.rs` as a core does: its `src/application.rs` answers the `cases` condition beside `src/inbound.rs`, `src/domain.rs`, `src/resources.rs` and `src/main.rs`. Fixture `engine-library-application-no-use-case-answers`. Everything else is as in 0.13.0, which stays as published.
+An engine library crate, an application layer with no use case of its own (ryo's execution store, which the engine above it calls), keeps the test support `src/cases.rs` as a core does: its `src/application.rs` answers the `cases` condition beside `src/inbound.rs`, `src/domain.rs`, `src/resources.rs` and `src/main.rs`. Fixture `engine-library-application-no-use-case-answers`. Everything else is as in 0.13.0, which stays because the asymptote and tastemaker locks still pin it.
 
 ## 0.13.0
 

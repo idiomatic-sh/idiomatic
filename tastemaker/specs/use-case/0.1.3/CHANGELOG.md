@@ -1,6 +1,6 @@
 # use-case 0.1.3
 
-A group of the use case's cases may hold groups of its own: the group module and its test are placed at any depth beneath `use_case_test/` (`{*group}`, where 0.1.2 placed one level, `{group}`), and a group's test support `use_case_test/{*group}/fixtures.rs` is placed with `count = { min = 0 }`. Scenario `nested-use-case-test-group`. Everything else is as in 0.1.2.
+A group of the use case's cases may hold groups of its own: the group module and its test are placed at any depth beneath `use_case_test/` (`{*group}`, where 0.1.2 placed one level, `{group}`), and a group's test support `use_case_test/{*group}/fixtures.rs` is placed with `count = { min = 0 }`. Scenario `nested-use-case-test-group`. Everything else is as in 0.1.2. 0.1.2 is removed with this version, not kept as published: no lock names it, nothing has been released, and an unreleased version keeps no copy for compatibility.
 
 # use-case 0.1.2
 

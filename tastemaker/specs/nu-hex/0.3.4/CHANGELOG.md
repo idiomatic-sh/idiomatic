@@ -1,6 +1,6 @@
 # nu-hex 0.3.4
 
-Places its parts at the versions that place nested parts and nested groups by their roles: `application-service@0.1.2`, `use-case@0.1.3` and `concept@0.1.2` (`port@0.3.1` as before), so an application operation's or a domain concept's nested part, and a use case's nested group of cases, need no line of a product's manifest. The include patterns are as in 0.3.3. Everything else is as in 0.3.3.
+Places its parts at the versions that place nested parts and nested groups by their roles: `application-service@0.1.2`, `use-case@0.1.3` and `concept@0.1.2` (`port@0.3.1` as before), so an application operation's or a domain concept's nested part, and a use case's nested group of cases, need no line of a product's manifest. The include patterns are as in 0.3.3. Everything else is as in 0.3.3. 0.3.3 is removed with this version, not kept as published: no lock names it, nothing has been released, and an unreleased version keeps no copy for compatibility.
 
 # nu-hex 0.3.3
 
