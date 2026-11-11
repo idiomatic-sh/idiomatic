@@ -1,6 +1,5 @@
 //! The native trees of the files and the run through the owner that the walk proofs compare plans by.
 use crate::boundary_fixture::fixtures::{authored_request, demand, engine};
-use crate::project_phase::source_facts::fixtures::ProjectFacts;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -16,16 +15,14 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::errors::FactsError;
-use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_axis::CapturedBuckets;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::ProjectFacts;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::facts::types::{BucketSource, KeptBucket};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_language::domain::{
     builders::fixtures as builders, completion::fixtures as completion, elements::types::Elements,
@@ -39,13 +36,12 @@ use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
 use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords, PackedWords};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, StepId, StepScope},
     plans::types::PlanStep,
 };
-use std::sync::Arc;
 
 /// The text of every file: two tokens under one root, at ordinals 0 and 1.
 const SOURCE: &[u8] = b"x\nx\n";
@@ -66,36 +62,6 @@ fn native_tree(file: FileId) -> (Elements, Symbols) {
     completion::name_kind(&mut completion, KindBits(0), NameText("root"));
     completion::name_kind(&mut completion, KindBits(1), NameText("token"));
     (elements, symbols)
-}
-
-/// The frontiers the files captured, by bucket.
-struct CapturedBuckets {
-    captures: Vec<(FileId, CapturedFrontier)>,
-}
-impl FactsFinish for CapturedBuckets {
-    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
-        let mut words = vec![];
-        let mut sources = vec![];
-        for (file, capture) in self
-            .captures
-            .iter()
-            .filter(|(_, capture)| capture.bucket == bucket)
-        {
-            sources.push(BucketSource {
-                file: *file,
-                start: ryo_execution_runtime::outbound::facts::types::KeptWordsStart(words.len()),
-                length: ryo_execution_runtime::outbound::facts::types::KeptWordsLength(
-                    capture.words.0.len(),
-                ),
-                proof: capture.proof.clone(),
-            });
-            words.extend_from_slice(&capture.words.0);
-        }
-        Ok(KeptBucket {
-            words: Arc::new(KeptWords(PackedWords(words))),
-            sources,
-        })
-    }
 }
 
 /// Why a root gave no rows, in words.

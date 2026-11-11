@@ -1,7 +1,6 @@
 //! Named restoration retains partition-qualified physical coverage despite cached readiness.
 use crate::boundary_fixture::fixtures::Observed as _;
 use crate::boundary_fixture::fixtures::{corpus, engine, source};
-use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
@@ -21,9 +20,9 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::errors::FactsError;
-use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
-use ryo_execution_runtime::outbound::facts::types::KeptBucket;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_restoration::ConsumerFrontier;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::CapturedFacts;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::ProjectFacts;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
@@ -245,19 +244,5 @@ fn restored_named_frontier_keeps_skipped_partition_provenance_despite_complete_r
                 )),
             ]
         );
-    }
-}
-
-/// The restored producer frontier and, in its own bucket, the consumer's file frontier.
-struct ConsumerFrontier<'a> {
-    producer: &'a CapturedFacts,
-    consumer: &'a CapturedFacts,
-}
-impl FactsFinish for ConsumerFrontier<'_> {
-    fn kept(&self, bucket: Bucket) -> Result<KeptBucket, FactsError> {
-        if bucket == Bucket(10) {
-            return self.consumer.kept(bucket);
-        }
-        self.producer.kept(bucket)
     }
 }

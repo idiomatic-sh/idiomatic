@@ -1,6 +1,5 @@
 //! S12: a project region's inputs, one read in part and one not applicable, merge into a partial answer.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, engine, source};
-use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
@@ -11,6 +10,9 @@ use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_merged::Buckets;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::CapturedFacts;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::ProjectFacts;
 use ryo_language::domain::files::types::FilePath;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
@@ -50,20 +52,6 @@ fn one_row(relation: Relation) -> ryo_values::domain::rows::types::Table {
         })
         .collect();
     table
-}
-
-/// The kept frontier of each of a rule's inputs, each in its own bucket.
-struct Buckets(Vec<CapturedFacts>);
-impl ryo_execution_runtime::outbound::facts::interface::FactsFinish for Buckets {
-    fn kept(
-        &self,
-        bucket: Bucket,
-    ) -> Result<
-        ryo_execution_runtime::outbound::facts::types::KeptBucket,
-        ryo_execution_runtime::outbound::facts::errors::FactsError,
-    > {
-        self.0[usize::try_from(bucket.0).expect("a bucket number fits in usize")].kept(bucket)
-    }
 }
 
 /// S12: a project region over two frontiers, one read in part in file 0 and both skipped in file 1, merges them: its answer is

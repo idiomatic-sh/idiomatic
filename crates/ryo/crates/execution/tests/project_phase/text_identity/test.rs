@@ -1,6 +1,5 @@
 //! Project text identity does not depend on inherited arenas.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, engine};
-use crate::project_phase::source_facts::fixtures::{CapturedFacts, ProjectFacts};
 use ryo_execution::inbound::use_cases::execution::interface::Covered;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -10,6 +9,8 @@ use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::CapturedFacts;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::ProjectFacts;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_values::domain::{

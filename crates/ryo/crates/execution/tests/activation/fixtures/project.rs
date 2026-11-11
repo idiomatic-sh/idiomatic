@@ -11,44 +11,10 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectBatch;
-use ryo_execution_runtime::outbound::facts::errors::FactsError;
-use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
-use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
-use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
-use ryo_execution_runtime::outbound::facts::types::KeptBucket;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::activation_project::NoFacts;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::stored_facts::types::Bucket;
-
-/// Compiled frontiers are empty, so no source row or kept bucket may be requested.
-struct NoFacts;
-impl FactsFinish for NoFacts {
-    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
-        panic!("an activation rule has no file frontier to fetch")
-    }
-}
-impl FactsWorker for NoFacts {
-    fn resident_stability(&self) -> ResidentStability {
-        ResidentStability::Stable
-    }
-    fn rows(&self, _: Relation) -> Result<ColumnsView<'_>, FactsError> {
-        panic!("an activation rule has no project relation to read")
-    }
-    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
-        panic!("an activation rule writes no facts")
-    }
-    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
-        panic!("an activation rule writes no facts")
-    }
-    fn release(&mut self) -> Result<(), FactsError> {
-        panic!("an activation rule writes no facts")
-    }
-    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
-        panic!("an activation rule writes no facts")
-    }
-}
 
 /// The public project entry for the declared roots in `demanded` (ascending), observed from
 /// phase opening to the last delivery. `intrusion` runs inside the observed window and stands

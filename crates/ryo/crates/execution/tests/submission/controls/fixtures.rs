@@ -4,7 +4,7 @@ use super::super::routes::fixtures::{file_route, run_file_route};
 use super::super::witness::fixtures::Method;
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine, prepared_rules};
 use crate::file_intents::fixtures::named_request;
-use crate::project_phase::negative::fixtures::{Entry, Held, NoFacts, with_held};
+use crate::project_phase::negative::fixtures::{Entry, Held, with_held};
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
@@ -30,6 +30,7 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
+use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_negative::NoFacts;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 

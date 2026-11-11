@@ -15,7 +15,6 @@ use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
 use ryo_relations::domain::relations::fixtures::node_id;
 use ryo_relations::domain::relations::types::{FileId, Position, Relation, Value};
 use ryo_values::domain::plan_parts::types::StepScope;
@@ -23,44 +22,12 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
-    use ryo_operators::domain::contract::types::PortableOperatorFault;
-    use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-    use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-    use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-    use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
+    use ryo_execution_runtime::outbound::operators::fixtures::boundary::projection_tree_positions::ObservedJoin;
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     };
-    #[derive(Debug)]
-    struct ObservedJoin {
-        calls: AtomicUsize,
-        refuse: bool,
-    }
-    impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for ObservedJoin {
-        fn operators(
-            &self,
-            call: OperatorCall<'_>,
-        ) -> Result<OperatorAnswer, PortableOperatorFault> {
-            if matches!(
-                &call,
-                OperatorCall::Evaluate {
-                    operation: ryo_values::domain::plans::types::Operation::Join { .. },
-                    ..
-                }
-            ) {
-                self.calls.fetch_add(1, Ordering::Relaxed);
-                if self.refuse {
-                    return Err(PortableOperatorFault::ShapeMismatch);
-                }
-            }
-            OperatorsUseCaseImpl::new(std::sync::Arc::new(
-                ryo_operators::outbound::matching::factory::use_case(),
-            ))
-            .operators(call)
-        }
-    }
     for relation in [Relation::SyntaxTree, Relation::SyntaxChild] {
         for (empty, refuse) in [(false, false), (true, false), (false, true)] {
             let semantics = Arc::new(ObservedJoin {

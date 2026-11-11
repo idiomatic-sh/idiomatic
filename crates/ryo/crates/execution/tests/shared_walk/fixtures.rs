@@ -11,7 +11,7 @@ use ryo_execution_runtime::application::file_dag::program::prepared_execution::t
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
+use ryo_execution_runtime::outbound::operators::fixtures::boundary::shared_walk::SemanticCalls;
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::{
     completion::fixtures::{completion, name_kind},
@@ -22,11 +22,6 @@ use ryo_language::domain::{
     kind_index::fixtures::index_kinds,
     symbols::types::{ByteSlice, Symbols},
 };
-use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
-use ryo_operators::inbound::use_cases::operators::use_case::OperatorsUseCaseImpl;
 use ryo_relations::domain::{
     relations::{
         fixtures::{kinds, node_id},
@@ -43,34 +38,7 @@ use ryo_values::domain::{
     query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     rows::types::{RowCount, Table},
 };
-use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
-};
-#[derive(Debug, Default)]
-pub(crate) struct SemanticCalls(AtomicUsize);
-impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for SemanticCalls {
-    fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        if matches!(
-            &call,
-            OperatorCall::Evaluate {
-                operation: ryo_values::domain::plans::types::Operation::Select { .. },
-                ..
-            }
-        ) {
-            let _previous = self.0.fetch_add(1, Ordering::Relaxed);
-        }
-        OperatorsUseCaseImpl::new(std::sync::Arc::new(
-            ryo_operators::outbound::matching::factory::use_case(),
-        ))
-        .operators(call)
-    }
-}
-impl SemanticCalls {
-    pub(crate) fn selects(&self) -> usize {
-        self.0.load(Ordering::Relaxed)
-    }
-}
+use std::sync::Arc;
 pub(crate) fn engine() -> (PrepareUseCaseImpl, Arc<SemanticCalls>) {
     let semantics = Arc::new(SemanticCalls::default());
     (

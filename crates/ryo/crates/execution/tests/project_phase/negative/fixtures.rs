@@ -12,13 +12,6 @@ use ryo_execution_runtime::application::file_dag::program::observation_stage::ty
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
-use ryo_execution_runtime::outbound::facts::errors::FactsError;
-use ryo_execution_runtime::outbound::facts::interface::FactsFinish;
-use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
-use ryo_execution_runtime::outbound::facts::types::ColumnsMut;
-use ryo_execution_runtime::outbound::facts::types::KeptBucket;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::facts::types::WordsToKeep;
 use ryo_relations::domain::relations::types::{CellKind, FileId};
 use ryo_values::domain::{
     files::types::CorpusInput,
@@ -29,39 +22,8 @@ use ryo_values::domain::{
     plan_parts::types::{Input, ObservationBindingId, StepScope},
     plans::types::{Operation, PlanStep},
     records::types::ObservationReadinessLayout,
-    stored_facts::types::{Bucket, Digest},
+    stored_facts::types::Digest,
 };
-
-/// No compiled rule in these programs has a file frontier or a project relation.
-pub(crate) struct NoFacts;
-impl FactsFinish for NoFacts {
-    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
-        panic!("a submission control has no file frontier to fetch")
-    }
-}
-impl FactsWorker for NoFacts {
-    fn resident_stability(&self) -> ResidentStability {
-        ResidentStability::Stable
-    }
-    fn rows(
-        &self,
-        _: ryo_relations::domain::relations::types::Relation,
-    ) -> Result<ryo_relations::domain::relations::types::ColumnsView<'_>, FactsError> {
-        panic!("a submission control has no project relation to read")
-    }
-    fn columns_mut(&mut self) -> Result<ColumnsMut<'_>, FactsError> {
-        panic!("a submission control writes no facts")
-    }
-    fn keep(&self, _: Bucket, _: WordsToKeep<'_>) -> Result<(), FactsError> {
-        panic!("a submission control writes no facts")
-    }
-    fn release(&mut self) -> Result<(), FactsError> {
-        panic!("a submission control writes no facts")
-    }
-    fn finished(self: Box<Self>) -> Result<Box<dyn FactsFinish>, FactsError> {
-        panic!("a submission control writes no facts")
-    }
-}
 
 /// The two public entries that accept a set of project roots.
 #[derive(Clone, Copy)]
@@ -140,11 +102,4 @@ pub(crate) fn with_held<T>(
     let found = check(&request, held, &corpus, &covered);
     request.finish();
     found
-}
-/// A compiled rule with no file frontier to fetch.
-pub(crate) struct NoFileFrontiers;
-impl FactsFinish for NoFileFrontiers {
-    fn kept(&self, _: Bucket) -> Result<KeptBucket, FactsError> {
-        panic!("this compiled rule has no file frontier to fetch")
-    }
 }
