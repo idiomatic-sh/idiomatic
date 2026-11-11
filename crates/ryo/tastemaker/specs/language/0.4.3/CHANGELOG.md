@@ -2,6 +2,8 @@
 
 Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `benchmark-targets` 0.2.0: a linter's bench and test targets are declared by its own package under `benchmarks/linters/<linter>/`, and refused in the language's `Cargo.toml`.
 
+Edited in place: places `test-shape@0.2.0` with `reads = "every-test"`, `no-runtime-fixtures@0.2.0`, `public-fields@0.3.0`, `io-at-boundary@0.2.0`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query without their params (a `test-shape@0.1.0` entry reported nothing).
+
 # language 0.4.2
 
 Places `benchmark` 0.2.1 (and through it `benchmark-linter` 0.2.1).

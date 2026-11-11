@@ -2,6 +2,8 @@
 
 Places every other domain concept of a language, `src/domain/{concept}`, as an `idiomatic.arch/concept@0.1.2`, with its nested parts and groups of cases; the six concepts this spec places itself (`extras`, `language`, `nodes`, `relations`, `syntax`, `tokens`) are left to it. A language no longer places a concept with a manifest of its own beside the concept. Everything else is as in 0.4.3.
 
+Edited in place: places `test-shape@0.2.0` with `reads = "every-test"`, `no-runtime-fixtures@0.2.0`, `public-fields@0.3.0`, `io-at-boundary@0.2.0`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query without their params (a `test-shape@0.1.0` entry reported nothing).
+
 # language 0.4.3
 
 Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `benchmark-targets` 0.2.0: a linter's bench and test targets are declared by its own package under `benchmarks/linters/<linter>/`, and refused in the language's `Cargo.toml`.

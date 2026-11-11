@@ -28,7 +28,7 @@ rules = [
   { rule = "idiomatic.arch/bdd-members@0.1.0", include = ["src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/inbound/use_cases/*/acceptance.*", "src/inbound/contracts/*/acceptance.*", "tests/bdd.rs"], description = "Acceptance pairs visible in this scope have an owner and harness registration." },
   # The rules every product placed alike over its crates.
   { rule = "idiomatic.arch/extension-point-ports@0.1.0", include = ["**"], params = { exposed = [] }, description = "Every port of the crate has at least one adapter, and its trait ends in `Port`, unless an SDK resource re-exports it." },
-  { rule = "idiomatic.arch/collection-members@0.1.0", include = ["src/**/collections.rs", "src/**/collections/**"], description = "A collection is whole: its list, its module file, its interface and its items." },
+  { rule = "idiomatic.arch/collection-members@0.2.0", include = ["src/**/collections.rs", "src/**/collections/**"], params = { item-trait = [] }, description = "A collection is whole: its list, its module file, its interface and its items." },
   { rule = "idiomatic.arch/use-case-module-beside@0.1.0", include = ["src/inbound/use_cases/**"], description = "Each use case directory has its module file beside it." },
   { rule = "idiomatic.arch/item-contract@0.1.0", include = ["src/**/collections/**"], description = "Each item's test runs its collection's shared cases when the collection has a fixtures/contract.rs." },
   { rule = "idiomatic.arch/thin-command@0.2.0", include = ["src/resources/*/*/command.rs", "src/resources/*/*/entry.rs", "**/interface.rs"], description = "Every command and SDK entry only parses, calls one service and presents the result." },

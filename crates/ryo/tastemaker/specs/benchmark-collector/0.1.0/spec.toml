@@ -6,7 +6,7 @@ templates = [
 ]
 rules = [
   { rule = "targets", include = ["Cargo.toml", "src/main.rs", "src/outbound/execution/adapters/timed/adapter_test.rs"], description = "Both process entry and resource proof are explicit Cargo targets." },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/outbound/execution/adapters/timed/adapter_test.rs"], description = "Resource regressions use the shared case-table runner." },
+  { rule = "idiomatic.arch/test-shape@0.2.0", include = ["src/outbound/execution/adapters/timed/adapter_test.rs"], params = { reads = "every-test" }, description = "Resource regressions use the shared case-table runner." },
 ]
 [given]
 at = "collector"

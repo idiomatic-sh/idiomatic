@@ -8,6 +8,8 @@
 
 - Nothing to change: the rule only stops reporting the generated file.
 
+Edited in place: places `no-runtime-fixtures@0.2.0`, `command@0.2.1`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query without their params (a `test-shape@0.1.0` entry reported nothing).
+
 ## 0.12.0
 
 Edited in place: **the command tree's root builds the `Edge` and passes it** (`commands`, `cli-main`). `commands` rendered `{{resource}}::run(command)`, while `resource` takes `run(command, edge: &crate::edge::Edge)`, so a scaffolded command line did not hand its commands the edge the three products hand theirs. The root now flattens `crate::output::FormatSwitch` and `crate::output::dry_run::DryRunSwitch`, makes `--format`, `--json`, `-q` and `-n/--dry-run` global in `command()`, takes `run(start: &str, build: &str)`, builds the `Edge` once in `run_from` and dispatches `{{resource}}::run(command, &edge)`; `cli-main` reads the process's directory and calls `<product>::resources::run(&start, env!("CARGO_PKG_VERSION"))`. No item is added to either template, so the products, which already do this, are unchanged. Every scenario's `resources.rs` and `main.rs` here shows the edge built and passed.
