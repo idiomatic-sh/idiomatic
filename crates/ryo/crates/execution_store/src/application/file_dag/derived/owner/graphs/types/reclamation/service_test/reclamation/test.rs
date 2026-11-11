@@ -10,222 +10,295 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
 
-fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {
-    let columns = columns();
-    let rows = rows(&columns);
-    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
-    let handle = fixture
-        .index(Relation::Function, &rows, &[ColumnIndex(0)])
-        .expect(constants::OWNER_ACQUIRED_INDEX);
-    let before = fixture.snapshot();
-    assert_eq!(before.indexes, 1);
-    let payload = before.index_payloads[0];
-    let capacity = before.owner_entries_capacity;
-    let cost = payload;
-    fixture.set_limit(before.bytes + payload / 2);
-    assert!(!fixture.reclaim(cost));
-    let pinned = fixture.snapshot();
-    assert_eq!(pinned.bytes, before.bytes);
-    assert_eq!(pinned.indexes, 1);
-    assert_eq!(pinned.counts.pinned_refusals, 1);
-    drop(handle);
-    assert!(fixture.reclaim(cost));
-    let reclaimed = fixture.snapshot();
-    assert_eq!(
-        reclaimed.bytes
-            + usize::try_from(reclaimed.counts.reclaimed_bytes)
-                .expect("a byte count fits in usize"),
-        before.bytes,
-        "the owner accounts for the unique physical credit once"
-    );
-    assert_eq!(reclaimed.indexes, 0);
-    assert_eq!(reclaimed.owner_entries_capacity, capacity);
-    assert_eq!(reclaimed.counts.reclaimed_indexes, 1);
-    assert_eq!(
-        reclaimed.counts.reclaimed_bytes,
-        u64::try_from(cost).expect("a byte count fits in u64")
-    );
-    assert_eq!(reclaimed.optional_bytes, 0);
-    assert_eq!(reclaimed.retained_view_bytes, 0);
-    assert!(reclaimed.bytes + cost <= reclaimed.limit);
-}
-
-fn impossible_admission_does_not_mutate_even_dormant_payload_or_capacity() {
-    let columns = columns();
-    let rows = rows(&columns);
-    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
-    let handle = fixture
-        .index(Relation::Function, &rows, &[ColumnIndex(0)])
-        .expect(constants::OWNER_ACQUIRED_INDEX);
-    drop(handle);
-    let before = fixture.snapshot();
-    let payload = before.index_payloads[0];
-    fixture.set_limit(before.bytes);
-    assert!(!fixture.reclaim(payload + 1));
-    let after = fixture.snapshot();
-    assert_eq!(
-        (after.bytes, after.indexes, after.owner_entries_capacity),
-        (before.bytes, before.indexes, before.owner_entries_capacity)
-    );
-    assert_eq!(after.counts.reclaimed_bytes, 0);
-}
-
-fn fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order() {
-    let columns = columns();
-    let rows = rows(&columns);
-    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
-    drop(
-        fixture
-            .index(Relation::Function, &rows, &[ColumnIndex(0)])
-            .expect(constants::FIRST_OWNER_ACQUIRED_INDEX),
-    );
-    drop(
-        fixture
-            .index(Relation::Function, &rows, &[ColumnIndex(1)])
-            .expect(constants::SECOND_OWNER_ACQUIRED_INDEX),
-    );
-    let before = fixture.snapshot();
-    assert_eq!(before.indexes, 2);
-    let capacity = before.owner_entries_capacity;
-    let first = before.index_payloads[0];
-    fixture.set_limit(before.bytes);
-    assert!(fixture.reclaim(first));
-    let after = fixture.snapshot();
-    assert_eq!(after.indexes, 1);
-    assert_eq!(after.index_columns[0], [ColumnIndex(1)]);
-    assert_eq!(after.owner_entries_capacity, capacity);
-    assert!(after.bytes <= before.bytes - first);
-}
-
-fn owner_reclaims_the_oldest_complete_index_before_newer_indexes() {
-    let columns = columns();
-    let rows = rows(&columns);
-    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
-    let first = fixture
-        .index(Relation::Function, &rows, &[ColumnIndex(0)])
-        .expect(constants::FIRST_OWNER_VIEW);
-    let first_storage = Arc::downgrade(first.storage());
-    let first_view_bytes = fixture.snapshot().retained_view_bytes;
-    assert!(first_view_bytes > 0);
-    drop(first);
-
-    let second = fixture
-        .index(Relation::Function, &rows, &[ColumnIndex(1)])
-        .expect(constants::SECOND_OWNER_VIEW);
-    let second_storage = Arc::downgrade(second.storage());
-    drop(second);
-    let before = fixture.snapshot();
-    assert_eq!(before.indexes, 2);
-    assert!(before.retained_view_bytes > first_view_bytes);
-
-    fixture.set_limit(before.bytes);
-    assert!(fixture.reclaim(first_view_bytes));
-    let after = fixture.snapshot();
-    assert!(
-        first_storage.upgrade().is_none(),
-        "oldest owner view releases first"
-    );
-    assert!(
-        second_storage.upgrade().is_some(),
-        "newer owner view remains"
-    );
-    assert_eq!(after.indexes, 1);
-    assert_eq!(after.counts.reclaimed_indexes, 1);
-    assert_eq!(
-        after.retained_view_bytes,
-        before.retained_view_bytes - first_view_bytes
-    );
-}
-
-fn enabling_graph_demand_does_not_reserve_unused_ordinary_capacity() {
-    let columns = columns();
-    let rows = rows(&columns);
-    let fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
-    drop(
-        fixture
-            .index(Relation::Function, &rows, &[ColumnIndex(0)])
-            .expect(constants::OWNER_ACQUIRED_INDEX),
-    );
-    let before = fixture.snapshot();
-    assert_eq!(before.limit, LIMIT);
-    assert!(fixture.reclaim(1));
-    let after = fixture.snapshot();
-    assert_eq!(after.bytes, before.bytes);
-    assert_eq!(after.indexes, 1);
-}
-
-/// The case each row runs: one of the proofs below.
+/// The owner's indexes over the rows `(1, 4), (2, 3), (3, 2), (4, 1)` when a graph asks for room.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    ALiveIndexBlocksCreditUntilItsConsumerReleasesTheHandle,
-    ImpossibleAdmissionDoesNotMutateEvenDormantPayloadOrCapacity,
-    FifoReclaimsOnlyEnoughDormantEntriesAndPreservesSurvivorOrder,
-    OwnerReclaimsTheOldestCompleteIndexBeforeNewerIndexes,
-    EnablingGraphDemandDoesNotReserveUnusedOrdinaryCapacity,
+enum Indexes {
+    /// One index whose consumer still holds it; the limit leaves half its payload short.
+    Held,
+    /// One dormant index; the room asked is one byte more than it can free.
+    DormantShort,
+    /// Two dormant indexes, on the first and the second column; the room asked is the first's.
+    TwoDormant,
+    /// Two dormant indexes as owner views; the room asked is the first's view bytes.
+    TwoDormantViews,
+    /// One dormant index under the unchanged limit; one byte is asked.
+    UnderTheLimit,
 }
 
-type Input = Scenario;
-type Value = ();
+/// What a held index's reclaim observed, before and after its consumer released it.
+#[derive(Debug, PartialEq)]
+struct Held {
+    indexes: usize,
+    granted_while_held: bool,
+    bytes_kept_while_held: bool,
+    indexes_while_held: usize,
+    pinned_refusals: u64,
+    granted_after_release: bool,
+    credited_once: bool,
+    indexes_after: usize,
+    capacity_kept: bool,
+    reclaimed_indexes: u64,
+    reclaimed_the_cost: bool,
+    optional_bytes: usize,
+    retained_view_bytes: usize,
+    cost_fits: bool,
+}
+
+/// What a FIFO reclaim of two dormant indexes observed.
+#[derive(Debug, PartialEq)]
+struct Fifo {
+    indexes: usize,
+    granted: bool,
+    indexes_after: usize,
+    survivor: [ColumnIndex; 1],
+    capacity_kept: bool,
+    freed_the_first: bool,
+}
+
+/// What reclaiming the oldest of two owner views observed.
+#[derive(Debug, PartialEq)]
+struct Oldest {
+    first_view_bytes: bool,
+    indexes: usize,
+    second_adds_view_bytes: bool,
+    granted: bool,
+    oldest_alive: bool,
+    newer_alive: bool,
+    indexes_after: usize,
+    reclaimed_indexes: u64,
+    freed_only_the_first: bool,
+}
+
+/// What the room request observed.
+#[derive(Debug, PartialEq)]
+enum Observed {
+    Held(Held),
+    /// Whether room was granted, whether bytes, indexes and capacity are unchanged, and the
+    /// bytes reclaimed.
+    Refused {
+        granted: bool,
+        unchanged: bool,
+        reclaimed_bytes: u64,
+    },
+    Fifo(Fifo),
+    Oldest(Oldest),
+    /// The limit, whether room was granted, whether the bytes are unchanged, and the indexes.
+    Fits {
+        limit: usize,
+        granted: bool,
+        bytes_unchanged: bool,
+        indexes: usize,
+    },
+}
+
+type Input = Indexes;
+type Value = Observed;
 type Failure = String;
 
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_live_index_blocks_credit_until_its_consumer_releases_the_handle"),
         word: Word::Succeeds,
-        input: || Scenario::ALiveIndexBlocksCreditUntilItsConsumerReleasesTheHandle,
-        expect: Expect::Value(()),
+        input: || Indexes::Held,
+        expect: Expect::Value(Observed::Held(Held {
+            indexes: 1,
+            granted_while_held: false,
+            bytes_kept_while_held: true,
+            indexes_while_held: 1,
+            pinned_refusals: 1,
+            granted_after_release: true,
+            credited_once: true,
+            indexes_after: 0,
+            capacity_kept: true,
+            reclaimed_indexes: 1,
+            reclaimed_the_cost: true,
+            optional_bytes: 0,
+            retained_view_bytes: 0,
+            cost_fits: true,
+        })),
     },
     Case {
         name: CaseName("impossible_admission_does_not_mutate_even_dormant_payload_or_capacity"),
         word: Word::Succeeds,
-        input: || Scenario::ImpossibleAdmissionDoesNotMutateEvenDormantPayloadOrCapacity,
-        expect: Expect::Value(()),
+        input: || Indexes::DormantShort,
+        expect: Expect::Value(Observed::Refused {
+            granted: false,
+            unchanged: true,
+            reclaimed_bytes: 0,
+        }),
     },
     Case {
         name: CaseName("fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order"),
         word: Word::Succeeds,
-        input: || Scenario::FifoReclaimsOnlyEnoughDormantEntriesAndPreservesSurvivorOrder,
-        expect: Expect::Value(()),
+        input: || Indexes::TwoDormant,
+        expect: Expect::Value(Observed::Fifo(Fifo {
+            indexes: 2,
+            granted: true,
+            indexes_after: 1,
+            survivor: [ColumnIndex(1)],
+            capacity_kept: true,
+            freed_the_first: true,
+        })),
     },
     Case {
         name: CaseName("owner_reclaims_the_oldest_complete_index_before_newer_indexes"),
         word: Word::Succeeds,
-        input: || Scenario::OwnerReclaimsTheOldestCompleteIndexBeforeNewerIndexes,
-        expect: Expect::Value(()),
+        input: || Indexes::TwoDormantViews,
+        expect: Expect::Value(Observed::Oldest(Oldest {
+            first_view_bytes: true,
+            indexes: 2,
+            second_adds_view_bytes: true,
+            granted: true,
+            oldest_alive: false,
+            newer_alive: true,
+            indexes_after: 1,
+            reclaimed_indexes: 1,
+            freed_only_the_first: true,
+        })),
     },
     Case {
         name: CaseName("enabling_graph_demand_does_not_reserve_unused_ordinary_capacity"),
         word: Word::Succeeds,
-        input: || Scenario::EnablingGraphDemandDoesNotReserveUnusedOrdinaryCapacity,
-        expect: Expect::Value(()),
+        input: || Indexes::UnderTheLimit,
+        expect: Expect::Value(Observed::Fits {
+            limit: LIMIT,
+            granted: true,
+            bytes_unchanged: true,
+            indexes: 1,
+        }),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+/// Builds the owner's indexes, sets its limit and asks for a graph's room.
 fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::ALiveIndexBlocksCreditUntilItsConsumerReleasesTheHandle => {
-            a_live_index_blocks_credit_until_its_consumer_releases_the_handle();
-            Ok(())
+    let columns = columns();
+    let rows = rows(&columns);
+    let mut fixture = GraphFixture::new(&[Relation::Function], &[], LIMIT);
+    Ok(match input {
+        Indexes::Held => {
+            let handle = fixture
+                .index(Relation::Function, &rows, &[ColumnIndex(0)])
+                .expect(constants::OWNER_ACQUIRED_INDEX);
+            let before = fixture.snapshot();
+            let cost = before.index_payloads[0];
+            fixture.set_limit(before.bytes + cost / 2);
+            let granted_while_held = fixture.reclaim(cost);
+            let pinned = fixture.snapshot();
+            drop(handle);
+            let granted_after_release = fixture.reclaim(cost);
+            let reclaimed = fixture.snapshot();
+            Observed::Held(Held {
+                indexes: before.indexes,
+                granted_while_held,
+                bytes_kept_while_held: pinned.bytes == before.bytes,
+                indexes_while_held: pinned.indexes,
+                pinned_refusals: pinned.counts.pinned_refusals,
+                granted_after_release,
+                credited_once: reclaimed.bytes
+                    + usize::try_from(reclaimed.counts.reclaimed_bytes)
+                        .expect("a byte count fits in usize")
+                    == before.bytes,
+                indexes_after: reclaimed.indexes,
+                capacity_kept: reclaimed.owner_entries_capacity == before.owner_entries_capacity,
+                reclaimed_indexes: reclaimed.counts.reclaimed_indexes,
+                reclaimed_the_cost: reclaimed.counts.reclaimed_bytes
+                    == u64::try_from(cost).expect("a byte count fits in u64"),
+                optional_bytes: reclaimed.optional_bytes,
+                retained_view_bytes: reclaimed.retained_view_bytes,
+                cost_fits: reclaimed.bytes + cost <= reclaimed.limit,
+            })
         }
-        Scenario::ImpossibleAdmissionDoesNotMutateEvenDormantPayloadOrCapacity => {
-            impossible_admission_does_not_mutate_even_dormant_payload_or_capacity();
-            Ok(())
+        Indexes::DormantShort => {
+            drop(
+                fixture
+                    .index(Relation::Function, &rows, &[ColumnIndex(0)])
+                    .expect(constants::OWNER_ACQUIRED_INDEX),
+            );
+            let before = fixture.snapshot();
+            fixture.set_limit(before.bytes);
+            let granted = fixture.reclaim(before.index_payloads[0] + 1);
+            let after = fixture.snapshot();
+            Observed::Refused {
+                granted,
+                unchanged: (after.bytes, after.indexes, after.owner_entries_capacity)
+                    == (before.bytes, before.indexes, before.owner_entries_capacity),
+                reclaimed_bytes: after.counts.reclaimed_bytes,
+            }
         }
-        Scenario::FifoReclaimsOnlyEnoughDormantEntriesAndPreservesSurvivorOrder => {
-            fifo_reclaims_only_enough_dormant_entries_and_preserves_survivor_order();
-            Ok(())
+        Indexes::TwoDormant => {
+            drop(
+                fixture
+                    .index(Relation::Function, &rows, &[ColumnIndex(0)])
+                    .expect(constants::FIRST_OWNER_ACQUIRED_INDEX),
+            );
+            drop(
+                fixture
+                    .index(Relation::Function, &rows, &[ColumnIndex(1)])
+                    .expect(constants::SECOND_OWNER_ACQUIRED_INDEX),
+            );
+            let before = fixture.snapshot();
+            let first = before.index_payloads[0];
+            fixture.set_limit(before.bytes);
+            let granted = fixture.reclaim(first);
+            let after = fixture.snapshot();
+            Observed::Fifo(Fifo {
+                indexes: before.indexes,
+                granted,
+                indexes_after: after.indexes,
+                survivor: after.index_columns[0]
+                    .clone()
+                    .try_into()
+                    .map_err(|columns| format!("survivor columns {columns:?}"))?,
+                capacity_kept: after.owner_entries_capacity == before.owner_entries_capacity,
+                freed_the_first: after.bytes <= before.bytes - first,
+            })
         }
-        Scenario::OwnerReclaimsTheOldestCompleteIndexBeforeNewerIndexes => {
-            owner_reclaims_the_oldest_complete_index_before_newer_indexes();
-            Ok(())
+        Indexes::TwoDormantViews => {
+            let first = fixture
+                .index(Relation::Function, &rows, &[ColumnIndex(0)])
+                .expect(constants::FIRST_OWNER_VIEW);
+            let first_storage = Arc::downgrade(first.storage());
+            let first_view_bytes = fixture.snapshot().retained_view_bytes;
+            drop(first);
+            let second = fixture
+                .index(Relation::Function, &rows, &[ColumnIndex(1)])
+                .expect(constants::SECOND_OWNER_VIEW);
+            let second_storage = Arc::downgrade(second.storage());
+            drop(second);
+            let before = fixture.snapshot();
+            fixture.set_limit(before.bytes);
+            let granted = fixture.reclaim(first_view_bytes);
+            let after = fixture.snapshot();
+            Observed::Oldest(Oldest {
+                first_view_bytes: first_view_bytes > 0,
+                indexes: before.indexes,
+                second_adds_view_bytes: before.retained_view_bytes > first_view_bytes,
+                granted,
+                oldest_alive: first_storage.upgrade().is_some(),
+                newer_alive: second_storage.upgrade().is_some(),
+                indexes_after: after.indexes,
+                reclaimed_indexes: after.counts.reclaimed_indexes,
+                freed_only_the_first: after.retained_view_bytes
+                    == before.retained_view_bytes - first_view_bytes,
+            })
         }
-        Scenario::EnablingGraphDemandDoesNotReserveUnusedOrdinaryCapacity => {
-            enabling_graph_demand_does_not_reserve_unused_ordinary_capacity();
-            Ok(())
+        Indexes::UnderTheLimit => {
+            drop(
+                fixture
+                    .index(Relation::Function, &rows, &[ColumnIndex(0)])
+                    .expect(constants::OWNER_ACQUIRED_INDEX),
+            );
+            let before = fixture.snapshot();
+            let granted = fixture.reclaim(1);
+            let after = fixture.snapshot();
+            Observed::Fits {
+                limit: before.limit,
+                granted,
+                bytes_unchanged: after.bytes == before.bytes,
+                indexes: after.indexes,
+            }
         }
-    }
+    })
 }
 
 #[test]
