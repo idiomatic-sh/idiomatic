@@ -31,10 +31,14 @@ enum Scenario {
     DeclaredMissing,
 }
 
+/// What a row is given.
 type Input = Scenario;
+/// What a scenario establishes.
+type Value = Outcome;
+/// A scenario is never refused.
 type Failure = ();
 
-const CASES: &[Case<Input, Outcome, Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     #[cfg(unix)]
     Case {
         name: CaseName(
@@ -52,7 +56,7 @@ const CASES: &[Case<Input, Outcome, Failure>] = &[
     },
 ];
 
-fn subject(scenario: Input) -> Result<Outcome, Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         #[cfg(unix)]
         Scenario::ModeDrift => metadata_drift_blocks_each_attempt(),
