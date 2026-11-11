@@ -27,11 +27,11 @@ mod capture;
 #[cfg(test)]
 mod failure;
 #[cfg(test)]
+mod fixtures;
+#[cfg(test)]
 mod gating;
 #[cfg(test)]
 mod manifest;
-#[cfg(test)]
-mod fixtures;
 #[cfg(test)]
 mod replay;
 #[cfg(test)]

@@ -8,9 +8,9 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
 #[cfg(test)]
-mod fixtures;
-#[cfg(test)]
 mod budget;
+#[cfg(test)]
+mod fixtures;
 #[cfg(test)]
 mod generation;
 #[cfg(test)]

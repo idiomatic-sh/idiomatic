@@ -187,8 +187,8 @@ pub(in super::super) fn read_failure_demand_retries_unchanged_metadata_and_clear
     Ok(1)
 }
 
-pub(in super::super) fn read_failure_demand_is_limited_to_governing_rules() -> Result<usize, FileAnalysisError>
-{
+pub(in super::super) fn read_failure_demand_is_limited_to_governing_rules()
+-> Result<usize, FileAnalysisError> {
     use crate::domain::reading::service::read_failure_demanded;
     use ryo_execution::inbound::use_cases::metadata::interface::{Needs, RelationRead};
     let wanted = [Relation::FilesystemReadFailure];

@@ -6,6 +6,9 @@ use super::super::types::RuleGate;
 use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
 use crate::domain::workers::types::Gating;
+use crate::outbound::corpus::fixtures::fake::CorpusFake;
+use crate::outbound::language::fixtures::fake::LanguageFake;
+use crate::outbound::memory::fixtures::fake::MemoryFake;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Mask;
@@ -17,6 +20,7 @@ use ryo_execution::inbound::use_cases::prepare::types::PlanSource;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::outbound::matching::interface::MatchingPort;
+use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_language::domain::elements::types::SyntaxAcceptance;
@@ -45,10 +49,6 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::BucketsWanted;
 use std::sync::Arc;
-use crate::outbound::corpus::fixtures::fake::CorpusFake;
-use crate::outbound::language::fixtures::fake::LanguageFake;
-use crate::outbound::memory::fixtures::fake::MemoryFake;
-use ryo_execution_runtime::outbound::digest::fixtures::fake::DigestFake;
 pub(super) fn prepared_test_program(
     plans: &[Plan],
     ids: &[RuleId],

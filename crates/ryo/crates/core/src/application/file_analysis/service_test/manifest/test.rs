@@ -301,7 +301,8 @@ pub(in super::super) fn a_project_answer_that_drops_an_observed_entry_is_refused
 }
 
 /// Reads a project whose language names one candidate entry and answers without the observation of it.
-pub(in super::super) fn a_receipt_that_forgets_the_entries_is_refused() -> Result<usize, FileAnalysisError> {
+pub(in super::super) fn a_receipt_that_forgets_the_entries_is_refused()
+-> Result<usize, FileAnalysisError> {
     let service = FileAnalysis::new(
         Arc::new(CorpusFake::default()),
         Arc::new(LanguageFake {
