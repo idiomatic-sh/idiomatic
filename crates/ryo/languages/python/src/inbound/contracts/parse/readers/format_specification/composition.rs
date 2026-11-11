@@ -1,8 +1,8 @@
 //! Inject the brace grammar into a language fact reader, independently of lint call policy.
 use super::constants::{DYNAMIC, INVALID_TYPE, OTHER_ERROR, PARTIAL_CAUSE, RECOGNIZED};
+use crate::application::brace_format::service::prepare;
 use crate::domain::format_specification::types::ObservationCompleteness;
 use crate::domain::{
-    brace_format::service::prepare,
     format_specification::service::observe,
     model::types::Declarations,
     nodes::types::Node,
@@ -10,7 +10,7 @@ use crate::domain::{
     standard_format_spec::types::StandardSpecOutcome,
     syntax::{service::kind_bits, types::Kind},
 };
-use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
+use crate::outbound::brace_format::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
 use ryo::languages;
 
 /// Reads the standard format specifications of whole string carriers.
@@ -26,7 +26,7 @@ fn completeness(
 ryo::reads! {
     FormatSpecificationItem => languages::FormatSpecification, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given braces = prepare::<RuffLiteralBraceFormat>(tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
+        given braces = prepare(&RuffLiteralBraceFormat, tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         given observations = observe(tree,&braces,model.language_target);
         each (observations.rows.iter()) as spec {
             require crate::domain::semantic_syntax::service::visibility(tree,model,spec.id,symbols) == Visibility::Visible;

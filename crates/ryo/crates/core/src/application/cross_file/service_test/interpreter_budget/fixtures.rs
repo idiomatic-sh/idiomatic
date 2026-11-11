@@ -1,5 +1,6 @@
 //! The helpers of the `interpreter_budget` group's scenarios.
-use super::super::fixtures::evaluate_rules;
+
+use super::super::super::fixtures::cases::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -54,7 +55,8 @@ impl MemoryPort for GrowingMemory {
 }
 
 pub(super) fn project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase()
--> Result<(), RuleRequestsError> {
+-> Result<String, RuleRequestsError> {
+    let mut observed: Vec<String> = Vec::new();
     for order in [[0, 1], [1, 0]] {
         let memory = Arc::new(GrowingMemory::default());
         let plan = counting_plan(1, vec![]);
@@ -91,8 +93,9 @@ pub(super) fn project_budget_stops_a_later_population_after_actual_work_and_rele
         let ProjectBatch::Refused { completed, error } = guarded else {
             panic!("later cohort must be refused")
         };
-        assert_eq!(completed.len(), 1);
-        assert!(
+        observed.push(format!("{:?}", completed.len()));
+        observed.push(format!(
+            "{}",
             completed
                 .into_iter()
                 .next()
@@ -101,26 +104,27 @@ pub(super) fn project_budget_stops_a_later_population_after_actual_work_and_rele
                 .crossed
                 .rendered
                 .is_some()
-        );
-        assert!(
-            matches!(error, crate::application::cross_file::errors::CrossFileError::Budget(crate::domain::budget::errors::BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans }) if plans == &[rules.ids[order[1]].clone()])
-        );
-        assert_eq!(memory.actual.reductions.load(Ordering::SeqCst), 1);
-        assert_eq!(memory.actual.aggregates.load(Ordering::SeqCst), 2);
-        assert_eq!(
-            phase.fixture_state_counts().slots.0,
-            1,
-            "refused population never starts source admission or semantic work"
-        );
+        ));
+        observed.push(format!("{}", matches!(error, crate::application::cross_file::errors::CrossFileError::Budget(crate::domain::budget::errors::BudgetError::Exceeded { used: MemoryBytes(200), budget: MemoryBytes(100), ref plans }) if plans == &[rules.ids[order[1]].clone()])));
+        observed.push(format!(
+            "{:?}",
+            memory.actual.reductions.load(Ordering::SeqCst)
+        ));
+        observed.push(format!(
+            "{:?}",
+            memory.actual.aggregates.load(Ordering::SeqCst)
+        ));
+        observed.push(format!("{:?}", phase.fixture_state_counts().slots.0));
         phase
             .finish()
             .expect("all scopes settle after budget refusal");
     }
-    Ok(())
+    Ok(observed.join("|"))
 }
 
 pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort()
--> Result<(), RuleRequestsError> {
+-> Result<String, RuleRequestsError> {
+    let mut observed: Vec<String> = Vec::new();
     use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
     use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
     use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
@@ -153,7 +157,7 @@ pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_
         let declared = order.map(RuleIndex);
         let policies =
             declared.map(|rule| partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, rule));
-        let results = super::super::fixtures::evaluate_all(
+        let results = super::super::super::fixtures::cases::evaluate_all(
             &rules,
             &phase,
             &declared,
@@ -168,20 +172,14 @@ pub(super) fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_
             },
             |_, outcome, _, _, _| Ok(outcome),
         );
-        assert_eq!(results.len(), 2);
+        observed.push(format!("{:?}", results.len()));
         for result in results {
-            assert!(
-                matches!(result.expect("the occurrence is evaluated").emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason }) if reason == "every source partition was explicitly skipped")
-            );
+            observed.push(format!("{}", matches!(result.expect("the occurrence is evaluated").emit, RootOutcome::Unknown(OperatingError::ObservationIncomplete { ref reason }) if reason == "every source partition was explicitly skipped")));
         }
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 0);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 0);
-        assert_eq!(
-            phase.fixture_state_counts().populations.0,
-            2,
-            "same local #1 refusal belongs to different compiled frontier roots"
-        );
+        observed.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
+        observed.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        observed.push(format!("{:?}", phase.fixture_state_counts().populations.0));
         phase.finish().unwrap();
     }
-    Ok(())
+    Ok(observed.join("|"))
 }

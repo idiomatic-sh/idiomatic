@@ -2,15 +2,16 @@ description = "One use case of a core: the interface an edge calls, the body tha
 why = "A use case is what a command or an SDK entry calls: one trait declaring its one method, one struct holding the ports it calls as `Arc<dyn <Name>Port>` and explicitly owned invocation state, and the proof of it run against the fakes of those ports. Its types are plain data and its errors one enum; it has no schemas, because validation stands only at an edge. A name is the kind's suffix on the directory's stem and a file is the snake_case of the same stem. The nu-hex spec places each use case, so the product's tastemaker.toml names only the crate."
 conditions = { implemented = { description = "The use case implements a trait another crate declares: its body names no trait of its own interface.", rule = { rule = "implemented-use-case", include = ["use_case.rs"] } } }
 templates = [
-  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "use_case_test/{*group}/mod.rs", count = { min = 0 }, description = "Normal directory namespace of one cohesive public-contract proof concept." },
-  { template = "idiomatic.arch/unit-test@0.1.0", file = "use_case_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "A declared behavioral group of the public use-case cases, with its own case table and runners." },
+  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "use_case_test/{group}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "Normal directory namespace of one cohesive public-contract proof concept." },
+  { alias = "nested-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "use_case_test/{*outer}/{group}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "Normal directory namespace of one cohesive public-contract proof concept, at any depth below the first." },
+  { alias = "group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "use_case_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "A declared behavioral group of the public use-case cases, with its own case table and runners." },
   { alias = "group-fixtures", template = "use-case-fixture", file = "use_case_test/{*group}/fixtures.rs", count = { min = 0 }, params = { fixture = "group" }, description = "The test support of one group of the public use-case cases." },
   { template = "acceptance-feature", file = "acceptance.feature", description = "The use case public behavior and storage lifecycle, exercised by the integration harness." },
   { template = "acceptance-steps", file = "acceptance.rs", description = "The colocated Cucumber steps, compiled only by tests/bdd.rs, never by the production module." },
   { template = "idiomatic.arch/interface@0.1.0", file = "interface.rs", count = { when = { condition = "implemented" }, then = 0, else = 1 }, params = { kind = "use-case", exposed = [] }, description = "The part's one trait: a use case's `<Part>UseCase` declaring its one method, or a port's `<Part>Port`, in the core's own vocabulary." },
   { template = "use-case", file = "use_case.rs", params = { implements = { param = "implements" } }, description = "The use case's body: the struct holding the ports it calls, each an `Arc<dyn <Name>Port>`, implementing the part's `<Part>UseCase`." },
   { template = "use-case-service", file = "service.rs", count = { min = 0 }, description = "Private free-function helpers of this use case, or the implementation helpers of an SDK-facing contract. They share the use case dependencies and are not independent service objects." },
-  { template = "idiomatic.arch/unit-test@0.1.0", file = "service_test.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "Optional focused proof of private helpers; the required use_case_test.rs remains the behavioral proof." },
+  { alias = "service-test", template = "idiomatic.arch/service-test@0.1.0", file = "service_test.rs", params = { kind = "use-case" }, count = { min = 0 }, description = "Optional focused proof of private helpers; the required use_case_test.rs remains the behavioral proof." },
   { template = "use-case-test", file = "use_case_test.rs", params = { implements = { param = "implements" } }, description = "The proof of the use case, run against the fakes of the ports it calls." },
   { template = "use-case-fixtures", file = "fixtures.rs", count = { min = 0 }, description = "The use case's test support module: the scenario its tests share, declaring the contract when other crates implement the use case." },
   { template = "use-case-fixture", file = "fixtures/{*fixture}", count = { min = 0 }, description = "One file of a use case's `fixtures/` tree: `contract.rs`, the rows every implementation must pass, and, for an SDK-facing contract, any further file or directory of its samples, expectations and conformance." },
@@ -20,7 +21,7 @@ templates = [
   { template = "idiomatic.arch/errors@0.1.0", file = "errors.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "The error the part produces, when it has one." },
 ]
 rules = [
-  { rule = "idiomatic.arch/test-directory-layout@0.1.0", include = ["use_case_test/**"], description = "Grouped proof concepts use generic role filenames and actual normal Rust registration." },
+  { rule = "idiomatic.arch/test-directory-layout@0.2.0", include = ["use_case_test/**"], description = "Grouped proof concepts use generic role filenames and actual normal Rust registration." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["use_case_test/*/test.rs"], description = "A grouped test must be reached through normal Rust module declarations." },
   { rule = "local-helpers", include = ["service.rs", "fixtures/contract.rs"], description = "Private free helpers need no contract or independent service object." },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "Proofs execute a real subject over nonempty cases." },
@@ -33,19 +34,20 @@ rules = [
   { rule = "use-case-declares", include = ["use_case.rs"], description = "A use case's `use_case.rs` declares only its `<Name>UseCaseImpl`, its `<Name>Ports` bundle and their impls: helpers go to `service.rs`, types and rules to the domain." },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs"], description = "A part's types.rs declares at least one type." },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs"], description = "A part's types and errors are nominal types, never type aliases." },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["*.rs", "*_test/**/test.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs." },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs", "acceptance.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs", "fixtures/*.rs", "acceptance.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs", "fixtures/*.rs", "acceptance.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "fixtures/*.rs", "*_test.rs", "acceptance.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
-  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", { placed-by = "group-test" }], description = "Every test of a part is a runner named for a case word over a `CASES` table, which holds the table skeleton; a `service_test.rs` that only declares its groups has no test of its own." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "group-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "group-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { alias = "group-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "group-module" }, { placed-by = "nested-group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
+  { alias = "service-test-form", rule = "idiomatic.arch/test-group-namespace@0.1.0", include = ["service_test.rs"], params = { case-table = "exempt" }, description = "The service's proof is a case table, or the namespace of its groups (only `mod x;` declarations): a file that declares `CASES` is left to the case-table rules, any other is held here." },
 ]
 
 [params]
@@ -3654,8 +3656,8 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 '''
-given.files.'src/inbound/use_cases/greet/use_case_test/coverage/mod.rs' = '#[cfg(test)] mod test;'
-then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files']
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage.rs' = '#[cfg(test)] mod test;'
+then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files', 'idiomatic.arch/test-directory-layout']
 
 [[scenarios]]
 id = "undeclared-use-case-test-group"
@@ -3730,9 +3732,13 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 '''
-given.files.'src/inbound/use_cases/greet/use_case_test/coverage/mod.rs' = '#[cfg(test)] mod test;'
-then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files']
-then.findings = [{ rule = 'idiomatic.arch/orphan-rust-files', path = 'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' }]
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage.rs' = '#[cfg(test)] mod test;'
+then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/orphan-rust-files', 'idiomatic.arch/test-directory-layout']
+then.findings = [
+  { rule = 'idiomatic.arch/orphan-rust-files', path = 'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' },
+  { rule = 'idiomatic.arch/test-directory-layout', path = 'src/inbound/use_cases/greet/use_case_test/coverage.rs' },
+  { rule = 'idiomatic.arch/test-directory-layout', path = 'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' },
+]
 
 [[scenarios]]
 id = "nested-use-case-test-group"
@@ -3810,8 +3816,102 @@ fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
 '''
-given.files.'src/inbound/use_cases/greet/use_case_test/coverage/mod.rs' = '#[cfg(test)] mod test; #[cfg(test)] mod names;'
-given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names/mod.rs' = '#[cfg(test)] mod fixtures; #[cfg(test)] pub(super) mod test;'
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage.rs' = '#[cfg(test)] mod test; #[cfg(test)] mod names;'
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names.rs' = '#[cfg(test)] mod fixtures; #[cfg(test)] pub(super) mod test;'
 given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names/fixtures.rs' = 'pub(super) fn name() {}'
 given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names/test.rs' = '#[test] fn greets_every_name() {}'
+then.only = ['idiomatic.arch/use-case#closed', 'idiomatic.arch/test-directory-layout']
+
+[[scenarios]]
+id = "nested-group-test-plain-scenario"
+scenario = "A nested group test of plain `#[test]` scenarios is refused: every group of the use case's cases is a case table with its runners, at any depth."
+given.files.'src/inbound/use_cases/greet/use_case_test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+use super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[cfg(test)]
+mod coverage;
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/test.rs' = '''
+//! What the `greet` use case promises, against the fakes of the ports it calls, from its fixtures.
+
+use std::sync::Arc;
+
+use super::super::super::interface::GreetUseCase;
+use super::super::super::use_case::GreetUseCaseImpl;
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::fake::NamesFake;
+use crate::outbound::names::types::Greeting;
+
+type Input = (GreetUseCaseImpl, &'static str);
+type Value = Greeting;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "greets the person named",
+        word: Word::Succeeds,
+        input: || (GreetUseCaseImpl::new(Arc::new(NamesFake)), "Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject((greet, name): Input) -> Result<Value, Failure> {
+    Ok(greet.greet(name))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage.rs' = '#[cfg(test)] mod test; #[cfg(test)] mod names;'
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names.rs' = '#[cfg(test)] mod fixtures; #[cfg(test)] pub(super) mod test;'
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names/fixtures.rs' = 'pub(super) fn name() {}'
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/names/test.rs' = '#[test] fn greets_every_name() {}'
+then.only = ['idiomatic.arch/test-shape']
+then.findings = [
+  { rule = 'idiomatic.arch/test-shape', path = 'src/inbound/use_cases/greet/use_case_test/coverage/names/test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'group-mod-rs-is-closed'
+scenario = "A group of the use case's cases has its module file `<group>.rs` beside its directory: a `mod.rs` is a file of no role."
+given.files.'src/inbound/use_cases/greet/use_case_test/coverage/mod.rs' = '#[cfg(test)] pub(super) mod test;'
 then.only = ['idiomatic.arch/use-case#closed']
+then.findings = [
+  { rule = 'idiomatic.arch/use-case#closed', path = 'src/inbound/use_cases/greet/use_case_test/coverage/mod.rs' },
+]

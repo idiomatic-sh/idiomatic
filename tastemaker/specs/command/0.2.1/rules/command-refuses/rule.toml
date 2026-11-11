@@ -1,0 +1,557 @@
+description = "A command's test file holds a `refuses` row: a row of its `CASES` table whose case word is `Word::Refuses`, `Case { name, word: Word::Refuses, input, expect }`. A command owes none when the struct its `run` takes, in the `command.rs` beside the test file, has no field that lacks `#[command(...)]` with the option `flatten` or `#[arg(...)]` with the option `value_enum`: a struct with no fields owes none either."
+why = "The command-test template gives the table and the subject, and the runners and the rows are the author's; `unit-cases` asks for a success row, and this rule requires the input refusal as a row, whose name says what is refused and so cannot be fixed by a template. A command whose every argument field is `#[command(flatten)]` or `#[arg(value_enum)]`, or whose arguments struct has no field at all, takes no input clap does not refuse before `run`, so it has no refusal of its own and owes no row; a field with neither is input the command reads itself. Only the struct named by the type of a parameter of the file's top-level `run` decides (by value or by reference), so another struct in the file neither grants nor costs the exemption; and `flatten` or `value_enum` counts only as an option name, alone between the commas of its own attribute's list, never as an option's value (`help = flatten`), inside a nested list, or under another attribute (`#[serde(flatten)]`). Any other command that genuinely refuses nothing records why with an ignore of this rule at the top of its test file. Read syntactically: a row is the identifier `Refuses` inside the constant named `CASES`, so the runner `fn refuses` and a helper outside the table do not count; the rule reads the fields' attributes, not their types, and the row's word, not what its expectation asserts (`case-expectation` reads that)."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let sources = select * from tree-nodes where kind = "source-file";
+let files = capture(from=sources, path="file", pattern="{*directory}/command_test.rs", captures=["directory"]);
+let functions = select * from tree-nodes where kind = "fn";
+let function-children = select r."child" as "child", l."id" as "function" from functions as l join "syntax-child" as r on l."id" = r."parent";
+let attributes = select * from tree-nodes where kind = "attr";
+let metas = select * from tree-nodes where glob_any(kind, "*-meta");
+let attribute-paths = select * from tree-nodes where kind = "path";
+let attribute-segments = select * from tree-nodes where kind = "path-segment";
+let name-references = select * from tree-nodes where kind = "name-ref";
+let names = select * from tree-nodes where kind = "name";
+let identifiers = select * from tree-tokens where kind = "ident";
+let refuses-words = select * from identifiers where text = "Refuses";
+let refuses-parents = select r."parent" as "id", l."file" as "file" from refuses-words as l join "syntax-child" as r on l."id" = r."child";
+let consts = select * from tree-nodes where kind = "const";
+let const-children = select l."id" as "id", r."child" as "child" from consts as l join "syntax-child" as r on l."id" = r."parent";
+let const-names = select l."id" as "id", l."child" as "name" from const-children as l join names as r on l."child" = r."id";
+let const-name-children = select l."id" as "id", r."child" as "child" from const-names as l join "syntax-child" as r on l."name" = r."parent";
+let cases-words = select * from identifiers where text = "CASES";
+let cases-consts = select l."id" as "id" from const-name-children as l join cases-words as r on l."child" = r."id";
+let row-words = axis(from=refuses-parents, relation="syntax-child", direction=nearest-ancestor, domain=cases-consts);
+let refusing-files = project(from=row-words, columns=["file"]);
+let unrefusing-files = antijoin(left=files, right=refusing-files, left-on=["file"], right-on=["file"]);
+let structs = select * from tree-nodes where kind = "struct";
+let struct-children = select r."child" as "child", l."file" as "file", l."id" as "struct" from structs as l join "syntax-child" as r on l."id" = r."parent";
+let struct-names = select l."child" as "name", l."file" as "file", l."struct" as "struct" from struct-children as l join names as r on l."child" = r."id";
+let struct-name-children = select r."child" as "child", l."file" as "file", l."struct" as "struct" from struct-names as l join "syntax-child" as r on l."name" = r."parent";
+let struct-named = select l."file" as "file", l."struct" as "struct", r."text" as "text" from struct-name-children as l join identifiers as r on l."child" = r."id";
+let top-level = select r."child" as "function" from sources as l join "syntax-child" as r on l."id" = r."parent";
+let function-names = select l."function" as "function", l."child" as "name" from function-children as l join names as r on l."child" = r."id";
+let function-name-children = select r."child" as "child", l."function" as "function" from function-names as l join "syntax-child" as r on l."name" = r."parent";
+let run-words = select * from identifiers where text = "run";
+let run-named = select l."function" as "function" from function-name-children as l join run-words as r on l."child" = r."id";
+let run-functions = select l."function" as "function" from run-named as l join top-level as r on l."function" = r."function";
+let run-children = select r."child" as "child" from run-functions as l join "syntax-child" as r on l."function" = r."parent";
+let parameter-lists = select * from tree-nodes where kind = "param-list";
+let run-parameter-lists = select l."child" as "list" from run-children as l join parameter-lists as r on l."child" = r."id";
+let run-parameter-edges = select r."child" as "child" from run-parameter-lists as l join "syntax-child" as r on l."list" = r."parent";
+let parameters = select * from tree-nodes where kind = "param";
+let run-parameters = select l."child" as "parameter" from run-parameter-edges as l join parameters as r on l."child" = r."id";
+let run-parameter-children = select r."child" as "child" from run-parameters as l join "syntax-child" as r on l."parameter" = r."parent";
+let reference-types = select * from tree-nodes where kind = "ref-type";
+let run-references = select l."child" as "reference" from run-parameter-children as l join reference-types as r on l."child" = r."id";
+let run-reference-children = select r."child" as "child" from run-references as l join "syntax-child" as r on l."reference" = r."parent";
+let run-type-candidates = union(left=run-parameter-children, right=run-reference-children);
+let path-types = select * from tree-nodes where kind = "path-type";
+let run-types = select l."child" as "type" from run-type-candidates as l join path-types as r on l."child" = r."id";
+let run-type-children = select r."child" as "child" from run-types as l join "syntax-child" as r on l."type" = r."parent";
+let run-type-paths = select l."child" as "child" from run-type-children as l join attribute-paths as r on l."child" = r."id";
+let run-type-path-children = select r."child" as "child" from run-type-paths as l join "syntax-child" as r on l."child" = r."parent";
+let run-type-segments = select l."child" as "child" from run-type-path-children as l join attribute-segments as r on l."child" = r."id";
+let run-type-segment-children = select r."child" as "child" from run-type-segments as l join "syntax-child" as r on l."child" = r."parent";
+let run-type-references = select l."child" as "child" from run-type-segment-children as l join name-references as r on l."child" = r."id";
+let run-type-reference-children = select r."child" as "child" from run-type-references as l join "syntax-child" as r on l."child" = r."parent";
+let run-type-names = select r."file" as "file", r."text" as "text" from run-type-reference-children as l join identifiers as r on l."child" = r."id";
+let arguments-named = select l."file" as "file", l."struct" as "struct" from struct-named as l join run-type-names as r on l."file" = r."file" and l."text" = r."text";
+let arguments-structs = capture(from=arguments-named, path="file", pattern="{*directory}/command.rs", captures=["directory"]);
+let field-list-edges = select r."child" as "child", l."directory" as "directory" from arguments-structs as l join "syntax-child" as r on l."struct" = r."parent";
+let field-lists = select * from tree-nodes where kind = "record-field-list";
+let arguments-field-lists = select l."directory" as "directory", l."child" as "list" from field-list-edges as l join field-lists as r on l."child" = r."id";
+let field-edges = select r."child" as "child", l."directory" as "directory" from arguments-field-lists as l join "syntax-child" as r on l."list" = r."parent";
+let record-fields = select * from tree-nodes where kind = "record-field";
+let fields = select l."directory" as "directory", l."child" as "field" from field-edges as l join record-fields as r on l."child" = r."id";
+let field-attribute-edges = select r."child" as "child", l."field" as "field" from fields as l join "syntax-child" as r on l."field" = r."parent";
+let field-attributes = select l."child" as "attribute", l."field" as "field" from field-attribute-edges as l join attributes as r on l."child" = r."id";
+let field-meta-edges = select r."child" as "child", l."field" as "field" from field-attributes as l join "syntax-child" as r on l."attribute" = r."parent";
+let field-metas = select l."field" as "field", l."child" as "meta" from field-meta-edges as l join metas as r on l."child" = r."id";
+let field-meta-children = select r."child" as "child", l."field" as "field", l."meta" as "meta" from field-metas as l join "syntax-child" as r on l."meta" = r."parent";
+let field-paths = select l."child" as "child", l."meta" as "meta" from field-meta-children as l join attribute-paths as r on l."child" = r."id";
+let field-segment-edges = select r."child" as "child", l."meta" as "meta" from field-paths as l join "syntax-child" as r on l."child" = r."parent";
+let field-segments = select l."child" as "child", l."meta" as "meta" from field-segment-edges as l join attribute-segments as r on l."child" = r."id";
+let field-reference-edges = select r."child" as "child", l."meta" as "meta" from field-segments as l join "syntax-child" as r on l."child" = r."parent";
+let field-references = select l."child" as "child", l."meta" as "meta" from field-reference-edges as l join name-references as r on l."child" = r."id";
+let field-reference-children = select r."child" as "child", l."meta" as "meta" from field-references as l join "syntax-child" as r on l."child" = r."parent";
+let command-words = select * from identifiers where text = "command";
+let argument-words = select * from identifiers where text = "arg";
+let command-metas = select l."meta" as "meta" from field-reference-children as l join command-words as r on l."child" = r."id";
+let argument-metas = select l."meta" as "meta" from field-reference-children as l join argument-words as r on l."child" = r."id";
+let token-trees = select * from tree-nodes where kind = "token-tree";
+let field-trees = select l."field" as "field", l."meta" as "meta", l."child" as "tree" from field-meta-children as l join token-trees as r on l."child" = r."id";
+let command-trees = select l."field" as "field", l."tree" as "tree" from field-trees as l join command-metas as r on l."meta" = r."meta";
+let argument-trees = select l."field" as "field", l."tree" as "tree" from field-trees as l join argument-metas as r on l."meta" = r."meta";
+let command-items = select r."child" as "child", l."field" as "field", r."ordinal" as "ordinal", l."tree" as "tree" from command-trees as l join "syntax-child" as r on l."tree" = r."parent";
+let argument-items = select r."child" as "child", l."field" as "field", r."ordinal" as "ordinal", l."tree" as "tree" from argument-trees as l join "syntax-child" as r on l."tree" = r."parent";
+let flatten-words = select * from identifiers where text = "flatten";
+let enumeration-words = select * from identifiers where text = "value_enum";
+let flatten-items = select l."child" as "child", l."field" as "field", l."ordinal" as "ordinal", l."tree" as "tree" from command-items as l join flatten-words as r on l."child" = r."id";
+let enumeration-items = select l."child" as "child", l."field" as "field", l."ordinal" as "ordinal", l."tree" as "tree" from argument-items as l join enumeration-words as r on l."child" = r."id";
+let words = union(left=flatten-items, right=enumeration-items);
+let items = union(left=command-items, right=argument-items);
+let separators = select * from tree-tokens where glob_any(kind, "{whitespace,comment,comma,l-paren,r-paren}");
+let operands = antijoin(left=items, right=separators, left-on=["child"], right-on=["id"]);
+let pairs = select r."child" as "other", r."ordinal" as "other-ordinal", l."ordinal" as "ordinal", l."tree" as "tree", l."child" as "word" from words as l join operands as r on l."tree" = r."tree";
+let neighbours = select * from pairs where ordinal != other-ordinal;
+let commas = select * from tree-tokens where kind = "comma";
+let tree-commas = select l."ordinal" as "comma", l."tree" as "tree" from items as l join commas as r on l."child" = r."id";
+let neighbour-commas = select r."comma" as "comma", l."ordinal" as "ordinal", l."other" as "other", l."other-ordinal" as "other-ordinal", l."word" as "word" from neighbours as l join tree-commas as r on l."tree" = r."tree";
+let commas-after-word = select * from neighbour-commas where comma > ordinal;
+let commas-to-other = select * from commas-after-word where comma < other-ordinal;
+let commas-after-other = select * from neighbour-commas where comma > other-ordinal;
+let commas-to-word = select * from commas-after-other where comma < ordinal;
+let commas-between = union(left=commas-to-other, right=commas-to-word);
+let separated = project(from=commas-between, columns=["word", "other"]);
+let crowded = antijoin(left=neighbours, right=separated, left-on=["word", "other"], right-on=["word", "other"]);
+let options = antijoin(left=words, right=crowded, left-on=["child"], right-on=["word"]);
+let parsed-fields = project(from=options, columns=["field"]);
+let free-fields = antijoin(left=fields, right=parsed-fields, left-on=["field"], right-on=["field"]);
+let free-directories = project(from=free-fields, columns=["directory"]);
+let argument-directories = project(from=arguments-structs, columns=["directory"]);
+let parsed-directories = antijoin(left=argument-directories, right=free-directories, left-on=["directory"], right-on=["directory"]);
+let owing-files = antijoin(left=unrefusing-files, right=parsed-directories, left-on=["directory"], right-on=["directory"]);
+let findings = extend(from=owing-files, values={"what": "a command's tests have no `refuses` row"});
+emit findings subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "file"
+message = "{what}"
+help = "Add a row to the `CASES` table of this command_test.rs with the case word `Word::Refuses`: the command line the command refuses and the outcome it ends with. A command that takes input and genuinely refuses none says why at the top of command_test.rs instead: `// ignore: idiomatic.arch/command/command-refuses - <why this command refuses no input>`."
+
+[given]
+include = ['**/command.rs', '**/command_test.rs']
+files.'src/resources/greeting/show/command.rs' = '''
+pub fn run(name: &str) -> bool {
+    !name.is_empty()
+}
+'''
+files.'src/resources/greeting/show/command_test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = Vec<&'static str>;
+type Value = String;
+type Failure = crate::outcome::Outcome;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "show prints a greeting",
+        word: Word::Succeeds,
+        input: || vec!["show"],
+        expect: Expect::Value(String::from("hello")),
+    },
+    Case {
+        name: "show ends in error when the service fails",
+        word: Word::Fails,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Error),
+    },
+];
+
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+'''
+
+[[scenarios]]
+id = 'refuses-case'
+scenario = "A command's tests hold a refuses row in the CASES table."
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = Vec<&'static str>;
+type Value = String;
+type Failure = crate::outcome::Outcome;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "show prints a greeting",
+        word: Word::Succeeds,
+        input: || vec!["show"],
+        expect: Expect::Value(String::from("hello")),
+    },
+    Case {
+        name: "show refuses an empty name",
+        word: Word::Refuses,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+    Case {
+        name: "show ends in error when the service fails",
+        word: Word::Fails,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Error),
+    },
+];
+
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+'''
+
+[[scenarios]]
+id = 'no-refusal'
+scenario = "A command's tests hold no refuses row, only the `refuses` runner."
+then.findings = [
+  { path = 'src/resources/greeting/show/command_test.rs' },
+]
+
+[[scenarios]]
+id = 'refusal-helper'
+scenario = 'The refuses word is a helper outside the table, not a row.'
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = Vec<&'static str>;
+type Value = String;
+type Failure = crate::outcome::Outcome;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "show prints a greeting",
+        word: Word::Succeeds,
+        input: || vec!["show"],
+        expect: Expect::Value(String::from("hello")),
+    },
+    Case {
+        name: "show ends in error when the service fails",
+        word: Word::Fails,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Error),
+    },
+];
+
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!()
+}
+
+fn refusal() -> Word {
+    Word::Refuses
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/command_test.rs' },
+]
+
+[[scenarios]]
+id = 'ignored-with-reason'
+scenario = 'A command that refuses nothing says why at the top of its tests.'
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+// ignore: idiomatic.arch/command/command-refuses - `show` takes any name, so it has no input to refuse
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = Vec<&'static str>;
+type Value = String;
+type Failure = crate::outcome::Outcome;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "show prints a greeting",
+        word: Word::Succeeds,
+        input: || vec!["show"],
+        expect: Expect::Value(String::from("hello")),
+    },
+    Case {
+        name: "show ends in error when the service fails",
+        word: Word::Fails,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Error),
+    },
+];
+
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+'''
+
+[[scenarios]]
+id = 'ignored-on-a-line'
+scenario = 'An ignore at the end of a line does not cover the whole file.'
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+use crate::cases::{Case, Expect, Word, run}; // ignore: idiomatic.arch/command/command-refuses - `show` takes any name
+
+type Input = Vec<&'static str>;
+type Value = String;
+type Failure = crate::outcome::Outcome;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "show prints a greeting",
+        word: Word::Succeeds,
+        input: || vec!["show"],
+        expect: Expect::Value(String::from("hello")),
+    },
+    Case {
+        name: "show ends in error when the service fails",
+        word: Word::Fails,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Error),
+    },
+];
+
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/command_test.rs' },
+  { rule = 'tastemaker#ignore', path = 'src/resources/greeting/show/command_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'parsed-arguments'
+scenario = 'A command whose every argument field is flatten or value_enum owes no refuses row.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+#[derive(Default, clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+    /// The report's shape.
+    #[arg(long, value_enum, default_value_t)]
+    pub format: Format,
+}
+
+pub fn run(arguments: &ShowArguments) -> bool {
+    arguments.output.format() == arguments.format
+}
+'''
+
+[[scenarios]]
+id = 'unit-arguments'
+scenario = 'A command whose arguments struct has no field owes no refuses row.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+#[derive(Clone, Copy, Debug, clap::Args)]
+pub struct ShowArguments;
+
+pub fn run(arguments: ShowArguments) -> bool {
+    true
+}
+'''
+
+[[scenarios]]
+id = 'free-argument'
+scenario = 'One plain field among flatten fields still owes a refuses row.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+#[derive(Default, clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+    /// Who to greet.
+    #[arg(long)]
+    pub name: String,
+}
+
+pub fn run(arguments: &ShowArguments) -> bool {
+    !arguments.name.is_empty()
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/command_test.rs' },
+]
+
+[[scenarios]]
+id = 'option-value'
+scenario = "Flatten or value_enum written as an option's value does not exempt."
+given.files.'src/resources/greeting/show/command.rs' = '''
+#[allow(non_upper_case_globals)]
+const flatten: &str = "Who to greet";
+
+#[derive(Default, clap::Args)]
+pub struct ShowArguments {
+    #[arg(long, help = flatten)]
+    pub name: String,
+}
+
+pub fn run(arguments: &ShowArguments) -> bool {
+    !arguments.name.is_empty()
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/command_test.rs' },
+]
+
+[[scenarios]]
+id = 'option-value-enum'
+scenario = "Value_enum written as an option's value does not exempt either."
+given.files.'src/resources/greeting/show/command.rs' = '''
+#[allow(non_upper_case_globals)]
+const value_enum: &str = "everyone";
+
+#[derive(Default, clap::Args)]
+pub struct ListArguments {
+    #[arg(long, default_value = value_enum)]
+    pub name: String,
+}
+
+pub fn run(arguments: &ListArguments) -> bool {
+    !arguments.name.is_empty()
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = Vec<&'static str>;
+type Value = String;
+type Failure = crate::outcome::Outcome;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "list prints a greeting",
+        word: Word::Succeeds,
+        input: || vec!["list"],
+        expect: Expect::Value(String::from("hello")),
+    },
+    Case {
+        name: "list ends in error when the service fails",
+        word: Word::Fails,
+        input: || vec!["list"],
+        expect: Expect::Error(crate::outcome::Outcome::Error),
+    },
+];
+
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/command_test.rs' },
+]
+
+[[scenarios]]
+id = 'foreign-attribute'
+scenario = "Flatten under an attribute that is not clap's does not exempt."
+given.files.'src/resources/greeting/show/command.rs' = '''
+#[derive(Default, clap::Args, serde::Deserialize)]
+pub struct ShowArguments {
+    /// Who to greet.
+    #[serde(flatten)]
+    pub name: String,
+}
+
+pub fn run(arguments: &ShowArguments) -> bool {
+    !arguments.name.is_empty()
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/command_test.rs' },
+]
+
+[[scenarios]]
+id = 'other-struct'
+scenario = "Another struct's plain field does not cost the command its exemption."
+given.files.'src/resources/greeting/show/command.rs' = '''
+#[derive(Default, clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+    /// The report's shape.
+    #[arg(long, value_enum, default_value_t)]
+    pub format: Format,
+}
+
+#[derive(Default, clap::Args)]
+pub struct OtherArguments {
+    /// Who to greet.
+    #[arg(long)]
+    pub name: String,
+}
+
+pub fn run(arguments: ShowArguments) -> bool {
+    arguments.output.format() == arguments.format
+}
+'''
+
+[[scenarios]]
+id = 'own-plain-field'
+scenario = "Another struct's flatten field does not exempt a command whose own struct has a plain field."
+given.files.'src/resources/greeting/show/command.rs' = '''
+#[derive(Default, clap::Args)]
+pub struct ShowArguments {
+    /// Who to greet.
+    #[arg(long)]
+    pub name: String,
+}
+
+#[derive(Default, clap::Args)]
+pub struct OtherArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+pub fn run(arguments: &ShowArguments) -> bool {
+    !arguments.name.is_empty()
+}
+'''
+then.findings = [
+  { path = 'src/resources/greeting/show/command_test.rs' },
+]

@@ -1,11 +1,12 @@
 //! Static raw-token reader binding; ordinary decoded format demand remains independent.
+use crate::application::raw_format::service::prepare;
 use crate::domain::format_syntax::service::flag_text;
 use crate::domain::raw_format::constants::INCOMPLETE;
 use crate::domain::{
     format_syntax::types::{DynamicInput, FormatParseResult, FormatParseState},
     model::types::Declarations,
     nodes::types::Node,
-    raw_format::service::{prepare, result, segments, state},
+    raw_format::service::{result, segments, state},
     syntax::{service::kind_bits, types::Kind},
 };
 use crate::inbound::contracts::parse::readers::format::composition::{
@@ -24,7 +25,7 @@ pub(crate) struct RawFormatFieldItem;
 ryo::reads! {
     RawFormatSegmentItem => languages::RawFormatSegment, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffLiteralCFormat>(tree, &model.raw_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
+        given index = prepare(&RuffLiteralCFormat, tree, &model.raw_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         each (index.occurrences.iter()) as occurrence {
             each (segments(&index, occurrence)) as segment {
                 given parsed = result(&index, segment);
@@ -49,7 +50,7 @@ ryo::reads! {
 ryo::reads! {
     RawFormatFieldItem => languages::RawFormatField, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffLiteralCFormat>(tree, &model.raw_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
+        given index = prepare(&RuffLiteralCFormat, tree, &model.raw_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         each (index.occurrences.iter()) as occurrence {
             require bool::from(occurrence.complete);
             each (segments(&index, occurrence)) as segment {

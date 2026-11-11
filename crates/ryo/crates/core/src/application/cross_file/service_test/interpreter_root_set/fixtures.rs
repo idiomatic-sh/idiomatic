@@ -1,7 +1,8 @@
 //! The helpers of the `interpreter_root_set` group's scenarios.
-use super::super::fixtures::assert_count_findings;
-use super::super::fixtures::completed_batch;
-use super::super::fixtures::evaluate_rules;
+
+use super::super::super::fixtures::cases::assert_count_findings;
+use super::super::super::fixtures::cases::completed_batch;
+use super::super::super::fixtures::cases::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::frontier_rows;
@@ -18,7 +19,8 @@ use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use std::sync::Arc;
 
 pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_delivery()
--> Result<(), RuleRequestsError> {
+-> Result<String, RuleRequestsError> {
+    let mut observed: Vec<String> = Vec::new();
     use std::sync::atomic::Ordering;
     for order in [[0, 1, 0], [1, 0, 1]] {
         let calls = Arc::new(ProjectCalls::default());
@@ -43,24 +45,21 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
             &mut symbols,
             |_| Ok(()),
         ));
-        assert_eq!(results.len(), todos.len());
+        observed.push(format!("{:?}", results.len()));
         let mut previous = Vec::new();
         for (todo, result) in todos.iter().zip(results) {
             let result = result.unwrap().crossed;
-            assert!(result.unknowns.is_empty());
+            observed.push(format!("{}", result.unknowns.is_empty()));
             let rendered = result.rendered.unwrap();
             assert_count_findings(&rendered, todo.rule, &todo.id, &[2, 1], &[1, 0]);
             previous.push(rendered);
         }
         let counts = phase.fixture_readiness_counts();
-        assert_eq!(
-            counts.preparations.0, 1,
-            "one canonical root, including duplicate logical roots"
-        );
-        assert_eq!(counts.evaluations.0, 1);
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
-        assert_eq!(phase.fixture_state_counts().slots.0, 1);
+        observed.push(format!("{:?}", counts.preparations.0));
+        observed.push(format!("{:?}", counts.evaluations.0));
+        observed.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
+        observed.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
+        observed.push(format!("{:?}", phase.fixture_state_counts().slots.0));
         let before_replay = phase.fixture_readiness_counts();
         let repeated = completed_batch(evaluate_rules(
             &rules,
@@ -70,24 +69,21 @@ pub(super) fn project_root_set_prepares_shared_publications_once_before_ordered_
             &mut symbols,
             |_| Ok(()),
         ));
-        assert_eq!(repeated.len(), previous.len());
+        observed.push(format!("{:?}", repeated.len()));
         for (result, previous) in repeated.into_iter().zip(&previous) {
-            assert_eq!(result.unwrap().crossed.rendered.as_ref(), Some(previous));
+            observed.push(format!("{:?}", result.unwrap().crossed.rendered.as_ref()));
         }
-        assert_eq!(
-            phase.fixture_readiness_counts(),
-            before_replay,
-            "delivery adds no hidden fallback polls"
-        );
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
+        observed.push(format!("{:?}", phase.fixture_readiness_counts()));
+        observed.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
+        observed.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
         phase.finish().unwrap();
     }
-    Ok(())
+    Ok(observed.join("|"))
 }
 
 pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_both_orders()
--> Result<(), RuleRequestsError> {
+-> Result<String, RuleRequestsError> {
+    let mut observed: Vec<String> = Vec::new();
     use ryo_values::domain::runs::types::{RuleApplicability, SkipReason, Skipped};
     use std::sync::atomic::Ordering;
     for order in [[0, 1], [1, 0]] {
@@ -134,15 +130,11 @@ pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_bo
             &mut symbols,
             |_| Ok(()),
         ));
-        assert_eq!(results.len(), order.len());
+        observed.push(format!("{:?}", results.len()));
         for (rule, result) in order.into_iter().zip(results) {
             let result = result.unwrap().crossed;
             // Rule A skipped the second file (its syntax rejected): that file is skipped, never undecided, and rule B reads it.
-            assert!(
-                result.unknowns.is_empty(),
-                "a skipped file is skipped, not unknown: {:?}",
-                result.unknowns
-            );
+            observed.push(format!("{}", result.unknowns.is_empty()));
             let rendered = result.rendered.unwrap();
             assert_count_findings(
                 &rendered,
@@ -152,11 +144,14 @@ pub(super) fn project_root_set_preserves_distinct_actual_population_policy_in_bo
                 if rule == 0 { &[0] } else { &[1, 0] },
             );
         }
-        assert_eq!(phase.fixture_readiness_counts().evaluations.0, 2);
-        assert_eq!(phase.fixture_state_counts().populations.0, 2);
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 2);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 3);
+        observed.push(format!(
+            "{:?}",
+            phase.fixture_readiness_counts().evaluations.0
+        ));
+        observed.push(format!("{:?}", phase.fixture_state_counts().populations.0));
+        observed.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
+        observed.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
         phase.finish().unwrap();
     }
-    Ok(())
+    Ok(observed.join("|"))
 }

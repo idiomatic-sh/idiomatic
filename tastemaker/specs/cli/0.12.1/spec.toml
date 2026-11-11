@@ -2,7 +2,7 @@ description = "A command line crate, applied beside its `crate` entry: main on t
 why = "Keeps a command line crate a thin shell over its crates: one command per resource and verb, typed flat (`<command>`) or under its resource (`<resource> <command>`) while the code stays grouped by resource, each opening its own stores and composing its own service at the edge, checking what it is given in its schemas, and every answer printed by one small module, so logic and presentation live with the crates' values and a command never knows the format. The command is placed by the `command` spec, apart from the SDK's entry; this spec holds what lists the commands and what they share (the root, the resource and command module files, the outcome, the output, the timings, the contract tests and the benches), so every command is reachable from one root and nothing composes at the crate's top."
 conditions = { links-engine = { description = "The command line depends directly on ryo's core engine crate, so it owns a rule engine and runs rules.", rule = { rule = "engine-linked", include = ["Cargo.toml"] } } }
 specs = [
-  { spec = "idiomatic.arch/command@0.2.0", include = ["src/resources/{resource}/{command}"], description = "The command line's commands, one part each." },
+  { spec = "idiomatic.arch/command@0.2.1", include = ["src/resources/{resource}/{command}"], description = "The command line's commands, one part each." },
 ]
 templates = [
   { template = "timings-phases", file = "src/timings/phases.rs", description = "The private diagnostic phase observer beneath the CLI timing owner, which every command line has." },
@@ -22,7 +22,7 @@ templates = [
   { template = "readme-test", file = "tests/readme.rs", description = "The product README's Usage, each command run and its output compared." },
   { template = "command-line-contract", file = "tests/command_line.rs", params = { product = { param = "product" }, library = { param = "library" } }, description = "The generated contract test over the built binary: what the Command Line Interface Guidelines (clig.dev) ask of every command line when it runs." },
   # The replay test: one module per concern, run against recorded answers.
-  { template = "replay-suite", file = "tests/replay/{suite}.rs", count = { min = 0 }, description = "One module of the product's replay test." },
+  { template = "replay-suite", file = "tests/replay/{suite}.rs", exclude = ["tests/replay/main.rs"], count = { min = 0 }, description = "One module of the product's replay test." },
   { template = "outcome", file = "src/outcome.rs", description = "The one type every command's `run` returns, turning `Success`, `Failure` and `Error` into the exit codes 0, 1 and 2." },
   # Every answer printed through one `--format` switch.
   { template = "output", file = "src/output.rs", params = { markdown = { param = "markdown" } }, description = "The only module that prints: every command hands it an answer and the `--format` its caller chose." },
@@ -65,7 +65,7 @@ rules = [
   { rule = "no-root-composition", include = ["src/composition.rs"], description = "The command line has no shared composition root, because each command wires itself." },
   # Only a command's composition.rs (the `command` spec's, with its tests and fixtures) calls a factory; no fixture runs in production.
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/**"], exclude = ["src/languages.rs", "src/resources/*/*/**", "**/*_test.rs"], description = "No file of the command line's own (the tree's lists, the outcome, the output, the timings) names a `factory` module: only a command's composition selects adapters, and the generated `src/languages.rs`, the one edge that links the languages, hands their parts to the language factory." },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/**"], exclude = ["src/resources/*/*/**", "**/*_test.rs"], description = "No file of the command line's own outside its tests names a `fixtures` module." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/**"], exclude = ["src/resources/*/*/**", "**/*_test.rs"], description = "No file of the command line's own outside its tests names a `fixtures` module." },
   # The infrastructure tests (`*_test.rs`) are scaffolds of a doc comment today; they leave this rule when they are written in the one test shape.
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/**"], exclude = ["src/resources/*/*/**", "**/*_test.rs"], description = "No file of the command line's own is only comments and imports, and no type in it is an empty placeholder." },
 ]

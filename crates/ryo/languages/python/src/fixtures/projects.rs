@@ -33,7 +33,7 @@ pub(crate) struct Shown<'a> {
 
 impl Shown<'_> {
     /// A name, as its text.
-    fn name(&self, symbol: languages::Symbol) -> String {
+    pub(crate) fn name(&self, symbol: languages::Symbol) -> String {
         format!(
             "{:?}",
             languages::text_of(self.symbols, languages::ByteSlice(&[]), symbol)
@@ -42,7 +42,7 @@ impl Shown<'_> {
     }
 
     /// A file, by its path.
-    fn file(&self, file: languages::FileId) -> &str {
+    pub(crate) fn file(&self, file: languages::FileId) -> &str {
         usize::try_from(file.0)
             .ok()
             .and_then(|place| self.files.get(place))
@@ -202,7 +202,7 @@ pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
 }
 
 /// What the item writes for the repository whose files are `files`, each with its path and its text, shown with every column: the
-/// run asks for the links between the files, and the language's own parse notes each.
+/// run asks for the item's own relation and the links between the files, and the language's own parse notes each.
 ///
 /// # Panics
 ///
@@ -220,7 +220,7 @@ where
         search_scope: Default::default(),
         given_inventory: Default::default(),
         observed_entries: Default::default(),
-        repository: languages::Repository::Disk,
+        repository: languages::Repository::Given,
         root: languages::RootPath("".into()),
         manifests: files
             .iter()
@@ -240,6 +240,7 @@ where
         wanted: vec![
             languages::Relation::SourceDependency,
             languages::Relation::AnalyzedSource,
+            <Item::Relation as languages::CatalogRelation>::relation(),
         ],
     };
     let contract = ProjectContract::new(

@@ -1,5 +1,6 @@
 //! The helpers of the `interpreter_population` group's scenarios.
-use super::super::fixtures::evaluate_fixture;
+
+use super::super::super::fixtures::cases::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::frontier_rows;
@@ -18,7 +19,8 @@ use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use std::sync::Arc;
 
 pub(super) fn many_distinct_project_populations_allocate_only_reached_region_state()
--> Result<(), RuleRequestsError> {
+-> Result<String, RuleRequestsError> {
+    let mut observed: Vec<String> = Vec::new();
     use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
     use std::sync::atomic::Ordering;
     const POPULATIONS: usize = 8;
@@ -49,7 +51,7 @@ pub(super) fn many_distinct_project_populations_allocate_only_reached_region_sta
     }
     let rules = world_with(plans, calls.clone());
     let phase = rules.request.project_phase().unwrap();
-    assert_eq!(phase.fixture_state_counts(), Default::default());
+    observed.push(format!("{:?}", phase.fixture_state_counts()));
     let mut symbols = Symbols::default();
     for population in 0..POPULATIONS {
         let mut rows = frontier_rows();
@@ -70,23 +72,18 @@ pub(super) fn many_distinct_project_populations_allocate_only_reached_region_sta
             &phase,
         )
         .unwrap();
-        assert_eq!(result.rendered.as_ref().unwrap().order.len(), 2);
+        observed.push(format!(
+            "{:?}",
+            result.rendered.as_ref().unwrap().order.len()
+        ));
         let state = phase.fixture_state_counts();
-        assert_eq!(state.populations.0, population + 1);
-        assert_eq!(
-            state.slots.0,
-            population + 1,
-            "only the demanded GroupCount region owns mutable state"
-        );
-        assert_eq!(
-            state.instruction_counters.0,
-            population + 1,
-            "dormant authored selectors allocate no counter arrays"
-        );
-        assert!(state.dormant_obligations.0 <= population + 1);
+        observed.push(format!("{:?}", state.populations.0));
+        observed.push(format!("{:?}", state.slots.0));
+        observed.push(format!("{:?}", state.instruction_counters.0));
+        observed.push(format!("{}", state.dormant_obligations.0 <= population + 1));
     }
-    assert_eq!(calls.reductions.load(Ordering::SeqCst), POPULATIONS);
-    assert_eq!(calls.aggregates.load(Ordering::SeqCst), POPULATIONS * 2);
+    observed.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
+    observed.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
     phase.finish().unwrap();
-    Ok(())
+    Ok(observed.join("|"))
 }

@@ -2,6 +2,12 @@
 
 Places by role what a product listed file by file: the crate's grouped integration tests, `tests/test.rs` and `tests/{*group}/` at any depth (`mod.rs`, `test.rs`, `fixtures.rs` and its `fixtures/` tree), the proof of its case runner `src/cases_test.rs`, and its license `LICENSE*`, each with `count = { min = 0 }`. The license pattern writes out no file name, so a spec that places the license with a template of its own (the command line's MIT text) is the more specific entry and places it. A test group is never beneath `tests/fixtures/`, which holds the inputs `fixture-tree` places. A new crate-local template, `integration-test`, places a group's test and test support. Scenarios `grouped-tests-license-and-cases-test` (nothing closed) and `file-of-no-role-in-a-test-group` (closed). Everything else is as in 0.13.1. 0.13.1 is removed with this version, not kept as published: no lock names it, nothing has been released, and an unreleased version keeps no copy for compatibility. A test group's module is `test-group-module@0.2.0`, held by `test-group-namespace@0.1.0`: it declares modules only, and a group that only gathers nested groups is a namespace.
 
+Edited in place: places `collection-members@0.2.0` with `item-trait = []`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query without their params (a `test-shape@0.1.0` entry reported nothing).
+
+Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0). Grouped integration tests are one Cargo test target per area, `tests/<target>/main.rs`, the directory target Cargo discovers (a `main.rs`, which `mod_module_files` does not flag); its groups are `tests/<target>/<group>.rs` beside `tests/<target>/<group>/`, at any depth, with `test.rs`, `fixtures.rs` and `fixtures/` inside a group. The root `tests/test.rs` is no longer placed: its groups would sit beside it at `tests/<group>.rs`, each a test target of its own. Scenarios `grouped-tests-license-and-cases-test` (nothing closed), `grouped-tests-root-is-a-target-directory` (`tests/test.rs` closed), `test-group-mod-rs-is-closed`.
+
+Edited in place: a test target keeps its own support beside its `main.rs`, `tests/<target>/fixtures.rs` and `tests/<target>/fixtures/{*fixture}`, as a group does (scenario `test-target-support`).
+
 # crate
 
 ## 0.13.1
@@ -460,3 +466,5 @@ The system allocator: `cargo-package` no longer lists `mimalloc.workspace = true
 
 - **No budgets, no divan requirement.** `crate-bench` asks for a `fn main` and, for a split bench, the declared workload modules; it keeps no `budgeted` helper, and `cargo-package` no longer requires `divan.workspace`. `bench-workload` is only the workload's doc. A product's measured workloads are the command line's `commands` bench (the `cli` spec).
 - **The growth check times the fastest of five reads.** `crate-bench`'s `timed` returns the fastest of `ROUNDS` reads of each size, so one disturbed read never fails the check; `GROWTH_LIMIT` is unchanged.
+
+Edited in place: scenario `test-target-support` also holds a group beside the target's support, so `test-group-namespace` is read and shows the support is not taken for a group.

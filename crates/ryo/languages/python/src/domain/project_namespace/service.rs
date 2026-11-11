@@ -244,7 +244,3 @@ pub(crate) fn memberships(
         incomplete_notes,
     }
 }
-
-#[cfg(test)]
-#[path = "service_test.rs"]
-mod tests;

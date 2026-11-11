@@ -1,262 +1,133 @@
-//! Cache and demand guards for the generic decoded-format reader service.
-use super::service::{prepare, result, state};
-use crate::domain::format_syntax::{
-    interface::FormatSyntax,
-    types::{
-        FormatDialect, FormatErrorKind, FormatParseError, FormatParseResult, FormatParseState,
-        FormatSummary, ParsedFormat,
-    },
+//! The `format_parsing` service's cases: which nodes are string occurrences, their decoded text, and the state, occurrences and results
+//! it reads from a percent-format index, and its clearing.
+use super::service::{clear, decoded_into, is_string_occurrence, occurrences, result, state};
+use crate::application::format_parsing::service::prepare;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::format_syntax::types::{
+    CachedFormat, FormatParseResult, FormatParseState, FormatScratch, RetainedFormatIndex,
+    StringOccurrence,
 };
 use crate::domain::model::types::Declarations;
+use crate::domain::semantic_syntax::{
+    service::{positions, visibility},
+    types::Visibility,
+};
 use crate::fixtures::reading::{initialize_model, parsed};
-use ryo::languages::{self, ByteSlice, Symbols, Tree};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::outbound::format_syntax::adapters::ruff_literal_cformat::grammar::RuffLiteralCFormat;
+use ryo::languages::{self, ByteSlice, Tree};
 
-static COUNTING_PARSES: AtomicUsize = AtomicUsize::new(0);
-static MALFORMED_PARSES: AtomicUsize = AtomicUsize::new(0);
-
-struct CountingParser;
-
-impl FormatSyntax for CountingParser {
-    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
-    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
-
-    fn parse(
-        _input: crate::domain::format_syntax::types::FormatInput<'_>,
-        _dialect: FormatDialect,
-    ) -> FormatParseResult {
-        let _previous_count = COUNTING_PARSES.fetch_add(1, Ordering::SeqCst);
-        FormatParseResult::Parsed(ParsedFormat {
-            fields: Vec::new(),
-            summary: FormatSummary::default(),
-        })
-    }
+/// What a row asks of the service.
+#[derive(Clone, Copy, Debug)]
+enum Given {
+    /// The index the operation leaves for a source.
+    Prepared(&'static str),
+    /// The same index after it is cleared.
+    Cleared(&'static str),
+    /// Every string occurrence of a source and its decoded text.
+    Strings(&'static str),
 }
+/// What a row is given.
+type Input = Given;
+/// What the service read, joined by `|`.
+type Value = &'static str;
+/// A source the parser refuses.
+type Failure = ();
 
-struct MalformedParser;
-
-impl FormatSyntax for MalformedParser {
-    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
-    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
-
-    fn parse(
-        _input: crate::domain::format_syntax::types::FormatInput<'_>,
-        _dialect: FormatDialect,
-    ) -> FormatParseResult {
-        let _previous_count = MALFORMED_PARSES.fetch_add(1, Ordering::SeqCst);
-        FormatParseResult::Malformed(FormatParseError {
-            kind: FormatErrorKind::IncompleteFormat,
-            character: None,
-            index: crate::domain::format_syntax::types::FormatScalarIndex(0),
-        })
-    }
-}
-
-struct UnavailableParser;
-
-impl FormatSyntax for UnavailableParser {
-    const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
-    const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
-
-    fn parse(
-        _input: crate::domain::format_syntax::types::FormatInput<'_>,
-        _dialect: FormatDialect,
-    ) -> FormatParseResult {
-        FormatParseResult::Unavailable
-    }
-}
-
-fn duplicate_inputs_are_parsed_once_and_retained_until_source_reset() {
-    COUNTING_PARSES.store(0, Ordering::SeqCst);
-    let file = parsed(b"first = '%s'\nsecond = '%s'\n").expect("source parses");
-    let tree = Tree {
-        elements: &file.elements,
-        source: ByteSlice(file.bytes),
-        file: languages::FileId(0),
-    };
-    let mut model = Declarations::default();
-    initialize_model(&tree, &mut model);
-    let mut symbols = Symbols::default();
-    assert_eq!(
-        state(&model.format_parsing.borrow()),
-        FormatParseState::Fresh
-    );
-    assert_eq!(
-        COUNTING_PARSES.load(Ordering::SeqCst),
-        0,
-        "model setup does not parse formats"
-    );
-
-    let visited = std::cell::Cell::new(0_usize);
-    let visible = std::cell::Cell::new(0_usize);
-    let first = prepare::<CountingParser>(
-        &tree,
-        &model.format_parsing,
-        &mut symbols,
-        crate::domain::semantic_syntax::service::positions(&tree)
-            .inspect(|_| visited.set(visited.get() + 1)),
-        |at, symbols| {
-            visible.set(visible.get() + 1);
-            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
-                == crate::domain::semantic_syntax::types::Visibility::Visible)
-                .into()
-        },
-    );
-    assert_eq!(COUNTING_PARSES.load(Ordering::SeqCst), 1);
-    assert_eq!(first.occurrences.len(), 2);
-    assert_eq!(
-        visible.get(),
-        2,
-        "only candidate strings ask for visibility"
-    );
-    assert_eq!(
-        result(&first, &first.occurrences[0]),
-        result(&first, &first.occurrences[1])
-    );
-    drop(first);
-    let prepared_visits = visited.get();
-    let second = prepare::<CountingParser>(
-        &tree,
-        &model.format_parsing,
-        &mut symbols,
-        crate::domain::semantic_syntax::service::positions(&tree)
-            .inspect(|_| visited.set(visited.get() + 1)),
-        |at, symbols| {
-            visible.set(visible.get() + 1);
-            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
-                == crate::domain::semantic_syntax::types::Visibility::Visible)
-                .into()
-        },
-    );
-    assert_eq!(
-        COUNTING_PARSES.load(Ordering::SeqCst),
-        1,
-        "both readers share the retained parse"
-    );
-    assert_eq!(
-        visited.get(),
-        prepared_visits,
-        "prepared indexes do not traverse again"
-    );
-    assert_eq!(
-        visible.get(),
-        2,
-        "prepared indexes do not repeat semantic visibility"
-    );
-    drop(second);
-
-    let replacement = parsed(b"third = '%d'\n").expect("replacement source parses");
-    let replacement_tree = Tree {
-        elements: &replacement.elements,
-        source: ByteSlice(replacement.bytes),
-        file: languages::FileId(0),
-    };
-    initialize_model(&replacement_tree, &mut model);
-    assert_eq!(
-        state(&model.format_parsing.borrow()),
-        FormatParseState::Fresh,
-        "source replacement clears the retained format index"
-    );
-    let _again = prepare::<CountingParser>(
-        &replacement_tree,
-        &model.format_parsing,
-        &mut symbols,
-        crate::domain::semantic_syntax::service::positions(&replacement_tree),
-        |at, symbols| {
-            (crate::domain::semantic_syntax::service::visibility(
-                &replacement_tree,
-                &model,
-                at,
-                symbols,
-            ) == crate::domain::semantic_syntax::types::Visibility::Visible)
-                .into()
-        },
-    );
-    assert_eq!(
-        COUNTING_PARSES.load(Ordering::SeqCst),
-        2,
-        "source reset invalidates cached values"
-    );
-}
-
-fn malformed_results_are_cached_and_unavailable_results_mark_partial() {
-    MALFORMED_PARSES.store(0, Ordering::SeqCst);
-    let file = parsed(b"first = '%*'\nsecond = '%*'\n").expect("source parses");
-    let tree = Tree {
-        elements: &file.elements,
-        source: ByteSlice(file.bytes),
-        file: languages::FileId(0),
-    };
-    let mut model = Declarations::default();
-    initialize_model(&tree, &mut model);
-    let mut symbols = Symbols::default();
-    let malformed = prepare::<MalformedParser>(
-        &tree,
-        &model.format_parsing,
-        &mut symbols,
-        crate::domain::semantic_syntax::service::positions(&tree),
-        |at, symbols| {
-            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
-                == crate::domain::semantic_syntax::types::Visibility::Visible)
-                .into()
-        },
-    );
-    assert_eq!(MALFORMED_PARSES.load(Ordering::SeqCst), 1);
-    assert_eq!(malformed.state, FormatParseState::Complete);
-    assert_eq!(malformed.values.len(), 1);
-    assert!(matches!(
-        &malformed.values[0].result,
-        FormatParseResult::Malformed(_)
-    ));
-    drop(malformed);
-
-    crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
-    let unavailable = prepare::<UnavailableParser>(
-        &tree,
-        &model.format_parsing,
-        &mut symbols,
-        crate::domain::semantic_syntax::service::positions(&tree),
-        |at, symbols| {
-            (crate::domain::semantic_syntax::service::visibility(&tree, &model, at, symbols)
-                == crate::domain::semantic_syntax::types::Visibility::Visible)
-                .into()
-        },
-    );
-    assert_eq!(unavailable.state, FormatParseState::Partial);
-    assert_eq!(unavailable.values.len(), 1);
-    assert_eq!(
-        &unavailable.values[0].result,
-        &FormatParseResult::Unavailable
-    );
-}
-
-use crate::cases::{Case, CaseName, Expect, Word, run};
-type Scenario = fn();
-type Failure = std::convert::Infallible;
-const CASES: &[Case<Scenario, (), Failure>] = &[
+/// The rows of this concept's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("duplicate_inputs_are_parsed_once_and_retained_until_source_reset"),
+        name: CaseName("a_percent_string_has_an_occurrence_and_a_parsed_result"),
         word: Word::Succeeds,
-        input: || duplicate_inputs_are_parsed_once_and_retained_until_source_reset,
-        expect: Expect::Value(()),
+        input: || Given::Prepared("'%s %d' % (a, b)\n"),
+        expect: Expect::Value("Complete|1|parsed"),
     },
     Case {
-        name: CaseName("malformed_results_are_cached_and_unavailable_results_mark_partial"),
+        name: CaseName("clearing_leaves_a_fresh_empty_index"),
         word: Word::Succeeds,
-        input: || malformed_results_are_cached_and_unavailable_results_mark_partial,
-        expect: Expect::Value(()),
+        input: || Given::Cleared("'%s' % a\n"),
+        expect: Expect::Value("Fresh|0|"),
+    },
+    Case {
+        name: CaseName("strings_decode_escapes_fstrings_are_dynamic_and_bytes_are_no_occurrence"),
+        word: Word::Succeeds,
+        input: || Given::Strings("'a\\\\tb'\nb'x'\nf'{v}'\n"),
+        expect: Expect::Value("Ok(Static):\"a\\\\tb\"|Ok(Dynamic):\"\""),
     },
 ];
-fn subject(scenario: Scenario) -> Result<(), Failure> {
-    scenario();
-    Ok(())
+
+/// Parses `source`, runs the `format_parsing` operation over it and reads its index through this service.
+fn prepared(source: &'static str, cleared: bool) -> Result<String, Failure> {
+    let mut file = parsed(source.as_bytes()).map_err(|_| ())?;
+    let tree = Tree {
+        elements: &file.elements,
+        source: ByteSlice(file.bytes),
+        file: languages::FileId(0),
+    };
+    let mut model = Declarations::default();
+    initialize_model(&tree, &mut model);
+    let index = prepare(
+        &RuffLiteralCFormat,
+        &tree,
+        &model.format_parsing,
+        &mut file.symbols,
+        positions(&tree),
+        |node, symbols| (visibility(&tree, &model, node, symbols) == Visibility::Visible).into(),
+    );
+    let mut read = summary(&index);
+    drop(index);
+    if cleared {
+        clear(model.format_parsing.get_mut());
+        read = summary(&model.format_parsing.borrow());
+    }
+    Ok(read)
 }
+
+/// Answers the row.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let read = match given {
+        Given::Prepared(source) => prepared(source, false)?,
+        Given::Cleared(source) => prepared(source, true)?,
+        Given::Strings(source) => {
+            let file = parsed(source.as_bytes()).map_err(|_| ())?;
+            let tree = Tree {
+                elements: &file.elements,
+                source: ByteSlice(file.bytes),
+                file: languages::FileId(0),
+            };
+            positions(&tree)
+                .filter(|at| is_string_occurrence(&tree, *at) == StringOccurrence::String)
+                .map(|at| {
+                    let mut text = String::new();
+                    let decoded = decoded_into(&tree, at, FormatScratch(&mut text));
+                    format!("{decoded:?}:{text:?}")
+                })
+                .collect::<Vec<_>>()
+                .join("|")
+        }
+    };
+    Ok(Box::leak(read.into_boxed_str()))
+}
+
+/// The state, the occurrence count and each occurrence's result kind.
+fn summary(
+    index: &RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>,
+) -> String {
+    let kinds: Vec<String> = occurrences(index)
+        .iter()
+        .map(|each| match result(index, each) {
+            Some(FormatParseResult::Parsed(_)) => "parsed".to_owned(),
+            Some(other) => format!("{other:?}"),
+            None => "none".to_owned(),
+        })
+        .collect();
+    format!(
+        "{:?}|{}|{}",
+        state(index),
+        occurrences(index).len(),
+        kinds.join(",")
+    )
+}
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);

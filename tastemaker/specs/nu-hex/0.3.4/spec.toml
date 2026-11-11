@@ -4,7 +4,7 @@ conditions = { library-only = { description = "The crate's library root declares
 specs = [
   { spec = "idiomatic.arch/application-service@0.1.2", include = ["src/application/{application}"], count = { min = 0 }, description = "Optional cohesive operations over injected ports and pure domain functions; use cases compose them and own publication." },
   { spec = "idiomatic.arch/use-case@0.1.3", include = ["src/inbound/use_cases/{use-case}"], count = { min = 0 }, params = { implements = { param = "implements" } }, description = "The use cases of the core, one part each; a language provider has none, its contracts are the contract parts." },
-  { spec = "idiomatic.arch/port@0.3.1", include = ["src/outbound/{port}"], count = { min = 0 }, params = { exposed = { param = "exposed" } }, description = "The outbound ports of the core, one part each." },
+  { spec = "idiomatic.arch/port@0.3.2", include = ["src/outbound/{port}"], count = { min = 0 }, params = { exposed = { param = "exposed" } }, description = "The outbound ports of the core, one part each." },
   { spec = "idiomatic.arch/concept@0.1.2", include = ["src/domain/{concept}"], count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The domain concepts of the core, one part each." },
 ]
 templates = [
@@ -24,12 +24,12 @@ templates = [
 rules = [
   { rule = "idiomatic.arch/layer-matrix@0.1.0", include = ["src/**"], description = "The explicit four-layer matrix over resolved local dependencies, including module files, runtime benchmark code and tests; no blanket exemptions." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the core is a module its crate root reaches: a file no `mod` declares is never compiled." },
-  { rule = "idiomatic.arch/io-at-boundary@0.1.0", include = ["src/domain/**", "src/inbound/use_cases/**", "src/outbound/**", "src/application/**"], exclude = ["**/adapters/**", "**/*_test.rs", "**/acceptance.rs", "**/fixtures.rs", "**/fixtures/**"], description = "Core operations reach external effects only through injected contracts." },
+  { rule = "idiomatic.arch/io-at-boundary@0.2.0", include = ["src/domain/**", "src/inbound/use_cases/**", "src/outbound/**", "src/application/**"], exclude = ["**/adapters/**", "**/*_test.rs", "**/acceptance.rs", "**/fixtures.rs", "**/fixtures/**"], description = "Core operations reach external effects only through injected contracts." },
 
   { rule = "domain-modules", include = ["src/domain.rs"], description = "The list of domain concepts only declares modules and holds no rule." },
   # The namespace's own files (module files, lists, collections, fixtures): validated only at an edge, no fixtures read at runtime, no hollow file.
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs", "src/application/*.rs"], exclude = ["**/schemas.rs", "**/*_test.rs"], description = "Nothing in the core's namespace files validates: a `TryFrom`, an `impl FromStr` or a fallible constructor stands only in a schemas.rs." },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs", "src/application/*.rs"], exclude = ["**/*_test.rs", "**/acceptance.rs", "src/fixtures.rs"], description = "Nothing in the core's namespace files but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs", "src/application/*.rs"], exclude = ["**/*_test.rs", "**/acceptance.rs", "src/fixtures.rs"], description = "Nothing in the core's namespace files but its tests and its fixtures reads a `fixtures` module." },
   # The outbound ports' own rules, held wherever the core sits, not by a product that places a core at one path.
   { rule = "core-fakes", include = ["src/outbound/*/interface.rs", "src/outbound/*/fixtures/fake.rs"], description = "Each outbound port of the core has its fake in its own `fixtures/fake.rs`, and that file fakes its own port: no other port's, no other crate's." },
   { rule = "plugin-schemas", include = ["src/outbound/**"], params = { plugins = { param = "plugins" } }, description = "A schemas.rs and its test stand at exactly the ports the entry names as plugins." },
