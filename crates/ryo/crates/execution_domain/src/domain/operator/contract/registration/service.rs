@@ -23,6 +23,13 @@ pub(in crate::domain::operator) fn prepare(
 ///
 /// [`OperatingError::WrongOperation`](crate::domain::operating::errors::OperatingError::WrongOperation) when the
 /// operation is not of this operator's kind, then the first error the evaluation or a downstream row returns.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::registration::service::evaluate;
+/// let _ = evaluate;
+/// ```
 pub fn evaluate(
     registered: &RegisteredOperator,
     operation: &ryo_values::domain::plans::types::Operation,
@@ -37,6 +44,13 @@ pub fn evaluate(
 }
 
 /// The registered operator of a kind.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::registration::service::registered;
+/// let _ = registered;
+/// ```
 pub fn registered(kind: OperationKind) -> RegisteredOperator {
     RegisteredOperator { kind }
 }

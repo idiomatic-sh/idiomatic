@@ -10,6 +10,13 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;
 
 /// Appends the direct destinations of one start through the indexed edges.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::table_reach::borrowed::service::follow;
+/// let _ = follow;
+/// ```
 pub fn follow(
     edges: &IndexedRows<'_>,
     to: ColumnIndex,
@@ -27,6 +34,13 @@ pub fn follow(
 }
 
 /// Walks every vertex reachable from one start, breadth first.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::table_reach::borrowed::service::reach_breadth;
+/// let _ = reach_breadth;
+/// ```
 pub fn reach_breadth(edges: &IndexedRows<'_>, to: ColumnIndex, start: Value, walk: &mut Walk) {
     match breadth::<_, true>(edges, to, start, walk, |_| {
         Ok::<_, std::convert::Infallible>(SetMembership::Out)

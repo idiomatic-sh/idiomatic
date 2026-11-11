@@ -9,6 +9,13 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::row_texts::types::CellText;
 
 /// Finite immutable partition access; ownership and recycling remain in the invocation owner.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::ClosureParts;
+/// fn bound<T: ClosureParts + ?Sized>(_: &T) {}
+/// ```
 pub trait ClosureParts {
     /// How many partitions there are.
     fn len(&self) -> PartitionCount;
@@ -25,14 +32,35 @@ pub trait ClosureParts {
 }
 
 /// How many partitions a closure holds.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::PartitionCount;
+/// fn named(_: Option<&PartitionCount>) {}
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PartitionCount(pub usize);
 
 /// One partition of a closure, by its place among them.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::PartitionIndex;
+/// fn named(_: Option<&PartitionIndex>) {}
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PartitionIndex(pub usize);
 
 /// The closure partitions an operation reads.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::ClosureViews;
+/// fn named(_: Option<&ClosureViews<'_>>) {}
+/// ```
 #[derive(Clone, Copy, Default)]
 pub enum ClosureViews<'a> {
     /// No partition.
@@ -45,6 +73,13 @@ pub enum ClosureViews<'a> {
 }
 
 /// The partitions of a closure, one at a time.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::ClosureIter;
+/// fn named(_: Option<&ClosureIter<'_>>) {}
+/// ```
 pub struct ClosureIter<'a> {
     pub views: ClosureViews<'a>,
     pub at: PartitionIndex,
@@ -79,6 +114,13 @@ impl<'a> IntoIterator for ClosureViews<'a> {
 /// The evaluator is bound to the prepared contract's exact ordered program.
 /// Its implementation is engine-private; this interface cannot choose predicates,
 /// schemas, cache keys or upstream scheduling.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::PredicateProgram;
+/// fn bound<T: PredicateProgram + ?Sized>(_: &T) {}
+/// ```
 pub trait PredicateProgram {
     /// Whether the predicate holds for a row.
     ///
@@ -93,6 +135,13 @@ pub trait PredicateProgram {
 }
 
 /// The checked physical text of a source-matching span, with where it starts and the line it begins on.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::ValidatedSource;
+/// fn named(_: Option<&ValidatedSource<'_>>) {}
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct ValidatedSource<'a> {
     pub(crate) base: SourceBase,
@@ -107,6 +156,13 @@ pub(super) struct SourceSlice<'a> {
 }
 
 /// A native lookup bound to a join: the tree it finds candidates in, and how it finds them.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::NativeJoin;
+/// fn named(_: Option<&NativeJoin<'_>>) {}
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct NativeJoin<'a> {
     /// The tree the lookup finds candidates in.
@@ -141,6 +197,13 @@ pub(crate) struct JoinCursor<'f> {
 }
 
 /// The axis resources one walk runs over: none, a tree of elements, or an index of edges with its domain.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::types::PreparedAxis;
+/// fn named(_: Option<&PreparedAxis<'_>>) {}
+/// ```
 #[derive(Clone, Copy)]
 pub enum PreparedAxis<'a> {
     /// No resource.

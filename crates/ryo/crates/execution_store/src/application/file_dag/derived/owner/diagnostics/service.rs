@@ -9,6 +9,13 @@ use ryo_relations::domain::relations::types::FileId;
 
 impl DerivedOwner {
     /// Reports the owner's counts for `file` to the diagnostic trace.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::report;
+    /// ```
     pub fn report(&self, file: FileId) {
         tracing::trace!(target: constants::TARGET_RESOURCE_ROUTES, event = constants::EVENT_OWNER_FOOTPRINT, file = file.0,
             required_bytes = self.working_bytes().0, peak_required_bytes = self.peak_working_bytes().0,

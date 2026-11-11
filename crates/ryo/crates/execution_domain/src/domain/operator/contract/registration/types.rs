@@ -10,6 +10,13 @@ use ryo_values::domain::query_operators::types::OperationKind;
 ///     kind: ryo_values::domain::query_operators::types::OperationKind::Select,
 /// };
 /// ```
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::registration::types::RegisteredOperator;
+/// fn named(_: Option<&RegisteredOperator>) {}
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct RegisteredOperator {
     pub(super) kind: OperationKind,

@@ -4,6 +4,13 @@ use ryo_relations::domain::relations::types::Value;
 
 /// A single source request for a logical closure join. The request contains
 /// partition keys followed by the source; destinations retain typed sort order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::graph_view::types::ReachResult;
+/// fn named(_: Option<&ReachResult<'_>>) {}
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct ReachResult<'a> {
     /// The partition keys followed by the source the reach was asked for.
@@ -14,6 +21,13 @@ pub struct ReachResult<'a> {
 
 /// A single axis request after exact domain membership and nearest filtering.
 /// Direct neighbors preserve physical multiplicity and encounter order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::graph_view::types::AxisResult;
+/// fn named(_: Option<&AxisResult<'_>>) {}
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct AxisResult<'a> {
     /// The direct neighbors, with their physical multiplicity and in encounter order.
@@ -22,6 +36,13 @@ pub struct AxisResult<'a> {
 
 /// One finite, read-only result. Mutable generation cache handles stay in the
 /// application before a primitive or downstream emitter receives this value.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::graph_view::types::CachedGraphRow;
+/// fn named(_: Option<&CachedGraphRow<'_>>) {}
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub enum CachedGraphRow<'a> {
     /// A reach answer.

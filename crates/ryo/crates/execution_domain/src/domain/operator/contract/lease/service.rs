@@ -11,6 +11,13 @@ use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::Value;
 
 /// Adds the rows an input was found to hold.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::lease::service::add_found;
+/// let _ = add_found;
+/// ```
 pub fn add_found(
     counters: &WorkCounters,
     input: ryo_values::domain::plan_parts::types::InputNumber,
@@ -22,6 +29,13 @@ pub fn add_found(
 }
 
 /// The totals counted so far, resetting the counters.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::lease::service::take_totals;
+/// let _ = take_totals;
+/// ```
 pub fn take_totals(counters: &WorkCounters) -> WorkTotals {
     WorkTotals(std::array::from_fn(|at| {
         FoundRows(counters.0[at].replace(0))

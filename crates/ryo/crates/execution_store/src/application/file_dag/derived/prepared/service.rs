@@ -7,6 +7,13 @@ use ryo_execution_domain::domain::{coverage::types::RuleIndex, operating::errors
 use ryo_relations::domain::relations::types::Relation;
 
 /// The derived needs of a compiled request: the relations each rule reads and the rules that walk a graph.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived;
+/// fn named(_: Option<&RequestDerived>) {}
+/// ```
 #[derive(Debug)]
 pub struct RequestDerived {
     relations: Box<[Box<[Relation]>]>,

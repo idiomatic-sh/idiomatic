@@ -9,6 +9,13 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::RowIndex;
 
 /// Exact typed key lookup prepared by the engine; primitives only probe it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::table_reach::borrowed::types::IndexedRows;
+/// fn named(_: Option<&IndexedRows<'_>>) {}
+/// ```
 #[derive(Clone, Copy)]
 pub struct IndexedRows<'a> {
     /// The observer the probes report their work to.

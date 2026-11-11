@@ -123,6 +123,13 @@ use ryo_relations::domain::relations::types::Value;
 
 /// Ordering metadata can be shared across consumers; only the current partition
 /// owns values/adjacency. Advancing releases the previous partition's logical contents.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
+/// fn named(_: Option<&PartitionedClosure<'_>>) {}
+/// ```
 pub struct PartitionedClosure<'f> {
     input: RepresentationInput<'f>,
     pub(super) proof: super::super::relations::admission::service::BorrowedInput<'f>,
@@ -146,6 +153,13 @@ impl<'f> PartitionedClosure<'f> {
     /// [`OperatingError::WrongOperation`] when the ordering or the partition plan is of another kind,
     /// [`OperatingError::ShapeMismatch`] when a key cell of an ordered row is missing, and the owner's refusal to admit
     /// or build the next partition.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
+    /// let _ = PartitionedClosure::advance;
+    /// ```
     pub fn advance(&mut self) -> Result<PartitionAdvance, OperatingError> {
         let ryo_derived::domain::contract::types::DerivedView::PartitionOrder(order) =
             self.ordered.view()?
@@ -211,6 +225,13 @@ impl<'f> PartitionedClosure<'f> {
     /// # Errors
     ///
     /// [`OperatingError::NotRun`] when the cursor is on no partition.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
+    /// let _ = PartitionedClosure::take_current;
+    /// ```
     pub fn take_current(&mut self) -> Result<AcquiredView, OperatingError> {
         self.current.take().ok_or(OperatingError::NotRun)
     }
@@ -220,6 +241,13 @@ impl<'f> PartitionedClosure<'f> {
     ///
     /// [`OperatingError::NotRun`] when the cursor is on no partition, the view's own refusal, and
     /// [`OperatingError::WrongOperation`] when the view is no closure adjacency.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure;
+    /// let _ = PartitionedClosure::current;
+    /// ```
     pub fn current(&self) -> Result<&ClosurePartition, OperatingError> {
         let current = self.current.as_ref().ok_or(OperatingError::NotRun)?;
         let ryo_derived::domain::contract::types::DerivedView::ClosureAdjacency(partition) =

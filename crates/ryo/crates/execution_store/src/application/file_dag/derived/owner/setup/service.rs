@@ -15,6 +15,13 @@ impl DerivedOwner {
     /// # Errors
     ///
     /// [`OperatingError::NotRun`] when no backend is installed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::set_optional_limit;
+    /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn set_optional_limit(
         &self,
@@ -34,6 +41,13 @@ impl DerivedOwner {
     ///
     /// [`OperatingError::NotRun`] when the owner is already prepared, and the request's refusal of a demanded rule it
     /// does not declare.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::prepare_program_file;
+    /// ```
     pub fn prepare_program_file(
         &self,
         prepared: &RequestDerived,

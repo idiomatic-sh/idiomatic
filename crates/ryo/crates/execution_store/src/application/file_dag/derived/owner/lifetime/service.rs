@@ -14,6 +14,13 @@ impl DerivedOwner {
         *state.pins.entry(population).or_default() += 1_usize;
     }
     /// Releases every view of `population`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::release;
+    /// ```
     pub fn release(&self, population: PopulationId) {
         let mut state = self.state.borrow_mut();
         let Some(count) = state.pins.get_mut(&population) else {

@@ -6,6 +6,13 @@ use ryo_values::domain::plan_parts::types::{
 };
 
 /// The side resources an operation acquires before it evaluates, declared by the compiled operation.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::resources::types::ResourceProgram;
+/// fn named(_: Option<&ResourceProgram>) {}
+/// ```
 #[derive(Clone, Debug)]
 pub enum ResourceProgram {
     /// No side resource.
@@ -71,6 +78,13 @@ pub enum ResourceProgram {
 }
 
 /// The columns a key index covers.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::resources::types::IndexColumns;
+/// fn named(_: Option<&IndexColumns>) {}
+/// ```
 #[derive(Clone, Debug)]
 pub enum IndexColumns {
     /// Every column of the input.
@@ -82,6 +96,13 @@ pub enum IndexColumns {
 }
 
 /// Whether a join or an axis carries a filter over its rows.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::resources::types::Filtering;
+/// fn named(_: Option<&Filtering>) {}
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Filtering {
     /// Rows are filtered.
@@ -91,6 +112,13 @@ pub enum Filtering {
 }
 
 /// What a join reads: the key columns of each side, the columns it views and its filter.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::resources::types::JoinResources;
+/// fn named(_: Option<&JoinResources>) {}
+/// ```
 #[derive(Clone, Debug)]
 pub struct JoinResources {
     /// The left input's key columns.
@@ -106,6 +134,13 @@ pub struct JoinResources {
 }
 
 /// What an axis walk reads: the tree's columns, its domain and the columns it outputs.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::resources::types::AxisResources;
+/// fn named(_: Option<&AxisResources>) {}
+/// ```
 #[derive(Clone, Debug)]
 pub struct AxisResources {
     /// The column of each node's identity.

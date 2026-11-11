@@ -168,6 +168,13 @@ use ryo_execution_domain::domain::{
 use std::sync::Arc;
 
 /// One invocation's mutable allocations and the admitted publications it reads, released when it ends.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+/// fn named(_: Option<&InvocationWorkspace>) {}
+/// ```
 pub struct InvocationWorkspace {
     work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
@@ -192,6 +199,13 @@ pub struct InvocationWorkspace {
 
 impl InvocationWorkspace {
     /// The workspace of one invocation of `contract`, its allocations begun for the invocation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::for_contract;
+    /// ```
     pub fn for_contract(
         owner: std::rc::Rc<super::super::relations::service::RelationOwner>,
         contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
@@ -225,6 +239,13 @@ impl InvocationWorkspace {
     }
 
     /// What the invocation's allocations measure now, for the proofs of their reuse and release.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::measured;
+    /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn measured(
         &self,
@@ -272,10 +293,24 @@ impl InvocationWorkspace {
 
 impl InvocationWorkspace {
     /// Releases the admitted publications.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::release_inputs;
+    /// ```
     pub fn release_inputs(&mut self) {
         self.publications.clear();
     }
     /// Holds `publications` as the invocation's admitted inputs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::capture_admitted;
+    /// ```
     pub fn capture_admitted(
         &mut self,
         publications: Vec<super::super::relations::handle::service::Publication>,
@@ -284,32 +319,74 @@ impl InvocationWorkspace {
     }
 
     /// The relation owner the invocation reads through.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::owner;
+    /// ```
     pub fn owner(&self) -> &super::super::relations::service::RelationOwner {
         &self.relation_owner
     }
 
     /// The rows each input was found to hold, counted as the kernels report them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::work;
+    /// ```
     pub fn work(&self) -> &ryo_execution_domain::domain::operator::contract::types::WorkCounters {
         &self.work
     }
     /// The route profile position this invocation was opened at.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::progress_origin;
+    /// ```
     #[cfg(feature = "diagnostic-row-progress")]
     pub fn progress_origin(&self) -> &super::super::route_counts::profile::service::CapturedOrigin {
         &self.progress_origin
     }
     /// The primitive operators' working allocations, to read what they hold.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::primitive;
+    /// ```
     pub fn primitive(
         &self,
     ) -> &ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
         &self.primitive
     }
     /// The primitive operators' working allocations, lent to a kernel.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::primitive_mut;
+    /// ```
     pub fn primitive_mut(
         &mut self,
     ) -> &mut ryo_execution_domain::domain::operator::contract::types::PrimitiveWorkspace {
         &mut self.primitive
     }
     /// What the proofs observe of this invocation's work.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::observation_mut;
+    /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn observation_mut(
         &mut self,
@@ -318,6 +395,13 @@ impl InvocationWorkspace {
     }
     /// Every working allocation a kernel uses, each lent apart from the others so one evaluation can hold them
     /// at once; the admitted publications and the proofs' observation stay with the workspace.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
+    /// let _ = InvocationWorkspace::parts;
+    /// ```
     pub fn parts(&mut self) -> super::types::WorkspaceParts<'_> {
         super::types::WorkspaceParts {
             owner: &self.relation_owner,
@@ -401,6 +485,13 @@ impl InvocationWorkspace {
 
 /// One immutable demand scope, not a retained cache. At most three registered
 /// operator inputs are held; only demanded slots acquire a proof.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
+/// fn named(_: Option<&InputAdmissions<'_, '_>>) {}
+/// ```
 pub struct InputAdmissions<'a, 'f> {
     workspace: &'a InvocationWorkspace,
     inputs: &'a [RepresentationInput<'f>],
@@ -418,6 +509,13 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     /// # Errors
     ///
     /// [`OperatingError::MissingInput`] when the invocation has no input at `place`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
+    /// let _ = InputAdmissions::input;
+    /// ```
     pub fn input(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         self.inputs
             .get(place.0)
@@ -432,6 +530,13 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     ///
     /// [`OperatingError::WrongOperation`] for a place beyond the three an operator reads,
     /// [`OperatingError::MissingInput`] when the invocation has no input there, and the refusal of admitting it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
+    /// let _ = InputAdmissions::rows;
+    /// ```
     pub fn rows(&self, place: InputNumber) -> Result<RepresentationInput<'f>, OperatingError> {
         Ok(self.proof(place)?.rows())
     }
@@ -458,6 +563,13 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     ///
     /// The refusal of admitting the ordering's input, [`OperatingError::NotRead`] when `input` is not the rows it
     /// admitted, and the refusals of acquiring the ordering and preparing the closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
+    /// let _ = InputAdmissions::partitioned;
+    /// ```
     pub fn partitioned(
         &self,
         order: &PreparedViewUse,
@@ -487,6 +599,13 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     ///
     /// [`OperatingError::WrongOperation`] when `use_` is no native lookup over two inputs, and the refusals of admitting
     /// its inputs and acquiring the view.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
+    /// let _ = InputAdmissions::try_native_lookup;
+    /// ```
     pub fn try_native_lookup(
         &self,
         use_: &PreparedViewUse,
@@ -520,6 +639,13 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     /// # Errors
     ///
     /// The refusals of [`Self::acquire_derived`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
+    /// let _ = InputAdmissions::acquire_rows;
+    /// ```
     pub fn acquire_rows(
         &self,
         use_: &PreparedViewUse,
@@ -541,6 +667,13 @@ impl<'a, 'f> InputAdmissions<'a, 'f> {
     /// [`OperatingError::WrongOperation`] when `use_` reads no input or more than two, or its inputs do not fit
     /// `supplied`, [`OperatingError::MissingInput`] when `supplied` needs a second input `use_` lacks, and the refusals of
     /// admitting its inputs and acquiring the view.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::workspace::service::InputAdmissions;
+    /// let _ = InputAdmissions::acquire_derived;
+    /// ```
     pub fn acquire_derived(
         &self,
         use_: &PreparedViewUse,

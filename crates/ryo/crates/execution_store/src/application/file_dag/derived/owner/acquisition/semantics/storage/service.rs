@@ -13,6 +13,13 @@ use ryo_execution_domain::domain::stored_graph::types::GraphIdentity;
 use std::sync::Arc;
 
 /// The built payload of a view and the prepared request it was built from.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
+/// fn named(_: Option<&DerivedStorage>) {}
+/// ```
 #[derive(Debug)]
 pub struct DerivedStorage {
     port: Arc<dyn DerivedPort>,
@@ -40,12 +47,26 @@ impl DerivedStorage {
     /// # Errors
     ///
     /// The derived port's refusal to view the payload, mapped into its [`OperatingError`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
+    /// let _ = DerivedStorage::view;
+    /// ```
     pub fn view(&self) -> Result<DerivedView<'_>, OperatingError> {
         self.port
             .view(&self.plan, &self.payload)
             .map_err(derived_fault)
     }
     /// The built payload.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
+    /// let _ = DerivedStorage::payload;
+    /// ```
     pub fn payload(&self) -> &DerivedPayload {
         &self.payload
     }

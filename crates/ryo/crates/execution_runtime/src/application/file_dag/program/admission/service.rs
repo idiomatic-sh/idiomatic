@@ -24,6 +24,13 @@ pub(crate) struct FileGeneration {
 }
 
 /// Positive applicability is evidence, not a Complete-empty population.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::admission::service::ApplicabilityProof;
+/// fn named(_: Option<&ApplicabilityProof>) {}
+/// ```
 #[derive(Clone)]
 pub struct ApplicabilityProof {
     pub(super) producer: RuleIndex,

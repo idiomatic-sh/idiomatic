@@ -28,6 +28,13 @@ use std::collections::BTreeMap;
 /// The [`PublicationReason`] of the first name that cannot be carried across: a reserved worker or a non-empty place
 /// log, a cross name whose hash differs, a place, range or text that is missing or does not match, or a place log
 /// that is full.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::finish::publication::service::escape_cross_publication;
+/// let _ = escape_cross_publication;
+/// ```
 pub fn escape_cross_publication(
     table: &mut Table,
     producer: &mut Symbols,

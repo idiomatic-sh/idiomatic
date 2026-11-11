@@ -2,6 +2,18 @@
 
 /// The first applicable row gate precedes invocation resource acquisition. It
 /// reads admitted values/text only and has no application acquisition capability.
+///
+/// # Errors
+///
+/// The contract's recorded row error when its preparation kept one; `ShapeMismatch` when a checked text column
+/// holds no text; the error checking the row's source span or reading its cell returns.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::kernel::service::row_admissible;
+/// let _ = row_admissible;
+/// ```
 pub fn row_admissible(
     contract: &crate::domain::operator::contract::types::OperatorContract,
     row: &[ryo_relations::domain::relations::types::Value],

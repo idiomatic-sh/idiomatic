@@ -3,6 +3,13 @@
 use super::super::types::{OrderedExistence, RegexIdentity};
 
 /// How the physical kernel of an instruction is reached.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::physical::types::PhysicalRoute;
+/// fn named(_: Option<&PhysicalRoute<'_>>) {}
+/// ```
 #[derive(Debug)]
 pub enum PhysicalRoute<'a> {
     /// Through the registered operator.
@@ -12,6 +19,13 @@ pub enum PhysicalRoute<'a> {
 }
 
 /// What a physical evaluation is bound to: the request's parameters, the regular expression's identity and the source's length.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding;
+/// fn named(_: Option<&PhysicalBinding<'_>>) {}
+/// ```
 #[derive(Debug)]
 pub struct PhysicalBinding<'a> {
     /// The request's parameter bindings.
@@ -29,6 +43,13 @@ pub struct PhysicalBinding<'a> {
 /// let _forged = ryo_execution_domain::domain::executable_program::physical::types::PhysicalAuthorization {
 ///     _sealed: std::marker::PhantomData,
 /// };
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::physical::types::PhysicalAuthorization;
+/// fn named(_: Option<&PhysicalAuthorization>) {}
 /// ```
 #[derive(Debug)]
 pub struct PhysicalAuthorization {

@@ -43,6 +43,18 @@ pub(super) fn bound_views(
 /// Authorizes one call of the operators as the compiled meaning of its instruction: the one evaluation of the
 /// instruction's own operation on the registered route, the ordered-existence driver of a resolved region, or a
 /// reduction that prepares the grouping of a grouped instruction.
+///
+/// # Errors
+///
+/// `WrongOperation` when the call is not the compiled meaning of the instruction, and the error the bound views
+/// refuse with when the call lends resources the instruction was not prepared with.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::physical::service::authorize;
+/// let _ = authorize;
+/// ```
 pub fn authorize(
     operation: &Operation,
     route: PhysicalRoute<'_>,

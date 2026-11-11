@@ -32,6 +32,13 @@ pub(crate) fn projected(
 /// [`OperatingError::WrongOperation`] for an operation outside the family (a select that keeps columns, a
 /// projection that drops repeated rows, any other operation), and the projection's refusal of a column the input
 /// lacks.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operation_schema::projection::service::continuation_kinds;
+/// let _ = continuation_kinds;
+/// ```
 pub fn continuation_kinds(
     operation: &Operation,
     input: &[CellKind],

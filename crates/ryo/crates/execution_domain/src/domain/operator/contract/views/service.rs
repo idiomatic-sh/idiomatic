@@ -67,6 +67,12 @@ pub(super) fn source_slice<'a>(
 /// [`OperatingError::ShapeMismatch`] when the span or base-line cell is of another kind, and
 /// [`OperatingError::InvalidSourceMatchSpan`] for a span out of order, outside the source or off a character
 /// boundary, or a base line that is not positive; a missing column is the row's own refusal.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::views::service::validate;
+/// ```
 pub fn validate<'a>(
     row: &[Value],
     span: ColumnIndex,

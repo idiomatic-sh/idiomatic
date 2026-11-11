@@ -121,6 +121,13 @@ impl FileScope {
         Self { profile }
     }
     /// The profile this scope opened, for the parts of the file to record into.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::FileScope;
+    /// let _ = FileScope::profile;
+    /// ```
     pub fn profile(&self) -> &RouteProfile {
         &self.profile
     }
@@ -199,10 +206,24 @@ pub(crate) fn capture(profile: &RouteProfile) -> CapturedOrigin {
 #[cfg(feature = "diagnostic-row-progress")]
 impl CapturedOrigin {
     /// The profile this origin was captured from.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::route_counts::service::CapturedOrigin;
+    /// let _ = CapturedOrigin::profile;
+    /// ```
     pub fn profile(&self) -> &RouteProfile {
         &self.profile
     }
     /// Records under the captured origin again until the returned scope ends.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::route_counts::service::CapturedOrigin;
+    /// let _ = CapturedOrigin::resume;
+    /// ```
     pub fn resume(&self) -> OriginScope {
         scope(&self.profile, |current| {
             if let Some(origin) = self.origin {
@@ -230,6 +251,12 @@ pub(crate) fn scope(profile: &RouteProfile, change: impl FnOnce(&mut RouteOrigin
 
 impl RouteProfile {
     /// Records under `rule` until the returned scope ends.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile;
+    /// ```
     pub fn rule(&self, rule: impl Into<RouteRuleIndex>, name: &RuleId) -> OriginScope {
         let rule = rule.into();
         let _named = with_state(self, |state| {
@@ -247,6 +274,12 @@ impl RouteProfile {
         })
     }
     /// Records under the program node `node` until the returned scope ends.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile;
+    /// ```
     pub fn node(&self, node: impl Into<RouteNodeIndex>) -> OriginScope {
         let node = node.into();
         scope(self, |origin| {
@@ -258,6 +291,12 @@ impl RouteProfile {
         })
     }
     /// Records under the consumer `consumer` until the returned scope ends.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile;
+    /// ```
     pub fn consumer(&self, consumer: impl Into<RouteLabel>) -> OriginScope {
         let consumer = consumer.into();
         scope(self, |origin| origin.consumer = Some(consumer))

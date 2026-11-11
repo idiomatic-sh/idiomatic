@@ -10,6 +10,12 @@ use ryo_execution_domain::domain::{
 ///
 /// None in practice: a schema the semantic capability refuses is recorded in the contract, which its validation
 /// returns.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::prepare::service::view;
+/// ```
 pub fn view(
     semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     request: &ryo_execution_domain::domain::derived_views::types::ViewRequest,

@@ -5,6 +5,13 @@ use crate::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::Value;
 
 /// Immutable inputs only. No Feed, callback, scheduler or owned/retained Arc is supplied.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::primitive::types::PreparedInputs;
+/// fn named(_: Option<&PreparedInputs<'_>>) {}
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub enum PreparedInputs<'a> {
     /// One row of the triggering input with its immutable side inputs.

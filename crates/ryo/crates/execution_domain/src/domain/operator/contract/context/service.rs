@@ -6,6 +6,12 @@ use crate::domain::operating::types::PrimitiveSemantics;
 use ryo_language::domain::symbols::types::QuerySymbols;
 
 /// The application invocation bridge owns the only production call site.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::context::service::with_primitive_context;
+/// ```
 pub fn with_primitive_context<'a, T>(
     views: PrimitiveViews<'a>,
     workspace: &'a mut PrimitiveWorkspace,

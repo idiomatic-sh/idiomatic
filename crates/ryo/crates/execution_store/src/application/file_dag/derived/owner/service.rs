@@ -112,6 +112,13 @@ use ryo_execution_domain::domain::{
 use std::{cell::RefCell, sync::Weak};
 
 /// Runtime semantic dependencies that are not columns: candidate filter and exact dense ordering.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::service::ViewContext;
+/// fn named(_: Option<&ViewContext>) {}
+/// ```
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ViewContext {
     pub(crate) candidate: Option<super::graph_key::service::PreparedIdentity>,
@@ -121,6 +128,13 @@ pub struct ViewContext {
 
 impl ViewContext {
     /// The context of a membership view whose members keep the dense order `order`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::ViewContext;
+    /// let _ = ViewContext::ordered;
+    /// ```
     pub fn ordered(order: MembershipOrder) -> Self {
         Self {
             membership_order: Some(order),
@@ -137,6 +151,13 @@ impl ViewContext {
 }
 
 /// The file-local owner of derived views: it acquires, retains, accounts for and releases them.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+/// fn named(_: Option<&DerivedOwner>) {}
+/// ```
 pub struct DerivedOwner {
     pub(super) identity: Arc<()>,
     pub(super) semantic: DerivedAccess,
@@ -159,6 +180,13 @@ impl DerivedOwner {
     ///
     /// None in practice: preparation records a schema the semantic capability refuses in the contract, which its
     /// validation returns.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::prepare_view;
+    /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn prepare_view(
         &self,
@@ -190,11 +218,25 @@ impl DerivedOwner {
         }
     }
     /// How many views were built, reused and refused.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::counts;
+    /// ```
     pub fn counts(&self) -> BuildCounts {
         let state = self.state.borrow();
         BuildCounts(state.builds, state.hits, state.refusals)
     }
     /// The working bytes the owner's views hold now.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::working_bytes;
+    /// ```
     pub fn working_bytes(&self) -> ByteCount {
         self.state.borrow().required_bytes
     }
@@ -202,6 +244,13 @@ impl DerivedOwner {
         self.state.borrow().peak_required_bytes
     }
     /// The bytes the owner retains across invocations.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::retained_bytes;
+    /// ```
     pub fn retained_bytes(&self) -> ByteCount {
         self.state.borrow().retained_bytes
     }
@@ -212,6 +261,13 @@ impl DerivedOwner {
         self.state.borrow().peak_required_views
     }
     /// The bytes the owner holds in all.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedOwner;
+    /// let _ = DerivedOwner::owned_bytes;
+    /// ```
     pub fn owned_bytes(&self) -> ByteCount {
         let state = self.state.borrow();
         ByteCount(

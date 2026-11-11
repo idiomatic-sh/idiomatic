@@ -16,6 +16,16 @@ use std::sync::Arc;
 
 /// Prepares every step of every plan against the schemas `relation_kinds` answers, handing each contract to `bind`
 /// for its derived views before it is kept.
+///
+/// # Errors
+///
+/// The first error preparing a step's contract returns, or the error `bind` returns for a contract.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::file_program::service::operators::service::prepare;
+/// ```
 pub fn prepare<'s>(
     plans: &[Plan],
     bindings: &[Vec<ParameterBinding>],

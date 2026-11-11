@@ -30,6 +30,13 @@ pub struct WorkspaceParts<'w> {
 }
 
 /// Sources are supplied only by admitted inputs, never independently by a view caller.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::workspace::types::ViewInputs;
+/// fn named(_: Option<&ViewInputs<'_, '_>>) {}
+/// ```
 #[derive(Debug)]
 pub enum ViewInputs<'a, 's> {
     Rows,

@@ -21,6 +21,13 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, InputNumber}
 use std::sync::Arc;
 
 /// The derived views a request's operators bind, prepared once for the request.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::request::service::RequestViews;
+/// fn named(_: Option<&RequestViews>) {}
+/// ```
 #[derive(Debug)]
 pub struct RequestViews {
     semantic: crate::application::file_dag::derived::owner::service::DerivedAccess,
@@ -31,6 +38,12 @@ pub struct RequestViews {
 
 impl RequestViews {
     /// The views of one request, prepared through `semantic`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::request::service::RequestViews;
+    /// ```
     pub fn new(
         semantic: impl Into<crate::application::file_dag::derived::owner::service::DerivedAccess>,
     ) -> Self {
@@ -47,6 +60,13 @@ impl RequestViews {
     ///
     /// [`OperatingError::WrongOperation`] when a resource asks for a view slot already full or more than two inputs,
     /// and the refusal of preparing a view over its inputs' schemas.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::request::service::RequestViews;
+    /// let _ = RequestViews::bind;
+    /// ```
     pub fn bind(&mut self, contract: &mut OperatorContract) -> Result<(), OperatingError> {
         self.logical.clear();
         self.logical

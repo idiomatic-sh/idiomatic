@@ -17,6 +17,13 @@ use std::{
 };
 
 /// The relation owner of one file generation: it publishes relations, admits borrowed inputs and issues the generation they are bound to.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
+/// fn named(_: Option<&RelationOwner>) {}
+/// ```
 pub struct RelationOwner {
     pub(super) derived: super::super::derived::owner::service::DerivedOwner,
     pub(super) next_population: Cell<PopulationId>,
@@ -35,10 +42,24 @@ pub struct RelationOwner {
 
 impl RelationOwner {
     /// The derived-view owner of this generation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
+    /// let _ = RelationOwner::derived;
+    /// ```
     pub fn derived(&self) -> &super::super::derived::owner::service::DerivedOwner {
         &self.derived
     }
     /// The route profile the opening scope handed down, for this owner's work to record into.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
+    /// let _ = RelationOwner::routes;
+    /// ```
     pub fn routes(&self) -> &super::super::route_counts::profile::service::RouteProfile {
         &self.routes
     }
@@ -145,6 +166,13 @@ impl RelationOwner {
         Self::with_limits(reuse, PinnedViewCount(1024), derived, Default::default())
     }
     /// Whether this owner's publications may be reused across invocations.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
+    /// let _ = RelationOwner::stable;
+    /// ```
     #[cfg(any(test, feature = "fixtures"))]
     pub fn stable(&self) -> ReuseEligibility {
         self.stable
