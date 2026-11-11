@@ -74,3 +74,18 @@ impl ExecutablePermission {
         }
     }
 }
+
+// The conversion from the engine's record is the crate's own: a public `From` impl would put the engine's types on the SDK's surface.
+impl Unread {
+    /// A file nothing read, as the caller reads it.
+    pub(crate) fn from_engine(unread: ryo_values::domain::records::types::Unread) -> Self {
+        use ryo_values::domain::records::types::Unreadable as Engine;
+        Self {
+            path: RelativePath(unread.path.0),
+            reason: match unread.reason {
+                Engine::NoLanguage => Unreadable::NoLanguage,
+                Engine::Failed(reason) => Unreadable::Failed(ReadFailure(reason.0)),
+            },
+        }
+    }
+}

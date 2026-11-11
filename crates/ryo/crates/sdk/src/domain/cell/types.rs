@@ -40,3 +40,19 @@ pub struct HostText(pub Box<str>);
 /// The whole number of a cell.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HostNumber(pub i64);
+
+// The conversion from the engine's cell is the crate's own: a public `From` impl would put the engine's types on the SDK's surface.
+impl Slot {
+    /// The caller's cell for a typed value of a row, as the engine holds it: nothing for a value that reads as nothing.
+    pub(crate) fn from_engine(cell: Option<&ryo_values::domain::row_texts::types::Cell>) -> Self {
+        use ryo_values::domain::row_texts::types::Cell as Engine;
+        cell.map_or(Self::Nothing, |cell| {
+            Self::Is(match cell {
+                Engine::File(path) => Cell::File(RelativePath(path.clone())),
+                Engine::Text(text) => Cell::Text(HostText(text.clone())),
+                Engine::Number(number) => Cell::Number(HostNumber(number.0)),
+                Engine::Span(span) => Cell::Span(*span),
+            })
+        })
+    }
+}

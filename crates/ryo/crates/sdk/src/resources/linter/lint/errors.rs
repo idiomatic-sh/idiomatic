@@ -149,3 +149,79 @@ pub enum ProviderCode {
     #[error("a cell names a file that is not the one visited")]
     FileNotVisited,
 }
+
+// The conversions from the core's failures are the entry's own: a public `From` impl would put the core's errors on the SDK's surface.
+impl LintError {
+    /// The caller's failure for a core failure of a lint.
+    pub(super) fn from_core(error: ryo_core::inbound::use_cases::lint::errors::LintError) -> Self {
+        use ryo_core::inbound::use_cases::lint::errors::LintError as CoreError;
+        use ryo_core::inbound::use_cases::lint::types::ProviderFault as CoreCode;
+        let io = |what: Port, reason: String| Self::Io { what, reason };
+        match error {
+            CoreError::Execution { reason } => Self::Execution { reason },
+
+            CoreError::SourceLanguage { name } => Self::SourceLanguage { name },
+            CoreError::ObservationBindings { reason } => Self::ObservationBindings { reason },
+            CoreError::ObservationExecution { reason } => Self::ObservationExecution { reason },
+            CoreError::Query { id, error } => Self::Rule {
+                id: RuleId(id.into()),
+                error: ValidateError::from_refused(error),
+            },
+            CoreError::Rule { id, reason } | CoreError::UnknownKind { id, reason } => {
+                Self::Unrunnable {
+                    id: RuleId(id.into()),
+                    reason,
+                }
+            }
+            CoreError::MissingParameter { id } => Self::MissingParameter {
+                id: RuleId(id.into()),
+            },
+            CoreError::TooLarge { size, budget } => Self::TooLarge { size, budget },
+            CoreError::MemoryBudgetExceeded {
+                used,
+                budget,
+                plans,
+            } => Self::MemoryBudgetExceeded {
+                used,
+                budget,
+                plans: plans.into_iter().map(|plan| RuleId(plan.into())).collect(),
+            },
+            CoreError::Provider { provider, code } => Self::Provider {
+                provider: ProviderName(provider.into()),
+                code: match code {
+                    CoreCode::SpanOutsideFile => ProviderCode::SpanOutsideFile,
+                    CoreCode::NodeOutsideTable => ProviderCode::NodeOutsideTable,
+                    CoreCode::NodeOfAnotherFile => ProviderCode::NodeOfAnotherFile,
+                    CoreCode::FileNotVisited => ProviderCode::FileNotVisited,
+                },
+            },
+            CoreError::Corpus { reason } => io(Port::Corpus, reason),
+            CoreError::Store { reason } => io(Port::Store, reason),
+            CoreError::Facts { reason } => io(Port::Facts, reason),
+            CoreError::Language { reason } => io(Port::Language, reason),
+            CoreError::Memory { reason } => io(Port::Memory, reason),
+            CoreError::Scheduler { reason } => io(Port::Scheduler, reason),
+            CoreError::Output { reason } => io(Port::Output, reason),
+            CoreError::OutputClosed => {
+                io(Port::Output, "whoever reads the answer stopped".to_owned())
+            }
+            // Ids are unique and not blank by construction: these cannot happen, and say so if they do.
+            other @ (CoreError::BlankRuleId | CoreError::DuplicateRuleId { .. }) => {
+                Self::Unrunnable {
+                    id: RuleId(Box::default()),
+                    reason: other.to_string(),
+                }
+            }
+        }
+    }
+
+    /// The caller's failure for a core failure of opening.
+    pub(super) fn from_open(error: ryo_core::inbound::use_cases::open::errors::OpenError) -> Self {
+        use ryo_core::inbound::use_cases::open::errors::OpenError;
+        let (what, reason) = match error {
+            OpenError::Language { reason } => (Port::Language, reason),
+            OpenError::Memory { reason } => (Port::Memory, reason),
+        };
+        Self::Io { what, reason }
+    }
+}

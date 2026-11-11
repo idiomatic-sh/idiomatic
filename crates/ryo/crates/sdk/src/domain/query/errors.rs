@@ -136,3 +136,37 @@ pub enum ValidateError {
         reason: String,
     },
 }
+
+impl ValidateError {
+    /// A rule's query that does not compile, as the caller's failure of validating.
+    pub(crate) fn from_refused(error: ryo_values::domain::program::types::RefusedQuery) -> Self {
+        use ryo_values::domain::program::types::RefusedKind;
+        let origin = error.origin;
+        let span = QuerySpan {
+            start: super::types::ByteOffset(
+                usize::try_from(error.span.start.0).unwrap_or(usize::MAX),
+            ),
+            end: super::types::ByteOffset(usize::try_from(error.span.end.0).unwrap_or(usize::MAX)),
+        };
+        let message = error.message.0;
+        let error = match error.kind {
+            RefusedKind::Syntax => Self::Syntax { span, message },
+            RefusedKind::UnknownRelation => Self::UnknownRelation {
+                name: message,
+                span,
+            },
+            RefusedKind::Type => Self::Type { span, message },
+            RefusedKind::Invalid => Self::Invalid { span, message },
+            RefusedKind::Catalog => Self::Catalog { reason: message },
+        };
+        match origin {
+            ryo_values::domain::query_tokens::types::Attribution::Located(origin) => {
+                Self::Located {
+                    origin: QueryOrigin::from_internal(origin),
+                    error: Box::new(error),
+                }
+            }
+            ryo_values::domain::query_tokens::types::Attribution::Unlocated => error,
+        }
+    }
+}

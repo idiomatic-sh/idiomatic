@@ -61,9 +61,9 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
     schemas::project_context(&mut request)?;
     let engine = linter.engine();
     let connections = super::connections::connect(&engine.cache, engine)?;
-    let inventory = schemas::given_project_inventory(request.given_project_inventory.clone());
+    let inventory = request.given_project_inventory.clone().into_engine();
     let reading = super::composition::build_reading(&request, inventory);
-    let budget = schemas::budget(engine.memory);
+    let budget = engine.memory.into_engine();
     let mut core: CoreRequest = schemas::request(request)?;
     let opened = super::composition::build_open(budget)
         .open(OpenRequest {
@@ -72,7 +72,7 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
             search_scope: core.session.search_scope.clone(),
             given_inventory: core.session.given_inventory.clone(),
         })
-        .map_err(schemas::open_error)?
+        .map_err(LintError::from_open)?
         .session;
     let rows = super::composition::build_rows();
     let settings = super::composition::LinterLintSettings {
@@ -82,7 +82,7 @@ pub fn lint_with(linter: &Linter, mut request: LintRequest) -> Result<LintReport
     core.session = opened;
     let report = super::composition::build(engine, rows.clone(), reading, &connections, settings)
         .lint(core)
-        .map_err(schemas::error)?;
+        .map_err(LintError::from_core)?;
     schemas::report(rows.take(), report)
 }
 
