@@ -125,7 +125,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
-    Ok(observe(input))
+    observe(input)
 }
 #[test]
 fn succeeds() {

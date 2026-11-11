@@ -9,6 +9,7 @@ use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, HostNumber, HostText};
 use crate::domain::file::types::RelativePath;
 use crate::domain::host::types::{HostColumn, HostColumnName, HostKind, HostRelationName};
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::CaseSource;
 use crate::resources::linter::lint::types::Corpus;
@@ -43,7 +44,7 @@ pub(crate) enum Linting {
     /// Same-binary optional capability changes invalidate retained observations.
     Capabilities,
     /// A scenario of the fixtures, over a linter and a repository of its own.
-    Scenario(fn() -> Outcome),
+    Scenario(fn() -> Result<Outcome, LintError>),
 }
 
 /// What the caller states: the rule's text, whether the run keeps what it leaves in a directory of the caller's, where the repository

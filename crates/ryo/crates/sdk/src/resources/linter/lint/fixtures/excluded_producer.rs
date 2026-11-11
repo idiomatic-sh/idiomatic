@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 /// A producer excluded from every file still publishes its observation to the consumer that binds it, reports none of its own
 /// findings, and answers the same on a retained store; with the producer gone from the request the binding is refused, never read
 /// as an empty input.
-pub(crate) fn excluded_producer() -> Outcome {
+pub(crate) fn excluded_producer() -> Result<Outcome, LintError> {
     let root = case_directory();
     let store = tempfile::tempdir().expect("store");
     let engine = provider_linter(
@@ -53,7 +53,7 @@ pub(crate) fn excluded_producer() -> Outcome {
     );
     let mut last = (0, 0, true, 0);
     for _ in 0..2 {
-        let answer = lint_with(&engine, request.clone()).expect("a report");
+        let answer = lint_with(&engine, request.clone())?;
         last = summary(&answer);
         assert_eq!(answer.findings.len(), 1);
         assert_eq!(answer.findings[0].rule, consumer);
@@ -66,5 +66,5 @@ pub(crate) fn excluded_producer() -> Outcome {
         matches!(refused, Err(LintError::ObservationBindings { .. })),
         "a bound producer that is gone is refused, not an empty input: {refused:?}"
     );
-    last
+    Ok(last)
 }

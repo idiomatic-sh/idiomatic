@@ -47,28 +47,31 @@ pub(crate) fn module_identity_only_preserves_inputs_without_projecting_or_valida
         }],
         wanted: vec![languages::Relation::ModuleIdentity],
     };
-    let resolved = contract
-        .resolve(&request)
-        .expect("module context owns its original complete request");
+    let outcome = contract.resolve(&request);
     seen.push(format!("{:?}", lookups.count()));
     seen.push(format!("{:?}", lookups.manifests()));
     seen.push(format!(
         "{:?}",
         PROJECTED.load(Ordering::Relaxed) - projected_before
     ));
-    seen.push(format!("{:?}", resolved.refused.is_empty()));
-    seen.push(format!(
-        "{:?}",
-        resolved.derived.packages.packages.is_empty()
-    ));
-    seen.push(format!(
-        "{:?}",
-        resolved.derived.manifest_validation.files.is_empty()
-    ));
-    seen.push(format!(
-        "{:?}",
-        resolved.derived.manifest_validation.incomplete.is_empty()
-    ));
+    match outcome {
+        Ok(resolved) => {
+            seen.push(format!("{:?}", resolved.refused.is_empty()));
+            seen.push(format!(
+                "{:?}",
+                resolved.derived.packages.packages.is_empty()
+            ));
+            seen.push(format!(
+                "{:?}",
+                resolved.derived.manifest_validation.files.is_empty()
+            ));
+            seen.push(format!(
+                "{:?}",
+                resolved.derived.manifest_validation.incomplete.is_empty()
+            ));
+        }
+        Err(error) => seen.push(format!("{error:?}")),
+    }
     seen.join("|")
 }
 

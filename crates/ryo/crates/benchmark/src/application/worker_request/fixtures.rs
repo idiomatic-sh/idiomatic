@@ -1,9 +1,17 @@
 //! Real SDK session lifecycle probes; child selection is confined to test support.
 use super::service::{configure, prepare};
-use crate::outbound::engine::{factory, interface::EnginePort as _};
+use crate::outbound::engine::{
+    factory,
+    interface::EnginePort as _,
+    types::{
+        configured_engine_session::value::ConfiguredEngineSession,
+        loaded_engine_session::value::LoadedEngineSession,
+    },
+};
 use ryo::linter::{Languages, RelativePath, RuleId};
 use ryo_benchmark_contracts::domain::{
     context::types::{CaseContext, project_context_mode::value::ProjectContextMode},
+    reports::errors::ReportsError,
     requests::types::{WorkerRequest, WorkerState},
 };
 use std::{collections::BTreeMap, path::Path};
@@ -97,54 +105,79 @@ fn actual_session(scenario: Scenario) -> String {
         std::fs::write(rules.join("R1/query.ryoql"), "let failures = select path as file, span from \"filesystem.read-failure\"; emit failures subject file key(file);").unwrap();
     }
     let request = request(scenario, scratch.path(), rules);
-    let prepared = prepare(request).unwrap();
-    let engine = factory::local(Languages::default(), Some(trace.clone()));
-    let loaded = engine.load(&prepared.request);
-    if matches!(scenario, Scenario::LoadRefusal) {
-        seen.push(format!(
+    match prepare(request) {
+        Ok(prepared) => {
+            let engine = factory::local(Languages::default(), Some(trace.clone()));
+            session(
+                scenario,
+                &prepared.request,
+                engine.load(&prepared.request),
+                &mut seen,
+            );
+            // The SDK's actual compile span happens inside execute, after ownership transfer.
+            // Early guard destruction cannot leave it in the final flushed trace.
+            seen.push(verify_trace(&trace));
+        }
+        Err(error) => seen.push(format!("{error:?}")),
+    }
+    seen.join(",")
+}
+/// What the scenario's session answered from load to execute: the refusal its scenario looks for, or the outcome it got instead.
+fn session(
+    scenario: Scenario,
+    request: &WorkerRequest,
+    loaded: Result<LoadedEngineSession<'_>, ReportsError>,
+    seen: &mut Vec<String>,
+) {
+    match (scenario, loaded) {
+        (Scenario::LoadRefusal, loaded) => seen.push(format!(
             "{:?}",
             matches!(loaded, Err(ref error) if error.to_string() == "no candidate queries")
-        ));
-        seen.push(verify_trace(&trace));
-        return seen.join(",");
-    }
-    let session = loaded.unwrap();
-    {
-        let span = tracing::info_span!("engine_session_after_load");
-        let _entered = span.enter();
-    }
-    if matches!(scenario, Scenario::Abandoned) {
-        drop(session);
-        seen.push(verify_trace(&trace));
-        return seen.join(",");
-    }
-    let configured = configure(&prepared.request, session);
-    if matches!(scenario, Scenario::ConfigureRefusal) {
-        seen.push(format!("{:?}", matches!(configured, Err(ref error) if error.to_string() == "selected or required producer has no registered query: R404")));
-        seen.push(verify_trace(&trace));
-        return seen.join(",");
-    }
-    let configured = configured.unwrap();
-    {
-        let span = tracing::info_span!("engine_session_after_configure");
-        let _entered = span.enter();
-    }
-    let report = configured.execute();
-    match scenario {
-        Scenario::Success => seen.push(format!("{:?}", report.unwrap().report.diagnostics.len())),
-        Scenario::ExecuteRefusal => seen.push(format!(
-            "{:?}",
-            report
-                .unwrap_err()
-                .to_string()
-                .contains("incomplete candidate")
         )),
-        Scenario::LoadRefusal | Scenario::ConfigureRefusal | Scenario::Abandoned => unreachable!(),
+        (_, Err(error)) => seen.push(format!("{error:?}")),
+        (Scenario::Abandoned, Ok(session)) => {
+            {
+                let span = tracing::info_span!("engine_session_after_load");
+                let _entered = span.enter();
+            }
+            drop(session);
+        }
+        (
+            Scenario::Success | Scenario::ConfigureRefusal | Scenario::ExecuteRefusal,
+            Ok(session),
+        ) => {
+            {
+                let span = tracing::info_span!("engine_session_after_load");
+                let _entered = span.enter();
+            }
+            configured(scenario, configure(request, session), seen);
+        }
     }
-    // The SDK's actual compile span happens inside execute, after ownership transfer.
-    // Early guard destruction cannot leave it in the final flushed trace.
-    seen.push(verify_trace(&trace));
-    seen.join(",")
+}
+/// What the configured session answered: the refusal its scenario looks for, or the outcome it got instead.
+fn configured(
+    scenario: Scenario,
+    configured: Result<ConfiguredEngineSession<'_>, ReportsError>,
+    seen: &mut Vec<String>,
+) {
+    match (scenario, configured) {
+        (Scenario::ConfigureRefusal, configured) => seen.push(format!("{:?}", matches!(configured, Err(ref error) if error.to_string() == "selected or required producer has no registered query: R404"))),
+        (_, Err(error)) => seen.push(format!("{error:?}")),
+        (_, Ok(configured)) => {
+            {
+                let span = tracing::info_span!("engine_session_after_configure");
+                let _entered = span.enter();
+            }
+            match (scenario, configured.execute()) {
+                (Scenario::ExecuteRefusal, Err(error)) => seen.push(format!(
+                    "{:?}",
+                    error.to_string().contains("incomplete candidate")
+                )),
+                (_, Ok(report)) => seen.push(format!("{:?}", report.report.diagnostics.len())),
+                (_, Err(error)) => seen.push(format!("{error:?}")),
+            }
+        }
+    }
 }
 /// Which of the three spans the flushed trace holds: after load, after configure, and the compile.
 fn verify_trace(path: &Path) -> String {

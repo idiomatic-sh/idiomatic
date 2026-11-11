@@ -13,13 +13,14 @@ use crate::domain::host::types::HostColumnName;
 use crate::domain::host::types::HostKind;
 use crate::domain::host::types::HostRelationName;
 use crate::resources::linter::lint::entry::lint_with;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::HostRelation;
 use crate::resources::linter::lint::types::HostRow;
 use std::collections::BTreeMap;
 
 /// Hosted text that collides in the readable wire form invalidates the retained cross-file findings when it changes.
-pub(crate) fn hosted_text_identity() -> Outcome {
+pub(crate) fn hosted_text_identity() -> Result<Outcome, LintError> {
     let root = case_directory();
     let store = tempfile::tempdir().expect("store");
     let source = root.path().join("case.txt");
@@ -59,8 +60,8 @@ pub(crate) fn hosted_text_identity() -> Outcome {
     };
     let left = request("x\ttext:y", "z");
     let right = request("x", "y\ttext:z");
-    let fresh_left = lint_with(&engine(Cache::None), left.clone()).expect("a report");
-    let fresh_right = lint_with(&engine(Cache::None), right.clone()).expect("a report");
+    let fresh_left = lint_with(&engine(Cache::None), left.clone())?;
+    let fresh_right = lint_with(&engine(Cache::None), right.clone())?;
     assert_eq!(fresh_left.findings.len(), 1);
     assert!(fresh_right.findings.is_empty());
     let shared = engine(Cache::At(store.path().to_owned()));
@@ -71,16 +72,12 @@ pub(crate) fn hosted_text_identity() -> Outcome {
         (&right, &fresh_right),
         (&left, &fresh_left),
     ] {
-        assert_eq!(
-            &lint_with(&shared, expected.0.clone()).expect("a report"),
-            expected.1
-        );
+        assert_eq!(&lint_with(&shared, expected.0.clone())?, expected.1);
         assert_eq!(
             &lint_with(
                 &engine(Cache::At(store.path().to_owned())),
                 expected.0.clone()
-            )
-            .expect("a report"),
+            )?,
             expected.1,
             "fresh engine must also validate the persisted identity"
         );
@@ -92,5 +89,5 @@ pub(crate) fn hosted_text_identity() -> Outcome {
             .expect("modified"),
         modified
     );
-    summary(&fresh_left)
+    Ok(summary(&fresh_left))
 }

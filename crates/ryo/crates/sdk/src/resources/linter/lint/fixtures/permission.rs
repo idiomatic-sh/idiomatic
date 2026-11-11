@@ -9,6 +9,7 @@ use crate::domain::file::types::ExecutablePermission;
 use crate::domain::file::types::RelativePath;
 use crate::domain::language::types::Languages;
 use crate::resources::linter::lint::entry::lint_with;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::CaseSource;
 use crate::resources::linter::lint::types::Corpus;
@@ -20,7 +21,7 @@ use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 
 /// Bytes that are unchanged and a timestamp that is given never reuse a finding of an old mode.
-pub(crate) fn permission_bytes() -> Outcome {
+pub(crate) fn permission_bytes() -> Result<Outcome, LintError> {
     let root = tempfile::tempdir().expect("root");
     let cache = tempfile::tempdir().expect("cache");
     let shared = permission_linter(Cache::At(cache.path().join("store")));
@@ -36,18 +37,18 @@ pub(crate) fn permission_bytes() -> Outcome {
             },
             query,
         );
-        let retained = lint_with(&shared, current.clone()).expect("a report");
-        let fresh = lint_with(&permission_linter(Cache::None), current).expect("a report");
+        let retained = lint_with(&shared, current.clone())?;
+        let fresh = lint_with(&permission_linter(Cache::None), current)?;
         assert_eq!(retained.findings, fresh.findings);
         assert_eq!(retained.findings.len(), usize::from(executable));
         assert!(retained.unknowns.is_empty());
         last = summary(&retained);
     }
-    last
+    Ok(last)
 }
 
 /// A permission that cannot be known is neither false nor a proven absence.
-pub(crate) fn permission_unavailable() -> Outcome {
+pub(crate) fn permission_unavailable() -> Result<Outcome, LintError> {
     let root = tempfile::tempdir().expect("root");
     let query = "let files = select path as file from \"filesystem.file\"; let yes = select path as file from \"filesystem.executable\" where executable = \"true\"; let absent = antijoin(left=files,right=yes,left-on=[\"file\"],right-on=[\"file\"]); emit absent subject file key(file);";
     let run = |observation| {
@@ -55,21 +56,20 @@ pub(crate) fn permission_unavailable() -> Outcome {
             &permission_linter(Cache::None),
             permission_request(root.path(), observation, query),
         )
-        .expect("a report")
     };
-    let unknown = run(ExecutablePermission::Unknown);
+    let unknown = run(ExecutablePermission::Unknown)?;
     assert!(unknown.findings.is_empty());
     assert!(!unknown.unknowns.is_empty());
-    let known_false = run(ExecutablePermission::PosixNotExecutable);
+    let known_false = run(ExecutablePermission::PosixNotExecutable)?;
     assert_eq!(known_false.findings.len(), 1);
     assert!(known_false.unknowns.is_empty());
-    let known_true = run(ExecutablePermission::PosixExecutable);
+    let known_true = run(ExecutablePermission::PosixExecutable)?;
     assert!(known_true.findings.is_empty());
     assert!(known_true.unknowns.is_empty());
-    let unsupported = run(ExecutablePermission::Unsupported);
+    let unsupported = run(ExecutablePermission::Unsupported)?;
     assert_eq!(unsupported.findings.len(), 1);
     assert!(unsupported.unknowns.is_empty());
-    summary(&unsupported)
+    Ok(summary(&unsupported))
 }
 
 /// A linter with no language, retaining into `cache`.

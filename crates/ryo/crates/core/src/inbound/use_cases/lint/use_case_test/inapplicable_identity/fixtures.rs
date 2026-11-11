@@ -192,7 +192,7 @@ fn lint_once(
     skipping: Skipping,
     answer: AnswerShape,
     kept_in: Arc<dyn crate::outbound::lint_store::interface::LintStorePort>,
-) -> Observed {
+) -> Result<Observed, LintError> {
     let mut given = Given {
         files: THREE.to_vec(),
         rules: vec!["first", "second"],
@@ -242,9 +242,8 @@ fn lint_once(
         .counting(|| {
             std::sync::Arc::new(ryo_execution_runtime::outbound::observer::factory::counting())
         })
-        .lint(asked)
-        .expect("the lint answers");
-    Observed {
+        .lint(asked)?;
+    Ok(Observed {
         rows: std::mem::take(
             &mut *collected
                 .0
@@ -261,12 +260,12 @@ fn lint_once(
             .flat_map(|rule| &rule.steps)
             .map(|step| step.rows.0)
             .sum(),
-    }
+    })
 }
 
 /// A cold run, then another of the same files over the store the cold run kept: each answers what the same request answers over a
 /// store that keeps nothing. Answers what each run agreed with and whether the second run reused or evaluated again.
-pub(super) fn observe(scenario: Scenario) -> Answer {
+pub(super) fn observe(scenario: Scenario) -> Result<Answer, LintError> {
     let directory = tempfile::tempdir().expect("a directory");
     let kind = match scenario.kept {
         Kept::Memory => "memory",
@@ -279,17 +278,17 @@ pub(super) fn observe(scenario: Scenario) -> Answer {
         Then::Rows => rows,
     };
     let discard = || store_of("discard", directory.path());
-    let cold_oracle = lint_once(scenario.skipping, AnswerShape::Findings, discard());
-    let warm_oracle = lint_once(scenario.skipping, then, discard());
+    let cold_oracle = lint_once(scenario.skipping, AnswerShape::Findings, discard())?;
+    let warm_oracle = lint_once(scenario.skipping, then, discard())?;
     let cold = lint_once(
         scenario.skipping,
         AnswerShape::Findings,
         Arc::clone(&kept_in),
-    );
-    let warm = lint_once(scenario.skipping, then, kept_in);
+    )?;
+    let warm = lint_once(scenario.skipping, then, kept_in)?;
     // A producer that skips the rejected file leaves both rules undecided on it, cold and warm alike: that is the Phase 1 poisoning
     // (a syntax-rejected sibling makes every rule unknown on its file) and it is the same for a store that keeps nothing.
-    Answer {
+    Ok(Answer {
         cold_rows: cold.rows == cold_oracle.rows,
         cold_undecided: cold.undecided == cold_oracle.undecided,
         cold_skipped: cold.skipped == cold_oracle.skipped,
@@ -302,5 +301,5 @@ pub(super) fn observe(scenario: Scenario) -> Answer {
         } else {
             Warm::Evaluated
         },
-    }
+    })
 }

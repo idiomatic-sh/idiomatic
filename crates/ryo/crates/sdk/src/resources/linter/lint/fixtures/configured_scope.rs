@@ -12,6 +12,7 @@ use crate::domain::host::types::HostColumnName;
 use crate::domain::host::types::HostKind;
 use crate::domain::host::types::HostRelationName;
 use crate::resources::linter::lint::entry::lint_with;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::Corpus;
 use crate::resources::linter::lint::types::Glob;
@@ -21,7 +22,7 @@ use std::collections::BTreeMap;
 
 /// A rule's per-file exclusion and the hosted rows it joins change what a retained store answers, run after run, as they change what
 /// a fresh linter answers, and the run leaves the repository's files as they were.
-pub(crate) fn configured_scope() -> Outcome {
+pub(crate) fn configured_scope() -> Result<Outcome, LintError> {
     let root = tempfile::tempdir().expect("corpus");
     std::fs::create_dir_all(root.path().join("pkg")).expect("package");
     let files = ["case.txt", "pkg/case.txt"];
@@ -68,8 +69,8 @@ pub(crate) fn configured_scope() -> Outcome {
         ("W", false, 0),
         ("V", false, 2),
     ] {
-        let fresh = lint_with(&engine(Cache::None), request(prefix, exclude)).expect("a report");
-        let answer = lint_with(&retained, request(prefix, exclude)).expect("a report");
+        let fresh = lint_with(&engine(Cache::None), request(prefix, exclude))?;
+        let answer = lint_with(&retained, request(prefix, exclude))?;
         assert_eq!(answer, fresh, "prefix={prefix}, exclude={exclude}");
         assert_eq!(
             answer.findings.len(),
@@ -91,5 +92,5 @@ pub(crate) fn configured_scope() -> Outcome {
             .expect("modified"),
         modified
     );
-    summary(&first.expect("a first run"))
+    Ok(summary(&first.expect("a first run")))
 }

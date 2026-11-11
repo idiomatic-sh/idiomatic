@@ -88,11 +88,7 @@ pub(super) fn floats_round_trip_and_keep_their_numeric_kind() -> String {
         observed.push(format!("{:?}", value.kind));
         observed.push(format!(
             "{:?}",
-            value
-                .value
-                .parse::<f64>()
-                .expect("round-trip text")
-                .to_bits()
+            value.value.parse::<f64>().map(f64::to_bits)
         ));
         observed.push(format!(
             "{}",
@@ -111,12 +107,7 @@ pub(super) fn floats_round_trip_and_keep_their_numeric_kind() -> String {
     ] {
         let text = float_text(bits);
         observed.push(format!("{}", text.len() <= 350));
-        observed.push(format!(
-            "{:?}",
-            text.parse::<f64>()
-                .expect("finite float spelling")
-                .to_bits()
-        ));
+        observed.push(format!("{:?}", text.parse::<f64>().map(f64::to_bits)));
     }
     observed.join("|")
 }

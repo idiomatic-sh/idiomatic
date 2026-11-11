@@ -35,56 +35,62 @@ pub(crate) fn metadata_rejection_and_dependency_refusal_have_independent_applica
             languages::Relation::SyntaxError,
         ],
     };
-    let metadata = contract
-        .resolve(&request)
-        .expect("metadata diagnostic is a completed observation");
-    seen.push(format!("{:?}", metadata.refused.is_empty()));
-    seen.push(format!(
-        "{:?}",
-        metadata.derived.packages.packages.is_empty()
-    ));
-    seen.push(format!(
-        "{:?}",
-        metadata.derived.packages.refused.is_empty()
-    ));
-    seen.push(format!(
-        "{:?}",
-        metadata.derived.manifest_validation.files[0]
-            .validation
-            .diagnostics
-            .len()
-    ));
+    match contract.resolve(&request) {
+        Ok(metadata) => {
+            seen.push(format!("{:?}", metadata.refused.is_empty()));
+            seen.push(format!(
+                "{:?}",
+                metadata.derived.packages.packages.is_empty()
+            ));
+            seen.push(format!(
+                "{:?}",
+                metadata.derived.packages.refused.is_empty()
+            ));
+            seen.push(format!(
+                "{:?}",
+                metadata.derived.manifest_validation.files[0]
+                    .validation
+                    .diagnostics
+                    .len()
+            ));
+        }
+        Err(error) => seen.push(format!("{error:?}")),
+    }
     request.wanted.push(languages::Relation::PackageDependency);
-    let both = contract
-        .resolve(&request)
-        .expect("dependency rejection remains partial");
-    seen.push(format!("{:?}", both.refused.len()));
-    seen.push(format!("{:?}", both.derived.packages.packages.is_empty()));
-    seen.push(format!(
-        "{:?}",
-        both.derived.manifest_validation.files[0]
-            .validation
-            .diagnostics
-            .len()
-    ));
-    use languages::ManifestItem as _;
-    let mut symbols = languages::Symbols::default();
-    let input = languages::ManifestInput {
-        request: &request,
-        derived: &both.derived,
-    };
-    let mut dependencies = ReaderOutcome::default();
-    (crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem::READER.read)(&input, &mut symbols, &mut dependencies);
-    seen.push(format!("{:?}", dependencies.rows));
-    seen.push(format!("{:?}", !dependencies.partial.is_empty()));
-    let mut diagnostics = ReaderOutcome::default();
-    (crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem::READER.read)(&input, &mut symbols, &mut diagnostics);
-    seen.push(format!("{:?}", diagnostics.rows));
-    seen.push(format!("{:?}", diagnostics.partial.is_empty()));
+    match contract.resolve(&request) {
+        Ok(both) => {
+            seen.push(format!("{:?}", both.refused.len()));
+            seen.push(format!("{:?}", both.derived.packages.packages.is_empty()));
+            seen.push(format!(
+                "{:?}",
+                both.derived.manifest_validation.files[0]
+                    .validation
+                    .diagnostics
+                    .len()
+            ));
+            use languages::ManifestItem as _;
+            let mut symbols = languages::Symbols::default();
+            let input = languages::ManifestInput {
+                request: &request,
+                derived: &both.derived,
+            };
+            let mut dependencies = ReaderOutcome::default();
+            (crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem::READER.read)(&input, &mut symbols, &mut dependencies);
+            seen.push(format!("{:?}", dependencies.rows));
+            seen.push(format!("{:?}", !dependencies.partial.is_empty()));
+            let mut diagnostics = ReaderOutcome::default();
+            (crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem::READER.read)(&input, &mut symbols, &mut diagnostics);
+            seen.push(format!("{:?}", diagnostics.rows));
+            seen.push(format!("{:?}", diagnostics.partial.is_empty()));
+        }
+        Err(error) => seen.push(format!("{error:?}")),
+    }
     request.wanted = vec![languages::Relation::SyntaxError];
-    let unrelated = contract
-        .resolve(&request)
-        .expect("unrequested projection cannot create a read failure");
-    seen.push(format!("{:?}", unrelated.refused.is_empty()));
+    match contract.resolve(&request) {
+        Ok(unrelated) => {
+            seen.push(format!("{:?}", unrelated.refused.is_empty()));
+        }
+        Err(error) => seen.push(format!("{error:?}")),
+    }
     seen.join("|")
 }

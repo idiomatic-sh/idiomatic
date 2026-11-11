@@ -7,6 +7,7 @@ use super::rules::ordinary;
 use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::file::types::RelativePath;
 use crate::domain::language::types::Languages;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::Corpus;
 use crate::resources::linter::lint::types::LintRequest;
@@ -17,7 +18,7 @@ use ryo_relations::domain::capabilities::types::OptionalCapability;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 
-pub(crate) fn capability_cache(query: &str) -> Outcome {
+pub(crate) fn capability_cache(query: &str) -> Result<Outcome, LintError> {
     use ryo_relations::domain::capabilities::types::OptionalCapability;
     let advertised_capabilities: &'static [OptionalCapability] = if query == RAW_FORMAT_POSITIVE {
         &[
@@ -100,8 +101,7 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
         "x",
         Cache::At(store.path().to_path_buf()),
     );
-    let first = crate::resources::linter::lint::entry::lint_with(&advertised, request.clone())
-        .expect("advertised report");
+    let first = crate::resources::linter::lint::entry::lint_with(&advertised, request.clone())?;
     assert_eq!(
         first.findings.len(),
         1,
@@ -111,8 +111,7 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
     selected.source_language = crate::domain::language::types::SourceLanguage::Named(
         crate::domain::language::types::LanguageName("fixture".into()),
     );
-    let explicit = crate::resources::linter::lint::entry::lint_with(&advertised, selected.clone())
-        .expect("explicit refusal report");
+    let explicit = crate::resources::linter::lint::entry::lint_with(&advertised, selected.clone())?;
     assert!(
         explicit.findings.is_empty(),
         "cached path-recognized findings cannot bypass explicit opt-in"
@@ -125,15 +124,13 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
     let fresh_explicit = crate::resources::linter::lint::entry::lint_with(
         &engine(advertised_capabilities, "", "x", Cache::None),
         selected.clone(),
-    )
-    .expect("fresh explicit refusal");
+    )?;
     assert_eq!(
         explicit, fresh_explicit,
         "source selection must be in cache identity"
     );
     assert_eq!(
-        crate::resources::linter::lint::entry::lint_with(&advertised, request.clone())
-            .expect("ordinary selection restored"),
+        crate::resources::linter::lint::entry::lint_with(&advertised, request.clone())?,
         first
     );
     selected.source_language = crate::domain::language::types::SourceLanguage::Named(
@@ -163,13 +160,11 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
     ));
 
     let absent = engine(&[], "", "x", Cache::At(store.path().to_path_buf()));
-    let replay = crate::resources::linter::lint::entry::lint_with(&absent, request.clone())
-        .expect("unadvertised report");
+    let replay = crate::resources::linter::lint::entry::lint_with(&absent, request.clone())?;
     let fresh = crate::resources::linter::lint::entry::lint_with(
         &engine(&[], "", "x", Cache::None),
         request.clone(),
-    )
-    .expect("fresh unadvertised report");
+    )?;
     assert_eq!(
         replay, fresh,
         "retained data must not resurrect unadvertised findings"
@@ -189,8 +184,7 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
         Cache::At(store.path().to_path_buf()),
     );
     assert_eq!(
-        crate::resources::linter::lint::entry::lint_with(&restored, request.clone())
-            .expect("restored report"),
+        crate::resources::linter::lint::entry::lint_with(&restored, request.clone())?,
         first,
         "prior unavailable state cannot poison newly advertised capability results"
     );
@@ -203,8 +197,7 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
             Cache::At(store.path().to_path_buf()),
         );
         let before_target_change =
-            crate::resources::linter::lint::entry::lint_with(&target_310, request.clone())
-                .expect("Python 3.10 result");
+            crate::resources::linter::lint::entry::lint_with(&target_310, request.clone())?;
         let target_314 = engine(
             &[OptionalCapability::Identifier],
             "python-target=3.14",
@@ -212,8 +205,7 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
             Cache::At(store.path().to_path_buf()),
         );
         let after_target_change =
-            crate::resources::linter::lint::entry::lint_with(&target_314, request.clone())
-                .expect("Python 3.14 result");
+            crate::resources::linter::lint::entry::lint_with(&target_314, request.clone())?;
         let fresh_314 = crate::resources::linter::lint::entry::lint_with(
             &engine(
                 &[OptionalCapability::Identifier],
@@ -222,8 +214,7 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
                 Cache::None,
             ),
             request.clone(),
-        )
-        .expect("fresh Python 3.14 result");
+        )?;
         assert_ne!(before_target_change, after_target_change);
         assert_eq!(after_target_change, fresh_314);
         let restored_310 = crate::resources::linter::lint::entry::lint_with(
@@ -234,8 +225,7 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
                 Cache::At(store.path().to_path_buf()),
             ),
             request.clone(),
-        )
-        .expect("restored Python 3.10 result");
+        )?;
         assert_eq!(restored_310, before_target_change);
         let stable_identity = crate::resources::linter::lint::connections::build(&[language(
             &[OptionalCapability::Identifier],
@@ -261,5 +251,5 @@ pub(crate) fn capability_cache(query: &str) -> Outcome {
             "changed parser settings change cache identity"
         );
     }
-    (1, 0, true, 0)
+    Ok((1, 0, true, 0))
 }

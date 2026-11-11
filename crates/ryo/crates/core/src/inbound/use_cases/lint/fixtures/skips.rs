@@ -47,11 +47,9 @@ pub(crate) fn consulted_equal_byte_files_revalidate_on_each_executable_metadata_
                 },
                 ..violations()
             };
-            assert_eq!(counted_lint(given(before)).unwrap().0, 1);
+            assert_eq!(counted_lint(given(before))?.0, 1);
             assert_eq!(
-                counted_lint(given(if changed { !before } else { before }))
-                    .unwrap()
-                    .0,
+                counted_lint(given(if changed { !before } else { before }))?.0,
                 usize::from(changed),
                 "consulted metadata must invalidate even when source digest is equal"
             );
@@ -84,8 +82,8 @@ pub(crate) fn cold_warm_and_edited_runs_answer_the_same_in_every_store()
                     Always,
                     answer,
                     store_of("discard", directory.path()),
-                );
-                let now = answered(files, &[], Always, answer, Arc::clone(&kept_in));
+                )?;
+                let now = answered(files, &[], Always, answer, Arc::clone(&kept_in))?;
                 assert_eq!(
                     now.rows, oracle.rows,
                     "{kind} {answer:?} run {run}: the rows"
@@ -122,7 +120,7 @@ pub(crate) fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or
             Always,
             AnswerShape::Findings,
             store_of("discard", directory.path()),
-        );
+        )?;
         let kept_in = store_of(kind, directory.path());
         let cold = answered(
             &THREE,
@@ -130,14 +128,14 @@ pub(crate) fn a_syntax_skipped_file_does_not_poison_unrelated_partitions_cold_or
             AcceptedSyntax,
             AnswerShape::Findings,
             Arc::clone(&kept_in),
-        );
+        )?;
         let warm = answered(
             &THREE,
             &["b.rs"],
             AcceptedSyntax,
             AnswerShape::Findings,
             kept_in,
-        );
+        )?;
         assert_eq!(cold.rows, oracle.rows, "{kind}: cold rows");
         assert_eq!(warm.rows, oracle.rows, "{kind}: warm rows");
         assert_eq!(cold.undecided, "[]", "{kind}: nothing undecided cold");
@@ -170,7 +168,7 @@ pub(crate) fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undeci
         let mut asked = request(&given);
         asked.rules[0].applicability = applicability;
         let world = world(given);
-        let report = world.use_case.lint(asked).expect("the lint answers");
+        let report = world.use_case.lint(asked)?;
         let rows = std::mem::take(
             &mut *world
                 .collected
@@ -179,14 +177,14 @@ pub(crate) fn a_syntax_rejected_file_is_skipped_with_its_reason_and_never_undeci
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         )
         .rows;
-        (
+        Ok::<_, LintError>((
             rows,
             format!("{:?}", report.unknowns),
             format!("{:?}", report.skipped),
-        )
+        ))
     };
-    let oracle = lint(&[THREE[0], THREE[2]], &[], Always);
-    let (rows, undecided, skipped) = lint(&THREE, &["b.rs"], AcceptedSyntax);
+    let oracle = lint(&[THREE[0], THREE[2]], &[], Always)?;
+    let (rows, undecided, skipped) = lint(&THREE, &["b.rs"], AcceptedSyntax)?;
     assert_eq!(rows, oracle.0, "the rows of the files around it");
     assert_eq!(undecided, "[]", "a rejected file is not undecided");
     assert!(
@@ -217,7 +215,7 @@ pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError>
                 applicability,
                 AnswerShape::Findings,
                 Arc::clone(&kept_in),
-            );
+            )?;
             // The language is the cold run's: it still rejects `b.rs` and accepts the files around it; only the file is gone.
             let oracle = answered(
                 &without,
@@ -225,7 +223,7 @@ pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError>
                 applicability,
                 AnswerShape::Findings,
                 store_of("discard", directory.path()),
-            );
+            )?;
             // What the store keeps of the rejected file: a rule that asks for accepted syntax skips it; a rule that always applies
             // answers it as any other file, so its rows are among the cold rows. The fake language names each function by its
             // file's path, so the rejected file's row is the one whose name is `b.rs`.
@@ -259,7 +257,7 @@ pub(crate) fn removed_file_leaves_nothing() -> Result<(usize, usize), LintError>
                 applicability,
                 AnswerShape::Findings,
                 kept_in,
-            );
+            )?;
             assert!(
                 !warm.undecided.contains("b.rs") && !warm.skipped.contains("b.rs"),
                 "{kind} {applicability:?}: the removed file is named: {} {}",

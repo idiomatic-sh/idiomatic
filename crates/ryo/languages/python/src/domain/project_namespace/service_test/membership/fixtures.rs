@@ -206,7 +206,6 @@ pub(super) fn dotted_child_add_delete_type_change_and_partial_observation_change
         .into_iter()
         .find(|row| row.path.as_ref() == "acme.billing")
         .map(|row| row.kind)
-        .expect("dotted observation")
     };
     checks.push(format!("{:?}", state(Some(false), Some(false))));
     checks.push(format!("{:?}", state(Some(true), Some(true))));

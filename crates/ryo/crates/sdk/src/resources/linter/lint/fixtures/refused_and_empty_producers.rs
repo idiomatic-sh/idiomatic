@@ -8,12 +8,13 @@ use super::rules::{listed, ordinary, rule_id};
 use super::shared_calls::shared;
 use crate::domain::observation::types::ObservationKind;
 use crate::resources::linter::lint::entry::lint_with;
+use crate::resources::linter::lint::errors::LintError;
 use crate::resources::linter::lint::types::Cache;
 use ryo_relations::domain::capabilities::types::OptionalCapability;
 use std::collections::BTreeMap;
 
 /// A producer whose population is refused and one whose rows are truly empty stay distinct on a cold and a retained replay.
-pub(crate) fn refused_and_empty_producers() -> Outcome {
+pub(crate) fn refused_and_empty_producers() -> Result<Outcome, LintError> {
     let root = case_directory();
     let mut last = (0, 0, true, 0);
     for known in [true, false] {
@@ -56,7 +57,7 @@ pub(crate) fn refused_and_empty_producers() -> Outcome {
             ]),
         );
         for _ in 0..2 {
-            let answer = lint_with(&engine, request.clone()).expect("a report");
+            let answer = lint_with(&engine, request.clone())?;
             assert!(answer.findings.is_empty());
             last = summary(&answer);
             assert_eq!(
@@ -66,5 +67,5 @@ pub(crate) fn refused_and_empty_producers() -> Outcome {
             );
         }
     }
-    last
+    Ok(last)
 }

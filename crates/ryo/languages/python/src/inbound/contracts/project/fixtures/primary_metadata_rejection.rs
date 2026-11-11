@@ -34,32 +34,34 @@ pub(crate) fn primary_metadata_rejection_keeps_real_dependency_projection() -> S
             languages::Relation::PackageDependency,
         ],
     };
-    let resolved = contract
-        .resolve(&request)
-        .expect("pure manifest processing");
-    seen.push(format!("{:?}", resolved.refused.is_empty()));
-    seen.push(format!("{:?}", resolved.derived.packages.packages.len()));
-    seen.push(format!(
-        "{:?}",
-        resolved.derived.packages.packages[0].declared.requirements[0]
-            .written
-            .0
-            .as_ref()
-    ));
-    seen.push(format!(
-        "{:?}",
-        (resolved.derived.manifest_validation.files[0].file) == (languages::FileId(0))
-    ));
-    seen.push(format!(
-        "{:?}",
-        resolved.derived.manifest_validation.files[0]
-            .validation
-            .diagnostics
-            .len()
-    ));
-    seen.push(format!(
-        "{:?}",
-        resolved.derived.manifest_validation.incomplete.is_empty()
-    ));
+    match contract.resolve(&request) {
+        Ok(resolved) => {
+            seen.push(format!("{:?}", resolved.refused.is_empty()));
+            seen.push(format!("{:?}", resolved.derived.packages.packages.len()));
+            seen.push(format!(
+                "{:?}",
+                resolved.derived.packages.packages[0].declared.requirements[0]
+                    .written
+                    .0
+                    .as_ref()
+            ));
+            seen.push(format!(
+                "{:?}",
+                (resolved.derived.manifest_validation.files[0].file) == (languages::FileId(0))
+            ));
+            seen.push(format!(
+                "{:?}",
+                resolved.derived.manifest_validation.files[0]
+                    .validation
+                    .diagnostics
+                    .len()
+            ));
+            seen.push(format!(
+                "{:?}",
+                resolved.derived.manifest_validation.incomplete.is_empty()
+            ));
+        }
+        Err(error) => seen.push(format!("{error:?}")),
+    }
     seen.join("|")
 }

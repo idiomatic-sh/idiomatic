@@ -44,7 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("float_boundaries_and_huge_integer_structural_keys_are_retained"),
         word: Word::Succeeds,
         input: || Given::FloatBoundariesAndHugeIntegerStructuralKeysAreRetained,
-        expect: Expect::Value("Some(Position(14))|true|2|Position(22)|Some(Position(32))"),
+        expect: Expect::Value("[]|Some(Position(14))|true|2|Some(Position(22))|Some(Position(32))"),
     },
     Case {
         name: CaseName(
@@ -53,7 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::UnderflowSubnormalInfinityComplexAndUnaryValuesFollowTypedPayloads,
         expect: Expect::Value(
-            "Position(76)|true|true|Position(76)|true|Position(34)|Position(50)|Position(66)|Position(76)|true",
+            "Some(Position(76))|true|true|Some(Position(76))|true|Some(Position(34))|Some(Position(50))|Some(Position(66))|Some(Position(76))|true",
         ),
     },
     Case {
@@ -66,7 +66,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("full_keys_disambiguate_hash_collisions"),
         word: Word::Succeeds,
         input: || Given::FullKeysDisambiguateHashCollisions,
-        expect: Expect::Value("true|2"),
+        expect: Expect::Value("Some(Position(2))|Some(Position(5))|true|2"),
     },
 ];
 

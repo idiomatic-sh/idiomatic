@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 
 /// A later rule that produces an observation publishes it nonempty although it has no finding, and the include and exclude of a
 /// producer govern its diagnostics, not the observation.
-pub(crate) fn zero_finding_producer() -> Outcome {
+pub(crate) fn zero_finding_producer() -> Result<Outcome, LintError> {
     let root = case_directory();
     let store = tempfile::tempdir().expect("cache");
     let engine = provider_linter(
@@ -55,8 +55,7 @@ pub(crate) fn zero_finding_producer() -> Outcome {
     );
     let mut last = (0, 0, true, 0);
     for _ in 0..2 {
-        let answer =
-            lint_with(&engine, request.clone()).expect("named producer executes before consumer");
+        let answer = lint_with(&engine, request.clone())?;
         last = summary(&answer);
         assert_eq!(
             answer.findings.len(),
@@ -93,7 +92,7 @@ pub(crate) fn zero_finding_producer() -> Outcome {
             producing.exclude.push(pattern);
         }
         for _ in 0..2 {
-            let answer = lint_with(&engine, configured.clone()).expect("a report");
+            let answer = lint_with(&engine, configured.clone())?;
             assert!(
                 answer.unknowns.is_empty(),
                 "diagnostic exclusion is not missing observation data"
@@ -116,5 +115,5 @@ pub(crate) fn zero_finding_producer() -> Outcome {
         matches!(lint_with(&engine, undeclared), Err(LintError::Rule { .. })),
         "removing the declaration must reject the source, not reuse a previously bound plan"
     );
-    last
+    Ok(last)
 }

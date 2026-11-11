@@ -50,24 +50,20 @@ pub(super) fn supported_numeric_keys_normalize_and_unsupported_expressions_are_a
             .find(|(text, _)| *text == source)
             .and_then(|(_, key)| *key)
     };
-    let equivalent = |left: &str, right: &str| {
-        let left = find(left).expect("left expression has a constant key");
-        let right = find(right).expect("right expression has a constant key");
-        left == right
+    let equivalent = |left: &str, right: &str| match (find(left), find(right)) {
+        (Some(left), Some(right)) => format!("{}", left == right),
+        missing => format!("{missing:?}"),
     };
-    observed.push(format!("{}", equivalent("1", "True")));
-    observed.push(format!("{}", equivalent("1", "1.0")));
-    observed.push(format!("{}", equivalent("1", "0x1")));
-    observed.push(format!("{}", equivalent("1", "1+0j")));
-    observed.push(format!(
-        "{}",
-        equivalent("18446744073709551615", "0xffffffffffffffff")
-    ));
-    observed.push(format!("{}", equivalent("1_000", "0x3e8")));
-    observed.push(format!("{}", equivalent("-True", "-1")));
-    observed.push(format!(
-        "{}",
-        equivalent("(18446744073709551616, 1)", "(18446744073709551616, 1.0)")
+    observed.push(equivalent("1", "True"));
+    observed.push(equivalent("1", "1.0"));
+    observed.push(equivalent("1", "0x1"));
+    observed.push(equivalent("1", "1+0j"));
+    observed.push(equivalent("18446744073709551615", "0xffffffffffffffff"));
+    observed.push(equivalent("1_000", "0x3e8"));
+    observed.push(equivalent("-True", "-1"));
+    observed.push(equivalent(
+        "(18446744073709551616, 1)",
+        "(18446744073709551616, 1.0)",
     ));
     observed.push(format!("{}", find("1+1").is_none()));
     observed.push(format!("{}", find("(f(), 2)").is_none()));
@@ -76,7 +72,7 @@ pub(super) fn supported_numeric_keys_normalize_and_unsupported_expressions_are_a
         "{}",
         find("(-18446744073709551616, 1.0)").is_none()
     ));
-    observed.push(format!("{}", equivalent("(1, (2,))", "(1.0, (2,))")));
+    observed.push(equivalent("(1, (2,))", "(1.0, (2,))"));
     observed.join("|")
 }
 
@@ -107,7 +103,7 @@ pub(super) fn float_boundaries_and_huge_integer_structural_keys_are_retained() -
         })
         .map(|at| (written(&tree, at).0, key_of(&index, at)))
         .collect();
-    let keys: Vec<_> = [
+    let wanted = [
         "9007199254740992",
         "9007199254740992.0",
         "9007199254740993",
@@ -116,18 +112,23 @@ pub(super) fn float_boundaries_and_huge_integer_structural_keys_are_retained() -
         "18446744073709551616",
         "-0.0",
         "0.0",
-    ]
-    .iter()
-    .map(|wanted| {
-        values
-            .iter()
-            .find(|(text, _)| text == wanted)
-            .and_then(|(_, key)| *key)
-    })
-    .collect();
-    for key in &keys {
-        let _key = key.expect("each supported boundary expression has a key");
-    }
+    ];
+    let keys: Vec<_> = wanted
+        .iter()
+        .map(|wanted| {
+            values
+                .iter()
+                .find(|(text, _)| text == wanted)
+                .and_then(|(_, key)| *key)
+        })
+        .collect();
+    let missing: Vec<_> = wanted
+        .iter()
+        .zip(&keys)
+        .filter(|(_, key)| key.is_none())
+        .map(|(spelling, _)| *spelling)
+        .collect();
+    observed.push(format!("{missing:?}"));
     observed.push(format!("{:?}", keys[0]));
     observed.push(format!("{}", keys[2] != keys[3]));
     let huge: Vec<_> = values
@@ -136,7 +137,7 @@ pub(super) fn float_boundaries_and_huge_integer_structural_keys_are_retained() -
         .filter_map(|(_, key)| *key)
         .collect();
     observed.push(format!("{:?}", huge.len()));
-    observed.push(format!("{:?}", huge[0]));
+    observed.push(format!("{:?}", huge.first()));
     observed.push(format!("{:?}", keys[6]));
     observed.join("|")
 }
@@ -176,20 +177,21 @@ pub(super) fn underflow_subnormal_infinity_complex_and_unary_values_follow_typed
             .find(|(text, _)| *text == spelling)
             .and_then(|(_, key)| *key)
     };
-    let key = |spelling: &str| find(spelling).expect("supported value has a constant key");
-    observed.push(format!("{:?}", key("0")));
-    observed.push(format!("{}", key("0") != key("5e-324")));
-    observed.push(format!("{}", key("0") != key("1e9999")));
-    observed.push(format!("{:?}", key("0")));
-    observed.push(format!("{}", key("0") != key("1j")));
-    observed.push(format!("{:?}", key("1+1j")));
-    observed.push(format!("{:?}", key("1-1j")));
-    observed.push(format!("{:?}", key("9007199254740993+0j")));
-    observed.push(format!("{:?}", key("-0.0")));
-    observed.push(format!(
-        "{}",
-        key("18446744073709551615") != key("18446744073709551616.0")
-    ));
+    let key = |spelling: &str| format!("{:?}", find(spelling));
+    let distinct = |left: &str, right: &str| match (find(left), find(right)) {
+        (Some(left), Some(right)) => format!("{}", left != right),
+        missing => format!("{missing:?}"),
+    };
+    observed.push(key("0"));
+    observed.push(distinct("0", "5e-324"));
+    observed.push(distinct("0", "1e9999"));
+    observed.push(key("0"));
+    observed.push(distinct("0", "1j"));
+    observed.push(key("1+1j"));
+    observed.push(key("1-1j"));
+    observed.push(key("9007199254740993+0j"));
+    observed.push(key("-0.0"));
+    observed.push(distinct("18446744073709551615", "18446744073709551616.0"));
     observed.join("|")
 }
 
@@ -245,16 +247,16 @@ pub(super) fn full_keys_disambiguate_hash_collisions() -> String {
         LiteralKind::Integer,
         Some(languages::Symbol(10)),
     ));
-    let first = intern_with_hash(&mut index, languages::Position(2), KeyHash(0))
-        .expect("first key interns");
+    let first = intern_with_hash(&mut index, languages::Position(2), KeyHash(0));
     index.scratch.clear();
     index.scratch.push(KeyWord::Literal(
         LiteralKind::Integer,
         Some(languages::Symbol(11)),
     ));
     // Test the collision chain directly by using the same bucket hash in the service's intern path.
-    let second = intern_with_hash(&mut index, languages::Position(5), KeyHash(0))
-        .expect("second key interns");
+    let second = intern_with_hash(&mut index, languages::Position(5), KeyHash(0));
+    observed.push(format!("{first:?}"));
+    observed.push(format!("{second:?}"));
     observed.push(format!("{}", first != second));
     observed.push(format!("{:?}", index.records.len()));
     observed.join("|")

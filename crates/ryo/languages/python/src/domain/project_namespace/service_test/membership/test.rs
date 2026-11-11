@@ -79,7 +79,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Given::DottedChildAddDeleteTypeChangeAndPartialObservationChangeItsKind,
-        expect: Expect::Value("Absent|Package|Namespace|Absent|Unknown|Unknown"),
+        expect: Expect::Value(
+            "Some(Absent)|Some(Package)|Some(Namespace)|Some(Absent)|Some(Unknown)|Some(Unknown)",
+        ),
     },
     Case {
         name: CaseName("observed_package_in_another_declared_root_remains_a_real_project_entry"),

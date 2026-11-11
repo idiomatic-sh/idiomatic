@@ -346,13 +346,13 @@ pub(crate) fn refusal(error: LintError) -> Refusal {
 /// Lints a directory holding one file, with no language linked: the file is unread.
 fn subject(given: Input) -> Result<Value, Failure> {
     if matches!(given.linter, Linting::Capabilities) {
-        return Ok(capability_cache(given.query));
+        return capability_cache(given.query).map_err(refusal);
     }
     if matches!(given.linter, Linting::Shared) {
-        return Ok(shared());
+        return shared().map_err(refusal);
     }
     if let Linting::Scenario(scenario) = given.linter {
-        return Ok(scenario());
+        return scenario().map_err(refusal);
     }
     let root = tempfile::tempdir().expect("a temporary directory");
     let elsewhere = tempfile::tempdir().expect("a temporary directory");

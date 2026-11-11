@@ -50,7 +50,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Given::FloatsRoundTripAndKeepTheirNumericKind,
         expect: Expect::Value(
-            "\"float\"|4607182418800017408|true|\"float\"|4652007308841189376|true|\"float\"|4652007308841189376|true|\"float\"|1|true|\"float\"|0|true|\"float\"|9218868437227405312|true|6|\"-0.0\"|\"-inf\"|\"NaN\"|true|1|true|9223372036854775809|true|9218868437227405311|true|18442240474082181119",
+            "\"float\"|Ok(4607182418800017408)|true|\"float\"|Ok(4652007308841189376)|true|\"float\"|Ok(4652007308841189376)|true|\"float\"|Ok(1)|true|\"float\"|Ok(0)|true|\"float\"|Ok(9218868437227405312)|true|6|\"-0.0\"|\"-inf\"|\"NaN\"|true|Ok(1)|true|Ok(9223372036854775809)|true|Ok(9218868437227405311)|true|Ok(18442240474082181119)",
         ),
     },
     Case {
