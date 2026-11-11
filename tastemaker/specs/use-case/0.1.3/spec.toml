@@ -2,7 +2,7 @@ description = "One use case of a core: the interface an edge calls, the body tha
 why = "A use case is what a command or an SDK entry calls: one trait declaring its one method, one struct holding the ports it calls as `Arc<dyn <Name>Port>` and explicitly owned invocation state, and the proof of it run against the fakes of those ports. Its types are plain data and its errors one enum; it has no schemas, because validation stands only at an edge. A name is the kind's suffix on the directory's stem and a file is the snake_case of the same stem. The nu-hex spec places each use case, so the product's tastemaker.toml names only the crate."
 conditions = { implemented = { description = "The use case implements a trait another crate declares: its body names no trait of its own interface.", rule = { rule = "implemented-use-case", include = ["use_case.rs"] } } }
 templates = [
-  { template = "idiomatic.arch/test-group-module@0.1.0", file = "use_case_test/{*group}/mod.rs", count = { min = 0 }, description = "Normal directory namespace of one cohesive public-contract proof concept." },
+  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "use_case_test/{*group}/mod.rs", count = { min = 0 }, description = "Normal directory namespace of one cohesive public-contract proof concept." },
   { template = "idiomatic.arch/unit-test@0.1.0", file = "use_case_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "use-case" }, description = "A declared behavioral group of the public use-case cases, with its own case table and runners." },
   { alias = "group-fixtures", template = "use-case-fixture", file = "use_case_test/{*group}/fixtures.rs", count = { min = 0 }, params = { fixture = "group" }, description = "The test support of one group of the public use-case cases." },
   { template = "acceptance-feature", file = "acceptance.feature", description = "The use case public behavior and storage lifecycle, exercised by the integration harness." },
@@ -45,6 +45,7 @@ rules = [
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
   { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", "use_case_test/*/test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
 ]
 
 [params]
