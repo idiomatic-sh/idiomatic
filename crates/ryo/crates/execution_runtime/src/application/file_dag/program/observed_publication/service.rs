@@ -75,6 +75,15 @@ impl ObservedPublication {
 /// Opaque application handover of the actual admitted population: what was read and how completely, its producer root, the
 /// publication and the population and generation it was admitted under. Packed bytes may accompany it, but never substitute for
 /// this evidence.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::observed_publication::service::ObservedPublication;
+/// fn handed(publication: &ObservedPublication) -> ObservedPublication {
+///     publication.clone()
+/// }
+/// ```
 #[derive(Clone)]
 pub struct ObservedPublication {
     pub(crate) proof: crate::application::file_dag::program::admission::ReadProof,

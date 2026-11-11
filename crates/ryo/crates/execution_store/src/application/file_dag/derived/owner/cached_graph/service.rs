@@ -323,6 +323,21 @@ impl AxisGraph {
 }
 
 /// The graph an axis or reach operator reads, cached for its invocation.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::{AxisGraph, CachedGraph, ReachGraph};
+/// fn reach(graph: &CachedGraph) -> Option<&ReachGraph> {
+///     match graph {
+///         CachedGraph::Reach(reach) => Some(reach),
+///         CachedGraph::Axis(_axis) => None,
+///     }
+/// }
+/// fn axis(graph: AxisGraph) -> CachedGraph {
+///     CachedGraph::Axis(graph)
+/// }
+/// ```
 #[derive(Debug)]
 pub enum CachedGraph {
     Reach(ReachGraph),
@@ -330,6 +345,21 @@ pub enum CachedGraph {
 }
 
 /// A cached reachability graph.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::{AxisGraph, CachedGraph, ReachGraph};
+/// fn reach(graph: &CachedGraph) -> Option<&ReachGraph> {
+///     match graph {
+///         CachedGraph::Reach(reach) => Some(reach),
+///         CachedGraph::Axis(_axis) => None,
+///     }
+/// }
+/// fn axis(graph: AxisGraph) -> CachedGraph {
+///     CachedGraph::Axis(graph)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct ReachGraph {
     pub(super) access: GraphHandle,
@@ -343,6 +373,21 @@ pub struct ReachGraph {
 }
 
 /// A cached axis graph.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::{AxisGraph, CachedGraph, ReachGraph};
+/// fn reach(graph: &CachedGraph) -> Option<&ReachGraph> {
+///     match graph {
+///         CachedGraph::Reach(reach) => Some(reach),
+///         CachedGraph::Axis(_axis) => None,
+///     }
+/// }
+/// fn axis(graph: AxisGraph) -> CachedGraph {
+///     CachedGraph::Axis(graph)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct AxisGraph {
     pub(super) access: GraphHandle,

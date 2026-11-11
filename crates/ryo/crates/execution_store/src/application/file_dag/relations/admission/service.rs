@@ -21,6 +21,16 @@ pub struct BorrowedInput<'a> {
 mod issuance;
 
 /// The population and source relation an input was admitted under, without its generation.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;
+/// use ryo_execution_store::application::file_dag::relations::admission::service::AdmissionIdentity;
+/// fn admitted(identity: &AdmissionIdentity) -> (PopulationId, bool) {
+///     (identity.population(), identity.relation().is_some())
+/// }
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AdmissionIdentity {
     pub(crate) population: PopulationId,
@@ -29,10 +39,30 @@ pub struct AdmissionIdentity {
 
 impl AdmissionIdentity {
     /// The population the input was admitted under.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;
+    /// use ryo_execution_store::application::file_dag::relations::admission::service::AdmissionIdentity;
+    /// fn admitted(identity: &AdmissionIdentity) -> (PopulationId, bool) {
+    ///     (identity.population(), identity.relation().is_some())
+    /// }
+    /// ```
     pub fn population(&self) -> PopulationId {
         self.population
     }
     /// The source relation the input was admitted from, when it came from one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;
+    /// use ryo_execution_store::application::file_dag::relations::admission::service::AdmissionIdentity;
+    /// fn admitted(identity: &AdmissionIdentity) -> (PopulationId, bool) {
+    ///     (identity.population(), identity.relation().is_some())
+    /// }
+    /// ```
     pub fn relation(&self) -> Option<Relation> {
         self.relation
     }

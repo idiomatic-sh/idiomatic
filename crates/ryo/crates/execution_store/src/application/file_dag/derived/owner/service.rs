@@ -7,6 +7,16 @@ use std::sync::Arc;
 /// The owner-issued capability over the derived port. Holders outside the owner can ask the
 /// semantics to prepare a contract; only the owner can reach the port, so no holder can build,
 /// and every view is built through admission, the ledger and a lease.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
+/// use ryo_derived::domain::request::types::DerivedRequest;
+/// fn prepared(access: &DerivedAccess, request: DerivedRequest) {
+///     let _contract = access.prepare(request, Vec::new());
+/// }
+/// ```
 #[derive(Clone, Debug)]
 pub struct DerivedAccess {
     port: Arc<dyn DerivedPort>,
@@ -14,6 +24,16 @@ pub struct DerivedAccess {
 
 impl DerivedAccess {
     /// Request-time metadata only: preparing never builds or retains a view.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
+    /// use ryo_derived::domain::request::types::DerivedRequest;
+    /// fn prepared(access: &DerivedAccess, request: DerivedRequest) {
+    ///     let _contract = access.prepare(request, Vec::new());
+    /// }
+    /// ```
     pub fn prepare(
         &self,
         request: DerivedRequest,

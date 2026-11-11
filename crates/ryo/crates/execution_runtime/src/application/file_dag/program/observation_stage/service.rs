@@ -302,6 +302,15 @@ pub(crate) struct OccurrenceBinding {
 }
 
 /// One project publication generation shared by every ready batch.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::observation_stage::service::ObservationStage;
+/// fn stage(stage: &ObservationStage<'_>) {
+///     let _ = stage;
+/// }
+/// ```
 pub struct ObservationStage<'a> {
     pub(crate) phase: ProjectPhase<'a>,
     pub(crate) publications:

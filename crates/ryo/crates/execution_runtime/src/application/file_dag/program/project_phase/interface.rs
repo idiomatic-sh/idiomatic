@@ -67,6 +67,14 @@ pub trait ProjectRootExecution {
         ) -> Result<T, E>,
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E>;
 }
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort;
+/// fn phase(phase: &mut impl ProgramProjectPhasePort) {
+///     let _ = phase;
+/// }
+/// ```
 pub trait ProgramProjectPhasePort: ProjectRootExecution {
     /// Ends the phase, finishing its publication.
     ///

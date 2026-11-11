@@ -43,6 +43,15 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 ///     );
 /// }
 /// ```
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::observation_stage::interface::ProgramObservationStagePort;
+/// fn stage(stage: &mut impl ProgramObservationStagePort) {
+///     let _ = stage;
+/// }
+/// ```
 pub trait ProgramObservationStagePort {
     /// Runs every declared occurrence of the stage's batches: the rules no occurrence names finished, the frontiers restored, then
     /// per batch each occurrence bound (its frontiers' readiness, its publication slot, its inputs) in declaration order, the bound

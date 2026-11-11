@@ -214,6 +214,14 @@ impl FileSession<'_, '_> {
     }
 }
 
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::file_session::service::FileSession;
+/// fn session(file: &FileSession<'_, '_>) {
+///     let _ = file;
+/// }
+/// ```
 pub struct FileSession<'a, 'facts> {
     pub(crate) parts: SessionParts<'a, 'facts>,
 }

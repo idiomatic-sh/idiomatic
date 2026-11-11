@@ -385,6 +385,13 @@ pub struct PreparedPredicates {
 }
 
 /// Binding/effect identity constrains sharing, never engine admission.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::operator::contract::types::ReuseScope;
+/// assert_ne!(ReuseScope::Request, ReuseScope::Rule);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReuseScope {
     /// Shared across the rules of one request.

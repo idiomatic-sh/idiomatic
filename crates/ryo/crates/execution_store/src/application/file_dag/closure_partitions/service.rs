@@ -59,6 +59,16 @@ pub(crate) fn from_prepared<'f>(
 ///
 /// The input's refusal to validate, and the owner's refusal to admit the publication or to prepare and acquire its
 /// shared ordering.
+///
+/// # Examples
+///
+/// ```
+/// # #[cfg(feature = "fixtures")]
+/// # fn shown() {
+/// use ryo_execution_store::application::file_dag::closure_partitions::service::prepare;
+/// let _prepare = prepare;
+/// # }
+/// ```
 #[cfg(any(test, feature = "fixtures"))]
 pub fn prepare<'f>(
     publication: &crate::application::file_dag::relations::handle::service::Publication,

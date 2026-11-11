@@ -4,6 +4,16 @@ use crate::domain::executable_program::file_demand::types::{
 };
 
 /// A rule's file demand in every demand mode.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND;
+/// use ryo_execution_domain::domain::executable_program::types::file_rule_demand::value::FileRuleDemand;
+/// fn readers(demand: &FileRuleDemand) -> usize {
+///     demand.selected(NO_FILE_DEMAND).readers.len()
+/// }
+/// ```
 #[derive(Debug)]
 pub struct FileRuleDemand {
     /// How many named outputs the rule has.
@@ -18,6 +28,16 @@ impl FileRuleDemand {
         Self { outputs, modes }
     }
     /// The file mode the demand selects.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND;
+    /// use ryo_execution_domain::domain::executable_program::types::file_rule_demand::value::FileRuleDemand;
+    /// fn readers(demand: &FileRuleDemand) -> usize {
+    ///     demand.selected(NO_FILE_DEMAND).readers.len()
+    /// }
+    /// ```
     pub fn selected(&self, demand: FileDemand) -> &FileMode {
         let diagnostic = match demand.diagnostic {
             RootSelection::Undemanded => 0,

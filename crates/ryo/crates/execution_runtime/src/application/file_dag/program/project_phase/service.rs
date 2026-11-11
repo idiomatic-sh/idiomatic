@@ -351,6 +351,15 @@ impl ProjectPhase<'_> {
 }
 
 /// One project-phase publication/interpreter and symbol generation, shared across rules.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::service::ProjectPhase;
+/// fn phase(phase: &ProjectPhase<'_>) {
+///     let _ = phase;
+/// }
+/// ```
 pub struct ProjectPhase<'a> {
     pub(crate) request: &'a RequestExecution,
     pub(crate) publication: std::rc::Rc<

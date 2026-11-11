@@ -43,6 +43,15 @@ use ryo_values::domain::stored_facts::types::Bucket;
 ///     let _ = file.counts(RuleIndex(0));
 /// }
 /// ```
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
+/// fn session(file: &mut impl ProgramFileSessionPort) {
+///     let _ = file;
+/// }
+/// ```
 pub trait ProgramFileSessionPort {
     /// Deliver the already committed canonical publication to the callback.
     /// Sink refusal does not repeat admission or semantic evaluation.
