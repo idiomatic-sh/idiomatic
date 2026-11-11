@@ -17,12 +17,6 @@ use ryo_benchmark_contracts::domain::workloads::types::{
 };
 use std::{cell::Cell, collections::BTreeMap};
 
-/// What a drift scenario establishes once its assertions hold.
-#[derive(Debug, PartialEq, Eq)]
-enum Outcome {
-    Blocked,
-}
-
 /// Which physical drift a row exercises.
 #[derive(Clone, Copy)]
 enum Scenario {
@@ -33,8 +27,8 @@ enum Scenario {
 
 /// What a row is given.
 type Input = Scenario;
-/// What a scenario establishes.
-type Value = Outcome;
+/// What the scenario observed at each check, in order, joined by `|`.
+type Value = &'static str;
 /// A scenario is never refused.
 type Failure = ();
 
@@ -46,23 +40,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::ModeDrift,
-        expect: Expect::Value(Outcome::Blocked),
+        expect: Expect::Value("true|1|true|0|true|1|true|true|1|true|0|true|1|true"),
     },
     Case {
         name: CaseName("a declared missing primary is reverified before both contestants prepare"),
         word: Word::Succeeds,
         input: || Scenario::DeclaredMissing,
-        expect: Expect::Value(Outcome::Blocked),
+        expect: Expect::Value("true|true|2|false|false|0|true|true|2|true"),
     },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    match scenario {
+    let observed = match scenario {
         #[cfg(unix)]
         Scenario::ModeDrift => metadata_drift_blocks_each_attempt(),
         Scenario::DeclaredMissing => declared_missing_primary_is_reverified(),
-    }
-    Ok(Outcome::Blocked)
+    };
+    Ok(Box::leak(observed.into_boxed_str()))
 }
 
 #[test]
@@ -109,7 +103,8 @@ fn set_mode(path: &std::path::Path, mode: u32) {
 #[cfg(not(unix))]
 fn set_mode(_path: &std::path::Path, _mode: u32) {}
 #[cfg(unix)]
-fn metadata_drift_blocks_each_attempt() {
+fn metadata_drift_blocks_each_attempt() -> String {
+    let mut seen: Vec<String> = Vec::new();
     for expected in [false, true] {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("input.txt");
@@ -162,14 +157,15 @@ fn metadata_drift_blocks_each_attempt() {
             &case,
             root.path(),
         );
-        assert!(
+        seen.push(format!(
+            "{:?}",
             result
                 .result
                 .unwrap_err()
                 .to_string()
                 .contains("preparation reached")
-        );
-        assert_eq!(reference.0.get(), 1);
+        ));
+        seen.push(format!("{:?}", reference.0.get()));
         set_mode(&path, if expected { 0o644 } else { 0o744 });
         let observed = ObservedPrepare(Cell::new(0));
         let blocked = candidate(
@@ -180,10 +176,14 @@ fn metadata_drift_blocks_each_attempt() {
             &case.request,
         )
         .unwrap_err();
-        assert!(!blocked.to_string().contains("preparation reached"));
-        assert_eq!(observed.0.get(), 0);
+        seen.push(format!(
+            "{:?}",
+            !blocked.to_string().contains("preparation reached")
+        ));
+        seen.push(format!("{:?}", observed.0.get()));
         set_mode(&path, mode);
-        assert!(
+        seen.push(format!(
+            "{:?}",
             candidate(
                 &crate::outbound::suite::factory::local(),
                 &crate::outbound::context::factory::local(),
@@ -194,13 +194,18 @@ fn metadata_drift_blocks_each_attempt() {
             .unwrap_err()
             .to_string()
             .contains("preparation reached")
-        );
-        assert_eq!(observed.0.get(), 1);
-        assert!(execution.history.lock().unwrap().is_empty());
+        ));
+        seen.push(format!("{:?}", observed.0.get()));
+        seen.push(format!(
+            "{:?}",
+            execution.history.lock().unwrap().is_empty()
+        ));
     }
+    seen.join("|")
 }
 
-fn declared_missing_primary_is_reverified() {
+fn declared_missing_primary_is_reverified() -> String {
+    let mut seen: Vec<String> = Vec::new();
     use crate::outbound::context::interface::ContextPort as _;
     use ryo_benchmark_contracts::domain::context::types::CaseContext;
     let scratch = tempfile::tempdir().unwrap();
@@ -282,9 +287,13 @@ fn declared_missing_primary_is_reverified() {
         .result;
         for result in [candidate, reference] {
             let message = result.unwrap_err().to_string();
-            assert_eq!(message.contains("preparation reached"), !appeared);
+            seen.push(format!("{:?}", message.contains("preparation reached")));
         }
-        assert_eq!(observed.0.get() - before, if appeared { 0 } else { 2 });
+        seen.push(format!("{:?}", observed.0.get() - before));
     }
-    assert!(execution.history.lock().unwrap().is_empty());
+    seen.push(format!(
+        "{:?}",
+        execution.history.lock().unwrap().is_empty()
+    ));
+    seen.join("|")
 }

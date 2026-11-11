@@ -29,59 +29,63 @@ impl Scenario {
             Self::Abandoned => "abandoned",
         }
     }
-    fn parse(value: &str) -> Self {
+    fn parse(value: &str) -> Option<Self> {
         match value {
-            "success" => Self::Success,
-            "load-refusal" => Self::LoadRefusal,
-            "configure-refusal" => Self::ConfigureRefusal,
-            "execute-refusal" => Self::ExecuteRefusal,
-            "abandoned" => Self::Abandoned,
-            _ => panic!("unknown test child scenario"),
+            "success" => Some(Self::Success),
+            "load-refusal" => Some(Self::LoadRefusal),
+            "configure-refusal" => Some(Self::ConfigureRefusal),
+            "execute-refusal" => Some(Self::ExecuteRefusal),
+            "abandoned" => Some(Self::Abandoned),
+            _ => None,
         }
     }
 }
 
-/// Each actual global subscriber runs in a fresh process, preserving its one-shot contract.
-pub(super) fn trace_sessions() {
+/// Each actual global subscriber runs in a fresh process, preserving its one-shot contract: what each child process
+/// printed of its own session, after its scenario's label. The child runs the whole table, whose row for this scenario
+/// states the parent's answer and not the child's, so the child's exit status says nothing and is not read.
+pub(super) fn trace_sessions() -> String {
     let child = std::env::args()
         .find_map(|argument| argument.strip_prefix(CHILD_SCENARIO).map(str::to_owned));
-    match child {
-        Some(scenario) => {
-            let scenario = Scenario::parse(&scenario);
-            actual_session(scenario);
-            println!("{VERIFIED}{}", scenario.label());
-        }
-        None => {
-            for scenario in [
-                Scenario::Success,
-                Scenario::LoadRefusal,
-                Scenario::ConfigureRefusal,
-                Scenario::ExecuteRefusal,
-                Scenario::Abandoned,
-            ] {
-                let output = std::process::Command::new(std::env::current_exe().unwrap())
-                    .args(["--exact", RUNNER, "--test-threads=1", "--nocapture"])
-                    .args(["--skip", &format!("{CHILD_SCENARIO}{}", scenario.label())])
-                    .output()
-                    .unwrap();
-                assert!(
-                    output.status.success(),
-                    "scenario {:?}: stdout={} stderr={}",
-                    scenario,
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                assert!(
-                    String::from_utf8_lossy(&output.stdout)
-                        .contains(&format!("{VERIFIED}{}", scenario.label())),
-                    "the child must execute the actual lifecycle case; zero-test success is not proof"
-                );
-            }
-        }
+    if let Some(label) = child {
+        let observed =
+            Scenario::parse(&label).map_or_else(|| "unknown scenario".to_owned(), actual_session);
+        println!("{VERIFIED}{label}:{observed}");
+        return observed;
     }
+    [
+        Scenario::Success,
+        Scenario::LoadRefusal,
+        Scenario::ConfigureRefusal,
+        Scenario::ExecuteRefusal,
+        Scenario::Abandoned,
+    ]
+    .into_iter()
+    .map(|scenario| {
+        let label = scenario.label();
+        match std::process::Command::new(std::env::current_exe().unwrap_or_default())
+            .args(["--exact", RUNNER, "--test-threads=1", "--nocapture"])
+            .args(["--skip", &format!("{CHILD_SCENARIO}{label}")])
+            .output()
+        {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let marker = format!("{VERIFIED}{label}:");
+                let observed = stdout
+                    .lines()
+                    .find_map(|line| line.split_once(&marker).map(|(_, observed)| observed))
+                    .unwrap_or("no observation");
+                format!("{label} {observed}")
+            }
+            Err(error) => format!("{label} not started: {error}"),
+        }
+    })
+    .collect::<Vec<_>>()
+    .join("; ")
 }
 
-fn actual_session(scenario: Scenario) {
+fn actual_session(scenario: Scenario) -> String {
+    let mut seen: Vec<String> = Vec::new();
     let scratch = tempfile::tempdir().unwrap();
     let trace = scratch.path().join("trace.json");
     let rules = scratch.path().join("rules");
@@ -95,9 +99,12 @@ fn actual_session(scenario: Scenario) {
     let engine = factory::local(Languages::default(), Some(trace.clone()));
     let loaded = engine.load(&prepared.request);
     if matches!(scenario, Scenario::LoadRefusal) {
-        assert!(matches!(loaded, Err(ref error) if error.to_string() == "no candidate queries"));
-        verify_trace(&trace, false, false, false);
-        return;
+        seen.push(format!(
+            "{:?}",
+            matches!(loaded, Err(ref error) if error.to_string() == "no candidate queries")
+        ));
+        seen.push(verify_trace(&trace));
+        return seen.join(",");
     }
     let session = loaded.unwrap();
     {
@@ -106,16 +113,14 @@ fn actual_session(scenario: Scenario) {
     }
     if matches!(scenario, Scenario::Abandoned) {
         drop(session);
-        verify_trace(&trace, true, false, false);
-        return;
+        seen.push(verify_trace(&trace));
+        return seen.join(",");
     }
     let configured = configure(&prepared.request, session);
     if matches!(scenario, Scenario::ConfigureRefusal) {
-        assert!(
-            matches!(configured, Err(ref error) if error.to_string() == "selected or required producer has no registered query: R404")
-        );
-        verify_trace(&trace, true, false, false);
-        return;
+        seen.push(format!("{:?}", matches!(configured, Err(ref error) if error.to_string() == "selected or required producer has no registered query: R404")));
+        seen.push(verify_trace(&trace));
+        return seen.join(",");
     }
     let configured = configured.unwrap();
     {
@@ -124,27 +129,33 @@ fn actual_session(scenario: Scenario) {
     }
     let report = configured.execute();
     match scenario {
-        Scenario::Success => assert_eq!(report.unwrap().report.diagnostics.len(), 1),
-        Scenario::ExecuteRefusal => assert!(
+        Scenario::Success => seen.push(format!("{:?}", report.unwrap().report.diagnostics.len())),
+        Scenario::ExecuteRefusal => seen.push(format!(
+            "{:?}",
             report
                 .unwrap_err()
                 .to_string()
                 .contains("incomplete candidate")
-        ),
+        )),
         Scenario::LoadRefusal | Scenario::ConfigureRefusal | Scenario::Abandoned => unreachable!(),
     }
     // The SDK's actual compile span happens inside execute, after ownership transfer.
     // Early guard destruction cannot leave it in the final flushed trace.
-    verify_trace(&trace, true, true, true);
+    seen.push(verify_trace(&trace));
+    seen.join(",")
 }
-fn verify_trace(path: &Path, loaded: bool, configured: bool, executed: bool) {
-    let bytes = std::fs::read(path).unwrap();
-    let value: serde_json::Value =
-        serde_json::from_slice(&bytes).expect("guard flushes complete Chrome JSON");
-    let text = value.to_string();
-    assert_eq!(text.contains("engine_session_after_load"), loaded);
-    assert_eq!(text.contains("engine_session_after_configure"), configured);
-    assert_eq!(text.contains("\"compile\""), executed);
+/// Which of the three spans the flushed trace holds: after load, after configure, and the compile.
+fn verify_trace(path: &Path) -> String {
+    let text = std::fs::read(path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .map_or_else(|| "no complete trace".to_owned(), |value| value.to_string());
+    format!(
+        "load {} configure {} compile {}",
+        text.contains("engine_session_after_load"),
+        text.contains("engine_session_after_configure"),
+        text.contains("\"compile\"")
+    )
 }
 fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> WorkerRequest {
     let (root, manifest, mode, file) = if matches!(scenario, Scenario::ExecuteRefusal) {

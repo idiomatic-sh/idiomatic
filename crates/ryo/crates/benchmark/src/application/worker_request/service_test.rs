@@ -20,7 +20,8 @@ enum Scenario {
     TraceSessions,
 }
 type Input = Scenario;
-type Value = usize;
+/// What the scenario observed: the inputs prepared as missing, or each child session's trace.
+type Value = &'static str;
 type Failure = &'static str;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -29,13 +30,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::TraceSessions,
-        expect: Expect::Value(1),
+        expect: Expect::Value(
+            "success 1,load true configure true compile true; load-refusal true,load false configure false compile false; configure-refusal true,load true configure false compile false; execute-refusal true,load true configure true compile true; abandoned load true configure false compile false",
+        ),
     },
     Case {
         name: CaseName("only selected sealed absences are passed to the SDK adapter"),
         word: Word::Succeeds,
         input: || Scenario::Sealed,
-        expect: Expect::Value(1),
+        expect: Expect::Value("{RelativePath(\"missing.py\")}"),
     },
     Case {
         name: CaseName("unsealed requested absence cannot enter the SDK"),
@@ -52,8 +55,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(scenario, Scenario::TraceSessions) {
-        super::fixtures::trace_sessions();
-        return Ok(1);
+        return Ok(Box::leak(
+            super::fixtures::trace_sessions().into_boxed_str(),
+        ));
     }
     let missing = if matches!(scenario, Scenario::UndeclaredMissing) {
         vec![]
@@ -108,23 +112,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     prepare(request)
         .map(|prepared| {
-            let prepared = prepared.missing;
-            assert!(
-                prepared
-                    .selected_missing
-                    .contains(&ryo::linter::RelativePath("missing.py".into()))
-            );
-            assert!(
-                !prepared
-                    .selected_missing
-                    .contains(&ryo::linter::RelativePath("readable.py".into()))
-            );
-            assert!(
-                !prepared
-                    .selected_missing
-                    .contains(&ryo::linter::RelativePath("unrequested.py".into()))
-            );
-            prepared.selected_missing.len()
+            let selected = format!("{:?}", prepared.missing.selected_missing);
+            &*Box::leak(selected.into_boxed_str())
         })
         .map_err(|error| match error {
             ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
