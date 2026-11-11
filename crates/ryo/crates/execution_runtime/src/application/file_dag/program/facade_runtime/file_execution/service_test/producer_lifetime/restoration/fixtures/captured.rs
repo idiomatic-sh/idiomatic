@@ -18,7 +18,22 @@ use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+/// What building the captured project observed: the frontiers its file captured, whether the
+/// project producer's emit had no query, the observations it published, and the published
+/// member's rows and cell kinds.
+#[derive(Clone, Debug, PartialEq)]
+pub(in super::super) struct Built {
+    pub(in super::super) frontiers: usize,
+    /// Whether the capturing file's finish answered a frontier readiness.
+    pub(in super::super) frontier_readiness: bool,
+    pub(in super::super) producer_no_query: bool,
+    pub(in super::super) observations: usize,
+    pub(in super::super) member_rows: usize,
+    pub(in super::super) member_kinds: std::borrow::Cow<'static, [CellKind]>,
+}
+
 pub(in super::super) struct CapturedProject {
+    pub(in super::super) built: Built,
     pub(in super::super) prepared: Arc<PreparedProgram>,
     pub(in super::super) phase: PublicationScope,
     services: Arc<ProgramServices>,
@@ -230,10 +245,13 @@ impl CapturedProject {
                 words: &mut words,
             },
         )?;
-        assert_eq!(captures.len(), 1, "one real named producer frontier");
-        let capture = captures.pop().unwrap().outcome?;
+        let frontiers = captures.len();
+        let capture = captures
+            .pop()
+            .expect("one real named producer frontier")
+            .outcome?;
         file.commit_frontier(RuleIndex(0), capture.input)?;
-        file.finish()?;
+        let frontier_readiness = file.finish()?.is_some();
         let phase = publication_owner(
             &prepared,
             &services,
@@ -301,22 +319,28 @@ impl CapturedProject {
             },
             symbols,
         )?;
-        assert!(matches!(produced.emit, RootOutcome::NoQuery));
-        assert_eq!(produced.observations.len(), 1);
+        let producer_no_query = matches!(produced.emit, RootOutcome::NoQuery);
+        let observations = produced.observations.len();
         let crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome {
             outcome: observed,
             ..
-        } = produced.observations.pop().unwrap();
+        } = produced
+            .observations
+            .pop()
+            .expect("the project producer publishes its observation");
         let ProjectObservation::Complete { table, publication } = observed else {
             panic!("real empty project member must publish successfully")
         };
-        assert_eq!(table.count, RowCount(0));
-        assert_eq!(
-            table.kinds,
-            [CellKind::File, CellKind::Number, CellKind::Number]
-        );
         drop(project_producer);
         Ok(Self {
+            built: Built {
+                frontiers,
+                frontier_readiness,
+                producer_no_query,
+                observations,
+                member_rows: table.count.0,
+                member_kinds: std::borrow::Cow::Owned(table.kinds),
+            },
             prepared,
             phase,
             services,

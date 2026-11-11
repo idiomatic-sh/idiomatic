@@ -29,6 +29,25 @@ pub(in super::super) enum Second {
     Refused(OperatingError),
 }
 
+/// What one delivered or replayed root answered: its rows, or the failure it ended with.
+#[derive(Clone, Debug, PartialEq)]
+pub(in super::super) enum Delivery {
+    Rows(usize),
+    Failed(OperatingError),
+    /// Any other outcome.
+    Lost,
+}
+
+impl From<RootOutcome> for Delivery {
+    fn from(outcome: RootOutcome) -> Self {
+        match outcome {
+            RootOutcome::Complete(table) => Self::Rows(table.count.0),
+            RootOutcome::Failed(error) => Self::Failed(error),
+            _ => Self::Lost,
+        }
+    }
+}
+
 /// One consumer's release: the remaining consumers, attempt and index liveness before and
 /// after it, whether working bytes were held before and after, and whether the before and after
 /// events name the same consumer in order.

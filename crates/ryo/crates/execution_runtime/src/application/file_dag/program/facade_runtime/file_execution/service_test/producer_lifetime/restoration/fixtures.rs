@@ -21,10 +21,8 @@ use crate::application::file_dag::program::facade_runtime::service::{
 };
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
+use crate::application::file_dag::program::runtime::types::ConsumerReleasePoint;
 use crate::application::file_dag::program::runtime::types::IndexLiveness;
-use crate::application::file_dag::program::runtime::types::{
-    AttemptCheckpoint, ConsumerReleasePoint,
-};
 use ryo_execution_domain::domain::coverage::types::Partials;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_store::application::file_dag::derived::owner::witness::service::{
@@ -46,7 +44,6 @@ use ryo_values::domain::observations::types::{
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::plan_parts::types::{HostedNumber, InputNumber};
 use ryo_values::domain::records::types::ObservationReadinessLayout;
-use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::stored_facts::types::{Bucket, KeptWords};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
