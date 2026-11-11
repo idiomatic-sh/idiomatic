@@ -125,8 +125,7 @@ TOOLS = {
     "actionlint": {"package": "actionlint-py", "version": "1.7.12.24"},
     "shellcheck": {"package": "shellcheck-py", "version": "0.11.0.1"},
     "cz": {"package": "commitizen", "version": "4.17.0"},
-    # The checkpoint's run.py runs in this environment too: it reads Rust through tree-sitter-rust, on CI's Python.
-    "pytest": {"package": "pytest", "version": "9.1.1", "python": "3.12", "with": ["pyyaml==6.0.3", "tree-sitter==0.26.1", "tree-sitter-rust==0.24.2"]},
+    "pytest": {"package": "pytest", "version": "9.1.1", "python": "3.12", "with": ["pyyaml==6.0.3"]},
     "ruff": {"package": "ruff", "version": "0.16.5"},
     # The release job builds wheels with maturin.
     "maturin": {"package": "maturin", "version": "1.15.0"},
