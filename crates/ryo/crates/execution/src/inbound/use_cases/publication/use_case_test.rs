@@ -15,64 +15,109 @@ use ryo_values::domain::{
     rows::types::{RowCount, Table},
     stored_facts::types::ArenaBytes,
 };
+use std::borrow::Cow;
 
-/// What a producer publishes, and from which worker.
+/// What a producer publishes: its one cell, and whether its worker is the reserved cross-file one.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    /// A row of one producer symbol, from a producing worker.
-    Symbol,
-    /// A row of one number, from a producing worker.
-    Numeric,
-    /// A row of one number, from the reserved cross-file worker.
-    Reserved,
+struct Publishing {
+    symbol: bool,
+    reserved: bool,
 }
-type Input = Scenario;
-/// The places the publication wrote.
-type Value = usize;
-type Failure = PublicationError;
-const NAME_BYTES: &[u8] = &[b'a', b'l', b'p', b'h', b'a'];
+
+/// What the publication left: whether the cell became a portable name or stayed as it was, the
+/// caller's arena (which held `[7]`) and the number of places written.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Published {
+    named: bool,
+    unchanged: bool,
+    arena: Cow<'static, [u8]>,
+    places: usize,
+}
+
+/// A refused publication: the error, its message, and what it left.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Refused {
+    error: PublicationError,
+    message: Cow<'static, str>,
+    left: Published,
+}
+
+type Input = Publishing;
+type Value = Published;
+type Failure = Refused;
+/// The name the symbol cell interns.
+const NAME: &str = "alpha";
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(symbol_gets_portable_text_and_place)),
         word: Word::Succeeds,
-        input: || Scenario::Symbol,
-        expect: Expect::Value(1),
+        input: || Publishing {
+            symbol: true,
+            reserved: false,
+        },
+        expect: Expect::Value(Published {
+            named: true,
+            unchanged: false,
+            arena: Cow::Borrowed(&[7, b'a', b'l', b'p', b'h', b'a']),
+            places: 1,
+        }),
     },
     Case {
         name: CaseName(stringify!(numeric_row_remains_complete)),
         word: Word::Succeeds,
-        input: || Scenario::Numeric,
-        expect: Expect::Value(0),
+        input: || Publishing {
+            symbol: false,
+            reserved: false,
+        },
+        expect: Expect::Value(Published {
+            named: false,
+            unchanged: true,
+            arena: Cow::Borrowed(&[7]),
+            places: 0,
+        }),
     },
     Case {
         name: CaseName(stringify!(reserved_arena_refuses_without_mutation)),
         word: Word::Refuses,
-        input: || Scenario::Reserved,
-        expect: Expect::Error(PublicationError::Publication {
-            reason: PublicationReason::ReservedArena,
+        input: || Publishing {
+            symbol: false,
+            reserved: true,
+        },
+        expect: Expect::Error(Refused {
+            error: PublicationError::Publication {
+                reason: PublicationReason::ReservedArena,
+            },
+            message: Cow::Borrowed(
+                "cross publication requires an ordinary arena slot and fresh place log",
+            ),
+            left: Published {
+                named: false,
+                unchanged: true,
+                arena: Cow::Borrowed(&[7]),
+                places: 0,
+            },
         }),
     },
 ];
-fn subject(scenario: Input) -> Result<Value, Failure> {
+/// Publishes the producer's cell through the use case, into an arena holding `[7]`.
+fn subject(publishing: Input) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
-    let mut table = match scenario {
-        Scenario::Symbol => {
-            let name = std::str::from_utf8(NAME_BYTES).unwrap();
-            let symbol = intern_derived(&mut symbols, ByteSlice(&[]), NameText(name));
-            Table {
-                kinds: vec![CellKind::Symbol],
-                cells: vec![Cell::Symbol(symbol)],
-                count: RowCount(1),
-            }
+    let mut table = if publishing.symbol {
+        let symbol = intern_derived(&mut symbols, ByteSlice(&[]), NameText(NAME));
+        Table {
+            kinds: vec![CellKind::Symbol],
+            cells: vec![Cell::Symbol(symbol)],
+            count: RowCount(1),
         }
-        Scenario::Numeric | Scenario::Reserved => Table {
+    } else {
+        Table {
             kinds: vec![CellKind::Number],
             cells: vec![Cell::Number(Integer(17))],
             count: RowCount(1),
-        },
+        }
     };
     let before = table.cells.clone();
-    let worker = if matches!(scenario, Scenario::Reserved) {
+    let worker = if publishing.reserved {
         CROSS_FILE
     } else {
         WorkerNumber(0)
@@ -87,18 +132,20 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         arena: &mut arena,
         places: &mut places,
     });
-    if matches!(scenario, Scenario::Symbol) {
-        assert!(matches!(table.cells[0], Cell::Name(_)));
-        assert_eq!(arena.0, [vec![7], NAME_BYTES.to_vec()].concat());
-    } else {
-        assert_eq!(table.cells, before);
-        assert_eq!(arena.0, [7]);
-        assert!(places.is_empty());
+    let left = Published {
+        named: matches!(table.cells[0], Cell::Name(_)),
+        unchanged: table.cells == before,
+        arena: Cow::Owned(arena.0),
+        places: places.len(),
+    };
+    match answer {
+        Ok(()) => Ok(left),
+        Err(error) => Err(Refused {
+            message: Cow::Owned(error.to_string()),
+            error,
+            left,
+        }),
     }
-    if let Err(error) = &answer {
-        assert!(!error.to_string().is_empty(), "a refusal names its reason");
-    }
-    answer.map(|()| places.len())
 }
 #[test]
 fn succeeds() {

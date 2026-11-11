@@ -14,37 +14,59 @@ use ryo_language::domain::symbols::{
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plans::types::Operation;
+use std::borrow::Cow;
 
-/// What a row of the cases asks of the schemas.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// Every operator's schema against its evaluator over empty tables.
-    Empty,
-    /// Every operator's schema against its evaluator over populated tables.
-    Populated,
+/// What a row evaluates.
+#[derive(Clone, Copy, Debug)]
+enum Evaluation {
+    /// Every operator's schema against its evaluator, over empty or populated tables.
+    Every { populated: bool },
     /// A hosted relation published without its request source.
     HostedWithoutSource,
 }
 
-/// A genuine populated/empty evaluator comparison across every current operator.
-type Input = Scenario;
-/// The number of distinct operator variants whose shapes were compared.
-type Value = usize;
+/// What comparing every operator's schema with its evaluation shows: the operator variants
+/// compared, those compared twice, those whose schema is not the kinds evaluation answered, and
+/// whether a hosted relation answers its request source's rows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Shapes {
+    operators: usize,
+    repeated: usize,
+    mismatched: Cow<'static, [Cow<'static, str>]>,
+    hosted_rows_kept: bool,
+}
+
+type Input = Evaluation;
+type Value = Shapes;
 type Failure = OperatingError;
 
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    let populated = match scenario {
-        Scenario::Empty => false,
-        Scenario::Populated => true,
-        Scenario::HostedWithoutSource => return hosted_without_source(),
+/// The shapes of every operator: 26 variants, each compared once, every schema matched.
+const EVERY_SHAPE_MATCHES: Shapes = Shapes {
+    operators: 26,
+    repeated: 0,
+    mismatched: Cow::Borrowed(&[]),
+    hosted_rows_kept: true,
+};
+
+/// Evaluates every operator and compares its schema with what it answered.
+fn subject(evaluation: Input) -> Result<Value, Failure> {
+    let populated = match evaluation {
+        Evaluation::Every { populated } => populated,
+        Evaluation::HostedWithoutSource => return hosted_without_source(),
     };
     let semantic = KnownSyntax;
     let mut symbols = Symbols::default();
     let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("alpha/beta"));
     let bindings = bindings();
     let mut variants = std::collections::HashSet::new();
+    let mut shapes = Shapes {
+        operators: 0,
+        repeated: 0,
+        mismatched: Cow::Owned(Vec::new()),
+        hosted_rows_kept: true,
+    };
     for operation in operations() {
-        assert!(variants.insert(std::mem::discriminant(&operation)));
+        shapes.repeated += usize::from(!variants.insert(std::mem::discriminant(&operation)));
         let tables = tables(&operation, symbol, populated);
         let schemas: Vec<_> = tables
             .iter()
@@ -63,15 +85,18 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             b"",
             Some(&semantic),
         )?;
-        assert_eq!(
-            actual?, output.kinds,
-            "{operation:?}, populated={populated}"
-        );
+        if actual? != output.kinds {
+            shapes
+                .mismatched
+                .to_mut()
+                .push(Cow::Owned(format!("{operation:?}")));
+        }
         if matches!(operation, Operation::Hosted { .. }) {
-            assert_eq!(output.cells, tables[0].cells, "real request-source rows");
+            shapes.hosted_rows_kept &= output.cells == tables[0].cells;
         }
     }
-    Ok(variants.len())
+    shapes.operators = variants.len();
+    Ok(shapes)
 }
 
 /// The prepared request has no source partition for the hosted relation.
@@ -88,7 +113,12 @@ fn hosted_without_source() -> Result<Value, Failure> {
     // The prepared request has no source partition for Hosted(0), so admission
     // refuses before schema evaluation. MissingInput belongs to the pure schema
     // contract, independently covered by operation_schema::service_test.
-    result.map(|_| 0)
+    result.map(|_| Shapes {
+        operators: 1,
+        repeated: 0,
+        mismatched: Cow::Borrowed(&[]),
+        hosted_rows_kept: false,
+    })
 }
 
 /// Both input cardinalities exercise every registered concrete operation fixture.
@@ -96,19 +126,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("all_empty_operator_shapes_match_evaluation"),
         word: Word::Succeeds,
-        input: || Scenario::Empty,
-        expect: Expect::Value(26),
+        input: || Evaluation::Every { populated: false },
+        expect: Expect::Value(EVERY_SHAPE_MATCHES),
     },
     Case {
         name: CaseName("all_populated_operator_shapes_match_evaluation"),
         word: Word::Succeeds,
-        input: || Scenario::Populated,
-        expect: Expect::Value(26),
+        input: || Evaluation::Every { populated: true },
+        expect: Expect::Value(EVERY_SHAPE_MATCHES),
     },
     Case {
         name: CaseName("hosted_without_its_request_source_refuses_at_the_real_owner"),
         word: Word::Refuses,
-        input: || Scenario::HostedWithoutSource,
+        input: || Evaluation::HostedWithoutSource,
         expect: Expect::Error(OperatingError::NotRead),
     },
 ];

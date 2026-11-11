@@ -1,54 +1,90 @@
-//! The publication service's real producer table and storage scenarios.
+//! The publication service's real producer table, published through one service entry, and what it left.
 use super::{errors::PublicationError, types::PublicationInput};
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CROSS_FILE, CellKind, Integer, Value, WorkerNumber};
+use ryo_language::domain::symbols::{
+    service::intern_derived,
+    types::{ByteSlice, Symbols},
+};
+use ryo_relations::domain::relations::types::{
+    CROSS_FILE, CellKind, Integer, NamePlace, Value, WorkerNumber,
+};
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::{
     rows::types::{RowCount, Table},
     stored_facts::types::ArenaBytes,
 };
+use std::borrow::Cow;
 
+/// The one cell a producer publishes.
 #[derive(Clone, Copy, Debug)]
-pub(super) enum Scenario {
+pub(super) enum Produced {
+    /// The number 17.
     Number,
+    /// A producer symbol for the name `alpha`.
     Symbol,
-    ReservedWorker,
 }
-const NAME_BYTES: &[u8] = &[b'a', b'l', b'p', b'h', b'a'];
 
-/// The service entry the scenario runs through.
+/// The worker a publication runs on.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Worker {
+    /// Producing worker 0.
+    Producing,
+    /// The reserved cross-file worker.
+    Reserved,
+}
+
+/// What a producer publishes, and from which worker.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Publishing {
+    pub(super) cell: Produced,
+    pub(super) worker: Worker,
+}
+
+/// What the publication left: whether the cell became a portable name or stayed as it was, the
+/// caller's arena (which held `[7]`) and the places written.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct Published {
+    pub(super) named: bool,
+    pub(super) unchanged: bool,
+    pub(super) arena: Cow<'static, [u8]>,
+    pub(super) places: Cow<'static, [NamePlace]>,
+}
+
+/// A refused publication: the error, its message, and what it left.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct Refused {
+    pub(super) error: PublicationError,
+    pub(super) message: Cow<'static, str>,
+    pub(super) left: Published,
+}
+
+/// The name the symbol cell interns.
+const NAME: &str = "alpha";
+
+/// The service entry the publication runs through.
 pub(super) type Publish = fn(PublicationInput<'_>) -> Result<(), PublicationError>;
 
-pub(super) fn subject(scenario: Scenario, publication: Publish) -> Result<(), PublicationError> {
+/// Publishes the producer's one cell from its worker through `publication`, into an arena holding `[7]`.
+pub(super) fn publish(publishing: Publishing, publication: Publish) -> Result<Published, Refused> {
     let mut symbols = Symbols::default();
-    let cells = if matches!(scenario, Scenario::Symbol) {
-        use ryo_language::domain::symbols::{service::intern_derived, types::ByteSlice};
-        use ryo_relations::domain::terms::types::NameText;
-        let name = std::str::from_utf8(NAME_BYTES).unwrap();
-        vec![Value::Symbol(intern_derived(
-            &mut symbols,
-            ByteSlice(&[]),
-            NameText(name),
-        ))]
-    } else {
-        vec![Value::Number(Integer(17))]
+    let (kind, cell) = match publishing.cell {
+        Produced::Number => (CellKind::Number, Value::Number(Integer(17))),
+        Produced::Symbol => (
+            CellKind::Symbol,
+            Value::Symbol(intern_derived(&mut symbols, ByteSlice(&[]), NameText(NAME))),
+        ),
     };
     let mut table = Table {
-        kinds: vec![if matches!(scenario, Scenario::Symbol) {
-            CellKind::Symbol
-        } else {
-            CellKind::Number
-        }],
-        cells: cells.clone(),
+        kinds: vec![kind],
+        cells: vec![cell.clone()],
         count: RowCount(1),
+    };
+    let worker = match publishing.worker {
+        Worker::Producing => WorkerNumber(0),
+        Worker::Reserved => CROSS_FILE,
     };
     let mut arena = ArenaBytes(vec![7]);
     let mut places = Vec::new();
-    let worker = if matches!(scenario, Scenario::ReservedWorker) {
-        CROSS_FILE
-    } else {
-        WorkerNumber(0)
-    };
-    let result = publication(PublicationInput {
+    let answer = publication(PublicationInput {
         table: &mut table,
         symbols: &mut symbols,
         inherited: &[],
@@ -56,19 +92,18 @@ pub(super) fn subject(scenario: Scenario, publication: Publish) -> Result<(), Pu
         arena: &mut arena,
         places: &mut places,
     });
-    if matches!(scenario, Scenario::Symbol) {
-        assert!(matches!(table.cells[0], Value::Name(_)));
-        assert_eq!(arena.0, [vec![7], NAME_BYTES.to_vec()].concat());
-        assert_eq!(places.len(), 1);
-        assert_eq!(
-            places[0].origin,
-            ryo_relations::domain::relations::types::Origin::Derived(WorkerNumber(0))
-        );
-        assert_eq!((places[0].start.0, places[0].end.0), (1, 6));
-    } else {
-        assert_eq!(table.cells, cells);
-        assert_eq!(arena.0, vec![7]);
-        assert!(places.is_empty());
+    let left = Published {
+        named: matches!(table.cells[0], Value::Name(_)),
+        unchanged: table.cells == [cell],
+        arena: Cow::Owned(arena.0),
+        places: Cow::Owned(places),
+    };
+    match answer {
+        Ok(()) => Ok(left),
+        Err(error) => Err(Refused {
+            message: Cow::Owned(error.to_string()),
+            error,
+            left,
+        }),
     }
-    result
 }

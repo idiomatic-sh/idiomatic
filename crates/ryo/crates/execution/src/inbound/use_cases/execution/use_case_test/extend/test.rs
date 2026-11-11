@@ -3,7 +3,7 @@ use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CellKind, Integer};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -15,17 +15,47 @@ use ryo_values::{
         query_bindings::types::{ParameterBinding, ParameterType, PlanParameter},
     },
 };
-#[derive(Clone, Copy)]
-enum Scenario {
-    Number,
-    Text,
-    Unbound,
+use std::borrow::Cow;
+/// What the extend appends after each hosted number: a literal and a parameter of one type, the
+/// parameter bound or not.
+#[derive(Clone, Copy, Debug)]
+struct Appending {
+    text: bool,
+    bound: bool,
+    rows: &'static [&'static [i64]],
 }
-type Input = Scenario;
-type Value = usize;
+
+/// One published cell: a number, or the text of a name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Shown {
+    Number(i64),
+    Text(Cow<'static, str>),
+}
+
+/// What the extend publishes: its column kinds, its rows, and whether every appended name is one name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Extended {
+    kinds: Cow<'static, [CellKind]>,
+    rows: Cow<'static, [[Shown; 3]]>,
+    one_name: bool,
+}
+
+type Input = Appending;
+type Value = Extended;
 type Failure = OperatingError;
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    let text = matches!(scenario, Scenario::Text);
+
+/// The row of `number` followed by the text `here` twice.
+const fn here(number: i64) -> [Shown; 3] {
+    [
+        Shown::Number(number),
+        Shown::Text(Cow::Borrowed("here")),
+        Shown::Text(Cow::Borrowed("here")),
+    ]
+}
+
+/// Extends the hosted numbers and publishes them.
+fn subject(appending: Input) -> Result<Value, Failure> {
+    let text = appending.text;
     let values = if text {
         vec![
             Operand::Literal(QueryLiteral::Text(LiteralText("here".into()))),
@@ -54,58 +84,76 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             ParameterType::Number
         },
     });
-    let bindings = match scenario {
-        Scenario::Number => vec![ParameterBinding::Number(WholeNumber(7))],
-        Scenario::Text => vec![ParameterBinding::Text(LiteralText("here".into()))],
-        Scenario::Unbound => vec![],
+    let bindings = match (appending.bound, text) {
+        (false, _) => vec![],
+        (true, false) => vec![ParameterBinding::Number(WholeNumber(7))],
+        (true, true) => vec![ParameterBinding::Text(LiteralText("here".into()))],
     };
     let mut symbols = Symbols::default();
-    let rows: &[&[i64]] = if text { &[&[1], &[2]] } else { &[&[1]] };
+    let rows = appending.rows;
     let out = fixtures::requests::published(
         plan,
         bindings,
         vec![fixtures::requests::numbers("input", 1, rows)],
         &mut symbols,
     )?;
-    if text {
-        assert_eq!(out.count.0, 2);
-        assert_eq!(
-            out.kinds,
-            [CellKind::Number, CellKind::Symbol, CellKind::Symbol]
-        );
-        assert_eq!(inputs::text(out.cells[1], &symbols), "here");
-        assert_eq!(out.cells[1], out.cells[2]);
-        assert_eq!(out.cells[2], out.cells[4]);
-        assert_eq!(inputs::text(out.cells[5], &symbols), "here");
-        Ok(1)
-    } else {
-        assert_eq!(
-            out.cells[1..],
-            [
-                ryo_relations::domain::relations::types::Value::Number(Integer(1)),
-                ryo_relations::domain::relations::types::Value::Number(Integer(7))
-            ]
-        );
-        Ok(out.count.0)
-    }
+    let names: Vec<&Cell> = out
+        .cells
+        .iter()
+        .filter(|cell| matches!(cell, Cell::Name(_) | Cell::Symbol(_)))
+        .collect();
+    let shown = |cell: &Cell| match cell {
+        Cell::Number(Integer(number)) => Shown::Number(*number),
+        other => Shown::Text(Cow::Owned(inputs::text(other.clone(), &symbols).to_owned())),
+    };
+    Ok(Extended {
+        kinds: Cow::Owned(out.kinds.clone()),
+        rows: Cow::Owned(
+            out.cells
+                .chunks_exact(3)
+                .map(|row| [shown(&row[0]), shown(&row[1]), shown(&row[2])])
+                .collect(),
+        ),
+        one_name: names.iter().all(|name| *name == names[0]),
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("appends_columns"),
         word: Word::Succeeds,
-        input: || Scenario::Number,
-        expect: Expect::Value(1),
+        input: || Appending {
+            text: false,
+            bound: true,
+            rows: &[&[1]],
+        },
+        expect: Expect::Value(Extended {
+            kinds: Cow::Borrowed(&[CellKind::Number, CellKind::Number, CellKind::Number]),
+            rows: Cow::Borrowed(&[[Shown::Number(1), Shown::Number(1), Shown::Number(7)]]),
+            one_name: true,
+        }),
     },
     Case {
         name: CaseName("a_text_is_appended_as_a_name"),
         word: Word::Succeeds,
-        input: || Scenario::Text,
-        expect: Expect::Value(1),
+        input: || Appending {
+            text: true,
+            bound: true,
+            rows: &[&[1], &[2]],
+        },
+        expect: Expect::Value(Extended {
+            kinds: Cow::Borrowed(&[CellKind::Number, CellKind::Symbol, CellKind::Symbol]),
+            rows: Cow::Borrowed(&[here(1), here(2)]),
+            one_name: true,
+        }),
     },
     Case {
         name: CaseName("an_unbound_extend_parameter_is_refused"),
         word: Word::Refuses,
-        input: || Scenario::Unbound,
+        input: || Appending {
+            text: false,
+            bound: false,
+            rows: &[&[1]],
+        },
         expect: Expect::Error(OperatingError::Unbound),
     },
 ];
