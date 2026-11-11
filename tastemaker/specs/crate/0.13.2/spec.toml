@@ -13,7 +13,7 @@ templates = [
   { template = "cases", file = "src/cases.rs", count = { when = { condition = "cases" }, then = 1, else = 0 }, description = "The test support of a core, an SDK, a command line: the `Case` rows, the four case words, the expectation and the `run` every unit test calls." },
   # Another workspace's files, which the crate's tests run their code over.
   { alias = "test-root", template = "integration-test", file = "tests/test.rs", count = { min = 0 }, description = "The root of the crate's grouped integration tests, which declares its groups." },
-  { alias = "test-group-module", template = "idiomatic.arch/test-group-module@0.1.0", file = "tests/{*group}/mod.rs", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "The module file of one group of the crate's integration tests." },
+  { alias = "test-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "tests/{*group}/mod.rs", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "The module file of one group of the crate's integration tests." },
   { alias = "test-group-test", template = "integration-test", file = "tests/{*group}/test.rs", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "One group of the crate's integration tests." },
   { alias = "test-group-fixtures", template = "integration-test", file = "tests/{*group}/fixtures.rs", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "The test support of one group of the crate's integration tests." },
   { alias = "test-group-fixture-files", template = "integration-test", file = "tests/{*group}/fixtures/{*fixture}", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "A file of one group's test support beneath its `fixtures/`." },
@@ -39,6 +39,7 @@ rules = [
   { rule = "error-shape", include = ["**"], description = "Every error type of the crate is a `thiserror` derive, never a hand-written `Error` or `Display` impl." },
   # A part's fakes reach other crates' tests only.
   { rule = "fixtures-feature", include = ["Cargo.toml"], description = "The crate's `fixtures` feature is switched on only from `[dev-dependencies]`, so its fakes never ship." },
+  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "test-group-module" }], description = "A test group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
 ]
 
 [[scenarios]]

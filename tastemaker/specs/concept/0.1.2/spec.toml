@@ -18,8 +18,8 @@ templates = [
   { template = "idiomatic.arch/collections@0.1.0", file = "collections.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The list of the part's collections, one module each, when it holds a repeated concept." },
   { alias = "collection-module", template = "idiomatic.arch/collection@0.1.0", file = "collections/{collection}.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "One collection of the part: its interface and its items in order." },
   { alias = "fixture-files", template = "concept-fixtures", file = "fixtures/{*fixture}", count = { min = 0 }, description = "A file of the concept's test support beneath `fixtures/`." },
-  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.1.0", file = "service_test/{*group}/mod.rs", count = { min = 0 }, description = "The module file of one group of the service's cases." },
-  { alias = "group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "service_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "One group of the service's cases." },
+  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test/{*group}/mod.rs", count = { min = 0 }, description = "The module file of one group of the service's cases." },
+  { alias = "group-test", template = "idiomatic.arch/scenario-test@0.1.0", file = "service_test/{*group}/test.rs", count = { min = 0 }, description = "One group of the service's cases." },
   { alias = "group-fixtures", template = "concept-fixtures", file = "service_test/{*group}/fixtures.rs", count = { min = 0 }, description = "The test support of one group of the service's cases." },
   { alias = "part-module", template = "part", file = "{*part}/mod.rs", count = { min = 0 }, description = "The module file of a nested part, holding its items." },
   { alias = "part-service", template = "service", file = "{*part}/service.rs", count = { min = 0 }, description = "A nested part's free functions." },
@@ -33,8 +33,8 @@ templates = [
   { alias = "part-fixture-files", template = "concept-fixtures", file = "{*part}/fixtures/{*fixture}", count = { min = 0 }, description = "A file of a nested part's test support beneath its `fixtures/`." },
   { alias = "part-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of a nested part that is a test group of its own." },
   { alias = "part-service-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/service_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of a nested part's service." },
-  { alias = "part-group-module", template = "idiomatic.arch/test-group-module@0.1.0", file = "{*part}/service_test/{*group}/mod.rs", count = { min = 0 }, description = "The module file of one group of a nested part's cases." },
-  { alias = "part-group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/service_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "One group of a nested part's cases." },
+  { alias = "part-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/service_test/{*group}/mod.rs", count = { min = 0 }, description = "The module file of one group of a nested part's cases." },
+  { alias = "part-group-test", template = "idiomatic.arch/scenario-test@0.1.0", file = "{*part}/service_test/{*group}/test.rs", count = { min = 0 }, description = "One group of a nested part's cases." },
   { alias = "part-group-fixtures", template = "concept-fixtures", file = "{*part}/service_test/{*group}/fixtures.rs", count = { min = 0 }, description = "The test support of one group of a nested part's cases." },
 ]
 rules = [
@@ -46,7 +46,7 @@ rules = [
   { rule = "service-shape", include = ["service.rs", { placed-by = "part-service" }], description = "A concept's service is free functions only: no struct, enum, union, trait or impl." },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["types.rs", { placed-by = "part-types" }], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block." },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["types.rs", "types/*.rs", "types/*/value.rs", { placed-by = "part-types" }], description = "A part owns a nominal type directly or through its declared canonical behavior value." },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["types.rs", { placed-by = "part-types" }], description = "Every field of a struct in a types.rs is public: a type is its data." },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["types.rs", { placed-by = "part-types" }], description = "Every field of a struct in a types.rs is public: a type is its data." },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs", { placed-by = "part-types" }, { placed-by = "part-errors" }], description = "A part's types and errors are nominal types, never type aliases." },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs", { placed-by = "part-errors" }], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
   { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
@@ -55,9 +55,11 @@ rules = [
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
   { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-schemas-test" }, { placed-by = "part-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { rule = "idiomatic.arch/scenario-test@0.1.0", include = [{ placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A group's scenario test holds `use` lines and at least one `#[test]` function: its helpers come from the group's fixtures, and it exports nothing." },
+  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "group-module" }, { placed-by = "part-group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
 ]
 
 [params]

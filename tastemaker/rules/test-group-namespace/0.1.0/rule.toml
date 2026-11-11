@@ -1,0 +1,66 @@
+description = "A test group's module file declares modules only: its test, its fixtures and its sub-groups, never a test function or a helper."
+why = "A group of cases is a directory: its `mod.rs` names what the group holds (`test`, `fixtures`, and the groups nested in it), and the group's tests and support live in those files. A module file that declares only sub-groups is a group namespace and needs no `test` of its own; a module file that holds a `#[test]` function, a helper, a type or a constant has become a second test file nobody looks for. Every top-level item that is not a `mod` declaration is reported where it stands (attributes on the declarations, such as `#[cfg(test)]`, are part of them)."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let roots = select * from tree-nodes where kind = "source-file";
+let item-edges = select r."child" as "id" from roots as l join "syntax-child" as r on l."id" = r."parent";
+let items = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span" from item-edges as l join tree-nodes as r on l."id" = r."id";
+let declarations = select * from items where glob_any(kind, "{module,attr}");
+let other = antijoin(left=items, right=declarations, left-on=["id"], right-on=["id"]);
+let found = select l."kind" as "kind", l."file" as "file", l."span" as "span" from other as l;
+emit found subject "file" key("span");
+'''
+
+[diagnostic]
+primary = "span"
+message = "`{kind}` in a test group's module file, which declares the group's modules only"
+help = "Move a `#[test]` function into the group's `test.rs`, and a helper, a type or a constant into its `fixtures.rs`; the module file declares `test`, `fixtures` and the nested groups."
+
+[given]
+include = ["**/mod.rs"]
+
+[[scenarios]]
+id = "group-with-its-test"
+scenario = "A group module that declares its test and its fixtures passes."
+given.files.'src/owner/service_test/publication/mod.rs' = '''
+//! The publication group.
+#[cfg(test)]
+mod fixtures;
+#[cfg(test)]
+pub(super) mod test;
+'''
+
+[[scenarios]]
+id = "group-namespace"
+scenario = "A group module that only declares its sub-groups is a namespace and passes with no test of its own."
+given.files.'src/owner/service_test/interpreter/mod.rs' = '''
+//! The interpreter's groups.
+#[cfg(test)]
+mod budget;
+#[cfg(test)]
+mod population;
+'''
+
+[[scenarios]]
+id = "group-module-holding-a-test"
+scenario = "A group module that holds a `#[test]` function is reported at it."
+given.files.'src/owner/service_test/publication/mod.rs' = '''
+#[cfg(test)]
+pub(super) mod test;
+
+#[test]
+fn publishes() {}
+'''
+then.findings = [{ path = "src/owner/service_test/publication/mod.rs", line = 4 }]
+
+[[scenarios]]
+id = "group-module-holding-a-helper"
+scenario = "A group module that holds a helper function is reported at it."
+given.files.'src/owner/service_test/interpreter/mod.rs' = '''
+#[cfg(test)]
+mod budget;
+
+pub(super) fn owner() {}
+'''
+then.findings = [{ path = "src/owner/service_test/interpreter/mod.rs", line = 4 }]
