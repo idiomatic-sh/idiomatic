@@ -8,6 +8,8 @@ use ryo_benchmark_contracts::domain::{
 };
 use std::{collections::BTreeMap, path::Path};
 
+pub(super) mod scenarios;
+
 const CHILD_SCENARIO: &str = "engine-trace-child=";
 const RUNNER: &str = "application::worker_request::service_test::succeeds";
 const VERIFIED: &str = "engine-trace-session-verified:";
