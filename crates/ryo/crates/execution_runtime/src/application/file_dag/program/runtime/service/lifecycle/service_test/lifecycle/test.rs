@@ -1,10 +1,11 @@
 //! Compiled program lifecycle proof with a real owner.
-use super::super::super::fixtures::{Reentry, RuntimeProbeMode};
+use super::super::super::fixtures::{Reentry, RuntimeProbeMode, Seen};
 use super::fixtures::{Cleanup, Lived, cleanup, counted, initialized, nested, reentered, retried};
 use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::readiness::types::{ReadinessCounts, ReadinessEvents};
+use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use std::borrow::Cow;
 
 /// The lifecycle path a row runs one compiled program through.
@@ -40,6 +41,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             invocations: [WRONG_BINDING; 2],
             slots: Cow::Borrowed(&[(WRONG_BINDING, true), (WRONG_BINDING, true)]),
             evaluations: 2,
+            seen: Cow::Borrowed(&[Seen::Nested {
+                outer_is_rule_root: true,
+                inner_failed: true,
+                ordered_row: Cow::Borrowed(&[Cell::Number(Integer(100))]),
+            }]),
         }),
     },
     Case {
@@ -123,6 +129,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             retained_kept: true,
             replayed: 1,
             finish: NOT_RUN,
+            seen: Cow::Borrowed(&[
+                Seen::Release {
+                    refused: true,
+                    checkpoint_kept: true,
+                },
+                Seen::Release {
+                    refused: true,
+                    checkpoint_kept: true,
+                },
+            ]),
         })),
     },
 ];

@@ -1,7 +1,7 @@
 //! The support of the `invocation_state` cases.
 use super::super::super::super::service::*;
 use super::super::super::fixtures::*;
-use super::super::super::scratch_owner::fixtures::{execute, hosted};
+use super::super::super::scratch_owner::fixtures::{Left, execute, hosted};
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -69,12 +69,13 @@ pub(super) enum Observed {
         starts: Cow<'static, [usize]>,
         rows: Cow<'static, [Cell]>,
     },
-    /// The closure's rows, the rows of its largest partition, and whether the partition buffer
-    /// kept the capacity of both peaks (64 and up).
+    /// The closure's rows, the rows of its largest partition, whether the partition buffer kept
+    /// the capacity of both peaks (64 and up), and what the run left behind.
     Closure {
         rows: usize,
         partition_rows: usize,
         capacity_holds_both_peaks: bool,
+        left: Left,
     },
 }
 
@@ -196,7 +197,7 @@ fn partitioned() -> Observed {
         HostedCell::Number(Integer(101)),
         HostedCell::Number(Integer(1)),
     ]);
-    let (result, observed) = execute(
+    let (result, observed, left) = execute(
         Operation::Closure {
             edges: PlanInput::Step(StepId(0)),
             keys: vec![ColumnIndex(2)],
@@ -206,10 +207,11 @@ fn partitioned() -> Observed {
         hosted(&[HostKind::Number; 3], rows),
         &mut Symbols::default(),
     );
-    // execute calls normal file.finish and checks the real owner's required bytes are zero.
+    // execute calls normal file.finish and observes the real owner's required bytes.
     Observed::Closure {
         rows: result.unwrap().count.0,
         partition_rows: observed.closure_partition_rows,
         capacity_holds_both_peaks: observed.closure_partition_capacity >= 64,
+        left,
     }
 }

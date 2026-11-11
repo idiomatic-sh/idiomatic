@@ -60,7 +60,7 @@ pub(crate) fn execute(
     operation: Operation,
     host: HostRelation,
     symbols: &mut Symbols,
-) -> (Result<Table, OperatingError>, ExecutionObservation) {
+) -> (Result<Table, OperatingError>, ExecutionObservation, Left) {
     let mut plan = plan(PlanShape::ProjectRetry);
     plan.steps[0].operation = Operation::Hosted {
         relation: HostedNumber(0),
@@ -130,21 +130,26 @@ pub(crate) fn execute(
         .context
         .borrow(symbols, &prepared, RuleIndex(0))
         .unwrap();
-    assert!(
-        context.scratch.select_scratch.0.get().is_none(),
-        "dynamic matcher state belongs to the actual invocation, not reusable rule scratch"
-    );
+    // Dynamic matcher state belongs to the invocation, not to the rule's reusable scratch.
+    let matcher_in_rule_scratch = context.scratch.select_scratch.0.get().is_some();
     let owner = Rc::clone(&file.owner);
     let _readiness = file.finish().unwrap();
-    assert_eq!(
-        owner.derived().working_bytes(),
-        0,
-        "normal file shutdown releases actual required resources"
-    );
+    let left = Left {
+        matcher_in_rule_scratch,
+        working_bytes: owner.derived().working_bytes().0,
+    };
     let result = match outcome.emit {
         RootOutcome::Complete(table) => Ok(table),
         RootOutcome::Unknown(error) | RootOutcome::Failed(error) => Err(error),
         _ => Err(OperatingError::NotRun),
     };
-    (result, observed)
+    (result, observed, left)
+}
+
+/// What a run left behind: whether the rule's reusable scratch held a dynamic matcher, and the graph owner's working
+/// bytes once the file finished.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Left {
+    pub(crate) matcher_in_rule_scratch: bool,
+    pub(crate) working_bytes: usize,
 }

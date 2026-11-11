@@ -18,18 +18,20 @@ enum Replay {
     Join { key: i64, column: u32 },
 }
 
-/// The cells passed on, and how often the taker was called (scans and projections only).
+/// The cells passed on, and (scans and projections only) how often the taker was called and how
+/// many of those calls did not borrow the original source context.
 #[derive(Debug, PartialEq)]
 struct Replayed {
     cells: Cow<'static, [Cell]>,
-    calls: Option<usize>,
+    calls: Option<(usize, usize)>,
 }
 
-/// The refusal, and how often the taker was called before it.
+/// The refusal, how often the taker was called before it, and how many of those calls did not
+/// borrow the original source context.
 #[derive(Debug, PartialEq)]
 struct Refused {
     error: OperatingError,
-    calls: usize,
+    calls: (usize, usize),
 }
 
 type Input = Replay;
@@ -47,14 +49,14 @@ const FILES_3: &[Cell] = &[
     Cell::File(FileId(2)),
 ];
 
-const fn ok(cells: &'static [Cell], calls: Option<usize>) -> Replayed {
+const fn ok(cells: &'static [Cell], calls: Option<(usize, usize)>) -> Replayed {
     Replayed {
         cells: Cow::Borrowed(cells),
         calls,
     }
 }
 
-const fn err(error: OperatingError, calls: usize) -> Refused {
+const fn err(error: OperatingError, calls: (usize, usize)) -> Refused {
     Refused { error, calls }
 }
 
@@ -66,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             files: 3,
             refuse: false,
         },
-        expect: Expect::Value(ok(FILES_3, Some(3))),
+        expect: Expect::Value(ok(FILES_3, Some((3, 0)))),
     },
     Case {
         name: CaseName("a_scan_stops_at_the_row_the_taker_refuses"),
@@ -75,19 +77,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             files: 3,
             refuse: true,
         },
-        expect: Expect::Error(err(OperatingError::NotRun, 1)),
+        expect: Expect::Error(err(OperatingError::NotRun, (1, 0))),
     },
     Case {
         name: CaseName("the_engine_sink_reads_the_original_source_context"),
         word: Word::Succeeds,
         input: || Replay::Project { column: 0 },
-        expect: Expect::Value(ok(FILES_2, Some(2))),
+        expect: Expect::Value(ok(FILES_2, Some((2, 0)))),
     },
     Case {
         name: CaseName("a_real_step_passes_on_the_rows_it_computes"),
         word: Word::Succeeds,
         input: || Replay::Project { column: 0 },
-        expect: Expect::Value(ok(FILES_2, Some(2))),
+        expect: Expect::Value(ok(FILES_2, Some((2, 0)))),
     },
     Case {
         name: CaseName("rows_the_real_computation_refuses_are_not_passed_on"),
@@ -95,7 +97,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Replay::Project { column: 99 },
         expect: Expect::Error(err(
             OperatingError::Table(RowsError::NoSuchColumn { index: 99 }),
-            0,
+            (0, 0),
         )),
     },
     Case {
@@ -116,7 +118,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Replay::Join { key: 1, column: 3 },
         expect: Expect::Error(err(
             OperatingError::Table(RowsError::NoSuchColumn { index: 3 }),
-            0,
+            (0, 0),
         )),
     },
     Case {
@@ -137,6 +139,7 @@ fn subject(replay: Input) -> Result<Value, Failure> {
         } => context(|context| {
             let mut sink = CheckedSink {
                 calls: 0,
+                foreign_sources: 0,
                 refuse,
                 rows: vec![],
             };
@@ -146,27 +149,34 @@ fn subject(replay: Input) -> Result<Value, Failure> {
                 context,
                 &mut sink,
             );
-            scanned.map_err(refused(sink.calls))?;
-            Ok(ok_owned(sink.rows, Some(sink.calls)))
+            scanned.map_err(refused((sink.calls, sink.foreign_sources)))?;
+            Ok(ok_owned(
+                sink.rows,
+                Some((sink.calls, sink.foreign_sources)),
+            ))
         }),
         Replay::Project { column } => {
             let mut sink = CheckedSink {
                 calls: 0,
+                foreign_sources: 0,
                 refuse: false,
                 rows: vec![],
             };
             let projected = project_into(column, &mut sink);
-            projected.map_err(refused(sink.calls))?;
-            Ok(ok_owned(sink.rows, Some(sink.calls)))
+            projected.map_err(refused((sink.calls, sink.foreign_sources)))?;
+            Ok(ok_owned(
+                sink.rows,
+                Some((sink.calls, sink.foreign_sources)),
+            ))
         }
         Replay::Join { key, column } => {
-            let joined = indexed_join(key, column).map_err(refused(0))?;
+            let joined = indexed_join(key, column).map_err(refused((0, 0)))?;
             Ok(ok_owned(joined.cells, None))
         }
     }
 }
 
-fn ok_owned(cells: Vec<Cell>, calls: Option<usize>) -> Replayed {
+fn ok_owned(cells: Vec<Cell>, calls: Option<(usize, usize)>) -> Replayed {
     Replayed {
         cells: cells.into(),
         calls,

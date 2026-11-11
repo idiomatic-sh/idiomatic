@@ -16,7 +16,18 @@ pub(super) const fn span(start: u32, end: u32) -> Span {
     }
 }
 
-pub(super) fn evaluate(spans: &[Span]) -> Result<Vec<Value>, OperatingError> {
+/// What the collected run answered: its column kinds and cells, and whether the streamed run answered the same.
+pub(super) struct Evaluated {
+    pub(super) kinds: Vec<CellKind>,
+    pub(super) cells: Vec<Value>,
+    pub(super) streamed_same: bool,
+}
+/// The collected run's refusal, and whether the streamed run answered the same.
+pub(super) struct Refusal {
+    pub(super) error: OperatingError,
+    pub(super) streamed_same: bool,
+}
+pub(super) fn evaluate(spans: &[Span]) -> Result<Evaluated, Refusal> {
     let providers = [compiled::Provider {
         relation: Relation::SyntaxTree,
         table: compiled::rows(
@@ -55,11 +66,14 @@ pub(super) fn evaluate(spans: &[Span]) -> Result<Vec<Value>, OperatingError> {
         &mut Symbols::default(),
         compiled::Downstream::Streamed,
     );
-    assert_eq!(collected, streamed);
-    let output = collected?;
-    assert_eq!(
-        output.kinds,
-        vec![CellKind::Span, CellKind::Number, CellKind::Number]
-    );
-    Ok(output.cells)
+    let streamed_same = collected == streamed;
+    let output = collected.map_err(|error| Refusal {
+        error,
+        streamed_same,
+    })?;
+    Ok(Evaluated {
+        kinds: output.kinds,
+        cells: output.cells,
+        streamed_same,
+    })
 }

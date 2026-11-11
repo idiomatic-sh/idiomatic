@@ -31,7 +31,16 @@ use std::sync::Arc;
 
 type Input = ProgramShape;
 
-pub(in super::super) type Value = (usize, &'static str);
+pub(in super::super) type Value = (usize, &'static str, Answered);
+
+/// Who answered the completed target: its registered operator's calls, whether the target is a select of a source
+/// relation, and the shared walk's source passes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in super::super) struct Answered {
+    pub(in super::super) registered_calls: usize,
+    pub(in super::super) reads_a_source: bool,
+    pub(in super::super) walk_passes: u64,
+}
 
 type Failure = OperatingError;
 
@@ -139,10 +148,11 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
             ..
         }
     );
-    assert!(
-        routes.registered_calls > 0 || (reads_a_source && file.walk_counts().passes.0 > 0),
-        "a completed target is answered by its registered operator or, for a select of a source, the shared walk"
-    );
+    let answered = Answered {
+        registered_calls: routes.registered_calls,
+        reads_a_source,
+        walk_passes: file.walk_counts().passes.0,
+    };
     let shown = table
         .cells
         .iter()
@@ -171,5 +181,5 @@ pub(crate) fn subject(scenario: Input) -> Result<Value, Failure> {
         })
         .collect::<Vec<_>>()
         .join(" ");
-    Ok((table.count.0, Box::leak(shown.into_boxed_str())))
+    Ok((table.count.0, Box::leak(shown.into_boxed_str()), answered))
 }

@@ -1,7 +1,43 @@
 //! The subject of the source partition cases: one project phase run over the partitioned sources.
 use super::*;
+use std::borrow::Cow;
+/// How a source was admitted: the admission's name, and where the case reads them, the admitted rows, the provider
+/// reads made, and the files a partial admission covers.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Admission {
+    pub(crate) how: &'static str,
+    pub(crate) rows: Option<usize>,
+    pub(crate) reads: Option<usize>,
+    pub(crate) partial: Cow<'static, [Option<FileId>]>,
+}
+/// A refused admission, and the provider reads made before a refused project was answered.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Refused {
+    pub(crate) error: OperatingError,
+    pub(crate) reads_before: Option<usize>,
+}
+/// An admission named `how` with nothing else read.
+const fn named(how: &'static str) -> Admission {
+    Admission {
+        how,
+        rows: None,
+        reads: None,
+        partial: Cow::Borrowed(&[]),
+    }
+}
 /// Runs the case's project phase over the partitioned sources and answers how it was admitted.
-pub(crate) fn admit(case: SourceCase) -> Result<&'static str, OperatingError> {
+pub(crate) fn admit(case: SourceCase) -> Result<Admission, Refused> {
+    let mut reads_before = None;
+    admitted(case, &mut reads_before).map_err(|error| Refused {
+        error,
+        reads_before,
+    })
+}
+/// The admission, recording in `reads_before` the provider reads a refused project made before its answer.
+fn admitted(
+    case: SourceCase,
+    reads_before: &mut Option<usize>,
+) -> Result<Admission, OperatingError> {
     let SmallTree {
         elements,
         mut symbols,
@@ -124,7 +160,7 @@ pub(crate) fn admit(case: SourceCase) -> Result<&'static str, OperatingError> {
             vec![].into(),
         );
         handover.validate_scope(prepared.program(), &required)?;
-        return Ok("frontier-scope");
+        return Ok(named("frontier-scope"));
     }
     let owner = open_program_owner(
         ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(
@@ -256,7 +292,7 @@ pub(crate) fn admit(case: SourceCase) -> Result<&'static str, OperatingError> {
             &completion,
             &mut context,
         )?;
-        return Ok("scope-admitted");
+        return Ok(named("scope-admitted"));
     }
     if matches!(case, SourceCase::Hosted | SourceCase::Parameter) {
         let root = *prepared.program().rules()[0]
@@ -275,9 +311,11 @@ pub(crate) fn admit(case: SourceCase) -> Result<&'static str, OperatingError> {
             return Err(OperatingError::NotRun);
         };
         contributed_proof(&project, &[admitted.clone()], &owner)?;
-        assert_eq!(count_of(&admitted.rows(&owner, &read)?).0, 1);
-        assert_eq!(reads.get(), 0);
-        return Ok("invariant");
+        return Ok(Admission {
+            rows: Some(count_of(&admitted.rows(&owner, &read)?).0),
+            reads: Some(reads.get()),
+            ..named("invariant")
+        });
     }
     let requested = if matches!(case, SourceCase::ProjectRefusal) {
         &project
@@ -290,20 +328,27 @@ pub(crate) fn admit(case: SourceCase) -> Result<&'static str, OperatingError> {
         &mut context,
     );
     if matches!(case, SourceCase::ProjectRefusal) {
-        assert_eq!(reads.get(), 0);
+        *reads_before = Some(reads.get());
     }
     let admitted = result?;
-    assert_eq!(reads.get(), 1);
-    match admitted.coverage().clone() {
-        ryo_execution_domain::domain::completion::types::CoverageState::Complete => Ok("complete"),
+    let reads = Some(reads.get());
+    Ok(match admitted.coverage().clone() {
+        ryo_execution_domain::domain::completion::types::CoverageState::Complete => Admission {
+            reads,
+            ..named("complete")
+        },
         ryo_execution_domain::domain::completion::types::CoverageState::Partial {
             files, ..
-        } => {
-            assert_eq!(files, vec![Some(FileId(0))]);
-            Ok("partial")
-        }
+        } => Admission {
+            reads,
+            partial: files.into(),
+            ..named("partial")
+        },
         ryo_execution_domain::domain::completion::types::CoverageState::Inapplicable { .. } => {
-            Ok("inapplicable")
+            Admission {
+                reads,
+                ..named("inapplicable")
+            }
         }
-    }
+    })
 }

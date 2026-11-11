@@ -35,11 +35,23 @@ pub(crate) struct Obligation {
     pub(crate) class: u64,
 }
 pub(crate) struct Coverage {
+    pub(crate) events: EventChecks,
     pub(crate) expected: BTreeSet<Obligation>,
     pub(crate) served: BTreeSet<Obligation>,
     pub(crate) dispatches: usize,
     pub(crate) skipped: usize,
     pub(crate) heads: usize,
+}
+/// What the decoded events show beyond their obligations: class events naming a head already classed, ready events
+/// off the per-file phase or off file 0, ready heads issued twice, dispatches of an obligation already served, and
+/// whether the ready heads are exactly the heads the authored roots require.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EventChecks {
+    pub(crate) reclassed_heads: usize,
+    pub(crate) misplaced_ready: usize,
+    pub(crate) repeated_ready_heads: usize,
+    pub(crate) repeated_dispatches: usize,
+    pub(crate) heads_as_required: bool,
 }
 pub(crate) fn numbers(value: &str) -> Vec<u64> {
     let value = value.strip_prefix('[').unwrap().strip_suffix(']').unwrap();
@@ -66,29 +78,35 @@ pub(crate) fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u
     let mut dispatches = 0;
     let mut ready_heads = 0;
     let mut actual_heads = BTreeSet::new();
+    let mut reclassed_heads = 0;
+    let mut misplaced_ready = 0;
+    let mut repeated_ready_heads = 0;
+    let mut repeated_dispatches = 0;
     let events = events.0.lock().unwrap();
     for event in events.iter().filter(|event| {
         event.get("event").map(String::as_str)
             == Some(crate::application::file_dag::program::constants::WALK_CLASS)
     }) {
         for head in numbers(&event["heads"]) {
-            assert!(
-                heads
-                    .insert(head, event["class"].parse::<u64>().unwrap())
-                    .is_none()
-            );
+            if heads
+                .insert(head, event["class"].parse::<u64>().unwrap())
+                .is_some()
+            {
+                reclassed_heads += 1;
+            }
         }
     }
     for event in events.iter() {
         match event.get("event").map(String::as_str) {
             Some(crate::application::file_dag::program::constants::WALK_READY) => {
-                assert_eq!(event["phase"], "PerFile");
-                assert_eq!(event["file"], "0");
+                if event["phase"] != "PerFile" || event["file"] != "0" {
+                    misplaced_ready += 1;
+                }
                 let head = event["logical"].parse::<u64>().unwrap();
-                assert!(
-                    actual_heads.insert(head),
-                    "one authority-issued readiness obligation per physical head in this valid demand-all corpus"
-                );
+                // One authority-issued readiness obligation per physical head in this demand-all corpus.
+                if !actual_heads.insert(head) {
+                    repeated_ready_heads += 1;
+                }
                 let _new = expected.insert(Obligation {
                     generation: event["generation"].clone(),
                     population: population(&event["population"]),
@@ -101,14 +119,13 @@ pub(crate) fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u
             Some(crate::application::file_dag::program::constants::WALK_DISPATCH) => {
                 dispatches += 1;
                 for class in numbers(&event["classes"]) {
-                    assert!(
-                        served.insert(Obligation {
-                            generation: event["generation"].clone(),
-                            population: event["population"].clone(),
-                            class
-                        }),
-                        "same class/population/generation dispatched twice"
-                    );
+                    if !served.insert(Obligation {
+                        generation: event["generation"].clone(),
+                        population: event["population"].clone(),
+                        class,
+                    }) {
+                        repeated_dispatches += 1;
+                    }
                 }
             }
             Some(crate::application::file_dag::program::constants::WALK_REFUSED) => {
@@ -117,11 +134,15 @@ pub(crate) fn decode(events: &Events, skipped: usize, required_heads: BTreeSet<u
             _ => {}
         }
     }
-    assert_eq!(
-        actual_heads, required_heads,
-        "all independently declared and compiled roots of this demand-all corpus must reach runtime admission"
-    );
     Coverage {
+        // Every independently declared and compiled root of this demand-all corpus reaches runtime admission.
+        events: EventChecks {
+            reclassed_heads,
+            misplaced_ready,
+            repeated_ready_heads,
+            repeated_dispatches,
+            heads_as_required: actual_heads == required_heads,
+        },
         expected,
         served,
         dispatches,

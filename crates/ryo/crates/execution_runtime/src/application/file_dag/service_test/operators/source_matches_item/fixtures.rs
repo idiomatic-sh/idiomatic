@@ -15,7 +15,7 @@ pub(super) fn evaluate(
     source: &'static [u8],
     spans: &[Span],
     pattern: &'static str,
-) -> Result<Vec<Span>, OperatingError> {
+) -> Result<(Vec<Span>, Vec<CellKind>, bool), OperatingError> {
     let providers = [compiled::Provider {
         relation: Relation::SyntaxTree,
         table: compiled::rows(
@@ -59,10 +59,9 @@ pub(super) fn evaluate(
         &mut Symbols::default(),
         compiled::Downstream::Streamed,
     );
-    assert_eq!(collected, streamed);
+    let streamed_same = collected == streamed;
     let output = collected?;
-    assert_eq!(output.kinds, vec![CellKind::Span, CellKind::Span]);
-    Ok(output
+    let spans = output
         .cells
         .chunks_exact(2)
         .map(|row| {
@@ -71,7 +70,8 @@ pub(super) fn evaluate(
             };
             span
         })
-        .collect())
+        .collect();
+    Ok((spans, output.kinds, streamed_same))
 }
 
 pub(super) fn evaluate_lines(
@@ -124,7 +124,7 @@ pub(super) fn captured(
     source: &'static [u8],
     spans: &[Span],
     pattern: &'static str,
-) -> Result<Vec<(Span, Span, String)>, OperatingError> {
+) -> Result<(Vec<(Span, Span, String)>, Vec<CellKind>, Option<String>), OperatingError> {
     use ryo_language::domain::symbols::{
         service::{intern_derived, text_of},
         types::ByteSlice,
@@ -165,20 +165,8 @@ pub(super) fn captured(
         compiled::Downstream::Collected,
     );
     let output = result?;
-    assert_eq!(
-        text_of(&symbols, ByteSlice(source), comment).map(|text| text.0),
-        Some(" noqa: W605")
-    );
-    assert_eq!(
-        output.kinds,
-        vec![
-            CellKind::Span,
-            CellKind::Span,
-            CellKind::Span,
-            CellKind::Symbol
-        ]
-    );
-    Ok(output
+    let comment = text_of(&symbols, ByteSlice(source), comment).map(|text| text.0.to_owned());
+    let captures = output
         .cells
         .chunks_exact(4)
         .map(|row| {
@@ -196,5 +184,6 @@ pub(super) fn captured(
                     .to_string(),
             )
         })
-        .collect())
+        .collect();
+    Ok((captures, output.kinds, comment))
 }

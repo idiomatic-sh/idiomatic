@@ -1,4 +1,5 @@
 //! Chained registered evaluations reuse downstream invocation state and release their peaks.
+use super::super::super::scratch_owner::fixtures::Left;
 use super::fixtures::{Observed, Program, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
@@ -30,6 +31,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: 529,
             partition_rows: 32,
             capacity_holds_both_peaks: true,
+            left: Left {
+                matcher_in_rule_scratch: false,
+                working_bytes: 0,
+            },
         }),
     },
 ];

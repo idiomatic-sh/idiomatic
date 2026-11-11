@@ -1,5 +1,6 @@
 //! Select, count and refusal cases through the prepared file program.
 mod evaluation;
+use evaluation::fixtures::Answered;
 #[cfg(test)]
 mod fixtures;
 use fixtures::{ProgramShape, plan, rule};
@@ -31,68 +32,148 @@ use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::stored_facts::types::Digest;
 use std::sync::Arc;
 type Input = ProgramShape;
-type Value = (usize, &'static str);
+type Value = (usize, &'static str, Answered);
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_elements_of_the_tree_of_a_kind_are_selected"),
         word: Word::Succeeds,
         input: || ProgramShape::Words,
-        expect: Expect::Value((2, "1 _ 3 _")),
+        expect: Expect::Value((
+            2,
+            "1 _ 3 _",
+            Answered {
+                registered_calls: 0,
+                reads_a_source: true,
+                walk_passes: 1,
+            },
+        )),
     },
     Case {
         name: CaseName("the_rows_of_a_step_whose_element_is_of_a_kind_are_selected"),
         word: Word::Succeeds,
         input: || ProgramShape::RowsOfWords,
-        expect: Expect::Value((2, "1 3")),
+        expect: Expect::Value((
+            2,
+            "1 3",
+            Answered {
+                registered_calls: 2,
+                reads_a_source: false,
+                walk_passes: 1,
+            },
+        )),
     },
     Case {
         name: CaseName("a_projection_that_drops_repeats_keeps_the_first_row_of_each_kind"),
         word: Word::Succeeds,
         input: || ProgramShape::DistinctKinds,
-        expect: Expect::Value((2, "word other")),
+        expect: Expect::Value((
+            2,
+            "word other",
+            Answered {
+                registered_calls: 3,
+                reads_a_source: false,
+                walk_passes: 1,
+            },
+        )),
     },
     Case {
         name: CaseName("a_projection_that_keeps_repeats_keeps_every_row"),
         word: Word::Succeeds,
         input: || ProgramShape::KeptKinds,
-        expect: Expect::Value((3, "word other word")),
+        expect: Expect::Value((
+            3,
+            "word other word",
+            Answered {
+                registered_calls: 3,
+                reads_a_source: false,
+                walk_passes: 1,
+            },
+        )),
     },
     Case {
         name: CaseName("a_count_of_lowered_rows_is_passed_on_with_the_keys"),
         word: Word::Succeeds,
         input: || ProgramShape::Counted,
-        expect: Expect::Value((1, "_ 2")),
+        expect: Expect::Value((
+            1,
+            "_ 2",
+            Answered {
+                registered_calls: 1,
+                reads_a_source: false,
+                walk_passes: 1,
+            },
+        )),
     },
     Case {
         name: CaseName("native_antijoin_preserves_missing_key_rows"),
         word: Word::Succeeds,
         input: || ProgramShape::NativeAntijoin,
-        expect: Expect::Value((1, "other")),
+        expect: Expect::Value((
+            1,
+            "other",
+            Answered {
+                registered_calls: 3,
+                reads_a_source: false,
+                walk_passes: 2,
+            },
+        )),
     },
     Case {
         name: CaseName("native_union_preserves_first_distinct_keys"),
         word: Word::Succeeds,
         input: || ProgramShape::NativeUnion,
-        expect: Expect::Value((2, "word other")),
+        expect: Expect::Value((
+            2,
+            "word other",
+            Answered {
+                registered_calls: 5,
+                reads_a_source: false,
+                walk_passes: 2,
+            },
+        )),
     },
     Case {
         name: CaseName("native_join_pairs_each_matching_step_row"),
         word: Word::Succeeds,
         input: || ProgramShape::NativeJoinSteps,
-        expect: Expect::Value((2, "1 1 3 1")),
+        expect: Expect::Value((
+            2,
+            "1 1 3 1",
+            Answered {
+                registered_calls: 2,
+                reads_a_source: false,
+                walk_passes: 2,
+            },
+        )),
     },
     Case {
         name: CaseName("native_join_follows_tree_node"),
         word: Word::Succeeds,
         input: || ProgramShape::NativeJoinTree,
-        expect: Expect::Value((1, "2 2")),
+        expect: Expect::Value((
+            1,
+            "2 2",
+            Answered {
+                registered_calls: 1,
+                reads_a_source: false,
+                walk_passes: 1,
+            },
+        )),
     },
     Case {
         name: CaseName("non_tree_join_uses_registered_operator_after_native_decline"),
         word: Word::Succeeds,
         input: || ProgramShape::OrdinaryFunctionJoin,
-        expect: Expect::Value((1, "2")),
+        expect: Expect::Value((
+            1,
+            "2",
+            Answered {
+                registered_calls: 4,
+                reads_a_source: false,
+                walk_passes: 1,
+            },
+        )),
     },
     Case {
         name: CaseName("missing_demanded_right_source_refuses_instead_of_empty_success"),

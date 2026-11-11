@@ -40,13 +40,44 @@ pub(super) fn cells(rows: Vec<Vec<Value>>) -> Vec<Vec<Expected>> {
         .map(|row| row.into_iter().map(Expected::Cell).collect())
         .collect()
 }
-/// Asserts an answer's rows against the expected rows, cell by cell.
+/// How an answer's rows compare with the expected rows, cell by cell.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Conformance {
+    /// Every row and every cell is the one expected of it.
+    Conforms,
+    /// The answer has another number of rows: the expected and the answered count.
+    Rows(usize, usize),
+    /// The answered row at this index has another number of cells than expected.
+    Width(usize),
+    /// The answered cell at this row and column differs from the one expected of it.
+    Cell(usize, usize),
+}
+
+/// Compares an answer's rows with the expected rows, cell by cell: a text cell by its text, and a digest cell as a
+/// number equal to every other cell of its digest group.
 ///
-/// # Panics
+/// # Examples
 ///
-/// When the answer has another number of rows, or a cell differs from the one expected of it.
-pub fn assert_expected(expected: &[Vec<Expected>], actual: &[Vec<Value>], symbols: &Symbols) {
-    assert_eq!(expected.len(), actual.len());
+/// ```
+/// use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::{
+///     Conformance, Expected, conformance,
+/// };
+/// use ryo_language::domain::symbols::types::Symbols;
+/// use ryo_relations::domain::relations::types::{Integer, Value};
+///
+/// let one = Value::Number(Integer(1));
+/// let symbols = Symbols::default();
+/// assert_eq!(conformance(&[vec![Expected::Cell(one)]], &[vec![one]], &symbols), Conformance::Conforms);
+/// assert_eq!(conformance(&[], &[vec![one]], &symbols), Conformance::Rows(0, 1));
+/// ```
+pub fn conformance(
+    expected: &[Vec<Expected>],
+    actual: &[Vec<Value>],
+    symbols: &Symbols,
+) -> Conformance {
+    if expected.len() != actual.len() {
+        return Conformance::Rows(expected.len(), actual.len());
+    }
     let mut digests = std::collections::BTreeMap::new();
     let texts = Texts {
         symbols,
@@ -54,26 +85,40 @@ pub fn assert_expected(expected: &[Vec<Expected>], actual: &[Vec<Value>], symbol
         paths: &[],
         arenas: &[],
     };
-    for (expected, actual) in expected.iter().zip(actual) {
-        assert_eq!(expected.len(), actual.len());
-        for (expected, actual) in expected.iter().zip(actual) {
-            match expected {
-                Expected::Cell(value) => assert_eq!(value, actual),
+    for (row, (expected, actual)) in expected.iter().zip(actual).enumerate() {
+        if expected.len() != actual.len() {
+            return Conformance::Width(row);
+        }
+        for (column, (expected, actual)) in expected.iter().zip(actual).enumerate() {
+            let same = match expected {
+                Expected::Cell(value) => value == actual,
                 Expected::Text(text) => {
-                    let Datum::Text(value) = datum(*actual, &texts) else {
-                        panic!("expected text")
-                    };
-                    assert_eq!(*text, value.0);
+                    matches!(datum(*actual, &texts), Datum::Text(value) if value.0 == *text)
                 }
                 Expected::Digest(group) => {
-                    assert!(matches!(actual, Value::Number(_)));
-                    if let Some(previous) = digests.insert(group, actual) {
-                        assert_eq!(previous, actual);
-                    }
+                    matches!(actual, Value::Number(_))
+                        && *digests.entry(group).or_insert(actual) == actual
                 }
+            };
+            if !same {
+                return Conformance::Cell(row, column);
             }
         }
     }
+    Conformance::Conforms
+}
+
+/// Asserts an answer's rows against the expected rows, cell by cell, for the conformance proofs of the crates that
+/// run these fixtures through their own boundary.
+///
+/// # Panics
+///
+/// When the answer does not conform: [`conformance`] answers where it differs.
+pub fn assert_expected(expected: &[Vec<Expected>], actual: &[Vec<Value>], symbols: &Symbols) {
+    assert_eq!(
+        conformance(expected, actual, symbols),
+        Conformance::Conforms
+    );
 }
 
 use ryo_values::domain::rows::types::Table;

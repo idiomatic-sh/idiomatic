@@ -4,6 +4,7 @@ use super::super::super::fixtures::*;
 use super::sources::Sources;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::fixtures::operator_contract as fixtures;
+use crate::application::file_dag::fixtures::operator_contract::expectations::Conformance;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
@@ -60,7 +61,7 @@ pub(crate) enum Chain {
 pub(crate) struct Probe {
     /// The fusion classification of each inserted projection, in program order.
     pub(crate) continuations: Vec<Option<Fusibility>>,
-    pub(crate) outcome: Result<(Table, Symbols), OperatingError>,
+    pub(crate) outcome: Result<(Table, Conformance), OperatingError>,
 }
 pub(crate) fn execute_chain(
     kind: OperationKind,
@@ -78,7 +79,7 @@ pub(crate) fn execute_fixture(
     kind: OperationKind,
     downstream: bool,
     operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
-) -> Result<(Table, Symbols), OperatingError> {
+) -> Result<(Table, Conformance), OperatingError> {
     execute_chain(
         kind,
         if downstream {
@@ -98,7 +99,7 @@ pub(crate) fn run_chain(
     chain: Chain,
     operators: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
     continuations: &mut Vec<Option<Fusibility>>,
-) -> Result<(Table, Symbols), OperatingError> {
+) -> Result<(Table, Conformance), OperatingError> {
     let mut case = fixtures::fixture(kind);
     let fusing = matches!(chain, Chain::Fused | Chain::Held);
     let mut inserted: Vec<usize> = Vec::new();
@@ -284,12 +285,11 @@ pub(crate) fn run_chain(
     };
     file.finish()?;
     let actual = result?;
-    assert!(actual.count.0 > 0, "nonempty actual {kind:?} owner route");
     let rows = actual
         .cells
         .chunks_exact(actual.kinds.len())
         .map(<[_]>::to_vec)
         .collect::<Vec<_>>();
-    fixtures::expectations::assert_expected(&case.expected, &rows, &case.symbols);
-    Ok((actual, case.symbols))
+    let conformance = fixtures::expectations::conformance(&case.expected, &rows, &case.symbols);
+    Ok((actual, conformance))
 }

@@ -3,6 +3,7 @@
 use super::super::fixtures::chain::{Chain, execute_chain, execute_fixture};
 use super::super::fixtures::describe;
 use super::fixtures::RefusingSemantics;
+use crate::application::file_dag::fixtures::operator_contract::expectations::Conformance;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::query_operators::types::OperationKind;
@@ -22,8 +23,12 @@ enum Asked {
 /// held chains disagreed.
 #[derive(Debug, PartialEq)]
 enum Answered {
-    Published(usize),
-    Disagreed { fused: String, held: String },
+    /// The rows published, and how they compare with the fixture's expected rows.
+    Published(usize, Conformance),
+    Disagreed {
+        fused: String,
+        held: String,
+    },
 }
 
 type Input = Asked;
@@ -35,7 +40,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_production_route_publishes_over_operators_that_answer"),
         word: Word::Succeeds,
         input: || Asked::Answered(OperationKind::Project),
-        expect: Expect::Value(Answered::Published(2)),
+        expect: Expect::Value(Answered::Published(2, Conformance::Conforms)),
     },
     Case {
         name: CaseName("production_route_cannot_bypass_an_injected_semantic_refusal"),
@@ -206,13 +211,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Asked::Route(kind) => execute_fixture(kind, false, Arc::new(RefusingSemantics))
-            .map(|(table, _)| Answered::Published(table.count.0)),
+            .map(|(table, conformance)| Answered::Published(table.count.0, conformance)),
         Asked::Answered(kind) => execute_fixture(
             kind,
             false,
             Arc::new(crate::application::file_dag::fixtures::operators()),
         )
-        .map(|(table, _)| Answered::Published(table.count.0)),
+        .map(|(table, conformance)| Answered::Published(table.count.0, conformance)),
         Asked::Chains(kind) => {
             let fused = execute_chain(kind, Chain::Fused, Arc::new(RefusingSemantics));
             let single = execute_chain(kind, Chain::Held, Arc::new(RefusingSemantics));
@@ -224,7 +229,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
             }
             fused
                 .outcome
-                .map(|(table, _)| Answered::Published(table.count.0))
+                .map(|(table, conformance)| Answered::Published(table.count.0, conformance))
         }
     }
 }

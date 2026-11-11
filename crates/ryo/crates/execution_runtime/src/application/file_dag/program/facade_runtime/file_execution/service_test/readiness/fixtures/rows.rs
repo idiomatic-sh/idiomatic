@@ -20,7 +20,8 @@ use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
 use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-pub(crate) fn observe(omit: bool) -> Coverage {
+use std::borrow::Cow;
+pub(crate) fn observe(omit: bool) -> Observed {
     let events = Events::default();
     let observer = tracing::Dispatch::new(events.clone());
     // tracing-core 0.1.36's sole-dispatch fast path consults the registering
@@ -29,22 +30,24 @@ pub(crate) fn observe(omit: bool) -> Coverage {
     // subscribers instead. Only `observer` is selected for event delivery.
     let registration = tracing::Dispatch::new(events.clone());
     let mut skipped = 0;
+    let mut unannounced = 0;
     let mut required_heads = BTreeSet::new();
+    let mut probe_events = (0, 0);
+    let mut roots = Vec::new();
+    let mut runs = Vec::new();
+    let mut replay_events = 0;
     tracing::dispatcher::with_default(&observer, || {
         let before = events.0.lock().unwrap().len();
         std::thread::spawn(move || registration_probe(omit))
             .join()
             .unwrap();
-        assert_eq!(
-            events.0.lock().unwrap().len(),
-            before,
-            "the unrelated thread has no capture dispatcher"
-        );
+        // The unrelated thread has no capture dispatcher; a callsite first registered without a
+        // local subscriber remains visible to this capture.
+        let unrelated = events.0.lock().unwrap().len() - before;
         registration_probe(omit);
-        assert_eq!(
-            events.0.lock().unwrap().len(),
-            before + 1,
-            "a callsite first registered without a local subscriber remains visible to this capture"
+        probe_events = (
+            unrelated,
+            events.0.lock().unwrap().len() - before - unrelated,
         );
         let SmallTree {
             elements,
@@ -114,22 +117,24 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                 .clone()
                 .unwrap();
             let region = &prepared.program().regions()[root.0];
-            assert_eq!(region.phase(), StepScope::PerFile);
-            assert_eq!(region.instructions().len(), 1);
             let head = &region.instructions()[0];
-            assert!(matches!(
-                &head.operation(),
-                Operation::Select {
-                    from: PlanInput::Relation(_),
-                    ..
-                } | Operation::Project {
-                    from: PlanInput::Relation(_),
-                    distinct: RepeatedRows::Kept,
-                    ..
-                }
-            ));
-            assert_eq!(head.contract().output_kinds.as_ref().unwrap().len(), 1);
-            assert!(required_heads.insert(u64::try_from(head.logical().0).unwrap()));
+            roots.push(Root {
+                phase: region.phase(),
+                instructions: region.instructions().len(),
+                reads_a_relation: matches!(
+                    &head.operation(),
+                    Operation::Select {
+                        from: PlanInput::Relation(_),
+                        ..
+                    } | Operation::Project {
+                        from: PlanInput::Relation(_),
+                        distinct: RepeatedRows::Kept,
+                        ..
+                    }
+                ),
+                output_kinds: head.contract().output_kinds.as_ref().ok().map(Vec::len),
+                new_head: required_heads.insert(u64::try_from(head.logical().0).unwrap()),
+            });
         }
         let services = Arc::new(ProgramServices::new(
             Arc::new(CommonOperatorEngine::new(Arc::new(
@@ -210,6 +215,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                 actual: &actual,
                 omitted,
                 skipped: Counter::new(0),
+                unannounced: Counter::new(0),
                 events: events.clone(),
             };
             let mut sources = SourceInputs {
@@ -235,6 +241,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                 )
                 .unwrap();
             skipped = adapter.skipped.get();
+            unannounced = adapter.unannounced.get();
         }
         let before = events.0.lock().unwrap().len();
         for index in 0..5 {
@@ -254,22 +261,63 @@ pub(crate) fn observe(omit: bool) -> Coverage {
                 let RootOutcome::Complete(table) = result.emit else {
                     panic!("actual delegated runtime must complete this valid corpus");
                 };
-                assert!(table.count.0 > 0);
                 if let Some(expected) = first.as_ref() {
-                    assert_eq!(&table.cells, expected);
+                    runs.push((table.count.0, &table.cells == expected));
                 } else {
+                    runs.push((table.count.0, true));
                     first = Some(table.cells);
                 }
             }
         }
-        assert_eq!(
-            events.0.lock().unwrap().len(),
-            before,
-            "retained publication and equivalent-head replay adds no readiness or dispatch"
-        );
+        // Retained publication and equivalent-head replay add no readiness or dispatch.
+        replay_events = events.0.lock().unwrap().len() - before;
     });
     drop(registration);
-    decode(&events, skipped, required_heads)
+    let coverage = decode(&events, skipped, required_heads);
+    Observed {
+        checks: Checks {
+            probe_events,
+            roots: roots.into(),
+            runs: runs.into(),
+            replay_events,
+            unannounced,
+            events: coverage.events,
+        },
+        coverage,
+    }
+}
+
+/// One authored emit root's region: its phase, its instruction count, whether its head reads a
+/// relation (a select, or a project keeping repeats), its head's output kinds, and whether its
+/// head was new among the roots.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(in super::super) struct Root {
+    pub(in super::super) phase: StepScope,
+    pub(in super::super) instructions: usize,
+    pub(in super::super) reads_a_relation: bool,
+    pub(in super::super) output_kinds: Option<usize>,
+    pub(in super::super) new_head: bool,
+}
+
+/// What the run showed beside its obligations: the events the unrelated thread's and then the
+/// local registration probe added, each authored root's region, each rule's two runs (the rows
+/// answered, and whether the run answered the first run's cells), the events the retained
+/// publication and replay added, the ready callbacks with no obligation before them, and what
+/// the decoded events show.
+#[derive(Clone, Debug, PartialEq)]
+pub(in super::super) struct Checks {
+    pub(in super::super) probe_events: (usize, usize),
+    pub(in super::super) roots: Cow<'static, [Root]>,
+    pub(in super::super) runs: Cow<'static, [(usize, bool)]>,
+    pub(in super::super) replay_events: usize,
+    pub(in super::super) unannounced: usize,
+    pub(in super::super) events: EventChecks,
+}
+
+/// The decoded coverage and the checks beside it.
+pub(crate) struct Observed {
+    pub(crate) coverage: Coverage,
+    pub(crate) checks: Checks,
 }
 
 #[derive(Debug, PartialEq)]
@@ -285,6 +333,7 @@ pub(in super::super) struct Admitted {
     pub(in super::super) obligations: usize,
     pub(in super::super) heads: usize,
     pub(in super::super) skipped: usize,
+    pub(in super::super) checks: Checks,
 }
 
 /// The refusal, what was admitted, and how many obligations were never served.
@@ -297,12 +346,16 @@ pub(in super::super) struct Unserved {
 
 /// Admits the corpus through the ready adapter and compares the obligations with those served.
 pub(in super::super) fn exercise(submission: Submission) -> Result<Admitted, Unserved> {
-    let observed = observe(matches!(submission, Submission::Omitted));
+    let Observed {
+        coverage: observed,
+        checks,
+    } = observe(matches!(submission, Submission::Omitted));
     let admitted = Admitted {
         dispatches: observed.dispatches,
         obligations: observed.expected.len(),
         heads: observed.heads,
         skipped: observed.skipped,
+        checks,
     };
     let unserved = observed.expected.difference(&observed.served).count();
     if observed.expected == observed.served {

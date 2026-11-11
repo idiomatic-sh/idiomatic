@@ -1,6 +1,6 @@
 //! The support of the `lifecycle` cases: one compiled program run through each lifecycle path.
 use super::super::super::fixtures::{
-    Reentry, RuntimeProbe, RuntimeProbeMode, Sink, SinkMode, context,
+    Reentry, RuntimeProbe, RuntimeProbeMode, Seen, Sink, SinkMode, context,
 };
 use super::super::super::inputs::fixtures::{CompiledCase, TestInputs, compiled};
 use crate::application::file_dag::program::admission::service::Inputs;
@@ -29,6 +29,8 @@ pub(super) enum Lived {
         invocations: [Option<OperatingError>; 2],
         slots: Cow<'static, [(Option<OperatingError>, bool)]>,
         evaluations: usize,
+        /// What the probe saw inside the outer frame.
+        seen: Cow<'static, [Seen]>,
     },
     /// Same-region reentry: whether each invocation published, what the reentry saw, and the
     /// evaluations.
@@ -79,6 +81,8 @@ pub(super) struct Cleanup {
     pub(super) replayed: usize,
     /// The finish's refusal.
     pub(super) finish: Option<OperatingError>,
+    /// What the failing probe saw inside its evaluations.
+    pub(super) seen: Cow<'static, [Seen]>,
 }
 
 /// The outer root fails inside its nested demand of the inner one; it is invoked twice.
@@ -131,6 +135,7 @@ pub(super) fn nested() -> Result<Lived, OperatingError> {
         invocations: [first, second],
         slots,
         evaluations: probe.calls.get().0,
+        seen: Cow::Owned(probe.seen.borrow().clone()),
     })
 }
 
@@ -341,6 +346,7 @@ pub(super) fn cleanup() -> Result<Lived, OperatingError> {
             .err();
     }
     let evaluations = (failing.calls.get().0, healthy.calls.get().0);
+    let seen = Cow::Owned(failing.seen.borrow().clone());
     let retained_kept = execution.retry_checkpoint(execution.file_state(), roots[1])? == retained;
     let InvocationOutcome::Published(publication) = execution.invoke(
         execution.file_state(),
@@ -372,5 +378,6 @@ pub(super) fn cleanup() -> Result<Lived, OperatingError> {
         retained_kept,
         replayed: sink.rows.len(),
         finish: execution.finish().err(),
+        seen,
     }))
 }

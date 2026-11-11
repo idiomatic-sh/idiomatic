@@ -2,6 +2,7 @@
 use super::super::fixtures::chain::{Chain, execute_chain};
 use super::super::fixtures::describe;
 use super::fixtures::engine;
+use crate::application::file_dag::fixtures::operator_contract::expectations::Conformance;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::executable_program::fusion::types::{Barrier, Fusibility};
 use ryo_values::domain::query_operators::types::OperationKind;
@@ -18,9 +19,11 @@ struct Chains {
     rows: usize,
     /// Whether the held chain published the same rows in the same order.
     identical: bool,
+    /// How the fused and then the held chain's rows compare with the fixture's expected rows.
+    conformance: [Option<Conformance>; 2],
 }
 
-/// Both chains publish `rows` rows alike.
+/// Both chains publish `rows` rows alike, each conforming to the fixture's expected rows.
 const fn identical(rows: usize) -> Chains {
     Chains {
         continues: true,
@@ -28,6 +31,7 @@ const fn identical(rows: usize) -> Chains {
         held: true,
         rows,
         identical: true,
+        conformance: [Some(Conformance::Conforms); 2],
     }
 }
 
@@ -217,6 +221,13 @@ fn subject(kind: Input) -> Result<Value, Failure> {
             .all(|class| *class == Some(Fusibility::Barrier(Barrier::SharedConsumer))),
         rows,
         identical: describe(&fused) == describe(&single),
+        conformance: [&fused, &single].map(|probe| {
+            probe
+                .outcome
+                .as_ref()
+                .ok()
+                .map(|(_, conformance)| *conformance)
+        }),
     })
 }
 

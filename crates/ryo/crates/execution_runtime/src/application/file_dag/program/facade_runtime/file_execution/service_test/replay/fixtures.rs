@@ -79,8 +79,10 @@ pub(super) fn context<T>(run: impl FnOnce(&mut OperatorContext<'_>) -> T) -> T {
     })
 }
 
+/// A sink that counts its calls, and the calls whose context did not borrow the original source.
 pub(super) struct CheckedSink {
     pub(super) calls: usize,
+    pub(super) foreign_sources: usize,
     pub(super) refuse: bool,
     pub(super) rows: Vec<Cell>,
 }
@@ -91,10 +93,10 @@ impl RowSink for CheckedSink {
         context: &mut OperatorContext<'_>,
         row: &[Cell],
     ) -> Result<(), OperatingError> {
-        assert_eq!(
-            context.source.0, SOURCE,
-            "the actual engine sink borrows the original source context"
-        );
+        // The engine sink borrows the original source context.
+        if context.source.0 != SOURCE {
+            self.foreign_sources += 1;
+        }
         self.calls += 1;
         if self.refuse {
             return Err(OperatingError::NotRun);

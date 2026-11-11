@@ -1,7 +1,8 @@
 //! Actual invocation storage measurements through normal compiled file execution.
-use super::fixtures::{execute, hosted};
+use super::fixtures::{Left, execute, hosted};
 use crate::application::file_dag::fixtures::operator_contract::{
-    expectations::assert_expected, fixture,
+    expectations::{Conformance, conformance},
+    fixture,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -41,29 +42,42 @@ enum Delivered {
     Rows(usize),
     /// The pattern refusal's reason.
     InvalidRegex(Cow<'static, str>),
-    /// The rows, and whether they are the operator contract's expected rows.
-    Contract { rows: usize, as_expected: bool },
+    /// The rows, and how they compare with the operator contract's expected rows.
+    Contract {
+        rows: usize,
+        conformance: Conformance,
+    },
 }
 
-/// What the operation delivered, the scratch owners it initialized and the patterns it cached.
+/// What the operation delivered, the scratch owners it initialized, the patterns it cached, and what the run left
+/// behind.
 #[derive(Debug, PartialEq)]
 struct Ran {
     delivered: Delivered,
     owners_initialized: usize,
     regexes: usize,
+    left: Left,
 }
 
 type Input = Operated;
 type Value = Ran;
 type Failure = OperatingError;
 
+/// A run that cached no pattern, kept no matcher in the rule's scratch and left no working bytes.
 const fn ran(delivered: Delivered, owners_initialized: usize) -> Ran {
     Ran {
         delivered,
         owners_initialized,
         regexes: 0,
+        left: NOTHING_LEFT,
     }
 }
+
+/// What a normal run leaves: no matcher in the rule's scratch, no working bytes.
+const NOTHING_LEFT: Left = Left {
+    matcher_in_rule_scratch: false,
+    working_bytes: 0,
+};
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -108,7 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(ran(
             Delivered::Contract {
                 rows: 2,
-                as_expected: true,
+                conformance: Conformance::Conforms,
             },
             1,
         )),
@@ -120,7 +134,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(ran(
             Delivered::Contract {
                 rows: 2,
-                as_expected: true,
+                conformance: Conformance::Conforms,
             },
             1,
         )),
@@ -166,7 +180,7 @@ fn aggregate(kind: OperationKind) -> Result<Ran, OperatingError> {
         },
         _ => return Err(OperatingError::WrongOperation),
     };
-    let (result, observed) = execute(
+    let (result, observed, left) = execute(
         operation,
         hosted(&vec![HostKind::Number; input.kinds.len()], rows),
         &mut case.symbols,
@@ -177,25 +191,20 @@ fn aggregate(kind: OperationKind) -> Result<Ran, OperatingError> {
         .chunks_exact(out.kinds.len())
         .map(<[_]>::to_vec)
         .collect::<Vec<_>>();
-    // The contract's comparison asserts; whether it held is this row's observation.
-    let as_expected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        assert_expected(&case.expected, &rows, &case.symbols);
-    }))
-    .err()
-    .is_none();
     Ok(Ran {
         delivered: Delivered::Contract {
             rows: rows.len(),
-            as_expected,
+            conformance: conformance(&case.expected, &rows, &case.symbols),
         },
         owners_initialized: observed.owners_initialized,
         regexes: observed.regexes,
+        left,
     })
 }
 
 /// Runs the operation and observes what it delivered and initialized.
 fn subject(operated: Input) -> Result<Value, Failure> {
-    let (result, observed) = match operated {
+    let (result, observed, left) = match operated {
         Operated::Aggregate(kind) => return aggregate(kind),
         Operated::Project { distinct, rows } => execute(
             Operation::Project {
@@ -244,6 +253,7 @@ fn subject(operated: Input) -> Result<Value, Failure> {
         delivered,
         owners_initialized: observed.owners_initialized,
         regexes: observed.regexes,
+        left,
     })
 }
 
