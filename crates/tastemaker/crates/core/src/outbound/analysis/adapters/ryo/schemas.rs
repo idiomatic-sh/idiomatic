@@ -567,26 +567,31 @@ fn convert_request(request: AnalysisRequest) -> Result<LintRequest, AnalysisErro
         };
         let include = globs(&rule.include)?;
         let exclude = globs(&rule.exclude)?;
-        drop(
-            rules.insert(
-                id,
-                Rule {
-                    // A definition binds no other rule's output: its query reads the relations it names.
-                    observations: Vec::new(),
-                    query,
-                    // A rule runs on every file it governs, as it did before the SDK could hold one back to the syntax
-                    // its language accepted.
-                    applicability: RuleApplicability::Always,
-                    parameters: rule
-                        .parameters
-                        .iter()
-                        .map(|(name, value)| (ParameterName(name.0.clone()), parameter(value)))
-                        .collect(),
-                    include,
-                    exclude,
-                },
-            ),
+        // Two rules of one id would leave one of them never run: the request is refused whole, never one dropped.
+        let duplicate = rules.insert(
+            id,
+            Rule {
+                // A definition binds no other rule's output: its query reads the relations it names.
+                observations: Vec::new(),
+                query,
+                // A rule runs on every file it governs, as it did before the SDK could hold one back to the syntax
+                // its language accepted.
+                applicability: RuleApplicability::Always,
+                parameters: rule
+                    .parameters
+                    .iter()
+                    .map(|(name, value)| (ParameterName(name.0.clone()), parameter(value)))
+                    .collect(),
+                include,
+                exclude,
+            },
         );
+        if duplicate.is_some() {
+            return Err(engine(format!(
+                "two rules of one lint call share the id `{}`: one of them would never run; this is a Tastemaker bug",
+                rule.id.0
+            )));
+        }
     }
     Ok(LintRequest {
         // The core names no language: each file is read by the language that recognises its path.

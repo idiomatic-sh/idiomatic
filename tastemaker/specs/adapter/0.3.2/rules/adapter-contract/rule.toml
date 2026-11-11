@@ -1,0 +1,431 @@
+description = "An adapter's tests, its `adapter_test.rs` or one of its groups under `adapter_test/`, run the contract rows the core exports for its port, `crate::outbound::<port>::fixtures::contract::CASES` (or calls the exported `check` or `check_with` runner)."
+why = "Every adapter proves the port's promised behavior by running the rows the core exports under its `fixtures` feature, so no test is named `passes_the_interface_test` and each row of the contract fails by its name; the adapter-test template's declarations cannot show the use of the rows they exist for. The evidence is a written path: a reference to `...::outbound::<port>::fixtures::contract::CASES`, or to the name a file imports that as (`use...::CASES as CONTRACT`), or a call of `...::contract::check` or `check_with` (a port may export a runner beside its rows), written out or by an imported name. A reference alone does not execute rows: the rows must be the first argument of a call of run, or the exported check must be called; and a `check` reached through a re-export is not seen. Which port's rows they are stays the template's and the reviewer's: a rule cannot compare the port segment of a written `::` path with the directory of the adapter's port, because a query cannot split a written path."
+
+query = '''
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let required = project(from=files, columns=["file", "span"]);
+let path-calls = select l."file" as "file", l."span" as "span", l."target" as "target" from "static-call" as l join "reference" as r on l."file" = r."file" and l."span" = r."span" and l."target" = r."target";
+let qualified-calls = select * from path-calls where glob_any(target, "{contract::check,contract::check_with,*::outbound::*::fixtures::contract::check,*::outbound::*::fixtures::contract::check_with}");
+let qualified = project(from=qualified-calls, columns=["file"]);
+let check-imports = select * from "static-import" where glob_any(target, "{contract::check,contract::check_with,*::outbound::*::fixtures::contract::check,*::outbound::*::fixtures::contract::check_with}");
+let imported-calls = select l."file" as "file" from path-calls as l join check-imports as r on l."file" = r."file" and l."target" = r."binding";
+let references = project(from="reference", columns=["file", "span", "target"]);
+let qualified-rows = select * from references where glob_any(target, "{contract::CASES,*::outbound::*::fixtures::contract::CASES}");
+let qualified-row-paths = project(from=qualified-rows, columns=["file", "span"]);
+let row-imports = select * from "static-import" where glob_any(target, "*::outbound::*::fixtures::contract::CASES");
+let imported-rows = select l."file" as "file", l."span" as "span" from references as l join row-imports as r on l."file" = r."file" and l."target" = r."binding";
+let row-uses = union(left=qualified-row-paths, right=imported-rows);
+let call-expressions = select * from tree-nodes where kind = "call-expr";
+let direct-parts = select l."id" as "call", r."child" as "child" from call-expressions as l join "syntax-child" as r on l."id" = r."parent";
+let argument-lists = select * from tree-nodes where kind = "arg-list";
+let call-arguments = select l."call" as "call", r."id" as "args" from direct-parts as l join argument-lists as r on l."child" = r."id";
+let argument-edges = select l."call" as "call", r."child" as "child", r."ordinal" as "ordinal" from call-arguments as l join "syntax-child" as r on l."args" = r."parent";
+let argument-nodes = select l."call" as "call", l."ordinal" as "ordinal", r."id" as "id", r."file" as "file", r."span" as "span" from argument-edges as l join tree-nodes as r on l."child" = r."id";
+let argument-pairs = select l."id" as "id", l."ordinal" as "later", r."ordinal" as "earlier" from argument-nodes as l join argument-nodes as r on l."call" = r."call";
+let later-arguments = select * from argument-pairs where later > earlier;
+let first-arguments = antijoin(left=argument-nodes, right=later-arguments, left-on=["id"], right-on=["id"]);
+let row-calls = select l."call" as "call", l."file" as "file" from first-arguments as l join row-uses as r on l."file" = r."file" and l."span" = r."span";
+let callee-nodes = select l."call" as "call", r."file" as "file", r."span" as "span", r."kind" as "kind" from direct-parts as l join tree-nodes as r on l."child" = r."id" where kind = "path-expr";
+let runners = select * from path-calls where glob_any(target, "{run,*::cases::run}");
+let runner-calls = select l."call" as "call" from callee-nodes as l join runners as r on l."file" = r."file" and l."span" = r."span";
+let executed-rows = select l."file" as "file" from row-calls as l join runner-calls as r on l."call" = r."call";
+let calling-1 = union(left=qualified, right=imported-calls);
+let calling = union(left=calling-1, right=executed-rows);
+let adapter-tests = select * from required where glob_any(file, "{adapter_test.rs,**/adapter_test.rs}");
+let calling-files = project(from=calling, columns=["file"]);
+let nested-tests = capture(from=adapter-tests, path="file", pattern="{*dir}/adapter_test.rs", captures=["dir"]);
+let nested-groups = capture(from=calling-files, path="file", pattern="{*dir}/adapter_test/{*rest}", captures=["dir", "rest"]);
+let nested-proven = select l."file" as "file" from nested-tests as l join nested-groups as r on l."dir" = r."dir";
+let top-tests = select * from adapter-tests where glob_any(file, "adapter_test.rs");
+let top-groups = capture(from=calling-files, path="file", pattern="adapter_test/{*rest}", captures=["rest"]);
+let keyed-top-tests = extend(from=top-tests, values={"pair": 1});
+let keyed-top-groups = extend(from=top-groups, values={"pair": 1});
+let top-proven = select l."file" as "file" from keyed-top-tests as l join keyed-top-groups as r on l."pair" = r."pair";
+let group-proven = union(left=nested-proven, right=top-proven);
+let proven = union(left=calling-files, right=group-proven);
+let silent = antijoin(left=adapter-tests, right=proven, left-on=["file"], right-on=["file"]);
+emit silent subject "file" key("file");
+'''
+
+[diagnostic]
+primary = "span"
+message = "this adapter test never runs the core's contract rows"
+help = "Run the core's rows from this adapter_test.rs: import `crate::outbound::<port>::fixtures::contract::CASES` (as `CONTRACT`, as the adapter-test template does) and run them through the adapter in each runner with the core's own runner, `crate::cases::run` (`Case` and `Word` are each crate's own, so this crate's `run` cannot take them), or call the contract's exported `check`; the crate enables the core's `fixtures` feature from `[dev-dependencies]`. `tm scaffold` writes the test. An ignore is not legitimate here: every port has a contract to run."
+
+[given]
+files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+'''
+
+[[scenarios]]
+id = 'a-reference-does-not-run-the-contract'
+scenario = 'An adapter test that only refers to the contract without running it is reported.'
+given.files.'adapter_test.rs' = 'use crate::outbound::store::fixtures::contract::CASES as CONTRACT; fn succeeds() { let _ = CONTRACT; }'
+then.findings = [
+  { path = 'adapter_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'the-core-runner-executes-imported-rows'
+scenario = "An adapter test that runs the contract through the core's runner is not reported."
+given.files.'adapter_test.rs' = 'use crate::outbound::store::fixtures::contract::CASES as CONTRACT; fn succeeds() { crate::cases::run(CONTRACT, Word::Succeeds, subject); }'
+
+[[scenarios]]
+id = 'closure-reference-does-not-execute-contract-table'
+scenario = 'An adapter test whose closure only refers to the contract table, without executing it, is reported.'
+given.files.'adapter_test.rs' = 'use crate::outbound::store::fixtures::contract::CASES as CONTRACT; fn succeeds() { run(LOCAL_CASES, Word::Succeeds, |input| { let _ = CONTRACT; subject(input) }); }'
+then.findings = [
+  { path = 'adapter_test.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'runs-core-rows'
+scenario = "An adapter test running the core's rows under the name it imported them as, through the core's runner."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::outbound::names::fixtures::contract::CASES as CONTRACT;
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(CONTRACT, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'runs-core-rows-by-path'
+scenario = "An adapter test running the core's rows by their written path."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(demo_greeting::outbound::names::fixtures::contract::CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'runs-rows-through-module'
+scenario = "An adapter test running the core's rows through the imported contract module."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::outbound::names::fixtures::contract;
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(contract::CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = 'runs-core-contract'
+scenario = "An adapter test calling the core's exported runner by path."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    demo_greeting::outbound::names::fixtures::contract::check(&NamesMemoryAdapter);
+}
+'''
+
+[[scenarios]]
+id = 'runs-check-with'
+scenario = 'An adapter test calling the exported check_with over its own cases.'
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    demo_greeting::outbound::names::fixtures::contract::check_with(&NamesMemoryAdapter, &crate::names::fixtures::cases());
+}
+'''
+
+[[scenarios]]
+id = 'imported-check'
+scenario = 'An adapter test calling an imported check.'
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::outbound::names::fixtures::contract::check;
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    check(&NamesMemoryAdapter);
+}
+'''
+
+[[scenarios]]
+id = 'renamed-check'
+scenario = 'An adapter test calling the contract imported under another name.'
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::outbound::names::fixtures::contract::check as names_check;
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    names_check(&NamesMemoryAdapter);
+}
+'''
+
+[[scenarios]]
+id = 'imported-module'
+scenario = 'An adapter test calling the contract through an imported contract module.'
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::outbound::names::fixtures::contract;
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    contract::check(&NamesMemoryAdapter);
+}
+'''
+
+[[scenarios]]
+id = 'adapter-test-never-runs-core-s-contract'
+scenario = "An adapter test that never runs the core's contract."
+given.include = ['adapter_test.rs']
+then.findings = [
+  { path = 'adapter_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'own-cases-only'
+scenario = 'An adapter test that runs only its own table.'
+given.include = ['adapter_test.rs']
+then.findings = [
+  { path = 'adapter_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'rows-imported-never-named'
+scenario = "An adapter test importing the core's rows and never naming them."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::outbound::names::fixtures::contract::CASES as CONTRACT;
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'other-rows'
+scenario = "An adapter test running rows that are not a core's outbound contract."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::names::fixtures::CASES as CONTRACT;
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(CONTRACT, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'other-contract'
+scenario = "An adapter test running another function of the core's contract."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    demo_greeting::outbound::names::fixtures::contract::conform(&NamesMemoryAdapter, &crate::names::fixtures::cases());
+}
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'not-a-core-contract'
+scenario = "An adapter test calling an contract::check that is not a core's outbound contract."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    local::contract::check(&NamesMemoryAdapter);
+}
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'bare-check-without-import'
+scenario = 'A bare check that is not the imported contract.'
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+fn check(_: &NamesMemoryAdapter) {}
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    check(&NamesMemoryAdapter);
+}
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'method-named-check'
+scenario = "A method named check in a file importing the contract's check."
+given.include = ['adapter_test.rs']
+given.files.'adapter_test.rs' = '''
+//! The memory adapter of the names port.
+
+#[allow(unused_imports)]
+use crate::outbound::names::fixtures::contract::check;
+
+trait Checked {
+    fn check(&self);
+}
+
+impl Checked for NamesMemoryAdapter {
+    fn check(&self) {}
+}
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    NamesMemoryAdapter.check();
+}
+'''
+then.findings = [
+  { path = 'adapter_test.rs', line = 3 },
+]

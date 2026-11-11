@@ -1,0 +1,226 @@
+description = "A file of the `relations` collection (the syntax_tree item): item_test.rs."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+//! The `syntax_tree` item's cases, every row as its cells, and the collection's shared cases.
+
+use super::super::fixtures::contract::check;
+use super::item::SyntaxTreeItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::fixtures::reading::{SHOWN, reading};
+use ryo::languages::contract::{Reading, want_file, want_name, want_node, want_span};
+
+/// The source the item reads.
+type Input = &'static str;
+/// What the item writes for it: every cell of every row, and why it reads the relation only in part.
+type Value = Reading;
+type Failure = ();
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_empty_file_is_its_root_node_alone"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(0),
+                want_name("source-file"),
+                want_name(""),
+                want_file(SHOWN),
+                want_span((1, 1), (1, 1)),
+            ]],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("the_text_of_a_file_is_a_token_under_its_root"),
+        word: Word::Succeeds,
+        input: || "a",
+        expect: Expect::Value(Reading {
+            rows: &[
+                &[
+                    want_node(0),
+                    want_name("source-file"),
+                    want_name(""),
+                    want_file(SHOWN),
+                    want_span((1, 1), (1, 2)),
+                ],
+                &[
+                    want_node(1),
+                    want_name("text"),
+                    want_name("a"),
+                    want_file(SHOWN),
+                    want_span((1, 1), (1, 2)),
+                ],
+            ],
+            causes: &[],
+        }),
+    },
+];
+
+fn subject(source: Input) -> Value {
+    check::<SyntaxTreeItem>();
+    reading::<SyntaxTreeItem>(source)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+'''
+
+[given]
+file = 'src/domain/relations/collections/relations/syntax_tree/item_test.rs'
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/domain/relations/collections/relations/syntax_tree/item_test.rs' = '''
+//! The `syntax_tree` item's cases, every row as its cells, and the collection's shared cases.
+
+use super::super::fixtures::contract::check;
+use super::item::SyntaxTreeItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::fixtures::reading::{SHOWN, reading};
+use ryo::languages::contract::{Reading, want_file, want_name, want_node, want_span};
+
+/// The source the item reads.
+type Input = &'static str;
+/// What the item writes for it: every cell of every row, and why it reads the relation only in part.
+type Value = Reading;
+type Failure = ();
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_empty_file_is_its_root_node_alone"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(0),
+                want_name("source-file"),
+                want_name(""),
+                want_file(SHOWN),
+                want_span((1, 1), (1, 1)),
+            ]],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("the_text_of_a_file_is_a_token_under_its_root"),
+        word: Word::Succeeds,
+        input: || "a",
+        expect: Expect::Value(Reading {
+            rows: &[
+                &[
+                    want_node(0),
+                    want_name("source-file"),
+                    want_name(""),
+                    want_file(SHOWN),
+                    want_span((1, 1), (1, 2)),
+                ],
+                &[
+                    want_node(1),
+                    want_name("text"),
+                    want_name("a"),
+                    want_file(SHOWN),
+                    want_span((1, 1), (1, 2)),
+                ],
+            ],
+            causes: &[],
+        }),
+    },
+];
+
+fn subject(source: Input) -> Value {
+    check::<SyntaxTreeItem>();
+    reading::<SyntaxTreeItem>(source)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/domain/relations/collections/relations/syntax_tree/item_test.rs' = '''
+//! The `syntax_tree` item's cases, every row as its cells, and the collection's shared cases.
+
+use super::super::fixtures::contract::check;
+use super::item::SyntaxTreeItem;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::fixtures::reading::{SHOWN, reading};
+use ryo::languages::contract::{Reading, want_file, want_name, want_node, want_span};
+
+/// The source the item reads.
+type Input = &'static str;
+/// What the item writes for it: every cell of every row, and why it reads the relation only in part.
+type Value = Reading;
+type Failure = ();
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_empty_file_is_its_root_node_alone"),
+        word: Word::Succeeds,
+        input: || "",
+        expect: Expect::Value(Reading {
+            rows: &[&[
+                want_node(0),
+                want_name("source-file"),
+                want_name(""),
+                want_file(SHOWN),
+                want_span((1, 1), (1, 1)),
+            ]],
+            causes: &[],
+        }),
+    },
+    Case {
+        name: CaseName("the_text_of_a_file_is_a_token_under_its_root"),
+        word: Word::Succeeds,
+        input: || "a",
+        expect: Expect::Value(Reading {
+            rows: &[
+                &[
+                    want_node(0),
+                    want_name("source-file"),
+                    want_name(""),
+                    want_file(SHOWN),
+                    want_span((1, 1), (1, 2)),
+                ],
+                &[
+                    want_node(1),
+                    want_name("text"),
+                    want_name("a"),
+                    want_file(SHOWN),
+                    want_span((1, 1), (1, 2)),
+                ],
+            ],
+            causes: &[],
+        }),
+    },
+];
+
+fn subject(source: Input) -> Value {
+    check::<SyntaxTreeItem>();
+    reading::<SyntaxTreeItem>(source)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+}
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-domain-relations-collections-relations-syntax-tree-item-test#count', path = '.' },
+]

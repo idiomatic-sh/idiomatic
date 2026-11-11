@@ -1,0 +1,24 @@
+description = "The module file of a nested part of the operation, holding the part's items."
+why = "A operation may keep a cohesive part in a directory of its own, whose `mod.rs` holds the part's items as the module file it was before it became a directory. The pattern places that module file only; the part's errors, interface, schemas, types, service and tests are placed by their own role templates and held by the operation's role rules, which read them at any depth."
+content = '''
+//! A part of the `{{ part }}` operation.
+'''
+
+[params]
+part = { type = "identifier", from = "directory-name", description = "The directory of the file: the nested part it belongs to." }
+
+[[scenarios]]
+id = "nested-part-file"
+scenario = "A file of a nested part with any items has no finding."
+given.file = "publication/mod.rs"
+given.files.'publication/mod.rs' = '''
+//! Publication of the operation's results.
+
+pub(crate) struct Published;
+'''
+
+[[scenarios]]
+id = "nested-part-file-missing"
+scenario = "A part file the entry places that is missing is reported."
+given.file = "publication/mod.rs"
+then.findings = [{ rule = "#count", path = "." }]

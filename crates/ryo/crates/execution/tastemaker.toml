@@ -40,7 +40,6 @@ templates = [
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/publication/frames/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/publication/frames/test.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/union_rows/mod.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
-  { template = "idiomatic.ryo/program-runtime-proof", file = "tests/test.rs", description = "Actual compiled-program lifecycle controls and their colocated owner fixture." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/compiled_rules/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/compiled_rules/test.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },
   { template = "idiomatic.ryo/program-runtime-proof", file = "tests/file_run/mod.rs", description = "Actual compiled-program lifecycle controls in generic directory roles." },

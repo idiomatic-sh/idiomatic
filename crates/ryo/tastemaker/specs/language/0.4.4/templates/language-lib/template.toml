@@ -1,0 +1,159 @@
+description = "The library root: the README as the crate's documentation, the inbound and outbound surfaces, and `linked`, which a program calls to link the language."
+why = "The language is complete or says what it lacks: this file is placed at count 1 for every language, so a language added by its directory has it from the first scaffold, in the shape every other language has, and a language that lacks it is a finding at the language. The template asks for the declarations the file makes; the bodies and the language's words are the author's."
+content = '''
+{%- set library = captures.library | default(["library"]) | first -%}
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
+#![cfg_attr(
+    test,
+    expect(
+        dead_code_pub_in_binary,
+        reason = "the unit-test build is the one binary that compiles this language's public items with no dependent: the command line crate links the language and calls its contracts and fixtures, and the language's own unit tests do not"
+    )
+)]
+#![cfg_attr(
+    all(feature = "fixtures", not(test)),
+    allow(
+        dead_code,
+        reason = "the ports' own fixtures are used by the tests of the crate; outside tests the feature surface is `fixtures` at the root"
+    )
+)]
+
+pub(crate) mod inbound;
+pub(crate) mod outbound;
+
+mod domain;
+
+/// The {{ lang }} language, composed over its syntax port: what an edge links to read {{ lang }}.
+#[must_use]
+pub fn linked() -> ryo::languages::Language {
+    use std::sync::Arc;
+
+    use crate::inbound::contracts::parse::contract::ParseContract;
+    use crate::inbound::contracts::project::contract::ProjectContract;
+    use crate::outbound::syntax::factory::{{ library }};
+
+    ryo::link!(
+        domain::language::constants::NAME,
+        parse: Arc::new(ParseContract::new(Arc::new({{ library }}()))),
+        project: Arc::new(ProjectContract::new()),
+    )
+}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+
+[params]
+lang = { type = "identifier", from = "directory-name", description = "The language, its directory's name." }
+
+[given]
+file = 'src/lib.rs'
+params = { lang = 'demo' }
+
+[[scenarios]]
+id = 'rendered-template-passes'
+scenario = 'The rendered template passes.'
+given.files.'src/lib.rs' = '''
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
+#![cfg_attr(
+    test,
+    expect(
+        dead_code_pub_in_binary,
+        reason = "the unit-test build is the one binary that compiles this language's public items with no dependent: the command line crate links the language and calls its contracts and fixtures, and the language's own unit tests do not"
+    )
+)]
+#![cfg_attr(
+    all(feature = "fixtures", not(test)),
+    allow(
+        dead_code,
+        reason = "the ports' own fixtures are used by the tests of the crate; outside tests the feature surface is `fixtures` at the root"
+    )
+)]
+
+pub(crate) mod inbound;
+pub(crate) mod outbound;
+
+mod domain;
+
+/// The demo language, composed over its syntax port: what an edge links to read demo.
+#[must_use]
+pub fn linked() -> ryo::languages::Language {
+    use std::sync::Arc;
+
+    use crate::inbound::contracts::parse::contract::ParseContract;
+    use crate::inbound::contracts::project::contract::ProjectContract;
+    use crate::outbound::syntax::factory::library;
+
+    ryo::link!(
+        domain::language::constants::NAME,
+        parse: Arc::new(ParseContract::new(Arc::new(library()))),
+        project: Arc::new(ProjectContract::new()),
+    )
+}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+
+[[scenarios]]
+id = 'extra-content'
+scenario = 'A file may carry more than its template.'
+given.files.'src/lib.rs' = '''
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
+#![cfg_attr(
+    test,
+    expect(
+        dead_code_pub_in_binary,
+        reason = "the unit-test build is the one binary that compiles this language's public items with no dependent: the command line crate links the language and calls its contracts and fixtures, and the language's own unit tests do not"
+    )
+)]
+#![cfg_attr(
+    all(feature = "fixtures", not(test)),
+    allow(
+        dead_code,
+        reason = "the ports' own fixtures are used by the tests of the crate; outside tests the feature surface is `fixtures` at the root"
+    )
+)]
+
+pub(crate) mod inbound;
+pub(crate) mod outbound;
+
+mod domain;
+
+/// The demo language, composed over its syntax port: what an edge links to read demo.
+#[must_use]
+pub fn linked() -> ryo::languages::Language {
+    use std::sync::Arc;
+
+    use crate::inbound::contracts::parse::contract::ParseContract;
+    use crate::inbound::contracts::project::contract::ProjectContract;
+    use crate::outbound::syntax::factory::library;
+
+    ryo::link!(
+        domain::language::constants::NAME,
+        parse: Arc::new(ParseContract::new(Arc::new(library()))),
+        project: Arc::new(ProjectContract::new()),
+    )
+}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod cases;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+
+// More.
+'''
+
+[[scenarios]]
+id = 'file-missing'
+scenario = 'The file is missing.'
+then.findings = [
+  { rule = 'language-lib#count', path = '.' },
+]
