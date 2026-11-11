@@ -1,5 +1,5 @@
 description = "A collection is whole: its list `collections.rs` beside `collections/`, its module file beside its directory, its `interface.rs` and an item, whose module file and directory come together, and a name that is none of its neighbours'."
-why = "A collection is N implementations of one shape and is compiled only through its module files, which nothing else requires: `collections.rs` without a collection declares what does not exist, a collection without `collections.rs` or without its module file `collections/<collection>.rs` is never compiled, a collection without its `interface.rs` has no shape to hold its items to (unless the entry's `item-trait` names it: its items implement that trait of another crate, which states the shape, as the collection spec's `item-trait` says), one without an item has nothing to hold, and an item is its module file beside its directory. What the item's directory holds is the item part's: the part spec's counts hold its `item.rs` and `item_test.rs` where the product places an item part, and the closed placement refuses an item directory that nothing places. It is the same wherever a collection sits - the crate, a hex, a domain concept or an adapter - so one rule holds them all, and every pairing is keyed on the directory that holds `collections/` and on the collection, never on a constant: a crate with several collections, or several parts with collections of their own, is checked collection by collection. A collection is never named for a namespace or a member of the directory that holds it, and an item is never named for one of the collection's own files. It reads the item directories beside the module files, which are parts of their own, so the product's tastemaker.toml places it over the files that hold collections: a rule a spec places does not read the directories of the parts nested in the spec's instance. A finding is reported at the file concerned: for a collection with no list or no module file, at each file it has; with no interface or no item, at its module file; for an item, at its module file when its directory is missing and at the files of its directory otherwise."
+why = "A collection is N implementations of one shape and is compiled only through its module files, which nothing else requires: `collections.rs` without a collection declares what does not exist, a collection without `collections.rs` or without its module file `collections/<collection>.rs` is never compiled, a collection without its `interface.rs` has no shape to hold its items to (unless the entry's `item-trait` names it with a trait of another crate whose crate every item's `item.rs` names, `ryo` for `ryo::languages::ReadItem`: its items implement that trait, which states the shape, as the collection spec's `item-trait` says; a trait none of its items' files names exempts nothing), one without an item has nothing to hold, and an item is its module file beside its directory. What the item's directory holds is the item part's: the part spec's counts hold its `item.rs` and `item_test.rs` where the product places an item part, and the closed placement refuses an item directory that nothing places. It is the same wherever a collection sits - the crate, a hex, a domain concept or an adapter - so one rule holds them all, and every pairing is keyed on the directory that holds `collections/` and on the collection, never on a constant: a crate with several collections, or several parts with collections of their own, is checked collection by collection. A collection is never named for a namespace or a member of the directory that holds it, and an item is never named for one of the collection's own files. It reads the item directories beside the module files, which are parts of their own, so the product's tastemaker.toml places it over the files that hold collections: a rule a spec places does not read the directories of the parts nested in the spec's instance. A finding is reported at the file concerned: for a collection with no list or no module file, at each file it has; with no interface or no item, at its module file; for an item, at its module file when its directory is missing and at the files of its directory otherwise."
 
 query = '''
 param item-trait: list<table>;
@@ -32,8 +32,16 @@ let orphans = antijoin(left=inside-rows, right=module-keys, left-on=["owner", "c
 let representatives = union(left=module-rows, right=orphans);
 let interfaceless = antijoin(left=representatives, right=interface-keys, left-on=["owner", "collection"], right-on=["owner", "collection"]);
 let traited = rows(from=$item-trait, columns=["collection", "trait"]);
-let traited-names = project(from=traited, columns=["collection"]);
-let no-interface = antijoin(left=interfaceless, right=traited-names, left-on=["collection"], right-on=["collection"]);
+let trait-roots = capture(from=traited, path="trait", pattern="{root}::{rest}", captures=["root", "rest"]);
+let item-files = capture(from="filesystem.file", path="path", pattern="{*owner}/collections/{collection}/{item}/item.rs", captures=["owner", "collection", "item"]);
+let traited-items = select l."path" as "path", l."owner" as "owner", l."collection" as "collection", r."root" as "root" from item-files as l join trait-roots as r on l."collection" = r."collection";
+let item-idents = select l."file" as "file", l."text" as "text" from "syntax-tree" as l where l."kind" = "ident";
+let rooted-items = select l."path" as "path", l."owner" as "owner", l."collection" as "collection" from traited-items as l join item-idents as r on l."path" = r."file" and l."root" = r."text";
+let unrooted-items = antijoin(left=traited-items, right=rooted-items, left-on=["path"], right-on=["path"]);
+let traited-collections = project(from=traited-items, columns=["owner", "collection"]);
+let unrooted-collections = project(from=unrooted-items, columns=["owner", "collection"]);
+let implementing-collections = antijoin(left=traited-collections, right=unrooted-collections, left-on=["owner", "collection"], right-on=["owner", "collection"]);
+let no-interface = antijoin(left=interfaceless, right=implementing-collections, left-on=["owner", "collection"], right-on=["owner", "collection"]);
 let strays = antijoin(left=direct-rows, right=direct-rs-paths, left-on=["path"], right-on=["path"]);
 let reserved-member-dirs = select * from item-dir-rows where glob_any(item, "{interface,types,errors}");
 let value-roles = select path as path from "tastemaker.placed" where package = "idiomatic.arch" and glob_any(template, "{value,value-module,value-test}");
@@ -3342,6 +3350,13 @@ then.findings = [{ path = "src/collections/shapes/types/key/value.rs" }]
 id = 'collection-of-another-crates-trait'
 scenario = "A collection the entry's `item-trait` names has no interface.rs of its own: its items implement that trait of another crate."
 given.params = { item-trait = [{ collection = "shapes", trait = "other::ShapeItem" }] }
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+
+impl other::ShapeItem for Circle {}
+'''
 given.files.'src/collections.rs' = '''
 //! The collections here.
 
@@ -3359,11 +3374,6 @@ pub(crate) mod item;
 
 #[cfg(test)]
 mod item_test;
-'''
-given.files.'src/collections/shapes/circle/item.rs' = '''
-//! One item of a collection.
-
-pub struct Circle;
 '''
 given.files.'src/collections/shapes/circle/item_test.rs' = '''
 //! Proves the item.
@@ -3408,3 +3418,76 @@ fn succeeds() {}
 then.findings = [
   { path = 'src/collections/shapes.rs' },
 ]
+
+[[scenarios]]
+id = 'item-trait-of-a-crate-no-item-names'
+scenario = "A collection the entry's `item-trait` names with a trait of a crate none of its items names is still reported: naming a trait exempts nothing by itself."
+given.params = { item-trait = [{ collection = "shapes", trait = "unrelated::ShapeItem" }] }
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection, each of its items in order.
+
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+
+impl other::ShapeItem for Circle {}
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+then.findings = [
+  { path = 'src/collections/shapes.rs' },
+]
+
+[[scenarios]]
+id = 'stray-under-a-language-collection'
+scenario = "A stray file and a missing interface in a language's collection beneath the workspace's language members are reported, as anywhere else."
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["languages/x"]
+resolver = "3"
+'''
+given.files.'languages/x/Cargo.toml' = '''
+[package]
+name = "x"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'languages/x/src/lib.rs' = 'mod domain;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "probe", members = ["languages/*", "languages/*/src"], dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/collection-members", include = ["languages/*/src/**/collections.rs", "languages/*/src/**/collections/**"], params = { item-trait = [] } }]
+'''
+given.files.'languages/x/tastemaker.toml' = "closed = false\n"
+given.files.'languages/x/src/tastemaker.toml' = "closed = false\n"
+given.files.'languages/x/src/domain/relations/collections.rs' = 'pub(crate) mod relations;'
+given.files.'languages/x/src/domain/relations/collections/relations.rs' = 'pub(crate) mod annotates;'
+given.files.'languages/x/src/domain/relations/collections/relations/annotates.rs' = 'pub(crate) mod item;'
+given.files.'languages/x/src/domain/relations/collections/relations/annotates/item.rs' = 'pub struct Annotates;'
+given.files.'languages/x/src/domain/relations/collections/relations/stray.txt' = 'x'
+then.only = ['idiomatic.arch/collection-members']
+then.findings = [
+  { path = 'languages/x/src/domain/relations/collections/relations.rs' },
+  { path = 'languages/x/src/domain/relations/collections/relations/stray.txt' },
+]
+

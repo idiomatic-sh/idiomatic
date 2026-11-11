@@ -1,0 +1,5368 @@
+description = "One command of a command line: its arguments and thin run, its test, its composition and connections and its schemas."
+why = "A command is an edge: it checks what it is given through its schemas, opens its connections, composes its service once and calls it, and presents the result (thin-command). The edge's files are the same few things a command line and an SDK share, but a command prints and ends with an outcome while an SDK entry returns, so the two are separate specs with their own body and test. The cli spec places each command."
+conditions = { opens-client = { description = "The verb opens a client: its composition names its connections.", rule = { rule = "uses-connections", include = ["composition.rs"] } } }
+templates = [
+  { template = "command", file = "command.rs", imports = { default = "deny", allow = ["clap::*", "std::*", "composition", "connections", "schemas", "crate::outcome", "crate::output", "crate::edge", "*::interface", "*::types", "*::errors"] }, description = "The command itself: its arguments and a thin `run` that checks them through its schemas, connects, composes and calls the one service, and prints through `crate::output`, importing nothing else of the product." },
+  { template = "command-test", file = "command_test.rs", description = "The proof of what the command promises its caller, as rows of cases: the command line given and the answer printed or the outcome it ends with, the input it refuses included." },
+  { template = "idiomatic.arch/composition@0.2.0", file = "composition.rs", description = "The edge's wiring: it takes the clients its connections opened and the parts its caller supplies, chooses its adapters, builds the resources they share and only constructs." },
+  { template = "idiomatic.arch/connections@0.1.0", file = "connections.rs", count = { when = { condition = "opens-client" }, then = 1, else = 0 }, description = "The edge's connections: the stores it opens and the clients it returns, the only I/O of the edge." },
+  { template = "idiomatic.arch/schemas@0.1.0", file = "schemas.rs", params = { kind = "command" }, description = "The shape of the data the part does not control and its checked conversion into the core's types and back: the only file with a validation." },
+  { template = "idiomatic.arch/schemas-test@0.1.0", file = "schemas_test.rs", params = { kind = "command" }, description = "The accepted and the refused inputs of the part's schemas." },
+  { template = "idiomatic.arch/composition-test@0.1.0", file = "composition_test.rs", count = { min = 0 }, description = "The real compose path run over fake connections, as rows of cases: consequential substitution, shared-instance and error-order proofs." },
+  { template = "idiomatic.arch/edge-fixtures@0.1.0", file = "fixtures.rs", count = { min = 0 }, description = "The edge's test data, compiled only for tests and under the `fixtures` feature." },
+]
+rules = [
+  { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the command is a module the crate reaches: a file its module file does not declare is never compiled." },
+  { rule = "idiomatic.arch/composition-wiring@0.1.0", include = ["composition.rs"], description = "Production builders supply replaceable dependencies; compose and its helpers wire only the supplied choices." },
+  { rule = "idiomatic.arch/hollow-services@0.1.0", include = ["composition.rs"], description = "An edge's composition holds `Services` only with a service in it." },
+  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*_test.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+  { rule = "idiomatic.arch/schema-name@0.1.0", include = ["schemas.rs"], description = "A schemas.rs names its wire shapes <Name>Schema and their refusals <Name>SchemaError, converts with TryFrom and does nothing else." },
+  { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["schemas.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them." },
+  { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
+  { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { rule = "command-refuses", include = ["command.rs", "command_test.rs"], description = "A command that takes free input has a `refuses` row in its test table proving the input it refuses." },
+]
+
+[given]
+at = 'src/resources/{resource}/{command}'
+files.'Cargo.toml' = '''
+[package]
+name = "demo-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+'''
+files.'src/cases.rs' = '''
+//! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
+
+use std::fmt::Debug;
+
+/// The case word of a row: the four a part's cases are named with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Word {
+    /// The operation completes and answers the expected value.
+    Succeeds,
+    /// The input is refused with the expected error variant.
+    Refuses,
+    /// A dependency fails and its failure becomes the expected error variant.
+    Fails,
+    /// A weaker implementation is supplied and the expected error variant rejects it.
+    Rejects,
+}
+
+/// What a row expects: a value or a full error.
+#[derive(Debug)]
+pub enum Expect<V, E> {
+    /// The value the subject answers, compared by equality.
+    Value(V),
+    /// The error the subject fails with, compared in full by equality.
+    Error(E),
+}
+
+/// What a case shows, in the product's nouns.
+#[derive(Clone, Copy, Debug)]
+pub struct CaseName(pub &'static str);
+
+/// One row of a part's cases.
+#[derive(Debug)]
+pub struct Case<I, V, E> {
+    /// What the case shows.
+    pub name: CaseName,
+    /// The row's one case word.
+    pub word: Word,
+    /// Builds the row's input from the fixtures or a constructor.
+    pub input: fn() -> I,
+    /// The expected value or error.
+    pub expect: Expect<V, E>,
+}
+
+/// Runs every row of `cases` whose word is `word` through `subject` and asserts its expectation.
+///
+/// A `Succeeds` row expects a `Value` and every other word expects an `Error`; a row that names
+/// the other kind is a failure of the table, reported with the row's name. An `Error` is compared by value, in full. A word no row has
+/// is a failure too: a runner with nothing to run proves nothing.
+///
+/// # Panics
+///
+/// When a row's expectation is not met, or its kind does not match its word.
+pub fn run<I, V: PartialEq + Debug, E: PartialEq + Debug>(
+    cases: &[Case<I, V, E>],
+    word: Word,
+    subject: impl Fn(I) -> Result<V, E>,
+) {
+    assert!(
+        cases.iter().any(|case| case.word == word),
+        "no row has the case word {word:?}: a runner with nothing to run proves nothing"
+    );
+    for case in cases.iter().filter(|case| case.word == word) {
+        let kind_matches = matches!(
+            (case.word, &case.expect),
+            (Word::Succeeds, Expect::Value(_))
+                | (Word::Refuses | Word::Fails | Word::Rejects, Expect::Error(_))
+        );
+        assert!(
+            kind_matches,
+            "{}: a {:?} row expects the wrong kind",
+            case.name.0, case.word
+        );
+        let answer = subject((case.input)());
+        let met = match (&case.expect, &answer) {
+            (Expect::Value(expected), Ok(actual)) => expected == actual,
+            (Expect::Error(expected), Err(actual)) => expected == actual,
+            _ => false,
+        };
+        assert!(
+            met,
+            "{}: expected {:?}, answered {:?}",
+            case.name.0, case.expect, answer
+        );
+    }
+}
+'''
+files.'src/main.rs' = '''
+#[cfg(test)]
+mod cases;
+mod resources;
+mod outcome;
+mod output;
+
+fn main() {}
+'''
+files.'src/outcome.rs' = '''
+//! How a command ends.
+
+/// The outcomes a command ends with.
+#[derive(Debug, PartialEq)]
+pub enum Outcome {
+    /// The command did what it was asked.
+    Success,
+    /// The command line was refused.
+    Failure,
+    /// The command failed.
+    Error,
+}
+'''
+files.'src/output.rs' = '''
+//! What a command prints, and the one format switch every command takes.
+
+/// The `--format` every command takes.
+#[derive(clap::Args)]
+pub struct FormatSwitch {
+    pub(crate) format: String,
+}
+'''
+files.'src/resources.rs' = '''
+//! The command line's resources, one module each.
+
+pub mod greeting;
+'''
+files.'src/resources/greeting.rs' = '''
+//! The `greeting` resource's commands.
+
+pub mod show;
+'''
+files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+'''
+
+[[scenarios]]
+id = 'command-imports-another-crate'
+scenario = 'A command importing a library it does not list: it imports clap, std and its own files.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+use serde_json::json;
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command/command#imports', path = 'src/resources/greeting/show/command.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'command-with-types'
+scenario = "A types.rs in a command: arguments are in command.rs, untrusted shapes in schemas.rs, and the values passed and returned are the core's types."
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/types.rs' = '''
+//! The types of `greeting show`: a command declares none, its arguments are in command.rs.
+
+pub struct Marker {
+    pub name: &'static str,
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/orphan-rust-files', path = 'src/resources/greeting/show/types.rs' },
+  { rule = 'idiomatic.arch/command#closed', path = 'src/resources/greeting/show/types.rs' },
+]
+
+[[scenarios]]
+id = 'command-run-misnamed'
+scenario = 'A command whose entry point is not `run`.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn execute(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command/command#template', path = 'src/resources/greeting/show/command.rs' },
+]
+
+[[scenarios]]
+id = 'command-test-with-rejects-row-without-runner'
+scenario = 'A command test with a `rejects` row and no `rejects` runner.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+    Case {
+        name: "a weaker implementation is rejected",
+        word: Word::Rejects,
+        input: weaker,
+        expect: Expect::Error(Failure::Rejected),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/test-runners-match-rows', path = 'src/resources/greeting/show/command_test.rs', line = 28 },
+]
+
+[[scenarios]]
+id = 'command-with-composition-test'
+scenario = 'A command with a composition_test.rs: the real wiring run over fake connections.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+
+#[cfg(test)]
+mod composition_test;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/composition_test.rs' = '''
+//! Proves the real wiring of `greeting show` over fake connections, as rows of cases.
+
+use super::composition::compose;
+use super::connections::GreetingShowConnections;
+use super::composition::GreetingShowParts;
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the wiring: the fake connections.
+type Input = ();
+/// What the wiring builds.
+type Value = ();
+/// Why the wiring ends in error.
+type Failure = ();
+
+/// The rows of this composition's cases: a name, one case word, the fake connections given to the real `compose`, and the service state or error variant that results.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "builds the service over a fake store",
+        word: Word::Succeeds,
+        input: || (),
+        expect: Expect::Value(()),
+    },
+];
+
+/// Calls the real `compose` over one row's fake connections; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    compose(GreetingShowConnections { store: std::path::PathBuf::from("memory") }, GreetingShowParts { greeting: "hello" });
+    Ok(input)
+}
+
+/// The `succeeds` rows: the wiring is built and its state is the expected one. Template-owned.
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'command-with-errors'
+scenario = 'An errors.rs in a command: an edge refuses and fails through the outcomes of its schemas and its service.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+pub mod errors;
+
+#[cfg(test)]
+mod command_test;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/errors.rs' = '''
+//! The edge's failures.
+
+/// Why the edge failed.
+#[derive(Debug, thiserror::Error)]
+pub enum ShowError {
+    /// The store could not be opened.
+    #[error("the store could not be opened")]
+    Closed,
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command#closed', path = 'src/resources/greeting/show/errors.rs' },
+]
+
+[[scenarios]]
+id = 'command-with-fixtures'
+scenario = 'A command with a fixtures.rs of test data, compiled only for tests.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) mod fixtures;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/fixtures.rs' = '''
+//! The test data of `greeting show`, compiled only for tests and under the `fixtures` feature.
+#![cfg(any(test, feature = "fixtures"))]
+
+/// The greeting every row of the cases expects.
+pub(crate) const GREETING: &str = "hello";
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'command-with-interface'
+scenario = "An interface.rs in a command: an edge calls the core's use case and offers no trait of its own."
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod interface;
+pub mod command;
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/interface.rs' = '''
+//! A promise of the edge.
+
+/// What the edge offers.
+pub trait ShowUseCase {
+    /// Shows the greeting.
+    fn show(&self);
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command#closed', path = 'src/resources/greeting/show/interface.rs' },
+]
+
+[[scenarios]]
+id = 'command-without-command'
+scenario = 'A command part without its required command.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command/command#count', path = 'src/resources/greeting/show' },
+]
+
+[[scenarios]]
+id = 'command-without-command-test'
+scenario = 'A command part without its required command_test.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command/command-test#count', path = 'src/resources/greeting/show' },
+]
+
+[[scenarios]]
+id = 'command-without-composition'
+scenario = 'A command part without its required composition.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod connections;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command/command#imports', path = 'src/resources/greeting/show/command.rs', line = 18 },
+  { rule = 'idiomatic.arch/command/command#imports', path = 'src/resources/greeting/show/command.rs', line = 18 },
+  { rule = 'idiomatic.arch/composition#count', path = 'src/resources/greeting/show' },
+  { rule = 'idiomatic.arch/connections#count', path = 'src/resources/greeting/show' },
+]
+
+[[scenarios]]
+id = 'command-without-connections'
+scenario = 'A command part without its required connections.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command/command#imports', path = 'src/resources/greeting/show/command.rs', line = 18 },
+  { rule = 'idiomatic.arch/connections#count', path = 'src/resources/greeting/show' },
+]
+
+[[scenarios]]
+id = 'command-without-schemas'
+scenario = 'A command part without its required schemas.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod connections;
+
+#[cfg(test)]
+mod command_test;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/orphan-rust-files', path = 'src/resources/greeting/show/schemas_test.rs' },
+  { rule = 'idiomatic.arch/schemas#count', path = 'src/resources/greeting/show' },
+]
+
+[[scenarios]]
+id = 'command-without-schemas-test'
+scenario = 'A command part without its required schemas_test.rs: the kind needs it and the message names the scaffold entry that writes it.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/no-runtime-fixtures#unknown', path = 'src/resources/greeting/show/schemas.rs' },
+  { rule = 'idiomatic.arch/orphan-rust-files#unknown', path = 'src/resources/greeting/show/schemas.rs' },
+  { rule = 'tastemaker.toml#unknown', path = 'src/resources/greeting/show/schemas.rs' },
+  { rule = 'idiomatic.arch/schemas-test#count', path = 'src/resources/greeting/show' },
+]
+
+[[scenarios]]
+id = 'complete-command'
+scenario = 'A complete command: body, test, composition, connections, schemas and their test.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'composition-compose-misnamed'
+scenario = 'A composition.rs whose function is `assemble`, not `compose`.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::assemble(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub fn assemble(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/composition#template', path = 'src/resources/greeting/show/composition.rs' },
+]
+
+[[scenarios]]
+id = 'composition-selects-production'
+scenario = 'A composition that picks a production implementation itself instead of wiring what it is given.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+    let _database = crate::storage::factory::sqlite();
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/composition-wiring', path = 'src/resources/greeting/show/composition.rs', line = 18 },
+]
+
+[[scenarios]]
+id = 'composition-test-with-rejects-row-without-runner'
+scenario = 'A composition_test.rs with a `rejects` row and no `rejects` runner.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+
+#[cfg(test)]
+mod composition_test;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/composition_test.rs' = '''
+//! Proves the real wiring of `greeting show` over fake connections, as rows of cases.
+
+use super::composition::compose;
+use super::connections::GreetingShowConnections;
+use super::composition::GreetingShowParts;
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the wiring: the fake connections.
+type Input = ();
+/// What the wiring builds.
+type Value = ();
+/// Why the wiring ends in error.
+type Failure = ();
+
+/// The rows of this composition's cases: a name, one case word, the fake connections given to the real `compose`, and the service state or error variant that results.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "builds the service over a fake store",
+        word: Word::Succeeds,
+        input: || (),
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: "a weaker implementation is rejected",
+        word: Word::Rejects,
+        input: weaker,
+        expect: Expect::Error(Failure::Rejected),
+    },
+];
+
+/// Calls the real `compose` over one row's fake connections; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    compose(GreetingShowConnections { store: std::path::PathBuf::from("memory") }, GreetingShowParts { greeting: "hello" });
+    Ok(input)
+}
+
+/// The `succeeds` rows: the wiring is built and its state is the expected one. Template-owned.
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/test-runners-match-rows', path = 'src/resources/greeting/show/composition_test.rs', line = 25 },
+]
+
+[[scenarios]]
+id = 'composition-with-empty-services'
+scenario = 'A composition declaring an empty `Services`.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+
+/// The services composed.
+#[derive(Debug, Default)]
+pub struct Services {}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/hollow-artifacts', path = 'src/resources/greeting/show/composition.rs', line = 22 },
+  { rule = 'idiomatic.arch/hollow-services', path = 'src/resources/greeting/show/composition.rs', line = 21 },
+]
+
+[[scenarios]]
+id = 'connections-connect-misnamed'
+scenario = 'A connections.rs whose function is `open`, not `connect`.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::open(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub fn open() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/connections#template', path = 'src/resources/greeting/show/connections.rs' },
+]
+
+[[scenarios]]
+id = 'fixtures-compiled-in-production'
+scenario = 'An edge fixtures.rs not gated to tests and the `fixtures` feature.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod connections;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+
+#[cfg(any(test, feature = "fixtures"))]
+pub(crate) mod fixtures;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/fixtures.rs' = '''
+//! The test data of `greeting show`, compiled only for tests and under the `fixtures` feature.
+
+/// The greeting every row of the cases expects.
+pub(crate) const GREETING: &str = "hello";
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/edge-fixtures#template', path = 'src/resources/greeting/show/fixtures.rs' },
+]
+
+[[scenarios]]
+id = 'schemas-test-with-rejects-row-without-runner'
+scenario = 'A schemas_test.rs with a `rejects` row and no `rejects` runner.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+    Case {
+        name: "a weaker implementation is rejected",
+        word: Word::Rejects,
+        input: weaker,
+        expect: Expect::Error(Failure::Rejected),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/test-runners-match-rows', path = 'src/resources/greeting/show/schemas_test.rs', line = 27 },
+]
+
+[[scenarios]]
+id = 'schemas-without-test-module'
+scenario = 'A schemas.rs that does not declare its test beside it.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/orphan-rust-files', path = 'src/resources/greeting/show/schemas_test.rs' },
+  { rule = 'idiomatic.arch/schemas#template', path = 'src/resources/greeting/show/schemas.rs' },
+]
+
+[[scenarios]]
+id = 'command-without-client'
+scenario = 'A verb that opens no client has no connections.'
+given.files.'src/resources/greeting/show.rs' = '''
+//! The `greeting show` command.
+
+pub mod command;
+pub mod composition;
+pub mod schemas;
+
+#[cfg(test)]
+mod command_test;
+'''
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the parts its caller supplies, chooses each
+//! implementation, and builds the service it calls. It only constructs: the verb opens no client, so it
+//! has no connections. Nothing here implements a port.
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the supplied dependencies; it only constructs.
+pub(crate) fn compose(parts: GreetingShowParts) {
+    let GreetingShowParts { greeting } = parts;
+    let _ = greeting;
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'command-with-unused-connections'
+scenario = 'Connections beside a composition that does not use them.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the parts its caller supplies, chooses each
+//! implementation, and builds the service it calls. It only constructs: the verb opens no client, so it
+//! has no connections. Nothing here implements a port.
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the supplied dependencies; it only constructs.
+pub(crate) fn compose(parts: GreetingShowParts) {
+    let GreetingShowParts { greeting } = parts;
+    let _ = greeting;
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/connections#count', path = 'src/resources/greeting/show' },
+]
+
+[[scenarios]]
+id = 'command-takes-edge'
+scenario = "A command taking the command line's edge as `&crate::edge::Edge`."
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments;
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments, edge: &crate::edge::Edge) -> crate::outcome::Outcome {
+    let format = edge.format;
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+
+[[scenarios]]
+id = 'command-names-another-resources-item'
+scenario = 'A command naming another item of the resources module than the edge.'
+given.files.'src/resources/greeting/show/command.rs' = '''
+//! `greeting show`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting show`.
+#[derive(clap::Args)]
+pub struct ShowArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting show`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ShowArguments, edge: &crate::resources::Resources) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingShowParts { greeting: "hello" });
+    match service.show(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}
+
+/// How the answer is printed.
+#[derive(Debug, PartialEq)]
+pub enum Format {
+    Text,
+    Json,
+}
+'''
+given.files.'src/resources/greeting/show/command_test.rs' = '''
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = &'static str;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "shows the greeting",
+        word: Word::Succeeds,
+        input: || vec!["greeting", "show"],
+        expect: Expect::Value("hello, Ada\n"),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || vec!["greeting", "show", "--format", "xml"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+];
+
+/// Runs `greeting show` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    crate::resources::greeting::show::command::run_line(&line)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+given.files.'src/resources/greeting/show/composition.rs' = '''
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let GreetingShowConnections { store } = connections;
+    let GreetingShowParts { greeting } = parts;
+    let _ = (store, greeting);
+}
+'''
+given.files.'src/resources/greeting/show/connections.rs' = '''
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) store: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections {
+        store: std::path::PathBuf::from("greetings.toml"),
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas.rs' = '''
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its checked conversion into the core's type is an `impl TryFrom<<Name>Schema>`, and each refusal of a conversion is a `<Name>SchemaError`.
+
+use super::command::Format;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The format as the command line spells it.
+pub(super) struct FormatSchema {
+    pub(super) text: String,
+}
+
+/// Why a format was refused.
+pub(super) enum FormatSchemaError {
+    Unknown,
+}
+
+impl TryFrom<FormatSchema> for Format {
+    type Error = FormatSchemaError;
+
+    fn try_from(schema: FormatSchema) -> Result<Self, Self::Error> {
+        match schema.text.as_str() {
+            "text" => Ok(Format::Text),
+            "json" => Ok(Format::Json),
+            _ => Err(FormatSchemaError::Unknown),
+        }
+    }
+}
+'''
+given.files.'src/resources/greeting/show/schemas_test.rs' = '''
+//! What the schemas of this command accept and refuse, one row of `CASES` for each input.
+
+use super::schemas::{FormatSchema, FormatSchemaError};
+use super::command::Format;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = Format;
+type Failure = FormatSchemaError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts the text format",
+        word: Word::Succeeds,
+        input: || "text",
+        expect: Expect::Value(Format::Text),
+    },
+    Case {
+        name: "refuses a format nobody knows",
+        word: Word::Refuses,
+        input: || "xml",
+        expect: Expect::Error(FormatSchemaError::Unknown),
+    },
+];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(text: Input) -> Result<Value, Failure> {
+    Format::try_from(FormatSchema { text: text.to_owned() })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+'''
+then.findings = [
+  { rule = 'idiomatic.arch/command/command#imports', path = 'src/resources/greeting/show/command.rs', line = 12 },
+]

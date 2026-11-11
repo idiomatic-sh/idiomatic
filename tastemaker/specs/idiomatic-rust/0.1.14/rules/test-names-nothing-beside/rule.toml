@@ -1,4 +1,4 @@
-description = "A test file beside a module (`foo_test.rs` beside `foo.rs`, `tests.rs` beside `foo.rs` or `foo/mod.rs`) that names none of the items that module declares."
+description = "A test file beside a module (`foo_test.rs` beside `foo.rs`, or `tests.rs` beside `foo.rs`) that names none of the items that module declares."
 why = "A test file sits beside a module to test it; one that names nothing the module declares tests something else, or tests the module only through another module's API, and belongs where what it names lives. Read by name, across the pair of files: the module's items are its `defines` rows other than variables, the names it imports and its generic parameters (what it brings in or is generic over, which a test names without testing it), and the test file names one when any identifier token in it has the item's text (through `use super::*`, a path, or a call). Not seen: a test reaching the module only through a macro's tokens; a common name (`new`) the module declares counts when the test file names it for any reason."
 
 query = '''

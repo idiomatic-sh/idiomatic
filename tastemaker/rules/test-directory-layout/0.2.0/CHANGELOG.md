@@ -1,0 +1,3 @@
+# test-directory-layout 0.2.0
+
+A group's module file is `<group>.rs` beside its directory `<group>/`, the one module-file style (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0). 0.1.0 accepted only `mod.rs`, `test.rs` and `fixtures.rs`, so it refused every `use_case_test/<group>.rs` that use-case 0.1.3 places, and its message and help said to use `mod.rs`. A `<name>.rs` counts as a module file only where the directory `<name>/` exists beside it; any other concept-named file is still refused. Scenarios `registered-directory-proof` (pass, in the `<dir>.rs` form) and `module-file-without-its-directory-refused`. 0.1.0 stays as published: tastemaker locks it.

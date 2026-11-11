@@ -104,7 +104,7 @@ rules = [
   { rule = "bench-checks-growth", include = ["benchmarks/provider/bench.rs"], description = "A language's bench, which exists exactly when it has a workload, checks the growth of the parse: a function `complexity` against a `GROWTH_LIMIT`, called only under `BENCH_FLAG`." },
   { rule = "domain-modules", include = ["src/domain.rs"], description = "The list of domain concepts only declares modules and holds no rule." },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/schemas.rs", "**/*_test.rs"], description = "Nothing in the core's namespace files validates: a `TryFrom`, an `impl FromStr` or a fallible constructor stands only in a schemas.rs." },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/*_test.rs", "src/fixtures.rs"], description = "Nothing in the core's namespace files but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/*_test.rs", "src/fixtures.rs"], description = "Nothing in the core's namespace files but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], description = "No namespace file of the core is only comments and imports, and no type in it is an empty placeholder." },
   { rule = "service-has-fn", include = ["src/domain/*/service.rs"], description = "A service declares at least one free function: a concept that declares none has no service.rs. (Held over the language's concept parts.)" },
   { rule = "fns-only-in-service", include = ["src/domain/*/types.rs", "src/domain/*/errors.rs"], description = "A concept declares its functions in service.rs, so one that declares a function has a service and its test. (Held over the language's concept parts.)" },
@@ -113,14 +113,14 @@ rules = [
   { rule = "idiomatic.arch/no-serde-in-domain@0.1.0", include = ["src/**/*.rs"], exclude = ["**/*_test.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Serde is used only in an outbound adapter's schemas: a language's domain and ports encode nothing." },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/domain/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["src/domain/*/types.rs"], description = "A part's types.rs declares at least one type. (Held over the language's concept parts.)" },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["src/domain/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's concept parts.)" },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["src/domain/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["src/domain/*/types.rs", "src/domain/*/errors.rs"], description = "A part's types and errors are nominal types, never type aliases. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["src/domain/*/errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["src/domain/*/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["src/domain/*/*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/domain/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/domain/*/*.rs"], exclude = ["src/domain/*/schemas.rs", "src/domain/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's concept parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/domain/*/*.rs"], exclude = ["src/domain/*/*_test.rs", "src/domain/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's concept parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/domain/*/*.rs"], exclude = ["src/domain/*/*_test.rs", "src/domain/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/domain/*/*.rs"], exclude = ["src/domain/*/composition.rs", "src/domain/*/fixtures.rs", "src/domain/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's concept parts.)" },
@@ -134,7 +134,7 @@ rules = [
   { rule = "contract-methods", include = ["src/outbound/*/interface.rs", "src/outbound/*/fixtures/contract.rs"], description = "A port's contract calls every method the port trait declares. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/outbound/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["src/outbound/*/types.rs"], description = "A part's types.rs declares at least one type. (Held over the language's port parts.)" },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["src/outbound/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's port parts.)" },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["src/outbound/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["src/outbound/*/types.rs", "src/outbound/*/errors.rs"], description = "A part's types and errors are nominal types, never type aliases. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["src/outbound/*/errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["src/outbound/*/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's port parts.)" },
@@ -143,7 +143,7 @@ rules = [
   { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["src/outbound/*/schemas.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/outbound/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/outbound/*/*.rs"], exclude = ["src/outbound/*/schemas.rs", "src/outbound/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's port parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/outbound/*/*.rs"], exclude = ["src/outbound/*/*_test.rs", "src/outbound/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's port parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/outbound/*/*.rs"], exclude = ["src/outbound/*/*_test.rs", "src/outbound/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/outbound/*/*.rs"], exclude = ["src/outbound/*/composition.rs", "src/outbound/*/fixtures.rs", "src/outbound/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/outbound/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/outbound/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's port parts.)" },
@@ -162,7 +162,7 @@ rules = [
   { rule = "schemas-members", include = ["src/outbound/*/adapters/*/*.rs"], description = "An adapter that parses or writes an external format and whose port carries data has a schemas.rs and its test; one whose port carries none has neither; an adapter with no external format owes none. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "A part's types.rs declares at least one type. (Held over the language's adapter parts.)" },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's adapter parts.)" },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["src/outbound/*/adapters/*/types.rs", "src/outbound/*/adapters/*/errors.rs"], description = "A part's types and errors are nominal types, never type aliases. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["src/outbound/*/adapters/*/errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's adapter parts.)" },
@@ -171,7 +171,7 @@ rules = [
   { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["src/outbound/*/adapters/*/schemas.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/schemas.rs", "src/outbound/*/adapters/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's adapter parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/*_test.rs", "src/outbound/*/adapters/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's adapter parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/*_test.rs", "src/outbound/*/adapters/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/composition.rs", "src/outbound/*/adapters/*/fixtures.rs", "src/outbound/*/adapters/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/outbound/*/adapters/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/outbound/*/adapters/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's adapter parts.)" },
@@ -181,7 +181,7 @@ rules = [
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["src/domain/*/collections/*/errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/domain/*/collections/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["src/domain/*/collections/*/types.rs"], description = "A part's types.rs declares at least one type. (Held over the language's collection parts.)" },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["src/domain/*/collections/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's collection parts.)" },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["src/domain/*/collections/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["src/domain/*/collections/*/types.rs", "src/domain/*/collections/*/errors.rs"], description = "A part's types and errors are nominal types, never type aliases. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/collections/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/collections/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's collection parts.)" },
@@ -190,12 +190,12 @@ rules = [
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["src/domain/*/collections/*/*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/domain/*/collections/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/domain/*/collections/*/*.rs"], exclude = ["src/domain/*/collections/*/schemas.rs", "src/domain/*/collections/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's collection parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/domain/*/collections/*/*.rs"], exclude = ["src/domain/*/collections/*/*_test.rs", "src/domain/*/collections/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's collection parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/domain/*/collections/*/*.rs"], exclude = ["src/domain/*/collections/*/*_test.rs", "src/domain/*/collections/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/domain/*/collections/*/*.rs"], exclude = ["src/domain/*/collections/*/composition.rs", "src/domain/*/collections/*/fixtures.rs", "src/domain/*/collections/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's collection parts.)" },
   { rule = "item-implements-trait", include = ["src/domain/*/collections/*/*/item.rs"], description = "The item implements a trait: an `impl <Trait> for` its struct, or a `reads!` call that names its struct. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], exclude = ["src/domain/*/collections/*/*/schemas.rs", "src/domain/*/collections/*/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's item parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], exclude = ["src/domain/*/collections/*/*/*_test.rs", "src/domain/*/collections/*/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's item parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/domain/*/collections/*/*/*.rs"], exclude = ["src/domain/*/collections/*/*/*_test.rs", "src/domain/*/collections/*/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], exclude = ["src/domain/*/collections/*/*/composition.rs", "src/domain/*/collections/*/*/fixtures.rs", "src/domain/*/collections/*/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/collections/*/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/collections/*/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's item parts.)" },
@@ -210,7 +210,7 @@ rules = [
   { rule = "idiomatic.ryo/readers-in-items@0.2.0", include = ["src/**/*.rs"], exclude = ["**/fixtures/**", "**/*_test.rs"], params = { homes = ["**/src/domain/{relations,manifests,links}/collections/*/*/item.rs", "**/src/inbound/contracts/parse/readers/*/composition.rs"] }, description = "A reader is an item in `domain/{relations,manifests,links}/collections/<collection>/<name>/item.rs` or the composition of a parse reader concept, `inbound/contracts/parse/readers/<concept>/composition.rs`, the two answers to where it lives, and nowhere else." },
   { rule = "idiomatic.ryo/language-depends-on-ryo-only@0.2.0", include = ["Cargo.toml"], description = "A language depends on the SDK, `ryo`, and on no other crate of ryo: the engine's macros and types are the engine's, so that a relation added to the catalog is a compile error in every language until it answers it." },
   { rule = "idiomatic.ryo/language-test-entries@0.1.0", include = ["Cargo.toml"], description = "A language's manifest declares its closed tests, `conformance` and `allocation`, as targets without the libtest harness: a file Cargo never builds proves nothing." },
-  { rule = "idiomatic.arch/io-at-boundary@0.1.0", include = ["src/**"], exclude = ["**/outbound/*/adapters/**", "**/tests/**", "**/*_test.rs"], description = "A language reaches the file system, the network, the environment and processes only in the adapters of its outbound ports; the domain reads what it is given." },
+  { rule = "idiomatic.arch/io-at-boundary@0.2.0", include = ["src/**"], exclude = ["**/outbound/*/adapters/**", "**/tests/**", "**/*_test.rs"], description = "A language reaches the file system, the network, the environment and processes only in the adapters of its outbound ports; the domain reads what it is given." },
 ]
 
 [params]
@@ -2584,7 +2584,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -2863,7 +2863,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -3197,7 +3197,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -3518,7 +3518,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -3814,7 +3814,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -4124,7 +4124,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -4768,7 +4768,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -5094,7 +5094,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -5502,7 +5502,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -5819,7 +5819,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -6213,7 +6213,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -6604,7 +6604,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -6995,7 +6995,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -7342,7 +7342,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -7722,7 +7722,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -8161,7 +8161,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -8567,7 +8567,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -9087,7 +9087,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -9484,7 +9484,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -9866,7 +9866,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -10256,7 +10256,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -10640,7 +10640,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -11106,7 +11106,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -11569,7 +11569,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -12016,7 +12016,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -12522,7 +12522,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -12961,7 +12961,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -13369,7 +13369,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -13804,7 +13804,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -14242,7 +14242,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -14650,7 +14650,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -15746,7 +15746,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -16843,7 +16843,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -17907,7 +17907,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -19003,7 +19003,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -20099,7 +20099,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -20493,7 +20493,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["src/*.rs", "src/domain/**", "src/application/**", "src/inbound/**", "src/settings/**", "src/outbound/*.rs", "src/outbound/*/*.rs", "benchmarks/**", "tests/**"], exclude = ["**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -20578,8 +20578,11 @@ The official test suite of the language and where it is published.
 The release or commit of the suite that is pinned here.
 '''
 given.files.'demo/src/domain/greeting/service.rs' = 'pub(crate) fn greet() {}'
-given.files.'demo/src/domain/greeting/lowering/mod.rs' = 'pub(crate) fn lower() {}'
+given.files.'demo/src/domain/greeting/lowering.rs' = 'pub(crate) fn lower() {}'
 given.files.'demo/src/domain/greeting/extra.rs' = 'pub(crate) fn extra() {}'
-then.only = ['idiomatic.arch/concept(domain-concept)#closed']
-then.findings = [{ rule = 'idiomatic.arch/concept(domain-concept)#closed', path = 'demo/src/domain/greeting/extra.rs' }]
+then.only = ['idiomatic.arch/concept(domain-concept)#closed', 'idiomatic.arch/test-group-namespace']
+then.findings = [
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'demo/src/domain/greeting/extra.rs', line = 1 },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'demo/src/domain/greeting/lowering.rs', line = 1 },
+]
 

@@ -7,11 +7,11 @@ content = '''
 [[scenarios]]
 id = "declared-proof"
 scenario = "One explicitly placed lifecycle proof exists."
-given.file = "lifecycle/mod.rs"
-given.files."lifecycle/mod.rs" = "//! Compiled program lifecycle proof with a real owner.\n"
+given.file = "lifecycle.rs"
+given.files."lifecycle.rs" = "//! Compiled program lifecycle proof with a real owner.\n"
 
 [[scenarios]]
 id = "missing-proof"
 scenario = "An explicitly placed lifecycle proof cannot disappear."
-given.file = "lifecycle/mod.rs"
+given.file = "lifecycle.rs"
 then.findings = [{ rule = "#count", path = "tastemaker.toml" }]

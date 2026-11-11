@@ -288,7 +288,7 @@ pub fn open(store: &Store) -> usize {
 [[scenarios]]
 id = 'a-test-witness-implements-the-gated-method'
 scenario = "A test file implements `Request` for its witness and declares `open_file` without the gate; that declaration is test code, so the method stays sealed and the core's production call is reported at the call."
-given.files.'engine/tests/witness/mod.rs' = '''
+given.files.'engine/tests/witness.rs' = '''
 //! A witness of every request method.
 
 use engine::Request;
