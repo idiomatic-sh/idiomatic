@@ -274,3 +274,57 @@ macro_rules! reader_slots {
     };
 }
 ryo_relations::each_relation!(reader_slots);
+
+/// What the reading of a file is made of: a slot for each syntax relation holding its reader, and the
+/// functions over a slot. Generated from the catalog's one list.
+macro_rules! syntax_slots {
+    (
+        syntax { $( $variant:ident $module:ident $row:ident $column:ident ; )* }
+        manifest { $( $manifest_variant:ident $manifest_module:ident $manifest_row:ident $manifest_column:ident ; )* }
+        engine { $( $engine_variant:ident $engine_module:ident $engine_row:ident $engine_column:ident ; )* }
+    ) => {
+        /// What the language answers for `relation`: its reader when it reads it from a tree.
+        pub(super) fn slot_of<L>(language: &L, relation: Relation) -> Option<Slot<L::FileModel>> where L: super::interface::ParseUseCase + ?Sized {
+            if ryo_relations::domain::relations::service::optional_capability(relation)
+                .is_some_and(|capability| !language.capabilities().contains(&capability)) {
+                return None;
+            }
+            match relation {
+                $( Relation::$variant => match language.$module().as_ref() {
+                    crate::domain::answers::types::Answer::Reads(reader) => Some(Slot::$variant(*reader)),
+                    crate::domain::answers::types::Answer::NotInThisLanguage(_) => None,
+                }, )*
+                $( Relation::$manifest_variant => None, )*
+                $( Relation::$engine_variant => None, )*
+            }
+        }
+
+        pub(super) fn unsupported(relation: Relation, file: FileId, out: &mut dyn RowWriter) {
+            match relation {
+                $( Relation::$variant => <dyn RowWriter as ryo_relations::domain::relations::types::Rows<ryo_relations::domain::relations::collections::relations::$module::item::$row>>::partial_at(
+                    out, file, ryo_relations::domain::relations::types::ReportText(super::constants::UNAVAILABLE_CAPABILITY), ryo_relations::domain::relations::types::Missing::Any), )*
+                $( Relation::$manifest_variant => {}, )*
+                $( Relation::$engine_variant => {}, )*
+            }
+        }
+
+        /// Why the language does not read `relation` from a tree, or nothing when it does or when the
+        /// relation is not one of the trees'.
+        #[must_use]
+        pub(crate) fn absence_in<L>(language: &L, relation: Relation) -> Option<AbsenceCause> where L: super::interface::ParseUseCase + ?Sized {
+            if ryo_relations::domain::relations::service::optional_capability(relation)
+                .is_some_and(|capability| !language.capabilities().contains(&capability)) {
+                return Some(AbsenceCause::NotYetRead);
+            }
+            match relation {
+                $( Relation::$variant => match language.$module().as_ref() {
+                    crate::domain::answers::types::Answer::Reads(_) => None,
+                    crate::domain::answers::types::Answer::NotInThisLanguage(why) => Some(*why),
+                }, )*
+                $( Relation::$manifest_variant => None, )*
+                $( Relation::$engine_variant => None, )*
+            }
+        }
+    };
+}
+ryo_relations::each_relation!(syntax_slots);

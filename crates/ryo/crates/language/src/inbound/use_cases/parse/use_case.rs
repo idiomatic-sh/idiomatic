@@ -4,9 +4,9 @@
 use super::constants::NO_CONFIGURATION;
 use super::errors::ParseError;
 use super::interface::ParseUseCase;
-use super::service::{absence_in, baseline_in, build_in, kinds_read_in, read_in, walk_in};
-use super::types::ParseEngine;
+use super::service::{baseline_in, build_in, kinds_read_in, read_in, walk_in};
 use super::types::{KindNames, ParseConfigurationIdentity, ParseRequest, SkippedDirectory};
+use super::types::{ParseEngine, absence_in};
 use crate::domain::elements::types::Elements;
 use crate::domain::elements::types::{Completion, CompletionRequirement, TableBuilder, Tree};
 use crate::domain::semantics::types::SemanticSlot;
