@@ -2,16 +2,19 @@
 //! A rule that cannot match a file is never instantiated there: its root publishes the empty, complete table its full run
 //! would, no region only it reaches gets a slot or a reader count, and nothing that could have a row or a row error is
 //! skipped. Language-free: fixture relations, fixture rows and compiled programs only.
-use super::fixtures::routing::{Observed, Outcome, routed};
+use super::fixtures::routing::routed;
 use super::fixtures::{
-    TEXT, at, compare, equal, facts, join_on_file, plan, prepare, regions_of, rule_b, run_intent,
-    run_into, select, step,
+    Facts, Ran, TEXT, at, compare, equal, facts, join_on_file, plan, prepare, regions_of, rule_b,
+    run as run_file, run_intent, select, step,
 };
 use crate::application::file_dag::program::facade_runtime::types::{
     InputRelease, Instantiated, RegionProbe,
 };
+use crate::application::file_dag::program::preparation::types::PreparedProgram;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{Partial, RuleIndex};
+use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{ApplicabilityReason, FileRuleIntent};
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value as CellValue};
@@ -23,6 +26,84 @@ use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::stored_facts::types::Digest;
 use std::borrow::Cow;
 use std::sync::Arc;
+
+/// What a rule's root answered on the file: its rows and their kinds, or the outcome's kind with
+/// its error as the error prints.
+#[derive(Clone, Debug, PartialEq)]
+enum Outcome {
+    Rows(usize, Cow<'static, [CellKind]>),
+    Partial(usize),
+    Skipped,
+    Failed(Cow<'static, str>),
+    Unknown(Cow<'static, str>),
+    Refused(Cow<'static, str>),
+    NoQuery,
+    Deferred,
+}
+
+/// What one file run answered and left behind: each rule's outcome and the rows each of its steps
+/// was fed, each probed region's instantiation and a second release's refusal, the roots presence
+/// found absent, the cleanup refusal, the dormant obligations and the finish refusal.
+#[derive(Clone, Debug, PartialEq)]
+struct Observed {
+    outcomes: Cow<'static, [Outcome]>,
+    fed: Cow<'static, [Cow<'static, [u64]>]>,
+    probes: Cow<'static, [RegionProbe]>,
+    presence_absent: u64,
+    again: Cow<'static, [Option<OperatingError>]>,
+    cleanup: Option<OperatingError>,
+    dormant: usize,
+    finished: Option<OperatingError>,
+}
+
+impl From<Ran> for Observed {
+    fn from(ran: Ran) -> Self {
+        let printed = |error: OperatingError| Cow::Owned(format!("{error:?}"));
+        Self {
+            outcomes: ran
+                .outcomes
+                .into_iter()
+                .map(|outcome| {
+                    outcome.map_or_else(
+                        |error| Outcome::Refused(printed(error)),
+                        |outcome| match outcome {
+                            RootOutcome::Complete(table) => {
+                                Outcome::Rows(table.count.0, Cow::Owned(table.kinds))
+                            }
+                            RootOutcome::Partial { table, .. } => Outcome::Partial(table.count.0),
+                            RootOutcome::Skipped(_) => Outcome::Skipped,
+                            RootOutcome::Failed(error) => Outcome::Failed(printed(error)),
+                            RootOutcome::Unknown(error) => Outcome::Unknown(printed(error)),
+                            RootOutcome::NoQuery => Outcome::NoQuery,
+                            RootOutcome::Deferred { .. } => Outcome::Deferred,
+                        },
+                    )
+                })
+                .collect(),
+            fed: ran.fed.into_iter().map(Cow::Owned).collect(),
+            probes: Cow::Owned(ran.probes),
+            presence_absent: ran.presence_absent,
+            again: ran.again.into_iter().map(Result::err).collect(),
+            cleanup: ran.cleanup.err(),
+            dormant: ran.dormant,
+            finished: ran.finished.err(),
+        }
+    }
+}
+
+/// Runs every rule of `prepared` on one file and adds what it observed to `runs`.
+fn run_into(
+    runs: &mut Vec<Observed>,
+    prepared: &Arc<PreparedProgram>,
+    facts: &mut Facts,
+    intents: &[FileRuleIntent],
+    partial: &[Partial],
+    regions: &[RegionId],
+) {
+    runs.push(Observed::from(run_file(
+        prepared, facts, intents, partial, regions,
+    )));
+}
 
 /// A fact of the compiled program a row also states.
 #[derive(Debug, PartialEq)]

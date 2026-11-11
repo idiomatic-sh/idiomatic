@@ -1,6 +1,4 @@
 //! The support of the `cases` cases.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::*;
 #[cfg(test)]
 use fixtures::execution::*;
@@ -114,8 +112,7 @@ pub(in super::super) fn joins_the_tree(starts: &[u32], on: u32) -> Result<Table,
 }
 
 /// Joins nodes with the elements on their ids, keeping those whose text is `b`: answers the node and the span.
-pub(in super::super) fn elements_whose_text_is_b()
--> Result<Table, OperatingError> {
+pub(in super::super) fn elements_whose_text_is_b() -> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(1, false);
     let left = table_of(&[CellKind::Node], &[&[node(1)], &[node(3)], &[node(2)]]);
     let output = [(Side::Left, 0), (Side::Right, 1)];
@@ -128,8 +125,7 @@ pub(in super::super) fn elements_whose_text_is_b()
 }
 
 /// Joins the root with the edges whose child is the second of its parent's, child first: answers the children.
-pub(in super::super) fn edges_to_a_second_child() -> Result<Table, OperatingError>
-{
+pub(in super::super) fn edges_to_a_second_child() -> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(1, false);
     let left = table_of(&[CellKind::Node], &[&[node(0)]]);
     let second = PlanComparison {
@@ -144,8 +140,7 @@ pub(in super::super) fn edges_to_a_second_child() -> Result<Table, OperatingErro
 }
 
 /// Joins every edge of a wide tree with the elements of a kind, by the child of the edge: answers the parent and the child.
-pub(in super::super) fn edges_to_children_of_kind_inner()
--> Result<Table, OperatingError> {
+pub(in super::super) fn edges_to_children_of_kind_inner() -> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(40, true);
     let output = [(Side::Left, 0), (Side::Right, 0)];
     let operation = operation(&[1], &[0], &output, vec![text_of(1, "inner")], &[]);
@@ -157,8 +152,7 @@ pub(in super::super) fn edges_to_children_of_kind_inner()
 }
 
 /// Joins the edges of a wide tree with a few rows naming nodes, by the child of the edge: answers the children, in the order of the edges.
-pub(in super::super) fn edges_to_a_few_named_rows() -> Result<Table, OperatingError>
-{
+pub(in super::super) fn edges_to_a_few_named_rows() -> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(40, true);
     let number = |value| Cell::Number(Integer(value));
     let right = table_of(
@@ -179,8 +173,7 @@ pub(in super::super) fn edges_to_a_few_named_rows() -> Result<Table, OperatingEr
 }
 
 /// Joins the stretch of the node at 41 of a wide tree, on the stretch alone, with the elements covering it.
-pub(in super::super) fn elements_covering_one_to_two()
--> Result<Table, OperatingError> {
+pub(in super::super) fn elements_covering_one_to_two() -> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(40, true);
     let left = table_of(&[CellKind::Span], &[&[stretch(1, 2)]]);
     let operation = operation(&[0], &[4], &[(Side::Right, 0)], Vec::new(), &[]);

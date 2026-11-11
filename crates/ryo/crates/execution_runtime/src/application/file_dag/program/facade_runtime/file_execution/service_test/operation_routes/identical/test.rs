@@ -1,6 +1,4 @@
 //! Fused and single-instruction programs publish identical rows in identical order.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::fixtures::chain::{Chain, execute_chain};
 use super::super::fixtures::describe;
 use super::fixtures::engine;
@@ -202,10 +200,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(kind: Input) -> Result<Value, Failure> {
     let fused = execute_chain(kind, Chain::Fused, engine());
     let single = execute_chain(kind, Chain::Held, engine());
-    let rows = match &fused.outcome {
-        Ok((table, _)) => table.count.0,
-        Err(_) => return Err(describe(&fused)),
-    };
+    let rows = fused
+        .outcome
+        .as_ref()
+        .map(|(table, _)| table.count.0)
+        .map_err(|_| describe(&fused))?;
     Ok(Chains {
         continues: !fused.continuations.is_empty(),
         fused: fused

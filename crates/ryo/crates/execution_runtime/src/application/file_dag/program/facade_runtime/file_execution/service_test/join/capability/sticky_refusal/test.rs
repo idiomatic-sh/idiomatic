@@ -25,6 +25,8 @@ enum Failing {
     Sink,
     /// The fused project after the join refuses its row in the operator semantics.
     FusedProject,
+    /// Nothing refuses: the sink takes the rows the join commits.
+    Nothing,
 }
 
 /// A refused run: its error, the rows delivered before it, and the instructions it ran in.
@@ -41,6 +43,12 @@ type Value = usize;
 type Failure = Refused;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_join_whose_sink_takes_its_rows_publishes_them"),
+        word: Word::Succeeds,
+        input: || Failing::Nothing,
+        expect: Expect::Value(2),
+    },
     Case {
         name: CaseName(
             "sink_failure_wins_after_a_kernel_commits_multiple_rows_and_reports_success",
@@ -84,7 +92,7 @@ fn subject(failing: Input) -> Result<Value, Failure> {
         instructions: 0,
     };
     let actual = match failing {
-        Failing::Sink => invoke(
+        Failing::Sink | Failing::Nothing => invoke(
             &operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]),
             [Rows::Computed(&left_table), Rows::Computed(&right_table)],
             &mut Symbols::default(),
@@ -94,7 +102,7 @@ fn subject(failing: Input) -> Result<Value, Failure> {
                 refuse_project: false,
             }),
             Faults {
-                sink_after: Some(0),
+                sink_after: matches!(failing, Failing::Sink).then_some(0),
                 ..Faults::default()
             },
         )
@@ -159,4 +167,9 @@ fn subject(failing: Input) -> Result<Value, Failure> {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

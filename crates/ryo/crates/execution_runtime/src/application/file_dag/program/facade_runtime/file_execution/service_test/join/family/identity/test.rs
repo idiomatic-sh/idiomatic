@@ -15,6 +15,14 @@ type Failure = OperatingError;
 /// population and descriptor is refused for any other.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
+        name: CaseName(
+            "the_issued_capability_reads_the_view_of_its_own_generation_plan_and_population",
+        ),
+        word: Word::Succeeds,
+        input: || (DerivedKind::Equality, Departure::Succeeds),
+        expect: Expect::Value(DerivedKind::Equality),
+    },
+    Case {
         name: CaseName("every_family_refuses_every_mismatched_capability"),
         word: Word::Refuses,
         input: || (DerivedKind::Equality, Departure::Stale),
@@ -131,7 +139,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_closure_adjacency_family_refuses_a_retargeted_descriptor"),
         word: Word::Refuses,
-        input: || (DerivedKind::ClosureAdjacency, Departure::RetargetedDescriptor),
+        input: || {
+            (
+                DerivedKind::ClosureAdjacency,
+                Departure::RetargetedDescriptor,
+            )
+        },
         expect: Expect::Error(OperatingError::WrongOperation),
     },
     Case {
@@ -240,4 +253,9 @@ fn subject((kind, departure): Input) -> Result<Value, Failure> {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

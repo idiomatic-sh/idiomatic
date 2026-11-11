@@ -1,8 +1,6 @@
 //! The support of the `sticky_refusal` cases.
 use super::super::fixtures::REFUSAL;
-use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};

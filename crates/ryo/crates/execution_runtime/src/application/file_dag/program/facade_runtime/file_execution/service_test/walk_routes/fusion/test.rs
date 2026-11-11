@@ -222,6 +222,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+/// Adds each class the decision gave that `classes` does not have yet.
+fn gather(classes: &mut Vec<Option<Fusibility>>, decision: &Decision) {
+    for class in decision.classes {
+        if !classes.contains(&class) {
+            classes.push(class);
+        }
+    }
+}
+
 /// Compiles and classes the named program, or runs the combining program fused and held.
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
@@ -230,21 +239,15 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let mut agreeing = Vec::new();
             let mut fused_classes = Vec::new();
             let mut held_classes = Vec::new();
-            for left in Feed::ALL {
-                for right in Feed::ALL {
-                    let fused = decide(combine, left, right, Fusion::Fused)?;
-                    let held = decide(combine, left, right, Fusion::Held)?;
-                    agreeing.push(fused.agrees(&held));
-                    for (classes, decision) in
-                        [(&mut fused_classes, &fused), (&mut held_classes, &held)]
-                    {
-                        for class in decision.classes {
-                            if !classes.contains(&class) {
-                                classes.push(class);
-                            }
-                        }
-                    }
-                }
+            for (left, right) in Feed::ALL
+                .into_iter()
+                .flat_map(|left| Feed::ALL.map(|right| (left, right)))
+            {
+                let fused = decide(combine, left, right, Fusion::Fused)?;
+                let held = decide(combine, left, right, Fusion::Held)?;
+                agreeing.push(fused.agrees(&held));
+                gather(&mut fused_classes, &fused);
+                gather(&mut held_classes, &held);
             }
             Ok(Fused::Agreement {
                 agreeing: Cow::Owned(agreeing),

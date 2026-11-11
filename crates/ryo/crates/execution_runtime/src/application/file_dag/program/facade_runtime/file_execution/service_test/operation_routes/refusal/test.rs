@@ -1,6 +1,5 @@
-//! A production route cannot bypass an injected semantic refusal, and fused programs refuse alike.
-use super::super::super::super::service::*;
-use super::super::super::super::*;
+//! A production route cannot bypass an injected semantic refusal, and fused programs refuse alike;
+//! over operators that answer, the same route publishes.
 use super::super::fixtures::chain::{Chain, execute_chain, execute_fixture};
 use super::super::fixtures::describe;
 use super::fixtures::RefusingSemantics;
@@ -13,6 +12,8 @@ use std::sync::Arc;
 enum Asked {
     /// The kind's fixture through the production route.
     Route(OperationKind),
+    /// The kind's fixture through the production route, over operators that answer.
+    Answered(OperationKind),
     /// The kind's fixture as a fused and as a held chain.
     Chains(OperationKind),
 }
@@ -30,6 +31,12 @@ type Value = Answered;
 type Failure = OperatingError;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("the_production_route_publishes_over_operators_that_answer"),
+        word: Word::Succeeds,
+        input: || Asked::Answered(OperationKind::Project),
+        expect: Expect::Value(Answered::Published(2)),
+    },
     Case {
         name: CaseName("production_route_cannot_bypass_an_injected_semantic_refusal"),
         word: Word::Refuses,
@@ -194,11 +201,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// Runs against operators that refuse every call; chains refuse with their shared error.
+/// Runs against operators that refuse every call (or, as a control, answer); chains refuse with
+/// their shared error.
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Asked::Route(kind) => execute_fixture(kind, false, Arc::new(RefusingSemantics))
             .map(|(table, _)| Answered::Published(table.count.0)),
+        Asked::Answered(kind) => execute_fixture(
+            kind,
+            false,
+            Arc::new(crate::application::file_dag::fixtures::operators()),
+        )
+        .map(|(table, _)| Answered::Published(table.count.0)),
         Asked::Chains(kind) => {
             let fused = execute_chain(kind, Chain::Fused, Arc::new(RefusingSemantics));
             let single = execute_chain(kind, Chain::Held, Arc::new(RefusingSemantics));
@@ -218,4 +232,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

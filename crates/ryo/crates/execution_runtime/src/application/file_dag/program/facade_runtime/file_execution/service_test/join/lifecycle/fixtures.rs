@@ -1,46 +1,36 @@
 //! The support of the `lifecycle` cases.
 use super::super::super::super::service::*;
-use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
 use super::super::*;
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::admission::service::Inputs;
 use crate::application::file_dag::program::facade_runtime::file_execution::service_test::fixtures::*;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
-#[cfg(test)]
 use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
 use crate::application::file_dag::program::runtime::service::InvocationOutcome;
-#[cfg(test)]
 use fixtures::execution::*;
-#[cfg(test)]
 use fixtures::provider::*;
 use rustc_hash::FxHashMap;
-#[cfg(test)]
 use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operating::types::Memo;
-#[cfg(test)]
+use ryo_execution_domain::domain::operating::{errors::OperatingError, types::Memo};
 use ryo_execution_domain::domain::operator::types::OperatorContext;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
-use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
-#[cfg(test)]
-use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
-use ryo_execution_domain::domain::table_model::service::materialize;
-use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::rule_intent::types::{
+    CaptureIntent, DiagnosticDelivery, FileRuleIntent, ObservationDemand,
+};
+use ryo_execution_domain::domain::table_model::{service::materialize, types::Rows};
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     operator::types::Emit as RowSink,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
-use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
-use ryo_execution_store::application::file_dag::service::ScopePartials;
+use ryo_execution_store::application::file_dag::{
+    relations::types::ReuseEligibility, service::ScopePartials,
+};
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
-use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Value as Cell};
-use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
+use ryo_relations::domain::relations::types::{
+    CellKind, ColumnsView, FactColumn, FileId, Integer, Value as Cell,
+};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
@@ -50,14 +40,11 @@ use ryo_values::domain::{
     runs::types::RuleId,
     stored_facts::types::Digest,
 };
-use std::borrow::Cow;
-use std::cell::Cell as Counter;
-use std::{rc::Rc, sync::Arc};
+use std::{borrow::Cow, cell::Cell as Counter, rc::Rc, sync::Arc};
 
 pub(super) struct Callback<'a>(
     &'a mut dyn FnMut(&mut OperatorContext<'_>, &[Cell]) -> Result<(), OperatingError>,
 );
-
 impl RowSink for Callback<'_> {
     fn row(
         &mut self,
@@ -72,7 +59,6 @@ impl RowSink for Callback<'_> {
 pub(super) struct DeliveryLookup {
     pub(super) calls: Counter<usize>,
 }
-
 impl ryo_execution_domain::domain::operating::types::SemanticLookup for DeliveryLookup {
     fn render_batch(
         &self,
@@ -124,15 +110,6 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, Operating
     let n = |at| Cell::Number(Integer(at));
     let key = if single_result { 7 } else { 2 };
     let left_table = table_of(&[CellKind::Number], &[&[n(key)]]);
-    let right_table = table_of(
-        &[CellKind::Number; 2],
-        &[
-            &[n(key), n(20)],
-            &[n(1), n(10)],
-            &[n(key), n(21)],
-            &[n(key), n(22)],
-        ],
-    );
     let mut steps = vec![];
     let (left, l) = provider(Rows::Computed(&left_table), 0, &mut steps);
     let right_columns = [
