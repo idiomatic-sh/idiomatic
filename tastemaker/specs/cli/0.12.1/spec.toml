@@ -19066,20 +19066,9 @@ specs = [
   { spec = "idiomatic.arch/cli", include = ["cli"], params = { library = "cli", markdown = "offered", product = "cli", writes = [] } },
 ]
 '''
-then.only = ['idiomatic.arch/cli#closed', 'idiomatic.arch/test-group-namespace']
+then.only = ['idiomatic.arch/cli#closed']
 then.findings = [
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 111 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 12 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 125 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 13 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 16 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 19 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 24 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 29 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 35 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 49 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 58 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'cli/tests/distribution.rs', line = 78 },
+  { rule = 'idiomatic.arch/cli#closed', path = 'cli/tests/distribution.rs' },
 ]
 
 # A file of the command line's own that declares nothing but a comment.
