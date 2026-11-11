@@ -2,6 +2,7 @@
 //! keeps its sibling rule's findings.
 
 use super::super::super::service::{configure, prepare};
+use super::fixtures::write_rule;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
@@ -69,8 +70,11 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
     use ryo_benchmark_contracts::domain::context::types::CaseContext;
     let scratch = tempfile::tempdir().unwrap();
     let rules = scratch.path().join("rules");
-    std::fs::create_dir_all(rules.join("R1")).unwrap();
-    std::fs::write(rules.join("R1/query.ryoql"), "let failures = select path as file, span from \"filesystem.read-failure\"; emit failures subject file key(file);").unwrap();
+    write_rule(
+        &rules,
+        "R1",
+        "let failures = select path as file, span from \"filesystem.read-failure\"; emit failures subject file key(file);",
+    );
     let boundary = scratch.path().join("snapshot");
     let manifest = crate::outbound::context::interface::ContextPort::materialize(
         &crate::outbound::context::factory::local(),
@@ -185,8 +189,7 @@ fn prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule() -> String
             "let failures = select path as file, span from \"filesystem.read-failure\"; let configured = select code from \"config.selected\" where code = \"B002\"; let selected = join(left=failures, right=configured, left-on=[], right-on=[], output={file:[left,file],span:[left,span],code:[right,code]}); let disabled = select file, code from \"config.disabled\"; let enabled = antijoin(left=selected, right=disabled, left-on=[file,code], right-on=[file,code]); let external = select prefix from \"config.external\" where prefix = \"V\"; let found = join(left=enabled, right=external, left-on=[], right-on=[], output={file:[left,file],span:[left,span]}); emit found subject file key(file);",
         ),
     ] {
-        std::fs::create_dir_all(rules.join(id)).unwrap();
-        std::fs::write(rules.join(id).join("query.ryoql"), query).unwrap();
+        write_rule(&rules, id, query);
     }
     let boundary = scratch.path().join("snapshot");
     let manifest = crate::outbound::context::interface::ContextPort::materialize(

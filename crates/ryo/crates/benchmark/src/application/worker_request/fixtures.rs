@@ -47,41 +47,43 @@ impl Scenario {
 pub(super) fn trace_sessions() -> String {
     let child = std::env::args()
         .find_map(|argument| argument.strip_prefix(CHILD_SCENARIO).map(str::to_owned));
-    if let Some(label) = child {
-        let observed =
-            Scenario::parse(&label).map_or_else(|| "unknown scenario".to_owned(), actual_session);
-        println!("{VERIFIED}{label}:{observed}");
-        return observed;
-    }
-    [
-        Scenario::Success,
-        Scenario::LoadRefusal,
-        Scenario::ConfigureRefusal,
-        Scenario::ExecuteRefusal,
-        Scenario::Abandoned,
-    ]
-    .into_iter()
-    .map(|scenario| {
-        let label = scenario.label();
-        match std::process::Command::new(std::env::current_exe().unwrap_or_default())
-            .args(["--exact", RUNNER, "--test-threads=1", "--nocapture"])
-            .args(["--skip", &format!("{CHILD_SCENARIO}{label}")])
-            .output()
-        {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let marker = format!("{VERIFIED}{label}:");
-                let observed = stdout
-                    .lines()
-                    .find_map(|line| line.split_once(&marker).map(|(_, observed)| observed))
-                    .unwrap_or("no observation");
-                format!("{label} {observed}")
-            }
-            Err(error) => format!("{label} not started: {error}"),
+    match child {
+        Some(label) => {
+            let observed = Scenario::parse(&label)
+                .map_or_else(|| "unknown scenario".to_owned(), actual_session);
+            println!("{VERIFIED}{label}:{observed}");
+            observed
         }
-    })
-    .collect::<Vec<_>>()
-    .join("; ")
+        None => [
+            Scenario::Success,
+            Scenario::LoadRefusal,
+            Scenario::ConfigureRefusal,
+            Scenario::ExecuteRefusal,
+            Scenario::Abandoned,
+        ]
+        .into_iter()
+        .map(|scenario| {
+            let label = scenario.label();
+            match std::process::Command::new(std::env::current_exe().unwrap_or_default())
+                .args(["--exact", RUNNER, "--test-threads=1", "--nocapture"])
+                .args(["--skip", &format!("{CHILD_SCENARIO}{label}")])
+                .output()
+            {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let marker = format!("{VERIFIED}{label}:");
+                    let observed = stdout
+                        .lines()
+                        .find_map(|line| line.split_once(&marker).map(|(_, observed)| observed))
+                        .unwrap_or("no observation");
+                    format!("{label} {observed}")
+                }
+                Err(error) => format!("{label} not started: {error}"),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("; "),
+    }
 }
 
 fn actual_session(scenario: Scenario) -> String {

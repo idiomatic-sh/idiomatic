@@ -40,13 +40,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Scenario::ModeDrift,
-        expect: Expect::Value("true|1|true|0|true|1|true|true|1|true|0|true|1|true"),
+        expect: Expect::Value("true; 1; true; 0; true; 1; true; true; 1; true; 0; true; 1; true"),
     },
     Case {
         name: CaseName("a declared missing primary is reverified before both contestants prepare"),
         word: Word::Succeeds,
         input: || Scenario::DeclaredMissing,
-        expect: Expect::Value("true|true|2|false|false|0|true|true|2|true"),
+        expect: Expect::Value("true; true; 2; false; false; 0; true; true; 2; true"),
     },
 ];
 
@@ -201,7 +201,7 @@ fn metadata_drift_blocks_each_attempt() -> String {
             execution.history.lock().unwrap().is_empty()
         ));
     }
-    seen.join("|")
+    seen.join("; ")
 }
 
 fn declared_missing_primary_is_reverified() -> String {
@@ -295,5 +295,5 @@ fn declared_missing_primary_is_reverified() -> String {
         "{:?}",
         execution.history.lock().unwrap().is_empty()
     ));
-    seen.join("|")
+    seen.join("; ")
 }
