@@ -1,5 +1,5 @@
 //! Portable publication keeps earlier roots when a later root refuses.
-use super::pack_roots;
+use super::service::pack_roots;
 use crate::domain::crossing::types::ObservedRoot;
 use ryo_execution::inbound::use_cases::publication::interface::{
     PublicationError, PublicationInput, PublicationReason, PublicationUseCase,

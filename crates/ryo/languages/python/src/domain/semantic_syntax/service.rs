@@ -88,7 +88,7 @@ fn typing_name(
     let Some(path) = languages::text_of(symbols, tree.source, answer.path) else {
         return TypingForm::Other;
     };
-    if super::generic_subscription::operands(path) == TypeContext::Type {
+    if super::generic_subscription::service::operands(path) == TypeContext::Type {
         return TypingForm::Generic;
     }
     match path
