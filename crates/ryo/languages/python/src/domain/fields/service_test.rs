@@ -289,7 +289,7 @@ fn succeeds() {
 #[cfg(test)]
 mod control_flow_roles_test;
 #[cfg(test)]
-mod coverage_test;
+mod coverage;
 #[cfg(test)]
 mod expression_roles_test;
 #[cfg(test)]

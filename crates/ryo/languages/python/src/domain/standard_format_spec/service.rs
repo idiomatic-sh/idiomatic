@@ -82,7 +82,3 @@ pub(crate) fn recognize(
         StandardSpecOutcome::Recognized
     }
 }
-
-#[cfg(test)]
-#[path = "service_test.rs"]
-mod tests;

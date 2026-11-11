@@ -1,15 +1,10 @@
 //! The four readers' resets of one source's occurrences and of oversized inputs.
-use super::super::constants::KEY_CAPACITY;
-use super::super::constants::MEMO_ENTRIES;
-use super::super::service;
-use super::super::types::EntryCount;
-use crate::cases::Case;
-use crate::cases::CaseName;
-use crate::cases::Expect;
-use crate::cases::Word;
-use crate::cases::run;
-use crate::domain::format_syntax::types::FormatParseResult;
+use super::super::super::constants::KEY_CAPACITY;
+use super::super::super::constants::MEMO_ENTRIES;
+use super::super::super::service;
+use super::super::super::types::EntryCount;
 
+#[test]
 fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
     use crate::domain::model::types::Declarations;
     use crate::fixtures::reading::{initialize_model, parsed};
@@ -118,6 +113,7 @@ fn all_four_readers_rebuild_occurrences_after_same_file_edits() {
     }
 }
 
+#[test]
 fn oversized_current_inputs_do_not_become_reusable_content() {
     use crate::domain::model::types::Declarations;
     use crate::fixtures::reading::{initialize_model, parsed};
@@ -233,28 +229,4 @@ fn oversized_current_inputs_do_not_become_reusable_content() {
             .keys()
             .all(|key| key.input.0.len() < 100)
     );
-}
-
-/// Each check below states its own source and asserts its own outcome.
-const CASES: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("all_four_readers_rebuild_occurrences_after_same_file_edits"),
-        word: Word::Succeeds,
-        input: || all_four_readers_rebuild_occurrences_after_same_file_edits,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("oversized_current_inputs_do_not_become_reusable_content"),
-        word: Word::Succeeds,
-        input: || oversized_current_inputs_do_not_become_reusable_content,
-        expect: Expect::Value(()),
-    },
-];
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, |check| {
-        check();
-        Ok(())
-    });
 }

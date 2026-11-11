@@ -1,13 +1,8 @@
 //! Unavailable carriers, retained storage and independence from the other parser caches.
-use super::super::service::prepare;
-use super::super::types::LiteralParseOutcome;
-use super::super::types::LiteralParseState;
-use super::{CALLS, Counting};
-use crate::cases::Case;
-use crate::cases::CaseName;
-use crate::cases::Expect;
-use crate::cases::Word;
-use crate::cases::run;
+use super::super::fixtures::{CALLS, Counting};
+use super::super::super::service::prepare;
+use super::super::super::types::LiteralParseOutcome;
+use super::super::super::types::LiteralParseState;
 use crate::domain::format_syntax::types::FormatParseState;
 use crate::domain::model::types::Declarations;
 use crate::fixtures::reading::initialize_model;
@@ -16,6 +11,7 @@ use ryo::languages;
 use ryo::languages::ByteSlice;
 use ryo::languages::Tree;
 
+#[test]
 fn missing_logical_carriers_are_unavailable_and_partial_not_malformed() {
     CALLS.with(|count| count.set(0));
     let source = parsed(b"'T'\n").expect("source");
@@ -54,6 +50,7 @@ fn missing_logical_carriers_are_unavailable_and_partial_not_malformed() {
     CALLS.with(|count| assert_eq!(count.get(), 0));
 }
 
+#[test]
 fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
     use std::fmt::Write as _;
     CALLS.with(|count| count.set(0));
@@ -115,6 +112,7 @@ fn retained_storage_is_outcomes_occurrences_and_complete_carrier_keys() {
     CALLS.with(|count| assert_eq!(count.get(), 257));
 }
 
+#[test]
 fn literal_demand_does_not_initialize_other_parser_caches() {
     CALLS.with(|count| count.set(0));
     let mut source = parsed(b"'T'\n").expect("source");
@@ -143,34 +141,4 @@ fn literal_demand_does_not_initialize_other_parser_caches() {
         crate::domain::brace_format::types::BraceFormatState::Fresh
     );
     CALLS.with(|count| assert_eq!(count.get(), 1));
-}
-
-/// Each check below states its own source and asserts its own outcome.
-const CASES: &[Case<fn(), (), ()>] = &[
-    Case {
-        name: CaseName("missing_logical_carriers_are_unavailable_and_partial_not_malformed"),
-        word: Word::Succeeds,
-        input: || missing_logical_carriers_are_unavailable_and_partial_not_malformed,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("retained_storage_is_outcomes_occurrences_and_complete_carrier_keys"),
-        word: Word::Succeeds,
-        input: || retained_storage_is_outcomes_occurrences_and_complete_carrier_keys,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("literal_demand_does_not_initialize_other_parser_caches"),
-        word: Word::Succeeds,
-        input: || literal_demand_does_not_initialize_other_parser_caches,
-        expect: Expect::Value(()),
-    },
-];
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, |check| {
-        check();
-        Ok(())
-    });
 }
