@@ -1,7 +1,7 @@
 //! A set of project roots prepares once and delivers in order.
-use super::super::super::fixtures::assert_count_findings;
-use super::super::super::fixtures::completed_batch;
-use super::super::super::fixtures::evaluate_rules;
+use super::super::fixtures::assert_count_findings;
+use super::super::fixtures::completed_batch;
+use super::super::fixtures::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::frontier_rows;

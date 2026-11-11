@@ -1,7 +1,7 @@
 //! Visits of files of a fake corpus, the way a lint makes them, for the cases of `file_analysis`.
 use super::super::super::errors::FileAnalysisError;
-use super::super::fixtures::visited;
-use super::super::fixtures::visited_as;
+use super::super::fixtures::visits::visited;
+use super::super::fixtures::visits::visited_as;
 use crate::outbound::language::fixtures::fake::LanguageFake;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;

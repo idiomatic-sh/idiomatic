@@ -1,7 +1,7 @@
 //! The cases of discovery failures, primary manifest failures and project entry acquisition.
 use super::super::super::errors::FileAnalysisError;
 use super::super::super::service::FileAnalysis;
-use super::super::fixtures::visited_inputs;
+use super::super::fixtures::visits::visited_inputs;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use crate::outbound::corpus::errors::CorpusError;

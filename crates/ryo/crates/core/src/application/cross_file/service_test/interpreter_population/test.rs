@@ -1,5 +1,5 @@
 //! Project populations stay separate by rule, payload and reached region.
-use super::super::super::fixtures::evaluate_fixture;
+use super::super::fixtures::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::frontier_rows;

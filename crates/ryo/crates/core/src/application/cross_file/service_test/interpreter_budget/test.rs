@@ -1,5 +1,5 @@
 //! The memory budget stops a later population, and a refused frontier keeps its compiled source.
-use super::super::super::fixtures::evaluate_rules;
+use super::super::fixtures::evaluate_rules;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
@@ -155,7 +155,7 @@ fn refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort()
         let declared = order.map(RuleIndex);
         let policies =
             declared.map(|rule| partials_for(&MetadataUseCaseImpl, &crossing(&rules).domain, rule));
-        let results = super::super::super::fixtures::evaluate_all(
+        let results = super::super::fixtures::evaluate_all(
             &rules,
             &phase,
             &declared,
