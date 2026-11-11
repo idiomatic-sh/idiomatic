@@ -4,6 +4,7 @@ use crate::boundary_fixture::fixtures::{corpus, engine, prepared_rules};
 use crate::file_intents::fixtures::named_request;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
+use ryo_execution::inbound::use_cases::execution::interface::FactsPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::FileExecution;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
@@ -16,7 +17,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileStop;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::FileId;
