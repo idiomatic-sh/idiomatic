@@ -4,7 +4,7 @@ Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `be
 
 Edited in place: places `no-runtime-fixtures@0.2.0`, `public-fields@0.3.0`, `io-at-boundary@0.2.0`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query.
 
-Edited in place: the `language-tastemaker` template writes `client-at-adapter` as `include = ["**"]` with no `exclude`, where it excluded `**/adapters/**`, `**/factory.rs`, `**/composition.rs`, `**/*_test.rs`, `**/tests/fixtures/**`, `**/tests/allocation.rs` and `**/tests/bdd.rs` (python also `src/fixtures/**`). `client-at-adapter@0.2.0` itself admits a file beneath an outbound port's `adapters/`, a port's `factory.rs` and an edge's `composition.rs`, so the manifest holds no carve-out; tests and fixtures are read, as the rule's contract covers them.
+Edited in place: the `language-tastemaker` template writes `client-at-adapter` as `include = ["**"]` with the test-role excludes `idiomatic-rust` names for the same rule, `**/*_test.rs`, `**/test.rs`, `**/*_test/**`, `**/fixtures/**`, `**/fixtures.rs`, `**/tests/**` (tests set a scene up with any library), where it excluded `**/adapters/**`, `**/factory.rs`, `**/composition.rs`, `**/*_test.rs`, `**/tests/fixtures/**`, `**/tests/allocation.rs` and `**/tests/bdd.rs` (python also `src/fixtures/**`). `client-at-adapter@0.2.0` itself admits the adapters, the port's `factory.rs` and an edge's `composition.rs`; every exclude left is a test role `manifest-excludes` checks.
 
 Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
 

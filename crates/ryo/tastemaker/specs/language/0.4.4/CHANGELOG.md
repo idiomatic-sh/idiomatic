@@ -6,7 +6,7 @@ Edited in place: places `no-runtime-fixtures@0.2.0`, `public-fields@0.3.0`, `io-
 
 Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0); `domain-concept-is-a-concept` reads a stray domain file through `test-group-namespace`.
 
-Edited in place: the `language-tastemaker` template writes `client-at-adapter` as `include = ["**"]` with no `exclude`, where it excluded `**/adapters/**`, `**/factory.rs`, `**/composition.rs`, `**/*_test.rs`, `**/tests/fixtures/**`, `**/tests/allocation.rs` and `**/tests/bdd.rs` (python also `src/fixtures/**`). `client-at-adapter@0.2.0` itself admits a file beneath an outbound port's `adapters/`, a port's `factory.rs` and an edge's `composition.rs`, so the manifest holds no carve-out; tests and fixtures are read, as the rule's contract covers them.
+Edited in place: the `language-tastemaker` template writes `client-at-adapter` as `include = ["**"]` with the test-role excludes `idiomatic-rust` names for the same rule, `**/*_test.rs`, `**/test.rs`, `**/*_test/**`, `**/fixtures/**`, `**/fixtures.rs`, `**/tests/**` (tests set a scene up with any library), where it excluded `**/adapters/**`, `**/factory.rs`, `**/composition.rs`, `**/*_test.rs`, `**/tests/fixtures/**`, `**/tests/allocation.rs` and `**/tests/bdd.rs` (python also `src/fixtures/**`). `client-at-adapter@0.2.0` itself admits the adapters, the port's `factory.rs` and an edge's `composition.rs`; every exclude left is a test role `manifest-excludes` checks.
 
 Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
 
