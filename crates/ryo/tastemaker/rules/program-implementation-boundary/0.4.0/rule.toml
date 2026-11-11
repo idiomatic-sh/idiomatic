@@ -148,7 +148,7 @@ let unregistered-sites = antijoin(left=implementation-sites, right=registered-si
 let implementation-proofs = select path as file from "tastemaker.placed" where (package = "idiomatic.arch" and glob_any(template, "{unit-test,item-test,value-test,composition-test,domain-test,edge-fixtures}")) or (package = "idiomatic.ryo" and template = "program-runtime-proof");
 let fixture-rust-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
 let fixture-all-cfgs = select * from "decorates" where target = "cfg";
-let fixture-cfgs = select * from fixture-all-cfgs where glob_any(arguments, "{test,*(test*,* test*,*feature = ?fixtures?*}") and not glob_any(arguments, "{not(test*,*(not(test*,* not(test*}");
+let fixture-cfgs = select * from fixture-all-cfgs where arguments = "test" or glob_any(arguments, "any(test, feature = ?fixtures?)") or glob_any(arguments, "any(test,feature=?fixtures?)");
 let fixture-declared = select * from "defines" where kind = "namespace";
 let fixture-gated-modules = select r."name" as "name", r."file" as "file" from fixture-cfgs as l join fixture-declared as r on l."declaration" = r."id";
 let fixture-module-places = capture(from=fixture-gated-modules, path="file", pattern="{*dir}/{stem}.rs", captures=["dir", "stem"]);
@@ -1106,6 +1106,24 @@ given.files.'src/application/file_dag/program/runtime.rs' = '''pub mod types; pu
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;'''
 given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super::service::KernelInvocation; pub struct Probe; impl KernelInvocation for Probe {}"
+
+[[scenarios]]
+id = "negated-fixtures-gate-double"
+scenario = "An invocation implementation in a fixtures file declared under a cfg that names the fixtures feature only to negate it is production, so it is refused."
+given.files.'src/application/file_dag/program/runtime.rs' = '''pub mod types; pub mod service;
+#[cfg(not(feature = "fixtures"))]
+pub mod fixtures;'''
+given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super::service::KernelInvocation; pub struct Probe; impl KernelInvocation for Probe {}"
+then.findings = [{ path = "src/application/file_dag/program/runtime/fixtures.rs", line = 1 }]
+
+[[scenarios]]
+id = "always-true-fixtures-gate-double"
+scenario = "An invocation implementation in a fixtures file declared under a cfg whose other arm holds in a production build is production, so it is refused."
+given.files.'src/application/file_dag/program/runtime.rs' = '''pub mod types; pub mod service;
+#[cfg(any(feature = "fixtures", unix))]
+pub mod fixtures;'''
+given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super::service::KernelInvocation; pub struct Probe; impl KernelInvocation for Probe {}"
+then.findings = [{ path = "src/application/file_dag/program/runtime/fixtures.rs", line = 1 }]
 
 [[scenarios]]
 id = "gated-group-fixtures-double"
