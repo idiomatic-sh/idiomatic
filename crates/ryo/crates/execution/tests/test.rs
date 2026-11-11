@@ -23,7 +23,7 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::operators::fixtures::boundary::suite::ReductionAudit;
+use ryo_execution_runtime::outbound::operators::fixtures::suite::ReductionAudit;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::{kinds, node_id},

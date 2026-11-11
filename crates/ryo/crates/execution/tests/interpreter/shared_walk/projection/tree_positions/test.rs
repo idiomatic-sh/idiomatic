@@ -22,7 +22,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, StepId, Test};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 #[test]
 fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
-    use ryo_execution_runtime::outbound::operators::fixtures::boundary::projection_tree_positions::ObservedJoin;
+    use ryo_execution_runtime::outbound::operators::fixtures::projection_tree_positions::ObservedJoin;
     use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
     use std::sync::{
         Arc,

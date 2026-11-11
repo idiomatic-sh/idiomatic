@@ -1,10 +1,5 @@
 //! The operators fakes the execution use case's `order_error_order` boundary scenarios inject.
-use ryo_relations::domain::relations::fixtures::kinds;
-use ryo_relations::domain::relations::types::{FileId, Relation};
-use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, Operand, StepId, Test};
-use ryo_values::domain::plans::types::{Operation, PlanStep};
-use ryo_values::domain::rows::types::{RowCount, Table};
+use ryo_values::domain::plans::types::Operation;
 
 /// S13: an operator behind the port that keeps calling its lent driver after a refusal does not replace the first refusal: the
 /// run reports the first engine error of the evaluation.

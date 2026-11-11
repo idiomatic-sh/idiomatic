@@ -13,7 +13,7 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase as _;
-use ryo_execution_runtime::outbound::operators::fixtures::boundary::order_error_order::CallsOnAfterARefusal;
+use ryo_execution_runtime::outbound::operators::fixtures::order_error_order::CallsOnAfterARefusal;
 use ryo_relations::domain::relations::fixtures::kinds;
 use ryo_relations::domain::relations::types::{FileId, Relation};
 use ryo_values::domain::plan_parts::types::StepScope;

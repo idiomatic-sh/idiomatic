@@ -1,8 +1,4 @@
 //! The facts fakes the execution use case's `project_phase_negative` boundary scenarios inject.
-use crate::application::file_dag::program::observation_stage::types::ObservationStage;
-use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use crate::application::file_dag::program::project_phase::types::ProjectPhase;
-use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
@@ -10,18 +6,7 @@ use crate::outbound::facts::types::ColumnsMut;
 use crate::outbound::facts::types::KeptBucket;
 use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
-use ryo_relations::domain::relations::types::{CellKind, FileId};
-use ryo_values::domain::{
-    files::types::CorpusInput,
-    observations::types::{
-        BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
-        ObservationColumnName,
-    },
-    plan_parts::types::{Input, ObservationBindingId, StepScope},
-    plans::types::{Operation, PlanStep},
-    records::types::ObservationReadinessLayout,
-    stored_facts::types::{Bucket, Digest},
-};
+use ryo_values::domain::stored_facts::types::Bucket;
 
 /// No compiled rule in these programs has a file frontier or a project relation.
 pub struct NoFacts;

@@ -19,9 +19,9 @@ use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectObservation;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::CapturedFacts;
-use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_source_facts::ProjectFacts;
-use ryo_execution_runtime::outbound::operators::fixtures::boundary::project_phase_union::UnionSemanticCalls;
+use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::CapturedFacts;
+use ryo_execution_runtime::outbound::facts::fixtures::project_phase_source_facts::ProjectFacts;
+use ryo_execution_runtime::outbound::operators::fixtures::project_phase_union::UnionSemanticCalls;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::kinds,

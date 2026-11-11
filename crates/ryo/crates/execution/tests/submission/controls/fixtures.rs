@@ -30,7 +30,7 @@ use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::CaptureContext;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::outbound::facts::fixtures::boundary::project_phase_negative::NoFacts;
+use ryo_execution_runtime::outbound::facts::fixtures::project_phase_negative::NoFacts;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
 

@@ -11,7 +11,7 @@ use ryo_execution_runtime::application::file_dag::program::prepared_execution::t
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RuleOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::outbound::operators::fixtures::boundary::shared_walk::SemanticCalls;
+use ryo_execution_runtime::outbound::operators::fixtures::shared_walk::SemanticCalls;
 use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::{
     completion::fixtures::{completion, name_kind},

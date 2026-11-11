@@ -1,5 +1,4 @@
 //! The facts fakes the execution use case's `project_phase_source_facts` boundary scenarios inject.
-use crate::application::file_dag::program::observation_stage::types::ObservationStage;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
@@ -9,7 +8,6 @@ use crate::outbound::facts::types::KeptBucket;
 use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
-use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     fixtures::kinds,
     types::{CellKind, FileId, Offset, Relation, Span, Value},

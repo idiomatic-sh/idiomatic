@@ -1,33 +1,11 @@
 //! The facts fakes the execution use case's `project_phase_axis` boundary scenarios inject.
-use crate::application::file_dag::program::file_session::types::CaptureContext;
-use crate::application::file_dag::program::file_session::types::FileInput;
-use crate::application::file_dag::program::file_session::types::SourceLanguage;
-use crate::application::file_dag::program::file_session::types::SourceRows;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
-use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::{BucketSource, KeptBucket};
 use ryo_execution_domain::domain::frontier_capture::types::CapturedFrontier;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_language::domain::{
-    builders::fixtures as builders, completion::fixtures as completion, elements::types::Elements,
-    symbols::types::ByteSlice,
-};
-use ryo_relations::domain::relations::types::{FileId, Relation};
-use ryo_relations::domain::relations::types::{KindBits, Offset};
-use ryo_relations::domain::relations::types::{Words, WorkerNumber};
-use ryo_relations::domain::terms::types::NameText;
-use ryo_values::domain::files::types::{
-    CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
-};
-use ryo_values::domain::plans::types::Emit;
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stored_facts::types::{ArenaBytes, KeptWords, PackedWords};
-use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, StepId, StepScope},
-    plans::types::PlanStep,
-};
+use ryo_values::domain::stored_facts::types::{KeptWords, PackedWords};
 use std::sync::Arc;
 
 /// The frontiers the files captured, by bucket.

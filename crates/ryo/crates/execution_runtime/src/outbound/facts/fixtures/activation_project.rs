@@ -1,5 +1,4 @@
 //! The facts fakes the execution use case's `activation_project` boundary scenarios inject.
-use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::outbound::facts::errors::FactsError;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
@@ -7,8 +6,7 @@ use crate::outbound::facts::types::ColumnsMut;
 use crate::outbound::facts::types::KeptBucket;
 use crate::outbound::facts::types::ResidentStability;
 use crate::outbound::facts::types::WordsToKeep;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{ColumnsView, FileId, Relation};
+use ryo_relations::domain::relations::types::{ColumnsView, Relation};
 use ryo_values::domain::stored_facts::types::Bucket;
 
 /// Compiled frontiers are empty, so no source row or kept bucket may be requested.
