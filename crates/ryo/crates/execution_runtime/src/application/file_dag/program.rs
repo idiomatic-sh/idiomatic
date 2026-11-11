@@ -15,8 +15,6 @@ pub(super) mod runtime;
 pub(crate) mod restored;
 
 mod request_identity;
-#[cfg(test)]
-mod request_identity_test;
 
 mod context;
 pub(crate) mod native_walk;

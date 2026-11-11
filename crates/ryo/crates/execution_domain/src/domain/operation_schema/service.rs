@@ -1,5 +1,8 @@
 //! The `operation_schema` service: output column algebra with no row values, source bytes or execution storage.
-use super::projection::{joined, projected, right_column, right_view, schema_input};
+use super::projection::{
+    service::joined, service::projected, service::right_column, service::right_view,
+    service::schema_input,
+};
 
 use super::types::InputShape;
 use super::types::bindings::value::BindingShape;
@@ -9,7 +12,6 @@ use crate::domain::table_model::service::check_columns;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::service::parameter_in;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::plans::service::inputs_of;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 

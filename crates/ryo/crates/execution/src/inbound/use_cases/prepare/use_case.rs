@@ -6,7 +6,7 @@ use ryo_execution_runtime::application::file_dag::program::prepared_execution::s
 use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess;
+use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
 use std::sync::Arc;
 
 /// Prepares programs over the operators, derived views and digest it is given.

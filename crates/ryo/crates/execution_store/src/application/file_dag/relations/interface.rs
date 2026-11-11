@@ -2,22 +2,22 @@
 use super::admission::service::BorrowedInput;
 use super::generation::service::ResidentGeneration;
 use super::handle::service::Publication;
-use super::number::service::AdmittedNumber;
+use super::number::service::service::AdmittedNumber;
 use super::publication::types::{ProducerScope, PublicationBody};
 use super::types::ProducerId;
-use crate::application::file_dag::derived::population::types::PopulationId;
+use crate::application::file_dag::derived::population::service::PopulationId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
 use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
-/// Seals [`RelationStore`]: the trait is public so the runtime can hold the store through it, and its one implementation is
-/// [`RelationOwner`](super::RelationOwner)'s, so a replacement of the store touches `relations.rs` only.
+/// Seals [`RelationsPort`]: the trait is public so the runtime can hold the store through it, and its one implementation is
+/// [`RelationOwner`](super::service::RelationOwner)'s, so a replacement of the store touches `relations.rs` only.
 pub(crate) mod sealed {
-    /// Implemented only by `RelationOwner`: no other type, in this crate or another, implements it or `RelationStore`.
+    /// Implemented only by `RelationOwner`: no other type, in this crate or another, implements it or `RelationsPort`.
     #[expect(
         unnameable_types,
-        reason = "the seal: a supertrait other crates can reach but never name, so they cannot implement RelationStore"
+        reason = "the seal: a supertrait other crates can reach but never name, so they cannot implement RelationsPort"
     )]
     pub trait Sealed {}
 }
@@ -25,13 +25,13 @@ pub(crate) mod sealed {
 /// What the runtime needs from the store to hold, read and free published relations: the one pub route to them. The owner's own
 /// workflows are not on it: a caller cannot publish a computed table, a compact source or retire a producer by hand,
 /// ```compile_fail,E0624
-/// use ryo_execution_store::application::file_dag::relations::RelationOwner;
+/// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 /// fn computed(owner: &RelationOwner, table: ryo_values::domain::rows::types::Table) {
 ///     let _ = owner.computed(table);
 /// }
 /// ```
 /// ```compile_fail,E0624
-/// use ryo_execution_store::application::file_dag::relations::RelationOwner;
+/// use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 /// fn compact(owner: &RelationOwner, table: std::sync::Arc<ryo_values::domain::table_words::types::CompactTable>) {
 ///     let _ = owner.source_compact(table);
 /// }
@@ -54,15 +54,15 @@ pub(crate) mod sealed {
 /// use ryo_execution_domain::domain::operating::errors::OperatingError;
 /// use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
 /// use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows};
-/// use ryo_execution_store::application::file_dag::derived::population::types::PopulationId;
+/// use ryo_execution_store::application::file_dag::derived::population::service::PopulationId;
 /// use ryo_execution_store::application::file_dag::relations::{
 ///     admission::service::BorrowedInput, generation::service::ResidentGeneration, handle::service::Publication,
-///     interface::RelationStore, number::service::AdmittedNumber,
+///     interface::RelationsPort, number::service::AdmittedNumber,
 ///     publication::types::{ProducerScope, PublicationBody}, types::ProducerId,
 /// };
 /// use ryo_relations::domain::relations::types::{CellKind, Relation};
 /// struct Elsewhere;
-/// impl RelationStore for Elsewhere {
+/// impl RelationsPort for Elsewhere {
 ///     fn generation(&self) -> ResidentGeneration { todo!() }
 ///     fn publish(&self, _: PublicationBody<'_>) -> Result<Publication, OperatingError> { todo!() }
 ///     fn population(&self) -> Result<PopulationId, OperatingError> { todo!() }
@@ -99,7 +99,7 @@ pub(crate) mod sealed {
 /// use ryo_execution_domain::domain::operating::errors::OperatingError;
 /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
 /// use ryo_execution_store::application::file_dag::relations::{
-///     interface::RelationStore, types::ReuseEligibility, RelationOwner,
+///     interface::RelationsPort, types::ReuseEligibility, service::RelationOwner,
 /// };
 /// let store = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
 /// let resident = store.generation();
@@ -107,7 +107,7 @@ pub(crate) mod sealed {
 /// store.release();
 /// assert!(matches!(resident.same(&store.generation()), Err(OperatingError::NotRead)));
 /// ```
-pub trait RelationStore: sealed::Sealed {
+pub trait RelationsPort: sealed::Sealed {
     /// The resident population's generation.
     fn generation(&self) -> ResidentGeneration;
     /// Publishes `body`, its backing accounted to the ledger.

@@ -9,8 +9,8 @@ use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::governs_rule;
 use crate::domain::workers::types::Tables;
 use ryo_execution::inbound::use_cases::execution::interface::Demand;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::RootOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::{
     ApplicabilityReason, Arena, CaptureIntent, DiagnosticDelivery, FileRuleIntent,

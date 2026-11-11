@@ -1,10 +1,10 @@
 //! A request execution: its files, its project phase and its observation stage.
-use crate::application::file_dag::frontiers::errors::PreparationError;
+use crate::application::file_dag::frontiers::errors::FrontiersError;
 use crate::application::file_dag::frontiers::service::PreparationPolicy;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::facade_runtime;
-use crate::application::file_dag::program::facade_runtime::types::ProgramServices;
-use crate::application::file_dag::program::file_session::interface::FileExecution;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+use crate::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 use crate::application::file_dag::program::file_session::types::CaptureContext;
 use crate::application::file_dag::program::file_session::types::EmittedRoot;
 use crate::application::file_dag::program::file_session::types::FileEnd;
@@ -27,7 +27,7 @@ use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
-use crate::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
 use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::outbound::facts::errors::FactsError;
@@ -44,7 +44,7 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::CorpusInput;
 use std::cell::RefCell;
 use std::sync::Arc;
-impl ExecutionRequest for RequestExecution {
+impl ProgramRequestExecutionPort for RequestExecution {
     fn observations<'a>(
         &'a self,
         arenas: &'a mut Vec<ryo_values::domain::stored_facts::types::ArenaBytes>,
@@ -105,7 +105,7 @@ impl RequestExecution {
         &self,
         input: FrontierRequest<'_>,
         symbols: &mut Symbols,
-    ) -> Result<PreparedFrontiers, PreparationError> {
+    ) -> Result<PreparedFrontiers, FrontiersError> {
         let policy = match input.demand {
             FrontierDemand::Diagnostic => PreparationPolicy::Diagnostic,
             FrontierDemand::Observations { ready } => {
@@ -141,7 +141,7 @@ impl RequestExecution {
             symbols,
             input.source,
         );
-        let inner = facade_runtime::file_execution::open_file(
+        let inner = facade_runtime::file_execution::service::open_file(
             &self.program,
             input.file,
             ScopePartials::File {
@@ -179,14 +179,13 @@ impl RequestExecution {
         &'a self,
         input: ProjectInput<'a>,
         symbols: &mut Symbols,
-    ) -> Result<facade_runtime::project_execution::ProjectRun<'a>, OperatingError> {
-        let frontiers =
-            crate::application::file_dag::program::facade_runtime::types::ProjectFrontiers {
-                publication: &input.scope.publication,
-                ordinary: input.ordinary,
-                bound_inputs: input.bound,
-            };
-        let inner = facade_runtime::project_execution::open_project(
+    ) -> Result<facade_runtime::project_execution::service::ProjectRun<'a>, OperatingError> {
+        let frontiers = facade_runtime::service::ProjectFrontiers {
+            publication: &input.scope.publication,
+            ordinary: input.ordinary,
+            bound_inputs: input.bound,
+        };
+        let inner = facade_runtime::project_execution::service::open_project(
             &self.program,
             input.scope.required.clone(),
             ScopePartials::Project {
@@ -394,7 +393,7 @@ pub fn begin(
             )
             .observed(observer),
         ),
-        frontiers: crate::application::file_dag::frontiers::types::FrontierCache::new(),
+        frontiers: crate::application::file_dag::frontiers::cache::service::FrontierCache::new(),
         digest: Arc::clone(&program.parts.digest),
     }
 }

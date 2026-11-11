@@ -5,8 +5,20 @@ use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::acquisition::admission::service::{
     AcquiredView, AcquisitionLifetime, AdmittedViewInputs,
 };
+use crate::application::file_dag::derived::owner::acquisition::semantics::storage::service::DerivedStorage;
+use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
+use crate::application::file_dag::derived::owner::footprint::service::storage_bytes;
+use crate::application::file_dag::derived::owner::graph_key::service::RequirementIdentity;
+use crate::application::file_dag::derived::owner::service::*;
+use crate::application::file_dag::derived::owner::types::*;
 use crate::application::file_dag::derived::owner::*;
+use crate::application::file_dag::derived::population::service::PopulationId;
 use crate::application::file_dag::route_counts;
+use ryo_derived::domain::request::types::DerivedKind;
+use ryo_execution_domain::domain::{
+    derived_views::types::contract::value::DerivedContract, operating::errors::OperatingError,
+};
+use std::sync::Arc;
 
 impl DerivedOwner {
     pub(crate) fn acquire_shared_with_requirement(
@@ -60,19 +72,19 @@ impl DerivedOwner {
         let key = Key {
             plan: requirement,
             populations: ids,
-            len: types::PopulationCount(len),
+            len: PopulationCount(len),
             context,
         };
-        let _owner = route_counts::owner(&self.routes, std::ptr::from_ref(self).addr());
-        let _identity = route_counts::identity(
+        let _owner = route_counts::service::owner(&self.routes, std::ptr::from_ref(self).addr());
+        let _identity = route_counts::service::identity(
             &self.routes,
             Arc::as_ptr(plan).addr(),
             ids.map(|id| (id.0 != usize::MAX).then_some(id.0)),
         );
-        route_counts::event(
+        route_counts::service::event(
             &self.routes,
             constants::OWNER_REQUEST,
-            route_counts::derived(plan.kind),
+            route_counts::service::derived(plan.kind),
         );
         {
             let mut guard = self.state.borrow_mut();
@@ -121,10 +133,10 @@ impl DerivedOwner {
                 }
                 entry.lease = Arc::downgrade(handle.lease());
                 state.hits += 1;
-                route_counts::event(
+                route_counts::service::event(
                     &self.routes,
                     constants::OWNER_HIT,
-                    route_counts::derived(plan.kind),
+                    route_counts::service::derived(plan.kind),
                 );
                 if let Some(cache) = cache.as_deref_mut() {
                     if stored_observation == StoredObservation::Observed
@@ -155,7 +167,7 @@ impl DerivedOwner {
         let bytes = storage_bytes(&storage)?;
         let backend_bytes = ByteCount(0);
         let working = bytes.saturating_add(backend_bytes);
-        let backings = backings::view(&storage)?;
+        let backings = backings::service::view(&storage)?;
         let handle = self.complete_view(
             plan,
             Arc::clone(&storage),
@@ -176,7 +188,7 @@ impl DerivedOwner {
         let positions = self.ledger.borrow().snapshot().optional_units.0;
         let positions_within_bound = positions
             .checked_add(additional_positions)
-            .is_some_and(|n| n <= crate::application::file_dag::derived::owner::cache::types::MAX_RETAINED_POSITION_CAPACITY);
+            .is_some_and(|n| n <= cache::types::MAX_RETAINED_POSITION_CAPACITY);
         let mut state = self.state.borrow_mut();
         state.builds += u64::from(built);
         state.hits += u64::from(!built);
@@ -236,7 +248,7 @@ impl DerivedOwner {
             state.peak_required_bytes = state.peak_required_bytes.max(state.required_bytes);
         }
         let admission = state.next_admission;
-        state.next_admission = types::AdmissionOrder(
+        state.next_admission = AdmissionOrder(
             state
                 .next_admission
                 .0
@@ -248,7 +260,7 @@ impl DerivedOwner {
         }
         state.entries.insert(
             key,
-            Entry {
+            OwnerEntry {
                 admission,
                 _plan: Arc::clone(plan),
                 weak: Arc::downgrade(&storage),

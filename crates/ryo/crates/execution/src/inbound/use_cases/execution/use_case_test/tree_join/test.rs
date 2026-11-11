@@ -1,11 +1,9 @@
 //! A native tree on either side of an actual compiled Join publishes the same exact cells.
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_relations::domain::relations::{
-    service::node_id,
-    types::{FileId, Position, Relation, Value as Cell},
-};
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
+use ryo_relations::domain::relations::service::node_position;
+use ryo_relations::domain::relations::types::{Relation, Value as Cell};
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -16,8 +14,19 @@ use ryo_values::{
         plans::types::Operation,
     },
 };
+use std::borrow::Cow;
+/// What the tree on the right and the tree on the left published.
+#[derive(Debug, PartialEq, Eq)]
+struct Trees {
+    /// Row counts, right then left.
+    rows: (usize, usize),
+    /// Both sides published the same exact cells.
+    same_cells: bool,
+    /// The positions of the right side's node cells, in order.
+    nodes: Cow<'static, [u32]>,
+}
 type Input = ();
-type Value = ();
+type Value = Trees;
 type Failure = OperatingError;
 fn subject((): Input) -> Result<Value, Failure> {
     let (elements, mut symbols) = fixtures::requests::tree_with_names();
@@ -86,18 +95,31 @@ fn subject((): Input) -> Result<Value, Failure> {
     )?;
     let left =
         fixtures::requests::published_file(left, vec![], vec![], b"abcd", &elements, &mut symbols)?;
-    assert_eq!(right.count.0, 2);
-    assert_eq!(left.count.0, 2);
-    assert_eq!(right.cells, left.cells);
-    assert_eq!(right.cells[0], Cell::Node(node_id(FileId(0), Position(1))));
-    assert_eq!(right.cells[2], Cell::Node(node_id(FileId(0), Position(3))));
-    Ok(())
+    Ok(Trees {
+        rows: (right.count.0, left.count.0),
+        same_cells: right.cells == left.cells,
+        nodes: right
+            .cells
+            .iter()
+            .filter_map(|cell| {
+                if let Cell::Node(node) = cell {
+                    Some(node_position(*node).0)
+                } else {
+                    None
+                }
+            })
+            .collect(),
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("a_tree_joins_as_many_rows_on_either_side"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(()),
+    expect: Expect::Value(Trees {
+        rows: (2, 2),
+        same_cells: true,
+        nodes: Cow::Borrowed(&[1, 3]),
+    }),
 }];
 #[test]
 fn succeeds() {

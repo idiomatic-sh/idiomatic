@@ -10,12 +10,12 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
@@ -36,6 +36,7 @@ use ryo_values::{
         stored_facts::types::Digest,
     },
 };
+use std::borrow::Cow;
 const AXES: [&str; 5] = ["axis-0", "axis-1", "axis-2", "axis-3", "axis-4"];
 const DIRECTIONS: [Direction; 5] = [
     Direction::Parent,
@@ -105,7 +106,44 @@ fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
         ),
     ])
 }
-fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
+/// One population's run: each rule's first answer (`None` when its root did not complete), the work it did, and
+/// what its replay answered and did.
+struct Run {
+    answers: Vec<Option<Table>>,
+    work: Work,
+    replays: Vec<Option<Table>>,
+    replay_work: Work,
+    foreign_reads: usize,
+}
+/// The canonical graph's builds, reuses and early stops, and the shared walk's passes, source rows and predicate rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Work {
+    graph: [u64; 3],
+    walk: [u64; 3],
+}
+impl Work {
+    fn of(
+        counts: ryo_execution_store::application::file_dag::derived::owner::fixtures::resources::Snapshot,
+        walks: ryo_execution_domain::domain::shared_walk::types::WalkCounts,
+    ) -> Self {
+        Self {
+            graph: [
+                counts.graph_builds,
+                counts.graph_reuses,
+                counts.graph_early_stops,
+            ],
+            walk: [walks.passes.0, walks.source_rows.0, walks.predicate_rows.0],
+        }
+    }
+}
+fn complete(outcome: RootOutcome) -> Option<Table> {
+    if let RootOutcome::Complete(table) = outcome {
+        Some(table)
+    } else {
+        None
+    }
+}
+fn execute(stored: bool, projected: bool) -> Result<Run, OperatingError> {
     let engine = Preparation::real();
     let plans = DIRECTIONS
         .into_iter()
@@ -156,12 +194,11 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
                 .collect(),
         ),
     ];
-    assert_eq!(
-        kinds(Relation::LanguageTarget),
-        [CellKind::File, CellKind::Number, CellKind::Number]
-    );
+    let foreign_reads = std::cell::Cell::new(0);
     let read = |relation| {
-        assert_eq!(relation, Relation::LanguageTarget);
+        if relation != Relation::LanguageTarget {
+            foreign_reads.set(foreign_reads.get() + 1);
+        }
         Ok(SourceRows::Stored(ColumnsView {
             kinds: kinds(relation),
             columns: &columns,
@@ -207,101 +244,101 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
             crate::inbound::use_cases::execution::fixtures::requests::emitted(),
             &mut symbols,
         )?;
-        let RootOutcome::Complete(table) = result.emit else {
-            panic!("actual axis owner must complete")
-        };
-        answers.push(table);
+        answers.push(complete(result.emit));
     }
-    let counts = file.resource_fixture_counts();
-    let walks = file.fixture_walk_counts();
-    if stored && !projected {
-        // The derived Adjacency route through the owner: one canonical graph for the five consumers.
-        assert_eq!(
-            counts.graph_builds, 1,
-            "the stored edges build one canonical retained graph"
-        );
-        assert_eq!(counts.graph_reuses, 4, "the other four consumers reuse it");
-        assert!(
-            counts.graph_early_stops > 0,
-            "cyclic nearest preserves early stop"
-        );
-        assert_eq!(
-            walks.passes.0, 0,
-            "the axis reads the stored relation itself: there is no select head to walk"
-        );
-    } else {
-        assert_eq!(
-            (counts.graph_builds, counts.graph_reuses),
-            (0, 0),
-            "selected (owned) and hosted edges are traversed as ordinary rows, with no canonical retained graph"
-        );
-    }
-    if stored && projected {
-        assert_eq!(
-            walks.passes.0, 1,
-            "all five selecting consumers share one actual walk"
-        );
-        assert_eq!(
-            walks.source_rows.0, 7,
-            "the seven-edge provider population is scanned once"
-        );
-        assert_eq!(
-            walks.predicate_rows.0, 7,
-            "one shared predicate class visits every source row once"
-        );
-    } else if !stored {
-        assert_eq!(
-            walks.passes.0, 0,
-            "the hosted reference performs no resident shared walk"
-        );
-    }
-    for (i, expected) in answers.iter().enumerate() {
+    let work = Work::of(file.resource_fixture_counts(), file.fixture_walk_counts());
+    let mut replays = vec![];
+    for i in 0..5 {
         let result = file.rule(
             RuleIndex(i),
             crate::inbound::use_cases::execution::fixtures::requests::emitted(),
             &mut symbols,
         )?;
-        let RootOutcome::Complete(table) = result.emit else {
-            panic!("a completed axis root must replay its exact output")
-        };
-        assert_eq!(&table, expected);
+        replays.push(complete(result.emit));
     }
-    assert_eq!(
-        file.fixture_walk_counts(),
-        walks,
-        "delivery retries do no source or predicate work"
-    );
-    let repeated = file.resource_fixture_counts();
-    assert_eq!(repeated.graph_builds, counts.graph_builds);
-    assert_eq!(repeated.graph_reuses, counts.graph_reuses);
-    assert_eq!(repeated.graph_early_stops, counts.graph_early_stops);
+    let replay_work = Work::of(file.resource_fixture_counts(), file.fixture_walk_counts());
     file.finish()?;
     request.finish();
-    Ok(answers)
+    Ok(Run {
+        answers,
+        work,
+        replays,
+        replay_work,
+        foreign_reads: foreign_reads.get(),
+    })
 }
-type Input = ();
-type Value = ();
+/// The edges an axis request reads: hosted, the stored relation itself, or selected (projected) from it.
+#[derive(Clone, Copy, Debug)]
+enum Edges {
+    Hosted,
+    Stored,
+    Selected,
+}
+/// What one population's five rules did and answered.
+#[derive(Debug, PartialEq, Eq)]
+struct Observed {
+    /// The stored relation's cell kinds the fake serves its columns as.
+    schema: Cow<'static, [CellKind]>,
+    /// The canonical graph's builds, reuses and early stops, and the shared walk's passes, source rows and predicate rows.
+    work: Work,
+    /// Every root completed, and replayed its exact output.
+    replayed: bool,
+    /// Delivery retries do no source, predicate or graph work.
+    replay_is_free: bool,
+    /// All five directions answer the hosted reference's exact ordered bags.
+    same_as_hosted: bool,
+    /// Reads of any relation other than the stored graph.
+    foreign_reads: usize,
+}
+type Input = Edges;
+type Value = Observed;
 type Failure = OperatingError;
-fn subject((): Input) -> Result<Value, Failure> {
-    let ordinary = execute(false, false)?;
-    let stored = execute(true, false)?;
-    let projected = execute(true, true)?;
-    assert_eq!(
-        projected, ordinary,
-        "duplicate/reordered selected columns retain the same graph meaning"
-    );
-    assert_eq!(
-        stored, ordinary,
-        "all five directions preserve exact BFS/direct order and duplicate bags"
-    );
-    Ok(())
+fn subject(edges: Input) -> Result<Value, Failure> {
+    let hosted = execute(false, false)?;
+    let run = match edges {
+        Edges::Hosted => execute(false, false)?,
+        Edges::Stored => execute(true, false)?,
+        Edges::Selected => execute(true, true)?,
+    };
+    Ok(Observed {
+        schema: kinds(Relation::LanguageTarget).to_vec().into(),
+        work: run.work,
+        replayed: run.answers.iter().all(Option::is_some) && run.replays == run.answers,
+        replay_is_free: run.replay_work == run.work,
+        same_as_hosted: run.answers == hosted.answers,
+        foreign_reads: run.foreign_reads,
+    })
 }
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("axis_requests_build_one_graph_or_share_one_walk_and_replay_without_work"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
+const fn observed(graph: [u64; 3], walk: [u64; 3]) -> Expect<Value, Failure> {
+    Expect::Value(Observed {
+        schema: Cow::Borrowed(&[CellKind::File, CellKind::Number, CellKind::Number]),
+        work: Work { graph, walk },
+        replayed: true,
+        replay_is_free: true,
+        same_as_hosted: true,
+        foreign_reads: 0,
+    })
+}
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("axis_requests_build_one_graph_or_share_one_walk_and_replay_without_work"),
+        word: Word::Succeeds,
+        input: || Edges::Stored,
+        expect: observed([1, 4, 3], [0, 0, 0]),
+    },
+    Case {
+        name: CaseName("selected_edges_share_one_walk_and_build_no_graph"),
+        word: Word::Succeeds,
+        input: || Edges::Selected,
+        expect: observed([0, 0, 0], [1, 7, 7]),
+    },
+    Case {
+        name: CaseName("hosted_edges_build_no_graph_and_walk_nothing"),
+        word: Word::Succeeds,
+        input: || Edges::Hosted,
+        expect: observed([0, 0, 0], [0, 0, 0]),
+    },
+];
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);

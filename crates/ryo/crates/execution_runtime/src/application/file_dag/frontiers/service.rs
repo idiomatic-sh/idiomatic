@@ -6,11 +6,13 @@ use super::constants::{
     INPUT_MEMORY_SPAN, OWNER_FRONTIER_DESCRIPTORS, OWNER_PACKED_INPUT, PHASE_COMPACT_PREPARED,
     PHASE_INPUT_PACKED, PRODUCER_UNAVAILABLE, PROOF_MISMATCH, SOURCES_SKIPPED,
 };
-use super::errors::PreparationError;
+use super::errors::FrontiersError;
 use super::types::{
-    FileAccounting, FrontierCache, FrontierDecodes, FrontierInput, FrontierSource, InputReadiness,
-    PackedFrontier, PreparedFrontiers, ProviderAddress, Providers,
+    FileAccounting, FrontierInput, FrontierSource, InputReadiness, PackedFrontier,
+    PreparedFrontiers, ProviderAddress, Providers,
 };
+use crate::application::file_dag::frontiers::cache::service::FrontierCache;
+use crate::application::file_dag::frontiers::decodes::service::FrontierDecodes;
 use crate::outbound::facts::interface::{FactsFinish, FactsWorker};
 use ryo_execution_store::application::file_dag::derived::constants::TARGET_LIFECYCLE_MEMORY;
 use ryo_language::domain::symbols::{service::places_mut, types::Symbols};
@@ -43,9 +45,9 @@ pub(super) fn prepare(
     project: &dyn FactsWorker,
     project_symbols: &Symbols,
     symbols: &mut Symbols,
-    required: &crate::application::file_dag::program::admission::RequiredPartitions,
+    required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     policy: PreparationPolicy<'_>,
-) -> Result<PreparedFrontiers, PreparationError> {
+) -> Result<PreparedFrontiers, FrontiersError> {
     let roots = &program
         .program()
         .rules()
@@ -256,7 +258,7 @@ pub(crate) fn validate_bucket(
     input: InputNumber,
     first: Bucket,
     bucket: Bucket,
-    required: &crate::application::file_dag::program::admission::RequiredPartitions,
+    required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     payload: &crate::outbound::facts::types::KeptBucket,
 ) -> Result<ryo_execution_domain::domain::completion::types::CoverageState, OperatingError> {
     use ryo_execution_domain::domain::completion::types::{FileLacks, MissingRows};
@@ -380,14 +382,14 @@ impl FrontierCache {
         &self,
         program: &crate::application::file_dag::program::preparation::types::PreparedProgram,
         rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
-        first: ryo_values::domain::stored_facts::types::Bucket,
-        facts: &dyn crate::outbound::facts::interface::FactsFinish,
-        project: &dyn crate::outbound::facts::interface::FactsWorker,
-        project_symbols: &ryo_language::domain::symbols::types::Symbols,
-        symbols: &mut ryo_language::domain::symbols::types::Symbols,
-        required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        first: Bucket,
+        facts: &dyn FactsFinish,
+        project: &dyn FactsWorker,
+        project_symbols: &Symbols,
+        symbols: &mut Symbols,
+        required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
         policy: PreparationPolicy<'_>,
-    ) -> Result<PreparedFrontiers, PreparationError> {
+    ) -> Result<PreparedFrontiers, FrontiersError> {
         let ready = match policy {
             PreparationPolicy::Diagnostic => None,
             PreparationPolicy::Observations { ready } => Some(ready),

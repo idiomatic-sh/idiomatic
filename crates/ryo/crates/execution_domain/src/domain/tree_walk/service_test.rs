@@ -1,5 +1,7 @@
 //! The `tree_walk` service's cases, on the columns a walk makes.
 
+use std::borrow::Cow;
+
 use ryo_relations::domain::relations::types::{CellKind, Position};
 use ryo_values::selects;
 
@@ -9,23 +11,26 @@ use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side};
 
-/// What a row of the cases asks: the column the output names, if any.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// No output is named: the start row with the node found.
-    Whole,
-    /// The output names the first column of the right side.
-    Right,
-    /// The output names a column the right side does not have.
-    Missing,
-    /// Reads the nearest ancestor remembered for an element the remembered answers hold no slot for.
-    NearestPastTheTree,
+/// What a row asks.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// The kinds of the columns a walk from a node and a number to a node makes, answering the right side's columns at these
+    /// places (none: the start row with the node found).
+    Walk(&'static [u32]),
+    /// Whether reading the nearest ancestor remembered for this element, of remembered answers with this many slots, crashes with
+    /// the message of a missing slot.
+    NearestPastTheTree(u32, usize),
 }
 
-/// What a row of the cases asks.
-type Input = Scenario;
-/// How many columns the walk makes, or for a read of the nearest ancestors, what it crashed with as its length.
-type Value = usize;
+/// What a row answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    Kinds(Cow<'static, [CellKind]>),
+    Crashed(bool),
+}
+
+type Input = Ask;
+type Value = Answer;
 type Failure = OperatingError;
 
 /// The rows of this part's cases.
@@ -33,26 +38,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("no_output_makes_the_start_row_and_the_node_found"),
         word: Word::Succeeds,
-        input: || Scenario::Whole,
-        expect: Expect::Value(3),
+        input: || Ask::Walk(&[]),
+        expect: Expect::Value(Answer::Kinds(Cow::Borrowed(&[
+            CellKind::Node,
+            CellKind::Number,
+            CellKind::Node,
+        ]))),
     },
     Case {
         name: CaseName("an_output_column_of_the_right_makes_one_column"),
         word: Word::Succeeds,
-        input: || Scenario::Right,
-        expect: Expect::Value(1),
+        input: || Ask::Walk(&[0]),
+        expect: Expect::Value(Answer::Kinds(Cow::Borrowed(&[CellKind::Node]))),
     },
     Case {
         name: CaseName("an_output_column_the_side_lacks_is_refused"),
         word: Word::Refuses,
-        input: || Scenario::Missing,
+        input: || Ask::Walk(&[4]),
         expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::Table(..)))),
     },
     Case {
         name: CaseName("a_nearest_ancestor_with_no_slot_crashes_instead_of_finding_nothing"),
         word: Word::Succeeds,
-        input: || Scenario::NearestPastTheTree,
-        expect: Expect::Value(1),
+        input: || Ask::NearestPastTheTree(5, 2),
+        expect: Expect::Value(Answer::Crashed(true)),
     },
 ];
 
@@ -65,8 +74,8 @@ fn nearest_at(nearest: &[u32], element: Position) -> Position {
         .expect(SLOT_OF_ELEMENT)
 }
 
-/// Whether `work` crashed with the message a missing slot of the nearest ancestors gives: 1 when it did, 0 otherwise.
-fn crashed_on_missing_slot(work: impl FnOnce()) -> usize {
+/// Whether `work` crashed with the message a missing slot of the nearest ancestors gives.
+fn crashed_on_missing_slot(work: impl FnOnce()) -> bool {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)).map_or_else(
         |payload| {
             let message = payload
@@ -74,35 +83,38 @@ fn crashed_on_missing_slot(work: impl FnOnce()) -> usize {
                 .map(|message| (*message).to_owned())
                 .or_else(|| payload.downcast_ref::<String>().cloned())
                 .unwrap_or_default();
-            usize::from(message == SLOT_OF_ELEMENT)
+            message == SLOT_OF_ELEMENT
         },
-        |()| 0,
+        |()| false,
     )
 }
 
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    let from = [CellKind::Node, CellKind::Number];
-    let reached = [CellKind::Node];
-    if matches!(scenario, Scenario::NearestPastTheTree) {
-        let nearest = vec![0, 0];
-        return Ok(crashed_on_missing_slot(|| {
-            let _found = nearest_at(&nearest, Position(5));
-        }));
+fn subject(ask: Input) -> Result<Value, Failure> {
+    match ask {
+        Ask::NearestPastTheTree(element, slots) => {
+            let nearest = vec![0; slots];
+            Ok(Answer::Crashed(crashed_on_missing_slot(|| {
+                let _found = nearest_at(&nearest, Position(element));
+            })))
+        }
+        Ask::Walk(columns) => {
+            let output: Vec<JoinColumn> = columns
+                .iter()
+                .map(|column| JoinColumn {
+                    side: Side::Right,
+                    column: ColumnIndex(*column),
+                })
+                .collect();
+            let mut out = Table::default();
+            walk_kinds(
+                &[CellKind::Node, CellKind::Number],
+                &[CellKind::Node],
+                &output,
+                &mut out,
+            )?;
+            Ok(Answer::Kinds(Cow::Owned(out.kinds)))
+        }
     }
-    let output = match scenario {
-        Scenario::Whole | Scenario::NearestPastTheTree => Vec::new(),
-        Scenario::Right => vec![JoinColumn {
-            side: Side::Right,
-            column: ColumnIndex(0),
-        }],
-        Scenario::Missing => vec![JoinColumn {
-            side: Side::Right,
-            column: ColumnIndex(4),
-        }],
-    };
-    let mut out = Table::default();
-    walk_kinds(&from, &reached, &output, &mut out)?;
-    Ok(out.kinds.len())
 }
 
 #[test]

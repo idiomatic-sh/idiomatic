@@ -6,78 +6,134 @@ use super::{
 };
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::WholeNumber;
+use std::borrow::Cow;
 use std::cmp::Ordering::{self, Equal, Greater, Less};
 
-/// What a row asks of the part.
-enum Scenario {
-    /// Pairs of text and the exact order of each, in both directions.
-    Ordered(&'static [(&'static str, &'static str, Ordering)]),
-    /// An integer of 2^1024 against the largest and the infinite binary64.
-    WiderThanBinary64,
-    /// Text that is not normalized numeric text.
-    Unreadable(&'static [&'static str]),
-    /// NaN against every other kind of operand.
-    NotANumber,
-    /// Existing whole numbers against decimal and float text.
-    Whole,
-    /// Pairs of integer text where the right is the left plus one.
-    Successors(&'static [(&'static str, &'static str)]),
-    /// Pairs of numeric text where the right is not the left plus one.
-    NotSuccessors(&'static [(&'static str, &'static str)]),
-    /// Existing whole numbers at the edges of their range.
-    WholeSuccessors,
+/// A numeric operand: text read as a number, a whole number, a float, or the integer two to this power, as text.
+#[derive(Clone, Copy, Debug)]
+enum Num {
+    Text(&'static str),
+    Whole(i64),
+    Float(f64),
+    TwoToThe(u32),
 }
-/// A scenario: what a row asks of the part.
-type Input = Scenario;
-/// How many checks of the row held.
-type Value = usize;
+
+/// What a row asks of the part.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// The order of each pair, both ways.
+    Compare(&'static [(Num, Num)]),
+    /// Whether each text reads as normalized numeric text.
+    Read(&'static [&'static str]),
+    /// Whether, of each pair, the right succeeds the left, the left the right, and the left itself.
+    Successor(&'static [(Num, Num)]),
+}
+
+/// What the part answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    Orders(Cow<'static, [(Option<Ordering>, Option<Ordering>)]>),
+    Read(Cow<'static, [bool]>),
+    Successions(Cow<'static, [[Succession; 3]]>),
+}
+
+type Input = Ask;
+type Value = Answer;
 /// Nothing in this part refuses.
 type Failure = std::convert::Infallible;
 
-const ORDERED: &[(&str, &str, Ordering)] = &[
-    ("0", "-0", Equal),
-    ("0", "-0.0", Equal),
-    ("1", "1.0", Equal),
-    ("-2", "-1", Less),
-    ("100000000000000000000", "99999999999999999999", Greater),
-    ("9007199254740993", "9007199254740992", Greater),
-    ("9007199254740993", "9007199254740992.0", Greater),
-    ("-9007199254740993", "-9007199254740992.0", Less),
-    ("18446744073709551615", "1.8446744073709552e19", Less),
-    ("18446744073709551617", "1.8446744073709552e19", Greater),
+const ORDERED: &[(Num, Num)] = &[
+    (Num::Text("0"), Num::Text("-0")),
+    (Num::Text("0"), Num::Text("-0.0")),
+    (Num::Text("1"), Num::Text("1.0")),
+    (Num::Text("-2"), Num::Text("-1")),
     (
-        "340282366920938463463374607431768211455",
-        "3.402823669209385e38",
-        Less,
+        Num::Text("100000000000000000000"),
+        Num::Text("99999999999999999999"),
+    ),
+    (Num::Text("9007199254740993"), Num::Text("9007199254740992")),
+    (
+        Num::Text("9007199254740993"),
+        Num::Text("9007199254740992.0"),
     ),
     (
-        "340282366920938463463374607431768211456",
-        "3.402823669209385e38",
-        Equal,
+        Num::Text("-9007199254740993"),
+        Num::Text("-9007199254740992.0"),
     ),
     (
-        "340282366920938463463374607431768211457",
-        "3.402823669209385e38",
-        Greater,
+        Num::Text("18446744073709551615"),
+        Num::Text("1.8446744073709552e19"),
     ),
     (
-        "-340282366920938463463374607431768211457",
-        "-3.402823669209385e38",
-        Less,
+        Num::Text("18446744073709551617"),
+        Num::Text("1.8446744073709552e19"),
     ),
-    ("340282366920938463463374607431768211456", "1.0", Greater),
-    ("0", "5e-324", Less),
-    ("1", "5e-324", Greater),
-    ("-1", "-5e-324", Less),
-    ("0", "2.2250738585072014e-308", Less),
-    ("1", "0.9999999999999999", Greater),
-    ("1", "1.0000000000000002", Less),
-    ("86400.25", "86400", Greater),
-    ("86400.25", "86401", Less),
-    ("inf", "1.7976931348623157e308", Greater),
-    ("-inf", "-99999999999999999999999999999999999", Less),
-    ("inf", "inf", Equal),
-    ("-inf", "-inf", Equal),
+    (
+        Num::Text("340282366920938463463374607431768211455"),
+        Num::Text("3.402823669209385e38"),
+    ),
+    (
+        Num::Text("340282366920938463463374607431768211456"),
+        Num::Text("3.402823669209385e38"),
+    ),
+    (
+        Num::Text("340282366920938463463374607431768211457"),
+        Num::Text("3.402823669209385e38"),
+    ),
+    (
+        Num::Text("-340282366920938463463374607431768211457"),
+        Num::Text("-3.402823669209385e38"),
+    ),
+    (
+        Num::Text("340282366920938463463374607431768211456"),
+        Num::Text("1.0"),
+    ),
+    (Num::Text("0"), Num::Text("5e-324")),
+    (Num::Text("1"), Num::Text("5e-324")),
+    (Num::Text("-1"), Num::Text("-5e-324")),
+    (Num::Text("0"), Num::Text("2.2250738585072014e-308")),
+    (Num::Text("1"), Num::Text("0.9999999999999999")),
+    (Num::Text("1"), Num::Text("1.0000000000000002")),
+    (Num::Text("86400.25"), Num::Text("86400")),
+    (Num::Text("86400.25"), Num::Text("86401")),
+    (Num::Text("inf"), Num::Text("1.7976931348623157e308")),
+    (
+        Num::Text("-inf"),
+        Num::Text("-99999999999999999999999999999999999"),
+    ),
+    (Num::Text("inf"), Num::Text("inf")),
+    (Num::Text("-inf"), Num::Text("-inf")),
+];
+
+/// The order of each pair of `ORDERED`, and of its reverse.
+const ORDERS: &[(Option<Ordering>, Option<Ordering>)] = &[
+    (Some(Equal), Some(Equal)),
+    (Some(Equal), Some(Equal)),
+    (Some(Equal), Some(Equal)),
+    (Some(Less), Some(Greater)),
+    (Some(Greater), Some(Less)),
+    (Some(Greater), Some(Less)),
+    (Some(Greater), Some(Less)),
+    (Some(Less), Some(Greater)),
+    (Some(Less), Some(Greater)),
+    (Some(Greater), Some(Less)),
+    (Some(Less), Some(Greater)),
+    (Some(Equal), Some(Equal)),
+    (Some(Greater), Some(Less)),
+    (Some(Less), Some(Greater)),
+    (Some(Greater), Some(Less)),
+    (Some(Less), Some(Greater)),
+    (Some(Greater), Some(Less)),
+    (Some(Less), Some(Greater)),
+    (Some(Less), Some(Greater)),
+    (Some(Greater), Some(Less)),
+    (Some(Less), Some(Greater)),
+    (Some(Greater), Some(Less)),
+    (Some(Less), Some(Greater)),
+    (Some(Greater), Some(Less)),
+    (Some(Less), Some(Greater)),
+    (Some(Equal), Some(Equal)),
+    (Some(Equal), Some(Equal)),
 ];
 
 const UNREADABLE: &[&str] = &[
@@ -85,213 +141,198 @@ const UNREADABLE: &[&str] = &[
     "1e", "1e+", "1.0x", "00.0", "Infinity",
 ];
 
-const SUCCESSORS: &[(&str, &str)] = &[
-    ("-2", "-1"),
-    ("-1", "0"),
-    ("-0", "1"),
-    ("42", "43"),
-    ("9007199254740992", "9007199254740993"),
-    ("9223372036854775807", "9223372036854775808"),
+const SUCCESSORS: &[(Num, Num)] = &[
+    (Num::Text("-2"), Num::Text("-1")),
+    (Num::Text("-1"), Num::Text("0")),
+    (Num::Text("-0"), Num::Text("1")),
+    (Num::Text("42"), Num::Text("43")),
+    (Num::Text("9007199254740992"), Num::Text("9007199254740993")),
     (
-        "170141183460469231731687303715884105727",
-        "170141183460469231731687303715884105728",
+        Num::Text("9223372036854775807"),
+        Num::Text("9223372036854775808"),
     ),
     (
-        "-170141183460469231731687303715884105728",
-        "-170141183460469231731687303715884105727",
+        Num::Text("170141183460469231731687303715884105727"),
+        Num::Text("170141183460469231731687303715884105728"),
+    ),
+    (
+        Num::Text("-170141183460469231731687303715884105728"),
+        Num::Text("-170141183460469231731687303715884105727"),
     ),
 ];
 
-const NOT_SUCCESSORS: &[(&str, &str)] = &[
-    ("1.0", "2"),
-    ("1", "2.0"),
-    ("inf", "2"),
-    ("1", "NaN"),
-    ("42", "44"),
+const NOT_SUCCESSORS: &[(Num, Num)] = &[
+    (Num::Text("1.0"), Num::Text("2")),
+    (Num::Text("1"), Num::Text("2.0")),
+    (Num::Text("inf"), Num::Text("2")),
+    (Num::Text("1"), Num::Text("NaN")),
+    (Num::Text("42"), Num::Text("44")),
 ];
 
-fn numeric(text: &str) -> Numeric<'_> {
-    read(NumberText(text)).expect("canonical numeric example")
-}
-
-fn ordered(examples: &[(&str, &str, Ordering)]) -> Value {
-    for (left, right, expected) in examples {
-        let (left_value, right_value) = (numeric(left), numeric(right));
-        assert_eq!(
-            compare(left_value, right_value),
-            Some(*expected),
-            "{left} versus {right}"
-        );
-        assert_eq!(
-            compare(right_value, left_value),
-            Some(expected.reverse()),
-            "reverse {right} versus {left}"
-        );
+/// The text of a numeric operand, written out for the integer two to a power; none for a number given as such.
+fn spelled(num: Num) -> Cow<'static, str> {
+    match num {
+        Num::Text(text) => Cow::Borrowed(text),
+        Num::TwoToThe(power) => Cow::Owned((num_bigint::BigUint::from(1_u8) << power).to_string()),
+        Num::Whole(_) | Num::Float(_) => Cow::Borrowed(""),
     }
-    examples.len()
 }
 
-fn wider_than_binary64() -> Value {
-    let wider = (num_bigint::BigUint::from(1_u8) << 1024_u32).to_string();
-    let integer = numeric(&wider);
-    assert_eq!(
-        compare(integer, Numeric::Float(FloatValue(f64::MAX))),
-        Some(Greater)
-    );
-    assert_eq!(
-        compare(integer, Numeric::Float(FloatValue(f64::INFINITY))),
-        Some(Less)
-    );
-    2
-}
-
-fn unreadable(texts: &[&str]) -> Value {
-    for text in texts {
-        assert_eq!(
-            read(NumberText(text)),
-            None,
-            "{text:?} is not normalized numeric text"
-        );
+/// The numeric value of an operand, its text read from `spelling`.
+fn numeric(num: Num, spelling: &str) -> Numeric<'_> {
+    match num {
+        Num::Text(_) | Num::TwoToThe(_) => {
+            read(NumberText(spelling)).expect("canonical numeric example")
+        }
+        Num::Whole(whole) => Numeric::Whole(WholeNumber(whole)),
+        Num::Float(float) => Numeric::Float(FloatValue(float)),
     }
-    texts.len()
 }
 
-fn not_a_number() -> Value {
-    let nan = numeric("NaN");
-    let others = [
-        Numeric::Whole(WholeNumber(0)),
-        Numeric::Float(FloatValue(f64::INFINITY)),
-        nan,
-    ];
-    for other in others {
-        assert_eq!(compare(nan, other), None);
-        assert_eq!(compare(other, nan), None);
-    }
-    others.len()
+/// The answer of `each` to every pair, each operand spelled where it must be.
+fn pairs<T>(pairs: &[(Num, Num)], each: impl Fn(Numeric<'_>, Numeric<'_>) -> T) -> Vec<T> {
+    pairs
+        .iter()
+        .map(|(left, right)| {
+            let (left_text, right_text) = (spelled(*left), spelled(*right));
+            each(numeric(*left, &left_text), numeric(*right, &right_text))
+        })
+        .collect()
 }
 
-fn whole() -> Value {
-    let largest = Numeric::Whole(WholeNumber(i64::MAX));
-    let checks = [
-        (largest, numeric("9223372036854775807"), Equal),
-        (largest, numeric("9223372036854775808"), Less),
-        (largest, numeric("9223372036854775808.0"), Less),
-        (
-            Numeric::Whole(WholeNumber(i64::MIN)),
-            numeric("-9223372036854775808"),
-            Equal,
+fn subject(ask: Input) -> Result<Value, Failure> {
+    Ok(match ask {
+        Ask::Compare(examples) => Answer::Orders(
+            pairs(examples, |left, right| {
+                (compare(left, right), compare(right, left))
+            })
+            .into(),
         ),
-        (Numeric::Whole(WholeNumber(-1)), numeric("-1.0"), Equal),
-        (Numeric::Whole(WholeNumber(0)), numeric("-1"), Greater),
-    ];
-    for (left, right, expected) in checks {
-        assert_eq!(compare(left, right), Some(expected));
-    }
-    checks.len()
-}
-
-fn successors(pairs: &[(&str, &str)]) -> Value {
-    for (left, right) in pairs {
-        let (left, right) = (numeric(left), numeric(right));
-        assert_eq!(integer_successor(left, right), Succession::Successor);
-        assert_eq!(integer_successor(right, left), Succession::NotSuccessor);
-        assert_eq!(integer_successor(left, left), Succession::NotSuccessor);
-    }
-    pairs.len()
-}
-
-fn not_successors(pairs: &[(&str, &str)]) -> Value {
-    for (left, right) in pairs {
-        assert_eq!(
-            integer_successor(numeric(left), numeric(right)),
-            Succession::NotSuccessor
-        );
-    }
-    pairs.len()
-}
-
-fn whole_successors() -> Value {
-    assert_eq!(
-        integer_successor(
-            Numeric::Whole(WholeNumber(i64::MAX)),
-            numeric("9223372036854775808")
+        Ask::Read(texts) => Answer::Read(
+            texts
+                .iter()
+                .map(|text| read(NumberText(text)).is_some())
+                .collect(),
         ),
-        Succession::Successor
-    );
-    assert_eq!(
-        integer_successor(
-            Numeric::Whole(WholeNumber(i64::MIN)),
-            numeric("-9223372036854775807")
+        Ask::Successor(examples) => Answer::Successions(
+            pairs(examples, |left, right| {
+                [
+                    integer_successor(left, right),
+                    integer_successor(right, left),
+                    integer_successor(left, left),
+                ]
+            })
+            .into(),
         ),
-        Succession::Successor
-    );
-    2
+    })
 }
+
+const NAN: Num = Num::Text("NaN");
+
+/// Each pair of `NOT_A_NUMBER`, unordered both ways.
+const UNORDERED: &[(Option<Ordering>, Option<Ordering>)] = &[(None, None); 3];
+
+const WHOLE: &[(Num, Num)] = &[
+    (Num::Whole(i64::MAX), Num::Text("9223372036854775807")),
+    (Num::Whole(i64::MAX), Num::Text("9223372036854775808")),
+    (Num::Whole(i64::MAX), Num::Text("9223372036854775808.0")),
+    (Num::Whole(i64::MIN), Num::Text("-9223372036854775808")),
+    (Num::Whole(-1), Num::Text("-1.0")),
+    (Num::Whole(0), Num::Text("-1")),
+];
+
+const WHOLE_ORDERS: &[(Option<Ordering>, Option<Ordering>)] = &[
+    (Some(Equal), Some(Equal)),
+    (Some(Less), Some(Greater)),
+    (Some(Less), Some(Greater)),
+    (Some(Equal), Some(Equal)),
+    (Some(Equal), Some(Equal)),
+    (Some(Greater), Some(Less)),
+];
+
+/// The right succeeds the left; neither the left the right nor the left itself.
+const SUCCEEDS: [Succession; 3] = [
+    Succession::Successor,
+    Succession::NotSuccessor,
+    Succession::NotSuccessor,
+];
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("integer_float_and_wide_mixed_ordering_is_exact"),
         word: Word::Succeeds,
-        input: || Scenario::Ordered(ORDERED),
-        expect: Expect::Value(27),
+        input: || Ask::Compare(ORDERED),
+        expect: Expect::Value(Answer::Orders(Cow::Borrowed(ORDERS))),
     },
     Case {
         name: CaseName("a_wider_integer_than_binary64_orders_against_its_extremes"),
         word: Word::Succeeds,
-        input: || Scenario::WiderThanBinary64,
-        expect: Expect::Value(2),
+        input: || {
+            Ask::Compare(&[
+                (Num::TwoToThe(1024), Num::Float(f64::MAX)),
+                (Num::TwoToThe(1024), Num::Float(f64::INFINITY)),
+            ])
+        },
+        expect: Expect::Value(Answer::Orders(Cow::Borrowed(&[
+            (Some(Greater), Some(Less)),
+            (Some(Less), Some(Greater)),
+        ]))),
     },
     Case {
         name: CaseName("malformed_source_spellings_never_read"),
         word: Word::Succeeds,
-        input: || Scenario::Unreadable(UNREADABLE),
-        expect: Expect::Value(19),
+        input: || Ask::Read(UNREADABLE),
+        expect: Expect::Value(Answer::Read(Cow::Borrowed(&[false; 19]))),
     },
     Case {
         name: CaseName("nan_never_forms_an_ordered_pair"),
         word: Word::Succeeds,
-        input: || Scenario::NotANumber,
-        expect: Expect::Value(3),
+        input: || {
+            Ask::Compare(&[
+                (NAN, Num::Whole(0)),
+                (NAN, Num::Float(f64::INFINITY)),
+                (NAN, NAN),
+            ])
+        },
+        expect: Expect::Value(Answer::Orders(Cow::Borrowed(UNORDERED))),
     },
     Case {
         name: CaseName("existing_whole_numbers_do_not_round_through_float"),
         word: Word::Succeeds,
-        input: || Scenario::Whole,
-        expect: Expect::Value(6),
+        input: || Ask::Compare(WHOLE),
+        expect: Expect::Value(Answer::Orders(Cow::Borrowed(WHOLE_ORDERS))),
     },
     Case {
         name: CaseName("integer_successor_preserves_sign_and_precision"),
         word: Word::Succeeds,
-        input: || Scenario::Successors(SUCCESSORS),
-        expect: Expect::Value(8),
+        input: || Ask::Successor(SUCCESSORS),
+        expect: Expect::Value(Answer::Successions(Cow::Borrowed(&[SUCCEEDS; 8]))),
     },
     Case {
         name: CaseName("integer_successor_refuses_floats_and_gaps"),
         word: Word::Succeeds,
-        input: || Scenario::NotSuccessors(NOT_SUCCESSORS),
-        expect: Expect::Value(5),
+        input: || Ask::Successor(NOT_SUCCESSORS),
+        expect: Expect::Value(Answer::Successions(Cow::Borrowed(&[
+            [Succession::NotSuccessor; 3],
+            [Succession::NotSuccessor; 3],
+            [Succession::NotSuccessor; 3],
+            [Succession::NotSuccessor; 3],
+            [Succession::NotSuccessor; 3],
+        ]))),
     },
     Case {
         name: CaseName("integer_successor_crosses_the_whole_number_range"),
         word: Word::Succeeds,
-        input: || Scenario::WholeSuccessors,
-        expect: Expect::Value(2),
+        input: || {
+            Ask::Successor(&[
+                (Num::Whole(i64::MAX), Num::Text("9223372036854775808")),
+                (Num::Whole(i64::MIN), Num::Text("-9223372036854775807")),
+            ])
+        },
+        expect: Expect::Value(Answer::Successions(Cow::Borrowed(&[SUCCEEDS; 2]))),
     },
 ];
-
-fn subject(input: Input) -> Result<Value, Failure> {
-    Ok(match input {
-        Scenario::Ordered(examples) => ordered(examples),
-        Scenario::WiderThanBinary64 => wider_than_binary64(),
-        Scenario::Unreadable(texts) => unreadable(texts),
-        Scenario::NotANumber => not_a_number(),
-        Scenario::Whole => whole(),
-        Scenario::Successors(pairs) => successors(pairs),
-        Scenario::NotSuccessors(pairs) => not_successors(pairs),
-        Scenario::WholeSuccessors => whole_successors(),
-    })
-}
 
 #[test]
 fn succeeds() {

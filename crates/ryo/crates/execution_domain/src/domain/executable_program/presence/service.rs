@@ -1,16 +1,18 @@
 //! The `presence` service: one fold over the deduplicated request graph gives every node a presence formula, a
 //! necessary condition for the node to have a row in one file, and a skip formula, which also holds when a row-fallible
 //! operator upstream could have rows to fail on. No rows, IO or ports.
-use super::narrowing::{formula, test};
+use super::narrowing::{service::formula, service::test};
 use super::types::{
     Certification, ColumnOrigin, Conditionality, FoldedNode, FormulaId, GraphPresence, LocatedId,
     NodeFacts, OccurrenceId, PresenceFormula, PresenceTable, PresenceTables, PresenceTest, ReadId,
     RegionNode, RelationScope, RelationTests, SideOccurrence, SpanCheck, SpanColumn, TestId,
 };
 use crate::domain::file_program::types::{NodeInput, RequestGraph, SchemaValidity};
-use crate::domain::operation_schema::projection::{output_origins, tree_output};
+use crate::domain::operation_schema::projection::{service::output_origins, service::tree_output};
 use crate::domain::operation_schema::types::InputShape;
-use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
+use crate::domain::operator::contract::presence::{
+    types::InputMask, types::PresenceMask, types::RowFailure,
+};
 use ryo_relations::domain::relations::types::{Provenance, Relation};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepScope};
 use std::collections::HashMap;
@@ -144,7 +146,7 @@ pub fn of_graph(
                         .input_kinds
                         .get(place)
                         .map_or(&[][..], Vec::as_slice);
-                    located.push(super::narrowing::located_relation(
+                    located.push(super::narrowing::service::located_relation(
                         &mut tables,
                         *relation,
                         kinds,
@@ -202,7 +204,7 @@ pub fn of_graph(
             RowFailure::Never => {}
             RowFailure::OnRows(mask) => failures.extend(masked(mask, &presences)),
             RowFailure::UnlessLocated(span) => {
-                relied = super::narrowing::relied(
+                relied = super::narrowing::service::relied(
                     &tables,
                     &node.operation,
                     span,
@@ -215,7 +217,9 @@ pub fn of_graph(
                 }
             }
         }
-        if let Some(mask) = super::narrowing::invalid_patterns(&node.operation, matcher, prepared) {
+        if let Some(mask) =
+            super::narrowing::service::invalid_patterns(&node.operation, matcher, prepared)
+        {
             failures.extend(masked(mask, &presences));
         }
         let failure = (!failures.is_empty()).then(|| any(&mut tables, failures));
@@ -239,7 +243,8 @@ pub fn of_graph(
             PresenceMask::AnyOf(mask) => any(&mut tables, masked(mask, &presences)),
             PresenceMask::Always => ALWAYS,
         };
-        let narrowing = super::narrowing::node_narrowing(&mut tables, &node.operation, &origins);
+        let narrowing =
+            super::narrowing::service::node_narrowing(&mut tables, &node.operation, &origins);
         let presence = all(&mut tables, std::iter::once(base).chain(narrowing));
         let slices: Vec<&[Option<ColumnOrigin>]> = origins.iter().map(Vec::as_slice).collect();
         let output = output_origins(&node.operation, &shapes, &slices, &mut |side, origin| {
@@ -258,7 +263,7 @@ pub fn of_graph(
         // A search that declares no failure relies on its provider spans: each file validates them when it admits them.
         tables.relied.extend(relied.into_iter().flatten());
         let located_slices: Vec<&[Option<LocatedId>]> = located.iter().map(Vec::as_slice).collect();
-        let located = super::narrowing::located_output(
+        let located = super::narrowing::service::located_output(
             &mut tables,
             &node.operation,
             &shapes,

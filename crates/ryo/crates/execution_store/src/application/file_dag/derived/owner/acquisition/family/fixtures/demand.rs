@@ -1,6 +1,6 @@
 //! One acquisition of a family from admitted rows; every scenario issues its demands here.
 use super::super::super::admission::service::{AcquiredView, AdmittedViewInputs};
-use crate::application::file_dag::relations::RelationOwner;
+use crate::application::file_dag::relations::service::RelationOwner;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{

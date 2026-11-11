@@ -1,30 +1,10 @@
 //! Values of the opt-in route accounting; never participates in execution or admission decisions.
-use std::{collections::HashMap, fmt};
+use crate::application::file_dag::route_counts::ids::service::RouteFileIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteLabel;
+use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
+use std::collections::HashMap;
 
-/// Text label of one route, family, counter, namespace or consumer.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RouteLabel(pub(crate) &'static str);
-impl From<&'static str> for RouteLabel {
-    fn from(text: &'static str) -> Self {
-        Self(text)
-    }
-}
-/// The index of the rule a route is recorded under.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RouteRuleIndex(pub(crate) usize);
-impl From<usize> for RouteRuleIndex {
-    fn from(index: usize) -> Self {
-        Self(index)
-    }
-}
-/// The program node a route is recorded under.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RouteNodeIndex(pub(crate) usize);
-impl From<usize> for RouteNodeIndex {
-    fn from(index: usize) -> Self {
-        Self(index)
-    }
-}
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct RouteOwnerId(pub usize);
 impl From<usize> for RouteOwnerId {
@@ -49,14 +29,6 @@ impl From<[Option<usize>; 2]> for RoutePopulations {
         Self(ids.map(|id| id.map(RoutePopulationId)))
     }
 }
-/// The index of the file a profile counts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RouteFileIndex(pub(crate) usize);
-impl From<usize> for RouteFileIndex {
-    fn from(index: usize) -> Self {
-        Self(index)
-    }
-}
 /// Number of events; counts and overflow are summed in place.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RouteTally(pub u64);
@@ -64,14 +36,6 @@ pub(crate) struct RouteTally(pub u64);
 /// Name of a rule, owned once per file profile.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RouteRuleName(pub String);
-/// A JSON document carried as one tracing field.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct RouteDocument(pub String);
-impl fmt::Display for RouteDocument {
-    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
-        out.write_str(&self.0)
-    }
-}
 
 /// Whether the build site belongs to an owner scope.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -129,6 +93,8 @@ pub(crate) struct RouteCount {
 }
 #[derive(Debug)]
 pub(crate) struct RouteState {
+    /// The format the profile's documents are written in.
+    pub format: std::sync::Arc<dyn crate::outbound::route_counts::interface::RouteCountsPort>,
     pub file: RouteFileIndex,
     pub origin: RouteOrigin,
     pub counts: HashMap<RouteKey, RouteCount>,
@@ -138,30 +104,6 @@ pub(crate) struct RouteState {
     pub progress: RouteProgressState,
 }
 
-/// The profile of one file, opened by its scope and handed down to every part that records
-/// into it; it holds no state when the scope does not record.
-#[derive(Clone, Debug, Default)]
-pub struct RouteProfile(pub(super) Option<std::sync::Arc<std::sync::Mutex<RouteState>>>);
-
-/// The profile of one file while its scope is open; it reports the file's counts when it closes.
-#[derive(Debug)]
-pub struct FileScope {
-    pub(super) profile: RouteProfile,
-}
-/// The origin a profile records under until this scope ends, when the previous one is restored.
-#[derive(Debug)]
-pub struct OriginScope {
-    pub(super) profile: RouteProfile,
-    pub(super) previous: Option<RouteOrigin>,
-}
-
-/// The origin a profile had when an invocation began, with the profile it belongs to.
-#[cfg(feature = "diagnostic-row-progress")]
-#[derive(Clone, Debug)]
-pub struct CapturedOrigin {
-    pub(super) profile: RouteProfile,
-    pub(super) origin: Option<RouteOrigin>,
-}
 /// Display path of the file under profile.
 #[cfg(feature = "diagnostic-row-progress")]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -217,8 +159,8 @@ pub(crate) struct RouteSnapshot {
     pub elapsed_ms: RouteTally,
     pub ticks: RouteTally,
     pub overflow: RouteTally,
-    pub hottest: RouteDocument,
-    pub counters: RouteDocument,
+    pub hottest: crate::outbound::route_counts::types::RouteDocument,
+    pub counters: crate::outbound::route_counts::types::RouteDocument,
     pub operation: RouteOperationName,
     pub input_cardinalities: [Option<RouteCardinality>; 3],
     pub row_file: Option<RouteRowFile>,

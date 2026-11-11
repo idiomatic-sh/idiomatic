@@ -3,13 +3,13 @@
 use ryo_relations::domain::relations::types::Integer;
 use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 
-use super::borrowed::reach_breadth;
+use super::borrowed::service::reach_breadth;
 use super::service::reach_all;
 use super::types::{Edges, Walk};
 use crate::domain::table_cells::service_test::prepared_index;
 use crate::domain::table_model::types::RepresentationInput;
 use crate::domain::table_model::types::Rows;
-use crate::domain::table_reach::borrowed::IndexedRows;
+use crate::domain::table_reach::borrowed::types::IndexedRows;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::service::push_row;
@@ -119,3 +119,4 @@ fn succeeds() {
 }
 
 use ryo_values::domain::rows::types::Table;
+mod ordered;

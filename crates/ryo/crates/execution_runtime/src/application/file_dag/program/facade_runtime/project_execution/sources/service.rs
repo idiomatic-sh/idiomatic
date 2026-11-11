@@ -1,9 +1,9 @@
 //! Deferred frontier sources of one project phase: their populations and invocation identity.
 use crate::application::file_dag::frontiers::types::FrontierInput;
-use crate::application::file_dag::program::admission::AvailableInput;
-use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::program::admission::ProducerRoot;
-use crate::application::file_dag::program::facade_runtime::types::PublicationScope;
+use crate::application::file_dag::program::admission::service::AvailableInput;
+use crate::application::file_dag::program::admission::service::Partition;
+use crate::application::file_dag::program::admission::types::ProducerRoot;
+use crate::application::file_dag::program::facade_runtime::service::PublicationScope;
 use crate::application::file_dag::program::preparation::types::PreparedProgram;
 use crate::application::file_dag::program::project_population::types::BoundKey;
 use crate::application::file_dag::program::project_population::types::ProjectFrontierPayload;
@@ -15,8 +15,8 @@ use ryo_execution_domain::domain::completion::types::completion_policy::value::C
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -63,7 +63,7 @@ impl PublicationScope {
         &self,
         owner: &Rc<RelationOwner>,
         sources: &[crate::application::file_dag::frontiers::types::FrontierSource],
-        rows: &[crate::application::file_dag::frontiers::types::FrontierInput],
+        rows: &[FrontierInput],
     ) -> Result<Vec<Rc<ProjectFrontierPopulation<AvailableInput>>>, OperatingError> {
         rows.iter()
             .map(|row| {
@@ -128,13 +128,13 @@ impl PublicationScope {
         rule: RuleIndex,
         policy: CompletionPolicy,
     ) -> Result<
-        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+        ryo_execution_store::application::file_dag::derived::population::service::PopulationId,
         OperatingError,
     > {
         let mut bindings = Vec::new();
         for binding in bound.iter().flatten() {
             bindings.push(BoundKey::Input(InputSource::Observation(ryo_execution_domain::domain::executable_program::types::ObservationPlace(
-                crate::application::file_dag::program::facade_runtime::source_admission::observation_slot(prepared, rule, binding.input)?.0,
+                crate::application::file_dag::program::facade_runtime::source_admission::service::observation_slot(prepared, rule, binding.input)?.0,
             ))));
             match &binding.members {
                 Err(error) => bindings.push(BoundKey::Refused(error.clone())),

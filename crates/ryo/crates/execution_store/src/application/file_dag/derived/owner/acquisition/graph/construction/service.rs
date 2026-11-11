@@ -1,16 +1,16 @@
 //! Physical graph kernels publish completed immutable storage to the common owner.
 use super::types::{BuiltDomain, BuiltGraph};
 use crate::application::file_dag::derived::constants;
-use crate::application::file_dag::derived::ledger::lease::append_backing;
+use crate::application::file_dag::derived::ledger::service::append_backing;
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
 use crate::application::file_dag::derived::owner::acquisition::admission::service::AdmittedViewInputs;
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
 use crate::application::file_dag::derived::{
-    owner::DerivedOwner, owner::cache::types::CacheBackend,
-    owner::graphs::types::handles::service::GraphHandle, population::types::PopulationId,
+    owner::cache::types::CacheBackend, owner::graphs::handles::service::GraphHandle,
+    owner::service::DerivedOwner, population::service::PopulationId,
 };
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
@@ -50,10 +50,10 @@ pub(crate) fn adjacency(
         }));
     }
     let expected_identity = source.identity.clone();
-    let storage = crate::application::file_dag::route_counts::observe(
+    let storage = crate::application::file_dag::route_counts::service::observe(
         &owner.routes,
         crate::application::file_dag::route_counts::types::BuildRoute::GraphAdjacency.label(),
-        crate::application::file_dag::route_counts::derived(plan.kind),
+        crate::application::file_dag::route_counts::service::derived(plan.kind),
         || {
             owner.build_admitted(
                 plan,
@@ -127,10 +127,10 @@ pub(crate) fn domain(
             construction: Construction::Reused,
         });
     }
-    let storage = crate::application::file_dag::route_counts::observe(
+    let storage = crate::application::file_dag::route_counts::service::observe(
         &owner.routes,
         crate::application::file_dag::route_counts::types::BuildRoute::GraphDomain.label(),
-        crate::application::file_dag::route_counts::derived(plan.kind),
+        crate::application::file_dag::route_counts::service::derived(plan.kind),
         || {
             owner.build_admitted(
                 plan,

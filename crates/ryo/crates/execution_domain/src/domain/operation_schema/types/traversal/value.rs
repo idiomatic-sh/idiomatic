@@ -1,7 +1,9 @@
 //! Traversal schemas: checked endpoint, partition, order and native-tree projection metadata.
 
 use crate::domain::operating::{errors::OperatingError, types::InputPlace};
-use crate::domain::operation_schema::projection::{joined, projected, schema_input};
+use crate::domain::operation_schema::projection::{
+    service::joined, service::projected, service::schema_input,
+};
 use crate::domain::operation_schema::types::InputShape;
 use crate::domain::operation_schema::types::bindings::value::BindingShape;
 use crate::domain::table_cells::types::TreeForm;

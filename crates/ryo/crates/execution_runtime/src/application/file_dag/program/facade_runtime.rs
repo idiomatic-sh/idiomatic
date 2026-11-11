@@ -7,6 +7,6 @@ mod source_admission;
 pub(crate) mod types;
 
 #[cfg(test)]
-mod compiled_parity;
+mod service_test;
 #[cfg(test)]
 mod walk_coverage;

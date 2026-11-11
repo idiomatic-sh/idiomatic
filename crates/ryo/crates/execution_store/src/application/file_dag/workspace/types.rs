@@ -10,7 +10,7 @@ use ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex;
 /// a second owner of them. The admitted publications are not lent.
 pub struct WorkspaceParts<'w> {
     /// The relation owner the invocation reads through.
-    pub owner: &'w crate::application::file_dag::relations::RelationOwner,
+    pub owner: &'w crate::application::file_dag::relations::service::RelationOwner,
     /// The rows each input was found to hold.
     pub work: &'w WorkCounters,
     /// The literal pattern compiled for this invocation, once it needed one.
@@ -27,4 +27,27 @@ pub struct WorkspaceParts<'w> {
     pub downstream_scratch: &'w mut OperatorScratch,
     /// The downstream operators' memo.
     pub downstream_memo: &'w mut Vec<Memo>,
+}
+
+/// Sources are supplied only by admitted inputs, never independently by a view caller.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::workspace::types::ViewInputs;
+/// fn named(_: Option<&ViewInputs<'_, '_>>) {}
+/// ```
+#[derive(Debug)]
+pub enum ViewInputs<'a, 's> {
+    Rows,
+    MembershipValues,
+    MembershipNative,
+    /// Text cells, read through the texts.
+    Text(&'a ryo_execution_domain::domain::table_texts::types::Texts<'a>),
+    Dfs {
+        symbols: &'a mut ryo_language::domain::symbols::types::QuerySymbols<'s>,
+        source: ryo_values::domain::files::types::SourceView<'a>,
+        paths: &'a [ryo_language::domain::files::types::FilePath],
+        arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
+    },
 }

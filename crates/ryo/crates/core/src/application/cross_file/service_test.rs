@@ -3,7 +3,7 @@
 
 use super::fixtures::{counting_plan, fed_steps, frontier_rows, todo, world};
 use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort as _;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 

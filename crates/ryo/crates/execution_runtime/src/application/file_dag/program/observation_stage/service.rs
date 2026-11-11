@@ -1,15 +1,15 @@
 //! An observation stage: its declared batches run behind one call, with its reservations, installs and restored frontiers.
+use super::types::ObservationStage;
 use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::frontiers::types::ReadinessProof;
 use crate::application::file_dag::observations::types::RuleSelection;
-use crate::application::file_dag::program::observation_stage::interface::ObservationExecution;
-use crate::application::file_dag::program::observation_stage::types::ObservationStage;
+use crate::application::file_dag::program::observation_stage::interface::ProgramObservationStagePort;
 use crate::application::file_dag::program::observation_stage::types::{
     AdmittedOutput, BatchOccurrence, Install, ObservationBatches,
 };
-use crate::application::file_dag::program::project_phase::interface::ProjectStage;
+use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort;
 use crate::application::file_dag::program::project_phase::service::reserved;
 use crate::application::file_dag::program::project_phase::types::{
     FrontierDemand, OccurrenceNumber, PhaseOccurrence, PhaseOccurrences, PhasePartials, PhaseStop,
@@ -31,7 +31,7 @@ use ryo_values::domain::records::types::CrossPublicationTransfer;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::Bucket;
-impl ObservationExecution for ObservationStage<'_> {
+impl ProgramObservationStagePort for ObservationStage<'_> {
     fn run_batches<H, T, E: From<OperatingError>>(
         mut self,
         batches: ObservationBatches<'_>,

@@ -1,152 +1,155 @@
 //! The interpreter's own visit bounds over increasing authored input populations: the rows each input of the operation is fed
 //! grow linearly with the population.
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use super::super::super::conformance::test::{author, compare_delivery, repeated, settled};
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use super::super::super::conformance::test::{author, compare_delivery, repeated};
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::numbers;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::numbers;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
 use ryo_language::domain::symbols::types::Symbols;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::{
-    plan_parts::types::ColumnIndex,
+    plan_parts::types::{ColumnIndex, RepeatedRows},
     plans::types::Operation,
     query_operators::types::OperationKind,
 };
-fn former_unary_pilots_keep_linear_visits() -> Result<(), Failure> {
-    for kind in [
-        OperationKind::Select,
-        OperationKind::Project,
-        OperationKind::SourceMatches,
-        OperationKind::SpanBounds,
-    ] {
-        let mut case = fixture(kind);
-        if let Operation::Project { distinct, .. } = &mut case.operation {
-            *distinct = ryo_values::domain::plan_parts::types::RepeatedRows::Kept;
-        }
-        let small = vec![repeated(&case.inputs[0], 32)];
-        let large = vec![repeated(&case.inputs[0], 64)];
-        let first = compare_delivery(
-            &case.operation,
-            &small,
-            &[],
-            SOURCE,
-            &mut case.symbols,
-            None,
-        )
-        .unwrap();
-        let second = compare_delivery(
-            &case.operation,
-            &large,
-            &[],
-            SOURCE,
-            &mut case.symbols,
-            None,
-        )
-        .unwrap();
-        let first_visits = visits(&case.operation, &small, &mut case.symbols);
-        let second_visits = visits(&case.operation, &large, &mut case.symbols);
-        assert!(first_visits[0] > 0);
-        assert_eq!(second_visits[0], first_visits[0] * 2);
-        assert_eq!(second.rows.len(), first.rows.len() * 2);
-        let empty = compare_delivery(
-            &case.operation,
-            &[repeated(&case.inputs[0], 0)],
-            &[],
-            SOURCE,
-            &mut case.symbols,
-            None,
-        )
-        .unwrap();
-        assert!(empty.rows.is_empty());
-        assert_eq!(
-            visits(
-                &case.operation,
-                &[repeated(&case.inputs[0], 0)],
-                &mut case.symbols
-            ),
-            vec![0]
-        );
-    }
-    Ok(())
+use std::borrow::Cow;
+/// What one population delivered: its size, the rows delivered, and the rows each input was fed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Scale {
+    population: usize,
+    rows: usize,
+    fed: Cow<'static, [u64]>,
 }
-fn former_binary_pilots_keep_linear_visits_for_unique_keys() -> Result<(), Failure> {
-    for kind in [OperationKind::Join, OperationKind::Union] {
-        let mut case = fixture(kind);
-        if let Operation::Join { output, .. } = &mut case.operation {
-            for column in output {
-                column.column = ColumnIndex(0);
-            }
-        }
-        let run = |count: i64, symbols: &mut Symbols| {
-            let values = (0..count).collect::<Vec<_>>();
-            compare_delivery(
-                &case.operation,
-                &[numbers(&values), numbers(&values)],
-                &[],
-                SOURCE,
-                symbols,
-                None,
-            )
-            .unwrap()
-        };
-        let measured = |count: i64, symbols: &mut Symbols| {
-            let values = (0..count).collect::<Vec<_>>();
-            visits(
-                &case.operation,
-                &[numbers(&values), numbers(&values)],
-                symbols,
-            )
-        };
-        let first = run(32, &mut case.symbols);
-        let second = run(64, &mut case.symbols);
-        assert_eq!((first.rows.len(), second.rows.len()), (32, 64));
-        let (first_visits, second_visits) = (
-            measured(32, &mut case.symbols),
-            measured(64, &mut case.symbols),
-        );
-        for side in 0..2 {
-            assert!(first_visits[side] > 0);
-            assert_eq!(second_visits[side], first_visits[side] * 2);
-        }
-        let empty = run(0, &mut case.symbols);
-        assert!(empty.rows.is_empty());
-        assert_eq!(measured(0, &mut case.symbols), vec![0, 0]);
-    }
-    Ok(())
-}
-/// The scenarios of this group, one row each.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    FormerUnaryPilotsKeepLinearVisits,
-    FormerBinaryPilotsKeepLinearVisitsForUniqueKeys,
-}
-type Input = Scenario;
-type Value = ();
+
+/// The kind whose fixture runs over each population.
+type Input = OperationKind;
+/// Each population's delivery, in order.
+type Value = Cow<'static, [Scale]>;
 type Failure = OperatingError;
+
+/// The populations each fixture runs over: none, 32 and 64.
+const POPULATIONS: [usize; 3] = [0, 32, 64];
+
+/// A population of `population` delivering `rows` rows, its inputs each fed `fed` rows.
+const fn scale(population: usize, rows: usize, fed: &'static [u64]) -> Scale {
+    Scale {
+        population,
+        rows,
+        fed: Cow::Borrowed(fed),
+    }
+}
+
+/// A fixture of three rows per repetition, delivering each row it is fed.
+const THREE_PER_REPETITION: &[Scale] = &[
+    scale(0, 0, &[0]),
+    scale(32, 96, &[96]),
+    scale(64, 192, &[192]),
+];
+/// A fixture of one row per repetition, delivering two rows for each it is fed.
+const TWO_PER_ROW: &[Scale] = &[
+    scale(0, 0, &[0]),
+    scale(32, 64, &[32]),
+    scale(64, 128, &[64]),
+];
+/// A fixture of one row per repetition, delivering each row it is fed.
+const ONE_PER_ROW: &[Scale] = &[
+    scale(0, 0, &[0]),
+    scale(32, 32, &[32]),
+    scale(64, 64, &[64]),
+];
+/// A binary fixture of unique keys, delivering one row per key and fed each key on both sides.
+const ONE_PER_KEY: &[Scale] = &[
+    scale(0, 0, &[0, 0]),
+    scale(32, 32, &[32, 32]),
+    scale(64, 64, &[64, 64]),
+];
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(former_unary_pilots_keep_linear_visits)),
         word: Word::Succeeds,
-        input: || Scenario::FormerUnaryPilotsKeepLinearVisits,
-        expect: Expect::Value(()),
+        input: || OperationKind::Select,
+        expect: Expect::Value(Cow::Borrowed(THREE_PER_REPETITION)),
+    },
+    Case {
+        name: CaseName("a_projection_that_keeps_repeats_keeps_linear_visits"),
+        word: Word::Succeeds,
+        input: || OperationKind::Project,
+        expect: Expect::Value(Cow::Borrowed(THREE_PER_REPETITION)),
+    },
+    Case {
+        name: CaseName("a_source_match_keeps_linear_visits"),
+        word: Word::Succeeds,
+        input: || OperationKind::SourceMatches,
+        expect: Expect::Value(Cow::Borrowed(TWO_PER_ROW)),
+    },
+    Case {
+        name: CaseName("span_bounds_keep_linear_visits"),
+        word: Word::Succeeds,
+        input: || OperationKind::SpanBounds,
+        expect: Expect::Value(Cow::Borrowed(ONE_PER_ROW)),
     },
     Case {
         name: CaseName(stringify!(
             former_binary_pilots_keep_linear_visits_for_unique_keys
         )),
         word: Word::Succeeds,
-        input: || Scenario::FormerBinaryPilotsKeepLinearVisitsForUniqueKeys,
-        expect: Expect::Value(()),
+        input: || OperationKind::Join,
+        expect: Expect::Value(Cow::Borrowed(ONE_PER_KEY)),
+    },
+    Case {
+        name: CaseName("a_union_of_unique_keys_keeps_linear_visits"),
+        word: Word::Succeeds,
+        input: || OperationKind::Union,
+        expect: Expect::Value(Cow::Borrowed(ONE_PER_KEY)),
     },
 ];
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::FormerUnaryPilotsKeepLinearVisits => former_unary_pilots_keep_linear_visits(),
-        Scenario::FormerBinaryPilotsKeepLinearVisitsForUniqueKeys => {
-            former_binary_pilots_keep_linear_visits_for_unique_keys()
+
+/// Delivers the kind's fixture over each population: a unary fixture's input repeated that many
+/// times (a projection keeping repeats), a binary fixture over the keys `0..population` on both
+/// sides (a join outputting its key columns).
+fn subject(kind: Input) -> Result<Value, Failure> {
+    let mut case = fixture(kind);
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "only a projection and a join are adjusted; every other fixture runs as authored"
+    )]
+    match &mut case.operation {
+        Operation::Project { distinct, .. } => *distinct = RepeatedRows::Kept,
+        Operation::Join { output, .. } => {
+            for column in output {
+                column.column = ColumnIndex(0);
+            }
         }
+        _ => {}
     }
+    let unary = case.inputs.len() == 1;
+    let mut scales = Vec::new();
+    for population in POPULATIONS {
+        let inputs = if unary {
+            vec![repeated(&case.inputs[0], population)]
+        } else {
+            let keys = (0..i64::try_from(population).unwrap_or(i64::MAX)).collect::<Vec<_>>();
+            vec![numbers(&keys), numbers(&keys)]
+        };
+        let delivered = compare_delivery(
+            &case.operation,
+            &inputs,
+            &[],
+            SOURCE,
+            &mut case.symbols,
+            None,
+        )
+        .and_then(settled)?;
+        scales.push(Scale {
+            population,
+            rows: delivered.rows.len(),
+            fed: Cow::Owned(visits(&case.operation, &inputs, &mut case.symbols)?),
+        });
+    }
+    Ok(Cow::Owned(scales))
 }
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
@@ -157,24 +160,23 @@ fn visits(
     operation: &Operation,
     inputs: &[ryo_values::domain::rows::types::Table],
     symbols: &mut Symbols,
-) -> Vec<u64> {
+) -> Result<Vec<u64>, OperatingError> {
     use crate::inbound::use_cases::execution::interface::{
         CaptureIntent, DiagnosticDelivery, ExecutionUseCase as _, FileRuleIntent,
         ObservationDemand, RuleIndex,
     };
-    use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+    use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
     use ryo_execution_runtime::application::file_dag::program::file_session::types::{
         FileInput, KindSupport, SemanticSupport, SourceLanguage, SourceRows,
     };
-    use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+    use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
     let authored = author(operation, inputs, &[], symbols);
     let emit = authored.plan.emit.step;
     let (_engine, program) = super::super::super::super::fixtures::requests::prepared(
         authored.plan,
         vec![],
         authored.hosted,
-    )
-    .expect("prepare the operation");
+    )?;
     let corpus = [ryo_values::domain::files::types::CorpusInput::Available(
         ryo_values::domain::files::types::CorpusEntry {
             path: ryo_language::domain::files::types::FilePath("operator-contract.py".into()),
@@ -194,29 +196,27 @@ fn visits(
     let request = super::super::super::super::fixtures::requests::execution()
         .execution(&program, &corpus, None);
     let elements = ryo_language::domain::elements::types::Elements::default();
-    let mut file = request
-        .open_file(
-            FileInput {
-                language: SourceLanguage::Recognized,
-                resident_stability:
-                    ryo_execution_runtime::outbound::facts::types::ResidentStability::Stable,
-                file: ryo_relations::domain::relations::types::FileId(0),
-                evaluation: &[],
-                publication: &[],
-                intents: &[FileRuleIntent::Run {
-                    diagnostic: DiagnosticDelivery::Collected,
-                    observations: ObservationDemand::NotRequired,
-                    capture: CaptureIntent::Disabled,
-                }],
-                source: ryo_values::domain::files::types::SourceView(SOURCE),
-                elements: &elements,
-                read: &read,
-                semantic: SemanticSupport::Absent,
-                kinds: KindSupport::Absent,
-            },
-            symbols,
-        )
-        .expect("open the file");
+    let mut file = request.open_file(
+        FileInput {
+            language: SourceLanguage::Recognized,
+            resident_stability:
+                ryo_execution_runtime::outbound::facts::types::ResidentStability::Stable,
+            file: ryo_relations::domain::relations::types::FileId(0),
+            evaluation: &[],
+            publication: &[],
+            intents: &[FileRuleIntent::Run {
+                diagnostic: DiagnosticDelivery::Collected,
+                observations: ObservationDemand::NotRequired,
+                capture: CaptureIntent::Disabled,
+            }],
+            source: ryo_values::domain::files::types::SourceView(SOURCE),
+            elements: &elements,
+            read: &read,
+            semantic: SemanticSupport::Absent,
+            kinds: KindSupport::Absent,
+        },
+        symbols,
+    )?;
     let _outcome = file.rule(
         RuleIndex(0),
         super::super::super::super::fixtures::requests::emitted(),
@@ -224,11 +224,8 @@ fn visits(
     );
     let fed = file
         .fixture_counts(RuleIndex(0))
-        .expect("the rule's counts")
-        .fed[usize::from(emit)]
-    .0[..inputs.len()]
-        .to_vec();
+        .map(|counts| counts.fed[usize::from(emit)].0[..inputs.len()].to_vec())?;
     let _finished = file.finish();
     request.finish();
-    fed
+    Ok(fed)
 }

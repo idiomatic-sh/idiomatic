@@ -2,7 +2,7 @@
 use super::super::{
     ProgramExecution, ProjectState, RetirementWork, RootReaders, RuntimeState, Slot, State,
 };
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::service::Partition;
 #[cfg(test)]
 use crate::application::file_dag::program::runtime::types::CallCount;
 #[cfg(test)]
@@ -11,7 +11,7 @@ use crate::application::file_dag::program::runtime::types::{Dependencies, Reader
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -142,11 +142,13 @@ impl RuntimeState {
     }
     pub(crate) fn bind(
         &self,
-        owner: &ryo_execution_store::application::file_dag::relations::RelationOwner,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
+        owner: &ryo_execution_store::application::file_dag::relations::service::RelationOwner,
+        root: crate::application::file_dag::program::admission::types::ProducerRoot,
         publication: &ryo_execution_store::application::file_dag::relations::handle::service::Publication,
     ) -> Result<(), OperatingError> {
-        if let crate::application::file_dag::program::admission::ProducerRoot::Region(id) = root {
+        if let crate::application::file_dag::program::admission::types::ProducerRoot::Region(id) =
+            root
+        {
             owner.bind_producer(
                 self.scope,
                 ryo_execution_store::application::file_dag::relations::types::ProducerId(id.0),
@@ -162,7 +164,9 @@ impl ProgramExecution {
     pub(crate) fn open(
         program: Arc<ExecutableProgram>,
         partition: Partition,
-        owner: std::rc::Rc<ryo_execution_store::application::file_dag::relations::RelationOwner>,
+        owner: std::rc::Rc<
+            ryo_execution_store::application::file_dag::relations::service::RelationOwner,
+        >,
     ) -> Self {
         let generation = owner.generation();
         let file_state = RuntimeState::new(
@@ -187,7 +191,7 @@ impl ProgramExecution {
     pub(crate) fn activate_file_roots(
         &self,
         readers: &[RegionId],
-        absent: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots,
+        absent: ryo_execution_domain::domain::executable_program::types::absent_roots::value::AbsentRoots,
     ) -> Result<(), OperatingError> {
         if !matches!(self.partition, Partition::File(_)) || self.touched() == Touch::Touched {
             return Err(OperatingError::NotRun);
@@ -249,7 +253,7 @@ impl ProgramExecution {
     /// The regions found absent at admission: interior regions of admitted rules whose skip formula fails on the file.
     pub(crate) fn mark_interior(
         &self,
-        interior: ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions,
+        interior: ryo_execution_domain::domain::executable_program::types::absent_regions::value::AbsentRegions,
     ) {
         *self.file_state.interior.borrow_mut() = interior;
     }
@@ -272,7 +276,7 @@ impl ProgramExecution {
     }
     pub(crate) fn project_state(
         &self,
-        id: ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+        id: ryo_execution_store::application::file_dag::derived::population::service::PopulationId,
     ) -> std::rc::Rc<RuntimeState> {
         let mut states = self.project_states.borrow_mut();
         if let Some(project) = states.iter().find(|project| project.population == id) {
@@ -295,7 +299,7 @@ impl ProgramExecution {
     /// source scope. The consumer's requested partition is never an input.
     pub(crate) fn source_partition(
         &self,
-        root: crate::application::file_dag::program::admission::ProducerRoot,
+        root: crate::application::file_dag::program::admission::types::ProducerRoot,
     ) -> Result<Partition, OperatingError> {
         use ryo_execution_domain::domain::executable_program::types::InputSource;
         use ryo_execution_domain::domain::source_partitions::types::PartitionRequirement;
@@ -305,8 +309,10 @@ impl ProgramExecution {
             return Err(OperatingError::NotRead);
         }
         let source = match root {
-            crate::application::file_dag::program::admission::ProducerRoot::Input(source) => source,
-            crate::application::file_dag::program::admission::ProducerRoot::Region(id) => {
+            crate::application::file_dag::program::admission::types::ProducerRoot::Input(
+                source,
+            ) => source,
+            crate::application::file_dag::program::admission::types::ProducerRoot::Region(id) => {
                 InputSource::Region(id)
             }
         };
@@ -326,10 +332,10 @@ impl ProgramExecution {
     pub(crate) fn validate_project(
         &self,
         program: &Arc<ExecutableProgram>,
-        required: &crate::application::file_dag::program::admission::RequiredPartitions,
+        required: &crate::application::file_dag::program::admission::types::RequiredPartitions,
     ) -> Result<(), OperatingError> {
         if Arc::ptr_eq(&self.program, program)
-            && matches!(&self.partition, Partition::Project(actual) if actual.same_request(required) == crate::application::file_dag::program::admission::Agreement::Same)
+            && matches!(&self.partition, Partition::Project(actual) if actual.same_request(required) == crate::application::file_dag::program::admission::types::Agreement::Same)
         {
             Ok(())
         } else {

@@ -14,6 +14,7 @@ use ryo_values::domain::plan_parts::types::QueryText;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::selects;
 
+use std::borrow::Cow;
 type Input = QueryText;
 type Value = bool;
 type Failure = QueryLanguageError;
@@ -81,14 +82,24 @@ fn compile_query(bundle: &QueryBundle) -> Result<ryo_values::domain::plans::type
 }
 
 /// Raw query backslashes must reach the regex evaluator unchanged.
-const REGEX: &[Case<Input, Value, Failure>] = &[
+/// What a compiled regex query reached: the patterns of its `matches` predicates, and whether the first, compiled, matches
+/// a tab before `noqa` (`None` when there is no pattern or it does not compile).
+#[derive(Debug, PartialEq, Eq)]
+struct Evaluated {
+    patterns: Cow<'static, [Cow<'static, str>]>,
+    matches: Option<bool>,
+}
+const REGEX: &[Case<Input, Evaluated, Failure>] = &[
     Case {
         name: CaseName("raw_regex_whitespace_escape_survives_parser_and_evaluation"),
         word: Word::Succeeds,
         input: || {
             QueryText(r#"let rows = select * from "comment" where matches(text, "\s+noqa"); emit rows subject file key(span);"#.into())
         },
-        expect: Expect::Value(true),
+        expect: Expect::Value(Evaluated {
+            patterns: Cow::Borrowed(&[Cow::Borrowed(r"\s+noqa")]),
+            matches: Some(true),
+        }),
     },
     Case {
         name: CaseName("doubled_query_backslash_matches_literal_backslash_not_whitespace"),
@@ -96,11 +107,14 @@ const REGEX: &[Case<Input, Value, Failure>] = &[
         input: || {
             QueryText(r#"let rows = select * from "comment" where matches(text, "\\s+noqa"); emit rows subject file key(span);"#.into())
         },
-        expect: Expect::Value(false),
+        expect: Expect::Value(Evaluated {
+            patterns: Cow::Borrowed(&[Cow::Borrowed(r"\\s+noqa")]),
+            matches: Some(false),
+        }),
     },
 ];
 
-fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
+fn regex_evaluated(text: &Input) -> Result<Evaluated, Failure> {
     use ryo_matching::inbound::use_cases::matching::{
         interface::MatchingUseCase,
         types::{MatchOutcome, RegexSource, SearchText},
@@ -127,16 +141,22 @@ fn regex_evaluated(text: &Input) -> Result<Value, Failure> {
             })
         })
         .collect();
-    assert_eq!(
-        patterns.len(),
-        1,
-        "the parsed predicate must reach the executable plan"
-    );
     let matcher = MatchingUseCaseImpl::new();
-    let compiled = matcher
-        .compile_regex(RegexSource(&patterns[0].0))
-        .expect("the query contains a valid regular expression");
-    Ok(matcher.matches_regex(&compiled, SearchText("\tnoqa")) == MatchOutcome::Matches)
+    let matches = patterns.first().and_then(|pattern| {
+        matcher
+            .compile_regex(RegexSource(&pattern.0))
+            .ok()
+            .map(|compiled| {
+                matcher.matches_regex(&compiled, SearchText("\tnoqa")) == MatchOutcome::Matches
+            })
+    });
+    Ok(Evaluated {
+        patterns: patterns
+            .iter()
+            .map(|pattern| Cow::Owned(pattern.0.to_string()))
+            .collect(),
+        matches,
+    })
 }
 
 #[test]

@@ -15,24 +15,40 @@ use ryo_values::domain::stored_facts::types::KeptWords;
 use ryo_values::domain::table_words::service::{encode_table, pack};
 use ryo_values::domain::table_words::types::WordSlice;
 
-/// What a row of the cases asks of the service.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// A relation the project wrote, one the files wrote and a step.
-    ProjectRelations,
-    /// The words three rows were kept as.
-    DecodeInput,
-    /// The rows of a relation the project wrote, their names made again.
-    ProjectInput,
-    /// The rows two languages wrote of one manifest, the same fact twice.
-    ProjectInputTwice,
+/// What a row asks of the frontier service.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// The project relation an input of a plan is, if any.
+    ProjectRelation(PlanInput),
+    /// The table the words of rows of one column of names (each a hash and a place) decode into.
+    Decode(&'static [(u64, u32)]),
+    /// The rows the project wrote of `package_dependency`, one column of these names, their names made again.
+    ProjectInput(&'static [&'static str]),
 }
 
-/// What a row of the cases asks of the service.
-type Input = Scenario;
-/// Up to three numbers a row answers; a place a row has no number for holds zero.
-type Value = [usize; 3];
-type Failure = ();
+/// What the frontier service answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    /// The project relation.
+    Relation(Option<Relation>),
+    /// The rows, cells and columns of a decoded table.
+    Table {
+        rows: usize,
+        cells: usize,
+        columns: usize,
+    },
+    /// The rows found, whether their names hash as the distinct texts written, in order, and whether the input found is the
+    /// input asked for.
+    Projected {
+        rows: usize,
+        names_are_the_texts: bool,
+        same_input: bool,
+    },
+}
+
+type Input = Ask;
+type Value = Answer;
+type Failure = std::convert::Infallible;
 
 fn name(hash: u64, place: u32) -> Cell {
     Cell::Name(Name {
@@ -55,43 +71,26 @@ fn words_of(names: &[(u64, u32)]) -> KeptWords {
     KeptWords(pack(WordSlice(&words.0)))
 }
 
-fn shape(table: &Table) -> Value {
-    [table.count.0, table.cells.len(), table.kinds.len()]
-}
-
-fn subject(scenario: Input) -> Value {
-    match scenario {
-        Scenario::ProjectRelations => [
-            usize::from(
-                project_relation(PlanInput::Relation(Relation::PackageDependency))
-                    == Some(Relation::PackageDependency),
-            ),
-            usize::from(project_relation(PlanInput::Relation(Relation::Function)).is_none()),
-            usize::from(project_relation(PlanInput::Step(StepId(0))).is_none()),
-        ],
-        Scenario::DecodeInput => {
-            let rows = words_of(&[(1, 0), (1, 0), (2, 0)]);
-            shape(&decode_input(&rows, &mut Symbols::default()))
+fn subject(ask: Input) -> Result<Value, Failure> {
+    Ok(match ask {
+        Ask::ProjectRelation(input) => Answer::Relation(project_relation(input)),
+        Ask::Decode(names) => {
+            let table = decode_input(&words_of(names), &mut Symbols::default());
+            Answer::Table {
+                rows: table.count.0,
+                cells: table.cells.len(),
+                columns: table.kinds.len(),
+            }
         }
-        Scenario::ProjectInputTwice => {
+        Ask::ProjectInput(texts) => {
             let mut project = Symbols::default();
-            let mut intern = |text| intern_derived(&mut project, ByteSlice(&[]), NameText(text));
-            let (alpha, beta, again) = (intern("alpha"), intern("beta"), intern("alpha"));
-            let words = [alpha, beta, again].map(|each| u64::from(each.0));
-            let columns = [FactColumn(words.to_vec())];
-            let view = ColumnsView {
-                kinds: &[CellKind::Symbol],
-                columns: &columns,
-            };
-            let input = PlanInput::Relation(Relation::PackageDependency);
-            let found = project_input(view, input, &project, &mut Symbols::default());
-            [found.table.count.0, 0, 0]
-        }
-        Scenario::ProjectInput => {
-            let mut project = Symbols::default();
-            let mut intern = |text| intern_derived(&mut project, ByteSlice(&[]), NameText(text));
-            let (alpha, beta) = (intern("alpha"), intern("beta"));
-            let columns = [FactColumn(vec![u64::from(alpha.0), u64::from(beta.0)])];
+            let words: Vec<u64> = texts
+                .iter()
+                .map(|text| {
+                    u64::from(intern_derived(&mut project, ByteSlice(&[]), NameText(text)).0)
+                })
+                .collect();
+            let columns = [FactColumn(words)];
             let view = ColumnsView {
                 kinds: &[CellKind::Symbol],
                 columns: &columns,
@@ -112,49 +111,79 @@ fn subject(scenario: Input) -> Value {
                     | Cell::Flag(_) => None,
                 })
                 .collect();
-            let expected = [
-                Some(hash_of(ByteSlice(b"alpha"))),
-                Some(hash_of(ByteSlice(b"beta"))),
-            ];
-            [
-                found.table.count.0,
-                usize::from(hashes == expected),
-                usize::from(found.input == input),
-            ]
+            let mut distinct: Vec<&str> = Vec::new();
+            for text in texts {
+                if !distinct.contains(text) {
+                    distinct.push(text);
+                }
+            }
+            let written: Vec<Option<TextHash>> = distinct
+                .iter()
+                .map(|text| Some(hash_of(ByteSlice(text.as_bytes()))))
+                .collect();
+            Answer::Projected {
+                rows: found.table.count.0,
+                names_are_the_texts: hashes == written,
+                same_input: found.input == input,
+            }
         }
-    }
+    })
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("only_a_relation_the_project_wrote_is_a_project_relation"),
         word: Word::Succeeds,
-        input: || Scenario::ProjectRelations,
-        expect: Expect::Value([1, 1, 1]),
+        input: || Ask::ProjectRelation(PlanInput::Relation(Relation::PackageDependency)),
+        expect: Expect::Value(Answer::Relation(Some(Relation::PackageDependency))),
+    },
+    Case {
+        name: CaseName("a_relation_the_files_wrote_is_no_project_relation"),
+        word: Word::Succeeds,
+        input: || Ask::ProjectRelation(PlanInput::Relation(Relation::Function)),
+        expect: Expect::Value(Answer::Relation(None)),
+    },
+    Case {
+        name: CaseName("a_step_is_no_project_relation"),
+        word: Word::Succeeds,
+        input: || Ask::ProjectRelation(PlanInput::Step(StepId(0))),
+        expect: Expect::Value(Answer::Relation(None)),
     },
     Case {
         name: CaseName("the_words_the_workers_kept_are_decoded_into_one_table"),
         word: Word::Succeeds,
-        input: || Scenario::DecodeInput,
-        expect: Expect::Value([3, 3, 1]),
+        input: || Ask::Decode(&[(1, 0), (1, 0), (2, 0)]),
+        expect: Expect::Value(Answer::Table {
+            rows: 3,
+            cells: 3,
+            columns: 1,
+        }),
     },
     Case {
         name: CaseName("the_rows_the_project_wrote_have_their_names_made_again"),
         word: Word::Succeeds,
-        input: || Scenario::ProjectInput,
-        expect: Expect::Value([2, 1, 1]),
+        input: || Ask::ProjectInput(&["alpha", "beta"]),
+        expect: Expect::Value(Answer::Projected {
+            rows: 2,
+            names_are_the_texts: true,
+            same_input: true,
+        }),
     },
     Case {
         name: CaseName("a_fact_two_languages_wrote_of_one_manifest_is_one_row"),
         word: Word::Succeeds,
-        input: || Scenario::ProjectInputTwice,
-        expect: Expect::Value([2, 0, 0]),
+        input: || Ask::ProjectInput(&["alpha", "beta", "alpha"]),
+        expect: Expect::Value(Answer::Projected {
+            rows: 2,
+            names_are_the_texts: true,
+            same_input: true,
+        }),
     },
 ];
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CASES, Word::Succeeds, subject);
 }
 
 use ryo_values::domain::rows::types::Table;

@@ -1,26 +1,27 @@
 // ignore: idiomatic.arch/file-length - in the fused rewrite's replaced set: the presence read the port publishes through and L-span's relied-span check are one admission step the rewrite deletes whole
 //! Deciding which of a file's roots and reached regions cannot have a row or a row error there: each formula is evaluated
 //! lazily over the file's own rows, each relation's pending tests in one pass, and the answers are kept for the file.
-use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
+use crate::application::file_dag::program::facade_runtime::service::FilePresence;
 use crate::application::file_dag::program::facade_runtime::types::{
-    FilePresence, PresenceGate, RootCandidate, Truth,
+    PresenceGate, RootCandidate, Truth,
 };
-use ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions;
 use ryo_execution_domain::domain::executable_program::presence::types::{
     FormulaId, PresenceFormula, PresenceTable, RegionPresence, SpanCheck, TestId,
 };
 use ryo_execution_domain::domain::executable_program::types::RegionCount;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
+use ryo_execution_domain::domain::executable_program::types::absent_regions::value::AbsentRegions;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::operator::contract::views::validate_spans;
+use ryo_execution_domain::domain::operator::contract::views::service::validate_spans;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::Relation;
 
 /// What a presence test reads: the file's rows, the texts its comparisons resolve, and the request's prepared matchers.
 struct PresenceRead<'r, 'facts> {
     read: &'r dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    owner: &'r ryo_execution_store::application::file_dag::relations::RelationOwner,
+    owner: &'r ryo_execution_store::application::file_dag::relations::service::RelationOwner,
     execution: &'r crate::application::file_dag::program::runtime::service::ProgramExecution,
     texts: &'r ryo_execution_domain::domain::table_texts::types::Texts<'r>,
     matchers: &'r ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers,

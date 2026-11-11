@@ -3,10 +3,10 @@ use super::super::admission::service::{empty_output_kinds, first_preflight};
 use super::super::invocation::service::continuation;
 use super::super::{InvocationOutcome, Poll, ProgramExecution};
 use super::super::{KernelAdmission, KernelPermit, ReadySelection};
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::Emptiness;
-use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::program::admission::Representation;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::Partition;
+use crate::application::file_dag::program::admission::service::Representation;
+use crate::application::file_dag::program::admission::types::Emptiness;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
 use crate::application::file_dag::program::runtime::types::Submission;
@@ -103,7 +103,7 @@ impl ProgramExecution {
                 {
                     let publication = inputs
                         .publish(
-                            crate::application::file_dag::program::admission::ProducerRoot::Region(
+                            crate::application::file_dag::program::admission::types::ProducerRoot::Region(
                                 id,
                             ),
                             &self.partition,
@@ -235,7 +235,7 @@ impl ProgramExecution {
         );
         let published = inputs
             .publish(
-                crate::application::file_dag::program::admission::ProducerRoot::Region(id),
+                crate::application::file_dag::program::admission::types::ProducerRoot::Region(id),
                 &self.partition,
                 &admitted,
                 Representation::Computed(rows),

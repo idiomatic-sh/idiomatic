@@ -1,8 +1,9 @@
 //! A project phase: roots evaluated in declaration order over the request.
+use super::types::ProjectPhase;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::facade_runtime;
+use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort;
 use crate::application::file_dag::program::project_phase::interface::ProjectRootExecution;
-use crate::application::file_dag::program::project_phase::interface::ProjectStage;
 use crate::application::file_dag::program::project_phase::types::FrontierDemand;
 use crate::application::file_dag::program::project_phase::types::FrontierRequest;
 use crate::application::file_dag::program::project_phase::types::OccurrenceNumber;
@@ -14,7 +15,6 @@ use crate::application::file_dag::program::project_phase::types::PhaseScope;
 use crate::application::file_dag::program::project_phase::types::PhaseStop;
 use crate::application::file_dag::program::project_phase::types::PreparedOccurrence;
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
-use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::project_phase::types::ReadyOccurrence;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
@@ -93,7 +93,7 @@ pub(crate) fn reserved(slot: PublicationSlot) -> Option<WorkerNumber> {
         PublicationSlot::Reserved(worker) => Some(worker),
     }
 }
-impl ProjectStage for ProjectPhase<'_> {
+impl ProgramProjectPhasePort for ProjectPhase<'_> {
     fn finish(self) -> Result<(), OperatingError> {
         match std::rc::Rc::try_unwrap(self.publication) {
             Ok(publication) => publication.finish(),
@@ -287,13 +287,13 @@ impl ProjectPhase<'_> {
             } else {
                 Err(OperatingError::NotRead)
             };
-            roots.push(facade_runtime::project_execution::ProjectRoot {
+            roots.push(facade_runtime::project_execution::service::ProjectRoot {
                 rule: task.rule,
                 demand: task.demand,
                 run,
             });
         }
-        facade_runtime::project_execution::evaluate_roots(roots, symbols, guard)
+        facade_runtime::project_execution::service::evaluate_roots(roots, symbols, guard)
     }
     /// One admitted occurrence: scoped over the files its rule applies to, and its frontiers prepared for its demand from its
     /// rule's first bucket.

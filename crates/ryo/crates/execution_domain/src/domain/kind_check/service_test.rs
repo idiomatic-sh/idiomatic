@@ -1,6 +1,8 @@
 //! The `kind_check` service's cases: a word a rule writes for a kind is checked against the kinds of the linked languages, and the
 //! message names the word and the languages.
 
+use std::borrow::Cow;
+
 use super::service::{first_unknown, refusal, unknown_message};
 use super::types::KindOrigin;
 use ryo_relations::domain::relations::types::Relation;
@@ -17,21 +19,35 @@ use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// What a row gives the check: how the kind is compared, with what, and the texts bound to the parameters.
 type Given = (Test, Operand, Vec<ParameterBinding>);
-/// What a row gives: a word to check across the sites and relations, or a case of its own.
+/// What a row asks of the kind check.
 #[derive(Clone, Copy)]
-enum Scenario {
-    /// The word, built by the row.
+enum Check {
+    /// The first word no language has a kind for, the word compared as given, in a select and in a join, over `syntax_tree` and
+    /// `semantic_syntax`.
     Word(fn() -> Given),
-    /// Text that reads as a number, compared by an ordering that does not name a kind.
-    NumericText,
-    /// Words of two plans, each keeping the origin of its own plan table.
-    OwnOrigin,
+    /// The kinds asked by text that reads as a number, compared by this ordering (one that does not name a kind), in a select and
+    /// in a join.
+    NumericText(Test),
+    /// The refusal of a word compared for equality in a plan whose only comparison origin is recorded at this source.
+    Origin(&'static str, &'static str),
 }
-/// What a row of the cases asks.
-type Input = Scenario;
-/// The message of the first word no language has a kind for; nothing when there is none.
-type Value = &'static str;
-type Failure = ();
+/// What the kind check answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    /// The message of the first word no language has a kind for (empty when there is none), and whether every relation and site
+    /// gives the same message.
+    Message {
+        text: Cow<'static, str>,
+        agrees: bool,
+    },
+    /// How many kinds were asked.
+    Asked(usize),
+    /// Whether a refusal keeps the origin of its own plan, and its message; none when the word is refused by nothing.
+    Refused(Option<(bool, Cow<'static, str>)>),
+}
+type Input = Check;
+type Value = Answer;
+type Failure = std::convert::Infallible;
 
 /// Both places where a plan can constrain the kind of a source relation.
 #[derive(Clone, Copy)]
@@ -87,32 +103,30 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
     }
 }
 
-fn numeric_text_is_not_mistaken_for_a_declared_syntax_kind() {
-    for test in [
-        Test::NaturalLessThan,
-        Test::NumericGreaterThanOrEqual,
-        Test::IntegerSuccessor,
-    ] {
-        for site in [KindSite::Select, KindSite::Join] {
-            let plan = plan_comparing_kind(
-                test,
-                Operand::Literal(QueryLiteral::Text(LiteralText("1.0".into()))),
-                Relation::SyntaxTree,
-                site,
-            );
-            assert!(super::service::kinds_asked(&plan, &[]).is_empty());
-        }
-    }
+fn kinds_asked_of_numeric_text(test: Test) -> Value {
+    Answer::Asked(
+        [KindSite::Select, KindSite::Join]
+            .into_iter()
+            .map(|site| {
+                let plan = plan_comparing_kind(
+                    test,
+                    Operand::Literal(QueryLiteral::Text(LiteralText("1.0".into()))),
+                    Relation::SyntaxTree,
+                    site,
+                );
+                super::service::kinds_asked(&plan, &[]).len()
+            })
+            .sum(),
+    )
 }
 
-fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() -> Value {
-    use ryo_values::domain::plan_parts::types::ComparisonOriginId;
+fn refused_with_origin(word: &str, source: &str) -> Value {
+    use ryo_values::domain::plan_parts::types::{ComparisonOrigin, ComparisonOriginId};
     use ryo_values::domain::query_tokens::types::{
         ByteOffset, QueryOrigin, QuerySourceId, QuerySpan,
     };
-
     let origin = QueryOrigin {
-        source_id: QuerySourceId("fragment/filter".into()),
+        source_id: QuerySourceId(source.into()),
         span: QuerySpan {
             start: ByteOffset(12),
             end: ByteOffset(31),
@@ -121,73 +135,28 @@ fn an_unknown_kind_keeps_the_origin_from_its_own_plan_table() -> Value {
     };
     let mut plan = plan_comparing_kind(
         Test::Equal,
-        text("not-a-kind"),
+        text(word),
         Relation::SyntaxTree,
         KindSite::Select,
     );
     plan.comparison_origins.push(origin.clone());
-    let Operation::Select { comparisons, .. } = &mut plan.steps[0].operation else {
-        panic!("the test plan uses a select");
-    };
-    comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
-        ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
-    );
-
-    let mut other_origin = origin.clone();
-    other_origin.source_id = QuerySourceId("other/filter".into());
-    let mut other_plan = plan_comparing_kind(
-        Test::Equal,
-        text("also-not-a-kind"),
-        Relation::SyntaxTree,
-        KindSite::Select,
-    );
-    other_plan.comparison_origins.push(other_origin.clone());
-    let Operation::Select {
-        comparisons: other_comparisons,
-        ..
-    } = &mut other_plan.steps[0].operation
-    else {
-        panic!("the test plan uses a select");
-    };
-    other_comparisons[0].origin = ryo_values::domain::plan_parts::types::ComparisonOrigin::Recorded(
-        ryo_values::domain::plan_parts::types::ComparisonOriginId(0),
-    );
-
-    assert_eq!(
-        refusal(
-            &plan,
-            &KindVocabularies(Vec::new()),
-            crate::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl
+    if let Operation::Select { comparisons, .. } = &mut plan.steps[0].operation {
+        comparisons[0].origin = ComparisonOrigin::Recorded(ComparisonOriginId(0));
+    }
+    Answer::Refused(
+        refusal(&plan, &KindVocabularies(Vec::new()), matcher()).map(|refused| {
+            (
+                refused.origin == KindOrigin::Recorded(origin),
+                Cow::Owned(refused.message.0.into()),
             )
-        )
-        .unwrap()
-        .origin,
-        KindOrigin::Recorded(origin)
-    );
-    assert_eq!(
-        refusal(
-            &other_plan,
-            &KindVocabularies(Vec::new()),
-            crate::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl
-            )
-        )
-        .unwrap()
-        .origin,
-        KindOrigin::Recorded(other_origin)
-    );
-    Box::leak(
-        refusal(
-            &other_plan,
-            &KindVocabularies(Vec::new()),
-            crate::domain::matching::types::PatternMatcher(
-                &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-            ),
-        )
-        .unwrap()
-        .message
-        .0,
+        }),
+    )
+}
+
+/// The matching semantics the check runs through.
+fn matcher() -> crate::domain::matching::types::PatternMatcher<'static> {
+    crate::domain::matching::types::PatternMatcher(
+        &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
     )
 }
 
@@ -228,91 +197,101 @@ fn texts(each: &[&str]) -> ParameterBinding {
     )
 }
 
+/// The message every relation and site agrees on.
+const fn said(text: &'static str) -> Answer {
+    Answer::Message {
+        text: Cow::Borrowed(text),
+        agrees: true,
+    }
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_kind_of_a_language_is_no_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::Equal, text("source-file"), Vec::new())),
-        expect: Expect::Value(""),
+        input: || Check::Word(|| (Test::Equal, text("source-file"), Vec::new())),
+        expect: Expect::Value(said("")),
     },
     Case {
         name: CaseName("a_kind_of_another_language_is_no_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::Equal, text("table"), Vec::new())),
-        expect: Expect::Value(""),
+        input: || Check::Word(|| (Test::Equal, text("table"), Vec::new())),
+        expect: Expect::Value(said("")),
     },
     Case {
         name: CaseName("a_kind_no_language_has_names_the_word_and_the_languages"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::Equal, text("function-declaration"), Vec::new())),
-        expect: Expect::Value("kind `function-declaration` names no kind of rust, toml"),
+        input: || Check::Word(|| (Test::Equal, text("function-declaration"), Vec::new())),
+        expect: Expect::Value(said(
+            "kind `function-declaration` names no kind of rust, toml",
+        )),
     },
     Case {
         name: CaseName("a_pattern_that_matches_a_kind_is_no_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::GlobAny, text("source-*"), Vec::new())),
-        expect: Expect::Value(""),
+        input: || Check::Word(|| (Test::GlobAny, text("source-*"), Vec::new())),
+        expect: Expect::Value(said("")),
     },
     Case {
         name: CaseName("a_pattern_that_matches_no_kind_is_a_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::GlobAny, text("class-*"), Vec::new())),
-        expect: Expect::Value("kind `class-*` names no kind of rust, toml"),
+        input: || Check::Word(|| (Test::GlobAny, text("class-*"), Vec::new())),
+        expect: Expect::Value(said("kind `class-*` names no kind of rust, toml")),
     },
     Case {
         name: CaseName("the_words_a_list_parameter_is_bound_to_are_checked_each"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::In, parameter(), vec![texts(&["fn", "paragraph"])])),
-        expect: Expect::Value("kind `paragraph` names no kind of rust, toml"),
+        input: || Check::Word(|| (Test::In, parameter(), vec![texts(&["fn", "paragraph"])])),
+        expect: Expect::Value(said("kind `paragraph` names no kind of rust, toml")),
     },
     Case {
         name: CaseName("a_list_parameter_of_kinds_that_exist_is_no_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::In, parameter(), vec![texts(&["fn", "document"])])),
-        expect: Expect::Value(""),
+        input: || Check::Word(|| (Test::In, parameter(), vec![texts(&["fn", "document"])])),
+        expect: Expect::Value(said("")),
     },
     Case {
         name: CaseName("a_not_equal_word_no_language_has_is_a_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::NotEqual, text("nope"), Vec::new())),
-        expect: Expect::Value("kind `nope` names no kind of rust, toml"),
+        input: || Check::Word(|| (Test::NotEqual, text("nope"), Vec::new())),
+        expect: Expect::Value(said("kind `nope` names no kind of rust, toml")),
     },
     Case {
         name: CaseName("a_not_in_list_with_a_kind_no_language_has_is_a_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::NotIn, parameter(), vec![texts(&["fn", "nope"])])),
-        expect: Expect::Value("kind `nope` names no kind of rust, toml"),
+        input: || Check::Word(|| (Test::NotIn, parameter(), vec![texts(&["fn", "nope"])])),
+        expect: Expect::Value(said("kind `nope` names no kind of rust, toml")),
     },
     Case {
         name: CaseName("a_prefix_of_a_kind_is_no_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::StartsWith, text("source-"), Vec::new())),
-        expect: Expect::Value(""),
+        input: || Check::Word(|| (Test::StartsWith, text("source-"), Vec::new())),
+        expect: Expect::Value(said("")),
     },
     Case {
         name: CaseName("a_prefix_no_kind_has_is_a_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::StartsWith, text("class-"), Vec::new())),
-        expect: Expect::Value("kind `class-` names no kind of rust, toml"),
+        input: || Check::Word(|| (Test::StartsWith, text("class-"), Vec::new())),
+        expect: Expect::Value(said("kind `class-` names no kind of rust, toml")),
     },
     Case {
         name: CaseName("a_suffix_of_a_kind_is_no_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::EndsWith, text("-file"), Vec::new())),
-        expect: Expect::Value(""),
+        input: || Check::Word(|| (Test::EndsWith, text("-file"), Vec::new())),
+        expect: Expect::Value(said("")),
     },
     Case {
         name: CaseName("a_suffix_no_kind_has_is_a_failure"),
         word: Word::Succeeds,
-        input: || Scenario::Word(|| (Test::EndsWith, text("-declaration"), Vec::new())),
-        expect: Expect::Value("kind `-declaration` names no kind of rust, toml"),
+        input: || Check::Word(|| (Test::EndsWith, text("-declaration"), Vec::new())),
+        expect: Expect::Value(said("kind `-declaration` names no kind of rust, toml")),
     },
     Case {
         name: CaseName("a_concat_of_constants_is_checked_as_the_text_it_makes"),
         word: Word::Succeeds,
         input: || {
-            Scenario::Word(|| {
+            Check::Word(|| {
                 (
                     Test::Equal,
                     made(Function::Concat, &["totally-", "made-up"]),
@@ -320,13 +299,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 )
             })
         },
-        expect: Expect::Value("kind `totally-made-up` names no kind of rust, toml"),
+        expect: Expect::Value(said("kind `totally-made-up` names no kind of rust, toml")),
     },
     Case {
         name: CaseName("a_concat_that_makes_a_kind_is_no_failure"),
         word: Word::Succeeds,
         input: || {
-            Scenario::Word(|| {
+            Check::Word(|| {
                 (
                     Test::Equal,
                     made(Function::Concat, &["source", "-file"]),
@@ -334,62 +313,81 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 )
             })
         },
-        expect: Expect::Value(""),
+        expect: Expect::Value(said("")),
     },
     Case {
         name: CaseName("numeric_text_is_not_mistaken_for_a_declared_syntax_kind"),
         word: Word::Succeeds,
-        input: || Scenario::NumericText,
-        expect: Expect::Value(""),
+        input: || Check::NumericText(Test::NaturalLessThan),
+        expect: Expect::Value(Answer::Asked(0)),
+    },
+    Case {
+        name: CaseName("numeric_text_compared_numerically_names_no_kind"),
+        word: Word::Succeeds,
+        input: || Check::NumericText(Test::NumericGreaterThanOrEqual),
+        expect: Expect::Value(Answer::Asked(0)),
+    },
+    Case {
+        name: CaseName("numeric_text_compared_by_successor_names_no_kind"),
+        word: Word::Succeeds,
+        input: || Check::NumericText(Test::IntegerSuccessor),
+        expect: Expect::Value(Answer::Asked(0)),
     },
     Case {
         name: CaseName("an_unknown_kind_keeps_the_origin_from_its_own_plan_table"),
         word: Word::Succeeds,
-        input: || Scenario::OwnOrigin,
-        expect: Expect::Value("kind `also-not-a-kind` names no kind of "),
+        input: || Check::Origin("not-a-kind", "fragment/filter"),
+        expect: Expect::Value(Answer::Refused(Some((
+            true,
+            Cow::Borrowed("kind `not-a-kind` names no kind of "),
+        )))),
+    },
+    Case {
+        name: CaseName("an_unknown_kind_of_another_plan_keeps_that_plan_s_origin"),
+        word: Word::Succeeds,
+        input: || Check::Origin("also-not-a-kind", "other/filter"),
+        expect: Expect::Value(Answer::Refused(Some((
+            true,
+            Cow::Borrowed("kind `also-not-a-kind` names no kind of "),
+        )))),
     },
 ];
 
-fn message(given: fn() -> Given, relation: Relation, site: KindSite) -> Value {
+fn message(given: fn() -> Given, relation: Relation, site: KindSite) -> String {
     let (test, right, bound) = given();
     let plan = plan_comparing_kind(test, right, relation, site);
     let vocabularies = vocabularies();
-    let message = first_unknown(
-        &[plan],
-        &[bound],
-        &vocabularies,
-        crate::domain::matching::types::PatternMatcher(
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-        ),
-    )
-    .map(|unknown| unknown_message(&unknown.word, &vocabularies).message.0)
-    .unwrap_or_default();
-    Box::leak(message)
+    first_unknown(&[plan], &[bound], &vocabularies, matcher())
+        .map(|unknown| {
+            unknown_message(&unknown.word, &vocabularies)
+                .message
+                .0
+                .into()
+        })
+        .unwrap_or_default()
 }
 
-fn subject(input: Input) -> Value {
-    let given = match input {
-        Scenario::Word(given) => given,
-        Scenario::NumericText => {
-            numeric_text_is_not_mistaken_for_a_declared_syntax_kind();
-            return "";
+fn subject(check: Input) -> Result<Value, Failure> {
+    Ok(match check {
+        Check::Word(given) => {
+            let expected = message(given, Relation::SyntaxTree, KindSite::Select);
+            let agrees = [Relation::SyntaxTree, Relation::SemanticSyntax]
+                .into_iter()
+                .flat_map(|relation| {
+                    [KindSite::Select, KindSite::Join].map(|site| (relation, site))
+                })
+                .all(|(relation, site)| message(given, relation, site) == expected);
+            Answer::Message {
+                text: Cow::Owned(expected),
+                agrees,
+            }
         }
-        Scenario::OwnOrigin => return an_unknown_kind_keeps_the_origin_from_its_own_plan_table(),
-    };
-    let expected = message(given, Relation::SyntaxTree, KindSite::Select);
-    for relation in [Relation::SyntaxTree, Relation::SemanticSyntax] {
-        for site in [KindSite::Select, KindSite::Join] {
-            assert_eq!(
-                message(given, relation, site),
-                expected,
-                "kind validation must agree for native and semantic selections and right joins"
-            );
-        }
-    }
-    expected
+        Check::NumericText(test) => kinds_asked_of_numeric_text(test),
+        Check::Origin(word, source) => refused_with_origin(word, source),
+    })
 }
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| Ok(subject(input)));
+    run(CASES, Word::Succeeds, subject);
 }

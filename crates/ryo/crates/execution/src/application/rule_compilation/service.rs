@@ -50,7 +50,7 @@ impl CompiledRules {
         digest: &dyn DigestPort,
         rules: Vec<ryo_values::domain::stores::types::StoredRule>,
     ) -> Result<PreparedRuleIdentities, RuleCompilationError> {
-        super::identity::with_producers(
+        super::identity::service::with_producers(
             digest,
             rules,
             &self.inner.plans,
@@ -170,10 +170,11 @@ impl RuleCompilation {
         hosted: &[HostRelation],
     ) -> Result<Compiled, RuleCompilationError> {
         let mut compiled = self.compile(rules, hosted)?;
-        let linked = ryo_execution_domain::domain::observation_schedule::service::link::link(
-            std::mem::take(&mut compiled.plans),
-            std::mem::take(&mut compiled.observations),
-        )?;
+        let linked =
+            ryo_execution_domain::domain::observation_schedule::service::link::service::link(
+                std::mem::take(&mut compiled.plans),
+                std::mem::take(&mut compiled.observations),
+            )?;
         compiled.plans = linked.plans;
         compiled.observations = linked.bindings;
         // Scheduling independence does not erase the per-rule producer declarations.
@@ -292,7 +293,7 @@ pub(crate) fn observed(
     hosted: &[HostRelation],
     digest: &dyn DigestPort,
 ) {
-    super::observing::compiled(rules, plans, bindings, hosted, digest);
+    super::observing::service::compiled(rules, plans, bindings, hosted, digest);
 }
 
 /// The rule at `place` of the request, or the refusal for a place the compiler reported past its rules.

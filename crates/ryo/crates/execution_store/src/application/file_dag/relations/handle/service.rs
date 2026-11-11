@@ -1,5 +1,5 @@
 //! Worker-local lease capabilities wrap thread-safe immutable publication records.
-use crate::application::file_dag::derived::ledger::types::ResourceLease;
+use crate::application::file_dag::derived::ledger::service::ResourceLease;
 use crate::application::file_dag::relations::publication::types::RelationResult;
 use crate::application::file_dag::relations::types::NormalizationCharge;
 use std::{cell::RefCell, sync::Arc};
@@ -73,7 +73,7 @@ impl PublishedInput {
 /// ```
 /// use ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody;
 /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-/// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+/// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
 /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 /// use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
 /// use ryo_values::domain::rows::types::{RowCount, Table};
@@ -106,7 +106,7 @@ impl Publication {
     /// use ryo_execution_domain::domain::operating::errors::OperatingError;
     /// use ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody;
     /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationStore, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
     /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
     /// use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
     /// use ryo_values::domain::rows::types::{RowCount, Table};

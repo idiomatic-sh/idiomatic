@@ -49,13 +49,10 @@ pub struct FileInput<'a, 'facts> {
     pub semantic: SemanticSupport<'a>,
     pub kinds: KindSupport,
 }
-pub struct FileSession<'a, 'facts> {
-    pub(crate) parts: SessionParts<'a, 'facts>,
-}
 /// The members of a file session, reachable only inside the runtime.
 pub(crate) struct SessionParts<'a, 'facts> {
     pub(crate) inner:
-        crate::application::file_dag::program::facade_runtime::file_execution::FileRun<'a>,
+        crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun<'a>,
     pub(crate) program:
         Arc<crate::application::file_dag::program::preparation::types::PreparedProgram>,
     pub(crate) file: ryo_relations::domain::relations::types::FileId,
@@ -143,4 +140,25 @@ pub(crate) struct RuleFile<'a> {
     pub rule: ryo_execution_domain::domain::coverage::types::RuleIndex,
     pub file: ryo_relations::domain::relations::types::FileId,
     pub first: &'a [ryo_values::domain::stored_facts::types::Bucket],
+}
+
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+/// fn session(file: &FileSession<'_, '_>) {
+///     let _ = file;
+/// }
+/// ```
+///
+/// Only its crate opens one: no field is reachable outside it.
+///
+/// ```compile_fail,E0616
+/// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+/// fn forge(handle: &FileSession<'_, '_>) {
+///     let _ = &handle.parts;
+/// }
+/// ```
+pub struct FileSession<'a, 'facts> {
+    pub(crate) parts: SessionParts<'a, 'facts>,
 }

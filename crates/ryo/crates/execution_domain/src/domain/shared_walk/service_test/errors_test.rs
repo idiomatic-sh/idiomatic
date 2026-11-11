@@ -1,8 +1,12 @@
 //! The shared walk keeps errors in their authored order: predicates short-circuit as written, a memoised predicate builds its error
 //! once, and the first source row owns the first error.
+use std::borrow::Cow;
+
 use super::{evaluate_plans, plan, plans};
+use crate::domain::operating::errors::OperatingError;
 use crate::domain::operator::types::OperatorContext;
 use crate::domain::shared_walk::types::WalkWork;
+use crate::domain::shared_walk::types::native_batch::value::NativeBatch;
 use crate::domain::shared_walk::types::prepared_walk::value::PreparedWalk;
 use crate::domain::step_classes::types::ClassPlace;
 use crate::domain::table_cells::types::{TreeForm, TreeRows};
@@ -40,43 +44,9 @@ fn with_invalid(name: &str, first: bool) -> Plan {
     each
 }
 
-fn predicate_order_preserves_errors_and_short_circuits() {
-    let plans = [
-        with_invalid("absent-kind", true),
-        with_invalid("absent-kind", false),
-    ];
-    let bindings = vec![Vec::new(); plans.len()];
-    let prepared = PreparedWalk::compile(&plans, &bindings);
-    let batch = evaluate_plans(&prepared, &bindings, &[ClassPlace(0), ClassPlace(1)]);
-    assert!(matches!(
-        batch.class(ClassPlace(0)).map(|result| &result.completion),
-        Some(Err(
-            crate::domain::operating::errors::OperatingError::InvalidRegex { .. }
-        ))
-    ));
-    assert!(batch.class(ClassPlace(1)).unwrap().positions.0.is_empty());
-}
-
-fn memo_builds_an_erroring_predicate_once_and_reuses_hits() {
-    let plans = [with_invalid("word", true), with_invalid("other", true)];
-    let bindings = vec![Vec::new(); plans.len()];
-    let prepared = PreparedWalk::compile(&plans, &bindings);
-    let batch = evaluate_plans(&prepared, &bindings, &[ClassPlace(0), ClassPlace(1)]);
-    assert!(
-        [ClassPlace(0), ClassPlace(1)]
-            .into_iter()
-            .all(|class| matches!(
-                batch.class(class).map(|result| &result.completion),
-                Some(Err(
-                    crate::domain::operating::errors::OperatingError::InvalidRegex { .. }
-                ))
-            ))
-    );
-    assert_eq!(batch.counts().predicate_tests.0, 1);
-    assert_eq!(batch.counts().predicate_reuses.0, 1);
-}
-
-fn different_kind_errors_keep_the_first_source_row() {
+/// The batch of the walk of the tree of `[(a` (a file node over the tokens `first`, `second`, `second`) by the four fixture rules,
+/// rules 0 and 2 selecting rows whose kind is not `file` and that the text `x` matches as a regex.
+fn first_source_row() -> NativeBatch {
     let source = b"[(a";
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(source));
@@ -136,7 +106,7 @@ fn different_kind_errors_keep_the_first_source_row() {
         .cloned()
         .map(Vec::into_boxed_slice)
         .collect::<Vec<_>>();
-    let batch = super::evaluate_rows(
+    super::evaluate_rows(
         &prepared,
         Relation::SyntaxTree,
         &crate::domain::table_model::types::Rows::Tree(TreeRows {
@@ -148,56 +118,160 @@ fn different_kind_errors_keep_the_first_source_row() {
         &mut context,
         &[ClassPlace(0), ClassPlace(1), ClassPlace(2)],
         &mut WalkWork::default(),
-    );
-    let Some(Err(crate::domain::operating::errors::OperatingError::InvalidRegex { reason })) =
-        batch.class(ClassPlace(0)).map(|result| &result.completion)
-    else {
-        panic!("first source row must retain its regex error");
-    };
-    assert!(reason.contains('['), "{reason}");
-    assert_eq!(batch.visits(ClassPlace(0)).0, 1);
+    )
+}
+/// What a row walks.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// The small tree, by rules that each select the rows named so, an invalid regex test before (true) or after its name test,
+    /// every class ready.
+    Invalid(&'static [(&'static str, bool)]),
+    /// The tree of `[(a`, the first three classes ready.
+    FirstSourceRow,
 }
 
-#[derive(Clone, Copy)]
-enum Scenario {
-    PredicateOrder,
-    SourceOrder,
-    MemoReuse,
+/// How a class's selection ended.
+#[derive(Clone, Debug, PartialEq)]
+enum Completion {
+    Complete,
+    /// With an invalid regex, for this reason.
+    InvalidRegex(Cow<'static, str>),
+    Other(Cow<'static, str>),
 }
 
-type Input = Scenario;
-type Value = usize;
-type Failure = ();
+/// What a class answered: how it ended, the positions it selected and the rows it visited.
+#[derive(Clone, Debug, PartialEq)]
+struct Class {
+    completion: Completion,
+    positions: Cow<'static, [u32]>,
+    visits: u64,
+}
+
+/// Each class's answer (none when it was not ready), and how many predicates were tested and reused.
+#[derive(Debug, PartialEq)]
+struct Walked {
+    classes: Cow<'static, [Option<Class>]>,
+    tests: u64,
+    reuses: u64,
+}
+
+type Input = Ask;
+type Value = Walked;
+type Failure = std::convert::Infallible;
+
+fn walked(batch: &NativeBatch, classes: usize) -> Walked {
+    Walked {
+        classes: (0..classes)
+            .map(|at| {
+                batch.class(ClassPlace(at)).map(|result| Class {
+                    completion: match result.completion.as_ref().err() {
+                        None => Completion::Complete,
+                        Some(OperatingError::InvalidRegex { reason }) => {
+                            Completion::InvalidRegex(Cow::Owned(reason.to_string()))
+                        }
+                        Some(other) => Completion::Other(Cow::Owned(format!("{other:?}"))),
+                    },
+                    positions: Cow::Owned(result.positions.0.clone()),
+                    visits: batch.visits(ClassPlace(at)).0,
+                })
+            })
+            .collect(),
+        tests: batch.counts().predicate_tests.0,
+        reuses: batch.counts().predicate_reuses.0,
+    }
+}
+
+fn subject(ask: Input) -> Result<Value, Failure> {
+    Ok(match ask {
+        Ask::Invalid(rules) => {
+            let plans: Vec<Plan> = rules
+                .iter()
+                .map(|(name, first)| with_invalid(name, *first))
+                .collect();
+            let bindings = vec![Vec::new(); plans.len()];
+            let prepared = PreparedWalk::compile(&plans, &bindings);
+            let ready: Vec<ClassPlace> = (0..prepared.classes().len()).map(ClassPlace).collect();
+            walked(&evaluate_plans(&prepared, &bindings, &ready), ready.len())
+        }
+        Ask::FirstSourceRow => walked(&first_source_row(), 3),
+    })
+}
+
+/// A class that ended at the invalid regex `[`.
+const INVALID: Completion = Completion::InvalidRegex(Cow::Borrowed(
+    "regex parse error:\n    [\n    ^\nerror: unclosed character class",
+));
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("predicates preserve authored error and short-circuit order"),
         word: Word::Succeeds,
-        input: || Scenario::PredicateOrder,
-        expect: Expect::Value(1),
+        input: || Ask::Invalid(&[("absent-kind", true), ("absent-kind", false)]),
+        expect: Expect::Value(Walked {
+            classes: Cow::Borrowed(&[
+                Some(Class {
+                    completion: INVALID,
+                    positions: Cow::Borrowed(&[]),
+                    visits: 1,
+                }),
+                Some(Class {
+                    completion: Completion::Complete,
+                    positions: Cow::Borrowed(&[]),
+                    visits: 0,
+                }),
+            ]),
+            tests: 1,
+            reuses: 0,
+        }),
     },
     Case {
         name: CaseName("memoised predicates reuse hits and build an error once"),
         word: Word::Succeeds,
-        input: || Scenario::MemoReuse,
-        expect: Expect::Value(1),
+        input: || Ask::Invalid(&[("word", true), ("other", true)]),
+        expect: Expect::Value(Walked {
+            classes: Cow::Borrowed(&[
+                Some(Class {
+                    completion: INVALID,
+                    positions: Cow::Borrowed(&[]),
+                    visits: 1,
+                }),
+                Some(Class {
+                    completion: INVALID,
+                    positions: Cow::Borrowed(&[]),
+                    visits: 1,
+                }),
+            ]),
+            tests: 1,
+            reuses: 1,
+        }),
     },
     Case {
         name: CaseName("first source row owns first error"),
         word: Word::Succeeds,
-        input: || Scenario::SourceOrder,
-        expect: Expect::Value(1),
+        input: || Ask::FirstSourceRow,
+        expect: Expect::Value(Walked {
+            classes: Cow::Borrowed(&[
+                Some(Class {
+                    completion: INVALID,
+                    positions: Cow::Borrowed(&[]),
+                    visits: 1,
+                }),
+                Some(Class {
+                    completion: Completion::Complete,
+                    positions: Cow::Borrowed(&[]),
+                    visits: 0,
+                }),
+                Some(Class {
+                    completion: Completion::Complete,
+                    positions: Cow::Borrowed(&[0]),
+                    visits: 4,
+                }),
+            ]),
+            tests: 6,
+            reuses: 0,
+        }),
     },
 ];
-
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::PredicateOrder => predicate_order_preserves_errors_and_short_circuits(),
-        Scenario::SourceOrder => different_kind_errors_keep_the_first_source_row(),
-        Scenario::MemoReuse => memo_builds_an_erroring_predicate_once_and_reuses_hits(),
-    }
-    Ok(1)
-}
 
 #[test]
 fn succeeds() {

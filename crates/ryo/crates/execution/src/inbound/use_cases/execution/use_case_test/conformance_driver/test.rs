@@ -1,30 +1,88 @@
 //! Delivery through the owner when its operator port keeps answering after a refusal.
+use super::super::super::fixtures as owner_fixtures;
+use super::super::conformance::fixtures::{ObservedDelivery, Settlement};
+use super::super::conformance::test::compare_delivery_with_port;
+use super::super::conformance::test::compare_delivery_with_semantic;
+use super::super::conformance::test::same_rows;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::{
+    Conformance, conformance,
+};
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::KnownSyntax;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::*;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+use ryo_language::domain::semantics::types::RenderOutcome;
+use ryo_language::domain::semantics::types::RenderRequest;
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::cases::Case;
 use ryo_values::cases::CaseName;
 use ryo_values::cases::Expect;
 use ryo_values::cases::Word;
 use ryo_values::cases::run;
-use super::super::super::fixtures as owner_fixtures;
-use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::*;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::values::KnownSyntax;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::SOURCE;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::expectations::assert_expected;
-use ryo_language::domain::semantics::types::RenderOutcome;
-use ryo_language::domain::semantics::types::RenderRequest;
-use ryo_relations::domain::relations::types::Value as Cell;
-use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::plans::service::kind_of;
+use ryo_values::domain::query_operators::types::OperationKind;
+use std::borrow::Cow;
 use std::sync::Arc;
-use super::super::conformance::test::compare_delivery_with_semantic;
-use super::super::conformance::test::compare_delivery_with_port;
-use super::super::conformance::test::same_rows;
-use super::super::conformance::fixtures::RefusalOutcome;
 
 type Input = fn() -> Result<Value, Failure>;
-type Value = ();
+type Value = Observed;
 type Failure = OperatingError;
+/// What one delivery settled to, collected and streamed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Delivered {
+    settlement: Settlement,
+    /// The collected table's row count, 0 when it was refused.
+    collected: usize,
+    /// The collected refusal, as its debug text (a semantic reason is an owned string, which a row cannot hold).
+    refusal: Option<Cow<'static, str>>,
+    streamed: usize,
+    stream_error: Option<Cow<'static, str>>,
+}
+impl Delivered {
+    fn of(observed: &ObservedDelivery) -> Self {
+        Self {
+            settlement: observed.settlement,
+            collected: observed.collected.as_ref().map_or(0, |table| table.count.0),
+            refusal: observed
+                .collected
+                .as_ref()
+                .err()
+                .map(|error| format!("{error:?}").into()),
+            streamed: observed.rows.len(),
+            stream_error: observed
+                .stream_error
+                .as_ref()
+                .map(|error| format!("{error:?}").into()),
+        }
+    }
+}
+/// One registered class's delivery.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Class {
+    /// The kind of the class fixture's operation.
+    fixture: OperationKind,
+    delivered: Delivered,
+    /// The declared schema is the collected table's.
+    schema_is_collected: bool,
+    /// The streamed rows are the collected table's ordered bag.
+    same_rows: bool,
+    /// How the delivered rows compare with the fixture's expected rows.
+    conformance: Conformance,
+}
+#[derive(Debug, PartialEq, Eq)]
+enum Observed {
+    Driver {
+        delivered: Delivered,
+        sessions: usize,
+    },
+    Classes(Cow<'static, [(OperationKind, Class)]>),
+    One(Delivered),
+    Controls {
+        answered: Delivered,
+        refused: Delivered,
+    },
+}
 #[derive(Debug, Default)]
 struct ContinuesAfterDriverRefusal(std::sync::atomic::AtomicUsize);
 impl OperatorsPort for ContinuesAfterDriverRefusal {
@@ -70,8 +128,8 @@ impl OperatorsPort for ContinuesAfterDriverRefusal {
         }
     }
 }
-fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks() -> Result<(), Failure>
-{
+fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks()
+-> Result<Value, Failure> {
     let mut case = fixture(OperationKind::Union);
     let port = Arc::new(ContinuesAfterDriverRefusal::default());
     let observed = compare_delivery_with_port(
@@ -82,30 +140,19 @@ fn engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks() -
         &mut case.symbols,
         None,
         None,
-        RefusalOutcome::Failed,
         port.clone(),
-    )
-    .expect("real Union prepares");
-    assert_eq!(observed.collected.err(), Some(OperatingError::WrongBinding));
-    assert_eq!(observed.stream_error, Some(OperatingError::WrongBinding));
-    assert!(
-        observed.rows.is_empty(),
-        "a semantic prefix never becomes a publication"
-    );
-    assert_eq!(
-        port.0.load(std::sync::atomic::Ordering::Relaxed),
-        2,
-        "both independently declared sessions exercise the actual engine driver"
-    );
-    Ok(())
+    )?;
+    Ok(Observed::Driver {
+        delivered: Delivered::of(&observed),
+        sessions: port.0.load(std::sync::atomic::Ordering::Relaxed),
+    })
 }
 fn every_registered_class_runs_real_collect_and_stream_with_independent_expectations()
--> Result<(), Failure> {
+-> Result<Value, Failure> {
     let semantic = KnownSyntax;
-    assert_eq!(OperationKind::ALL.len(), 26);
+    let mut classes = vec![];
     for kind in OperationKind::ALL {
         let mut case = fixture(*kind);
-        assert_eq!(kind_of(&case.operation), *kind);
         let observed = compare_delivery_with_semantic(
             &case.operation,
             &case.inputs,
@@ -118,21 +165,23 @@ fn every_registered_class_runs_real_collect_and_stream_with_independent_expectat
             } else {
                 None
             },
-            RefusalOutcome::Failed,
-        )
-        .unwrap();
-        let collected = observed.collected.unwrap();
-        assert_eq!(observed.stream_error, None, "{kind:?}");
-        assert_eq!(observed.schema.unwrap(), collected.kinds);
-        assert!(
-            same_rows(&collected, &observed.rows),
-            "ordered bag {kind:?}"
-        );
-        assert_expected(&case.expected, &observed.rows, &case.symbols);
+        )?;
+        let class = Class {
+            conformance: conformance(&case.expected, &observed.rows, &case.symbols),
+            fixture: kind_of(&case.operation),
+            delivered: Delivered::of(&observed),
+            schema_is_collected: observed.schema.as_ref().ok()
+                == observed.collected.as_ref().ok().map(|table| &table.kinds),
+            same_rows: observed
+                .collected
+                .as_ref()
+                .is_ok_and(|table| same_rows(table, &observed.rows)),
+        };
+        classes.push((*kind, class));
     }
-    Ok(())
+    Ok(Observed::Classes(classes.into()))
 }
-fn unsupported_semantic_batch_publishes_no_prefix() -> Result<(), Failure> {
+fn unsupported_semantic_batch_publishes_no_prefix() -> Result<Value, Failure> {
     #[derive(Debug)]
     struct PartialSyntax;
     impl crate::inbound::use_cases::execution::interface::SemanticLookup for PartialSyntax {
@@ -167,21 +216,10 @@ fn unsupported_semantic_batch_publishes_no_prefix() -> Result<(), Failure> {
         &mut case.symbols,
         None,
         Some(&PartialSyntax),
-        RefusalOutcome::Unknown,
-    )
-    .unwrap();
-    assert!(matches!(
-        observed.collected,
-        Err(OperatingError::SemanticIncomplete { .. })
-    ));
-    assert!(matches!(
-        observed.stream_error,
-        Some(OperatingError::SemanticIncomplete { .. })
-    ));
-    assert!(observed.rows.is_empty());
-    Ok(())
+    )?;
+    Ok(Observed::One(Delivered::of(&observed)))
 }
-fn a_semantic_batch_of_another_length_is_refused() -> Result<(), Failure> {
+fn a_semantic_batch_of_another_length_is_refused() -> Result<Value, Failure> {
     #[derive(Debug)]
     struct OneAnswerTooMany;
     impl crate::inbound::use_cases::execution::interface::SemanticLookup for OneAnswerTooMany {
@@ -217,34 +255,89 @@ fn a_semantic_batch_of_another_length_is_refused() -> Result<(), Failure> {
             &mut case.symbols,
             None,
             Some(lookup),
-            RefusalOutcome::Failed,
         )
-        .unwrap()
+        .map(|observed| Delivered::of(&observed))
     };
-    // Positive control: one answer for each request is published.
-    let answered = observe(&KnownSyntax);
-    assert!(matches!(&answered.collected, Ok(table) if table.count.0 > 0));
-    assert_eq!(answered.stream_error, None);
-    assert!(!answered.rows.is_empty());
-    // Negative control: one answer more than there are requests is refused, and no row is published.
-    let refused = observe(&OneAnswerTooMany);
-    assert!(matches!(
-        refused.collected,
-        Err(OperatingError::SemanticBatchShape)
-    ));
-    assert!(matches!(
-        refused.stream_error,
-        Some(OperatingError::SemanticBatchShape)
-    ));
-    assert!(refused.rows.is_empty());
-    Ok(())
+    // Positive control: one answer for each request is published; negative control: one answer more is refused.
+    Ok(Observed::Controls {
+        answered: observe(&KnownSyntax)?,
+        refused: observe(&OneAnswerTooMany)?,
+    })
 }
+/// A delivery that completed with `rows` rows, collected and streamed alike.
+const fn delivered(rows: usize) -> Delivered {
+    Delivered {
+        settlement: Settlement::Complete,
+        collected: rows,
+        refusal: None,
+        streamed: rows,
+        stream_error: None,
+    }
+}
+/// A delivery refused with `error`, collected and streamed alike, publishing no row.
+const fn refused(settlement: Settlement, error: &'static str) -> Delivered {
+    Delivered {
+        settlement,
+        collected: 0,
+        refusal: Some(Cow::Borrowed(error)),
+        streamed: 0,
+        stream_error: Some(Cow::Borrowed(error)),
+    }
+}
+/// A class whose own fixture completed with `rows` rows under its declared schema, streamed as the collected bag,
+/// each row the fixture's expected row.
+const fn complete(kind: OperationKind, rows: usize) -> (OperationKind, Class) {
+    (
+        kind,
+        Class {
+            fixture: kind,
+            delivered: delivered(rows),
+            schema_is_collected: true,
+            same_rows: true,
+            conformance: Conformance::Conforms,
+        },
+    )
+}
+const CLASSES: &[(OperationKind, Class)] = {
+    use OperationKind::*;
+    &[
+        complete(Replace, 1),
+        complete(OrderedMatch, 2),
+        complete(Select, 3),
+        complete(Project, 2),
+        complete(Extend, 2),
+        complete(Join, 3),
+        complete(Union, 3),
+        complete(Intersection, 1),
+        complete(Difference, 1),
+        complete(Antijoin, 2),
+        complete(GroupCount, 2),
+        complete(GroupDigest, 2),
+        complete(Capture, 1),
+        complete(Rank, 1),
+        complete(Words, 3),
+        complete(Axis, 2),
+        complete(Closure, 3),
+        complete(Cycles, 2),
+        complete(Rows, 1),
+        complete(Hosted, 2),
+        complete(SpanBetween, 1),
+        complete(SourceMatches, 2),
+        complete(RenderSyntax, 1),
+        complete(FitsRendered, 1),
+        complete(SpanBounds, 1),
+        complete(OrderedDfs, 2),
+    ]
+};
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(a_semantic_batch_of_another_length_is_refused)),
         word: Word::Succeeds,
         input: || a_semantic_batch_of_another_length_is_refused,
-        expect: Expect::Value(()),
+        expect: Expect::Value(Observed::Controls {
+            answered: delivered(2),
+            refused: refused(Settlement::Failed, "SemanticBatchShape"),
+        }),
     },
     Case {
         name: CaseName(stringify!(
@@ -252,7 +345,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
         word: Word::Succeeds,
         input: || engine_driver_preserves_first_refusal_and_denies_later_semantic_callbacks,
-        expect: Expect::Value(()),
+        expect: Expect::Value(Observed::Driver {
+            delivered: refused(Settlement::Failed, "WrongBinding"),
+            sessions: 2,
+        }),
     },
     Case {
         name: CaseName(stringify!(
@@ -260,13 +356,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
         word: Word::Succeeds,
         input: || every_registered_class_runs_real_collect_and_stream_with_independent_expectations,
-        expect: Expect::Value(()),
+        expect: Expect::Value(Observed::Classes(Cow::Borrowed(CLASSES))),
     },
     Case {
         name: CaseName(stringify!(unsupported_semantic_batch_publishes_no_prefix)),
         word: Word::Succeeds,
         input: || unsupported_semantic_batch_publishes_no_prefix,
-        expect: Expect::Value(()),
+        expect: Expect::Value(Observed::One(refused(
+            Settlement::Unknown,
+            r#"SemanticIncomplete { reason: "selected language cannot render this syntax (reason 24)" }"#,
+        ))),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {

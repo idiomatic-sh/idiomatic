@@ -1,6 +1,6 @@
 //! Compiled program lifecycle proof with a real owner.
 use super::inputs::fixtures::{TestInputs, value};
-use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
 use crate::application::file_dag::program::runtime::service::KernelInvocation;
 use crate::application::file_dag::program::runtime::service::ProgramExecution;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
@@ -15,6 +15,7 @@ use ryo_execution_domain::domain::operator::types::OperatorContext;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value};
 use std::{
+    borrow::Cow,
     cell::{Cell, RefCell},
     rc::Rc,
 };
@@ -47,12 +48,30 @@ pub(super) enum Reentry {
     Unobserved,
     Refused,
 }
+/// What the probe saw inside an evaluation it was asked to fail.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) enum Seen {
+    /// A release of the completed root's inputs during the semantic failure: whether it was
+    /// refused as not run, and whether the root's retry checkpoint stayed as it was.
+    Release {
+        refused: bool,
+        checkpoint_kept: bool,
+    },
+    /// The nested failure's outer frame: whether rule 0's root is the outer root, whether the
+    /// inner invocation failed with the wrong binding, and the outer frame's ordered row after it.
+    Nested {
+        outer_is_rule_root: bool,
+        inner_failed: bool,
+        ordered_row: Cow<'static, [Value]>,
+    },
+}
 pub(super) struct RuntimeProbe {
     execution: Rc<ProgramExecution>,
     nested: RefCell<TestInputs>,
     mode: RuntimeProbeMode,
     pub(super) calls: Cell<EvaluationCount>,
     pub(super) reentry: Cell<Reentry>,
+    pub(super) seen: RefCell<Vec<Seen>>,
 }
 impl RuntimeProbe {
     pub(super) fn new(execution: Rc<ProgramExecution>, mode: RuntimeProbeMode) -> Self {
@@ -62,6 +81,7 @@ impl RuntimeProbe {
             mode,
             calls: Cell::new(EvaluationCount(0)),
             reentry: Cell::new(Reentry::Unobserved),
+            seen: RefCell::new(Vec::new()),
         }
     }
 }
@@ -112,24 +132,24 @@ impl KernelInvocation for RuntimeProbe {
                 let state = self.execution.file_state();
                 let before = self.execution.retry_checkpoint(state, completed).unwrap();
                 for _ in 0..2 {
-                    assert!(matches!(
+                    let refused = matches!(
                         self.execution.release_inputs(state, completed),
                         Err(OperatingError::NotRun)
-                    ));
-                    assert_eq!(
-                        self.execution.retry_checkpoint(state, completed).unwrap(),
-                        before
                     );
+                    let checkpoint_kept =
+                        self.execution.retry_checkpoint(state, completed).unwrap() == before;
+                    self.seen.borrow_mut().push(Seen::Release {
+                        refused,
+                        checkpoint_kept,
+                    });
                 }
                 return Err(InvocationFailure::Semantic(OperatingError::WrongBinding));
             }
             RuntimeProbeMode::NestedFailure { outer, inner }
                 if instruction.producer() == RuleIndex(0) =>
             {
-                assert_eq!(
-                    self.execution.program.rules()[0].emit.as_ref().copied(),
-                    Ok(outer)
-                );
+                let outer_is_rule_root =
+                    self.execution.program.rules()[0].emit.as_ref().copied() == Ok(outer);
                 let result = self.execution.invoke(
                     self.execution.file_state(),
                     inner,
@@ -138,12 +158,12 @@ impl KernelInvocation for RuntimeProbe {
                     &policy,
                     context,
                 );
-                assert!(matches!(result, Err(OperatingError::WrongBinding)));
-                assert_eq!(
-                    scratch.ordered_row,
-                    vec![Value::Number(Integer(100))],
-                    "nested failure must not replace the outer frame"
-                );
+                // The nested failure must not replace the outer frame.
+                self.seen.borrow_mut().push(Seen::Nested {
+                    outer_is_rule_root,
+                    inner_failed: matches!(result, Err(OperatingError::WrongBinding)),
+                    ordered_row: Cow::Owned(scratch.ordered_row.clone()),
+                });
                 return Err(InvocationFailure::Semantic(OperatingError::WrongBinding));
             }
             RuntimeProbeMode::NestedFailure { .. } if instruction.producer() == RuleIndex(1) => {

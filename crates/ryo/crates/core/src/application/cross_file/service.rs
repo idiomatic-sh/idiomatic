@@ -20,18 +20,18 @@ use crate::outbound::corpus::interface::CorpusPort;
 use ryo_execution::inbound::use_cases::execution::interface::AdmittedOutput;
 use ryo_execution::inbound::use_cases::execution::interface::BatchNumber;
 use ryo_execution::inbound::use_cases::execution::interface::BatchOccurrence;
-use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::FileObservationReadiness;
+use ryo_execution::inbound::use_cases::execution::interface::FrontiersError;
 use ryo_execution::inbound::use_cases::execution::interface::Install;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationBatches;
-use ryo_execution::inbound::use_cases::execution::interface::ObservationExecution;
 use ryo_execution::inbound::use_cases::execution::interface::OccurrenceNumber;
 use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PhasePartials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseStop;
-use ryo_execution::inbound::use_cases::execution::interface::PreparationError;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramObservationStagePort;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramRequestExecutionPort;
 use ryo_execution::inbound::use_cases::execution::interface::ProjectOutputOutcome;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::interface::RuleOutcome;
@@ -218,8 +218,8 @@ pub(super) fn stopped(todo: &Todo, stop: PhaseStop<CrossFileError>) -> CrossFile
     match stop {
         PhaseStop::Caller(error) => error,
         PhaseStop::Operating(error) => CrossFileError::from(failed(&todo.id, &error)),
-        PhaseStop::Frontiers(PreparationError::Facts(error)) => CrossFileError::from(error),
-        PhaseStop::Frontiers(PreparationError::Metadata(error)) => {
+        PhaseStop::Frontiers(FrontiersError::Facts(error)) => CrossFileError::from(error),
+        PhaseStop::Frontiers(FrontiersError::Metadata(error)) => {
             CrossFileError::from(failed(&todo.id, &error))
         }
         PhaseStop::MissingFirstBucket => {

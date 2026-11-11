@@ -1,5 +1,5 @@
 //! Independent runtime scratch, inputs, counters and observed results; no issuance or interpreter state.
-use crate::application::file_dag::program::admission::AdmittedInput;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
 #[cfg(test)]
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -20,7 +20,7 @@ pub(crate) enum InvocationFailure {
 #[derive(Default)]
 pub(crate) struct KernelScratch {
     pub workspace:
-        Option<ryo_execution_store::application::file_dag::workspace::InvocationWorkspace>,
+        Option<ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace>,
     pub ordered_row: Vec<Value>,
     pub ordered: ryo_operators::domain::ordered_existence::types::OrderedExistenceScratch,
 }
@@ -140,7 +140,7 @@ pub(crate) struct Instantiation {
 #[derive(Clone, Debug)]
 pub(crate) struct SourceRefusal {
     pub(crate) relation: ryo_relations::domain::relations::types::Relation,
-    pub(crate) error: ryo_execution_domain::domain::operating::errors::OperatingError,
+    pub(crate) error: OperatingError,
 }
 /// Whether a scope has touched any region yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

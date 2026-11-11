@@ -1,6 +1,4 @@
 //! The values the ledger counts and the records it keeps.
-use rustc_hash::FxHashMap;
-use std::{cell::RefCell, rc::Rc};
 
 /// Physical bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -74,38 +72,10 @@ pub(crate) struct LedgerSnapshot {
 
 #[derive(Debug)]
 pub(crate) struct LedgerEntry {
-    pub(super) bytes: ByteCount,
-    pub(super) retention_units: UnitCount,
-    pub(super) required: HoldCount,
-    pub(super) optional: HoldCount,
-}
-
-#[derive(Debug)]
-pub(crate) struct Ledger {
-    pub(super) entries: FxHashMap<BackingKey, LedgerEntry>,
-    pub(super) required_bytes: ByteCount,
-    pub(super) optional_bytes: ByteCount,
-    pub(super) view_optional_bytes: ByteCount,
-    pub(super) optional_units: UnitCount,
-    pub(super) overlap_bytes: ByteCount,
-    pub(super) unique_bytes: ByteCount,
-    pub(super) lease_metadata: ByteCount,
-    pub(super) peak_required_bytes: ByteCount,
-    pub(super) peak_optional_bytes: ByteCount,
-    pub(super) peak_view_optional_bytes: ByteCount,
-    pub(super) peak_optional_units: UnitCount,
-    pub(super) peak_overlap_bytes: ByteCount,
-    pub(super) peak_unique_bytes: ByteCount,
-    pub(super) peak_metadata_bytes: ByteCount,
-}
-
-/// One physical handle, shared by consumers through an outer `Arc`.
-#[derive(Debug)]
-pub(crate) struct ResourceLease {
-    pub(super) ledger: Rc<RefCell<Ledger>>,
-    pub(super) keys: Vec<BackingKey>,
-    pub(super) class: LeaseClass,
-    pub(super) metadata_bytes: ByteCount,
+    pub(crate) bytes: ByteCount,
+    pub(crate) retention_units: UnitCount,
+    pub(crate) required: HoldCount,
+    pub(crate) optional: HoldCount,
 }
 
 /// A backing with its immutable size, once the duplicates of a request are folded.

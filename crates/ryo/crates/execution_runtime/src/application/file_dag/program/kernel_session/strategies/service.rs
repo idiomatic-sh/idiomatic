@@ -5,16 +5,16 @@ use crate::application::file_dag::program::runtime::types::KernelScratch;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::{Emit, OperatorContext};
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
-use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
+use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
 use std::rc::Rc;
 
-impl super::super::KernelSession<'_, '_> {
+impl super::super::service::KernelSession<'_, '_> {
     pub(crate) fn ordered_session(
         &self,
         shape: &ryo_execution_domain::domain::executable_program::types::OrderedExistence,
         permit: &KernelPermit<'_>,
-        input: &crate::application::file_dag::program::admission::AdmittedInput,
+        input: &crate::application::file_dag::program::admission::service::AdmittedInput,
         context: &mut OperatorContext<'_>,
         scratch: &mut KernelScratch,
         output: &mut dyn Emit,
@@ -69,21 +69,22 @@ impl super::super::KernelSession<'_, '_> {
             )
         });
         let failure = std::sync::OnceLock::new();
-        let semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
+        let semantics = crate::application::file_dag::execution::types::PrimitiveSemanticsBridge {
             #[cfg(feature = "diagnostic-row-progress")]
             progress: self.owner.routes(),
             port: self.kernels,
             permit: permit.semantics(),
             failure: &failure,
-            binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
-                bindings: context.bindings,
-                regex_identity: None,
-                source_len: ryo_operators::domain::contract::types::SourceByteLength(
-                    context.source.0.len(),
-                ),
-            },
+            binding:
+                ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding {
+                    bindings: context.bindings,
+                    regex_identity: None,
+                    source_len: ryo_operators::domain::contract::types::SourceByteLength(
+                        context.source.0.len(),
+                    ),
+                },
         };
-        let result = crate::application::file_dag::ordered_existence::evaluate(
+        let result = crate::application::file_dag::ordered_existence::service::evaluate(
             &semantics,
             shape,
             &number,

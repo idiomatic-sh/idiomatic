@@ -1,7 +1,7 @@
 //! Rank binding and row-retention contracts through the compiled public owner.
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::{
@@ -16,7 +16,13 @@ use ryo_values::{
 };
 use std::borrow::Cow;
 type Input = (&'static [&'static str], Option<ParameterBinding>);
-type Value = Cow<'static, [(&'static str, i64)]>;
+/// What the rank published: its row count, and each row's name and numeric layer in order.
+#[derive(Debug, PartialEq, Eq)]
+struct Ranked {
+    rows: usize,
+    ranked: Cow<'static, [(&'static str, i64)]>,
+}
+type Value = Ranked;
 type Failure = OperatingError;
 fn sets(layers: &[&[&str]]) -> ParameterBinding {
     ParameterBinding::TextSets(
@@ -50,24 +56,32 @@ fn subject((names, binding): Input) -> Result<Value, Failure> {
         vec![fixtures::requests::texts("names", names)],
         &mut symbols,
     )?;
-    let found: Vec<_> = output
+    // A row whose layer is not a number, or whose text is none of the names, is left out: `rows` still counts it.
+    let ranked: Vec<_> = output
         .cells
         .chunks_exact(2)
-        .map(|row| {
+        .filter_map(|row| {
             let Cell::Number(place) = row[1] else {
-                panic!("rank must append a numeric layer")
+                return None;
             };
             let text = inputs::text(row[0], &symbols);
-            let name = names
+            names
                 .iter()
                 .copied()
                 .find(|name| *name == text)
-                .expect("rank preserves original text");
-            (name, place.0)
+                .map(|name| (name, place.0))
         })
         .collect();
-    assert_eq!(found.len(), output.count.0);
-    Ok(Cow::Owned(found))
+    Ok(Ranked {
+        rows: output.count.0,
+        ranked: Cow::Owned(ranked),
+    })
+}
+const fn ranked(ranked: &'static [(&'static str, i64)]) -> Expect<Value, Failure> {
+    Expect::Value(Ranked {
+        rows: ranked.len(),
+        ranked: Cow::Borrowed(ranked),
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -79,19 +93,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Some(sets(&[&["cli"], &["sdk", "core"], &["core"]])),
             )
         },
-        expect: Expect::Value(Cow::Borrowed(&[("cli", 0), ("core", 1), ("sdk", 1)])),
+        expect: ranked(&[("cli", 0), ("core", 1), ("sdk", 1)]),
     },
     Case {
         name: CaseName("a_text_no_set_holds_is_dropped"),
         word: Word::Succeeds,
         input: || (&["cli", "leaf"], Some(sets(&[&["cli"], &["core"]]))),
-        expect: Expect::Value(Cow::Borrowed(&[("cli", 0)])),
+        expect: ranked(&[("cli", 0)]),
     },
     Case {
         name: CaseName("no_sets_drop_every_row"),
         word: Word::Succeeds,
         input: || (&["cli"], Some(sets(&[]))),
-        expect: Expect::Value(Cow::Borrowed(&[])),
+        expect: ranked(&[]),
     },
     Case {
         name: CaseName("a_rank_parameter_nothing_bound_is_refused"),

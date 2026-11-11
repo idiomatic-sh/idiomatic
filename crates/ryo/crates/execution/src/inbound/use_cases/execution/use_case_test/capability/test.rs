@@ -9,11 +9,11 @@ use crate::inbound::use_cases::execution::interface::ObservationDemand;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileInput;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_execution_runtime::outbound::operators::interface::OperatorsPort as _;
@@ -61,17 +61,17 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Ob
         let refuse = match &call {
             OperatorCall::Evaluate {
                 operation:
-                    ryo_values::domain::plans::types::Operation::Union { .. }
-                    | ryo_values::domain::plans::types::Operation::Intersection { .. }
-                    | ryo_values::domain::plans::types::Operation::Difference { .. }
-                    | ryo_values::domain::plans::types::Operation::Antijoin { .. },
+                    Operation::Union { .. }
+                    | Operation::Intersection { .. }
+                    | Operation::Difference { .. }
+                    | Operation::Antijoin { .. },
                 ..
             } => {
                 self.unions.fetch_add(1, Ordering::Relaxed);
                 matches!(self.refusal, Refusal::Union)
             }
             OperatorCall::Evaluate {
-                operation: ryo_values::domain::plans::types::Operation::Project { .. },
+                operation: Operation::Project { .. },
                 ..
             } => {
                 self.projects.fetch_add(1, Ordering::Relaxed);
@@ -79,10 +79,10 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Ob
             }
             OperatorCall::Evaluate {
                 operation:
-                    ryo_values::domain::plans::types::Operation::Extend { .. }
-                    | ryo_values::domain::plans::types::Operation::SpanBounds { .. }
-                    | ryo_values::domain::plans::types::Operation::SpanBetween { .. }
-                    | ryo_values::domain::plans::types::Operation::Replace { .. },
+                    Operation::Extend { .. }
+                    | Operation::SpanBounds { .. }
+                    | Operation::SpanBetween { .. }
+                    | Operation::Replace { .. },
                 ..
             } => {
                 self.appends.fetch_add(1, Ordering::Relaxed);
@@ -97,10 +97,27 @@ impl ryo_execution_runtime::outbound::operators::interface::OperatorsPort for Ob
         }
     }
 }
+/// What a rule's root emitted on one demand.
+#[derive(Debug, PartialEq, Eq)]
+enum Emitted {
+    Complete(Cow<'static, [Cell]>),
+    Failed(OperatingError),
+    /// Any other root outcome: partial, skipped, unknown, no query or deferred.
+    Other,
+}
+/// What the two demands emitted and how often the port saw each operator family.
+#[derive(Debug, PartialEq, Eq)]
+struct Observed {
+    emitted: [Emitted; 2],
+    /// Unions (and set operations), projections and appends the port evaluated.
+    calls: (usize, usize, usize),
+}
+use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use std::borrow::Cow;
 type Input = Refusal;
-type Value = ();
+type Value = Observed;
 type Failure = OperatingError;
-fn subject(refusal: Input) -> Result<Value, Failure> {
+fn subject(refusal: Input) -> Result<Observed, Failure> {
     let port = Arc::new(ObservedSemantics {
         refusal,
         unions: AtomicUsize::new(0),
@@ -194,75 +211,64 @@ fn subject(refusal: Input) -> Result<Value, Failure> {
         &mut symbols,
     )?;
     let demand = crate::inbound::use_cases::execution::fixtures::requests::emitted();
-    for _ in 0..2 {
+    let mut emitted = [Emitted::Other, Emitted::Other];
+    for slot in &mut emitted {
         let outcome = file.rule(RuleIndex(0), demand, &mut symbols)?;
-        match refusal {
-            Refusal::None => {
-                let RootOutcome::Complete(table) = outcome.emit else {
-                    panic!("actual injected semantics must complete")
-                };
-                use ryo_relations::domain::relations::types::{Integer, Value};
-                assert_eq!(table.count.0, 3);
-                assert_eq!(table.cells, [1, 2, 3].map(|n| Value::Number(Integer(n))));
-            }
-            Refusal::Union | Refusal::Project | Refusal::Append => match outcome.emit {
-                RootOutcome::Failed(error) => {
-                    assert_eq!(error, OperatingError::ShapeMismatch, "{refusal:?}")
-                }
-                RootOutcome::Complete(_)
-                | RootOutcome::Partial { .. }
-                | RootOutcome::Skipped(_)
-                | RootOutcome::Unknown(_)
-                | RootOutcome::NoQuery
-                | RootOutcome::Deferred { .. } => {
-                    panic!("injected {refusal:?} refusal must remain an exact terminal failure")
-                }
-            },
-        }
+        *slot = match outcome.emit {
+            RootOutcome::Complete(table) => Emitted::Complete(table.cells.into()),
+            RootOutcome::Failed(error) => Emitted::Failed(error),
+            RootOutcome::Partial { .. }
+            | RootOutcome::Skipped(_)
+            | RootOutcome::Unknown(_)
+            | RootOutcome::NoQuery
+            | RootOutcome::Deferred { .. } => Emitted::Other,
+        };
     }
-    let expected = match refusal {
-        Refusal::None => (5, 3, 0),
-        Refusal::Union => (1, 0, 0),
-        Refusal::Project => (5, 1, 0),
-        Refusal::Append => (5, 0, 1),
-    };
-    assert_eq!(
-        (
-            port.unions.load(Ordering::Relaxed),
-            port.projects.load(Ordering::Relaxed),
-            port.appends.load(Ordering::Relaxed)
-        ),
-        expected,
-        "replay never reruns the child or root, including refusal"
+    let calls = (
+        port.unions.load(Ordering::Relaxed),
+        port.projects.load(Ordering::Relaxed),
+        port.appends.load(Ordering::Relaxed),
     );
     file.finish()?;
     request.finish();
-    Ok(())
+    Ok(Observed { emitted, calls })
+}
+const NUMBERS: Emitted = Emitted::Complete(Cow::Borrowed(&[
+    Cell::Number(Integer(1)),
+    Cell::Number(Integer(2)),
+    Cell::Number(Integer(3)),
+]));
+const REFUSED: Emitted = Emitted::Failed(OperatingError::ShapeMismatch);
+const fn observed(
+    emitted: [Emitted; 2],
+    calls: (usize, usize, usize),
+) -> Expect<Observed, Failure> {
+    Expect::Value(Observed { emitted, calls })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("append_refusal_preserves_the_injected_typed_fault_and_terminal_retry"),
         word: Word::Succeeds,
         input: || Refusal::Append,
-        expect: Expect::Value(()),
+        expect: observed([REFUSED, REFUSED], (5, 0, 1)),
     },
     Case {
         name: CaseName("recursive_producer_and_root_use_injected_semantics_once"),
         word: Word::Succeeds,
         input: || Refusal::None,
-        expect: Expect::Value(()),
+        expect: observed([NUMBERS, NUMBERS], (5, 3, 0)),
     },
     Case {
         name: CaseName("recursive_semantic_refusal_is_terminal_and_never_publishes"),
         word: Word::Succeeds,
         input: || Refusal::Union,
-        expect: Expect::Value(()),
+        expect: observed([REFUSED, REFUSED], (1, 0, 0)),
     },
     Case {
         name: CaseName("root_semantic_refusal_does_not_repeat_completed_producer"),
         word: Word::Succeeds,
         input: || Refusal::Project,
-        expect: Expect::Value(()),
+        expect: observed([REFUSED, REFUSED], (5, 1, 0)),
     },
 ];
 #[test]

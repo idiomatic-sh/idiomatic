@@ -1,8 +1,8 @@
 //! The read-only views of a prepared program.
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::preparation::types::RuleTotal;
-use crate::application::file_dag::program::prepared_execution::interface::PreparedExecution;
 use crate::application::file_dag::program::prepared_execution::interface::PreparedReporting;
+use crate::application::file_dag::program::prepared_execution::interface::ProgramPreparedExecutionPort;
 use crate::application::file_dag::program::prepared_execution::types::{
     Demand, NamedLayout, ObservationContract, ReplayClosure,
 };
@@ -16,13 +16,13 @@ use ryo_execution_domain::domain::prepared_request::types::{Compiled, Observatio
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::SemanticNeed;
 use ryo_execution_domain::domain::trust::types::RelationRead;
-use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess;
+use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
 use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     hosted::types::HostRelation, rule_requests::types::RuleSpec, stored_facts::types::Digest,
 };
 use std::sync::Arc;
-impl PreparedExecution for PreparedExecutionProgram {
+impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn observation_batches(&self) -> Option<&[Vec<RuleIndex>]> {
         self.parts.inner.observation_batches()
     }
@@ -41,10 +41,7 @@ impl PreparedExecution for PreparedExecutionProgram {
     ) -> Result<&ryo_values::domain::plans::types::Emit, OperatingError> {
         self.parts.inner.emit(rule)
     }
-    fn rule_digest(
-        &self,
-        rule: RuleIndex,
-    ) -> Result<ryo_values::domain::stored_facts::types::Digest, OperatingError> {
+    fn rule_digest(&self, rule: RuleIndex) -> Result<Digest, OperatingError> {
         self.parts.inner.rule_digest(rule)
     }
     fn frontiers(

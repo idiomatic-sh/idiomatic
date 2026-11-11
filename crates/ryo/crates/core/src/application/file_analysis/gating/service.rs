@@ -7,7 +7,7 @@ use crate::domain::workers::service::governs_rule;
 use crate::domain::workers::types::Gating;
 use crate::domain::workers::types::Tables;
 use ryo_execution::inbound::use_cases::execution::interface::Demand;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::interface::MetadataUseCase as _;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;

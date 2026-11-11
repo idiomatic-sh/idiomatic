@@ -10,7 +10,7 @@ use crate::domain::recording::types::Flat;
 use crate::domain::render::types::Answering;
 use crate::domain::visit::types::Keeping;
 use ryo_execution::inbound::use_cases::execution::interface::NamedLayout;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_execution_runtime::outbound::digest::types::DigestWords;

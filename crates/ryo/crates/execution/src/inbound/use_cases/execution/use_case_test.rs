@@ -4,19 +4,19 @@ use super::{interface::ExecutionUseCase, use_case::ExecutionUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::{
     FileInput, SourceLanguage,
 };
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
 };
 
-/// What a begun request is asked to do.
+/// What a begun request is asked to do: finish with no file, or open one file of a language and stability.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
+enum Requested {
     Empty,
     File(SourceLanguage, ResidentStability),
 }
@@ -26,32 +26,32 @@ enum Outcome {
     Finished,
     Reuse(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility),
 }
-type Input = Scenario;
+type Input = Requested;
 type Value = Outcome;
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(stringify!(an_empty_request_begins_and_finishes)),
         word: Word::Succeeds,
-        input: || Scenario::Empty,
+        input: || Requested::Empty,
         expect: Expect::Value(Outcome::Finished),
     },
     Case {
         name: CaseName(stringify!(a_recognized_stable_source_is_reused)),
         word: Word::Succeeds,
-        input: || Scenario::File(SourceLanguage::Recognized, ResidentStability::Stable),
+        input: || Requested::File(SourceLanguage::Recognized, ResidentStability::Stable),
         expect: Expect::Value(Outcome::Reuse(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible)),
     },
     Case {
         name: CaseName(stringify!(an_unstable_source_is_not_reused)),
         word: Word::Succeeds,
-        input: || Scenario::File(SourceLanguage::Recognized, ResidentStability::Unstable),
+        input: || Requested::File(SourceLanguage::Recognized, ResidentStability::Unstable),
         expect: Expect::Value(Outcome::Reuse(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible)),
     },
     Case {
         name: CaseName(stringify!(an_unrecognized_source_is_not_reused)),
         word: Word::Succeeds,
-        input: || Scenario::File(SourceLanguage::Unrecognized, ResidentStability::Stable),
+        input: || Requested::File(SourceLanguage::Unrecognized, ResidentStability::Stable),
         expect: Expect::Value(Outcome::Reuse(ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Ineligible)),
     },
 ];
@@ -66,12 +66,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
         observations: ObservationIdentity::Independent,
     })?;
     match input {
-        Scenario::Empty => {
+        Requested::Empty => {
             let request = ExecutionUseCaseImpl::new().execution(&prepared, &[], None);
-            ExecutionRequest::finish(request);
+            ProgramRequestExecutionPort::finish(request);
             Ok(Outcome::Finished)
         }
-        Scenario::File(language, resident_stability) => {
+        Requested::File(language, resident_stability) => {
             let corpus = vec![CorpusInput::Available(CorpusEntry {
                 path: ryo_language::domain::files::types::FilePath("empty.py".into()),
                 executable: ExecutablePermission::Unknown,
@@ -99,7 +99,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 &mut symbols,
             )?;
             let eligibility = file.reuse_eligible();
-            file.finish()?;
+            let _finished = file.finish()?;
             Ok(Outcome::Reuse(eligibility))
         }
     }

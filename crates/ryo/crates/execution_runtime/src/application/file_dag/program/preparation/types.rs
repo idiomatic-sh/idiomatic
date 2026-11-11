@@ -60,7 +60,12 @@ pub(crate) struct ObservationMetadata {
     pub(crate) retire:
         Vec<Vec<ryo_execution_domain::domain::file_program::types::ObservationRetirement>>,
 }
-/// Immutable executable state has no RequestGraph, Plan, layout or old executor.
+/// Immutable executable state has no RequestGraph, Plan, layout or old executor. Only the
+/// preparation owner builds one, and no code outside the engine can name it.
+///
+/// ```compile_fail,E0603
+/// use ryo_execution_runtime::application::file_dag::program::preparation::types::PreparedProgram;
+/// ```
 pub(crate) struct PreparedProgram {
     pub(super) program: Arc<ExecutableProgram>,
     pub(super) rule_ids: Box<[ryo_values::domain::runs::types::RuleId]>,
@@ -71,7 +76,7 @@ pub(crate) struct PreparedProgram {
     /// Computed once when the program is built; never a per-call scan of `rules`.
     pub(super) semantic_needed: SemanticNeed,
     pub(super) file_demands: Box<
-        [ryo_execution_domain::domain::executable_program::file_demand::types::FileRuleDemand],
+        [ryo_execution_domain::domain::executable_program::types::file_rule_demand::value::FileRuleDemand],
     >,
     pub(super) file_frontier_outputs: Box<[Box<[Box<[ObservationIndex]>]>]>,
     pub(super) observations: Option<ObservationMetadata>,
@@ -81,7 +86,7 @@ pub(crate) struct PreparedProgram {
     pub(super) matchers:
         Arc<ryo_execution_domain::domain::matching::types::prepared::value::PreparedMatchers>,
     pub(super) derived:
-        ryo_execution_store::application::file_dag::derived::prepared::RequestDerived,
+        ryo_execution_store::application::file_dag::derived::prepared::service::RequestDerived,
     pub(super) walk:
         ryo_execution_domain::domain::shared_walk::types::prepared_walk::value::PreparedWalk,
 }

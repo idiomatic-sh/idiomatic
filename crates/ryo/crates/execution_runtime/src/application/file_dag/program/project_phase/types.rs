@@ -1,10 +1,9 @@
 //! One project phase: its scope, its inputs and its tasks.
-use crate::application::file_dag::frontiers::errors::PreparationError;
+use crate::application::file_dag::frontiers::errors::FrontiersError;
 use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::frontiers::types::ReadinessProof;
-use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_execution_domain::domain::coverage::types::Covered;
@@ -18,17 +17,13 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::runs::types::Skipped;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
-/// One project-phase publication/interpreter and symbol generation, shared across rules.
-pub struct ProjectPhase<'a> {
-    pub(crate) request: &'a RequestExecution,
-    pub(crate) publication:
-        std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
-}
 /// The files one occurrence's rule reads in its phase, sharing the phase's publication: crate-private, as the scoping is.
 pub(crate) struct PhaseScope {
-    pub(crate) required: crate::application::file_dag::program::admission::RequiredPartitions,
-    pub(crate) publication:
-        std::rc::Rc<crate::application::file_dag::program::facade_runtime::types::PublicationScope>,
+    pub(crate) required:
+        crate::application::file_dag::program::admission::types::RequiredPartitions,
+    pub(crate) publication: std::rc::Rc<
+        crate::application::file_dag::program::facade_runtime::service::PublicationScope,
+    >,
 }
 /// The prepared inputs of one project task: crate-private, as the root evaluation that takes them is.
 pub(crate) struct ProjectInput<'a> {
@@ -37,7 +32,7 @@ pub(crate) struct ProjectInput<'a> {
     pub(crate) publication: &'a Partials,
     pub(crate) ordinary: PreparedFrontiers,
     pub(crate) bound: &'a [BoundInput],
-    pub(crate) arenas: &'a [ryo_values::domain::stored_facts::types::ArenaBytes],
+    pub(crate) arenas: &'a [ArenaBytes],
 }
 /// Actual, already prepared inputs and declared roots for one project task: crate-private, so no caller outside the runtime
 /// assembles a root of its own.
@@ -59,7 +54,7 @@ pub(crate) struct FrontierRequest<'a> {
     pub(crate) first: ryo_values::domain::stored_facts::types::Bucket,
     pub(crate) facts: &'a dyn FactsFinish,
     pub(crate) project: &'a dyn FactsWorker,
-    pub(crate) project_symbols: &'a ryo_language::domain::symbols::types::Symbols,
+    pub(crate) project_symbols: &'a Symbols,
 }
 /// The place of one declared occurrence among the occurrences of its phase, counted from zero in declaration order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -176,7 +171,7 @@ pub enum PhaseStop<E> {
     /// The engine refused the occurrence's scope or its evaluation.
     Operating(OperatingError),
     /// The occurrence's frontiers could not be prepared.
-    Frontiers(PreparationError),
+    Frontiers(FrontiersError),
     /// The engine answered fewer outcomes than prepared occurrences, with no refusal to explain it.
     Unevaluated,
     /// The occurrence's frontier readiness, publication slot or bound inputs were refused before it reached the phase.
@@ -195,4 +190,31 @@ pub(crate) struct ReadyOccurrence<'a> {
     pub(crate) partials: PhasePartials,
     pub(crate) bound: &'a [BoundInput],
     pub(crate) slot: PublicationSlot,
+}
+
+/// One project-phase publication/interpreter and symbol generation, shared across rules.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
+/// fn phase(phase: &ProjectPhase<'_>) {
+///     let _ = phase;
+/// }
+/// ```
+///
+/// Only its crate opens one: no field is reachable outside it.
+///
+/// ```compile_fail,E0616
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
+/// fn forge(handle: &ProjectPhase<'_>) {
+///     let _ = &handle.request;
+/// }
+/// ```
+pub struct ProjectPhase<'a> {
+    pub(crate) request:
+        &'a crate::application::file_dag::program::request_execution::types::RequestExecution,
+    pub(crate) publication: std::rc::Rc<
+        crate::application::file_dag::program::facade_runtime::service::PublicationScope,
+    >,
 }

@@ -5,12 +5,13 @@ use ryo_execution_domain::domain::derived_views::types::{
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::derived_fault;
-use ryo_execution_domain::domain::operator::contract::failure::FailureLatch;
+use ryo_execution_domain::domain::operator::contract::failure::types::FailureLatch;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_texts::types::derived_texts::value::DerivedTexts;
 use std::{cell::RefCell, sync::Arc};
 
-use super::semantic_rows::{AdmittedRows, CanonicalTexts};
-use super::storage::DerivedStorage;
+use super::semantic_rows::{types::AdmittedRows, types::CanonicalTexts};
+use super::storage::service::DerivedStorage;
 use super::types::InputPosition;
 
 fn first<'a>(
@@ -85,7 +86,7 @@ pub(crate) fn build(
                 ryo_derived::domain::contract::types::BuildInputs::Ordered {
                     left: &left,
                     right: &right,
-                    texts,
+                    texts: &DerivedTexts(*texts),
                 },
                 &mut scratch.semantic,
                 recycled,
@@ -217,7 +218,9 @@ pub(crate) fn build(
             )
         }
     };
-    if let Some(error) = failure.borrow_mut().take() {
+    if let Some(error) = ryo_execution_domain::domain::operator::contract::failure::service::take(
+        &mut *failure.borrow_mut(),
+    ) {
         return Err(error);
     }
     match answer.map_err(derived_fault)? {

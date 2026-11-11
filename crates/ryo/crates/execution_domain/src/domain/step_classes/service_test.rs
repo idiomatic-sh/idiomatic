@@ -1,5 +1,7 @@
 //! The `step_classes` service's cases: the merge makes one class of the steps that select the same elements.
 
+use std::borrow::Cow;
+
 use super::service::merge;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -10,11 +12,27 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::plan_parts::types::{RepeatedRows, StepScope};
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
-/// The kinds the one step of each rule selects, an empty one for the elements with no text.
-type Input = Scenario;
-/// How many classes the merge made, and the class of each rule's step.
-type Value = &'static str;
-type Failure = ();
+/// The plans of the rules merged.
+type Input = Vec<Plan>;
+
+/// A class: the relation it reads, its scope, how many steps are its members, and of each of its comparisons the columns its
+/// left and right read (none for an operand that is no column).
+type Class = (
+    Relation,
+    StepScope,
+    usize,
+    Cow<'static, [(Option<u32>, Option<u32>)]>,
+);
+
+/// The classes the merge made, and the class of each step of each rule.
+#[derive(Debug, PartialEq)]
+struct Merged {
+    classes: Cow<'static, [Class]>,
+    rules: Cow<'static, [Cow<'static, [Option<usize>]>]>,
+}
+
+type Value = Merged;
+type Failure = std::convert::Infallible;
 
 fn text_is(text: &str) -> PlanComparison {
     PlanComparison {
@@ -63,13 +81,6 @@ pub(super) fn plan(name: &str) -> Plan {
     }
 }
 
-#[derive(Clone, Copy)]
-enum Scenario {
-    Kinds(&'static [&'static str]),
-    /// One rule per entry, each projecting the tree's first column, keeping or dropping the rows that repeat.
-    Projections(&'static [RepeatedRows]),
-    Check(fn()),
-}
 /// A plan whose one step projects the tree's first column, keeping or dropping the rows that repeat.
 fn projection(distinct: RepeatedRows) -> Plan {
     let mut projected = plan("word");
@@ -80,32 +91,45 @@ fn projection(distinct: RepeatedRows) -> Plan {
     };
     projected
 }
-fn subject(scenario: Input) -> Value {
-    let plans = match scenario {
-        Scenario::Kinds(kinds) => kinds.iter().map(|name| plan(name)).collect::<Vec<_>>(),
-        Scenario::Projections(each) => each.iter().copied().map(projection).collect(),
-        Scenario::Check(check) => {
-            check();
-            return "held";
-        }
-    };
-    let bindings = vec![Vec::new(); plans.len()];
-    let merged = merge(&plans, &bindings);
-    Box::leak(
-        format!(
-            "{} classes, rules {:?}",
-            merged.classes.len(),
-            merged
-                .class_of
-                .iter()
-                .map(|each| each[0].map(|place| place.0))
-                .collect::<Vec<_>>()
-        )
-        .into_boxed_str(),
-    )
+/// The column an operand reads, if it is a column.
+fn column(operand: &Operand) -> Option<u32> {
+    match operand {
+        Operand::Column(index) => Some(index.0),
+        _ => None,
+    }
 }
 
-fn comparison_origin_does_not_split_shared_step_classes() {
+fn subject(plans: Input) -> Result<Value, Failure> {
+    let bindings = vec![Vec::new(); plans.len()];
+    let merged = merge(&plans, &bindings);
+    Ok(Merged {
+        classes: merged
+            .classes
+            .iter()
+            .map(|class| {
+                let compared = class
+                    .comparisons
+                    .iter()
+                    .map(|each| (column(&each.left), column(&each.right)))
+                    .collect();
+                (class.source, class.scope, class.members.len(), compared)
+            })
+            .collect(),
+        rules: merged
+            .class_of
+            .iter()
+            .map(|steps| steps.iter().map(|each| each.map(|place| place.0)).collect())
+            .collect(),
+    })
+}
+
+/// The rules whose one step selects the elements of these kinds.
+fn kinds(names: &[&str]) -> Input {
+    names.iter().map(|name| plan(name)).collect()
+}
+
+/// Two rules selecting `word`, their comparisons recorded at two sources.
+fn two_origins() -> Input {
     use ryo_values::domain::query_tokens::types::{
         ByteOffset, QueryOrigin, QuerySourceId, QuerySpan,
     };
@@ -129,12 +153,12 @@ fn comparison_origin_does_not_split_shared_step_classes() {
         );
     }
 
-    let merged = merge(&[first, second], &[Vec::new(), Vec::new()]);
-    assert_eq!(merged.classes.len(), 1);
-    assert_eq!(merged.classes[0].members.len(), 2);
+    vec![first, second]
 }
 
-fn relation_identity_and_wide_source_projections_are_preserved() {
+/// A rule selecting `word` of the tree, one of `semantic_syntax`, and one selecting `source_location` rows by column 8 keeping
+/// columns 8, 0 and 8, then the rows whose third kept column equals the first.
+fn wide_sources() -> Input {
     let mut wide = plan("word");
     let Operation::Select {
         from,
@@ -172,31 +196,19 @@ fn relation_identity_and_wide_source_projections_are_preserved() {
         panic!("the fixture builds a Select");
     };
     *from = PlanInput::Relation(Relation::SemanticSyntax);
-    let merged = merge(&[plan("word"), semantic, wide], &vec![vec![]; 3]);
-    assert_eq!(merged.classes.len(), 4);
-    assert_eq!(merged.classes[0].source, Relation::SyntaxTree);
-    assert_eq!(merged.classes[1].source, Relation::SemanticSyntax);
-    assert_eq!(merged.classes[3].source, Relation::SourceLocation);
-    assert_eq!(
-        merged.classes[3].comparisons[1].left,
-        Operand::Column(ColumnIndex(8))
-    );
-    assert_eq!(
-        merged.classes[3].comparisons[1].right,
-        Operand::Column(ColumnIndex(8))
-    );
+    vec![plan("word"), semantic, wide]
 }
 
 /// A project step and a file step over one relation select the rows of different partitions: two
 /// classes, and a project step that reads a file step's frontier joins no class of its own.
-fn a_class_never_spans_two_partitions() {
+fn partitions() -> Input {
     let mut project = plan("word");
     project.steps[0].scope = StepScope::CrossFile;
-    let merged = merge(&[plan("word"), project.clone(), project], &vec![vec![]; 3]);
-    assert_eq!(merged.classes.len(), 2);
-    assert_eq!(merged.classes[0].scope, StepScope::PerFile);
-    assert_eq!(merged.classes[1].scope, StepScope::CrossFile);
-    assert_eq!(merged.classes[1].members.len(), 2);
+    vec![plan("word"), project.clone(), project]
+}
+
+/// A rule selecting `word`, then a project step reading that file step's frontier.
+fn frontier() -> Input {
     let mut frontier = plan("word");
     frontier.steps.push(PlanStep {
         operation: Operation::Select {
@@ -206,60 +218,181 @@ fn a_class_never_spans_two_partitions() {
         },
         scope: StepScope::CrossFile,
     });
-    let merged = merge(&[frontier], &[Vec::new()]);
-    assert_eq!(
-        merged.class_of[0],
-        vec![
-            Some(crate::domain::step_classes::types::ClassPlace(0)),
-            None
-        ]
-    );
+    vec![frontier]
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("rules_that_select_the_same_elements_are_one_class"),
         word: Word::Succeeds,
-        input: || Scenario::Kinds(&["word", "other", "word", ""]),
-        expect: Expect::Value("3 classes, rules [Some(0), Some(1), Some(0), Some(2)]"),
+        input: || kinds(&["word", "other", "word", ""]),
+        expect: Expect::Value(Merged {
+            classes: Cow::Borrowed(&[
+                (
+                    Relation::SyntaxTree,
+                    StepScope::PerFile,
+                    2,
+                    Cow::Borrowed(&[(Some(1), None)]),
+                ),
+                (
+                    Relation::SyntaxTree,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(1), None)]),
+                ),
+                (
+                    Relation::SyntaxTree,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(2), None)]),
+                ),
+            ]),
+            rules: Cow::Borrowed(&[
+                Cow::Borrowed(&[Some(0)]),
+                Cow::Borrowed(&[Some(1)]),
+                Cow::Borrowed(&[Some(0)]),
+                Cow::Borrowed(&[Some(2)]),
+            ]),
+        }),
     },
     Case {
         name: CaseName("rules_that_select_different_elements_are_classes_apart"),
         word: Word::Succeeds,
-        input: || Scenario::Kinds(&["word", "other"]),
-        expect: Expect::Value("2 classes, rules [Some(0), Some(1)]"),
+        input: || kinds(&["word", "other"]),
+        expect: Expect::Value(Merged {
+            classes: Cow::Borrowed(&[
+                (
+                    Relation::SyntaxTree,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(1), None)]),
+                ),
+                (
+                    Relation::SyntaxTree,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(1), None)]),
+                ),
+            ]),
+            rules: Cow::Borrowed(&[Cow::Borrowed(&[Some(0)]), Cow::Borrowed(&[Some(1)])]),
+        }),
     },
     Case {
         name: CaseName("a_row_dropping_projection_is_not_a_pure_projection"),
         word: Word::Succeeds,
-        input: || Scenario::Projections(&[RepeatedRows::Kept, RepeatedRows::Dropped]),
-        expect: Expect::Value("1 classes, rules [Some(0), None]"),
+        input: || {
+            vec![
+                projection(RepeatedRows::Kept),
+                projection(RepeatedRows::Dropped),
+            ]
+        },
+        expect: Expect::Value(Merged {
+            classes: Cow::Borrowed(&[(
+                Relation::SyntaxTree,
+                StepScope::PerFile,
+                1,
+                Cow::Borrowed(&[]),
+            )]),
+            rules: Cow::Borrowed(&[Cow::Borrowed(&[Some(0)]), Cow::Borrowed(&[None])]),
+        }),
     },
     Case {
         name: CaseName("comparison_origin_does_not_split_shared_step_classes"),
         word: Word::Succeeds,
-        input: || Scenario::Check(comparison_origin_does_not_split_shared_step_classes),
-        expect: Expect::Value("held"),
+        input: two_origins,
+        expect: Expect::Value(Merged {
+            classes: Cow::Borrowed(&[(
+                Relation::SyntaxTree,
+                StepScope::PerFile,
+                2,
+                Cow::Borrowed(&[(Some(1), None)]),
+            )]),
+            rules: Cow::Borrowed(&[Cow::Borrowed(&[Some(0)]), Cow::Borrowed(&[Some(0)])]),
+        }),
     },
     Case {
         name: CaseName("relation_identity_and_wide_source_projections_are_preserved"),
         word: Word::Succeeds,
-        input: || Scenario::Check(relation_identity_and_wide_source_projections_are_preserved),
-        expect: Expect::Value("held"),
+        input: wide_sources,
+        expect: Expect::Value(Merged {
+            classes: Cow::Borrowed(&[
+                (
+                    Relation::SyntaxTree,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(1), None)]),
+                ),
+                (
+                    Relation::SemanticSyntax,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(1), None)]),
+                ),
+                (
+                    Relation::SourceLocation,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(8), None)]),
+                ),
+                (
+                    Relation::SourceLocation,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(8), None), (Some(8), Some(8))]),
+                ),
+            ]),
+            rules: Cow::Borrowed(&[
+                Cow::Borrowed(&[Some(0)]),
+                Cow::Borrowed(&[Some(1)]),
+                Cow::Borrowed(&[Some(2), Some(3)]),
+            ]),
+        }),
     },
     Case {
         name: CaseName("a_class_never_spans_two_partitions"),
         word: Word::Succeeds,
-        input: || Scenario::Check(a_class_never_spans_two_partitions),
-        expect: Expect::Value("held"),
+        input: partitions,
+        expect: Expect::Value(Merged {
+            classes: Cow::Borrowed(&[
+                (
+                    Relation::SyntaxTree,
+                    StepScope::PerFile,
+                    1,
+                    Cow::Borrowed(&[(Some(1), None)]),
+                ),
+                (
+                    Relation::SyntaxTree,
+                    StepScope::CrossFile,
+                    2,
+                    Cow::Borrowed(&[(Some(1), None)]),
+                ),
+            ]),
+            rules: Cow::Borrowed(&[
+                Cow::Borrowed(&[Some(0)]),
+                Cow::Borrowed(&[Some(1)]),
+                Cow::Borrowed(&[Some(1)]),
+            ]),
+        }),
+    },
+    Case {
+        name: CaseName("a_project_step_reading_a_file_steps_frontier_joins_no_class"),
+        word: Word::Succeeds,
+        input: frontier,
+        expect: Expect::Value(Merged {
+            classes: Cow::Borrowed(&[(
+                Relation::SyntaxTree,
+                StepScope::PerFile,
+                1,
+                Cow::Borrowed(&[(Some(1), None)]),
+            )]),
+            rules: Cow::Borrowed(&[Cow::Borrowed(&[Some(0), None])]),
+        }),
     },
 ];
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |input| {
-        Ok::<_, Failure>(subject(input))
-    });
+    run(CASES, Word::Succeeds, subject);
 }
 
 #[cfg(test)]

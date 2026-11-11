@@ -1,7 +1,7 @@
 //! Conflicting metadata, population and resource failures through the actual execution owner.
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::{domain::elements::types::Elements, domain::symbols::types::Symbols};
 use ryo_relations::domain::relations::{
@@ -21,6 +21,9 @@ use ryo_values::{
 };
 
 /// A genuine provider population: malformed flat rows must not pass through hosted-row conversion.
+use ryo_relations::domain::relations::service::node_position;
+use std::borrow::Cow;
+
 fn project_result(operation: &Operation, malformed: bool) -> Result<Table, OperatingError> {
     let mut symbols = Symbols::default();
     let symbol = ryo_language::domain::symbols::service::intern_derived(
@@ -91,28 +94,6 @@ fn functions(malformed: bool, symbol: ryo_relations::domain::terms::types::Symbo
         count: RowCount(2),
     }
 }
-fn project_static_column_failure_precedes_malformed_population() {
-    for malformed in [false, true] {
-        assert_eq!(
-            project_result(&project(99), malformed).err(),
-            Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
-        );
-    }
-    // The same malformed population must still fail when the metadata is valid.
-    assert_eq!(
-        project_result(&project(0), true).err(),
-        Some(OperatingError::ShapeMismatch)
-    );
-    let valid = project_result(&project(0), false).unwrap();
-    assert_eq!(valid.count.0, 2);
-    assert_eq!(
-        valid.cells,
-        vec![
-            CellValue::Node(node_id(FileId(0), Position(1))),
-            CellValue::Node(node_id(FileId(0), Position(2)))
-        ]
-    );
-}
 fn node(position: u32) -> CellValue {
     CellValue::Node(node_id(FileId(17), Position(position)))
 }
@@ -150,64 +131,154 @@ fn axis_inputs(empty_roots: bool, empty_domain: bool) -> Vec<Table> {
         },
     ]
 }
-fn collected_axis_empty_roots_do_not_acquire_unsupported_table_walk() {
-    let empty = axis_result(&axis(Direction::Deep, 0), &axis_inputs(true, false)).unwrap();
-    assert_eq!(empty.kinds, vec![CellKind::Node; 2]);
-    assert_eq!(empty.count.0, 0);
-    assert!(empty.cells.is_empty());
-    // Root-id metadata is checked before the original empty-root gate.
-    assert_eq!(
-        axis_result(&axis(Direction::Deep, 99), &axis_inputs(true, false)).err(),
-        Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
-    );
-    // A real nonempty unsupported walk must not become an unconditional no-op.
-    assert_eq!(
-        axis_result(&axis(Direction::Deep, 0), &axis_inputs(false, false)).err(),
-        Some(OperatingError::WrongOperation)
-    );
-    let child = axis_result(&axis(Direction::Child, 0), &axis_inputs(false, false)).unwrap();
-    assert_eq!(child.count.0, 1);
-    assert_eq!(child.cells, vec![node(1), node(2)]);
+/// One operation through the owner: a projection of a column over the function population (malformed or not), or an
+/// axis over roots, edges and a domain (either of the first and last empty or not).
+#[derive(Clone, Copy, Debug)]
+enum Timing {
+    Project {
+        column: u32,
+        malformed: bool,
+    },
+    Axis {
+        direction: Direction,
+        id: u32,
+        empty_roots: bool,
+        empty_domain: bool,
+    },
 }
-fn collected_axis_computed_empty_domain_keeps_its_original_shortcut() {
-    let empty = axis_result(&axis(Direction::Deep, 0), &axis_inputs(false, true)).unwrap();
-    assert_eq!(empty.kinds, vec![CellKind::Node; 2]);
-    assert_eq!(empty.count.0, 0);
-    assert_eq!(
-        axis_result(&axis(Direction::Deep, 99), &axis_inputs(false, true)).err(),
-        Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
-    );
+/// What a completed operation answered: its schema, row count and the positions of its node cells in order.
+#[derive(Debug, PartialEq, Eq)]
+struct Answer {
+    kinds: Cow<'static, [CellKind]>,
+    rows: usize,
+    cells: usize,
+    nodes: Cow<'static, [u32]>,
 }
-
-/// Each subject retains its independent error-precedence and empty-result assertions.
-type Input = fn();
-type Value = ();
+type Input = Timing;
+type Value = Answer;
 type Failure = OperatingError;
+fn subject(input: Input) -> Result<Value, Failure> {
+    let table = match input {
+        Timing::Project { column, malformed } => project_result(&project(column), malformed),
+        Timing::Axis {
+            direction,
+            id,
+            empty_roots,
+            empty_domain,
+        } => axis_result(
+            &axis(direction, id),
+            &axis_inputs(empty_roots, empty_domain),
+        ),
+    }?;
+    Ok(Answer {
+        rows: table.count.0,
+        cells: table.cells.len(),
+        nodes: table
+            .cells
+            .iter()
+            .filter_map(|cell| {
+                if let CellValue::Node(node) = cell {
+                    Some(node_position(*node).0)
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        kinds: table.kinds.into(),
+    })
+}
+const fn projected(column: u32, malformed: bool) -> Timing {
+    Timing::Project { column, malformed }
+}
+const fn walked(direction: Direction, id: u32, empty_roots: bool, empty_domain: bool) -> Timing {
+    Timing::Axis {
+        direction,
+        id,
+        empty_roots,
+        empty_domain,
+    }
+}
+const fn answer(
+    kinds: &'static [CellKind],
+    rows: usize,
+    nodes: &'static [u32],
+) -> Expect<Value, Failure> {
+    Expect::Value(Answer {
+        kinds: Cow::Borrowed(kinds),
+        rows,
+        cells: nodes.len(),
+        nodes: Cow::Borrowed(nodes),
+    })
+}
+const NO_COLUMN: Expect<Value, Failure> =
+    Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }));
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("static_project_column_error_precedes_malformed_population"),
+        word: Word::Refuses,
+        input: || projected(99, false),
+        expect: NO_COLUMN,
+    },
+    Case {
+        name: CaseName("a_static_project_column_error_precedes_a_malformed_population"),
+        word: Word::Refuses,
+        input: || projected(99, true),
+        expect: NO_COLUMN,
+    },
+    Case {
+        name: CaseName("a_malformed_population_still_fails_under_valid_metadata"),
+        word: Word::Refuses,
+        input: || projected(0, true),
+        expect: Expect::Error(OperatingError::ShapeMismatch),
+    },
+    Case {
+        name: CaseName("a_valid_projection_answers_both_function_nodes"),
         word: Word::Succeeds,
-        input: || project_static_column_failure_precedes_malformed_population,
-        expect: Expect::Value(()),
+        input: || projected(0, false),
+        expect: answer(&[CellKind::Node], 2, &[1, 2]),
     },
     Case {
         name: CaseName("empty_axis_roots_do_not_acquire_unsupported_walk"),
         word: Word::Succeeds,
-        input: || collected_axis_empty_roots_do_not_acquire_unsupported_table_walk,
-        expect: Expect::Value(()),
+        input: || walked(Direction::Deep, 0, true, false),
+        expect: answer(&[CellKind::Node, CellKind::Node], 0, &[]),
+    },
+    Case {
+        name: CaseName("root_id_metadata_is_checked_before_the_empty_root_gate"),
+        word: Word::Refuses,
+        input: || walked(Direction::Deep, 99, true, false),
+        expect: NO_COLUMN,
+    },
+    Case {
+        name: CaseName("a_nonempty_unsupported_walk_is_not_a_no_op"),
+        word: Word::Refuses,
+        input: || walked(Direction::Deep, 0, false, false),
+        expect: Expect::Error(OperatingError::WrongOperation),
+    },
+    Case {
+        name: CaseName("a_supported_child_walk_answers_its_one_edge"),
+        word: Word::Succeeds,
+        input: || walked(Direction::Child, 0, false, false),
+        expect: answer(&[CellKind::Node, CellKind::Node], 1, &[1, 2]),
     },
     Case {
         name: CaseName("empty_computed_axis_domain_keeps_shortcut_after_metadata_check"),
         word: Word::Succeeds,
-        input: || collected_axis_computed_empty_domain_keeps_its_original_shortcut,
-        expect: Expect::Value(()),
+        input: || walked(Direction::Deep, 0, false, true),
+        expect: answer(&[CellKind::Node, CellKind::Node], 0, &[]),
+    },
+    Case {
+        name: CaseName("an_empty_domain_still_refuses_a_missing_root_id"),
+        word: Word::Refuses,
+        input: || walked(Direction::Deep, 99, false, true),
+        expect: NO_COLUMN,
     },
 ];
-fn subject(case: Input) -> Result<Value, Failure> {
-    case();
-    Ok(())
-}
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

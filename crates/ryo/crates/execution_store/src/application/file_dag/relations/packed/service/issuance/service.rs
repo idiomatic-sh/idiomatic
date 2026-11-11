@@ -3,8 +3,7 @@ use super::super::*;
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
-use crate::application::file_dag::relations::publication::types::*;
-use crate::application::file_dag::relations::*;
+use crate::application::file_dag::relations::service::*;
 impl RelationOwner {
     /// Retain the actual encoded words and every referenced existing arena backing.
     /// This adds no optional cache or admission policy; it is an ordinary required publication lease.

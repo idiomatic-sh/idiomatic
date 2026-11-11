@@ -1,5 +1,7 @@
 //! The `self_join_recogniser` service's cases, on values alone.
 
+use std::borrow::Cow;
+
 use super::service::{compile, number_origins};
 use super::types::{Decline, Extremum, Program, StoredNumberOrigin};
 use ryo_relations::domain::relations::{
@@ -13,20 +15,50 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
 
-#[derive(Clone, Copy)]
-enum Scenario {
-    Eligible,
+/// A change to the fixture plan: a selection, its self-join on the first column answering the number of each side, a strict
+/// order of the two numbers, a projection of the first and an anti-join of the selection by it.
+#[derive(Clone, Copy, Debug)]
+enum Change {
+    /// None.
+    Unchanged,
+    /// The join is also a frontier of the plan.
     ExtraConsumer,
+    /// The join filters by the order comparison.
     FilteredJoin,
+    /// The join keeps a view of its first column.
     ViewedJoin,
+    /// The order is a natural one.
     NaturalOrder,
-    NativeOrigin,
-    /// A number of a stored relation's selection, read through one operation over that selection: given the number's
-    /// column in the selection, the operation and the number's column in its answer.
-    Traced(Through),
 }
-type Input = Scenario;
-type Value = ();
+
+/// What a row asks of the recogniser.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// The shape found in the fixture plan over this relation, so changed.
+    Recognise(Relation, Change),
+    /// The origins of the number the second step answers, that step being `through` over a selection of `source_location`.
+    Trace(Through),
+}
+
+/// The one shape found: its source, replaced join and select, retained project and anti-join, its extremum, and how many
+/// origins its number has.
+#[derive(Debug, PartialEq)]
+struct Found {
+    shapes: usize,
+    steps: [StepId; 5],
+    extremum: Extremum,
+    origins: usize,
+}
+
+/// What the recogniser answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    Shape(Found),
+    Origins(Cow<'static, [StoredNumberOrigin]>),
+}
+
+type Input = Ask;
+type Value = Answer;
 type Failure = Decline;
 
 fn fixture(relation: Relation) -> (Plan, Vec<CellKind>) {
@@ -201,70 +233,62 @@ fn union(number: ColumnIndex) -> (Operation, ColumnIndex) {
     )
 }
 
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    if let Scenario::Traced(through) = scenario {
-        assert_eq!(
-            traced(through)?,
-            [StoredNumberOrigin {
-                relation: Relation::SourceLocation,
-                column: ColumnIndex(3),
-            }]
-        );
-        return Ok(());
-    }
-    let (mut plan, schema) = fixture(match scenario {
-        Scenario::NativeOrigin => Relation::SyntaxChild,
-        Scenario::Eligible
-        | Scenario::ExtraConsumer
-        | Scenario::FilteredJoin
-        | Scenario::ViewedJoin
-        | Scenario::NaturalOrder
-        | Scenario::Traced(_) => Relation::SourceLocation,
-    });
-    match scenario {
-        Scenario::Eligible => {}
-        Scenario::ExtraConsumer => plan.frontier.push(Source::Step(StepId(1))),
-        Scenario::FilteredJoin => {
+fn recognised(relation: Relation, change: Change) -> Result<Value, Failure> {
+    let (mut plan, schema) = fixture(relation);
+    match change {
+        Change::Unchanged => {}
+        Change::ExtraConsumer => plan.frontier.push(Source::Step(StepId(1))),
+        Change::FilteredJoin => {
             let Operation::Select { comparisons, .. } = &plan.steps[2].operation else {
-                panic!("the fixture lists every case it builds");
+                panic!("the fixture's third step is the order select");
             };
             let comparison = comparisons[0].clone();
             if let Operation::Join { filter, .. } = &mut plan.steps[1].operation {
                 filter.push(comparison);
             }
         }
-        Scenario::ViewedJoin => {
+        Change::ViewedJoin => {
             if let Operation::Join { view, .. } = &mut plan.steps[1].operation {
                 view.push(ColumnIndex(0));
             }
         }
-        Scenario::NaturalOrder => {
+        Change::NaturalOrder => {
             if let Operation::Select { comparisons, .. } = &mut plan.steps[2].operation {
                 comparisons[0].test = Test::NaturalLessThan;
             }
         }
-        Scenario::NativeOrigin | Scenario::Traced(_) => {}
     }
     let found = prepared(&plan, &schema);
     if let Some(declined) = found.declines.first() {
         return Err(declined.reason);
     }
-    assert_eq!(found.shapes.len(), 1);
     let shape = &found.shapes[0];
-    assert_eq!(
-        (
+    Ok(Answer::Shape(Found {
+        shapes: found.shapes.len(),
+        steps: [
             shape.source,
             shape.replaced_join,
             shape.replaced_select,
             shape.retained_project,
-            shape.retained_antijoin
-        ),
-        (StepId(0), StepId(1), StepId(2), StepId(3), StepId(4))
-    );
-    assert_eq!(shape.extremum, Extremum::Maximum);
-    assert!(!shape.number.origins.is_empty());
-    Ok(())
+            shape.retained_antijoin,
+        ],
+        extremum: shape.extremum,
+        origins: shape.number.origins.len(),
+    }))
 }
+
+fn subject(ask: Input) -> Result<Value, Failure> {
+    match ask {
+        Ask::Recognise(relation, change) => recognised(relation, change),
+        Ask::Trace(through) => traced(through).map(|origins| Answer::Origins(origins.into())),
+    }
+}
+
+/// The origin of the number of `source_location`.
+const LOCATION_NUMBER: Answer = Answer::Origins(Cow::Borrowed(&[StoredNumberOrigin {
+    relation: Relation::SourceLocation,
+    column: ColumnIndex(3),
+}]));
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -273,74 +297,79 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "an_eligible_shape_names_the_original_source_the_replacements_and_the_retained_operators",
         ),
         word: Word::Succeeds,
-        input: || Scenario::Eligible,
-        expect: Expect::Value(()),
+        input: || Ask::Recognise(Relation::SourceLocation, Change::Unchanged),
+        expect: Expect::Value(Answer::Shape(Found {
+            shapes: 1,
+            steps: [StepId(0), StepId(1), StepId(2), StepId(3), StepId(4)],
+            extremum: Extremum::Maximum,
+            origins: 1,
+        })),
     },
     Case {
         name: CaseName("an_extra_consumer_of_the_join_is_declined"),
         word: Word::Refuses,
-        input: || Scenario::ExtraConsumer,
+        input: || Ask::Recognise(Relation::SourceLocation, Change::ExtraConsumer),
         expect: Expect::Error(Decline::ExtraConsumer),
     },
     Case {
         name: CaseName("a_join_with_a_filter_is_not_a_plain_self_join"),
         word: Word::Refuses,
-        input: || Scenario::FilteredJoin,
+        input: || Ask::Recognise(Relation::SourceLocation, Change::FilteredJoin),
         expect: Expect::Error(Decline::NotPlainSelfJoin),
     },
     Case {
         name: CaseName("a_join_with_a_view_is_not_a_plain_self_join"),
         word: Word::Refuses,
-        input: || Scenario::ViewedJoin,
+        input: || Ask::Recognise(Relation::SourceLocation, Change::ViewedJoin),
         expect: Expect::Error(Decline::NotPlainSelfJoin),
     },
     Case {
         name: CaseName("a_non_strict_order_is_declined"),
         word: Word::Refuses,
-        input: || Scenario::NaturalOrder,
+        input: || Ask::Recognise(Relation::SourceLocation, Change::NaturalOrder),
         expect: Expect::Error(Decline::NonStrictOrder),
     },
     Case {
         name: CaseName("a_number_of_a_native_relation_is_not_a_stored_origin"),
         word: Word::Refuses,
-        input: || Scenario::NativeOrigin,
+        input: || Ask::Recognise(Relation::SyntaxChild, Change::Unchanged),
         expect: Expect::Error(Decline::UnprovenNumberOrigin),
     },
     Case {
         name: CaseName("a_number_traced_through_a_projection_keeps_its_relation_origin"),
         word: Word::Succeeds,
-        input: || Scenario::Traced(project),
-        expect: Expect::Value(()),
+        input: || Ask::Trace(project),
+        expect: Expect::Value(LOCATION_NUMBER),
     },
     Case {
         name: CaseName("a_number_traced_through_a_plain_join_keeps_its_relation_origin"),
         word: Word::Succeeds,
-        input: || Scenario::Traced(join),
-        expect: Expect::Value(()),
+        input: || Ask::Trace(join),
+        expect: Expect::Value(LOCATION_NUMBER),
     },
     Case {
         name: CaseName("a_number_traced_through_an_antijoin_keeps_its_relation_origin"),
         word: Word::Succeeds,
-        input: || Scenario::Traced(antijoin),
-        expect: Expect::Value(()),
+        input: || Ask::Trace(antijoin),
+        expect: Expect::Value(LOCATION_NUMBER),
     },
     Case {
         name: CaseName("a_number_traced_through_a_difference_keeps_its_relation_origin"),
         word: Word::Succeeds,
-        input: || Scenario::Traced(difference),
-        expect: Expect::Value(()),
+        input: || Ask::Trace(difference),
+        expect: Expect::Value(LOCATION_NUMBER),
     },
     Case {
         name: CaseName("a_number_traced_through_an_intersection_keeps_its_relation_origin"),
         word: Word::Succeeds,
-        input: || Scenario::Traced(intersection),
-        expect: Expect::Value(()),
+        input: || Ask::Trace(intersection),
+        expect: Expect::Value(LOCATION_NUMBER),
     },
     Case {
         name: CaseName("a_number_traced_through_a_union_keeps_its_relation_origin"),
         word: Word::Succeeds,
-        input: || Scenario::Traced(union),
-        expect: Expect::Value(()),
+        input: || Ask::Trace(union),
+        expect: Expect::Value(LOCATION_NUMBER),
     },
 ];
 

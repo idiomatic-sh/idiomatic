@@ -1,0 +1,348 @@
+//! The ledger and the leases it issues, read and changed only by the ledger part.
+use super::constants;
+use super::types::{
+    Backing, BackingKey, ByteCount, HoldCount, LeaseClass, LedgerEntry, Measured, SlotCount,
+    UnitCount,
+};
+use rustc_hash::FxHashMap;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use std::{cell::RefCell, rc::Rc};
+
+#[derive(Debug)]
+pub(crate) struct Ledger {
+    pub(super) entries: FxHashMap<BackingKey, LedgerEntry>,
+    pub(super) required_bytes: ByteCount,
+    pub(super) optional_bytes: ByteCount,
+    pub(super) view_optional_bytes: ByteCount,
+    pub(super) optional_units: UnitCount,
+    pub(super) overlap_bytes: ByteCount,
+    pub(super) unique_bytes: ByteCount,
+    pub(super) lease_metadata: ByteCount,
+    pub(super) peak_required_bytes: ByteCount,
+    pub(super) peak_optional_bytes: ByteCount,
+    pub(super) peak_view_optional_bytes: ByteCount,
+    pub(super) peak_optional_units: UnitCount,
+    pub(super) peak_overlap_bytes: ByteCount,
+    pub(super) peak_unique_bytes: ByteCount,
+    pub(super) peak_metadata_bytes: ByteCount,
+}
+
+/// One physical handle, shared by consumers through an outer `Arc`.
+#[derive(Debug)]
+pub(crate) struct ResourceLease {
+    pub(super) ledger: Rc<RefCell<Ledger>>,
+    pub(super) keys: Vec<BackingKey>,
+    pub(super) class: LeaseClass,
+    pub(super) metadata_bytes: ByteCount,
+}
+#[cfg(any(test, feature = "fixtures"))]
+use super::types::{BackingCount, BackingTag};
+
+impl Default for Ledger {
+    fn default() -> Self {
+        let mut ledger = Self {
+            entries: FxHashMap::default(),
+            required_bytes: ByteCount(0),
+            optional_bytes: ByteCount(0),
+            view_optional_bytes: ByteCount(0),
+            optional_units: UnitCount(0),
+            overlap_bytes: ByteCount(0),
+            unique_bytes: ByteCount(0),
+            lease_metadata: ByteCount(0),
+            peak_required_bytes: ByteCount(0),
+            peak_optional_bytes: ByteCount(0),
+            peak_view_optional_bytes: ByteCount(0),
+            peak_optional_units: UnitCount(0),
+            peak_overlap_bytes: ByteCount(0),
+            peak_unique_bytes: ByteCount(0),
+            peak_metadata_bytes: ByteCount(0),
+        };
+        ledger.note_peaks();
+        ledger
+    }
+}
+
+impl Ledger {
+    #[cfg(any(test, feature = "fixtures"))]
+    pub(crate) fn backing_count(&self, tag: BackingTag) -> BackingCount {
+        BackingCount(self.entries.keys().filter(|key| key.tag == tag).count())
+    }
+    /// Bytes newly retained by the view optional class. A required-only
+    /// backing is charged because a view lease may outlive it.
+    pub(crate) fn incremental_optional_bytes(
+        &self,
+        backings: &[Backing],
+    ) -> Result<ByteCount, OperatingError> {
+        let mut additional = ByteCount(0);
+        for each in measured(backings)? {
+            match self.entries.get(&each.key) {
+                Some(entry) if entry.bytes != each.bytes || entry.retention_units != each.units => {
+                    return Err(OperatingError::ShapeMismatch);
+                }
+                Some(entry) if entry.optional == HoldCount(0) => {
+                    additional = additional
+                        .checked_add(each.bytes)
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?
+                }
+                Some(_) => {}
+                None => {
+                    additional = additional
+                        .checked_add(each.bytes)
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?
+                }
+            }
+        }
+        Ok(additional)
+    }
+
+    /// Position capacity newly retained by the optional class, independent of
+    /// the byte limit. Required-only aliases still consume this allowance.
+    pub(crate) fn incremental_optional_units(
+        &self,
+        backings: &[Backing],
+    ) -> Result<UnitCount, OperatingError> {
+        let mut additional = UnitCount(0);
+        for each in measured(backings)? {
+            match self.entries.get(&each.key) {
+                Some(entry) if entry.bytes != each.bytes || entry.retention_units != each.units => {
+                    return Err(OperatingError::ShapeMismatch);
+                }
+                Some(entry) if entry.optional != HoldCount(0) => {}
+                _ => {
+                    additional = additional
+                        .checked_add(each.units)
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                }
+            }
+        }
+        Ok(additional)
+    }
+
+    /// Register one handle. The caller may share it through an outer `Arc`;
+    /// cloning that `Arc` does not create another ledger lease.
+    pub(crate) fn acquire(
+        ledger: &Rc<RefCell<Self>>,
+        backings: &[Backing],
+        class: LeaseClass,
+    ) -> Result<ResourceLease, OperatingError> {
+        let unique = measured(backings)?;
+        let mut keys = Vec::with_capacity(unique.len());
+        let mut state = ledger.borrow_mut();
+        let mut next_required = state.required_bytes;
+        let mut next_optional = state.optional_bytes;
+        let mut next_view_optional = state.view_optional_bytes;
+        let mut next_optional_units = state.optional_units;
+        let mut next_overlap = state.overlap_bytes;
+        let mut next_unique = state.unique_bytes;
+        for each in &unique {
+            let old = state.entries.get(&each.key);
+            if old.is_some_and(|entry| {
+                entry.bytes != each.bytes || entry.retention_units != each.units
+            }) {
+                return Err(OperatingError::ShapeMismatch);
+            }
+            let required = old.map_or(HoldCount(0), |entry| entry.required);
+            let optional = old.map_or(HoldCount(0), |entry| entry.optional);
+            match class {
+                LeaseClass::Required => {
+                    required
+                        .checked_add(HoldCount(1))
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                    if required == HoldCount(0) {
+                        next_required = next_required
+                            .checked_add(each.bytes)
+                            .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                        if optional != HoldCount(0) {
+                            next_overlap = next_overlap
+                                .checked_add(each.bytes)
+                                .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                        }
+                    }
+                }
+                LeaseClass::Optional => {
+                    optional
+                        .checked_add(HoldCount(1))
+                        .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                    if optional == HoldCount(0) {
+                        next_view_optional = next_view_optional
+                            .checked_add(each.bytes)
+                            .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                        next_optional_units = next_optional_units
+                            .checked_add(each.units)
+                            .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                        next_optional = next_optional
+                            .checked_add(each.bytes)
+                            .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                        if required != HoldCount(0) {
+                            next_overlap = next_overlap
+                                .checked_add(each.bytes)
+                                .ok_or_else(|| OperatingError::ShapeMismatch)?;
+                        }
+                    }
+                }
+            }
+            if old.is_none() {
+                next_unique = next_unique
+                    .checked_add(each.bytes)
+                    .ok_or_else(|| OperatingError::ShapeMismatch)?;
+            }
+            keys.push(each.key);
+        }
+        let lease_bytes = lease_bytes(SlotCount(keys.capacity()))?;
+        let next_lease_metadata = state
+            .lease_metadata
+            .checked_add(lease_bytes)
+            .ok_or_else(|| OperatingError::ShapeMismatch)?;
+        for each in unique {
+            let entry = state.entries.entry(each.key).or_insert(LedgerEntry {
+                bytes: each.bytes,
+                retention_units: each.units,
+                required: HoldCount(0),
+                optional: HoldCount(0),
+            });
+            match class {
+                LeaseClass::Required => entry.required += HoldCount(1),
+                LeaseClass::Optional => entry.optional += HoldCount(1),
+            }
+        }
+        state.required_bytes = next_required;
+        state.optional_bytes = next_optional;
+        state.view_optional_bytes = next_view_optional;
+        state.optional_units = next_optional_units;
+        state.overlap_bytes = next_overlap;
+        state.unique_bytes = next_unique;
+        state.lease_metadata = next_lease_metadata;
+        state.note_peaks();
+        Ok(ResourceLease {
+            ledger: Rc::clone(ledger),
+            keys,
+            class,
+            metadata_bytes: lease_bytes,
+        })
+    }
+}
+
+#[cfg(test)]
+impl ResourceLease {
+    pub(crate) fn assert_required(&self, backings: &[Backing]) {
+        assert_eq!(self.class, LeaseClass::Required);
+        let ledger = self.ledger.borrow();
+        for backing in backings {
+            assert!(
+                self.keys.contains(&backing.key),
+                "{}",
+                constants::VIEW_BACKING_IN_LEASE
+            );
+            let entry = ledger
+                .entries
+                .get(&backing.key)
+                .expect(constants::VIEW_BACKING_LIVE);
+            assert!(
+                entry.required > HoldCount(0),
+                "{}",
+                constants::VIEW_REQUIRED_LIVE
+            );
+            assert_eq!(entry.bytes, backing.bytes);
+            assert_eq!(entry.retention_units, backing.retention_units);
+        }
+    }
+}
+
+impl Drop for ResourceLease {
+    #[expect(
+        clippy::expect_used,
+        reason = "a lease holds every key it charged until this drop, its only release: a missing entry is a broken ledger, and a drop cannot return the error"
+    )]
+    fn drop(&mut self) {
+        let mut state = self.ledger.borrow_mut();
+        for key in &self.keys {
+            let entry = state.entries.get_mut(key).expect(constants::LIVE_BACKING);
+            match self.class {
+                LeaseClass::Required => entry.required -= HoldCount(1),
+                LeaseClass::Optional => entry.optional -= HoldCount(1),
+            }
+            let bytes = entry.bytes;
+            let units = entry.retention_units;
+            let class_live = match self.class {
+                LeaseClass::Required => entry.required != HoldCount(0),
+                LeaseClass::Optional => entry.optional != HoldCount(0),
+            };
+            let required_live = entry.required != HoldCount(0);
+            let optional_live = entry.optional != HoldCount(0);
+            if !class_live {
+                match self.class {
+                    LeaseClass::Required => state.required_bytes -= bytes,
+                    LeaseClass::Optional => {
+                        state.view_optional_bytes -= bytes;
+                        state.optional_units -= units;
+                    }
+                }
+                if matches!(self.class, LeaseClass::Optional) && !optional_live {
+                    state.optional_bytes -= bytes;
+                }
+                if (matches!(self.class, LeaseClass::Required) && optional_live)
+                    || (matches!(self.class, LeaseClass::Optional)
+                        && required_live
+                        && !optional_live)
+                {
+                    state.overlap_bytes -= bytes;
+                }
+            }
+            if !required_live && !optional_live {
+                state.unique_bytes -= bytes;
+                state.entries.remove(key);
+            }
+        }
+        state.lease_metadata -= self.metadata_bytes;
+    }
+}
+
+/// The distinct backings of a request, each with its size; a key that disagrees with itself refuses.
+pub(crate) fn measured(backings: &[Backing]) -> Result<Vec<Measured>, OperatingError> {
+    let mut seen = FxHashMap::<BackingKey, Backing>::with_capacity_and_hasher(
+        backings.len(),
+        rustc_hash::FxBuildHasher,
+    );
+    for backing in backings {
+        if seen.insert(backing.key, *backing).is_some_and(|prior| {
+            prior.bytes != backing.bytes || prior.retention_units != backing.retention_units
+        }) {
+            return Err(OperatingError::ShapeMismatch);
+        }
+    }
+    Ok(seen
+        .into_values()
+        .map(|backing| Measured {
+            key: backing.key,
+            bytes: backing.bytes,
+            units: backing.retention_units,
+        })
+        .collect())
+}
+
+pub(crate) fn lease_bytes(key_capacity: SlotCount) -> Result<ByteCount, OperatingError> {
+    size_of::<ResourceLease>()
+        .checked_add(2 * size_of::<usize>()) // outer Arc allocation header
+        .and_then(|base| {
+            key_capacity
+                .0
+                .checked_mul(size_of::<BackingKey>())
+                .and_then(|keys| base.checked_add(keys))
+        })
+        .map(ByteCount)
+        .ok_or_else(|| OperatingError::ShapeMismatch)
+}
+
+pub(crate) fn append_backing(
+    backings: &mut Vec<Backing>,
+    next: Backing,
+) -> Result<(), OperatingError> {
+    if let Some(old) = backings.iter().find(|old| old.key == next.key) {
+        if old.bytes != next.bytes || old.retention_units != next.retention_units {
+            return Err(OperatingError::ShapeMismatch);
+        }
+    } else {
+        backings.push(next);
+    }
+    Ok(())
+}

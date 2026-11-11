@@ -1,10 +1,9 @@
 //! Original independent queue cases, compiled and published by the public owner.
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Value as Cell;
-use ryo_values::selects;
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -14,14 +13,21 @@ use ryo_values::{
         plans::types::Operation,
     },
 };
+use std::borrow::Cow;
 #[derive(Clone, Copy, Debug)]
 struct Scenario {
     left: &'static [(i64, i64)],
     right: &'static [(i64, i64)],
-    expected: &'static [(i64, i64)],
+}
+/// What the match published: its row count, its numeric (opened, closed) pairs in order, and any row that is not two numbers.
+#[derive(Debug, PartialEq, Eq)]
+struct Matched {
+    rows: usize,
+    pairs: Cow<'static, [(i64, i64)]>,
+    other_rows: usize,
 }
 type Input = Scenario;
-type Value = bool;
+type Value = Matched;
 type Failure = OperatingError;
 fn subject(input: Input) -> Result<Value, Failure> {
     let left: Vec<_> = input
@@ -73,17 +79,26 @@ fn subject(input: Input) -> Result<Value, Failure> {
         },
     ]);
     let output = fixtures::requests::published(plan, vec![], hosted, &mut Symbols::default())?;
-    assert_eq!(output.count.0, input.expected.len());
-    let actual: Vec<_> = output
-        .cells
-        .chunks_exact(2)
-        .map(|row| match row {
-            [Cell::Number(opened), Cell::Number(closed)] => (opened.0, closed.0),
-            _ => panic!("numeric output required"),
+    let rows = output.cells.chunks_exact(2);
+    let pairs: Vec<_> = rows
+        .clone()
+        .filter_map(|row| match row {
+            [Cell::Number(opened), Cell::Number(closed)] => Some((opened.0, closed.0)),
+            _ => None,
         })
         .collect();
-    assert_eq!(actual, input.expected);
-    Ok(true)
+    Ok(Matched {
+        rows: output.count.0,
+        other_rows: rows.len() - pairs.len(),
+        pairs: pairs.into(),
+    })
+}
+const fn matched(pairs: &'static [(i64, i64)]) -> Expect<Value, Failure> {
+    Expect::Value(Matched {
+        rows: pairs.len(),
+        pairs: Cow::Borrowed(pairs),
+        other_rows: 0,
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -92,9 +107,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(2, 0), (1, -1), (1, -9), (2, -7), (1, -3)],
             right: &[(2, 0), (1, -1), (1, -9), (2, -7), (1, -3)],
-            expected: &[(-9, -3), (-3, -1), (-7, 0)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(-9, -3), (-3, -1), (-7, 0)]),
     },
     Case {
         name: CaseName("adjacent_large_integer_orders_remain_distinct"),
@@ -102,12 +116,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 9_007_199_254_740_992), (1, 9_007_199_254_740_993)],
             right: &[(1, 9_007_199_254_740_993), (1, 9_007_199_254_740_994)],
-            expected: &[
-                (9_007_199_254_740_992, 9_007_199_254_740_993),
-                (9_007_199_254_740_993, 9_007_199_254_740_994),
-            ],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[
+            (9_007_199_254_740_992, 9_007_199_254_740_993),
+            (9_007_199_254_740_993, 9_007_199_254_740_994),
+        ]),
     },
     Case {
         name: CaseName("full_signed_integer_order_domain"),
@@ -115,9 +128,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, i64::MIN)],
             right: &[(1, i64::MAX)],
-            expected: &[(i64::MIN, i64::MAX)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(i64::MIN, i64::MAX)]),
     },
     Case {
         name: CaseName("two_requests_two_replies"),
@@ -125,9 +137,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 2), (1, 3)],
             right: &[(1, 4), (1, 5)],
-            expected: &[(2, 4), (3, 5)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(2, 4), (3, 5)]),
     },
     Case {
         name: CaseName("reply_before_request_is_unmatched"),
@@ -135,9 +146,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 2)],
             right: &[(1, 1), (1, 3)],
-            expected: &[(2, 3)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(2, 3)]),
     },
     Case {
         name: CaseName("extra_reply_does_not_consume_future_request"),
@@ -145,9 +155,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 2), (1, 6)],
             right: &[(1, 3), (1, 4), (1, 7)],
-            expected: &[(2, 3), (6, 7)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(2, 3), (6, 7)]),
     },
     Case {
         name: CaseName("input_permutation_has_no_effect"),
@@ -155,9 +164,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 3), (1, 2)],
             right: &[(1, 5), (1, 4)],
-            expected: &[(2, 4), (3, 5)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(2, 4), (3, 5)]),
     },
     Case {
         name: CaseName("key_groups_are_independent"),
@@ -165,9 +173,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(2, 1), (1, 2)],
             right: &[(1, 3), (2, 4)],
-            expected: &[(2, 3), (1, 4)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(2, 3), (1, 4)]),
     },
     Case {
         name: CaseName("equal_orders_do_not_match"),
@@ -175,9 +182,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 2)],
             right: &[(1, 2), (1, 3)],
-            expected: &[(2, 3)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(2, 3)]),
     },
     Case {
         name: CaseName("unmatched_request_has_no_row"),
@@ -185,9 +191,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 9)],
             right: &[(1, 2)],
-            expected: &[],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[]),
     },
     Case {
         name: CaseName("empty_inputs"),
@@ -195,9 +200,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[],
             right: &[],
-            expected: &[],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[]),
     },
     Case {
         name: CaseName("duplicate_left_order_refused"),
@@ -205,9 +209,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 2), (1, 2)],
             right: &[(1, 3), (1, 4)],
-            expected: &[],
         },
-        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::DuplicateOrder))),
+        expect: Expect::Error(OperatingError::DuplicateOrder),
     },
     Case {
         name: CaseName("duplicate_unmatched_right_group_refused"),
@@ -215,9 +218,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[],
             right: &[(2, 3), (2, 3)],
-            expected: &[],
         },
-        expect: Expect::Refusal(|error| selects!(matches!(error, OperatingError::DuplicateOrder))),
+        expect: Expect::Error(OperatingError::DuplicateOrder),
     },
     Case {
         name: CaseName("same_order_in_distinct_groups_valid"),
@@ -225,9 +227,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Input {
             left: &[(1, 2), (2, 2)],
             right: &[(1, 3), (2, 3)],
-            expected: &[(2, 3), (2, 3)],
         },
-        expect: Expect::Value(true),
+        expect: matched(&[(2, 3), (2, 3)]),
     },
 ];
 

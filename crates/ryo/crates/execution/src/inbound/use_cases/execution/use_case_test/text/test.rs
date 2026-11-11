@@ -1,7 +1,7 @@
 //! Text row operators retain the original row and publish exact appended words or slots.
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::{
@@ -14,33 +14,41 @@ use ryo_values::{
     },
 };
 use std::borrow::Cow;
-#[derive(Clone, Copy)]
-enum Scenario {
+/// The text operator a row runs: words, or a capture of a path pattern.
+#[derive(Clone, Copy, Debug)]
+enum Operator {
     Words,
-    NoWords,
-    MissingWords,
-    CaptureModule,
-    CaptureStarred,
-    CaptureSplits,
-    MissingCapture,
+    Capture(&'static str),
 }
-type Input = Scenario;
-type Value = (usize, usize, Cow<'static, [Cow<'static, str>]>);
+
+/// The hosted texts the operator reads, or no hosted provider, so that it reads the function relation.
+#[derive(Clone, Copy, Debug)]
+struct Texts {
+    originals: Option<&'static [&'static str]>,
+    operator: Operator,
+}
+
+/// What the operator publishes: its rows, the slots it appends to each, every appended text in
+/// order, and whether every row keeps an original text in its first column.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Appended {
+    rows: usize,
+    slots: usize,
+    texts: Cow<'static, [Cow<'static, str>]>,
+    originals_kept: bool,
+}
+
+type Input = Texts;
+type Value = Appended;
 type Failure = OperatingError;
-fn subject(input: Input) -> Result<Value, Failure> {
-    let missing = matches!(input, Scenario::MissingWords | Scenario::MissingCapture);
-    let words = matches!(
-        input,
-        Scenario::Words | Scenario::NoWords | Scenario::MissingWords
-    );
-    let originals: &[&str] = match input {
-        Scenario::Words => &["Hello wor_ld, PythonProvider v2Beta"],
-        Scenario::NoWords => &[" -- ... "],
-        Scenario::CaptureModule => &["src/lib.rs", "src/deep/mod.rs", "README.md"],
-        Scenario::CaptureStarred => &["a/b/languages/py/src/x.rs", "languages/py/x.r", ""],
-        Scenario::CaptureSplits => &["x/y/z.rs"],
-        Scenario::MissingWords | Scenario::MissingCapture => &[],
-    };
+
+/// A pattern of two starred slots.
+const SPLIT: &str = "{*ancestor}/{*rest}";
+
+/// Runs the operator over the texts and publishes its rows.
+fn subject(texts: Input) -> Result<Value, Failure> {
+    let missing = texts.originals.is_none();
+    let originals = texts.originals.unwrap_or_default();
     let mut operations = vec![];
     let hosted = if missing {
         vec![]
@@ -56,53 +64,47 @@ fn subject(input: Input) -> Result<Value, Failure> {
         PlanInput::Step(StepId(0))
     };
     let text = ColumnIndex(if missing { 1 } else { 0 });
-    let pattern = match input {
-        Scenario::CaptureModule => "src/{module}.rs",
-        Scenario::CaptureStarred => "{*above}/languages/{name}/{*below}",
-        Scenario::Words
-        | Scenario::NoWords
-        | Scenario::MissingWords
-        | Scenario::CaptureSplits
-        | Scenario::MissingCapture => "{*ancestor}/{*rest}",
-    };
-    operations.push(if words {
-        Operation::Words { from, text }
-    } else {
-        Operation::Capture {
+    operations.push(match texts.operator {
+        Operator::Words => Operation::Words { from, text },
+        Operator::Capture(pattern) => Operation::Capture {
             from,
             path: text,
             pattern: CapturePattern(pattern.into()),
-        }
+        },
     });
     let mut symbols = Symbols::default();
     let output =
         fixtures::requests::published(inputs::plan(operations), vec![], hosted, &mut symbols)?;
     let width = output.kinds.len();
     let mut appended = Vec::new();
+    let mut originals_kept = output.cells.len() == output.count.0 * width;
     for row in output.cells.chunks(width) {
-        let original = inputs::text(row[0], &symbols);
-        assert!(
-            originals.contains(&original),
-            "every output retains an original input text"
-        );
+        originals_kept &= originals.contains(&inputs::text(row[0], &symbols));
         appended.extend(
             row[1..]
                 .iter()
                 .map(|cell| Cow::Owned(inputs::text(*cell, &symbols).to_owned())),
         );
     }
-    assert_eq!(output.cells.len(), output.count.0 * width);
-    Ok((output.count.0, width - 1, Cow::Owned(appended)))
+    Ok(Appended {
+        rows: output.count.0,
+        slots: width - 1,
+        texts: Cow::Owned(appended),
+        originals_kept,
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_text_splits_where_a_word_ends"),
         word: Word::Succeeds,
-        input: || Scenario::Words,
-        expect: Expect::Value((
-            7,
-            1,
-            Cow::Borrowed(&[
+        input: || Texts {
+            originals: Some(&["Hello wor_ld, PythonProvider v2Beta"]),
+            operator: Operator::Words,
+        },
+        expect: Expect::Value(Appended {
+            rows: 7,
+            slots: 1,
+            texts: Cow::Borrowed(&[
                 Cow::Borrowed("hello"),
                 Cow::Borrowed("wor"),
                 Cow::Borrowed("ld"),
@@ -111,59 +113,90 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Cow::Borrowed("v2"),
                 Cow::Borrowed("beta"),
             ]),
-        )),
+            originals_kept: true,
+        }),
     },
     Case {
         name: CaseName("a_text_without_letters_has_no_words"),
         word: Word::Succeeds,
-        input: || Scenario::NoWords,
-        expect: Expect::Value((0, 1, Cow::Borrowed(&[]))),
+        input: || Texts {
+            originals: Some(&[" -- ... "]),
+            operator: Operator::Words,
+        },
+        expect: Expect::Value(Appended {
+            rows: 0,
+            slots: 1,
+            texts: Cow::Borrowed(&[]),
+            originals_kept: true,
+        }),
     },
     Case {
         name: CaseName("words_require_their_real_provider"),
         word: Word::Refuses,
-        input: || Scenario::MissingWords,
+        input: || Texts {
+            originals: None,
+            operator: Operator::Words,
+        },
         expect: Expect::Error(OperatingError::NotRead),
     },
     Case {
         name: CaseName("only_matching_paths_remain"),
         word: Word::Succeeds,
-        input: || Scenario::CaptureModule,
-        expect: Expect::Value((1, 1, Cow::Borrowed(&[Cow::Borrowed("lib")]))),
+        input: || Texts {
+            originals: Some(&["src/lib.rs", "src/deep/mod.rs", "README.md"]),
+            operator: Operator::Capture("src/{module}.rs"),
+        },
+        expect: Expect::Value(Appended {
+            rows: 1,
+            slots: 1,
+            texts: Cow::Borrowed(&[Cow::Borrowed("lib")]),
+            originals_kept: true,
+        }),
     },
     Case {
         name: CaseName("a_starred_slot_takes_directories"),
         word: Word::Succeeds,
-        input: || Scenario::CaptureStarred,
-        expect: Expect::Value((
-            1,
-            3,
-            Cow::Borrowed(&[
+        input: || Texts {
+            originals: Some(&["a/b/languages/py/src/x.rs", "languages/py/x.r", ""]),
+            operator: Operator::Capture("{*above}/languages/{name}/{*below}"),
+        },
+        expect: Expect::Value(Appended {
+            rows: 1,
+            slots: 3,
+            texts: Cow::Borrowed(&[
                 Cow::Borrowed("a/b"),
                 Cow::Borrowed("py"),
                 Cow::Borrowed("src/x.rs"),
             ]),
-        )),
+            originals_kept: true,
+        }),
     },
     Case {
         name: CaseName("every_way_a_pattern_matches_is_a_row"),
         word: Word::Succeeds,
-        input: || Scenario::CaptureSplits,
-        expect: Expect::Value((
-            2,
-            2,
-            Cow::Borrowed(&[
+        input: || Texts {
+            originals: Some(&["x/y/z.rs"]),
+            operator: Operator::Capture(SPLIT),
+        },
+        expect: Expect::Value(Appended {
+            rows: 2,
+            slots: 2,
+            texts: Cow::Borrowed(&[
                 Cow::Borrowed("x"),
                 Cow::Borrowed("y/z.rs"),
                 Cow::Borrowed("x/y"),
                 Cow::Borrowed("z.rs"),
             ]),
-        )),
+            originals_kept: true,
+        }),
     },
     Case {
         name: CaseName("capture_requires_its_real_provider"),
         word: Word::Refuses,
-        input: || Scenario::MissingCapture,
+        input: || Texts {
+            originals: None,
+            operator: Operator::Capture(SPLIT),
+        },
         expect: Expect::Error(OperatingError::NotRead),
     },
 ];

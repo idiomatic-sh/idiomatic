@@ -1,6 +1,6 @@
 //! Canonical metadata from an admitted original row view; no source admission or row scan here.
 use super::types::{PopulationScope, ProvenPopulation};
-use crate::application::file_dag::workspace::GraphInput;
+use crate::application::file_dag::workspace::service::GraphInput;
 use ryo_execution_domain::domain::stored_graph::types::{self as graph, GraphIdentity};
 use ryo_execution_domain::domain::table_model::{service::count_of, types::Rows};
 use ryo_values::domain::plan_parts::types::ColumnIndex;

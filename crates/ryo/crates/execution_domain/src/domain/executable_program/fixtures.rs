@@ -2,7 +2,7 @@
 //! merge replaced.
 use super::{
     fusion::types::RegionSharing,
-    merge::merge_equivalent,
+    merge::service::merge_equivalent,
     types::{
         DraftIndex, DraftRegion, LogicalInstruction, RegionMerge,
         demand_program::value::DemandProgram, instruction::value::Instruction,
@@ -20,6 +20,7 @@ use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Direction, Input as PlanInput, StepScope},
     plans::types::Operation,
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub(super) fn axis(id: u32) -> Operation {
@@ -233,4 +234,54 @@ pub(super) fn merged(state: &mut State) -> RegionMerge {
         &mut state.representative,
         &mut state.readers,
     )
+}
+
+/// The region merge beside the linear scan: the kept regions of each, the drafts, the drafts left,
+/// and whether its mapping, representatives and readers equal the scan's.
+#[derive(Debug, PartialEq)]
+pub(super) struct Merge {
+    pub(super) kept: usize,
+    pub(super) kept_as_the_scan: bool,
+    pub(super) drafts: usize,
+    pub(super) drafts_left: usize,
+    pub(super) drafts_left_as_the_scan: bool,
+    pub(super) mapping_as_the_scan: bool,
+    pub(super) representatives_as_the_scan: bool,
+    pub(super) readers_as_the_scan: bool,
+}
+
+/// The comparisons at each rule count, and whether each is under three times the one before plus 16.
+#[derive(Debug, PartialEq)]
+pub(super) struct Cost {
+    pub(super) comparisons: Cow<'static, [usize]>,
+    pub(super) linear: bool,
+}
+pub(super) fn merge_beside_the_linear_scan() -> Merge {
+    let mixed = |rule: usize| rule % 7;
+    let mut fast = state(40, mixed);
+    let mut slow = state(40, mixed);
+    let shared = merged(&mut fast).shared;
+    let live = |state: &State| state.drafts.iter().map(Option::is_some).collect::<Vec<_>>();
+    Merge {
+        kept: shared.len(),
+        kept_as_the_scan: shared == reference(&mut slow),
+        drafts: fast.drafts.len(),
+        drafts_left: fast.drafts.iter().flatten().count(),
+        drafts_left_as_the_scan: live(&fast) == live(&slow),
+        mapping_as_the_scan: fast.mapping == slow.mapping,
+        representatives_as_the_scan: fast.representative == slow.representative,
+        readers_as_the_scan: fast.readers == slow.readers,
+    }
+}
+fn comparisons(rules: usize) -> usize {
+    // Even rules repeat rule 0; odd rules are distinct from every other rule.
+    let mut state = state(rules, |rule| if rule % 2 == 0 { 0 } else { 2 });
+    merged(&mut state).comparisons.0
+}
+pub(super) fn merge_cost() -> Cost {
+    let counts: Vec<usize> = [50, 100, 200, 400].into_iter().map(comparisons).collect();
+    Cost {
+        linear: counts.windows(2).all(|pair| pair[1] < 3 * pair[0] + 16),
+        comparisons: Cow::Owned(counts),
+    }
 }

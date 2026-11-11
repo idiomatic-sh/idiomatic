@@ -3,7 +3,7 @@ use super::{
     construction::service as build,
     identity::service::{domain_identity, source},
 };
-use crate::application::file_dag::derived::ledger::lease::append_backing;
+use crate::application::file_dag::derived::ledger::service::append_backing;
 use crate::application::file_dag::derived::ledger::types::{
     BackingAddress, BackingKey, BackingTag, ByteCount, UnitCount,
 };
@@ -11,14 +11,15 @@ use crate::application::file_dag::derived::owner::acquisition::population::types
     Acquisition, InvocationStorage, OptionalRetention, StoredObservation,
 };
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::owner::graphs::types::handles::service::{
+use crate::application::file_dag::derived::owner::graph_key::service::{
+    GraphRequirement, GraphViewIdentity,
+};
+use crate::application::file_dag::derived::owner::graphs::handles::service::{
     DomainHandle, GraphHandle,
 };
-use crate::application::file_dag::derived::owner::graphs::types::handles::types::GraphSharing;
-use crate::application::file_dag::derived::owner::{
-    GraphRequirement, GraphViewIdentity, ViewContext,
-};
-use crate::application::file_dag::workspace::GraphInput;
+use crate::application::file_dag::derived::owner::graphs::handles::types::GraphSharing;
+use crate::application::file_dag::derived::owner::service::ViewContext;
+use crate::application::file_dag::workspace::service::GraphInput;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError,
     stored_graph::types::GraphDomain,

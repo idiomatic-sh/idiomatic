@@ -1,14 +1,14 @@
 //! Project-wide source lookup for the project population.
-use super::super::{ProjectSources, observation_slot};
-use crate::application::file_dag::program::admission::AvailableInput;
-use crate::application::file_dag::program::admission::Partition;
+use super::super::{service::observation_slot, types::ProjectSources};
+use crate::application::file_dag::program::admission::service::AvailableInput;
+use crate::application::file_dag::program::admission::service::Partition;
 use crate::application::file_dag::program::constants::BOUND_PRODUCER_UNAVAILABLE;
 use crate::application::file_dag::program::facade_runtime::types::{
     CachedInput, OrdinaryPlace, Provision,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use std::rc::Rc;
 
 impl ProjectSources<'_> {
@@ -121,10 +121,12 @@ impl ProjectSources<'_> {
                             )?
                         }
                     };
-                    crate::application::file_dag::program::admission::alias_member(
+                    crate::application::file_dag::program::admission::service::alias_member(
                         program,
-                        crate::application::file_dag::program::admission::AliasSlot(slot),
-                        crate::application::file_dag::program::admission::AliasMember(member),
+                        crate::application::file_dag::program::admission::types::AliasSlot(slot),
+                        crate::application::file_dag::program::admission::types::AliasMember(
+                            member,
+                        ),
                         &producer.readmitted(owner)?,
                         partition,
                         owner,

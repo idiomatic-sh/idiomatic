@@ -19,6 +19,7 @@ use ryo_values::domain::program::types::{ParsedQueryBundle, WrittenProgram};
 use ryo_values::domain::query_tokens::types::{QueryBundle, QuerySpelling, QueryView};
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -37,67 +38,135 @@ fn compiled(
         vocabularies: &KindVocabularies(Vec::new()),
     })
 }
-/// What a row of the cases asks of compilation.
-#[derive(Clone, Copy)]
-enum Scenario {
-    /// 413 rules, each with its own pattern: the matchers built after compiling, then after every pattern was matched twice.
-    PatternBuilds,
-    /// 413 rules over one catalog of 60 modules: the modules parsed and the plans made.
-    SessionParses,
-    /// A rule that writes a word for a kind no linked language has: whether it is refused by its id, and the plans made.
+/// The program a row compiles.
+#[derive(Clone, Copy, Debug)]
+enum Program {
+    /// `rules` rules, each with its own literal pattern, and then one rule of an oversized pattern.
+    Patterns { rules: usize },
+    /// `rules` rules over one catalog of `modules` modules, then the same with one more module that does not parse.
+    Catalog { rules: usize, modules: usize },
+    /// A rule whose plan selects syntax nodes of the kind `nonesuch`, with no linked language.
     UnknownKind,
-    /// An index the compiler reports past the request's rules: the index and the rule count the refusal carries.
-    UnknownIndex,
+    /// The rule at `index` of a one-rule request.
+    PastTheRules { index: usize },
 }
-/// What a row of the cases asks.
-type Input = Scenario;
-/// Two counts each row answers.
-type Value = [usize; 2];
-type Failure = RuleCompilationError;
 
-/// The rows of compiling a 413-rule program, as many rules as the Ruff program has, and of a refused kind word.
+/// What compiling the program shows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Compiled {
+    /// The matchers built after compiling, the matches that succeeded when every pattern was
+    /// matched twice, and the matchers built then; and for the oversized pattern, whether its slot
+    /// refuses it as an invalid regex and how many matchers it built.
+    Matchers {
+        prepared: usize,
+        matched: usize,
+        built: usize,
+        oversized_refused: bool,
+        oversized_built: usize,
+    },
+    /// The modules parsed and the plans made in one session; and with the broken module, the rule
+    /// the refusal names and whether its error is the one a lone compile of that rule answers.
+    Parsed {
+        modules: usize,
+        plans: usize,
+        refused_rule: Cow<'static, str>,
+        as_lone_compile: bool,
+    },
+}
+
+/// A refusal, as a row states it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Refusal {
+    UnknownKind {
+        id: Cow<'static, str>,
+        reason: Cow<'static, str>,
+    },
+    UnknownRuleIndex {
+        index: usize,
+        rules: usize,
+    },
+    /// Any other refusal, as it prints.
+    Other(String),
+}
+
+type Input = Program;
+type Value = Compiled;
+type Failure = Refusal;
+
+/// The rows of compiling a 413-rule program, as many rules as the Ruff program has, and of refused rules.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        // The matchers built after compiling and preparing, then after every pattern was matched twice.
+        // No matcher is built by compiling; each pattern's slot builds it once however often it is matched.
         name: CaseName("compiles_each_pattern_once"),
         word: Word::Succeeds,
-        input: || Scenario::PatternBuilds,
-        expect: Expect::Value([0, 413]),
+        input: || Program::Patterns { rules: 413 },
+        expect: Expect::Value(Compiled::Matchers {
+            prepared: 0,
+            matched: 826,
+            built: 413,
+            oversized_refused: true,
+            oversized_built: 1,
+        }),
     },
     Case {
-        // The modules parsed, and the plans made, over one catalog of 60 modules.
         name: CaseName("each_module_is_parsed_once_per_session"),
         word: Word::Succeeds,
-        input: || Scenario::SessionParses,
-        expect: Expect::Value([60, 413]),
+        input: || Program::Catalog {
+            rules: 413,
+            modules: 60,
+        },
+        expect: Expect::Value(Compiled::Parsed {
+            modules: 60,
+            plans: 413,
+            refused_rule: Cow::Borrowed("r0"),
+            as_lone_compile: true,
+        }),
     },
     Case {
-        // Refused by the rule's id with the word, and no plan handed on.
         name: CaseName("a_word_for_a_kind_no_linked_language_has_is_refused_before_any_file"),
-        word: Word::Succeeds,
-        input: || Scenario::UnknownKind,
-        expect: Expect::Value([1, 0]),
+        word: Word::Refuses,
+        input: || Program::UnknownKind,
+        expect: Expect::Error(Refusal::UnknownKind {
+            id: Cow::Borrowed("kinds"),
+            reason: Cow::Borrowed("kind `nonesuch` names no kind of "),
+        }),
     },
     Case {
-        // Refused with the index and the rule count, never reported under an empty id.
+        // Never reported under an empty id.
         name: CaseName("an_index_past_the_rules_is_refused_with_the_count"),
-        word: Word::Succeeds,
-        input: || Scenario::UnknownIndex,
-        expect: Expect::Value([1, 1]),
+        word: Word::Refuses,
+        input: || Program::PastTheRules { index: 1 },
+        expect: Expect::Error(Refusal::UnknownRuleIndex { index: 1, rules: 1 }),
     },
 ];
 
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    match scenario {
-        Scenario::PatternBuilds => pattern_builds(),
-        Scenario::SessionParses => session_parses(),
-        Scenario::UnknownKind => unknown_kind(),
-        Scenario::UnknownIndex => unknown_index(),
+/// The refusal as a row states it.
+fn refusal(error: RuleCompilationError) -> Refusal {
+    match error {
+        RuleCompilationError::UnknownKind { id, reason } => Refusal::UnknownKind {
+            id: Cow::Owned(id.0.to_string()),
+            reason: Cow::Owned(reason.0.to_string()),
+        },
+        RuleCompilationError::UnknownRuleIndex { index, rules } => {
+            Refusal::UnknownRuleIndex { index, rules }
+        }
+        other => Refusal::Other(format!("{other:?}")),
     }
 }
 
+/// Compiles the program and observes it.
+fn subject(program: Input) -> Result<Value, Failure> {
+    match program {
+        Program::Patterns { rules } => pattern_builds(rules),
+        Program::Catalog { rules, modules } => session_parses(rules, modules),
+        Program::UnknownKind => unknown_kind(),
+        Program::PastTheRules { index } => past_the_rules(index),
+    }
+    .map_err(refusal)
+}
+
 /// A rule whose plan selects syntax nodes of the kind `nonesuch`, compiled with no linked language: refused by the rule's id.
-fn unknown_kind() -> Result<Value, Failure> {
+fn unknown_kind() -> Result<Compiled, RuleCompilationError> {
     use crate::outbound::query_language::fixtures::fake::QueryLanguageFake;
     use ryo_relations::domain::relations::types::Relation;
     use ryo_values::domain::plan_parts::types::{
@@ -119,38 +188,28 @@ fn unknown_kind() -> Result<Value, Failure> {
         },
         scope: StepScope::PerFile,
     }];
-    let refused = compiled(
-        Arc::new(fake),
-        &[rule(
-            "kinds".to_owned(),
-            QueryBundle::from(QueryText("".into())),
-        )],
-    );
-    Ok(match refused {
-        Err(RuleCompilationError::UnknownKind { ref id, ref reason })
-            if id.0.as_ref() == "kinds" && reason.0.contains("nonesuch") =>
-        {
-            [1, 0]
-        }
-        Err(other) => return Err(other),
-        Ok(compiled) => [0, compiled.plans().len()],
+    let refused = compiled(Arc::new(fake), &[empty_rule("kinds")]);
+    refused.map(|compiled| Compiled::Parsed {
+        modules: 0,
+        plans: compiled.plans().len(),
+        refused_rule: Cow::Borrowed(""),
+        as_lone_compile: false,
     })
 }
 
-/// The rule at index 1 of a one-rule request: refused with the index and the count.
-fn unknown_index() -> Result<Value, Failure> {
-    let rules = [rule(
-        "only".to_owned(),
-        QueryBundle::from(QueryText("".into())),
-    )];
-    match crate::application::rule_compilation::service::named(
+/// The rule at `index` of a one-rule request.
+fn past_the_rules(index: usize) -> Result<Compiled, RuleCompilationError> {
+    let rules = [empty_rule("only")];
+    crate::application::rule_compilation::service::named(
         &rules,
-        ryo_execution_domain::domain::kind_check::types::RulePlace(1),
-    ) {
-        Err(RuleCompilationError::UnknownRuleIndex { index, rules }) => Ok([index, rules]),
-        Err(other) => Err(other),
-        Ok(found) => Ok([0, usize::from(found.id.0.is_empty())]),
-    }
+        ryo_execution_domain::domain::kind_check::types::RulePlace(index),
+    )
+    .map(|found| Compiled::Parsed {
+        modules: 0,
+        plans: 0,
+        refused_rule: Cow::Owned(found.id.0.to_string()),
+        as_lone_compile: false,
+    })
 }
 
 /// The real winnow syntax, counting the modules each read of a whole bundle parses.
@@ -176,6 +235,18 @@ impl SyntaxPort for CountingSyntax {
     fn grammar(&self) -> Grammar {
         self.inner.grammar()
     }
+}
+
+/// A rule `id` of an empty query.
+fn empty_rule(id: &str) -> RuleSpec {
+    rule(id.to_owned(), QueryBundle::from(QueryText("".into())))
+}
+
+/// The real query language over the winnow syntax.
+fn winnow() -> Arc<dyn QueryLanguagePort> {
+    compiler(Arc::new(
+        ryo_query_language::outbound::syntax::factory::winnow(),
+    ))
 }
 
 /// The real query language over `syntax`.
@@ -207,7 +278,7 @@ fn rule(id: String, query: QueryBundle) -> RuleSpec {
 /// Lowering parses each literal pattern and builds no matcher; the prepared slot builds each once however often it is matched. A
 /// pattern that parses but whose matcher is over the size limit is accepted by the compile and refused by its slot, the one place
 /// it is compiled.
-fn pattern_builds() -> Result<[usize; 2], RuleCompilationError> {
+fn pattern_builds(count: usize) -> Result<Compiled, RuleCompilationError> {
     let matching = |pattern: &str| {
         let text = format!(
             r#"let rows = select * from "comment" where matches(text, "{pattern}"); emit rows subject file key(span);"#
@@ -217,42 +288,44 @@ fn pattern_builds() -> Result<[usize; 2], RuleCompilationError> {
             QueryBundle::from(QueryText(text.into())),
         )
     };
-    let patterns: Vec<String> = (0..413).map(|place| format!("p{place}x")).collect();
+    let patterns: Vec<String> = (0..count).map(|place| format!("p{place}x")).collect();
     let rules: Vec<RuleSpec> = patterns.iter().map(|pattern| matching(pattern)).collect();
     let plans = |rules: &[RuleSpec]| {
-        compiled(
-            compiler(Arc::new(
-                ryo_query_language::outbound::syntax::factory::winnow(),
-            )),
-            rules,
-        )
-        .map(|queries| PreparedMatchers::new(queries.plans()))
+        compiled(winnow(), rules).map(|queries| PreparedMatchers::new(queries.plans()))
     };
     let slots = plans(&rules)?;
     let prepared = slots.builds.load(Ordering::Relaxed);
     let matcher =
         PatternMatcher(&ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl);
+    let mut matched = 0;
     for _file in 0..2 {
         for pattern in &patterns {
-            assert!(matches!(
-                slots.regex(TextView(pattern), matcher),
-                Some(Ok(_))
-            ));
+            matched += usize::from(
+                slots
+                    .regex(TextView(pattern), matcher)
+                    .and_then(Result::ok)
+                    .is_some(),
+            );
         }
     }
     let oversized = "(?:[a-z]{1000}){1000}";
     let refused = plans(&[matching(oversized)])?;
-    assert!(matches!(
+    let oversized_refused = matches!(
         refused.regex(TextView(oversized), matcher),
         Some(Err(OperatingError::InvalidRegex { .. }))
-    ));
-    assert_eq!(refused.builds.load(Ordering::Relaxed), 1);
-    Ok([prepared, slots.builds.load(Ordering::Relaxed)])
+    );
+    Ok(Compiled::Matchers {
+        prepared,
+        matched,
+        built: slots.builds.load(Ordering::Relaxed),
+        oversized_refused,
+        oversized_built: refused.builds.load(Ordering::Relaxed),
+    })
 }
 
 /// 413 rules over one catalog of 60 modules parse each module once in their session, not once per rule; the same program with one
 /// more module that does not parse, imported by no rule, is refused at its first rule as a lone compile of that rule refuses it.
-fn session_parses() -> Result<[usize; 2], RuleCompilationError> {
+fn session_parses(count: usize, module_count: usize) -> Result<Compiled, RuleCompilationError> {
     use ryo_values::domain::program::service::{
         document_source, module_catalog, query_bundle_with_catalog, source_id,
     };
@@ -264,11 +337,11 @@ fn session_parses() -> Result<[usize; 2], RuleCompilationError> {
             )
         }))
         .expect("a catalog");
-        (0..413)
+        (0..count)
             .map(|place| {
                 let root = format!(
                     r#"import choose from "query/m{}"; let files = select path from "filesystem.file"; let result = choose(files=files); emit result subject "path" key("path");"#,
-                    place % 60
+                    place % module_count
                 );
                 let id = source_id(QuerySpelling(&format!("rules/r{place}"))).expect("a root id");
                 let query = query_bundle_with_catalog(document_source(id, root.into_boxed_str()), catalog.clone())
@@ -277,7 +350,7 @@ fn session_parses() -> Result<[usize; 2], RuleCompilationError> {
             })
             .collect()
     };
-    let mut modules: Vec<(String, String)> = (0..60)
+    let mut modules: Vec<(String, String)> = (0..module_count)
         .map(|place| {
             (
                 format!("query/m{place}"),
@@ -298,26 +371,29 @@ fn session_parses() -> Result<[usize; 2], RuleCompilationError> {
     let parsed = syntax.modules.load(Ordering::SeqCst);
     modules.push(("query/unused".to_owned(), "not a module".to_owned()));
     let broken = over(modules);
-    let winnow = || {
-        compiler(Arc::new(
-            ryo_query_language::outbound::syntax::factory::winnow(),
-        ))
+    let refused = compiled(winnow(), &broken).err();
+    let lone = winnow().compile(&broken[0].query, &[], &[]).err();
+    let (refused_rule, as_lone_compile) = match refused {
+        Some(RuleCompilationError::Query { id, error }) => {
+            (id, lone == Some(QueryLanguageError::Refused { error }))
+        }
+        Some(other) => return Err(other),
+        None => (String::new(), false),
     };
-    let refused = compiled(winnow(), &broken)
-        .map(|_compiled| ())
-        .expect_err("a module that does not parse refuses the run");
-    let lone = winnow()
-        .compile(&broken[0].query, &[], &[])
-        .expect_err("a lone compile refuses the rule");
-    assert!(matches!(
-        refused,
-        RuleCompilationError::Query { ref id, ref error }
-            if id == "r0" && QueryLanguageError::Refused { error: error.clone() } == lone
-    ));
-    Ok([parsed, session.plans().len()])
+    Ok(Compiled::Parsed {
+        modules: parsed,
+        plans: session.plans().len(),
+        refused_rule: Cow::Owned(refused_rule),
+        as_lone_compile,
+    })
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

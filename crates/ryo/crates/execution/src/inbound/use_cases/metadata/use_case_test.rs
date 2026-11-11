@@ -1,257 +1,233 @@
 //! Each pure family is exercised through the public inbound implementation.
-use super::fixtures::example_unknown_relations;
-use super::fixtures::plan;
-use super::fixtures::vocabularies;
-use super::interface::Bearing;
-use super::interface::Blocking;
-use super::interface::CoverageScope;
-use super::interface::Governing;
-use super::interface::Lacking;
-use super::interface::Mask;
-use super::interface::Partial;
-use super::interface::PlacedScopes;
-use super::interface::Recovery;
-use super::interface::RowsFed;
-use super::interface::RuleScope;
-use super::types::AffectedFiles;
-use super::types::CoverageFileCount;
+use super::fixtures::{Expected, Refusal, example_unknown_relations, plan, vocabularies};
+use super::interface::{
+    Bearing, Blocking, CoverageScope, Governing, Lacking, Mask, Partial, PlacedScopes, Recovery,
+    RowsFed, RuleScope,
+};
+use super::types::{AffectedFiles, CoverageFileCount};
 use super::use_case::MetadataUseCaseImpl;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use crate::inbound::use_cases::metadata::interface::MetadataUseCase as _;
-use ryo_execution_domain::domain::kind_check::types::KindRefusal;
+use crate::inbound::use_cases::metadata::interface::{KindOrigin, MetadataUseCase as _};
 use ryo_language::domain::files::types::FilePath;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
-use ryo_relations::domain::relations::types::FileId;
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::cases::Case;
-use ryo_values::cases::CaseName;
-use ryo_values::cases::Expect;
-use ryo_values::cases::Word;
-use ryo_values::cases::run;
-use ryo_values::domain::files::types::Glob;
-use ryo_values::domain::files::types::GlobsMatcher;
-use ryo_values::domain::files::types::Hits;
-use ryo_values::domain::files::types::MatchCandidate;
-use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_relations::domain::relations::types::{FileId, Relation};
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::files::types::{Glob, GlobsMatcher, Hits, MatchCandidate};
+use ryo_values::domain::query_operators::types::{OperationKind, QueryOperator};
 use ryo_values::domain::run_metadata::types::Feature;
-use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::runs::types::RuleNumber;
+use ryo_values::domain::runs::types::{RuleId, RuleNumber};
 use ryo_values::domain::stored_facts::types::PartialCause;
-use ryo_values::selects;
+use std::borrow::Cow;
 use std::sync::Arc;
 
+/// What is asked of the metadata use case.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
+enum Asked {
+    /// The kinds a plan selecting syntax nodes of kind `fn` asks for, and whether it is refused.
     KnownKind,
+    /// The same for the kind `ghost`, which no linked language has.
     UnknownKind,
+    /// Places two rule scopes, one including `src/*.rs`, on `src/lib.rs`, then unplaces rule 1.
     Placement,
+    /// The partial coverage of a read with syntax errors recovered.
     Recovered,
+    /// The partial coverage of a whole read.
     Whole,
+    /// A plan reading the function relation, a failed read of it, and the project unknowns.
     Trust,
+    /// The work and fed rows of a select fed three rows.
     Features,
+    /// Every operator's description.
     Catalog,
+    /// Coverage of three files with file 1 affected twice.
     Affected,
+    /// Coverage of three files affected by a global cause and the foreign file 9.
     ForeignAffected,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum Expected {
-    Catalog(std::borrow::Cow<'static, [ryo_values::domain::query_operators::types::QueryOperator]>),
-    KnownKind(usize),
-    Placement {
-        before: usize,
-        after: usize,
-    },
-    Recovery(usize),
-    Trust {
-        reads: usize,
-        unknowns: usize,
-    },
-    Features {
-        work: u64,
-        select: u64,
-        relation: u64,
-    },
-    Affected(usize),
-}
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum Refusal {
-    Kind(KindRefusal),
-    Coverage(OperatingError),
-}
-type Input = Scenario;
+type Input = Asked;
 type Value = Expected;
 type Failure = Refusal;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every_public_operator_has_its_registered_description_and_example"),
         word: Word::Succeeds,
-        input: || Scenario::Catalog,
-        expect: Expect::Value(Expected::Catalog(std::borrow::Cow::Borrowed(&[
-            ryo_values::domain::query_operators::types::QueryOperator::SpanBetween,
-            ryo_values::domain::query_operators::types::QueryOperator::SpanBounds,
-            ryo_values::domain::query_operators::types::QueryOperator::SourceMatches,
-            ryo_values::domain::query_operators::types::QueryOperator::RenderSyntax,
-            ryo_values::domain::query_operators::types::QueryOperator::FitsRendered,
-            ryo_values::domain::query_operators::types::QueryOperator::Replace,
-            ryo_values::domain::query_operators::types::QueryOperator::OrderedMatch,
-            ryo_values::domain::query_operators::types::QueryOperator::OrderedDfs,
-            ryo_values::domain::query_operators::types::QueryOperator::Select,
-            ryo_values::domain::query_operators::types::QueryOperator::Project,
-            ryo_values::domain::query_operators::types::QueryOperator::Extend,
-            ryo_values::domain::query_operators::types::QueryOperator::Join,
-            ryo_values::domain::query_operators::types::QueryOperator::Union,
-            ryo_values::domain::query_operators::types::QueryOperator::Intersection,
-            ryo_values::domain::query_operators::types::QueryOperator::Difference,
-            ryo_values::domain::query_operators::types::QueryOperator::Antijoin,
-            ryo_values::domain::query_operators::types::QueryOperator::GroupCount,
-            ryo_values::domain::query_operators::types::QueryOperator::GroupDigest,
-            ryo_values::domain::query_operators::types::QueryOperator::Capture,
-            ryo_values::domain::query_operators::types::QueryOperator::Words,
-            ryo_values::domain::query_operators::types::QueryOperator::Rank,
-            ryo_values::domain::query_operators::types::QueryOperator::Axis,
-            ryo_values::domain::query_operators::types::QueryOperator::Rows,
-            ryo_values::domain::query_operators::types::QueryOperator::Closure,
-            ryo_values::domain::query_operators::types::QueryOperator::Cycles,
-        ]))),
+        input: || Asked::Catalog,
+        expect: Expect::Value(Expected::Catalog {
+            operators: Cow::Borrowed(&[
+                QueryOperator::SpanBetween,
+                QueryOperator::SpanBounds,
+                QueryOperator::SourceMatches,
+                QueryOperator::RenderSyntax,
+                QueryOperator::FitsRendered,
+                QueryOperator::Replace,
+                QueryOperator::OrderedMatch,
+                QueryOperator::OrderedDfs,
+                QueryOperator::Select,
+                QueryOperator::Project,
+                QueryOperator::Extend,
+                QueryOperator::Join,
+                QueryOperator::Union,
+                QueryOperator::Intersection,
+                QueryOperator::Difference,
+                QueryOperator::Antijoin,
+                QueryOperator::GroupCount,
+                QueryOperator::GroupDigest,
+                QueryOperator::Capture,
+                QueryOperator::Words,
+                QueryOperator::Rank,
+                QueryOperator::Axis,
+                QueryOperator::Rows,
+                QueryOperator::Closure,
+                QueryOperator::Cycles,
+            ]),
+            described: 25,
+            incomplete: 0,
+            unknown_relations: 0,
+        }),
     },
     Case {
         name: CaseName("a linked kind is accepted"),
         word: Word::Succeeds,
-        input: || Scenario::KnownKind,
-        expect: Expect::Value(Expected::KnownKind(1)),
+        input: || Asked::KnownKind,
+        expect: Expect::Value(Expected::KnownKind {
+            asked: 1,
+            refused: false,
+            unknown: false,
+        }),
     },
     Case {
         name: CaseName("unknown kind keeps the first rule and word"),
         word: Word::Refuses,
-        input: || Scenario::UnknownKind,
-        expect: Expect::Refusal(|failure| {
-            selects!(
-                matches!(failure, Refusal::Kind(KindRefusal { message, origin: crate::inbound::use_cases::metadata::interface::KindOrigin::Unrecorded }) if message.0.contains("ghost") && message.0.contains("rust")),
-            )
+        input: || Asked::UnknownKind,
+        expect: Expect::Error(Refusal::Kind {
+            message: Cow::Borrowed("kind `ghost` names no kind of rust"),
+            origin: KindOrigin::Unrecorded,
+            rule: 0,
+            word: Cow::Borrowed("ghost"),
+            as_message: true,
         }),
     },
     Case {
         name: CaseName("one matcher places rules once and unplace clears only one"),
         word: Word::Succeeds,
-        input: || Scenario::Placement,
+        input: || Asked::Placement,
         expect: Expect::Value(Expected::Placement {
+            globs: Cow::Borrowed(&[Cow::Borrowed("src/*.rs")]),
             before: 2,
             after: 1,
+            governed: true,
         }),
     },
     Case {
         name: CaseName("syntax recovery marks code relations partial"),
         word: Word::Succeeds,
-        input: || Scenario::Recovered,
-        expect: Expect::Value(Expected::Recovery(1)),
+        input: || Asked::Recovered,
+        expect: Expect::Value(Expected::Recovery(Cow::Borrowed(&[Relation::Function]))),
     },
     Case {
         name: CaseName("a whole read invents no partial coverage"),
         word: Word::Succeeds,
-        input: || Scenario::Whole,
-        expect: Expect::Value(Expected::Recovery(0)),
+        input: || Asked::Whole,
+        expect: Expect::Value(Expected::Recovery(Cow::Borrowed(&[]))),
     },
     Case {
         name: CaseName("trusted reads identify the affected project file"),
         word: Word::Succeeds,
-        input: || Scenario::Trust,
+        input: || Asked::Trust,
         expect: Expect::Value(Expected::Trust {
-            reads: 1,
-            unknowns: 1,
+            reads: Cow::Borrowed(&[Relation::Function]),
+            observed: 0,
+            bearing: Bearing::Matters,
+            blocking: Blocking::Blocked,
+            unknowns: Cow::Borrowed(&[(Cow::Borrowed("src/lib.rs"), Cow::Borrowed("r"), true)]),
         }),
     },
     Case {
         name: CaseName("feature and step work count the same fed rows"),
         word: Word::Succeeds,
-        input: || Scenario::Features,
+        input: || Asked::Features,
         expect: Expect::Value(Expected::Features {
             work: 3,
             select: 3,
             relation: 3,
+            catalogued: true,
         }),
     },
     Case {
         name: CaseName("repeated affected file is reported once"),
         word: Word::Succeeds,
-        input: || Scenario::Affected,
-        expect: Expect::Value(Expected::Affected(1)),
+        input: || Asked::Affected,
+        expect: Expect::Value(Expected::Affected(Cow::Borrowed(&[1]))),
     },
     Case {
         name: CaseName("foreign file refuses even beside global cause"),
         word: Word::Refuses,
-        input: || Scenario::ForeignAffected,
-        expect: Expect::Refusal(|failure| {
-            selects!(matches!(
-                failure,
-                Refusal::Coverage(OperatingError::ObservationIncomplete { .. })
-            ))
-        }),
+        input: || Asked::ForeignAffected,
+        expect: Expect::Error(Refusal::Incomplete(Cow::Borrowed(
+            "partial project coverage cannot be placed on its declared files",
+        ))),
     },
 ];
-fn subject(scenario: Input) -> Result<Value, Failure> {
+/// Asks the metadata use case.
+fn subject(asked: Input) -> Result<Value, Failure> {
     let metadata = MetadataUseCaseImpl;
-    match scenario {
-        Scenario::Catalog => {
+    match asked {
+        Asked::Catalog => {
             let described = super::fixtures::contract::check(&metadata);
-            assert_eq!(described, metadata.operators().len());
-            let mut unknown_relations = 0;
+            let (mut incomplete, mut unknown_relations) = (0, 0);
             for operator in metadata.operators() {
                 let description = metadata.describe(*operator);
-                assert!(!description.name.0.is_empty());
-                assert!(!description.summary.0.is_empty());
-                assert!(description.example.0.contains("example"));
+                incomplete += usize::from(
+                    description.name.0.is_empty()
+                        || description.summary.0.is_empty()
+                        || !description.example.0.contains("example"),
+                );
                 unknown_relations += example_unknown_relations(&description.example.0);
             }
-            assert_eq!(
-                unknown_relations, 0,
-                "every example names only actual catalog relations"
-            );
-            Ok(Expected::Catalog(std::borrow::Cow::Borrowed(
-                metadata.operators(),
-            )))
+            Ok(Expected::Catalog {
+                operators: Cow::Borrowed(metadata.operators()),
+                described,
+                incomplete,
+                unknown_relations,
+            })
         }
 
-        Scenario::KnownKind => {
+        Asked::KnownKind => {
             let plan = plan(Relation::SyntaxTree, Some("fn"));
-            assert!(
-                metadata
-                    .kind_refusal(&plan, &vocabularies(), &MatchingUseCaseImpl)
-                    .is_none()
-            );
-            assert!(
-                metadata
-                    .first_unknown(
-                        &[plan.clone()],
-                        &[Vec::new()],
-                        &vocabularies(),
-                        &MatchingUseCaseImpl
-                    )
-                    .is_none()
-            );
-            Ok(Expected::KnownKind(metadata.kinds_asked(&plan, &[]).len()))
+            let vocabularies = vocabularies();
+            let refusal = metadata.kind_refusal(&plan, &vocabularies, &MatchingUseCaseImpl);
+            let plans = [plan.clone()];
+            let unknown =
+                metadata.first_unknown(&plans, &[Vec::new()], &vocabularies, &MatchingUseCaseImpl);
+            Ok(Expected::KnownKind {
+                asked: metadata.kinds_asked(&plan, &[]).len(),
+                refused: refusal.is_some(),
+                unknown: unknown.is_some(),
+            })
         }
-        Scenario::UnknownKind => {
+        Asked::UnknownKind => {
             let plan = plan(Relation::SyntaxTree, Some("ghost"));
-            let unknown = metadata
-                .first_unknown(
-                    &[plan.clone()],
-                    &[Vec::new()],
-                    &vocabularies(),
-                    &MatchingUseCaseImpl,
-                )
-                .expect("the first unknown kind");
-            assert_eq!(unknown.rule.0, 0);
-            assert_eq!(&*unknown.word.0, "ghost");
-            let refusal = metadata
-                .kind_refusal(&plan, &vocabularies(), &MatchingUseCaseImpl)
-                .expect("unknown kind refuses");
-            assert_eq!(
-                refusal,
-                metadata.unknown_kind_message(&unknown.word, &vocabularies())
-            );
-            Err(Refusal::Kind(refusal))
+            let vocabularies = vocabularies();
+            let plans = [plan.clone()];
+            let unknown =
+                metadata.first_unknown(&plans, &[Vec::new()], &vocabularies, &MatchingUseCaseImpl);
+            let refusal = metadata.kind_refusal(&plan, &vocabularies, &MatchingUseCaseImpl);
+            let (Some(unknown), Some(refusal)) = (unknown, refusal) else {
+                return Ok(Expected::KnownKind {
+                    asked: metadata.kinds_asked(&plan, &[]).len(),
+                    refused: false,
+                    unknown: false,
+                });
+            };
+            Err(Refusal::Kind {
+                as_message: refusal == metadata.unknown_kind_message(&unknown.word, &vocabularies),
+                message: Cow::Owned(refusal.message.0.to_string()),
+                origin: refusal.origin,
+                rule: unknown.rule.0,
+                word: Cow::Owned(unknown.word.0.to_string()),
+            })
         }
-        Scenario::Placement => {
+        Asked::Placement => {
             let placement = metadata.decide(&[
                 RuleScope {
                     include: vec![],
@@ -262,7 +238,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     exclude: vec![],
                 },
             ]);
-            assert_eq!(placement.globs, vec![Glob("src/*.rs".into())]);
+            let globs = placement
+                .globs
+                .iter()
+                .map(|glob| Cow::Owned(glob.0.to_string()));
+            let globs = Cow::Owned(globs.collect());
             let placed = PlacedScopes {
                 placement,
                 matcher: GlobsMatcher {
@@ -284,62 +264,60 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 .filter(|rule| metadata.governs(&mask, RuleNumber(*rule)) == Governing::Governs)
                 .count();
             metadata.unplace(&mut mask, RuleNumber(1));
-            assert_eq!(metadata.governed(&mask), Governing::Governs);
+            let governed = metadata.governed(&mask) == Governing::Governs;
             let after = (0..2)
                 .filter(|rule| metadata.governs(&mask, RuleNumber(*rule)) == Governing::Governs)
                 .count();
-            Ok(Expected::Placement { before, after })
+            Ok(Expected::Placement {
+                globs,
+                before,
+                after,
+                governed,
+            })
         }
-        Scenario::Recovered | Scenario::Whole => {
-            let recovery = if matches!(scenario, Scenario::Recovered) {
+        Asked::Recovered | Asked::Whole => {
+            let recovery = if matches!(asked, Asked::Recovered) {
                 Recovery::SyntaxErrors
             } else {
                 Recovery::Whole
             };
             let partial = metadata.partial_of(&[], recovery, &[Relation::Function]);
-            if let Some(first) = partial.first() {
-                assert_eq!(first.relation, Relation::Function);
-            }
-            Ok(Expected::Recovery(partial.len()))
+            Ok(Expected::Recovery(Cow::Owned(
+                partial.iter().map(|read| read.relation).collect(),
+            )))
         }
-        Scenario::Trust => {
+        Asked::Trust => {
             let plan = plan(Relation::Function, None);
             let needs = metadata.scoped_needs(&plan);
-            assert_eq!(needs.reads[0].relation, Relation::Function);
-            assert!(metadata.observed_reads(&plan).is_empty());
             let partial = Partial {
                 relation: Relation::Function,
                 cause: PartialCause("failed read".into()),
                 lacking: Lacking::Any,
                 at: crate::inbound::use_cases::metadata::interface::PartialPlace::File(FileId(0)),
             };
-            assert_eq!(
-                metadata.matters(&needs.reads[0], &partial),
-                Bearing::Matters
-            );
-            assert_eq!(
-                metadata.blocked(&needs.reads, &[partial.clone()]),
-                Blocking::Blocked
-            );
             let named = [FilePath("src/lib.rs".into())];
-            let unknowns = metadata.project_unknowns(
-                &[partial.clone()],
-                &named,
-                &[needs.clone()],
-                &[RuleId("r".into())],
-            );
-            assert_eq!(unknowns[0].path, named[0]);
-            assert_eq!(unknowns[0].rule, RuleId("r".into()));
-            assert_eq!(
-                metadata.unknown_message(&partial, CoverageScope::File(&named[0])),
-                unknowns[0].message
-            );
+            let partials = [partial.clone()];
+            let rules = [RuleId("r".into())];
+            let unknowns = metadata.project_unknowns(&partials, &named, &[needs.clone()], &rules);
+            let message = metadata.unknown_message(&partial, CoverageScope::File(&named[0]));
             Ok(Expected::Trust {
-                reads: needs.reads.len(),
-                unknowns: unknowns.len(),
+                reads: Cow::Owned(needs.reads.iter().map(|read| read.relation).collect()),
+                observed: metadata.observed_reads(&plan).len(),
+                bearing: metadata.matters(&needs.reads[0], &partial),
+                blocking: metadata.blocked(&needs.reads, &partials),
+                unknowns: Cow::Owned(
+                    unknowns
+                        .iter()
+                        .map(|unknown| {
+                            let path = Cow::Owned(unknown.path.0.to_string());
+                            let rule = Cow::Owned(unknown.rule.0.to_string());
+                            (path, rule, unknown.message == message)
+                        })
+                        .collect(),
+                ),
             })
         }
-        Scenario::Features => {
+        Asked::Features => {
             let plan = plan(Relation::Function, None);
             let rules = ryo_values::domain::run_metadata::service::from_plans(&[plan]);
             let fed = [vec![RowsFed([3, 0, 0])]];
@@ -350,19 +328,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     .find(|item| item.feature == feature)
                     .map_or(0, |item| item.rows.0)
             };
-            assert!(
-                metadata
-                    .feature_catalog()
-                    .contains(&Feature::Operation(OperationKind::Select))
-            );
             Ok(Expected::Features {
+                catalogued: metadata
+                    .feature_catalog()
+                    .contains(&Feature::Operation(OperationKind::Select)),
                 work,
                 select: count(Feature::Operation(OperationKind::Select)),
                 relation: count(Feature::Relation(Relation::Function)),
             })
         }
-        Scenario::Affected | Scenario::ForeignAffected => {
-            let affected: &[Option<FileId>] = if matches!(scenario, Scenario::Affected) {
+        Asked::Affected | Asked::ForeignAffected => {
+            let affected: &[Option<FileId>] = if matches!(asked, Asked::Affected) {
                 &[Some(FileId(1)), Some(FileId(1))]
             } else {
                 &[None, Some(FileId(9))]
@@ -372,9 +348,13 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     affected,
                     file_count: CoverageFileCount(3),
                 })
-                .map_err(Refusal::Coverage)?;
-            assert_eq!(ordinals.0, vec![1]);
-            Ok(Expected::Affected(ordinals.0.len()))
+                .map_err(|error| match error {
+                    OperatingError::ObservationIncomplete { reason } => {
+                        Refusal::Incomplete(Cow::Owned(reason))
+                    }
+                    other => Refusal::Coverage(other),
+                })?;
+            Ok(Expected::Affected(Cow::Owned(ordinals.0)))
         }
     }
 }

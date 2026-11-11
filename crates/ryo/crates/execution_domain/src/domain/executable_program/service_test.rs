@@ -1,9 +1,9 @@
 //! A region the recogniser did not resolve keeps its registered operators, equivalent drafted regions merge as the linear scan
 //! would in linear cost, and demand compilation preserves declared order.
-use super::fixtures::{axis, merged, reference, state};
+use super::fixtures::{Cost, Merge, axis, merge_beside_the_linear_scan, merge_cost};
 use super::{
     service::ordered_existence,
-    types::{DemandAction, Route, demand_program::value::DemandProgram},
+    types::{DemandAction, Route, RouteKind, RowGate, demand_program::value::DemandProgram},
 };
 use crate::domain::{
     operation_schema::types::InputShape, operator::contract::service::prepare_for,
@@ -18,113 +18,176 @@ use ryo_values::{
         plans::types::Operation,
     },
 };
-/// What a case checks: the demand program of an order, or the region merge.
+use std::borrow::Cow;
+/// What a case asks.
 #[derive(Clone, Copy, Debug)]
-enum Check {
-    Demand(DemandOrder, usize, &'static [usize]),
-    MergeMatchesLinearScan,
-    MergeCostIsLinear,
-    UnresolvedRegionKeepsItsOperators,
-    NameWithoutTextFailsTheReplaceGate,
-    StepOriginPlaceEqualsTheLogicalLookup,
+enum Asked {
+    /// The demand program of an axis contract whose demand order is replaced by this order, over this
+    /// many inputs.
+    Demand(DemandOrder, usize),
+    /// The region merge of 40 rules in 7 variants, beside the linear scan it replaced.
+    MergeBesideLinearScan,
+    /// The comparisons of the region merge of 50, 100, 200 and 400 rules.
+    MergeCost,
+    /// The route of a region the recogniser did not resolve.
+    UnresolvedRegion,
+    /// The row gate of a replace over a symbol column, for a name with no text.
+    NameWithoutText,
+    /// The place of every original step of three rules, beside the logical lookup.
+    StepOrigins,
 }
-type Input = Check;
-type Value = ();
+
+/// The demand order the axis contract prepared, and the inputs the compiled program admits, in order.
+#[derive(Debug, PartialEq)]
+struct Demand {
+    prepared: DemandOrder,
+    admits: Cow<'static, [usize]>,
+}
+
+/// The route an unresolved region gets, and whether it has an ordered existence.
+#[derive(Debug, PartialEq)]
+struct Unresolved {
+    route: RouteKind,
+    ordered_existence: bool,
+}
+
+/// The original steps of the rules, how many have a place, and how many places name what the lookup finds.
+#[derive(Debug, PartialEq)]
+struct Origins {
+    steps: usize,
+    placed: usize,
+    as_looked_up: usize,
+}
+
+/// What a case answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    Demand(Demand),
+    Merge(Merge),
+    Cost(Cost),
+    Unresolved(Unresolved),
+    Gate(RowGate),
+    Origins(Origins),
+}
+
+type Input = Asked;
+type Value = Answer;
 type Failure = crate::domain::operating::errors::OperatingError;
+
+const fn demand(admits: &'static [usize]) -> Answer {
+    Answer::Demand(Demand {
+        prepared: DemandOrder::LeftThenRight,
+        admits: Cow::Borrowed(admits),
+    })
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("no_inputs"),
         word: Word::Succeeds,
-        input: || Check::Demand(DemandOrder::None, 0, &[]),
-        expect: Expect::Value(()),
+        input: || Asked::Demand(DemandOrder::None, 0),
+        expect: Expect::Value(demand(&[])),
     },
     Case {
         name: CaseName("unary"),
         word: Word::Succeeds,
-        input: || Check::Demand(DemandOrder::Unary, 1, &[0]),
-        expect: Expect::Value(()),
+        input: || Asked::Demand(DemandOrder::Unary, 1),
+        expect: Expect::Value(demand(&[0])),
     },
     Case {
         name: CaseName("empty_ordered"),
         word: Word::Succeeds,
-        input: || Check::Demand(DemandOrder::LeftThenRight, 0, &[]),
-        expect: Expect::Value(()),
+        input: || Asked::Demand(DemandOrder::LeftThenRight, 0),
+        expect: Expect::Value(demand(&[])),
     },
     Case {
         name: CaseName("one_ordered"),
         word: Word::Succeeds,
-        input: || Check::Demand(DemandOrder::LeftThenRight, 1, &[0]),
-        expect: Expect::Value(()),
+        input: || Asked::Demand(DemandOrder::LeftThenRight, 1),
+        expect: Expect::Value(demand(&[0])),
     },
     Case {
         name: CaseName("two_ordered"),
         word: Word::Succeeds,
-        input: || Check::Demand(DemandOrder::LeftThenRight, 2, &[0, 1]),
-        expect: Expect::Value(()),
+        input: || Asked::Demand(DemandOrder::LeftThenRight, 2),
+        expect: Expect::Value(demand(&[0, 1])),
     },
     Case {
         name: CaseName("three_ordered"),
         word: Word::Succeeds,
-        input: || Check::Demand(DemandOrder::LeftThenRight, 3, &[0, 1, 2]),
-        expect: Expect::Value(()),
+        input: || Asked::Demand(DemandOrder::LeftThenRight, 3),
+        expect: Expect::Value(demand(&[0, 1, 2])),
     },
     Case {
         name: CaseName("merge_matches_the_linear_scan"),
         word: Word::Succeeds,
-        input: || Check::MergeMatchesLinearScan,
-        expect: Expect::Value(()),
+        input: || Asked::MergeBesideLinearScan,
+        expect: Expect::Value(Answer::Merge(Merge {
+            kept: 25,
+            kept_as_the_scan: true,
+            drafts: 80,
+            drafts_left: 30,
+            drafts_left_as_the_scan: true,
+            mapping_as_the_scan: true,
+            representatives_as_the_scan: true,
+            readers_as_the_scan: true,
+        })),
     },
     Case {
         name: CaseName("regions_merge_cost_is_linear_in_rule_count"),
         word: Word::Succeeds,
-        input: || Check::MergeCostIsLinear,
-        expect: Expect::Value(()),
+        input: || Asked::MergeCost,
+        expect: Expect::Value(Answer::Cost(Cost {
+            comparisons: Cow::Borrowed(&[48, 98, 198, 398]),
+            linear: true,
+        })),
     },
     Case {
         name: CaseName("a_name_without_text_is_refused_by_the_replace_text_gate"),
-        word: Word::Succeeds,
-        input: || Check::NameWithoutTextFailsTheReplaceGate,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Asked::NameWithoutText,
+        expect: Expect::Error(crate::domain::operating::errors::OperatingError::ShapeMismatch),
     },
     Case {
         name: CaseName("step_origin_place_equals_the_logical_lookup"),
         word: Word::Succeeds,
-        input: || Check::StepOriginPlaceEqualsTheLogicalLookup,
-        expect: Expect::Value(()),
+        input: || Asked::StepOrigins,
+        expect: Expect::Value(Answer::Origins(Origins {
+            steps: 6,
+            placed: 6,
+            as_looked_up: 6,
+        })),
     },
     Case {
         name: CaseName("an_unresolved_region_keeps_its_registered_operators"),
         word: Word::Succeeds,
-        input: || Check::UnresolvedRegionKeepsItsOperators,
-        expect: Expect::Value(()),
+        input: || Asked::UnresolvedRegion,
+        expect: Expect::Value(Answer::Unresolved(Unresolved {
+            route: RouteKind::Generic,
+            ordered_existence: false,
+        })),
     },
 ];
-fn subject(check: Input) -> Result<Value, Failure> {
-    match check {
-        Check::Demand(order, count, expected) => demand_program(order, count, expected),
-        Check::MergeMatchesLinearScan => {
-            merge_matches_the_linear_scan();
-            Ok(())
-        }
-        Check::MergeCostIsLinear => {
-            regions_merge_cost_is_linear_in_rule_count();
-            Ok(())
-        }
-        Check::NameWithoutTextFailsTheReplaceGate => {
-            a_name_without_text_is_refused_by_the_replace_text_gate()
-        }
-        Check::StepOriginPlaceEqualsTheLogicalLookup => {
-            step_origin_place_equals_the_logical_lookup()
-        }
-        Check::UnresolvedRegionKeepsItsOperators => {
+fn subject(asked: Input) -> Result<Value, Failure> {
+    match asked {
+        Asked::Demand(order, count) => demand_program(order, count).map(Answer::Demand),
+        Asked::MergeBesideLinearScan => Ok(Answer::Merge(merge_beside_the_linear_scan())),
+        Asked::MergeCost => Ok(Answer::Cost(merge_cost())),
+        Asked::NameWithoutText => a_name_without_text().map(Answer::Gate),
+        Asked::StepOrigins => step_origins().map(Answer::Origins),
+        Asked::UnresolvedRegion => {
             let route = Route::default();
-            assert!(matches!(route, Route::Generic));
-            assert!(ordered_existence(&route).is_none());
-            Ok(())
+            Ok(Answer::Unresolved(Unresolved {
+                route: match route {
+                    Route::Generic => RouteKind::Generic,
+                    Route::OrderedExistence(_) => RouteKind::OrderedExistence,
+                },
+                ordered_existence: ordered_existence(&route).is_some(),
+            }))
         }
     }
 }
-fn demand_program(order: DemandOrder, count: usize, expected: &[usize]) -> Result<Value, Failure> {
+fn demand_program(order: DemandOrder, count: usize) -> Result<Demand, Failure> {
     let operation = axis(0);
     let inputs = [
         InputShape {
@@ -147,67 +210,33 @@ fn demand_program(order: DemandOrder, count: usize, expected: &[usize]) -> Resul
         &[],
         StepScope::PerFile,
     )?;
-    assert_eq!(contract.semantics.demand, DemandOrder::LeftThenRight);
+    let prepared = contract.semantics.demand;
     contract.semantics.demand = order;
     let program = DemandProgram::compiled(
         contract.semantics,
         ryo_values::domain::plan_parts::types::InputCount(count),
     );
-    let actual = program
+    let admits = program
         .actions()
         .iter()
         .map(|action| match action {
             DemandAction::Admit(input) => input.0,
         })
-        .collect::<Vec<_>>();
-    assert_eq!(actual, expected);
-    Ok(())
+        .collect();
+    Ok(Demand { prepared, admits })
 }
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
 }
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
 
-fn merge_matches_the_linear_scan() {
-    let mixed = |rule: usize| rule % 7;
-    let mut fast = state(40, mixed);
-    let mut slow = state(40, mixed);
-    let shared = merged(&mut fast).shared;
-    assert_eq!(shared, reference(&mut slow));
-    assert!(shared.len() < fast.drafts.len(), "duplicates merged");
-    assert!(
-        fast.drafts.iter().any(Option::is_none),
-        "some regions merged away"
-    );
-    assert_eq!(fast.mapping, slow.mapping);
-    assert_eq!(fast.representative, slow.representative);
-    assert_eq!(fast.readers, slow.readers);
-    assert_eq!(
-        fast.drafts.iter().map(Option::is_some).collect::<Vec<_>>(),
-        slow.drafts.iter().map(Option::is_some).collect::<Vec<_>>()
-    );
-}
-fn comparisons(rules: usize) -> usize {
-    // Even rules repeat rule 0; odd rules are distinct from every other rule.
-    let mut state = state(rules, |rule| if rule % 2 == 0 { 0 } else { 2 });
-    merged(&mut state).comparisons.0
-}
-fn regions_merge_cost_is_linear_in_rule_count() {
-    let counts: Vec<usize> = [50, 100, 200, 400].into_iter().map(comparisons).collect();
-    for pair in counts.windows(2) {
-        assert!(
-            pair[1] < 3 * pair[0] + 16,
-            "comparisons grew faster than linearly: {counts:?}"
-        );
-    }
-    assert!(
-        counts[3] < 3 * counts[2] + 16,
-        "comparisons grew faster than linearly: {counts:?}"
-    );
-}
 /// The boundary the Replace declaration rests on: a name that left its file and has no text fails the text gate, so only
 /// a path where no such name can arrive may declare Replace over a Symbol column infallible.
-fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<Value, Failure> {
+fn a_name_without_text() -> Result<RowGate, Failure> {
     let kinds = [CellKind::Symbol];
     let contract = prepare_for(
         OperationKind::Replace,
@@ -223,8 +252,7 @@ fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<Value, Fa
         }],
         &[],
         StepScope::PerFile,
-    )
-    .expect("the replace contract prepares");
+    )?;
     let symbols = ryo_language::domain::symbols::types::Symbols::default();
     let texts = crate::domain::table_texts::types::Texts {
         symbols: &symbols,
@@ -238,16 +266,12 @@ fn a_name_without_text_is_refused_by_the_replace_text_gate() -> Result<Value, Fa
             place: ryo_relations::domain::relations::types::PlaceNumber(0),
         },
     )];
-    assert_eq!(
-        crate::domain::executable_program::kernel::row_admissible(&contract, &row, &texts),
-        Err(crate::domain::operating::errors::OperatingError::ShapeMismatch)
-    );
-    Ok(())
+    crate::domain::executable_program::kernel::service::row_admissible(&contract, &row, &texts)
 }
 
 /// Each original step's place, filled when the rule programs are built, still names the instruction today's lookup finds on the
 /// finished program: its logical instruction's region, and the instruction's place there.
-fn step_origin_place_equals_the_logical_lookup() -> Result<Value, Failure> {
+fn step_origins() -> Result<Origins, Failure> {
     use crate::domain::source_partitions::types::source_partitions::value::SourcePartitions;
     use ryo_values::domain::{
         plan_parts::types::{Input, StepId},
@@ -312,7 +336,7 @@ fn step_origin_place_equals_the_logical_lookup() -> Result<Value, Failure> {
         })
         .collect::<Vec<_>>();
     let bindings = vec![vec![]; plans.len()];
-    let operators = crate::domain::file_program::service::operators::prepare(
+    let operators = crate::domain::file_program::service::operators::service::prepare(
         &plans,
         &bindings,
         &[],
@@ -337,7 +361,11 @@ fn step_origin_place_equals_the_logical_lookup() -> Result<Value, Failure> {
             &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
         ),
     )?;
-    let mut checked = 0;
+    let mut origins = Origins {
+        steps: 0,
+        placed: 0,
+        as_looked_up: 0,
+    };
     for rule in program.rules() {
         for origin in rule.original_steps.iter().flatten() {
             let lookup = program
@@ -354,11 +382,10 @@ fn step_origin_place_equals_the_logical_lookup() -> Result<Value, Failure> {
                             })
                     })
                 });
-            assert_eq!(origin.place, lookup, "{origin:?}");
-            assert!(origin.place.is_some(), "{origin:?}");
-            checked += 1;
+            origins.steps += 1;
+            origins.placed += usize::from(origin.place.is_some());
+            origins.as_looked_up += usize::from(origin.place.is_some() && origin.place == lookup);
         }
     }
-    assert_eq!(checked, 6, "every step of every rule is placed");
-    Ok(())
+    Ok(origins)
 }

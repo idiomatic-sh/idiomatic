@@ -18,9 +18,6 @@ mod service_test;
 
 pub(crate) mod executor;
 
-#[cfg(any(test, feature = "fixtures"))]
-pub mod acceptance;
-
 pub mod observations;
 mod ordered_existence;
 

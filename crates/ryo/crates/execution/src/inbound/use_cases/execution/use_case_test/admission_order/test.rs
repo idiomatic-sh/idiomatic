@@ -1,7 +1,7 @@
 //! Exact conflicting failures through the mandatory public execution owner.
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::service::intern_derived;
@@ -9,6 +9,7 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::service::node_position;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Flag;
@@ -36,19 +37,9 @@ use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
+use std::borrow::Cow;
 use std::cell::Cell;
 
-type Input = fn();
-type Value = ();
-type Failure = OperatingError;
-const SCHEMA: &[OperationKind] = &[
-    OperationKind::Select,
-    OperationKind::Project,
-    OperationKind::Join,
-    OperationKind::Union,
-    OperationKind::Intersection,
-    OperationKind::Difference,
-];
 #[expect(
     clippy::wildcard_enum_match_arm,
     reason = "this constructor names exactly the six declared schema-first kinds; any other kind is a fixture bug that must crash"
@@ -122,7 +113,7 @@ pub(crate) fn population(relation: Relation, malformed: bool, symbol: Symbol) ->
         count: RowCount(2),
     }
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum InputSupply {
     Present,
     MissingLeft,
@@ -180,126 +171,223 @@ pub(crate) fn execute(
     );
     (result, [counts[0].get(), counts[1].get()])
 }
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "only a selection, a projection and a join refuse a missing column; every other kind refuses the shape"
-)]
-pub(crate) fn layout_error(kind: OperationKind) -> OperatingError {
-    match kind {
-        OperationKind::Select | OperationKind::Project | OperationKind::Join => {
-            OperatingError::Table(RowsError::NoSuchColumn { index: 99 })
-        }
-        _ => OperatingError::ShapeMismatch,
+/// What an admitted plan answered: its row count, the positions of its node cells in output order,
+/// and how often each side was read.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Answer {
+    pub(crate) rows: usize,
+    pub(crate) nodes: Cow<'static, [u32]>,
+    pub(crate) reads: [usize; 2],
+}
+/// What a refused plan answered: the error and how often each side was read before it.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Refusal {
+    pub(crate) error: OperatingError,
+    pub(crate) reads: [usize; 2],
+}
+pub(crate) fn observed(
+    result: Result<Table, OperatingError>,
+    reads: [usize; 2],
+) -> Result<Answer, Refusal> {
+    result
+        .map(|table| Answer {
+            rows: table.count.0,
+            nodes: table
+                .cells
+                .iter()
+                .filter_map(|cell| {
+                    if let CellValue::Node(node) = cell {
+                        Some(node_position(*node).0)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            reads,
+        })
+        .map_err(|error| Refusal { error, reads })
+}
+/// One schema-first operation over the join's two sides.
+#[derive(Clone, Copy, Debug)]
+struct Admission {
+    kind: OperationKind,
+    invalid: bool,
+    supply: InputSupply,
+}
+type Input = Admission;
+type Value = Answer;
+type Failure = Refusal;
+const fn admission(kind: OperationKind, invalid: bool, supply: InputSupply) -> Admission {
+    Admission {
+        kind,
+        invalid,
+        supply,
     }
 }
-fn schema_before_physical() {
-    for &kind in SCHEMA {
-        let (result, calls) = execute(
-            inputs::plan(vec![operation(kind, true)]),
-            true,
-            InputSupply::Present,
-        );
-        assert_eq!(result, Err(layout_error(kind)), "{kind:?}");
-        assert_eq!(
-            calls,
-            if matches!(kind, OperationKind::Select | OperationKind::Project) {
-                [1, 0]
-            } else {
-                [1, 1]
-            },
-            "layout fails after exact availability without an extra admission reborrow: {kind:?}"
-        );
-    }
+const fn refused(error: OperatingError, reads: [usize; 2]) -> Expect<Value, Failure> {
+    Expect::Error(Refusal { error, reads })
 }
-fn source_failure_before_local_layout() {
-    for &kind in SCHEMA {
-        let (result, calls) = execute(
-            inputs::plan(vec![operation(kind, true)]),
-            true,
-            InputSupply::MissingLeft,
-        );
-        assert_eq!(result, Err(OperatingError::NotRead), "{kind:?}");
-        assert_eq!(calls, [1, 0]);
-    }
-    for &kind in &SCHEMA[2..] {
-        let (result, calls) = execute(
-            inputs::plan(vec![operation(kind, true)]),
-            true,
-            InputSupply::MissingRight,
-        );
-        assert_eq!(
-            result,
-            Err(OperatingError::NotRead),
-            "the declared later source remains authoritative: {kind:?}"
-        );
-        assert_eq!(calls, [1, 1]);
-    }
+const fn answered(rows: usize, nodes: &'static [u32], reads: [usize; 2]) -> Expect<Value, Failure> {
+    Expect::Value(Answer {
+        rows,
+        nodes: Cow::Borrowed(nodes),
+        reads,
+    })
 }
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "only a join and a difference change the fixture's row count; every other kind keeps its two rows"
-)]
-fn valid_populations_and_generation_binding() {
-    for &kind in SCHEMA {
-        let (result, _) = execute(
-            inputs::plan(vec![operation(kind, false)]),
-            false,
-            InputSupply::Present,
-        );
-        let result = result.expect("valid metadata and physical populations execute normally");
-        assert_eq!(
-            result.count.0,
-            match kind {
-                OperationKind::Join => 4,
-                OperationKind::Difference => 0,
-                _ => 2,
-            },
-            "{kind:?}"
-        );
-        if matches!(kind, OperationKind::Select | OperationKind::Project) {
-            assert_eq!(
-                result.cells,
-                [1, 2].map(|row| CellValue::Node(node_id(FileId(0), Position(row))))
-            );
-        }
-    }
-    let (changed, calls) = execute(
-        inputs::plan(vec![operation(OperationKind::Project, false)]),
-        false,
-        InputSupply::Changed,
-    );
-    assert_eq!(
-        changed,
-        Err(OperatingError::NotRead),
-        "a matching schema does not replace the available source's physical identity"
-    );
-    assert_eq!(calls, [2, 0]);
-}
+const NO_COLUMN: OperatingError = OperatingError::Table(RowsError::NoSuchColumn { index: 99 });
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("all_six_schema_first_layout_faults_precede_malformed_physical_populations"),
-        word: Word::Succeeds,
-        input: || schema_before_physical,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Select, true, InputSupply::Present),
+        expect: refused(NO_COLUMN, [1, 0]),
+    },
+    Case {
+        name: CaseName("a_projection_layout_fault_precedes_its_malformed_population"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Project, true, InputSupply::Present),
+        expect: refused(NO_COLUMN, [1, 0]),
+    },
+    Case {
+        name: CaseName("a_join_layout_fault_precedes_its_malformed_populations"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Join, true, InputSupply::Present),
+        expect: refused(NO_COLUMN, [1, 1]),
+    },
+    Case {
+        name: CaseName("a_union_shape_fault_precedes_its_malformed_populations"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Union, true, InputSupply::Present),
+        expect: refused(OperatingError::ShapeMismatch, [1, 1]),
+    },
+    Case {
+        name: CaseName("an_intersection_shape_fault_precedes_its_malformed_populations"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Intersection, true, InputSupply::Present),
+        expect: refused(OperatingError::ShapeMismatch, [1, 1]),
+    },
+    Case {
+        name: CaseName("a_difference_shape_fault_precedes_its_malformed_populations"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Difference, true, InputSupply::Present),
+        expect: refused(OperatingError::ShapeMismatch, [1, 1]),
     },
     Case {
         name: CaseName("actual_source_availability_faults_precede_local_static_layout"),
-        word: Word::Succeeds,
-        input: || source_failure_before_local_layout,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Select, true, InputSupply::MissingLeft),
+        expect: refused(OperatingError::NotRead, [1, 0]),
+    },
+    Case {
+        name: CaseName("a_missing_left_source_precedes_a_projection_layout_fault"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Project, true, InputSupply::MissingLeft),
+        expect: refused(OperatingError::NotRead, [1, 0]),
+    },
+    Case {
+        name: CaseName("a_missing_left_source_precedes_a_join_layout_fault"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Join, true, InputSupply::MissingLeft),
+        expect: refused(OperatingError::NotRead, [1, 0]),
+    },
+    Case {
+        name: CaseName("a_missing_left_source_precedes_a_union_shape_fault"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Union, true, InputSupply::MissingLeft),
+        expect: refused(OperatingError::NotRead, [1, 0]),
+    },
+    Case {
+        name: CaseName("a_missing_left_source_precedes_an_intersection_shape_fault"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Intersection, true, InputSupply::MissingLeft),
+        expect: refused(OperatingError::NotRead, [1, 0]),
+    },
+    Case {
+        name: CaseName("a_missing_left_source_precedes_a_difference_shape_fault"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Difference, true, InputSupply::MissingLeft),
+        expect: refused(OperatingError::NotRead, [1, 0]),
+    },
+    Case {
+        name: CaseName("a_declared_later_join_source_remains_authoritative"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Join, true, InputSupply::MissingRight),
+        expect: refused(OperatingError::NotRead, [1, 1]),
+    },
+    Case {
+        name: CaseName("a_declared_later_union_source_remains_authoritative"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Union, true, InputSupply::MissingRight),
+        expect: refused(OperatingError::NotRead, [1, 1]),
+    },
+    Case {
+        name: CaseName("a_declared_later_intersection_source_remains_authoritative"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Intersection, true, InputSupply::MissingRight),
+        expect: refused(OperatingError::NotRead, [1, 1]),
+    },
+    Case {
+        name: CaseName("a_declared_later_difference_source_remains_authoritative"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Difference, true, InputSupply::MissingRight),
+        expect: refused(OperatingError::NotRead, [1, 1]),
     },
     Case {
         name: CaseName("valid_populations_and_exact_snapshot_identity_are_preserved"),
         word: Word::Succeeds,
-        input: || valid_populations_and_generation_binding,
-        expect: Expect::Value(()),
+        input: || admission(OperationKind::Select, false, InputSupply::Present),
+        expect: answered(2, &[1, 2], [4, 0]),
+    },
+    Case {
+        name: CaseName("a_valid_projection_keeps_both_node_rows"),
+        word: Word::Succeeds,
+        input: || admission(OperationKind::Project, false, InputSupply::Present),
+        expect: answered(2, &[1, 2], [4, 0]),
+    },
+    Case {
+        name: CaseName("a_valid_join_pairs_every_row"),
+        word: Word::Succeeds,
+        input: || admission(OperationKind::Join, false, InputSupply::Present),
+        expect: answered(4, &[1, 1, 1, 2, 2, 1, 2, 2], [3, 3]),
+    },
+    Case {
+        name: CaseName("a_valid_union_keeps_both_rows"),
+        word: Word::Succeeds,
+        input: || admission(OperationKind::Union, false, InputSupply::Present),
+        expect: answered(2, &[1, 2], [4, 0]),
+    },
+    Case {
+        name: CaseName("a_valid_intersection_keeps_both_rows"),
+        word: Word::Succeeds,
+        input: || admission(OperationKind::Intersection, false, InputSupply::Present),
+        expect: answered(2, &[1, 2], [4, 0]),
+    },
+    Case {
+        name: CaseName("a_valid_difference_of_a_source_with_itself_is_empty"),
+        word: Word::Succeeds,
+        input: || admission(OperationKind::Difference, false, InputSupply::Present),
+        expect: answered(0, &[], [4, 0]),
+    },
+    Case {
+        name: CaseName("a_matching_schema_does_not_replace_the_sources_physical_identity"),
+        word: Word::Refuses,
+        input: || admission(OperationKind::Project, false, InputSupply::Changed),
+        expect: refused(OperatingError::NotRead, [2, 0]),
     },
 ];
-fn subject(case: Input) -> Result<Value, Failure> {
-    case();
-    Ok(())
+fn subject(input: Input) -> Result<Value, Failure> {
+    let (result, reads) = execute(
+        inputs::plan(vec![operation(input.kind, input.invalid)]),
+        input.invalid,
+        input.supply,
+    );
+    observed(result, reads)
 }
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

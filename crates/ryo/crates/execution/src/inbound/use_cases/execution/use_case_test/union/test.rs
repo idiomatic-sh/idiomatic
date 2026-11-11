@@ -1,7 +1,7 @@
 //! Both authored union associations must publish the same exact distinct findings.
 use super::super::super::fixtures;
 use crate::inbound::use_cases::execution::interface::OperatingError;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::{
@@ -11,8 +11,17 @@ use ryo_values::{
         plans::types::Operation,
     },
 };
+use std::borrow::Cow;
 type Input = ();
-type Value = bool;
+/// What the balanced and the left-deep unions published: their row counts, whether their cells are the same, and the
+/// balanced union's numbers in order.
+#[derive(Debug, PartialEq, Eq)]
+struct Unions {
+    rows: [usize; 2],
+    same_cells: bool,
+    numbers: Cow<'static, [i64]>,
+}
+type Value = Unions;
 type Failure = OperatingError;
 fn subject((): Input) -> Result<Value, Failure> {
     let hosts = vec![
@@ -68,24 +77,31 @@ fn subject((): Input) -> Result<Value, Failure> {
         hosts,
         &mut Symbols::default(),
     )?;
-    assert_eq!(balanced.count, left_deep.count);
-    assert_eq!(balanced.cells, left_deep.cells);
-    assert_eq!(
-        balanced.cells,
-        [
-            Cell::Number(Integer(1)),
-            Cell::Number(Integer(2)),
-            Cell::Number(Integer(3))
-        ]
-    );
-    assert_eq!(balanced.count.0, 3);
-    Ok(true)
+    Ok(Unions {
+        rows: [balanced.count.0, left_deep.count.0],
+        same_cells: balanced.cells == left_deep.cells,
+        numbers: balanced
+            .cells
+            .iter()
+            .filter_map(|cell| {
+                if let Cell::Number(number) = cell {
+                    Some(number.0)
+                } else {
+                    None
+                }
+            })
+            .collect(),
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("repeated_or_alternatives_are_one_finding_in_balanced_or_left_deep_order"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(true),
+    expect: Expect::Value(Unions {
+        rows: [3, 3],
+        same_cells: true,
+        numbers: Cow::Borrowed(&[1, 2, 3]),
+    }),
 }];
 #[test]
 fn succeeds() {

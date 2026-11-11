@@ -6,7 +6,7 @@ use ryo_execution_domain::domain::{
     table_cells::types::{TreeForm, TreeRows},
     table_model::{service::kinds_of, types::Rows},
 };
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
 use ryo_language::domain::{
     elements::types::Elements,
@@ -27,13 +27,31 @@ use ryo_values::{
         rows::{service::push_row, types::Table},
     },
 };
-#[derive(Clone, Copy)]
-enum Scenario {
-    NativeAxis,
-    NativeJoinView,
+use std::borrow::Cow;
+/// The native traversal a row projects through: a descendant axis or a join with a view.
+#[derive(Clone, Copy, Debug)]
+enum Traversal {
+    Axis,
+    JoinView,
 }
-type Input = Scenario;
-type Value = usize;
+
+/// What one run answered: the schema computed for the traversal, the kinds it published, and its rows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Shape {
+    schema: Cow<'static, [CellKind]>,
+    published: Cow<'static, [CellKind]>,
+    rows: usize,
+}
+
+/// The traversal from the root node, and from no node.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Projected {
+    from_root: Shape,
+    from_nothing: Shape,
+}
+
+type Input = Traversal;
+type Value = Projected;
 type Failure = OperatingError;
 const FROM: Source = Source::Relation(Relation::SyntaxTree);
 fn column(index: u32) -> ColumnIndex {
@@ -84,8 +102,8 @@ fn native_tree() -> (Elements, Symbols) {
 }
 
 /// Representation-sensitive projection metadata used by native execution fixtures.
-fn native_operation(scenario: Scenario) -> Operation {
-    if matches!(scenario, Scenario::NativeAxis) {
+fn native_operation(traversal: Traversal) -> Operation {
+    if matches!(traversal, Traversal::Axis) {
         let mut operation = axis();
         if let Operation::Axis { output, .. } = &mut operation {
             *output = vec![
@@ -128,7 +146,8 @@ fn native_operation(scenario: Scenario) -> Operation {
     }
 }
 
-fn native(scenario: Scenario) -> Result<Value, Failure> {
+/// Computes the traversal's schema and runs it over the native tree, from the root and from no node.
+fn native(traversal: Traversal) -> Result<Value, Failure> {
     let (elements, mut symbols) = native_tree();
     let mut starts = Table {
         kinds: vec![CellKind::Node],
@@ -145,13 +164,14 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
         file: FileId(0),
         form: TreeForm::Edges,
     });
-    let operation = native_operation(scenario);
+    let operation = native_operation(traversal);
+    let mut shapes = Vec::new();
     for empty in [false, true] {
         if empty {
             starts.cells.clear();
             starts.count.0 = 0;
         }
-        let rows = if matches!(scenario, Scenario::NativeAxis) {
+        let rows = if matches!(traversal, Traversal::Axis) {
             vec![Rows::Computed(&starts), edges.clone(), reached.clone()]
         } else {
             vec![Rows::Computed(&starts), reached.clone()]
@@ -214,34 +234,54 @@ fn native(scenario: Scenario) -> Result<Value, Failure> {
             &elements,
             &mut symbols,
         )?;
-        assert_eq!(answer, output.kinds);
-        if !empty {
-            assert!(output.count.0 > 0);
-        }
+        shapes.push(Shape {
+            schema: Cow::Owned(answer.to_vec()),
+            published: Cow::Owned(output.kinds.clone()),
+            rows: output.count.0,
+        });
     }
-    Ok(if matches!(scenario, Scenario::NativeAxis) {
-        3
-    } else {
-        2
-    })
+    let from_nothing = shapes.pop();
+    let from_root = shapes.pop();
+    from_root
+        .zip(from_nothing)
+        .map(|(from_root, from_nothing)| Projected {
+            from_root,
+            from_nothing,
+        })
+        .ok_or(OperatingError::NotRead)
+}
+
+/// The traversal's shape: `kinds` computed and published, over `rows` rows.
+const fn shape(kinds: &'static [CellKind], rows: usize) -> Shape {
+    Shape {
+        schema: Cow::Borrowed(kinds),
+        published: Cow::Borrowed(kinds),
+        rows,
+    }
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("native_axis_projection_matches_execution"),
         word: Word::Succeeds,
-        input: || Scenario::NativeAxis,
-        expect: Expect::Value(3),
+        input: || Traversal::Axis,
+        expect: Expect::Value(Projected {
+            from_root: shape(&[CellKind::Symbol, CellKind::Node, CellKind::Symbol], 1),
+            from_nothing: shape(&[CellKind::Symbol, CellKind::Node, CellKind::Symbol], 0),
+        }),
     },
     Case {
         name: CaseName("native_join_view_matches_execution"),
         word: Word::Succeeds,
-        input: || Scenario::NativeJoinView,
-        expect: Expect::Value(2),
+        input: || Traversal::JoinView,
+        expect: Expect::Value(Projected {
+            from_root: shape(&[CellKind::Node, CellKind::Node], 1),
+            from_nothing: shape(&[CellKind::Node, CellKind::Node], 0),
+        }),
     },
 ];
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    native(scenario)
+fn subject(traversal: Input) -> Result<Value, Failure> {
+    native(traversal)
 }
 #[test]
 fn succeeds() {

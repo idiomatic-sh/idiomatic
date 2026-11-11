@@ -7,15 +7,35 @@ use ryo_values::domain::{
     query_bindings::types::ParameterBinding,
     rows::types::{RowCount, Table},
 };
-#[derive(Clone, Copy)]
-enum Scenario {
-    BoundExecution,
-    DynamicExecution,
+use std::borrow::Cow;
+
+/// Where the invalid regex `[` comes from.
+#[derive(Clone, Copy, Debug)]
+enum Pattern {
+    /// A bound parameter.
+    Bound,
+    /// The row's second column.
+    Row,
 }
-type Input = Scenario;
-type Value = usize;
+
+/// What the select of `matches(column 0, pattern)` shows: the schema it is given, the rows it
+/// answers over an empty table, and the regex compiler's reason when a row reaches it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Lazy {
+    schema: Cow<'static, [CellKind]>,
+    empty_rows: usize,
+    invalid_regex: Option<Cow<'static, str>>,
+}
+
+/// The regex compiler's reason for `[`.
+const UNCLOSED_CLASS: &str = "regex parse error:\n    [\n    ^\nerror: unclosed character class";
+
+type Input = Pattern;
+type Value = Lazy;
 type Failure = OperatingError;
-fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
+
+/// Selects function rows whose first column matches the pattern, first over no rows, then over one.
+fn execution_boundary(pattern: Pattern) -> Result<Value, Failure> {
     use ryo_execution_domain::domain::operation_schema::{service::schema_of, types::InputShape};
     use ryo_language::domain::symbols::{
         service::intern_derived,
@@ -27,7 +47,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
     let mut symbols = Symbols::default();
     let word = intern_derived(&mut symbols, ByteSlice(b""), NameText("word"));
     let bad = intern_derived(&mut symbols, ByteSlice(b""), NameText("["));
-    let dynamic = matches!(scenario, Scenario::DynamicExecution);
+    let dynamic = matches!(pattern, Pattern::Row);
     let kinds: &'static [CellKind] = if dynamic {
         &[CellKind::Symbol, CellKind::Symbol]
     } else {
@@ -53,7 +73,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         kinds: &kinds,
         tree: None,
     }];
-    assert_eq!(schema_of(&operation, &metadata, &bindings)?, kinds);
+    let schema = schema_of(&operation, &metadata, &bindings)?;
     let empty = Table {
         kinds: kinds.to_vec(),
         ..Table::default()
@@ -64,7 +84,7 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         bindings.to_vec(),
         &mut symbols,
     )?;
-    assert_eq!(answer.count.0, 0);
+
     let populated = Table {
         kinds: kinds.to_vec(),
         count: RowCount(1),
@@ -80,26 +100,42 @@ fn execution_boundary(scenario: Scenario) -> Result<Value, Failure> {
         bindings.to_vec(),
         &mut symbols,
     );
-    assert!(matches!(reached, Err(OperatingError::InvalidRegex { .. })));
-    Ok(2)
+    let invalid_regex = match reached.err() {
+        Some(OperatingError::InvalidRegex { reason }) => Some(Cow::Owned(reason)),
+        Some(other) => return Err(other),
+        None => None,
+    };
+    Ok(Lazy {
+        schema: Cow::Owned(schema.to_vec()),
+        empty_rows: answer.count.0,
+        invalid_regex,
+    })
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("bound_regex_fails_only_when_its_row_is_executed"),
         word: Word::Succeeds,
-        input: || Scenario::BoundExecution,
-        expect: Expect::Value(2),
+        input: || Pattern::Bound,
+        expect: Expect::Value(Lazy {
+            schema: Cow::Borrowed(&[CellKind::Symbol]),
+            empty_rows: 0,
+            invalid_regex: Some(Cow::Borrowed(UNCLOSED_CLASS)),
+        }),
     },
     Case {
         name: CaseName("row_regex_fails_only_when_its_row_is_executed"),
         word: Word::Succeeds,
-        input: || Scenario::DynamicExecution,
-        expect: Expect::Value(2),
+        input: || Pattern::Row,
+        expect: Expect::Value(Lazy {
+            schema: Cow::Borrowed(&[CellKind::Symbol, CellKind::Symbol]),
+            empty_rows: 0,
+            invalid_regex: Some(Cow::Borrowed(UNCLOSED_CLASS)),
+        }),
     },
 ];
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    execution_boundary(scenario)
+fn subject(pattern: Input) -> Result<Value, Failure> {
+    execution_boundary(pattern)
 }
 #[test]
 fn succeeds() {

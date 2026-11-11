@@ -1,40 +1,47 @@
 //! Authored request assembly, for the use case's own tests: every operation runs through the public execution owner.
 
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
-use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
-use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
-use crate::inbound::use_cases::execution::interface::OperatingError;
-use crate::inbound::use_cases::execution::interface::{ExecutionUseCase, CaptureIntent, DiagnosticDelivery, FileRuleIntent, ObservationDemand, RuleIndex};
-use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
-use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
-use std::collections::BTreeMap;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use super::{derived, operators};
-use ryo_execution_store::application::file_dag::derived::owner::types::DerivedAccess;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
-use ryo_execution_store::outbound::derived::interface::DerivedPort;
-use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::inbound::use_cases::execution::interface::OperatingError;
+use crate::inbound::use_cases::execution::interface::{
+    CaptureIntent, DiagnosticDelivery, ExecutionUseCase, FileRuleIntent, ObservationDemand,
+    RuleIndex,
+};
+use crate::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use crate::inbound::use_cases::prepare::interface::ObservationIdentity;
-use ryo_language::domain::completion::service::{completion, name_kind};
+use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs::table_inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::{
+    FileInput, SourceLanguage, SourceRows,
+};
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
+use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
+use ryo_execution_store::outbound::derived::interface::DerivedPort;
 use ryo_language::domain::builders::service::{enter_node, leave_node, table_builder, token};
+use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
-use ryo_relations::domain::relations::types::{FileId, Relation, KindBits, Offset};
+use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Relation};
 use ryo_relations::domain::terms::types::NameText;
-use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds};
+use ryo_values::domain::files::types::{
+    CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
+};
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId};
 use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
+use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 use ryo_values::domain::stored_facts::types::Digest;
 use std::cell::Cell;
+use std::collections::BTreeMap;
 use std::sync::Arc;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::table_inputs;
 
 pub(crate) fn published(
     plan: Plan,
@@ -57,13 +64,11 @@ pub(crate) fn published_file(
         reads.set(reads.get() + 1);
         Err(OperatingError::NotRead)
     };
+    // Request-only and tree fixtures have no catalog provider: a run that demanded one answers the read's refusal,
+    // even when it went on to publish.
     let result = published_from(plan, bindings, hosted, source, elements, symbols, &read);
-    if result.is_ok() {
-        assert_eq!(
-            reads.get(),
-            0,
-            "request-only/tree fixtures never demand a forged catalog provider"
-        );
+    if reads.get() > 0 {
+        return Err(result.err().unwrap_or(OperatingError::NotRead));
     }
     result
 }

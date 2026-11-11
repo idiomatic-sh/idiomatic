@@ -28,7 +28,7 @@ use crate::domain::workers::types::Gating;
 use crate::outbound::language::types::FileReading;
 use crate::outbound::language::types::FileToRead;
 use crate::outbound::language::types::SourceSelection;
-use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
+use ryo_execution::inbound::use_cases::execution::interface::ProgramPreparedExecutionPort as _;
 use ryo_execution::inbound::use_cases::execution::interface::SemanticNeed;
 use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;

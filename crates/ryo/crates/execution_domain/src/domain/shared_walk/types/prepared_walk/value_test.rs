@@ -173,7 +173,7 @@ fn bound(plans: &[ryo_values::domain::plans::types::Plan]) -> PreparedWalk {
         })
         .collect::<Vec<_>>();
     let bindings = vec![vec![]; plans.len()];
-    let operators = crate::domain::file_program::service::operators::prepare(
+    let operators = crate::domain::file_program::service::operators::service::prepare(
         plans,
         &bindings,
         &[],

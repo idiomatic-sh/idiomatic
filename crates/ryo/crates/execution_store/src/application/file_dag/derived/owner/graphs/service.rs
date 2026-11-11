@@ -1,6 +1,6 @@
 //! Complete compact graph/domain acquisition under one unchanged per-file byte allowance.
 
-use super::types::reserve::types::Reserve;
+use super::reserve::types::Reserve;
 use crate::application::file_dag::derived::ledger::types::{ByteCount, SlotCount};
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
 
@@ -22,7 +22,7 @@ pub(crate) fn slot<T>(entries: &Vec<T>) -> Option<Reserve<T>> {
     {
         return None;
     }
-    let metadata = crate::application::file_dag::derived::ledger::capacity::checked::<T>(
+    let metadata = crate::application::file_dag::derived::ledger::capacity::service::checked::<T>(
         SlotCount(replacement.capacity().checked_sub(entries.capacity())?),
     )?;
     Some(Reserve {

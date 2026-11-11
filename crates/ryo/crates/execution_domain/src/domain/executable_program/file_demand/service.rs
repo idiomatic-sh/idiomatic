@@ -5,6 +5,8 @@ use super::super::types::{
     FileReaderGraph, InputSource, ObservationPlace, RegionId, RemainingTable, RuleProgram,
 };
 use super::types::*;
+use crate::domain::executable_program::types::absent_roots::value::AbsentRoots;
+use crate::domain::executable_program::types::file_rule_demand::value::FileRuleDemand;
 use crate::domain::operator::types::ReaderMultiplicity;
 use crate::domain::rule_intent::types::FrontierPurpose;
 use crate::domain::{coverage::types::RuleIndex, operating::errors::OperatingError};
@@ -148,10 +150,10 @@ pub fn compile(
         .map(|demand| compile_mode(program, prepared, observations, frontiers, demand))
         .collect::<Result<Vec<_>, _>>()?
         .into_boxed_slice();
-    Ok(FileRuleDemand {
-        outputs: NamedOutputCount(observations.len()),
+    Ok(FileRuleDemand::compiled(
+        NamedOutputCount(observations.len()),
         modes,
-    })
+    ))
 }
 
 /// The regions a file may select as external readers, collected once for the request.

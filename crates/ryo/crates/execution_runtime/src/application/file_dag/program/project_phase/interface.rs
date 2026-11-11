@@ -12,10 +12,10 @@ use ryo_relations::domain::relations::types::WorkerNumber;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// Project rules are collected only; no row callback delivery exists on this route.
 /// ```compile_fail,E0599
-/// use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution;
+/// use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort;
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::{
-///     interface::{ProjectRootExecution, ProjectStage},
-///     types::ProjectPhase,
+///     interface::{ProjectRootExecution, ProgramProjectPhasePort},
+///     service::ProjectPhase,
 /// };
 /// fn deliver(project: &mut ProjectPhase<'_>) {
 ///     project.emit_rows();
@@ -29,8 +29,8 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// The interpreter's counters are not the seam's: a caller cannot read its readiness counters,
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::{
-///     interface::{ProjectRootExecution, ProjectStage},
-///     types::ProjectPhase,
+///     interface::{ProjectRootExecution, ProgramProjectPhasePort},
+///     service::ProjectPhase,
 /// };
 /// fn readiness(project: &ProjectPhase<'_>) {
 ///     let _ = project.readiness_counts();
@@ -39,8 +39,8 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 /// nor its state counters.
 /// ```compile_fail,E0599
 /// use ryo_execution_runtime::application::file_dag::program::project_phase::{
-///     interface::{ProjectRootExecution, ProjectStage},
-///     types::ProjectPhase,
+///     interface::{ProjectRootExecution, ProgramProjectPhasePort},
+///     service::ProjectPhase,
 /// };
 /// fn state(project: &ProjectPhase<'_>) {
 ///     let _ = project.state_counts();
@@ -67,7 +67,15 @@ pub trait ProjectRootExecution {
         ) -> Result<T, E>,
     ) -> ProjectBatch<Result<T, PhaseStop<E>>, E>;
 }
-pub trait ProjectStage: ProjectRootExecution {
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort;
+/// fn phase(phase: &mut impl ProgramProjectPhasePort) {
+///     let _ = phase;
+/// }
+/// ```
+pub trait ProgramProjectPhasePort: ProjectRootExecution {
     /// Ends the phase, finishing its publication.
     ///
     /// # Errors

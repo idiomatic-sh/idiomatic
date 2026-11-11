@@ -10,6 +10,13 @@ use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 
+pub mod axis_walk;
+pub mod graph_lookups;
+pub mod graph_walks;
+pub mod join_candidates;
+pub mod lease_driver;
+pub mod row_delivery;
+
 /// How many rows a step was fed: the rows of each of its inputs, by the input's place.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RowsFed(pub [u64; 3]);

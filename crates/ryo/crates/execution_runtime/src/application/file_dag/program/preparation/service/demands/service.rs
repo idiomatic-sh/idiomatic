@@ -3,10 +3,9 @@ use crate::application::file_dag::program::preparation::types::{
     ObservationMetadata, RuleMetadata,
 };
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
-use ryo_execution_domain::domain::executable_program::file_demand::types::{
-    FileRuleDemand, ObservationDemandSource,
-};
+use ryo_execution_domain::domain::executable_program::file_demand::types::ObservationDemandSource;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
+use ryo_execution_domain::domain::executable_program::types::file_rule_demand::value::FileRuleDemand;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::records::types::ObservationIndex;
 
@@ -69,7 +68,7 @@ pub(crate) fn frontier_outputs(
 pub(crate) fn derived_needs(
     program: &ExecutableProgram,
 ) -> Result<
-    Box<[ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds]>,
+    Box<[ryo_execution_store::application::file_dag::derived::prepared::types::RuleDerivedNeeds]>,
     OperatingError,
 > {
     let mut needs = Vec::with_capacity(program.rules().len());
@@ -119,7 +118,7 @@ pub(crate) fn derived_needs(
             );
         }
         needs.push(
-            ryo_execution_store::application::file_dag::derived::prepared::RuleDerivedNeeds {
+            ryo_execution_store::application::file_dag::derived::prepared::types::RuleDerivedNeeds {
                 relations: reads.into_boxed_slice(),
                 graph: if graph {
                     ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission::Enabled

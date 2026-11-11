@@ -54,9 +54,9 @@ workspace = true
 
 [[test]]
 name = "boundary_contract"
-path = "tests/test.rs"
+path = "tests/boundary_contract/main.rs"
 
 [[test]]
 name = "activation"
-path = "tests/activation/test.rs"
+path = "tests/activation/main.rs"
 harness = false

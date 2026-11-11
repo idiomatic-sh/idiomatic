@@ -3,7 +3,6 @@
 use crate::application::file_dag::derived::ledger::types::ByteCount;
 use crate::application::file_dag::derived::owner::index::types::ByteLimit;
 use crate::application::file_dag::derived::owner::types::{BuildCount, RefusalCount, ReuseCount};
-use ryo_execution_domain::domain::stored_graph::types::{ExaminedVertices, ExpandedVertices};
 use ryo_relations::domain::relations::types::Relation;
 
 /// Whether an eligible graph consumer may request bounded adjacency admission.
@@ -35,17 +34,14 @@ pub(crate) struct CacheBackend {
     /// Successful root and nearest memo payload admitted within its smaller sub-budget.
     pub(in crate::application::file_dag::derived::owner) memo_bytes: ByteCount,
     /// Complete immutable graph populations.
-    pub(in crate::application::file_dag::derived::owner) graphs: Vec<
-        crate::application::file_dag::derived::owner::graphs::types::retained::types::GraphEntry,
-    >,
+    pub(in crate::application::file_dag::derived::owner) graphs:
+        Vec<crate::application::file_dag::derived::owner::graphs::retained::types::GraphEntry>,
     /// Exact stable domain memberships.
-    pub(in crate::application::file_dag::derived::owner) graph_domains: Vec<
-        crate::application::file_dag::derived::owner::graphs::types::retained::types::DomainEntry,
-    >,
+    pub(in crate::application::file_dag::derived::owner) graph_domains:
+        Vec<crate::application::file_dag::derived::owner::graphs::retained::types::DomainEntry>,
     /// Mutable nearest answers remain owned by this generation.
-    pub(in crate::application::file_dag::derived::owner) nearest: Vec<
-        crate::application::file_dag::derived::owner::graphs::types::retained::types::NearestMemo,
-    >,
+    pub(in crate::application::file_dag::derived::owner) nearest:
+        Vec<crate::application::file_dag::derived::owner::graphs::retained::types::NearestMemo>,
     /// Aggregate requested/traversed work and graph admission accounting.
     pub(in crate::application::file_dag::derived::owner) graph_counts:
         ryo_execution_domain::domain::stored_graph::types::GraphCounts,
@@ -61,15 +57,4 @@ pub(crate) struct CacheBackend {
     pub(in crate::application::file_dag::derived::owner) reuses: ReuseCount,
     /// Eligible requests whose index could not be retained within the bound.
     pub(in crate::application::file_dag::derived::owner) refusals: RefusalCount,
-}
-
-impl CacheBackend {
-    pub(crate) fn observe_graph_walk(
-        &mut self,
-        expanded: ExpandedVertices,
-        examined: ExaminedVertices,
-    ) {
-        self.graph_counts.expanded.0 += expanded.0;
-        self.graph_counts.examined.0 += examined.0;
-    }
 }

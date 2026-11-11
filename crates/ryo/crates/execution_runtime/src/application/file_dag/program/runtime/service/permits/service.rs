@@ -1,15 +1,14 @@
 //! Kernel, semantic and physical permits issued from an admitted invocation.
 use super::super::{BoundInputs, KernelAdmission, KernelPermit, ProgramExecution, SemanticPermit};
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::ProducerRoot;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::types::ProducerRoot;
 use crate::application::file_dag::program::runtime::types::InstructionIndex;
 use ryo_execution_domain::domain::executable_program::types::InputId;
 use ryo_execution_domain::domain::executable_program::types::InputSource;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
-use std::sync::Arc;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 
 impl<'scope> KernelPermit<'scope> {
     pub(crate) fn code(

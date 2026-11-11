@@ -11,60 +11,87 @@ use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset};
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::rows::types::{RowCount, Table};
-fn reads_the_elements_and_the_edges_of_a_tree() -> Result<(), OperatingError> {
-    let bytes = "é".as_bytes();
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
-    enter_node(&mut builder, KindBits(0), Offset(0));
-    token(&mut builder, KindBits(1), Offset(0), Offset(2));
-    leave_node(&mut builder, Offset(2));
-    let mut named = completion(&mut elements, &mut symbols, ByteSlice(bytes), FileId(7));
-    name_kind(&mut named, KindBits(0), NameText("module"));
-    name_kind(&mut named, KindBits(1), NameText("name"));
-    for (form, rows) in [
-        (TreeForm::Elements, RowCount(2)),
-        (TreeForm::Edges, RowCount(1)),
-    ] {
-        let raw = RepresentationInput::Tree(TreeRows {
-            elements: &elements,
-            file: FileId(7),
-            form,
-        });
-        let contract = TreeItem.prepare(raw)?;
-        assert_eq!(contract.rows, rows);
-        assert_eq!(TreeItem.inspect(&contract)?, PhysicalShape::Complete);
-    }
-    Ok(())
-}
-fn refuses_a_computed_table() -> Result<(), OperatingError> {
-    let table = Table::default();
-    TreeItem
-        .bulk(RepresentationInput::Computed(&table))
-        .map(|_| ())
+
+/// The rows the tree item is offered.
+#[derive(Clone, Copy, Debug)]
+enum Offered {
+    /// The rows of one form of the tree of a module holding one name token `é`.
+    Tree(TreeForm),
+    /// An empty table an earlier step computed.
+    Computed,
 }
 
-use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-type Input = fn() -> Result<(), OperatingError>;
-type Value = ();
+/// What the item answers about the rows it admits: their count and their shape.
+#[derive(Debug, PartialEq)]
+struct Read {
+    rows: RowCount,
+    shape: PhysicalShape,
+}
+
+type Input = Offered;
+type Value = Read;
 type Failure = OperatingError;
+
+fn subject(offered: Input) -> Result<Value, Failure> {
+    match offered {
+        Offered::Tree(form) => {
+            let bytes = "é".as_bytes();
+            let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
+            let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(bytes));
+            enter_node(&mut builder, KindBits(0), Offset(0));
+            token(&mut builder, KindBits(1), Offset(0), Offset(2));
+            leave_node(&mut builder, Offset(2));
+            let mut named = completion(&mut elements, &mut symbols, ByteSlice(bytes), FileId(7));
+            name_kind(&mut named, KindBits(0), NameText("module"));
+            name_kind(&mut named, KindBits(1), NameText("name"));
+            read(RepresentationInput::Tree(TreeRows {
+                elements: &elements,
+                file: FileId(7),
+                form,
+            }))
+        }
+        Offered::Computed => read(RepresentationInput::Computed(&Table::default())),
+    }
+}
+
+/// Admits the representation in bulk, then reads its contract and its shape.
+fn read(offered: RepresentationInput<'_>) -> Result<Read, OperatingError> {
+    let raw = TreeItem.bulk(offered)?;
+    let contract = TreeItem.prepare(raw)?;
+    Ok(Read {
+        rows: contract.rows,
+        shape: TreeItem.inspect(&contract)?,
+    })
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("reads_the_elements_and_the_edges_of_a_tree"),
         word: Word::Succeeds,
-        input: || reads_the_elements_and_the_edges_of_a_tree,
-        expect: Expect::Value(()),
+        input: || Offered::Tree(TreeForm::Elements),
+        expect: Expect::Value(Read {
+            rows: RowCount(2),
+            shape: PhysicalShape::Complete,
+        }),
+    },
+    Case {
+        name: CaseName("reads_the_edges_of_a_tree"),
+        word: Word::Succeeds,
+        input: || Offered::Tree(TreeForm::Edges),
+        expect: Expect::Value(Read {
+            rows: RowCount(1),
+            shape: PhysicalShape::Complete,
+        }),
     },
     Case {
         name: CaseName("refuses_a_computed_table"),
         word: Word::Refuses,
-        input: || refuses_a_computed_table,
+        input: || Offered::Computed,
         expect: Expect::Error(OperatingError::WrongOperation),
     },
 ];
-fn subject(scenario: Input) -> Result<Value, Failure> {
-    scenario()
-}
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);

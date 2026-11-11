@@ -54,3 +54,5 @@ pub struct Texts<'a> {
 }
 
 use ryo_values::domain::files::types::SourceView;
+
+pub mod derived_texts;

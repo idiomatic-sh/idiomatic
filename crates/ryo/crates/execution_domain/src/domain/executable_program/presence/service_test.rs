@@ -6,7 +6,9 @@ use super::types::{FormulaId, GraphPresence, PresenceFormula, PresenceTable};
 use crate::domain::file_program::types::RequestGraph;
 use crate::domain::operating::errors::OperatingError;
 use crate::domain::operation_schema::types::InputShape;
-use crate::domain::operator::contract::presence::{InputMask, PresenceMask, RowFailure};
+use crate::domain::operator::contract::presence::{
+    types::InputMask, types::PresenceMask, types::RowFailure,
+};
 use crate::domain::operator::contract::service::{prepare_for, semantics};
 use crate::domain::operator::contract::types::EmptyRepresentation;
 use ryo_relations::domain::relations::service::kinds;
@@ -17,7 +19,8 @@ use ryo_values::domain::plan_parts::types::{
     PlanComparison, QueryLiteral, ReachLookup, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
-use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::query_operators::types::{LineOutput, OperationKind, TextOutput};
+use std::borrow::Cow;
 
 fn equal(column: u32, text: &str) -> PlanComparison {
     PlanComparison {
@@ -65,7 +68,7 @@ fn graph(
     RequestGraph,
     crate::domain::file_program::types::RequestOperators,
 ) {
-    let operators = crate::domain::file_program::service::operators::prepare(
+    let operators = crate::domain::file_program::service::operators::service::prepare(
         plans,
         &vec![vec![]; plans.len()],
         &[],
@@ -110,21 +113,6 @@ fn conjuncts(table: &PresenceTable, formula: FormulaId) -> Vec<(Relation, Vec<Pl
         PresenceFormula::Always | PresenceFormula::Any(_) => vec![],
     }
 }
-
-fn every_operation_declares_the_inputs_its_rows_need() -> Result<(), OperatingError> {
-    use OperationKind::*;
-    for kind in OperationKind::ALL {
-        let expected = match kind {
-            Join | Intersection | OrderedMatch => PresenceMask::AllOf(InputMask(3)),
-            Union => PresenceMask::AnyOf(InputMask(3)),
-            Rows | Hosted => PresenceMask::Always,
-            _ => PresenceMask::AllOf(InputMask(1)),
-        };
-        assert_eq!(semantics(*kind).presence, expected, "{kind:?}");
-    }
-    Ok(())
-}
-
 fn replace(column: u32, kinds: &[CellKind], scope: StepScope) -> RowFailure {
     prepare_for(
         OperationKind::Replace,
@@ -142,75 +130,6 @@ fn replace(column: u32, kinds: &[CellKind], scope: StepScope) -> RowFailure {
     .unwrap_or(RowFailure::OnRows(InputMask(0)))
 }
 
-fn replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column()
--> Result<(), OperatingError> {
-    let kinds = [CellKind::Node, CellKind::Symbol, CellKind::File];
-    assert_eq!(replace(1, &kinds, StepScope::PerFile), RowFailure::Never);
-    assert_eq!(replace(2, &kinds, StepScope::PerFile), RowFailure::Never);
-    assert_eq!(
-        replace(0, &kinds, StepScope::PerFile),
-        RowFailure::OnRows(InputMask(1))
-    );
-    assert_eq!(
-        replace(1, &kinds, StepScope::CrossFile),
-        RowFailure::OnRows(InputMask(1))
-    );
-    assert_eq!(
-        replace(9, &kinds, StepScope::PerFile),
-        RowFailure::OnRows(InputMask(1))
-    );
-    Ok(())
-}
-
-fn the_row_fallible_operators_name_the_inputs_whose_rows_can_err() -> Result<(), OperatingError> {
-    let kinds = kinds(Relation::Function);
-    let shape = [
-        InputShape { kinds, tree: None },
-        InputShape { kinds, tree: None },
-    ];
-    let failure = |kind: OperationKind, operation: Operation| {
-        prepare_for(kind, &operation, &shape, &[], StepScope::PerFile)
-            .map(|contract| contract.failure)
-    };
-    assert_eq!(
-        failure(
-            OperationKind::Select,
-            Operation::Select {
-                from: Source::Relation(Relation::Function),
-                comparisons: vec![],
-                kept: vec![],
-            }
-        ),
-        Ok(RowFailure::Never)
-    );
-    assert_eq!(
-        failure(
-            OperationKind::OrderedMatch,
-            Operation::OrderedMatch {
-                left: Source::Relation(Relation::Function),
-                right: Source::Relation(Relation::Function),
-                left_on: vec![],
-                right_on: vec![],
-                left_order: ColumnIndex(0),
-                right_order: ColumnIndex(0),
-                output: vec![],
-            }
-        ),
-        Ok(RowFailure::OnRows(InputMask(3)))
-    );
-    assert_eq!(
-        failure(
-            OperationKind::SpanBounds,
-            Operation::SpanBounds {
-                from: Source::Relation(Relation::Function),
-                span: ColumnIndex(0),
-            }
-        ),
-        Ok(RowFailure::OnRows(InputMask(1)))
-    );
-    Ok(())
-}
-
 /// A source search over `span` of `from`, with an optional named capture.
 fn search(from: Source, span: u32, pattern: &str, capture: Option<&str>) -> PlanStep {
     step(Operation::SourceMatches {
@@ -219,8 +138,8 @@ fn search(from: Source, span: u32, pattern: &str, capture: Option<&str>) -> Plan
         base_line: None,
         pattern: LiteralText(pattern.into()),
         capture: capture.map(|name| LiteralText(name.into())),
-        capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
-        capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
+        capture_text: TextOutput::Omitted,
+        capture_line: LineOutput::Omitted,
     })
 }
 fn project(from: Source, columns: &[u32]) -> PlanStep {
@@ -264,192 +183,510 @@ fn relied(presence: &GraphPresence) -> Vec<(Relation, Vec<u32>)> {
         .collect()
 }
 
-/// L1: a source search declares `UnlessLocated` only as a per-file step over a span column with no base line and no row
-/// error; each other case keeps its first input's rows fallible.
-fn source_matches_can_err_on_rows_unless_per_file_over_a_span_without_base_line_or_row_error()
--> Result<(), OperatingError> {
+/// The top-level shape of a skip formula, with the parts it ANDs or ORs.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Shape {
+    Always,
+    Test,
+    All(usize),
+    Any(usize),
+}
+
+/// One comparison of a presence test, as a row writes it: the test, the column on its left and the
+/// text literal on its right.
+#[derive(Clone, Debug, PartialEq)]
+struct Compared {
+    test: Test,
+    column: Option<u32>,
+    text: Option<Cow<'static, str>>,
+}
+
+/// A presence test as a row writes it: the relation it reads and its comparisons.
+type Tested = (Relation, Cow<'static, [Compared]>);
+
+/// The provider span columns a fold relies on, as (relation, columns).
+type Relied = Cow<'static, [(Relation, Cow<'static, [u32]>)]>;
+
+/// What the fold answers for the last step of a plan: whether its skip formula is the `Always` the
+/// table starts with, the formula's shape, the tests it ANDs that compare anything, and the span
+/// columns the fold relies on.
+#[derive(Debug, PartialEq)]
+struct Skip {
+    always: bool,
+    shape: Shape,
+    tests: Cow<'static, [Tested]>,
+    relied: Relied,
+}
+
+/// The operation kinds, and those whose declared presence is not the one listed for them: both
+/// inputs for a join, an intersection and an ordered match, either input for a union, none for rows
+/// and hosted, and the first input for every other kind.
+#[derive(Debug, PartialEq)]
+struct Declarations {
+    kinds: usize,
+    differing: Cow<'static, [OperationKind]>,
+}
+
+/// An operation's prepared empty-result gates: whether its presence requires all of a mask, how many
+/// gates are on any representation, and how many of those gate on an input outside the mask.
+#[derive(Debug, PartialEq)]
+struct Gates {
+    requires_all: bool,
+    any: usize,
+    outside_the_mask: usize,
+}
+
+/// Where a region's formula comes from.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Taken {
+    /// The formula of the plan's one node.
+    Node,
+    /// `Always`.
+    Always,
+    /// Some other formula.
+    Other,
+}
+
+/// The region table of three regions over the plan's one node: where each region's formula comes
+/// from, whether the node's own formula is `Always`, and the relations the first region reads.
+#[derive(Debug, PartialEq)]
+struct Regions {
+    regions: Cow<'static, [Taken]>,
+    node_always: bool,
+    reads: Cow<'static, [Relation]>,
+}
+
+/// The fault catalogue's audit: whether each list is in declaration order, the faults a row-fallible
+/// raiser does not declare, the faults a source search raises on rows and those a located proof
+/// covers, the inputs an oversized literal pattern makes fallible, and two verdicts.
+#[derive(Debug, PartialEq)]
+struct Verdicts {
+    errors_in_order: bool,
+    faults_in_order: bool,
+    undeclared: Cow<'static, [Cow<'static, str>]>,
+    searched: Cow<'static, [Cow<'static, str>]>,
+    proven: Cow<'static, [Cow<'static, str>]>,
+    oversized: Option<InputMask>,
+    not_run: Fault,
+    missing_capture: Fault,
+}
+
+/// A source search a row prepares, over column `span` of the comment relation.
+#[derive(Clone, Copy, Debug)]
+struct Searching {
+    span: u32,
+    base_line: Option<u32>,
+    capture: Option<&'static str>,
+    text: TextOutput,
+    scope: StepScope,
+}
+
+/// The first step of a plan whose second selects `never` from its column 1.
+#[derive(Clone, Copy, Debug)]
+enum Opening {
+    /// A search of the comment span with a pattern too large to compile.
+    Oversized,
+    /// A search naming a capture its pattern does not have.
+    MissingCapture,
+    /// A search naming the capture its pattern has.
+    NamedCapture,
+    /// A search appending captured text with no capture.
+    RowError,
+}
+
+/// The plans a fold row folds.
+#[derive(Clone, Copy, Debug)]
+enum Plans {
+    /// A search over the comment span, then a select of `never`.
+    ProviderSpan,
+    /// An opening step, then a select of `never`.
+    Opened(Opening),
+    /// A search of the source location span from its start line, then a select.
+    Numbered,
+    /// The noqa grammar: two head searches unioned, a codes search and a token search.
+    Noqa,
+    /// A union of a comment span and a source location span, searched, the source location shared.
+    MixedShared,
+    /// The same union with nothing shared.
+    MixedBoth,
+    /// A self join of syntax tree rows on column 3, selected for `x` on the left and `z` on the right.
+    SelfJoin,
+    /// A join of comments to syntax tree rows with this view, reach and filter, selected for `x`.
+    JoinRight {
+        view: bool,
+        reach: bool,
+        filter: bool,
+    },
+    /// A union of two selects of syntax tree rows, selected for `z`.
+    Union,
+    /// Two cross-file selects.
+    CrossFile,
+    /// A select on a column the syntax tree does not have, then a select.
+    UnknownColumn,
+    /// The span bounds of syntax tree rows, selected for `never`.
+    FallibleUpstream,
+}
+
+/// What a row asks.
+#[derive(Clone, Copy, Debug)]
+enum Asked {
+    /// Every operation kind's declared presence.
+    Declarations,
+    /// The failure of a replace over column `column` of a node, a symbol and a file column.
+    Replace(u32, StepScope),
+    /// The failure of a row-fallible operator over two function inputs.
+    Fallible(OperationKind),
+    /// The failure of a source search.
+    Search(Searching),
+    /// The fold of the plans.
+    Fold(Plans),
+    /// The empty-result gates of an operation over three syntax child inputs.
+    Gates(OperationKind),
+    /// The region table of a one-select plan.
+    Regions,
+    /// The fault catalogue's audit.
+    Verdicts,
+}
+
+/// What a row answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    Declarations(Declarations),
+    Failure(RowFailure),
+    Skip(Skip),
+    Gates(Gates),
+    Regions(Regions),
+    Verdicts(Verdicts),
+}
+
+type Input = Asked;
+type Value = Answer;
+type Failure = OperatingError;
+
+fn subject(asked: Input) -> Result<Value, Failure> {
+    Ok(match asked {
+        Asked::Declarations => Answer::Declarations(declarations()),
+        Asked::Replace(column, scope) => Answer::Failure(replace(
+            column,
+            &[CellKind::Node, CellKind::Symbol, CellKind::File],
+            scope,
+        )),
+        Asked::Fallible(kind) => Answer::Failure(fallible(kind)?),
+        Asked::Search(searching) => Answer::Failure(searched(searching)?),
+        Asked::Fold(plans) => Answer::Skip(folded(plans)),
+        Asked::Gates(kind) => Answer::Gates(gates(kind)?),
+        Asked::Regions => Answer::Regions(regions()),
+        Asked::Verdicts => Answer::Verdicts(verdicts()),
+    })
+}
+
+fn declarations() -> Declarations {
+    use OperationKind::*;
+    let differing = OperationKind::ALL
+        .iter()
+        .copied()
+        .filter(|kind| {
+            let listed = match kind {
+                Join | Intersection | OrderedMatch => PresenceMask::AllOf(InputMask(3)),
+                Union => PresenceMask::AnyOf(InputMask(3)),
+                Rows | Hosted => PresenceMask::Always,
+                _ => PresenceMask::AllOf(InputMask(1)),
+            };
+            semantics(*kind).presence != listed
+        })
+        .collect();
+    Declarations {
+        kinds: OperationKind::ALL.len(),
+        differing,
+    }
+}
+
+fn fallible(kind: OperationKind) -> Result<RowFailure, OperatingError> {
+    let kinds = kinds(Relation::Function);
+    let shape = [
+        InputShape { kinds, tree: None },
+        InputShape { kinds, tree: None },
+    ];
+    let function = Source::Relation(Relation::Function);
+    let operation = match kind {
+        OperationKind::OrderedMatch => Operation::OrderedMatch {
+            left: function,
+            right: function,
+            left_on: vec![],
+            right_on: vec![],
+            left_order: ColumnIndex(0),
+            right_order: ColumnIndex(0),
+            output: vec![],
+        },
+        OperationKind::SpanBounds => Operation::SpanBounds {
+            from: function,
+            span: ColumnIndex(0),
+        },
+        _ => Operation::Select {
+            from: function,
+            comparisons: vec![],
+            kept: vec![],
+        },
+    };
+    prepare_for(kind, &operation, &shape, &[], StepScope::PerFile).map(|contract| contract.failure)
+}
+
+fn searched(searching: Searching) -> Result<RowFailure, OperatingError> {
     let kinds = kinds(Relation::Comment);
     let shape = [InputShape { kinds, tree: None }];
-    let failure = |operation: Operation, scope: StepScope| {
-        prepare_for(OperationKind::SourceMatches, &operation, &shape, &[], scope)
-            .map(|contract| contract.failure)
-    };
-    let searching =
-        |span: u32,
-         base_line: Option<u32>,
-         capture: Option<&str>,
-         capture_text: ryo_values::domain::query_operators::types::TextOutput| {
-            Operation::SourceMatches {
-                from: Source::Relation(Relation::Comment),
-                span: ColumnIndex(span),
-                base_line: base_line.map(ColumnIndex),
-                pattern: LiteralText("a".into()),
-                capture: capture.map(|name| LiteralText(name.into())),
-                capture_text,
-                capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
-            }
-        };
-    use ryo_values::domain::query_operators::types::TextOutput::{Appended, Omitted};
-    assert_eq!(
-        failure(searching(3, None, Some("x"), Appended), StepScope::PerFile),
-        Ok(RowFailure::UnlessLocated(ColumnIndex(3)))
-    );
-    // A cross-file step.
-    assert_eq!(
-        failure(searching(3, None, None, Omitted), StepScope::CrossFile),
-        Ok(RowFailure::OnRows(InputMask(1)))
-    );
-    // A base line, read from the row, can be below one.
-    assert_eq!(
-        failure(searching(3, Some(0), None, Omitted), StepScope::PerFile),
-        Ok(RowFailure::OnRows(InputMask(1)))
-    );
-    // A row error: captured text appended with no capture.
-    assert_eq!(
-        failure(searching(3, None, None, Appended), StepScope::PerFile),
-        Ok(RowFailure::OnRows(InputMask(1)))
-    );
-    // A column that is no span.
-    assert_eq!(
-        failure(searching(1, None, None, Omitted), StepScope::PerFile),
-        Ok(RowFailure::OnRows(InputMask(1)))
-    );
-    Ok(())
-}
-
-/// L1 and L2: a search over a provider span adds no failure term, so a narrowing downstream decides the skip on its own,
-/// and the table lists the span column the file must validate.
-fn a_search_over_a_provider_span_adds_no_failure_term() -> Result<(), OperatingError> {
-    let plans = [plan(vec![
-        search(Source::Relation(Relation::Comment), 3, "a", None),
-        select(at(0), vec![equal(1, "never")]),
-    ])];
-    let presence = fold_sharing(&plans, None);
-    let formula = last(&presence, &plans);
-    assert!(
-        matches!(&presence.table.formulas[formula.0], PresenceFormula::All(_)),
-        "no failure term is OR-ed in: {:?}",
-        presence.table.formulas[formula.0]
-    );
-    assert_eq!(relied(&presence), vec![(Relation::Comment, vec![3])]);
-    Ok(())
-}
-
-/// L1: an oversized pattern, a missing named capture, a base line or a row error each keep the failure term.
-fn a_search_that_can_still_fail_keeps_its_failure_term() -> Result<(), OperatingError> {
-    let open = |first: PlanStep| {
-        let plans = [plan(vec![first, select(at(0), vec![equal(1, "never")])])];
-        let presence = fold_sharing(&plans, None);
-        let formula = last(&presence, &plans);
-        (
-            matches!(&presence.table.formulas[formula.0], PresenceFormula::Any(_)),
-            relied(&presence),
-        )
-    };
-    let from = Source::Relation(Relation::Comment);
-    assert_eq!(
-        open(search(from, 3, r"\w{1000}{1000}", None)),
-        (true, vec![])
-    );
-    assert_eq!(open(search(from, 3, "(?P<x>a)", Some("y"))), (true, vec![]));
-    assert_eq!(
-        open(search(from, 3, "(?P<x>a)", Some("x"))),
-        (false, vec![(Relation::Comment, vec![3])])
-    );
-    // A base line: the start line of a source location.
-    let numbered = [plan(vec![
-        step(Operation::SourceMatches {
-            from: Source::Relation(Relation::SourceLocation),
-            span: ColumnIndex(2),
-            base_line: Some(ColumnIndex(3)),
-            pattern: LiteralText("a".into()),
-            capture: None,
-            capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
-            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
-        }),
-        select(at(0), vec![]),
-    ])];
-    let presence = fold_sharing(&numbered, None);
-    assert_ne!(
-        last(&presence, &numbered),
-        ALWAYS,
-        "the plan is conditional"
-    );
-    assert_eq!(relied(&presence), vec![]);
-    let row_error = step(Operation::SourceMatches {
-        from,
-        span: ColumnIndex(3),
-        base_line: None,
+    let operation = Operation::SourceMatches {
+        from: Source::Relation(Relation::Comment),
+        span: ColumnIndex(searching.span),
+        base_line: searching.base_line.map(ColumnIndex),
         pattern: LiteralText("a".into()),
-        capture: None,
-        capture_text: ryo_values::domain::query_operators::types::TextOutput::Appended,
-        capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
-    });
-    assert_eq!(open(row_error), (true, vec![]));
-    Ok(())
+        capture: searching.capture.map(|name| LiteralText(name.into())),
+        capture_text: searching.text,
+        capture_line: LineOutput::Omitted,
+    };
+    prepare_for(
+        OperationKind::SourceMatches,
+        &operation,
+        &shape,
+        &[],
+        searching.scope,
+    )
+    .map(|contract| contract.failure)
 }
 
-/// L2: the noqa grammar's shape. Heads are two searches over the comment span, unioned; codes search the heads' capture
-/// span, and tokens the codes' capture span. Each is located, so no search adds a failure term; a union with a side read
-/// from the project is not located, and its search keeps the term.
-fn located_spans_pass_a_union_of_located_sides() -> Result<(), OperatingError> {
+/// The plans of a fold row, and the relation read from the project.
+fn plans_of(plans: Plans) -> (Vec<Plan>, Option<Relation>) {
     let comment = Source::Relation(Relation::Comment);
-    // Steps 0-3: the heads, comment columns 0-4 then marker 5 and suffix span 6.
-    let heads = vec![
-        search(comment, 3, "#(?P<suffix>.*)$", Some("suffix")),
-        search(comment, 3, "#:(?P<suffix>.*)$", Some("suffix")),
-        project(at(0), &[0, 2, 5, 6]),
-        project(at(1), &[0, 2, 5, 6]),
-        step(Operation::Union {
-            left: at(2),
-            right: at(3),
-        }),
-    ];
-    let mut codes = heads.clone();
-    codes.extend([
-        // The codes list over the suffix span: columns 0-3, then list 4 and codes span 5.
-        search(at(4), 3, "^:(?P<codes>.*)$", Some("codes")),
-        // A token over the codes span.
-        search(at(5), 5, "(?P<code>[A-Z]+[0-9]+)", Some("code")),
-        select(at(6), vec![]),
-    ]);
-    let plans = [plan(codes)];
-    let presence = fold_sharing(&plans, None);
-    assert_eq!(relied(&presence), vec![(Relation::Comment, vec![3])]);
-    let formula = last(&presence, &plans);
-    assert!(
-        !matches!(&presence.table.formulas[formula.0], PresenceFormula::Any(_)),
-        "no search holds the skip open: {:?}",
-        presence.table.formulas[formula.0]
-    );
-    // One side read from a relation of the project: its spans are not located, and the union's are not either.
-    let mixed = [plan(vec![
-        project(comment, &[3]),
-        project(Source::Relation(Relation::SourceLocation), &[2]),
-        step(Operation::Union {
-            left: at(0),
-            right: at(1),
-        }),
-        search(at(2), 0, "a", None),
-    ])];
-    let presence = fold_sharing(&mixed, Some(Relation::SourceLocation));
-    assert_eq!(relied(&presence), vec![]);
-    let both = fold_sharing(&mixed, None);
-    assert_eq!(
-        relied(&both),
-        vec![
-            (Relation::SourceLocation, vec![2]),
-            (Relation::Comment, vec![3])
-        ]
-        .into_iter()
-        .collect::<std::collections::BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>()
-    );
-    Ok(())
+    let tree = Source::Relation(Relation::SyntaxTree);
+    let never = || select(at(0), vec![equal(1, "never")]);
+    let mixed = || {
+        vec![plan(vec![
+            project(comment, &[3]),
+            project(Source::Relation(Relation::SourceLocation), &[2]),
+            step(Operation::Union {
+                left: at(0),
+                right: at(1),
+            }),
+            search(at(2), 0, "a", None),
+        ])]
+    };
+    match plans {
+        Plans::ProviderSpan => (
+            vec![plan(vec![search(comment, 3, "a", None), never()])],
+            None,
+        ),
+        Plans::Opened(opening) => {
+            let first = match opening {
+                Opening::Oversized => search(comment, 3, r"\w{1000}{1000}", None),
+                Opening::MissingCapture => search(comment, 3, "(?P<x>a)", Some("y")),
+                Opening::NamedCapture => search(comment, 3, "(?P<x>a)", Some("x")),
+                Opening::RowError => step(Operation::SourceMatches {
+                    from: comment,
+                    span: ColumnIndex(3),
+                    base_line: None,
+                    pattern: LiteralText("a".into()),
+                    capture: None,
+                    capture_text: TextOutput::Appended,
+                    capture_line: LineOutput::Omitted,
+                }),
+            };
+            (vec![plan(vec![first, never()])], None)
+        }
+        // A base line: the start line of a source location.
+        Plans::Numbered => (
+            vec![plan(vec![
+                step(Operation::SourceMatches {
+                    from: Source::Relation(Relation::SourceLocation),
+                    span: ColumnIndex(2),
+                    base_line: Some(ColumnIndex(3)),
+                    pattern: LiteralText("a".into()),
+                    capture: None,
+                    capture_text: TextOutput::Omitted,
+                    capture_line: LineOutput::Omitted,
+                }),
+                select(at(0), vec![]),
+            ])],
+            None,
+        ),
+        Plans::Noqa => {
+            // Steps 0-3: the heads, comment columns 0-4 then marker 5 and suffix span 6.
+            let mut codes = vec![
+                search(comment, 3, "#(?P<suffix>.*)$", Some("suffix")),
+                search(comment, 3, "#:(?P<suffix>.*)$", Some("suffix")),
+                project(at(0), &[0, 2, 5, 6]),
+                project(at(1), &[0, 2, 5, 6]),
+                step(Operation::Union {
+                    left: at(2),
+                    right: at(3),
+                }),
+            ];
+            codes.extend([
+                // The codes list over the suffix span: columns 0-3, then list 4 and codes span 5.
+                search(at(4), 3, "^:(?P<codes>.*)$", Some("codes")),
+                // A token over the codes span.
+                search(at(5), 5, "(?P<code>[A-Z]+[0-9]+)", Some("code")),
+                select(at(6), vec![]),
+            ]);
+            (vec![plan(codes)], None)
+        }
+        Plans::MixedShared => (mixed(), Some(Relation::SourceLocation)),
+        Plans::MixedBoth => (mixed(), None),
+        Plans::SelfJoin => (
+            vec![plan(vec![
+                select(tree, vec![]),
+                step(Operation::Join {
+                    left: at(0),
+                    right: at(0),
+                    left_on: vec![ColumnIndex(3)],
+                    right_on: vec![ColumnIndex(3)],
+                    output: vec![
+                        JoinColumn {
+                            side: Side::Left,
+                            column: ColumnIndex(1),
+                        },
+                        JoinColumn {
+                            side: Side::Right,
+                            column: ColumnIndex(1),
+                        },
+                    ],
+                    filter: vec![],
+                    view: vec![],
+                    reach: None,
+                }),
+                select(at(1), vec![equal(0, "x"), equal(1, "z")]),
+            ])],
+            None,
+        ),
+        Plans::JoinRight {
+            view,
+            reach,
+            filter,
+        } => (
+            vec![plan(vec![
+                select(comment, vec![]),
+                step(Operation::Join {
+                    left: at(0),
+                    right: tree,
+                    left_on: vec![ColumnIndex(0)],
+                    right_on: vec![ColumnIndex(0)],
+                    output: vec![JoinColumn {
+                        side: Side::Right,
+                        column: ColumnIndex(0),
+                    }],
+                    filter: if filter { vec![equal(1, "y")] } else { vec![] },
+                    view: if view { vec![ColumnIndex(2)] } else { vec![] },
+                    reach: reach.then(|| ReachLookup {
+                        source: ColumnIndex(0),
+                        destination: ColumnIndex(1),
+                        keys: vec![],
+                        columns: vec![ColumnIndex(0), ColumnIndex(1)],
+                    }),
+                }),
+                select(at(1), vec![equal(0, "x")]),
+            ])],
+            None,
+        ),
+        Plans::Union => (
+            vec![plan(vec![
+                select(tree, vec![equal(1, "x")]),
+                select(tree, vec![equal(1, "y")]),
+                step(Operation::Union {
+                    left: at(0),
+                    right: at(1),
+                }),
+                select(at(2), vec![equal(2, "z")]),
+            ])],
+            None,
+        ),
+        Plans::CrossFile => {
+            let mut cross = plan(vec![
+                select(tree, vec![equal(1, "x")]),
+                select(at(0), vec![equal(1, "y")]),
+            ]);
+            cross.steps[0].scope = StepScope::CrossFile;
+            cross.steps[1].scope = StepScope::CrossFile;
+            (vec![cross], None)
+        }
+        Plans::UnknownColumn => (
+            vec![plan(vec![
+                select(tree, vec![equal(99, "x")]),
+                select(at(0), vec![equal(1, "y")]),
+            ])],
+            None,
+        ),
+        Plans::FallibleUpstream => (
+            vec![plan(vec![
+                select(tree, vec![]),
+                step(Operation::SpanBounds {
+                    from: at(0),
+                    span: ColumnIndex(4),
+                }),
+                select(at(1), vec![equal(1, "never")]),
+            ])],
+            None,
+        ),
+    }
 }
 
-fn every_always_gated_empty_result_lies_inside_the_presence_mask() -> Result<(), OperatingError> {
+/// A comparison as a row writes it.
+fn compared(comparison: PlanComparison) -> Compared {
+    Compared {
+        test: comparison.test,
+        column: match comparison.left {
+            Operand::Column(column) => Some(column.0),
+            _ => None,
+        },
+        text: match comparison.right {
+            Operand::Literal(QueryLiteral::Text(text)) => Some(Cow::Owned(text.0.into())),
+            _ => None,
+        },
+    }
+}
+
+/// Folds the plans: the plans that search a span fold with the request's slots declared and the
+/// shared relation read from the project; the others fold as the file program does.
+fn folded(plans: Plans) -> Skip {
+    let (plans_folded, shared) = plans_of(plans);
+    let presence = match plans {
+        Plans::ProviderSpan
+        | Plans::Opened(_)
+        | Plans::Numbered
+        | Plans::Noqa
+        | Plans::MixedShared
+        | Plans::MixedBoth => fold_sharing(&plans_folded, shared),
+        _ => fold(&plans_folded),
+    };
+    let formula = last(&presence, &plans_folded);
+    let shape = match &presence.table.formulas[formula.0] {
+        PresenceFormula::Always => Shape::Always,
+        PresenceFormula::Test(_) => Shape::Test,
+        PresenceFormula::All(parts) => Shape::All(parts.len()),
+        PresenceFormula::Any(parts) => Shape::Any(parts.len()),
+    };
+    let tests = conjuncts(&presence.table, formula)
+        .into_iter()
+        .filter(|(_, comparisons)| !comparisons.is_empty())
+        .map(|(relation, comparisons)| {
+            (
+                relation,
+                comparisons
+                    .into_iter()
+                    .map(compared)
+                    .collect::<Cow<'static, [Compared]>>(),
+            )
+        })
+        .collect();
+    Skip {
+        always: formula == ALWAYS,
+        shape,
+        tests,
+        relied: relied(&presence)
+            .into_iter()
+            .map(|(relation, columns)| (relation, Cow::Owned(columns)))
+            .collect(),
+    }
+}
+
+fn gates(kind: OperationKind) -> Result<Gates, OperatingError> {
     let node = kinds(Relation::SyntaxChild);
     let shapes = [
         InputShape {
@@ -465,17 +702,12 @@ fn every_always_gated_empty_result_lies_inside_the_presence_mask() -> Result<(),
             tree: None,
         },
     ];
-    let operations = [
-        Operation::Antijoin {
-            left: Source::Relation(Relation::SyntaxChild),
-            right: Source::Relation(Relation::SyntaxChild),
-            left_on: vec![ColumnIndex(0)],
-            right_on: vec![ColumnIndex(0)],
-        },
-        Operation::Axis {
-            from: Source::Relation(Relation::SyntaxChild),
-            edges: Source::Relation(Relation::SyntaxChild),
-            domain: Source::Relation(Relation::SyntaxChild),
+    let child = Source::Relation(Relation::SyntaxChild);
+    let operation = match kind {
+        OperationKind::Axis => Operation::Axis {
+            from: child,
+            edges: child,
+            domain: child,
             direction: ryo_values::domain::plan_parts::types::Direction::Descendant,
             id: ColumnIndex(0),
             parent: ColumnIndex(0),
@@ -485,220 +717,59 @@ fn every_always_gated_empty_result_lies_inside_the_presence_mask() -> Result<(),
             domain_view: vec![],
             output: vec![],
         },
-    ];
-    for operation in operations {
-        let kind = ryo_values::domain::plans::service::kind_of(&operation);
-        let contract = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile)
-            .expect("the contract prepares");
-        let PresenceMask::AllOf(mask) = semantics(kind).presence else {
-            panic!("{kind:?} requires its inputs");
-        };
-        for gate in &contract.empty_results {
-            if gate.representation == EmptyRepresentation::Any {
-                assert_ne!(
-                    mask.0 & (1 << gate.input.0),
-                    0,
-                    "{kind:?} gates on input {}",
-                    gate.input.0
-                );
-            }
-        }
-    }
-    Ok(())
-}
-
-/// A self join of one node: `l.kind = "x" and r.kind = "z"` needs a row of each kind, not one row with both.
-fn a_self_join_tests_each_side_on_its_own() -> Result<(), OperatingError> {
-    let plans = [plan(vec![
-        select(Source::Relation(Relation::SyntaxTree), vec![]),
-        step(Operation::Join {
-            left: at(0),
-            right: at(0),
-            left_on: vec![ColumnIndex(3)],
-            right_on: vec![ColumnIndex(3)],
-            output: vec![
-                JoinColumn {
-                    side: Side::Left,
-                    column: ColumnIndex(1),
-                },
-                JoinColumn {
-                    side: Side::Right,
-                    column: ColumnIndex(1),
-                },
-            ],
-            filter: vec![],
-            view: vec![],
-            reach: None,
-        }),
-        select(at(1), vec![equal(0, "x"), equal(1, "z")]),
-    ])];
-    let presence = fold(&plans);
-    let mut tests = conjuncts(&presence.table, last(&presence, &plans));
-    tests.retain(|(_, comparisons)| !comparisons.is_empty());
-    assert_eq!(
-        tests,
-        vec![
-            (Relation::SyntaxTree, vec![equal(1, "x")]),
-            (Relation::SyntaxTree, vec![equal(1, "z")]),
-        ]
-    );
-    Ok(())
-}
-
-/// A join's right columns resolve as its schema does: through the view over a native tree input, directly with no view,
-/// and not at all over a reach join, whose filter reads the closure's columns.
-fn join_right_columns_resolve_through_the_schema_functions() -> Result<(), OperatingError> {
-    let join = |view: Vec<ColumnIndex>, reach: Option<ReachLookup>, filter: Vec<PlanComparison>| {
-        let plans = [plan(vec![
-            select(Source::Relation(Relation::Comment), vec![]),
-            step(Operation::Join {
-                left: at(0),
-                right: Source::Relation(Relation::SyntaxTree),
-                left_on: vec![ColumnIndex(0)],
-                right_on: vec![ColumnIndex(0)],
-                output: vec![JoinColumn {
-                    side: Side::Right,
-                    column: ColumnIndex(0),
-                }],
-                filter,
-                view,
-                reach,
-            }),
-            select(at(1), vec![equal(0, "x")]),
-        ])];
-        let presence = fold(&plans);
-        let mut tests = conjuncts(&presence.table, last(&presence, &plans));
-        tests.retain(|(_, comparisons)| !comparisons.is_empty());
-        tests
+        _ => Operation::Antijoin {
+            left: child,
+            right: child,
+            left_on: vec![ColumnIndex(0)],
+            right_on: vec![ColumnIndex(0)],
+        },
     };
-    assert_eq!(
-        join(vec![ColumnIndex(2)], None, vec![]),
-        vec![(Relation::SyntaxTree, vec![equal(2, "x")])],
-        "a tree view moves the right column"
-    );
-    assert_eq!(
-        join(vec![], None, vec![]),
-        vec![(Relation::SyntaxTree, vec![equal(0, "x")])],
-        "no view reads the column itself"
-    );
-    assert_eq!(
-        join(vec![], None, vec![equal(1, "y")]),
-        vec![
-            (Relation::SyntaxTree, vec![equal(1, "y")]),
-            (Relation::SyntaxTree, vec![equal(0, "x")]),
-        ],
-        "the filter tests the raw right input"
-    );
-    let reach = ReachLookup {
-        source: ColumnIndex(0),
-        destination: ColumnIndex(1),
-        keys: vec![],
-        columns: vec![ColumnIndex(0), ColumnIndex(1)],
+    let kind = ryo_values::domain::plans::service::kind_of(&operation);
+    let contract = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile)?;
+    let (requires_all, mask) = match semantics(kind).presence {
+        PresenceMask::AllOf(mask) => (true, mask.0),
+        _ => (false, 0),
     };
-    assert_eq!(
-        join(vec![], Some(reach), vec![equal(1, "y")]),
-        vec![],
-        "a reach join's right side has no origin and its filter drops out"
-    );
-    Ok(())
+    let any = contract
+        .empty_results
+        .iter()
+        .filter(|gate| gate.representation == EmptyRepresentation::Any);
+    Ok(Gates {
+        requires_all,
+        any: any.clone().count(),
+        outside_the_mask: any.filter(|gate| mask & (1 << gate.input.0) == 0).count(),
+    })
 }
 
-/// `or` lowers to a union of selects: either branch may hold, and the union's columns have no origin.
-fn a_union_is_any_of_its_branches_and_resets_origins() -> Result<(), OperatingError> {
-    let plans = [plan(vec![
-        select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "x")]),
-        select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "y")]),
-        step(Operation::Union {
-            left: at(0),
-            right: at(1),
-        }),
-        select(at(2), vec![equal(2, "z")]),
-    ])];
-    let presence = fold(&plans);
-    let formula = last(&presence, &plans);
-    let PresenceFormula::Any(branches) = &presence.table.formulas[formula.0] else {
-        panic!(
-            "a union is any of its branches: {:?}",
-            presence.table.formulas[formula.0]
-        );
-    };
-    assert_eq!(branches.len(), 2);
-    assert!(conjuncts(&presence.table, formula).is_empty());
-    Ok(())
-}
-
-/// A cross-file step and everything downstream of it may have rows in any file, and so may a step over an invalid schema.
-fn unconditional_nodes_and_their_consumers_are_always() -> Result<(), OperatingError> {
-    let mut cross = plan(vec![
-        select(Source::Relation(Relation::SyntaxTree), vec![equal(1, "x")]),
-        select(at(0), vec![equal(1, "y")]),
-    ]);
-    cross.steps[0].scope = StepScope::CrossFile;
-    cross.steps[1].scope = StepScope::CrossFile;
-    let plans = [cross];
-    let presence = fold(&plans);
-    assert_eq!(last(&presence, &plans), ALWAYS);
-    let invalid = [plan(vec![
-        select(Source::Relation(Relation::SyntaxTree), vec![equal(99, "x")]),
-        select(at(0), vec![equal(1, "y")]),
-    ])];
-    let presence = fold(&invalid);
-    assert_eq!(last(&presence, &invalid), ALWAYS);
-    Ok(())
-}
-
-/// A row-fallible operator upstream makes the skip formula hold whenever its input could have rows, whatever follows.
-fn a_fallible_operator_upstream_holds_the_skip_formula_open() -> Result<(), OperatingError> {
-    let plans = [plan(vec![
-        select(Source::Relation(Relation::SyntaxTree), vec![]),
-        step(Operation::SpanBounds {
-            from: at(0),
-            span: ColumnIndex(4),
-        }),
-        select(at(1), vec![equal(1, "never")]),
-    ])];
-    let presence = fold(&plans);
-    let formula = last(&presence, &plans);
-    let PresenceFormula::Any(parts) = &presence.table.formulas[formula.0] else {
-        panic!(
-            "the failure term is OR-ed in: {:?}",
-            presence.table.formulas[formula.0]
-        );
-    };
-    assert_eq!(parts.len(), 2);
-    Ok(())
-}
-
-/// Each region takes its last node's formula; a synthesized region, which is no node, and a region upstream of an
-/// ordered-existence source are `Always`.
-fn the_region_table_takes_each_regions_node() -> Result<(), OperatingError> {
+fn regions() -> Regions {
     let plans = [plan(vec![select(
         Source::Relation(Relation::SyntaxTree),
         vec![equal(1, "x")],
     )])];
     let presence = fold(&plans);
     let node = super::types::FoldedNode(0);
+    let region = |node, certified| super::types::RegionNode { node, certified };
     let table = for_regions(
         presence.clone(),
         [
-            super::types::RegionNode {
-                node: Some(node),
-                certified: super::types::Certification::Free,
-            },
-            super::types::RegionNode {
-                node: None,
-                certified: super::types::Certification::Free,
-            },
-            super::types::RegionNode {
-                node: Some(node),
-                certified: super::types::Certification::Certifying,
-            },
+            region(Some(node), super::types::Certification::Free),
+            region(None, super::types::Certification::Free),
+            region(Some(node), super::types::Certification::Certifying),
         ],
     );
-    assert_eq!(&*table.regions, &[presence.nodes[0], ALWAYS, ALWAYS]);
-    assert_ne!(presence.nodes[0], ALWAYS);
-    assert_eq!(&*table.reads[0], &[Relation::SyntaxTree]);
-    Ok(())
+    Regions {
+        regions: table
+            .regions
+            .iter()
+            .map(|formula| match *formula {
+                formula if formula == presence.nodes[0] => Taken::Node,
+                ALWAYS => Taken::Always,
+                _ => Taken::Other,
+            })
+            .collect(),
+        node_always: presence.nodes[0] == ALWAYS,
+        reads: Cow::Owned(table.reads[0].to_vec()),
+    }
 }
 
 /// An operation that raises an error from what reaches it, and the condition it raises it on.
@@ -871,8 +942,8 @@ fn raising(raiser: Raiser) -> Operation {
             base_line: None,
             pattern: literal,
             capture: None,
-            capture_text: ryo_values::domain::query_operators::types::TextOutput::Omitted,
-            capture_line: ryo_values::domain::query_operators::types::LineOutput::Omitted,
+            capture_text: TextOutput::Omitted,
+            capture_line: LineOutput::Omitted,
         },
         OperationKind::OrderedDfs => Operation::OrderedDfs {
             from,
@@ -1048,15 +1119,12 @@ fn declared(raiser: Raiser, raised: Raised<'_>) -> bool {
     }; 3];
     let failure = prepare_for(kind, &operation, &shapes, &[], StepScope::PerFile)
         .map(|contract| contract.failure);
-    let rows = match failure {
-        Ok(RowFailure::OnRows(mask)) => mask != InputMask(0),
-        Ok(RowFailure::UnlessLocated(_)) => located_proof(raised).is_some(),
-        Ok(RowFailure::Never) | Err(_) => false,
-    };
+    let rows = matches!(failure, Ok(RowFailure::OnRows(mask)) if mask != InputMask(0))
+        || (matches!(failure, Ok(RowFailure::UnlessLocated(_))) && located_proof(raised).is_some());
     match raiser {
         Raiser::Rows(_) => rows,
         Raiser::Pattern(_) => {
-            rows || super::narrowing::invalid_patterns(
+            rows || super::narrowing::service::invalid_patterns(
                 &operation,
                 crate::domain::matching::types::PatternMatcher(
                     &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
@@ -1068,7 +1136,7 @@ fn declared(raiser: Raiser, raised: Raised<'_>) -> bool {
     }
 }
 
-fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
+fn verdicts() -> Verdicts {
     use ryo_operators::domain::contract::types::PortableOperatorFault;
     let reason = || String::new();
     // One instance of every variant, in declaration order: `operating_position` and `portable_position` are exhaustive,
@@ -1127,14 +1195,8 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
         PortableOperatorFault::Unbound,
         PortableOperatorFault::NotRun,
     ];
-    assert_eq!(
-        errors.iter().map(operating_position).collect::<Vec<_>>(),
-        (0..errors.len()).collect::<Vec<_>>()
-    );
-    assert_eq!(
-        faults.iter().map(portable_position).collect::<Vec<_>>(),
-        (0..faults.len()).collect::<Vec<_>>()
-    );
+    let errors_in_order = errors.iter().map(operating_position).eq(0..errors.len());
+    let faults_in_order = faults.iter().map(portable_position).eq(0..faults.len());
     let verdicts = errors
         .iter()
         .map(|error| (Raised::Operating(error), operating(error)))
@@ -1143,15 +1205,15 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
                 .iter()
                 .map(|fault| (Raised::Portable(fault), portable(fault))),
         );
+    let mut undeclared = Vec::new();
     let mut searched = Vec::new();
     let mut proven = Vec::new();
     for (raised, verdict) in verdicts {
         if let Fault::RowFallible(raisers) = verdict {
             for raiser in raisers {
-                assert!(
-                    declared(*raiser, raised),
-                    "{raiser:?} raises {raised:?} on rows and does not declare it"
-                );
+                if !declared(*raiser, raised) {
+                    undeclared.push(Cow::Owned(format!("{raiser:?} raises {raised:?}")));
+                }
             }
             if raisers.iter().any(|raiser| {
                 matches!(
@@ -1160,16 +1222,13 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
                         | Raiser::Pattern(OperationKind::SourceMatches)
                 )
             }) {
-                searched.push(format!("{raised:?}"));
+                searched.push(Cow::Owned(format!("{raised:?}")));
             }
         }
         if located_proof(raised).is_some() {
-            proven.push(format!("{raised:?}"));
+            proven.push(Cow::Owned(format!("{raised:?}")));
         }
     }
-    // The faults a source search raises on rows are exactly the faults an L-span proof covers.
-    assert_eq!(searched, proven);
-    // A literal pattern over the compiled size limit is refused at first use like a syntax error, and declared alike.
     let oversized = Operation::Select {
         from: Source::Relation(Relation::Function),
         comparisons: vec![PlanComparison {
@@ -1180,146 +1239,422 @@ fn every_fault_has_a_verdict() -> Result<(), OperatingError> {
         }],
         kept: vec![],
     };
-    assert_eq!(
-        super::narrowing::invalid_patterns(
+    Verdicts {
+        errors_in_order,
+        faults_in_order,
+        undeclared: Cow::Owned(undeclared),
+        searched: Cow::Owned(searched),
+        proven: Cow::Owned(proven),
+        oversized: super::narrowing::service::invalid_patterns(
             &oversized,
             crate::domain::matching::types::PatternMatcher(
                 &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
             ),
             &crate::domain::matching::types::prepared::value::PreparedMatchers::default(),
         ),
-        Some(InputMask(1))
-    );
-    assert_eq!(operating(&OperatingError::NotRun), Fault::Engine);
-    assert_eq!(
-        portable(&PortableOperatorFault::MissingCapture),
-        Fault::RowFallible(CAPTURE)
-    );
-    Ok(())
+        not_run: operating(&OperatingError::NotRun),
+        missing_capture: portable(&PortableOperatorFault::MissingCapture),
+    }
 }
 
-type Input = fn() -> Result<Value, Failure>;
-type Value = ();
-type Failure = OperatingError;
+/// An equality of a column and a text, as a row writes it.
+const fn eq(column: u32, text: &'static str) -> Compared {
+    Compared {
+        test: Test::Equal,
+        column: Some(column),
+        text: Some(Cow::Borrowed(text)),
+    }
+}
+
+/// The skip formula a fold answers.
+const fn skip(
+    always: bool,
+    shape: Shape,
+    tests: &'static [Tested],
+    relied: &'static [(Relation, Cow<'static, [u32]>)],
+) -> Answer {
+    Answer::Skip(Skip {
+        always,
+        shape,
+        tests: Cow::Borrowed(tests),
+        relied: Cow::Borrowed(relied),
+    })
+}
+
+/// The comment span column 3, relied on.
+const COMMENT_SPAN: &[(Relation, Cow<'static, [u32]>)] =
+    &[(Relation::Comment, Cow::Borrowed(&[3]))];
+
+/// A source search over column 3, per file, with no base line, capture or appended text.
+const fn searching(span: u32) -> Searching {
+    Searching {
+        span,
+        base_line: None,
+        capture: None,
+        text: TextOutput::Omitted,
+        scope: StepScope::PerFile,
+    }
+}
+
+/// The faults a source search raises on rows, each covered by a located proof.
+const SEARCHED: &[Cow<'static, str>] = &[
+    Cow::Borrowed("Operating(InvalidSourceMatchSpan)"),
+    Cow::Borrowed("Operating(InvalidRegex { reason: \"\" })"),
+    Cow::Borrowed("Operating(ShapeMismatch)"),
+    Cow::Borrowed("Portable(ShapeMismatch)"),
+    Cow::Borrowed("Portable(InvalidSourceMatchSpan)"),
+    Cow::Borrowed("Portable(MissingCapture)"),
+];
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(stringify!(
-            every_operation_declares_the_inputs_its_rows_need
+        name: CaseName("every_operation_declares_the_inputs_its_rows_need"),
+        word: Word::Succeeds,
+        input: || Asked::Declarations,
+        expect: Expect::Value(Answer::Declarations(Declarations {
+            kinds: 26,
+            differing: Cow::Borrowed(&[]),
+        })),
+    },
+    Case {
+        name: CaseName(
+            "replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column",
+        ),
+        word: Word::Succeeds,
+        input: || Asked::Replace(1, StepScope::PerFile),
+        expect: Expect::Value(Answer::Failure(RowFailure::Never)),
+    },
+    Case {
+        name: CaseName("a_per_file_replace_of_a_file_column_cannot_err"),
+        word: Word::Succeeds,
+        input: || Asked::Replace(2, StepScope::PerFile),
+        expect: Expect::Value(Answer::Failure(RowFailure::Never)),
+    },
+    Case {
+        name: CaseName("a_replace_of_a_node_column_can_err"),
+        word: Word::Succeeds,
+        input: || Asked::Replace(0, StepScope::PerFile),
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(1)))),
+    },
+    Case {
+        name: CaseName("a_cross_file_replace_can_err"),
+        word: Word::Succeeds,
+        input: || Asked::Replace(1, StepScope::CrossFile),
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(1)))),
+    },
+    Case {
+        name: CaseName("a_replace_of_a_column_the_input_lacks_can_err"),
+        word: Word::Succeeds,
+        input: || Asked::Replace(9, StepScope::PerFile),
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(1)))),
+    },
+    Case {
+        name: CaseName("the_row_fallible_operators_name_the_inputs_whose_rows_can_err"),
+        word: Word::Succeeds,
+        input: || Asked::Fallible(OperationKind::Select),
+        expect: Expect::Value(Answer::Failure(RowFailure::Never)),
+    },
+    Case {
+        name: CaseName("an_ordered_match_can_err_on_both_inputs"),
+        word: Word::Succeeds,
+        input: || Asked::Fallible(OperationKind::OrderedMatch),
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(3)))),
+    },
+    Case {
+        name: CaseName("span_bounds_can_err_on_its_input"),
+        word: Word::Succeeds,
+        input: || Asked::Fallible(OperationKind::SpanBounds),
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(1)))),
+    },
+    Case {
+        name: CaseName("every_always_gated_empty_result_lies_inside_the_presence_mask"),
+        word: Word::Succeeds,
+        input: || Asked::Gates(OperationKind::Antijoin),
+        expect: Expect::Value(Answer::Gates(Gates {
+            requires_all: true,
+            any: 1,
+            outside_the_mask: 0,
+        })),
+    },
+    Case {
+        name: CaseName("an_axis_gates_inside_its_presence_mask"),
+        word: Word::Succeeds,
+        input: || Asked::Gates(OperationKind::Axis),
+        expect: Expect::Value(Answer::Gates(Gates {
+            requires_all: true,
+            any: 1,
+            outside_the_mask: 0,
+        })),
+    },
+    Case {
+        name: CaseName("a_self_join_tests_each_side_on_its_own"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::SelfJoin),
+        expect: Expect::Value(skip(
+            false,
+            Shape::All(3),
+            const {
+                &[
+                    (Relation::SyntaxTree, Cow::Borrowed(const { &[eq(1, "x")] })),
+                    (Relation::SyntaxTree, Cow::Borrowed(const { &[eq(1, "z")] })),
+                ]
+            },
+            &[],
         )),
-        word: Word::Succeeds,
-        input: || every_operation_declares_the_inputs_its_rows_need,
-        expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(
-            replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column
+        name: CaseName("join_right_columns_resolve_through_the_schema_functions"),
+        word: Word::Succeeds,
+        input: || {
+            Asked::Fold(Plans::JoinRight {
+                view: true,
+                reach: false,
+                filter: false,
+            })
+        },
+        expect: Expect::Value(skip(
+            false,
+            Shape::All(2),
+            const { &[(Relation::SyntaxTree, Cow::Borrowed(const { &[eq(2, "x")] }))] },
+            &[],
         )),
-        word: Word::Succeeds,
-        input: || replace_can_err_on_rows_unless_a_per_file_step_reads_a_symbol_or_file_column,
-        expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(
-            the_row_fallible_operators_name_the_inputs_whose_rows_can_err
+        name: CaseName("a_join_with_no_view_reads_the_right_column_itself"),
+        word: Word::Succeeds,
+        input: || {
+            Asked::Fold(Plans::JoinRight {
+                view: false,
+                reach: false,
+                filter: false,
+            })
+        },
+        expect: Expect::Value(skip(
+            false,
+            Shape::All(2),
+            const { &[(Relation::SyntaxTree, Cow::Borrowed(const { &[eq(0, "x")] }))] },
+            &[],
         )),
-        word: Word::Succeeds,
-        input: || the_row_fallible_operators_name_the_inputs_whose_rows_can_err,
-        expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(
-            every_always_gated_empty_result_lies_inside_the_presence_mask
+        name: CaseName("a_join_filter_tests_the_raw_right_input"),
+        word: Word::Succeeds,
+        input: || {
+            Asked::Fold(Plans::JoinRight {
+                view: false,
+                reach: false,
+                filter: true,
+            })
+        },
+        expect: Expect::Value(skip(
+            false,
+            Shape::All(2),
+            const {
+                &[
+                    (Relation::SyntaxTree, Cow::Borrowed(const { &[eq(1, "y")] })),
+                    (Relation::SyntaxTree, Cow::Borrowed(const { &[eq(0, "x")] })),
+                ]
+            },
+            &[],
         )),
-        word: Word::Succeeds,
-        input: || every_always_gated_empty_result_lies_inside_the_presence_mask,
-        expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(a_self_join_tests_each_side_on_its_own)),
+        name: CaseName("a_reach_join_right_side_has_no_origin_and_its_filter_drops_out"),
         word: Word::Succeeds,
-        input: || a_self_join_tests_each_side_on_its_own,
-        expect: Expect::Value(()),
+        input: || {
+            Asked::Fold(Plans::JoinRight {
+                view: false,
+                reach: true,
+                filter: true,
+            })
+        },
+        expect: Expect::Value(skip(false, Shape::All(2), &[], &[])),
     },
     Case {
-        name: CaseName(stringify!(
-            join_right_columns_resolve_through_the_schema_functions
+        name: CaseName("a_union_is_any_of_its_branches_and_resets_origins"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::Union),
+        expect: Expect::Value(skip(false, Shape::Any(2), &[], &[])),
+    },
+    Case {
+        name: CaseName("unconditional_nodes_and_their_consumers_are_always"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::CrossFile),
+        expect: Expect::Value(skip(true, Shape::Always, &[], &[])),
+    },
+    Case {
+        name: CaseName("a_step_over_an_invalid_schema_and_its_consumers_are_always"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::UnknownColumn),
+        expect: Expect::Value(skip(true, Shape::Always, &[], &[])),
+    },
+    Case {
+        name: CaseName("a_fallible_operator_upstream_holds_the_skip_formula_open"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::FallibleUpstream),
+        expect: Expect::Value(skip(false, Shape::Any(2), &[], &[])),
+    },
+    Case {
+        name: CaseName("the_region_table_takes_each_regions_node"),
+        word: Word::Succeeds,
+        input: || Asked::Regions,
+        expect: Expect::Value(Answer::Regions(Regions {
+            regions: Cow::Borrowed(&[Taken::Node, Taken::Always, Taken::Always]),
+            node_always: false,
+            reads: Cow::Borrowed(&[Relation::SyntaxTree]),
+        })),
+    },
+    Case {
+        name: CaseName("every_fault_has_a_verdict"),
+        word: Word::Succeeds,
+        input: || Asked::Verdicts,
+        expect: Expect::Value(Answer::Verdicts(Verdicts {
+            errors_in_order: true,
+            faults_in_order: true,
+            undeclared: Cow::Borrowed(&[]),
+            searched: Cow::Borrowed(SEARCHED),
+            proven: Cow::Borrowed(SEARCHED),
+            oversized: Some(InputMask(1)),
+            not_run: Fault::Engine,
+            missing_capture: Fault::RowFallible(CAPTURE),
+        })),
+    },
+    Case {
+        name: CaseName(
+            "source_matches_can_err_on_rows_unless_per_file_over_a_span_without_base_line_or_row_error",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            Asked::Search(Searching {
+                capture: Some("x"),
+                text: TextOutput::Appended,
+                ..searching(3)
+            })
+        },
+        expect: Expect::Value(Answer::Failure(RowFailure::UnlessLocated(ColumnIndex(3)))),
+    },
+    Case {
+        name: CaseName("a_cross_file_search_can_err"),
+        word: Word::Succeeds,
+        input: || {
+            Asked::Search(Searching {
+                scope: StepScope::CrossFile,
+                ..searching(3)
+            })
+        },
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(1)))),
+    },
+    Case {
+        name: CaseName("a_search_from_a_base_line_read_from_the_row_can_err"),
+        word: Word::Succeeds,
+        input: || {
+            Asked::Search(Searching {
+                base_line: Some(0),
+                ..searching(3)
+            })
+        },
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(1)))),
+    },
+    Case {
+        name: CaseName("a_search_appending_text_with_no_capture_can_err"),
+        word: Word::Succeeds,
+        input: || {
+            Asked::Search(Searching {
+                text: TextOutput::Appended,
+                ..searching(3)
+            })
+        },
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(1)))),
+    },
+    Case {
+        name: CaseName("a_search_over_a_column_that_is_no_span_can_err"),
+        word: Word::Succeeds,
+        input: || Asked::Search(searching(1)),
+        expect: Expect::Value(Answer::Failure(RowFailure::OnRows(InputMask(1)))),
+    },
+    Case {
+        name: CaseName("a_search_over_a_provider_span_adds_no_failure_term"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::ProviderSpan),
+        expect: Expect::Value(skip(
+            false,
+            Shape::All(2),
+            const {
+                &[(
+                    Relation::Comment,
+                    Cow::Borrowed(const { &[eq(1, "never")] }),
+                )]
+            },
+            COMMENT_SPAN,
         )),
-        word: Word::Succeeds,
-        input: || join_right_columns_resolve_through_the_schema_functions,
-        expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(
-            a_union_is_any_of_its_branches_and_resets_origins
+        name: CaseName("a_search_that_can_still_fail_keeps_its_failure_term"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::Opened(Opening::Oversized)),
+        expect: Expect::Value(skip(false, Shape::Any(2), &[], &[])),
+    },
+    Case {
+        name: CaseName("a_search_missing_its_named_capture_keeps_its_failure_term"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::Opened(Opening::MissingCapture)),
+        expect: Expect::Value(skip(false, Shape::Any(2), &[], &[])),
+    },
+    Case {
+        name: CaseName("a_search_with_its_named_capture_adds_no_failure_term"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::Opened(Opening::NamedCapture)),
+        expect: Expect::Value(skip(
+            false,
+            Shape::All(2),
+            const {
+                &[(
+                    Relation::Comment,
+                    Cow::Borrowed(const { &[eq(1, "never")] }),
+                )]
+            },
+            COMMENT_SPAN,
         )),
-        word: Word::Succeeds,
-        input: || a_union_is_any_of_its_branches_and_resets_origins,
-        expect: Expect::Value(()),
     },
     Case {
-        name: CaseName(stringify!(
-            unconditional_nodes_and_their_consumers_are_always
+        name: CaseName("a_search_from_a_base_line_is_conditional_and_relies_on_no_span"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::Numbered),
+        expect: Expect::Value(skip(false, Shape::Test, &[], &[])),
+    },
+    Case {
+        name: CaseName("a_search_with_a_row_error_keeps_its_failure_term"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::Opened(Opening::RowError)),
+        expect: Expect::Value(skip(false, Shape::Any(2), &[], &[])),
+    },
+    Case {
+        name: CaseName("located_spans_pass_a_union_of_located_sides"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::Noqa),
+        expect: Expect::Value(skip(false, Shape::Test, &[], COMMENT_SPAN)),
+    },
+    Case {
+        name: CaseName("a_union_with_a_side_read_from_the_project_locates_no_span"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::MixedShared),
+        expect: Expect::Value(skip(true, Shape::Always, &[], &[])),
+    },
+    Case {
+        name: CaseName("a_union_of_file_sides_relies_on_both_spans"),
+        word: Word::Succeeds,
+        input: || Asked::Fold(Plans::MixedBoth),
+        expect: Expect::Value(skip(
+            false,
+            Shape::Any(2),
+            &[],
+            &[
+                (Relation::Comment, Cow::Borrowed(&[3])),
+                (Relation::SourceLocation, Cow::Borrowed(&[2])),
+            ],
         )),
-        word: Word::Succeeds,
-        input: || unconditional_nodes_and_their_consumers_are_always,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(
-            a_fallible_operator_upstream_holds_the_skip_formula_open
-        )),
-        word: Word::Succeeds,
-        input: || a_fallible_operator_upstream_holds_the_skip_formula_open,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(the_region_table_takes_each_regions_node)),
-        word: Word::Succeeds,
-        input: || the_region_table_takes_each_regions_node,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(every_fault_has_a_verdict)),
-        word: Word::Succeeds,
-        input: || every_fault_has_a_verdict,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(
-            source_matches_can_err_on_rows_unless_per_file_over_a_span_without_base_line_or_row_error
-        )),
-        word: Word::Succeeds,
-        input: || source_matches_can_err_on_rows_unless_per_file_over_a_span_without_base_line_or_row_error,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(
-            a_search_over_a_provider_span_adds_no_failure_term
-        )),
-        word: Word::Succeeds,
-        input: || a_search_over_a_provider_span_adds_no_failure_term,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(
-            a_search_that_can_still_fail_keeps_its_failure_term
-        )),
-        word: Word::Succeeds,
-        input: || a_search_that_can_still_fail_keeps_its_failure_term,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(
-            located_spans_pass_a_union_of_located_sides
-        )),
-        word: Word::Succeeds,
-        input: || located_spans_pass_a_union_of_located_sides,
-        expect: Expect::Value(()),
     },
 ];
-fn subject(input: Input) -> Result<Value, Failure> {
-    input()
-}
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);

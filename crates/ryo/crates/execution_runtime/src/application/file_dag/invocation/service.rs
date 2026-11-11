@@ -1,20 +1,21 @@
 //! Invocation resources are acquired once, at the contract's demand boundary.
-use super::groups::groups;
-use super::index::{EmptyInput, IndexResource};
+use super::groups::service::groups;
+use super::index::{service::IndexResource, types::EmptyInput};
 use super::prepared_use::service::prepared;
-use super::{InvocationInputs, InvocationResources, input, partitioned};
-use crate::application::file_dag::axis_resources::prepare_axis;
-use crate::application::file_dag::resources::appended_values;
+use super::types::{AcquiredPartitions, InvocationInputs, InvocationResources};
+use crate::application::file_dag::axis_resources::service::prepare_axis;
+use crate::application::file_dag::resources::service::appended_values;
 use ryo_execution_domain::domain::operator::contract::{
-    resources::{IndexColumns, JoinResources, ResourceProgram},
+    resources::{types::IndexColumns, types::JoinResources, types::ResourceProgram},
     types::OperatorContract,
-    views::NativeJoin,
+    views::types::NativeJoin,
 };
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::table_texts::types::Texts;
 use ryo_execution_domain::domain::{
     operating::errors::OperatingError, operator::types::OperatorContext,
 };
+use ryo_execution_store::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
 use ryo_values::domain::plan_parts::{service::parameter_in, types::InputNumber};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -37,7 +38,7 @@ pub(crate) fn continuation<'f>(
             native_join: None,
             native_storage: None,
             cycles: None,
-            closure: super::AcquiredPartitions::default(),
+            closure: AcquiredPartitions::default(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -55,8 +56,8 @@ pub(crate) fn prepare<'f>(
     inputs: &[RepresentationInput<'f>],
     context: &mut OperatorContext<'_>,
     originals: &[ryo_execution_domain::domain::table_model::types::Rows<'f>],
-    admission: &ryo_execution_store::application::file_dag::workspace::InvocationWorkspace,
-    semantics: &crate::application::file_dag::execution::PrimitiveSemanticsBridge<'_>,
+    admission: &ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace,
+    semantics: &crate::application::file_dag::execution::types::PrimitiveSemanticsBridge<'_>,
 ) -> Result<InvocationResources<'f>, OperatingError> {
     InvocationResources::validate_row_metadata(contract, inputs)?;
     let mut resources = InvocationResources {
@@ -68,7 +69,7 @@ pub(crate) fn prepare<'f>(
             native_join: None,
             native_storage: None,
             cycles: None,
-            closure: super::AcquiredPartitions::default(),
+            closure: AcquiredPartitions::default(),
             partitioned_closure: None,
             ordered: None,
             dfs: None,
@@ -176,7 +177,7 @@ pub(crate) fn prepare<'f>(
                     });
                     resources.inputs.native_storage = Some(acquired);
                 } else {
-                    if *has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered || !view.is_empty() {
+                    if *has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered || !view.is_empty() {
                         return Err(OperatingError::WrongOperation);
                     }
                     resources.inputs.index = Some(IndexResource::acquired(
@@ -239,8 +240,8 @@ pub(crate) fn prepare<'f>(
             };
             resources.inputs.ordered = Some(admitted.acquire_derived(
                 use_,
-                ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
-                ryo_execution_store::application::file_dag::workspace::ViewInputs::Text(&texts),
+                ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                ryo_execution_store::application::file_dag::workspace::types::ViewInputs::Text(&texts),
             )?);
         }
         ResourceProgram::Dfs(_) => {
@@ -248,8 +249,8 @@ pub(crate) fn prepare<'f>(
             let use_ = prepared(contract, DerivedKind::OrderedDfs)?;
             resources.inputs.dfs = Some(admitted.acquire_derived(
                 use_,
-                ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
-                ryo_execution_store::application::file_dag::workspace::ViewInputs::Dfs {
+                ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                ryo_execution_store::application::file_dag::workspace::types::ViewInputs::Dfs {
                     symbols: &mut context.symbols,
                     source: context.source,
                     paths: context.paths,
@@ -258,7 +259,9 @@ pub(crate) fn prepare<'f>(
             )?);
         }
         ResourceProgram::Axis(program) => {
-            use crate::application::file_dag::axis_resources::{AxisMode, classify};
+            use crate::application::file_dag::axis_resources::{
+                service::classify, types::AxisMode,
+            };
 
             use ryo_derived::domain::request::types::DerivedKind;
             let edges = input(inputs, InputNumber(1))?;
@@ -288,10 +291,10 @@ pub(crate) fn prepare<'f>(
                             .ok_or(OperatingError::NotRun)?
                             .primary
                             .as_ref(),
-                        ryo_execution_store::application::file_dag::derived::owner::ViewContext::ordered(
+                        ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::ordered(
                             ryo_execution_store::application::file_dag::derived::owner::types::MembershipOrder(1),
                         ),
-                        ryo_execution_store::application::file_dag::workspace::ViewInputs::MembershipNative,
+                        ryo_execution_store::application::file_dag::workspace::types::ViewInputs::MembershipNative,
                     )?,
                 ),
                 AxisMode::Indexed { .. } => Some(
@@ -301,8 +304,8 @@ pub(crate) fn prepare<'f>(
                             .ok_or(OperatingError::NotRun)?
                             .primary
                             .as_ref(),
-                        ryo_execution_store::application::file_dag::derived::owner::ViewContext::default(),
-                        ryo_execution_store::application::file_dag::workspace::ViewInputs::MembershipValues,
+                        ryo_execution_store::application::file_dag::derived::owner::service::ViewContext::default(),
+                        ryo_execution_store::application::file_dag::workspace::types::ViewInputs::MembershipValues,
                     )?,
                 ),
             };
@@ -311,4 +314,39 @@ pub(crate) fn prepare<'f>(
         }
     }
     Ok(resources)
+}
+
+pub(super) fn input<'f>(
+    inputs: &[RepresentationInput<'f>],
+    at: InputNumber,
+) -> Result<RepresentationInput<'f>, OperatingError> {
+    inputs
+        .get(at.0)
+        .copied()
+        .ok_or(OperatingError::MissingInput { position: at.0 + 1 })
+}
+
+pub(super) fn partitioned<'f>(
+    contract: &OperatorContract,
+    input: RepresentationInput<'f>,
+    admitted: &ryo_execution_store::application::file_dag::workspace::service::InputAdmissions<
+        '_,
+        'f,
+    >,
+    context: &mut OperatorContext<'_>,
+) -> Result<
+    ryo_execution_store::application::file_dag::closure_partitions::service::PartitionedClosure<'f>,
+    OperatingError,
+> {
+    use ryo_derived::domain::request::types::DerivedKind;
+    let order = prepared(contract, DerivedKind::PartitionOrder)?;
+    let closure = prepared(contract, DerivedKind::ClosureAdjacency)?;
+    admitted.partitioned(order, closure, input, context)
+}
+
+impl AcquiredPartitions {
+    /// Appends the next partition's view.
+    pub(crate) fn push(&mut self, view: AcquiredView) {
+        self.0.push(view);
+    }
 }

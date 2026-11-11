@@ -1,6 +1,13 @@
 //! Producer population binding, backing identity and derived-view pinning.
+use crate::application::file_dag::derived::population::service::PopulationId;
+use crate::application::file_dag::relations::publication::types::ProducerKey;
+use crate::application::file_dag::relations::publication::types::ProducerPopulation;
 use crate::application::file_dag::relations::publication::types::ProducerScope;
-use crate::application::file_dag::relations::*;
+use crate::application::file_dag::relations::publication::types::RelationBody;
+use crate::application::file_dag::relations::publication::types::RelationResult;
+use crate::application::file_dag::relations::service::*;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_relations::domain::relations::types::Relation;
 impl RelationOwner {
     /// The population identity of the project scope.
     pub(crate) fn project_identity(&self) -> Result<PopulationId, OperatingError> {

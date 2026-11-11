@@ -1,8 +1,8 @@
 //! Capture and commit of one file's observation frontiers.
-use crate::application::file_dag::program::admission::Partition;
-use crate::application::file_dag::program::facade_runtime::file_execution::FileRun;
-use crate::application::file_dag::program::facade_runtime::source_admission::SourceInputs;
-use crate::application::file_dag::program::facade_runtime::source_admission::table_of;
+use crate::application::file_dag::program::admission::service::Partition;
+use crate::application::file_dag::program::facade_runtime::file_execution::service::FileRun;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
+use crate::application::file_dag::program::facade_runtime::source_admission::service::table_of;
 use crate::application::file_dag::program::facade_runtime::types::{
     DeclaredIntent, FrontierCommit,
 };
@@ -66,13 +66,14 @@ impl FileRun<'_> {
             .iter()
             .cloned()
             .collect::<Vec<_>>();
-        let kernels = crate::application::file_dag::program::kernel_session::KernelSession::file(
-            self.services.kernels(),
-            self.program,
-            Rc::clone(&self.owner),
-            read,
-            &self.walk,
-        );
+        let kernels =
+            crate::application::file_dag::program::kernel_session::service::KernelSession::file(
+                self.services.kernels(),
+                self.program,
+                Rc::clone(&self.owner),
+                read,
+                &self.walk,
+            );
         let mut inputs = SourceInputs {
             execution: &self.execution,
             state: self.execution.file_state(),

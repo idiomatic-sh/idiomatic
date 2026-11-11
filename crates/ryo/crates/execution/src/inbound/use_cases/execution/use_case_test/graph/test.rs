@@ -12,11 +12,10 @@ use ryo_derived::domain::contract::types::BuildWorkspace;
 use ryo_derived::domain::request::types::DerivedRequest;
 use ryo_execution_domain::domain::stored_graph::types::traversal::value::GraphTraversal;
 use ryo_execution_domain::domain::stored_graph::types::{
-    ExaminedVertices, ExpandedVertices, GraphIdentity, GraphWalk, Orientation, RelationPopulation,
-    VisitEpoch,
+    GraphIdentity, GraphWalk, Orientation, RelationPopulation,
 };
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_execution_runtime::application::file_dag::testing::CompleteTableRows;
+use ryo_execution_runtime::application::file_dag::testing::types::CompleteTableRows;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Relation, Value as Cell};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
@@ -60,10 +59,11 @@ fn build(
     endpoints: [ColumnIndex; 2],
     keys: &[ColumnIndex],
 ) -> Result<Option<Arc<CompactGraph>>, OperatingError> {
-    assert_eq!(
-        identity.population.rows,
-        ryo_execution_domain::domain::table_model::service::count_of(rows)
-    );
+    if identity.population.rows
+        != ryo_execution_domain::domain::table_model::service::count_of(rows)
+    {
+        return Err(OperatingError::ShapeMismatch);
+    }
     // The portable request carries the actual endpoints and keys. The old
     // GraphIdentity belongs to the former local builder and is not an input
     // to this port; invalid columns must be refused by the port itself.
@@ -94,8 +94,9 @@ fn build(
     }
 }
 
-fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates()
--> Result<(), Failure> {
+/// Builds the keyed graph of partitioned edges with cycles and duplicates, and walks forward from
+/// each vertex, comparing what it reaches with the ordinary closure's rows for that root.
+fn reach_against_closure() -> Result<Value, Failure> {
     let edges = table(
         &[
             &[9, 2, 1],
@@ -114,9 +115,8 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
         &Rows::Computed(&edges),
         [ColumnIndex(0), ColumnIndex(1)],
         &[ColumnIndex(2)],
-    )
-    .expect("columns")
-    .expect("graph");
+    )?
+    .ok_or(OperatingError::NotRead)?;
     let mut symbols = Symbols::default();
     let ordinary = fixtures::requests::table_request(
         Operation::Closure {
@@ -128,15 +128,15 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
         &[&edges],
         vec![],
         &mut symbols,
-    )
-    .expect("ordinary closure through actual owner");
+    )?;
     let mut walk = GraphWalk::default();
+    let mut mismatched = 0;
     for (root, value) in graph.vertices().iter().enumerate() {
         let partition = graph
             .partition_values(ryo_derived::domain::vertices::types::PartitionId(
                 graph.vertex_partitions().0[root],
             ))
-            .expect("prepared partition");
+            .ok_or(OperatingError::NotRead)?;
         let mut traversal = GraphTraversal::new(&graph, &mut walk);
         let _ = traversal.breadth(
             VertexId(u32::try_from(root).expect("a vertex number fits in u32")),
@@ -156,12 +156,16 @@ fn compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_dupl
             .filter(|row| row[0] == partition[0] && row[1] == *value)
             .map(|row| row[2])
             .collect();
-        assert_eq!(actual, expected, "root {value:?} partition {partition:?}");
+        mismatched += usize::from(actual != expected);
     }
-    Ok(())
+    Ok(Graphed::Reach {
+        roots: graph.vertices().len(),
+        mismatched,
+    })
 }
 
-fn sparse_demand_work_is_independent_of_unrelated_components() -> Result<(), Failure> {
+/// Builds a graph of the path 1, 2, 3 beside 300 unrelated edges, and walks forward from 1 twice.
+fn sparse_walk() -> Result<Value, Failure> {
     let mut edges = table(&[&[1, 2], &[2, 3]], 2);
     for index in 0..300 {
         push_row(
@@ -177,58 +181,43 @@ fn sparse_demand_work_is_independent_of_unrelated_components() -> Result<(), Fai
         &Rows::Computed(&edges),
         [ColumnIndex(0), ColumnIndex(1)],
         &[],
-    )
-    .expect("columns")
-    .expect("graph");
+    )?
+    .ok_or(OperatingError::NotRead)?;
     let root = graph
         .vertex(
             ryo_derived::domain::vertices::types::PartitionId(0),
             Cell::Number(Integer(1)),
         )
-        .expect("prepared vertex")
+        .ok_or(OperatingError::NotRead)?
         .0;
     let mut walk = GraphWalk::default();
     let root = VertexId(root);
     let _ = GraphTraversal::new(&graph, &mut walk).breadth(root, Orientation::Forward, None);
-    assert_eq!(
-        (walk.expanded, walk.examined, walk.reached.len()),
-        (ExpandedVertices(3), ExaminedVertices(2), 2)
-    );
-    // Repeated requests reuse epoch memory, not a global O(vertices) clear.
+    let first = (walk.expanded.0, walk.examined.0, walk.reached.len());
     let epoch = walk.epoch;
     let _ = GraphTraversal::new(&graph, &mut walk).breadth(root, Orientation::Forward, None);
-    assert_eq!(walk.epoch, VisitEpoch(epoch.0 + 1));
-    assert_eq!(
-        (walk.expanded, walk.examined),
-        (ExpandedVertices(3), ExaminedVertices(2))
-    );
-    Ok(())
+    Ok(Graphed::Walked {
+        first,
+        again: (walk.expanded.0, walk.examined.0),
+        epochs: walk.epoch.0 - epoch.0,
+    })
 }
 
-fn invalid_columns_are_rejected_even_on_empty_edges() -> Result<(), Failure> {
+/// Builds a graph over empty two-column edges with the endpoints and keys.
+fn empty_edges(endpoints: [u32; 2], keys: &[u32]) -> Result<Value, Failure> {
     let edges = table(&[], 2);
-    assert!(matches!(
-        build(
-            identity(vec![], 0),
-            &Rows::Computed(&edges),
-            [ColumnIndex(0), ColumnIndex(2)],
-            &[]
-        ),
-        Err(OperatingError::Table(RowsError::NoSuchColumn { .. }))
-    ));
-    assert!(matches!(
-        build(
-            identity(vec![ColumnIndex(3)], 0),
-            &Rows::Computed(&edges),
-            [ColumnIndex(0), ColumnIndex(1)],
-            &[ColumnIndex(3)]
-        ),
-        Err(OperatingError::Table(RowsError::NoSuchColumn { .. }))
-    ));
-    Ok(())
+    let keys: Vec<ColumnIndex> = keys.iter().copied().map(ColumnIndex).collect();
+    let graph = build(
+        identity(keys.clone(), 0),
+        &Rows::Computed(&edges),
+        endpoints.map(ColumnIndex),
+        &keys,
+    )?;
+    Ok(Graphed::Built(graph.map(|graph| graph.vertices().len())))
 }
 
-fn typed_endpoint_identity_never_coalesces_equal_payload_words() -> Result<(), Failure> {
+/// Builds a graph of a number and a flag whose payload words are equal, each an endpoint of the other.
+fn typed_endpoints() -> Result<Value, Failure> {
     let mut edges = Table {
         kinds: vec![CellKind::Number; 2],
         ..Default::default()
@@ -242,28 +231,52 @@ fn typed_endpoint_identity_never_coalesces_equal_payload_words() -> Result<(), F
         &Rows::Computed(&edges),
         [ColumnIndex(0), ColumnIndex(1)],
         &[],
-    )
-    .expect("columns")
-    .expect("graph");
-    assert_eq!(graph.vertices().len(), 2);
-    assert_ne!(
-        graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), number),
-        graph.vertex(ryo_derived::domain::vertices::types::PartitionId(0), flag)
-    );
-    Ok(())
+    )?
+    .ok_or(OperatingError::NotRead)?;
+    let partition = ryo_derived::domain::vertices::types::PartitionId(0);
+    Ok(Graphed::Vertices {
+        count: graph.vertices().len(),
+        distinct: graph.vertex(partition, number) != graph.vertex(partition, flag),
+    })
 }
 
 use ryo_values::domain::rows::types::Table;
-/// The scenarios of this group, one row each.
+/// The graph a row builds.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates,
-    SparseDemandWorkIsIndependentOfUnrelatedComponents,
-    InvalidColumnsAreRejectedEvenOnEmptyEdges,
-    TypedEndpointIdentityNeverCoalescesEqualPayloadWords,
+enum Graph {
+    /// Keyed edges with partitions, cycles and duplicates, walked from every vertex.
+    PartitionedCycles,
+    /// A short path beside many unrelated components, walked from its start twice.
+    SparseComponents,
+    /// Empty two-column edges with these endpoint and key columns.
+    EmptyEdges {
+        endpoints: [u32; 2],
+        keys: &'static [u32],
+    },
+    /// Two typed endpoints with equal payload words.
+    TypedEndpoints,
 }
-type Input = Scenario;
-type Value = ();
+
+/// What building and walking the graph shows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Graphed {
+    /// The roots walked, and those whose reach is not the ordinary closure's.
+    Reach { roots: usize, mismatched: usize },
+    /// The expanded, examined and reached vertices of the first walk, the expanded and examined of
+    /// the second, and the visit epochs between them.
+    Walked {
+        first: (u64, u64, usize),
+        again: (u64, u64),
+        epochs: u32,
+    },
+    /// The vertices of the graph built, or none when the port declined to build one.
+    Built(Option<usize>),
+    /// The vertices, and whether the two endpoints are distinct vertices.
+    Vertices { count: usize, distinct: bool },
+}
+
+type Input = Graph;
+type Value = Graphed;
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -271,51 +284,78 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates
         )),
         word: Word::Succeeds,
-        input: || {
-            Scenario::CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates
-        },
-        expect: Expect::Value(()),
+        input: || Graph::PartitionedCycles,
+        expect: Expect::Value(Graphed::Reach {
+            roots: 8,
+            mismatched: 0,
+        }),
     },
     Case {
+        // Repeated requests reuse epoch memory, not a global clear of every vertex.
         name: CaseName(stringify!(
             sparse_demand_work_is_independent_of_unrelated_components
         )),
         word: Word::Succeeds,
-        input: || Scenario::SparseDemandWorkIsIndependentOfUnrelatedComponents,
-        expect: Expect::Value(()),
+        input: || Graph::SparseComponents,
+        expect: Expect::Value(Graphed::Walked {
+            first: (3, 2, 2),
+            again: (3, 2),
+            epochs: 1,
+        }),
+    },
+    Case {
+        name: CaseName("empty_edges_with_valid_columns_build_no_vertex"),
+        word: Word::Succeeds,
+        input: || Graph::EmptyEdges {
+            endpoints: [0, 1],
+            keys: &[],
+        },
+        expect: Expect::Value(Graphed::Built(Some(0))),
     },
     Case {
         name: CaseName(stringify!(invalid_columns_are_rejected_even_on_empty_edges)),
-        word: Word::Succeeds,
-        input: || Scenario::InvalidColumnsAreRejectedEvenOnEmptyEdges,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Graph::EmptyEdges {
+            endpoints: [0, 2],
+            keys: &[],
+        },
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 2 })),
+    },
+    Case {
+        name: CaseName("an_invalid_key_column_is_rejected_on_empty_edges"),
+        word: Word::Refuses,
+        input: || Graph::EmptyEdges {
+            endpoints: [0, 1],
+            keys: &[3],
+        },
+        expect: Expect::Error(OperatingError::Table(RowsError::NoSuchColumn { index: 3 })),
     },
     Case {
         name: CaseName(stringify!(
             typed_endpoint_identity_never_coalesces_equal_payload_words
         )),
         word: Word::Succeeds,
-        input: || Scenario::TypedEndpointIdentityNeverCoalescesEqualPayloadWords,
-        expect: Expect::Value(()),
+        input: || Graph::TypedEndpoints,
+        expect: Expect::Value(Graphed::Vertices {
+            count: 2,
+            distinct: true,
+        }),
     },
 ];
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::CompactPositiveReachMatchesSortedClosureWithPartitionsCyclesAndDuplicates => {
-            compact_positive_reach_matches_sorted_closure_with_partitions_cycles_and_duplicates()
-        }
-        Scenario::SparseDemandWorkIsIndependentOfUnrelatedComponents => {
-            sparse_demand_work_is_independent_of_unrelated_components()
-        }
-        Scenario::InvalidColumnsAreRejectedEvenOnEmptyEdges => {
-            invalid_columns_are_rejected_even_on_empty_edges()
-        }
-        Scenario::TypedEndpointIdentityNeverCoalescesEqualPayloadWords => {
-            typed_endpoint_identity_never_coalesces_equal_payload_words()
-        }
+/// Builds and observes the graph.
+fn subject(graph: Input) -> Result<Value, Failure> {
+    match graph {
+        Graph::PartitionedCycles => reach_against_closure(),
+        Graph::SparseComponents => sparse_walk(),
+        Graph::EmptyEdges { endpoints, keys } => empty_edges(endpoints, keys),
+        Graph::TypedEndpoints => typed_endpoints(),
     }
 }
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

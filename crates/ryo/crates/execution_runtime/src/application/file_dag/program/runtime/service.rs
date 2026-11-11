@@ -7,11 +7,11 @@ use super::types::{
 };
 #[cfg(test)]
 use super::types::{ProducerLeaseEvent, ReaderInitializations};
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::AvailableInput;
-use crate::application::file_dag::program::admission::Emptiness;
-use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::AvailableInput;
+use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::service::Partition;
+use crate::application::file_dag::program::admission::types::Emptiness;
 use ryo_execution_domain::domain::executable_program::types::RegionId;
 use ryo_execution_domain::domain::executable_program::types::RouteKind;
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
@@ -20,7 +20,7 @@ use ryo_execution_domain::domain::executable_program::types::region::value::Regi
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::types::Emit;
 use ryo_execution_domain::domain::operator::types::OperatorContext;
-use ryo_execution_store::application::file_dag::relations::RelationOwner;
+use ryo_execution_store::application::file_dag::relations::service::RelationOwner;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -134,7 +134,7 @@ struct RetirementWork {
 }
 struct ProjectState {
     population:
-        ryo_execution_store::application::file_dag::derived::population::types::PopulationId,
+        ryo_execution_store::application::file_dag::derived::population::service::PopulationId,
     state: std::rc::Rc<RuntimeState>,
 }
 pub(crate) struct ProgramExecution {
@@ -164,10 +164,10 @@ pub(crate) struct RuntimeState {
     retirement: RefCell<RetirementWork>,
     /// The file roots this file found absent: each publishes the empty table and owes no input.
     absent:
-        RefCell<ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRoots>,
+        RefCell<ryo_execution_domain::domain::executable_program::types::absent_roots::value::AbsentRoots>,
     /// The other regions the file's admitted roots reach whose skip formula fails on the file.
     interior: RefCell<
-        ryo_execution_domain::domain::executable_program::file_demand::types::AbsentRegions,
+        ryo_execution_domain::domain::executable_program::types::absent_regions::value::AbsentRegions,
     >,
     /// The sources the file's presence read met refused, each the file's refusal for that source.
     refused: RefCell<Vec<super::types::SourceRefusal>>,
@@ -234,7 +234,8 @@ pub(crate) struct SemanticPermit<'scope> {
 pub(crate) struct PermittedPhysical<'permit, 'meaning, 'scope> {
     permit: &'permit SemanticPermit<'scope>,
     meaning: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'meaning>,
-    authority: ryo_execution_domain::domain::executable_program::physical::PhysicalAuthorization,
+    authority:
+        ryo_execution_domain::domain::executable_program::physical::types::PhysicalAuthorization,
 }
 
 /// The borrowed frame of one poll that the demand stages share; it grants nothing the poll lacked.

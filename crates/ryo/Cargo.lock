@@ -1442,6 +1442,7 @@ name = "idiomatic-sh-ryo-execution-runtime"
 version = "0.1.3"
 dependencies = [
  "blake3",
+ "dhat",
  "divan",
  "idiomatic-sh-ryo-derived",
  "idiomatic-sh-ryo-execution-domain",

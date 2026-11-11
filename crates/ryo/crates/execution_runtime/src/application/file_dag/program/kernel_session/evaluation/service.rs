@@ -1,5 +1,5 @@
 //! Registered-operator evaluation of a kernel session.
-use crate::application::file_dag::invocation::InvocationResources;
+use crate::application::file_dag::invocation::types::InvocationResources;
 use crate::application::file_dag::program::runtime::service::KernelPermit;
 use crate::application::file_dag::program::runtime::types::InvocationFailure;
 use crate::application::file_dag::program::runtime::types::KernelInput;
@@ -9,14 +9,14 @@ use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{
     executable_program::types::instruction::value::Instruction,
     operating::{errors::OperatingError, types::InputPlace},
-    operator::contract::{primitive::PreparedInputs, types::InputMode},
+    operator::contract::{primitive::types::PreparedInputs, types::InputMode},
     table_model::service::{count_of, read_row},
 };
-use ryo_execution_store::application::file_dag::workspace::InvocationWorkspace;
+use ryo_execution_store::application::file_dag::workspace::service::InvocationWorkspace;
 use ryo_values::domain::rows::types::RowIndex;
 use std::rc::Rc;
 
-impl super::super::KernelSession<'_, '_> {
+impl super::super::service::KernelSession<'_, '_> {
     pub(crate) fn evaluate_session(
         &self,
         instruction: &Instruction,
@@ -56,31 +56,34 @@ impl super::super::KernelSession<'_, '_> {
         let workspace = &mut invocation_workspace;
         let contract = instruction.contract().as_ref();
         let setup_failure = std::sync::OnceLock::new();
-        let setup_semantics = crate::application::file_dag::execution::PrimitiveSemanticsBridge {
-            #[cfg(feature = "diagnostic-row-progress")]
-            progress: self.owner.routes(),
-            port: self.kernels,
-            permit: permit.semantics(),
-            failure: &setup_failure,
-            binding: ryo_execution_domain::domain::executable_program::physical::PhysicalBinding {
-                bindings: context.bindings,
-                regex_identity: None,
-                source_len: ryo_operators::domain::contract::types::SourceByteLength(
-                    context.source.0.len(),
-                ),
-            },
-        };
+        let setup_semantics =
+            crate::application::file_dag::execution::types::PrimitiveSemanticsBridge {
+                #[cfg(feature = "diagnostic-row-progress")]
+                progress: self.owner.routes(),
+                port: self.kernels,
+                permit: permit.semantics(),
+                failure: &setup_failure,
+                binding:
+                    ryo_execution_domain::domain::executable_program::physical::types::PhysicalBinding {
+                        bindings: context.bindings,
+                        regex_identity: None,
+                        source_len: ryo_operators::domain::contract::types::SourceByteLength(
+                            context.source.0.len(),
+                        ),
+                    },
+            };
         let result = (|| {
             match input {
                 KernelInput::Continuation(row) => {
-                    workspace.work().found(
+                    ryo_execution_domain::domain::operator::contract::lease::service::add_found(
+                        workspace.work(),
                         ryo_values::domain::plan_parts::types::InputNumber(0),
                         ryo_execution_domain::domain::operator::contract::types::FoundRows(1),
                     );
                     let mut resources =
                         crate::application::file_dag::invocation::service::continuation(contract)
                             .map_err(InvocationFailure::Semantic)?;
-                    crate::application::file_dag::execution::lease::evaluate(
+                    crate::application::file_dag::execution::lease::service::evaluate(
                         self.kernels,
                         contract,
                         permit,
@@ -115,7 +118,7 @@ impl super::super::KernelSession<'_, '_> {
                                 self.prepared,
                                 permit,
                                 source,
-                                crate::application::file_dag::program::native_walk::WalkDelivery::Rows,
+                                crate::application::file_dag::program::native_walk::types::WalkDelivery::Rows,
                                 context,
                                 self.kernels,
                             )
@@ -141,7 +144,7 @@ impl super::super::KernelSession<'_, '_> {
                                     ));
                                 }
                             };
-                            workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(shared.visits().0));
+                            ryo_execution_domain::domain::operator::contract::lease::service::add_found(workspace.work(), ryo_values::domain::plan_parts::types::InputNumber(0), ryo_execution_domain::domain::operator::contract::types::FoundRows(shared.visits().0));
                             return ryo_execution_domain::domain::replay::service::selected(
                                 shared.result(),
                                 source,
@@ -188,7 +191,7 @@ impl super::super::KernelSession<'_, '_> {
                     let meaning = &contract.semantics;
                     match meaning.shape {
                         InputMode::Views => {
-                            crate::application::file_dag::execution::lease::evaluate(
+                            crate::application::file_dag::execution::lease::service::evaluate(
                                 self.kernels,
                                 contract,
                                 permit,
@@ -217,7 +220,7 @@ impl super::super::KernelSession<'_, '_> {
                                     })
                                 })?,
                             };
-                            crate::application::file_dag::execution::lease::evaluate(
+                            crate::application::file_dag::execution::lease::service::evaluate(
                                 self.kernels,
                                 contract,
                                 permit,
@@ -268,7 +271,7 @@ impl super::super::KernelSession<'_, '_> {
                                                 OperatingError::ShapeMismatch,
                                             )
                                         })?;
-                                    workspace.work().found(ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
+                                    ryo_execution_domain::domain::operator::contract::lease::service::add_found(workspace.work(), ryo_values::domain::plan_parts::types::InputNumber(input), ryo_execution_domain::domain::operator::contract::types::FoundRows(1));
                                     let texts =
                                         ryo_execution_domain::domain::table_texts::types::Texts {
                                             symbols: context.symbols.as_ref(),
@@ -276,7 +279,7 @@ impl super::super::KernelSession<'_, '_> {
                                             paths: context.paths,
                                             arenas: context.arenas,
                                         };
-                                    if ryo_execution_domain::domain::executable_program::kernel::row_admissible(
+                                    if ryo_execution_domain::domain::executable_program::kernel::service::row_admissible(
                                         contract, row, &texts,
                                     )
                                     .map_err(InvocationFailure::Semantic)?
@@ -297,7 +300,7 @@ impl super::super::KernelSession<'_, '_> {
                                             .map_err(InvocationFailure::Semantic)?,
                                         );
                                     }
-                                    crate::application::file_dag::execution::lease::evaluate(
+                                    crate::application::file_dag::execution::lease::service::evaluate(
                                         self.kernels,
                                         contract,
                                         permit,

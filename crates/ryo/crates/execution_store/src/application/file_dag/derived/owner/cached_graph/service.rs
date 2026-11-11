@@ -1,13 +1,15 @@
 //! Preparation and rows of the graph demand; the owner cache is required for both.
-use super::types::{AxisGraph, CachedGraph, KeyPosition, PartitionWidth, ReachGraph};
-use crate::application::file_dag::derived::owner::DerivedOwner;
+use super::types::{KeyPosition, PartitionWidth};
 use crate::application::file_dag::derived::owner::cache::types::CacheBackend;
-use crate::application::file_dag::derived::owner::graphs::types::roots::value::DemandAnswers;
+use crate::application::file_dag::derived::owner::graphs::handles::service::DomainHandle;
+use crate::application::file_dag::derived::owner::graphs::handles::service::GraphHandle;
+use crate::application::file_dag::derived::owner::graphs::roots::value::service::DemandAnswers;
+use crate::application::file_dag::derived::owner::service::DerivedOwner;
 use ryo_derived::domain::vertices::types::VertexId;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operator::contract::{
-    graph_view::{AxisResult, CachedGraphRow, ReachResult},
-    resources::ResourceProgram,
+    graph_view::{types::AxisResult, types::CachedGraphRow, types::ReachResult},
+    resources::types::ResourceProgram,
 };
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_execution_domain::domain::table_model::types::Rows;
@@ -23,7 +25,7 @@ impl CachedGraph {
     /// owner cache is required and never decides the route.
     pub(crate) fn prepare(
         contract: &ryo_execution_domain::domain::operator::contract::types::OperatorContract,
-        admission: &crate::application::file_dag::workspace::InvocationWorkspace,
+        admission: &crate::application::file_dag::workspace::service::InvocationWorkspace,
         program: &ResourceProgram,
         original_inputs: &[Rows<'_>],
         cache: &mut CacheBackend,
@@ -41,7 +43,7 @@ impl CachedGraph {
                 let Some(reach) = join.reach.as_ref() else {
                     return Ok(None);
                 };
-                if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+                if join.has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
                     || !join.view.is_empty()
                     || join.left_on.len() != join.right_on.len()
                 {
@@ -93,7 +95,7 @@ impl CachedGraph {
                 })))
             }
             ResourceProgram::Axis(axis) => {
-                if axis.has_filter == ryo_execution_domain::domain::operator::contract::resources::Filtering::Filtered
+                if axis.has_filter == ryo_execution_domain::domain::operator::contract::resources::types::Filtering::Filtered
                     || !axis.domain_view.is_empty()
                     || !axis.output.is_empty()
                     || matches!(
@@ -318,4 +320,80 @@ impl AxisGraph {
             destinations: &self.destinations,
         })
     }
+}
+
+/// The graph an axis or reach operator reads, cached for its invocation.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::{AxisGraph, CachedGraph, ReachGraph};
+/// fn reach(graph: &CachedGraph) -> Option<&ReachGraph> {
+///     match graph {
+///         CachedGraph::Reach(reach) => Some(reach),
+///         CachedGraph::Axis(_axis) => None,
+///     }
+/// }
+/// fn axis(graph: AxisGraph) -> CachedGraph {
+///     CachedGraph::Axis(graph)
+/// }
+/// ```
+#[derive(Debug)]
+pub enum CachedGraph {
+    Reach(ReachGraph),
+    Axis(AxisGraph),
+}
+
+/// A cached reachability graph.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::{AxisGraph, CachedGraph, ReachGraph};
+/// fn reach(graph: &CachedGraph) -> Option<&ReachGraph> {
+///     match graph {
+///         CachedGraph::Reach(reach) => Some(reach),
+///         CachedGraph::Axis(_axis) => None,
+///     }
+/// }
+/// fn axis(graph: AxisGraph) -> CachedGraph {
+///     CachedGraph::Axis(graph)
+/// }
+/// ```
+#[derive(Debug)]
+pub struct ReachGraph {
+    pub(super) access: GraphHandle,
+    pub(super) left_on: Vec<ColumnIndex>,
+    pub(super) bindings: Vec<KeyPosition>,
+    pub(super) partition_width: PartitionWidth,
+    pub(super) key: Vec<Value>,
+    pub(super) request: Vec<Value>,
+    pub(super) destinations: Vec<Value>,
+    pub(super) walk: GraphWalk,
+}
+
+/// A cached axis graph.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_store::application::file_dag::derived::owner::cached_graph::service::{AxisGraph, CachedGraph, ReachGraph};
+/// fn reach(graph: &CachedGraph) -> Option<&ReachGraph> {
+///     match graph {
+///         CachedGraph::Reach(reach) => Some(reach),
+///         CachedGraph::Axis(_axis) => None,
+///     }
+/// }
+/// fn axis(graph: AxisGraph) -> CachedGraph {
+///     CachedGraph::Axis(graph)
+/// }
+/// ```
+#[derive(Debug)]
+pub struct AxisGraph {
+    pub(super) access: GraphHandle,
+    pub(super) domain: DomainHandle,
+    pub(super) id: ColumnIndex,
+    pub(super) direction: Direction,
+    pub(super) destinations: Vec<Value>,
+    pub(super) walk: GraphWalk,
 }

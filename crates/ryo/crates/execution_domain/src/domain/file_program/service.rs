@@ -127,7 +127,7 @@ pub fn compile_prepared_observations(
     let derived_sources = derived_sources_of(plans, operators, &cuts, &nodes);
     let ordered_existence =
         ordered_alternatives(plans, operators, &cuts, &nodes, &observed_outputs);
-    let observations = observations::graph_outputs(plans, &all_mapped, observations);
+    let observations = observations::service::graph_outputs(plans, &all_mapped, observations);
     let program_nodes = all_mapped
         .iter()
         .map(|steps| {

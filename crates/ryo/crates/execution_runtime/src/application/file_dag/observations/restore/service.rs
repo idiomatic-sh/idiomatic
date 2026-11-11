@@ -1,5 +1,5 @@
 //! Restore demanded file roots through the same request owner, once per physical bucket.
-use crate::application::file_dag::observations::cross::incomplete;
+use crate::application::file_dag::observations::cross::service::incomplete;
 use crate::application::file_dag::observations::types::CrossRoot;
 use crate::application::file_dag::observations::types::{
     CrossPublications, FileFrontiers, FrontierCompatibility, FrontierPopulation, FrontierSlot,
@@ -9,7 +9,7 @@ use crate::application::file_dag::program::preparation::types::ObservationMetada
 use crate::application::file_dag::program::preparation::types::OutputRoot;
 use ryo_execution_domain::domain::completion::types::CoverageState;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_store::application::file_dag::relations::interface::RelationStore as _;
+use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::CROSS_FILE;
 use ryo_values::domain::records::types::ProducerReadiness;
 
@@ -172,8 +172,8 @@ pub(crate) fn restore_frontiers(
     program: &std::sync::Arc<
         crate::application::file_dag::program::preparation::types::PreparedProgram,
     >,
-    services: &crate::application::file_dag::program::facade_runtime::types::ProgramServices,
-    publication: &crate::application::file_dag::program::facade_runtime::types::PublicationScope,
+    services: &crate::application::file_dag::program::facade_runtime::service::ProgramServices,
+    publication: &crate::application::file_dag::program::facade_runtime::service::PublicationScope,
     facts: &dyn crate::outbound::facts::interface::FactsFinish,
     corpus: &[ryo_values::domain::files::types::CorpusInput],
     covered: &[ryo_execution_domain::domain::coverage::types::Covered],
@@ -255,7 +255,7 @@ pub(crate) fn restore_frontiers(
                         reason: error.to_string(),
                     })?;
             let restored =
-                crate::application::file_dag::program::restored::validate_restored_frontier(
+                crate::application::file_dag::program::restored::service::validate_restored_frontier(
                     program,
                     root.producer,
                     root.frontier,

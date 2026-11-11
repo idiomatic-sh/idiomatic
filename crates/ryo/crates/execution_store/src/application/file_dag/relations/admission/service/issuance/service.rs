@@ -1,9 +1,17 @@
 //! Owner-dependent admission logic lives below its private data representation.
-use super::super::*;
+use crate::application::file_dag::derived::population::service::PopulationId;
+use crate::application::file_dag::relations::admission::service::BorrowedInput;
 use crate::application::file_dag::relations::admission::types::AdmissionOrigin;
-use crate::application::file_dag::relations::publication::types::*;
+use crate::application::file_dag::relations::generation::service::GenerationLease;
+use crate::application::file_dag::relations::publication::types::RelationBody;
+use crate::application::file_dag::relations::service::*;
 use crate::application::file_dag::relations::types::Sameness;
-use crate::application::file_dag::relations::*;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::table_model::types::PhysicalShape;
+use ryo_execution_domain::domain::table_model::types::PublishedRelation;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_relations::domain::relations::types::Relation;
+use std::sync::Arc;
 impl<'a> BorrowedInput<'a> {
     /// Checks that `publication` is the one this input was admitted from.
     ///
@@ -76,7 +84,7 @@ impl<'a> BorrowedInput<'a> {
         &self,
         owner: &RelationOwner,
     ) -> Result<
-        crate::application::file_dag::relations::admission::types::AdmissionIdentity,
+        crate::application::file_dag::relations::admission::service::AdmissionIdentity,
         OperatingError,
     > {
         if owner.matches_generation(&self.origin.generation) == Sameness::Different {
@@ -86,7 +94,7 @@ impl<'a> BorrowedInput<'a> {
             return Err(OperatingError::ShapeMismatch);
         }
         Ok(
-            crate::application::file_dag::relations::admission::types::AdmissionIdentity {
+            crate::application::file_dag::relations::admission::service::AdmissionIdentity {
                 population: self.origin.population,
                 relation: self.origin.relation,
             },

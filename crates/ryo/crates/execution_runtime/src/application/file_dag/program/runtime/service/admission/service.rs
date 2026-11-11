@@ -3,10 +3,10 @@ use super::super::{
     AcquiredInput, AdmissionProgress, EmptinessAnswer, InputStage, KernelAdmission, KernelPermit,
     ProgramExecution, ReadySelection,
 };
-use crate::application::file_dag::program::admission::AdmittedInput;
-use crate::application::file_dag::program::admission::Emptiness;
-use crate::application::file_dag::program::admission::Inputs;
-use crate::application::file_dag::program::admission::Partition;
+use crate::application::file_dag::program::admission::service::AdmittedInput;
+use crate::application::file_dag::program::admission::service::Inputs;
+use crate::application::file_dag::program::admission::service::Partition;
+use crate::application::file_dag::program::admission::types::Emptiness;
 use crate::application::file_dag::program::constants::EXECUTION_TARGET;
 use crate::application::file_dag::program::constants::INPUT_ADMISSION_REFUSED;
 use crate::application::file_dag::program::constants::PHASE_AVAILABILITY;
@@ -141,7 +141,7 @@ pub(crate) fn empty_output_kinds(
 ) -> Result<Vec<ryo_relations::domain::relations::types::CellKind>, OperatingError> {
     let mut kinds = gate.kinds.clone()?;
     for instruction in region.instructions().iter().skip(1) {
-        kinds = ryo_execution_domain::domain::operation_schema::projection::continuation_kinds(
+        kinds = ryo_execution_domain::domain::operation_schema::projection::service::continuation_kinds(
             &instruction.operation(),
             &kinds,
         )?;

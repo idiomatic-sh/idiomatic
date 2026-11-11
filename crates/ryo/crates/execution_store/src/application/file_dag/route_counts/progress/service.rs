@@ -1,4 +1,7 @@
 //! Row-progress accounting of the opt-in diagnostic profile.
+use crate::application::file_dag::route_counts::ids::service::RouteFileIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteLabel;
+use crate::application::file_dag::route_counts::profile::service::RouteProfile;
 use std::time::Instant;
 
 use ryo_language::domain::files::types::FilePath;
@@ -8,11 +11,10 @@ use ryo_execution_domain::domain::operating::types::{ProgressAmount, ProgressCou
 
 use super::super::constants::{self, MAX_KEYS};
 use super::super::profile::service::with_state;
-use super::super::schemas::document;
+use super::super::record::service::document;
 use super::super::types::{
-    RouteCardinality, RouteCounters, RouteFileIndex, RouteFileName, RouteHotRow, RouteInputKey,
-    RouteInputSlot, RouteKey, RouteLabel, RouteProfile, RouteRowFile, RouteRuleName, RouteSnapshot,
-    RouteTally,
+    RouteCardinality, RouteCounters, RouteFileName, RouteHotRow, RouteInputKey, RouteInputSlot,
+    RouteKey, RouteRowFile, RouteRuleName, RouteSnapshot, RouteTally,
 };
 
 impl RouteProfile {
@@ -202,8 +204,8 @@ fn snapshot(profile: &RouteProfile) -> Option<RouteSnapshot> {
             elapsed_ms: RouteTally(elapsed_ms),
             ticks: state.progress.ticks,
             overflow: state.overflow,
-            hottest: document(&hottest),
-            counters: document(&counters),
+            hottest: document(&*state.format, &hottest),
+            counters: document(&*state.format, &counters),
             operation,
             input_cardinalities,
             row_file: state.progress.row_file.clone(),

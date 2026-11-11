@@ -3,26 +3,25 @@
 //! its rows: compilation and preparation succeed, and the error is the second rule's alone. Each rule's written text is
 //! compiled through the query-language port and its parameters bound from its written spec; the provider hands over the
 //! plans (RyoQL refuses both authoring errors itself, so a provider is the author that can hand them over).
-use ryo_execution_runtime::application::file_dag::program::file_session::interface::FileExecution as _;
-use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
-use ryo_execution_runtime::outbound::facts::types::ResidentStability;
-use ryo_execution_runtime::application::file_dag::program::file_session::types::{FileInput, SourceLanguage, SourceRows};
-use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use super::super::super::{fixtures, interface::*};
-use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs;
 use crate::outbound::query_language::{
     errors::QueryLanguageError, fixtures::fake::QueryLanguageFake, interface::QueryLanguagePort,
 };
-use ryo_values::domain::query_tokens::types::{
-    QueryBundle, QueryDocumentSource, QuerySourceId, QuerySourceText,
+use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, RuleDemand};
+use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
+use ryo_execution_runtime::application::file_dag::program::file_session::interface::ProgramFileSessionPort as _;
+use ryo_execution_runtime::application::file_dag::program::file_session::types::{
+    FileInput, SourceLanguage, SourceRows,
 };
-use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
-use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
+use ryo_execution_runtime::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
+use ryo_execution_runtime::application::file_dag::program::rule_outcome::types::RootOutcome;
+use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
     service::kinds,
-    types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as CellValue},
+    types::{
+        CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as CellValue,
+    },
 };
 use ryo_relations::domain::terms::types::Symbol;
 use ryo_values::cases::Case;
@@ -40,16 +39,14 @@ use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_tokens::types::{
+    QueryBundle, QueryDocumentSource, QuerySourceId, QuerySourceText,
+};
+use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::service::prepare;
-use ryo_execution_runtime::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
-use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-use ryo_values::domain::stored_facts::types::Digest;
-use std::collections::BTreeMap;
-use ryo_execution_runtime::application::file_dag::acceptance::operator_contract_test::fixtures::inputs::text;
+use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
+use ryo_values::domain::runs::types::{RuleApplicability, RuleId};
 
 /// Which authoring error the second rule carries.
 #[derive(Clone, Copy)]
@@ -60,7 +57,15 @@ enum Authored {
     DanglingStep,
 }
 type Input = Authored;
-type Value = ();
+type Value = Siblings;
+/// What the two rules answered side by side.
+#[derive(Debug, PartialEq, Eq)]
+struct Siblings {
+    /// The sound rule's row count, `None` when its root did not complete.
+    sound: Option<usize>,
+    /// The errored rule's error, as an `Err` of its answer or a failed root; `None` when it delivered anything else.
+    errored: Option<OperatingError>,
+}
 type Failure = OperatingError;
 fn sources() -> Table {
     let kinds = kinds(Relation::Function).to_vec();
@@ -139,7 +144,9 @@ fn written_rule(id: &str, text: &str) -> RuleSpec {
     }
 }
 
-fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: Authored) {
+fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(
+    authored: Authored,
+) -> Result<Siblings, OperatingError> {
     let select = || Operation::Select {
         from: PlanInput::Relation(Relation::Function),
         comparisons: vec![],
@@ -204,8 +211,8 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
         .map(|(plan, rule)| ryo_values::domain::rule_requests::service::bind(plan, rule))
         .collect::<Result<Vec<_>, _>>()
         .expect("both written rules bind their parameters");
-    let (engine, prepared) = fixtures::requests::prepared_many(plans, bindings, vec![])
-        .expect("an errored rule does not refuse the request: it is refused on its own roots");
+    // An errored rule does not refuse the request: it is refused on its own roots.
+    let (engine, prepared) = fixtures::requests::prepared_many(plans, bindings, vec![])?;
     let population = sources();
     #[expect(
         clippy::wildcard_enum_match_arm,
@@ -246,52 +253,39 @@ fn an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(authored: A
                 kinds: ryo_execution_runtime::application::file_dag::program::file_session::types::KindSupport::Absent,
             },
             &mut symbols,
-        )
-        .expect("the file owner opens over both rules");
+        )?;
     let demand = || RuleDemand {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::NotRequired,
     };
-    let sibling = file
-        .rule(RuleIndex(0), demand(), &mut symbols)
-        .expect("the sound rule answers");
-    match sibling.emit {
-        RootOutcome::Complete(rows) => assert_eq!(rows.count, RowCount(2), "the sound rule's rows"),
-        RootOutcome::Partial { .. }
-        | RootOutcome::Skipped(_)
-        | RootOutcome::Unknown(_)
-        | RootOutcome::Failed(_)
-        | RootOutcome::NoQuery
-        | RootOutcome::Deferred { .. } => {
-            panic!("the sound rule delivers its rows beside an errored sibling")
-        }
-    }
-    let refused = file.rule(RuleIndex(1), demand(), &mut symbols);
-    let delivered = match refused {
-        Err(error) => Some(error),
-        Ok(answer) => match answer.emit {
-            RootOutcome::Failed(error) => Some(error),
-            RootOutcome::Complete(_)
-            | RootOutcome::Partial { .. }
-            | RootOutcome::Skipped(_)
-            | RootOutcome::Unknown(_)
-            | RootOutcome::NoQuery
-            | RootOutcome::Deferred { .. } => None,
-        },
+    let sibling = file.rule(RuleIndex(0), demand(), &mut symbols)?;
+    let sound = if let RootOutcome::Complete(rows) = sibling.emit {
+        Some(rows.count.0)
+    } else {
+        None
     };
-    assert!(
-        delivered.is_some(),
-        "the errored rule reports its error and never delivers rows"
-    );
-    file.finish().expect("the file owner finishes");
+    let errored = file
+        .rule(RuleIndex(1), demand(), &mut symbols)
+        .map_or_else(Some, |answer| {
+            if let RootOutcome::Failed(error) = answer.emit {
+                Some(error)
+            } else {
+                None
+            }
+        });
+    file.finish()?;
     request.finish();
+    Ok(Siblings { sound, errored })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_errored_rule_answers_its_error_while_its_sibling_delivers_rows"),
         word: Word::Succeeds,
         input: || Authored::InvalidColumn,
-        expect: Expect::Value(()),
+        expect: Expect::Value(Siblings {
+            sound: Some(2),
+            errored: Some(OperatingError::Table(RowsError::NoSuchColumn { index: 99 })),
+        }),
     },
     Case {
         name: CaseName(
@@ -299,12 +293,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
         word: Word::Succeeds,
         input: || Authored::DanglingStep,
-        expect: Expect::Value(()),
+        expect: Expect::Value(Siblings {
+            sound: Some(2),
+            errored: Some(OperatingError::NotRun),
+        }),
     },
 ];
 fn subject(input: Input) -> Result<Value, Failure> {
-    an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(input);
-    Ok(())
+    an_errored_rule_answers_its_error_while_its_sibling_delivers_rows(input)
 }
 #[test]
 fn succeeds() {

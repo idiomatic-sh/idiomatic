@@ -1,6 +1,6 @@
 //! The programs, corpus and facts the project phase's own cases submit roots over; the submission of a caller-built root set is
 //! its own fixture.
-use crate::application::file_dag::frontiers::errors::PreparationError;
+use crate::application::file_dag::frontiers::errors::FrontiersError;
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
 use crate::application::file_dag::program::prepared_execution::types::PreparedExecutionProgram;
 use crate::application::file_dag::program::project_phase::types::{
@@ -281,7 +281,7 @@ pub(super) fn prepare_for(
     request: &RequestExecution,
     scope: &PhaseScope,
     rule: RuleIndex,
-) -> Result<PreparedFrontiers, PreparationError> {
+) -> Result<PreparedFrontiers, FrontiersError> {
     request.prepare_frontiers(
         FrontierRequest {
             demand: FrontierDemand::Diagnostic,

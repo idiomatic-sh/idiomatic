@@ -1,7 +1,16 @@
 //! Owner-dependent admission logic lives below its private data representation.
-use super::super::*;
-use crate::application::file_dag::relations::publication::types::*;
-use crate::application::file_dag::relations::*;
+use crate::application::file_dag::relations::handle::service::PublishedInput;
+use crate::application::file_dag::relations::number::service::service::AdmittedNumber;
+use crate::application::file_dag::relations::publication::types::{
+    ProducerKey, ProducerPopulation,
+};
+use crate::application::file_dag::relations::service::*;
+use crate::application::file_dag::relations::types::Sameness;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::self_join_recogniser::types::NumberRequirement;
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_execution_domain::domain::table_model::types::{PhysicalShape, RepresentationKind};
+use ryo_relations::domain::relations::types::CellKind;
 impl RelationOwner {
     /// Admits a numeric source for the producer that requires it, the one way to mint the witness.
     pub(crate) fn admit_number<'a>(
