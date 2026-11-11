@@ -4,6 +4,5 @@ mod axis;
 #[cfg(test)]
 pub(crate) mod fixtures;
 mod frames;
-mod store;
 #[cfg(test)]
 pub(super) mod test;

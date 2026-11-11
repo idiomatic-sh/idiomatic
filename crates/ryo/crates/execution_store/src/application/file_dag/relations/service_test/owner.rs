@@ -3,5 +3,6 @@
 mod fixtures;
 mod projection;
 mod publication;
+mod release;
 #[cfg(test)]
 pub(super) mod test;
