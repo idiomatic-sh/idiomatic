@@ -1,8 +1,6 @@
 //! The check that every role of the vocabulary has a row in this file or in one of its parts.
 
-use super::{
-    CASES, control_flow_roles_test, expression_roles_test, pattern_and_parameter_roles_test,
-};
+use super::{control_flow_roles_test, expression_roles_test, pattern_and_parameter_roles_test};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::labels::service::{field_name, fields};
 
@@ -11,7 +9,7 @@ fn every_role_of_the_vocabulary_has_a_row() {
     let without_a_row: Vec<_> = fields()
         .filter(|field| {
             let name = field_name(*field).0;
-            !CASES
+            !super::CASES
                 .iter()
                 .chain(control_flow_roles_test::CASES)
                 .chain(expression_roles_test::CASES)
@@ -23,7 +21,7 @@ fn every_role_of_the_vocabulary_has_a_row() {
 }
 
 /// Each check below states its own outcome.
-const CHECKS: &[Case<fn(), (), ()>] = &[Case {
+const CASES: &[Case<fn(), (), ()>] = &[Case {
     name: CaseName("every_role_of_the_vocabulary_has_a_row"),
     word: Word::Succeeds,
     input: || every_role_of_the_vocabulary_has_a_row,
@@ -32,7 +30,7 @@ const CHECKS: &[Case<fn(), (), ()>] = &[Case {
 
 #[test]
 fn succeeds() {
-    run(CHECKS, Word::Succeeds, |check| {
+    run(CASES, Word::Succeeds, |check| {
         check();
         Ok(())
     });
