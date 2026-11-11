@@ -3,7 +3,7 @@
 use super::super::fixtures::{PhaseExit, PreparedCase, prepare_case};
 use super::fixtures::{Stored, exercise};
 use crate::application::file_dag::frontiers::types::DecodeCount;
-use crate::application::file_dag::program::native_walk::project::service::ProjectWalk;
+use crate::application::file_dag::program::native_walk::service::project::service::ProjectWalk;
 use crate::application::file_dag::program::native_walk::{
     types::Deliveries, types::RetainedBatches,
 };

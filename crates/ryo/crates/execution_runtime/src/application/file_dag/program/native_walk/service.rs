@@ -1,5 +1,7 @@
 //! The `native_walk` application operation.
 
+pub(in crate::application::file_dag::program) mod project;
+
 use super::super::runtime::types::Submission;
 use super::lease::service::PermittedWalk;
 #[cfg(test)]
@@ -35,7 +37,7 @@ pub(super) struct SourceWork {
 }
 
 pub(crate) struct WalkResult {
-    pub(super) lease: ryo_execution_domain::domain::shared_walk::types::ClassLease,
+    lease: ryo_execution_domain::domain::shared_walk::types::ClassLease,
 }
 
 impl WalkResult {
@@ -54,7 +56,7 @@ pub(super) struct Owed {
 }
 
 pub(crate) struct FileWalk {
-    pub(super) generation: super::super::admission::service::FileGeneration,
+    generation: super::super::admission::service::FileGeneration,
     // A source batch lives while a rule that consumes its relation still owes a
     // delivery, then retires; a lease handed out earlier keeps its own result.
     batches: RefCell<FxHashMap<WalkSourceIdentity, SourceWork>>,

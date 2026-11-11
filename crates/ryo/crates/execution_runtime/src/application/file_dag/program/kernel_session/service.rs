@@ -21,7 +21,7 @@ pub(crate) struct KernelSession<'a, 'facts> {
         &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
     pub(super) owner: Rc<RelationOwner>,
     pub(super) read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-    pub(super) walk: super::super::native_walk::project::service::WalkPartition<'a>,
+    pub(super) walk: super::super::native_walk::service::project::service::WalkPartition<'a>,
 }
 
 impl<'a, 'facts> KernelSession<'a, 'facts> {
@@ -37,7 +37,7 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
             prepared,
             owner,
             read,
-            walk: super::super::native_walk::project::service::WalkPartition::File(walk),
+            walk: super::super::native_walk::service::project::service::WalkPartition::File(walk),
         }
     }
     pub(crate) fn project(
@@ -45,14 +45,16 @@ impl<'a, 'facts> KernelSession<'a, 'facts> {
         prepared: &'a crate::application::file_dag::program::preparation::types::PreparedProgram,
         owner: Rc<RelationOwner>,
         read: &'a dyn Fn(Relation) -> Result<Rows<'facts>, OperatingError>,
-        walk: &'a super::super::native_walk::project::service::ProjectWalk,
+        walk: &'a super::super::native_walk::service::project::service::ProjectWalk,
     ) -> Self {
         Self {
             kernels,
             prepared,
             owner,
             read,
-            walk: super::super::native_walk::project::service::WalkPartition::Project(walk),
+            walk: super::super::native_walk::service::project::service::WalkPartition::Project(
+                walk,
+            ),
         }
     }
 }

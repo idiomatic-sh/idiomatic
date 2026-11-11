@@ -39,7 +39,7 @@ pub(crate) fn publication_owner(
         owner,
         execution: std::cell::OnceCell::new(),
         walk:
-            crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new(),
+            crate::application::file_dag::program::native_walk::service::project::service::ProjectWalk::new(),
         populations: std::cell::RefCell::new(Default::default()),
         symbols: std::cell::OnceCell::new(),
         decodes: crate::application::file_dag::frontiers::decodes::service::FrontierDecodes::new(
@@ -153,7 +153,7 @@ pub(crate) struct PublicationScope {
     pub(super) owner: Rc<RelationOwner>,
     pub(super) execution: std::cell::OnceCell<ProgramExecution>,
     /// The scope's project-stage walk: every cohort of the scope leases from its batches.
-    pub(super) walk: crate::application::file_dag::program::native_walk::project::service::ProjectWalk,
+    pub(super) walk: crate::application::file_dag::program::native_walk::service::project::service::ProjectWalk,
     pub(super) populations: std::cell::RefCell<
         crate::application::file_dag::program::project_population::service::Populations<
             crate::application::file_dag::program::project_population::types::ProjectFrontierPopulation<AvailableInput>,
