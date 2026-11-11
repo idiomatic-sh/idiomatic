@@ -1,7 +1,7 @@
 //! The support of the `controls` cases and of the groups nested in it.
 use super::super::inventory::fixtures::every_intent;
 use super::super::routes::fixtures::{file_route, run_file_route};
-use super::super::witness::fixtures::Method;
+use super::super::witness::fixtures::{Method, Probe, probe};
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand, engine, prepared_rules};
 use crate::file_intents::fixtures::named_request;
 use crate::project_phase::negative::fixtures::{Entry, Held, with_held};
@@ -33,15 +33,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::outbound::facts::fixtures::project_phase_negative::NoFacts;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::symbols::types::Symbols;
-
-/// One attempt a control made: what it gave the method, and what the method answered, as debug text (the answers are of
-/// several types: a preparation, a phase stop, a file end or an operating error).
-pub(in super::super) type Probe = (String, String);
-
-/// A probe of `what`, answered `answer`.
-pub(in super::super) fn probe(what: impl Into<String>, answer: impl std::fmt::Debug) -> Probe {
-    (what.into(), format!("{answer:?}"))
-}
 
 /// What a method does with a root set: refuse an incomplete, extra or undeclared one, or
 /// accept none at all (its inputs carry no rule, scope or intent to declare).

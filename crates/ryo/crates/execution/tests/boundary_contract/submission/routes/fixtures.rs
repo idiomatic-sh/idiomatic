@@ -1,6 +1,6 @@
 //! The support of the `routes` cases and of the groups nested in it.
-use super::super::controls::fixtures::{Probe, probe};
 use super::super::inventory::fixtures::every_intent;
+use super::super::witness::fixtures::{Probe, probe};
 use crate::boundary_fixture::fixtures::{corpus, engine, prepared_rules};
 use crate::file_intents::fixtures::named_request;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
