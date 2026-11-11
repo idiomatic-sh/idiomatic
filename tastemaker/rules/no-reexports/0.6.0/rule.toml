@@ -131,18 +131,19 @@ let inline-fixture-reach = axis(from=visible-imports, relation="syntax-child", d
 let inline-fixture-imports = project(from=inline-fixture-reach, columns=["id"]);
 let fixture-seam-ids = union(left=fixture-file-imports, right=inline-fixture-imports);
 let port-prefixes = select * from contract-prefix-names where text = "outbound";
-let port-forwards = select l."id" as "id", l."text" as "text" from contract-items as l join port-prefixes as r on l."id" = r."id";
+let contract-item-files = select l."id" as "id", l."text" as "text", r."file" as "forwarder" from contract-items as l join signature-interfaces as r on l."id" = r."id";
+let port-forwards = select l."id" as "id", l."text" as "text", l."forwarder" as "forwarder" from contract-item-files as l join port-prefixes as r on l."id" = r."id";
 let declared-traits = select * from tree-nodes where kind = "trait";
 let declared-trait-kids = select l."id" as "trait", r."child" as "child" from declared-traits as l join "syntax-child" as r on l."id" = r."parent";
 let declared-trait-name-nodes = select l."trait" as "trait", r."id" as "name" from declared-trait-kids as l join tree-nodes as r on l."child" = r."id" where r."kind" = "name";
 let declared-trait-names = select l."trait" as "trait", r."text" as "text" from declared-trait-name-nodes as l join token-edges as r on l."name" = r."parent";
-let port-traits = select l."id" as "id", l."text" as "text" from port-forwards as l join declared-trait-names as r on l."text" = r."text";
-let forwarded-entry-traits = select r."trait" as "id" from contract-items as l join declared-trait-names as r on l."text" = r."text";
-let declared-entry-traits = project(from=contract-traits, columns=["id"]);
+let port-traits = select l."id" as "id", l."text" as "text", l."forwarder" as "forwarder" from port-forwards as l join declared-trait-names as r on l."text" = r."text";
+let forwarded-entry-traits = select r."trait" as "id", l."forwarder" as "forwarder" from contract-item-files as l join declared-trait-names as r on l."text" = r."text";
+let declared-entry-traits = select l."id" as "id", l."file" as "forwarder" from contract-traits as l;
 let entry-traits = union(left=declared-entry-traits, right=forwarded-entry-traits);
 let entry-references = axis(from=entry-traits, relation="syntax-child", direction=descendant, domain=name-references);
-let entry-names = select r."text" as "text" from entry-references as l join token-edges as r on l."related" = r."parent";
-let seam-ports = select l."id" as "id" from port-traits as l join entry-names as r on l."text" = r."text";
+let entry-names = select l."forwarder" as "forwarder", r."text" as "text" from entry-references as l join token-edges as r on l."related" = r."parent";
+let seam-ports = select l."id" as "id" from port-traits as l join entry-names as r on l."text" = r."text" and l."forwarder" = r."forwarder";
 let seam-port-ids = project(from=seam-ports, columns=["id"]);
 let seam-ids = union(left=fixture-seam-ids, right=seam-port-ids);
 let allowed-signature-ids = union(left=contract-and-domain-ids, right=seam-ids);
@@ -2049,6 +2050,65 @@ given.files.'src/inbound/use_cases/run/use_case.rs' = '''
 pub struct RunUseCaseImpl;
 '''
 then.findings = [{ path = 'src/inbound/use_cases/run/interface.rs', line = 6 }]
+
+
+[[scenarios]]
+id = 'use-case-forwards-a-port-only-a-sibling-names'
+scenario = "A use case interface that forwards an outbound port its own entries never name is refused, though a sibling use case's entry names it."
+given.include = ['**/*.rs']
+given.exclude = ['**/src/lib.rs']
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fixtures = []
+'''
+given.files.'src/lib.rs' = '''
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'src/outbound.rs' = '''
+pub mod sink;
+'''
+given.files.'src/outbound/sink.rs' = '''
+pub mod interface;
+'''
+given.files.'src/outbound/sink/interface.rs' = '''
+pub trait SinkPort {
+    fn sink(&self);
+}
+'''
+given.files.'src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'src/inbound/use_cases.rs' = '''
+pub mod report;
+pub mod run;
+'''
+given.files.'src/inbound/use_cases/report.rs' = '''
+pub mod interface;
+'''
+given.files.'src/inbound/use_cases/report/interface.rs' = '''
+pub use crate::outbound::sink::interface::SinkPort;
+
+pub trait ReportUseCase {
+    fn report(&self, sink: &dyn SinkPort);
+}
+'''
+given.files.'src/inbound/use_cases/run.rs' = '''
+pub mod interface;
+'''
+given.files.'src/inbound/use_cases/run/interface.rs' = '''
+pub use crate::outbound::sink::interface::SinkPort;
+
+pub trait RunUseCase {
+    fn run(&self);
+}
+'''
+then.findings = [{ path = 'src/inbound/use_cases/run/interface.rs', line = 1 }]
 
 
 [[scenarios]]
