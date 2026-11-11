@@ -30,8 +30,17 @@ use ryo_values::{
         row_texts::types::Cell as HostCell,
     },
 };
+/// What the projection published: its schema, row count and cells.
+#[derive(Debug, PartialEq, Eq)]
+struct Published {
+    kinds: Cow<'static, [CellKind]>,
+    rows: usize,
+    cells: Cow<'static, [Cell]>,
+}
+use std::borrow::Cow;
 type Input = ();
-type Value = ();
+/// `None` when the root did not complete.
+type Value = Option<Published>;
 type Failure = OperatingError;
 fn subject(_: Input) -> Result<Value, Failure> {
     let names = ["first.py", "second.py"];
@@ -92,7 +101,7 @@ fn subject(_: Input) -> Result<Value, Failure> {
         },
         &mut symbols,
     )?;
-    let RootOutcome::Complete(table) = file
+    let emitted = file
         .rule(
             RuleIndex(0),
             RuleDemand {
@@ -101,22 +110,29 @@ fn subject(_: Input) -> Result<Value, Failure> {
             },
             &mut symbols,
         )?
-        .emit
-    else {
-        panic!("actual Project must publish")
+        .emit;
+    let published = if let RootOutcome::Complete(table) = emitted {
+        Some(Published {
+            kinds: table.kinds.into(),
+            rows: table.count.0,
+            cells: table.cells.into(),
+        })
+    } else {
+        None
     };
-    assert_eq!(table.kinds, [CellKind::File]);
-    assert_eq!(table.count.0, 2);
-    assert_eq!(table.cells, [Cell::File(FileId(0)), Cell::File(FileId(1))]);
     file.finish()?;
     request.finish();
-    Ok(())
+    Ok(published)
 }
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("dispatch_projects_both_distinct_declared_files"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(()),
+    expect: Expect::Value(Some(Published {
+        kinds: Cow::Borrowed(&[CellKind::File]),
+        rows: 2,
+        cells: Cow::Borrowed(&[Cell::File(FileId(0)), Cell::File(FileId(1))]),
+    })),
 }];
 #[test]
 fn succeeds() {

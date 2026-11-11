@@ -29,12 +29,20 @@ use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::domain::rows::types::Table;
 use std::sync::Arc;
 
+/// How the collected root settled.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RefusalOutcome {
+pub(crate) enum Settlement {
+    /// The root completed with a table.
+    Complete,
+    /// Preparation refused the plan, or the root failed.
     Failed,
+    /// The root's answer is unknown.
     Unknown,
+    /// The root did not settle (partial, skipped, no query or deferred); `collected` is then `NotRun`.
+    Unsettled,
 }
 pub(crate) struct ObservedDelivery {
+    pub(crate) settlement: Settlement,
     pub(crate) schema: Result<Vec<CellKind>, OperatingError>,
     pub(crate) collected: Result<Table, OperatingError>,
     pub(crate) rows: Vec<Vec<Cell>>,
@@ -53,7 +61,6 @@ pub(crate) fn deliver(
     symbols: &mut Symbols,
     stop: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
-    refusal: RefusalOutcome,
     port: Arc<dyn OperatorsPort>,
 ) -> Result<ObservedDelivery, OperatingError> {
     use ryo_values::domain::{
@@ -90,12 +97,8 @@ pub(crate) fn deliver(
     let program = match preparation {
         Ok(program) => program,
         Err(error) => {
-            assert_eq!(
-                refusal,
-                RefusalOutcome::Failed,
-                "a metadata refusal cannot satisfy an expected runtime Unknown outcome"
-            );
             return Ok(ObservedDelivery {
+                settlement: Settlement::Failed,
                 schema,
                 collected: Err(error.clone()),
                 rows: vec![],
@@ -148,28 +151,14 @@ pub(crate) fn deliver(
         crate::inbound::use_cases::execution::fixtures::requests::emitted(),
         symbols,
     )?;
-    let collected = match outcome.emit {
-        RootOutcome::Complete(table) => Ok(table),
-        RootOutcome::Failed(error) => {
-            assert_eq!(
-                refusal,
-                RefusalOutcome::Failed,
-                "actual Failed({error:?}) must match its authored classification"
-            );
-            Err(error)
-        }
-        RootOutcome::Unknown(error) => {
-            assert_eq!(
-                refusal,
-                RefusalOutcome::Unknown,
-                "actual Unknown({error:?}) must match its authored classification"
-            );
-            Err(error)
-        }
+    let (settlement, collected) = match outcome.emit {
+        RootOutcome::Complete(table) => (Settlement::Complete, Ok(table)),
+        RootOutcome::Failed(error) => (Settlement::Failed, Err(error)),
+        RootOutcome::Unknown(error) => (Settlement::Unknown, Err(error)),
         RootOutcome::Partial { .. }
         | RootOutcome::Skipped(_)
         | RootOutcome::NoQuery
-        | RootOutcome::Deferred { .. } => panic!("declared per-file operation must settle"),
+        | RootOutcome::Deferred { .. } => (Settlement::Unsettled, Err(OperatingError::NotRun)),
     };
     collected_file.finish()?;
     let forward_intent = [FileRuleIntent::Run {
@@ -191,6 +180,7 @@ pub(crate) fn deliver(
     callback_file.finish()?;
     request.finish();
     Ok(ObservedDelivery {
+        settlement,
         schema,
         collected,
         rows,

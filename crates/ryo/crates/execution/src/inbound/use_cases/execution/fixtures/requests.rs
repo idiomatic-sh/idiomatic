@@ -64,13 +64,11 @@ pub(crate) fn published_file(
         reads.set(reads.get() + 1);
         Err(OperatingError::NotRead)
     };
+    // Request-only and tree fixtures have no catalog provider: a run that demanded one answers the read's refusal,
+    // even when it went on to publish.
     let result = published_from(plan, bindings, hosted, source, elements, symbols, &read);
-    if result.is_ok() {
-        assert_eq!(
-            reads.get(),
-            0,
-            "request-only/tree fixtures never demand a forged catalog provider"
-        );
+    if reads.get() > 0 {
+        return Err(result.err().unwrap_or(OperatingError::NotRead));
     }
     result
 }

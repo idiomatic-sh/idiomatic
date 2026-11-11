@@ -35,7 +35,7 @@ fn collected_reductions_validate_the_resource_operand_before_the_output_keys() {
             .step = StepId(1);
         input.hosted = vec![hosted(&[1])];
         let read = |_| Err::<SourceRows<'_>, _>(OperatingError::NotRead);
-        assert_column(evaluate(input, &read), 99);
+        assert_eq!(failed_column(evaluate(input, &read)), Some(99));
     }
 }
 
@@ -141,7 +141,7 @@ fn collected_axis_empty_domain_gate_is_specific_to_computed_representation() {
             assert_eq!(table.kinds, [CellKind::Node, CellKind::Node]);
             assert_eq!(table.count, RowCount(0));
         } else {
-            assert_column(outcome, 98);
+            assert_eq!(failed_column(outcome), Some(98));
         }
     }
 }
@@ -330,5 +330,5 @@ fn an_empty_gate_schema_error_is_not_erased_by_a_valid_zero_column_continuation(
         Relation::Defines => Ok(SourceRows::Computed(&domain)),
         _ => Err(OperatingError::NotRead),
     };
-    assert_column(evaluate(input, &read), 99);
+    assert_eq!(failed_column(evaluate(input, &read)), Some(99));
 }

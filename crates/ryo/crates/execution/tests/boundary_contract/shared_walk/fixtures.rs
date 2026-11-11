@@ -16,7 +16,7 @@ use ryo_language::domain::builders::fixtures::{enter_node, leave_node, table_bui
 use ryo_language::domain::{
     completion::fixtures::{completion, name_kind},
     elements::{
-        fixtures::{kind_names, real_count, text_at},
+        fixtures::{kind_names, text_at},
         types::Elements,
     },
     kind_index::fixtures::index_kinds,
@@ -111,8 +111,8 @@ pub(crate) fn prepared(
         .prepare(input)
         .expect("prepare actual shared-walk request")
 }
-pub(crate) fn tree(file: FileId, source: &[u8]) -> (Elements, Symbols) {
-    assert_eq!(source.len(), 3);
+/// A three-byte file's tree: a node over three tokens, its whole vocabulary named.
+pub(crate) fn tree(file: FileId, source: &[u8; 3]) -> (Elements, Symbols) {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder = table_builder(&mut elements, &mut symbols, ByteSlice(source));
     enter_node(&mut builder, KindBits(1), Offset(0));
@@ -127,11 +127,6 @@ pub(crate) fn tree(file: FileId, source: &[u8]) -> (Elements, Symbols) {
         }
     }
     index_kinds(&mut elements);
-    assert_eq!(real_count(&elements).0, 4);
-    assert!(
-        kind_names(&elements).len() > 3,
-        "fully completed vocabulary enables the physical shared pass"
-    );
     (elements, symbols)
 }
 pub(crate) fn input<'a, 'facts>(
@@ -189,11 +184,13 @@ pub(crate) fn complete(outcome: RuleOutcome) -> Table {
         RootOutcome::Deferred { phase } => panic!("native publication deferred to {phase:?}"),
     }
 }
-pub(crate) fn failed(outcome: RuleOutcome, expected: OperatingError) {
-    let RootOutcome::Failed(error) = outcome.emit else {
-        panic!("typed failed root required")
-    };
-    assert_eq!(error, expected);
+/// The error a rule's root failed with; `None` when the root did not fail.
+pub(crate) fn failed(outcome: RuleOutcome) -> Option<OperatingError> {
+    if let RootOutcome::Failed(error) = outcome.emit {
+        Some(error)
+    } else {
+        None
+    }
 }
 pub(crate) fn regex_error(pattern: &str) -> OperatingError {
     use ryo_matching::inbound::use_cases::matching::{

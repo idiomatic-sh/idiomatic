@@ -4,7 +4,7 @@ use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::inputs;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceRows;
 use ryo_relations::domain::relations::{
-    service::{kinds, node_id},
+    service::{kinds, node_id, node_position},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
 };
 use ryo_values::{
@@ -15,8 +15,18 @@ use ryo_values::{
         rows::types::{RowCount, Table},
     },
 };
+use std::borrow::Cow;
+/// What the join published: its schema, row count, the positions of its node cells in order, and reads of any
+/// relation other than the function population.
+#[derive(Debug, PartialEq, Eq)]
+struct Joined {
+    kinds: Cow<'static, [CellKind]>,
+    rows: usize,
+    nodes: Cow<'static, [u32]>,
+    foreign_reads: usize,
+}
 type Input = bool;
-type Value = ();
+type Value = Joined;
 type Failure = OperatingError;
 fn subject(stretch_first: Input) -> Result<Value, Failure> {
     let (elements, mut symbols) = fixtures::requests::tree_with_names();
@@ -76,8 +86,11 @@ fn subject(stretch_first: Input) -> Result<Value, Failure> {
             reach: None,
         },
     ]);
+    let foreign_reads = std::cell::Cell::new(0);
     let read = |relation| {
-        assert_eq!(relation, Relation::Function);
+        if relation != Relation::Function {
+            foreign_reads.set(foreign_reads.get() + 1);
+        }
         Ok(SourceRows::Computed(&source))
     };
     let out = fixtures::requests::published_from(
@@ -89,26 +102,41 @@ fn subject(stretch_first: Input) -> Result<Value, Failure> {
         &mut symbols,
         &read,
     )?;
-    assert_eq!(out.count.0, 3);
-    assert_eq!(out.kinds, [CellKind::Node]);
-    assert_eq!(
-        out.cells,
-        [2, 3, 0].map(|at| Cell::Node(node_id(FileId(0), Position(at))))
-    );
-    Ok(())
+    Ok(Joined {
+        rows: out.count.0,
+        nodes: out
+            .cells
+            .iter()
+            .filter_map(|cell| {
+                if let Cell::Node(node) = cell {
+                    Some(node_position(*node).0)
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        kinds: out.kinds.into(),
+        foreign_reads: foreign_reads.get(),
+    })
 }
+const JOINED: Joined = Joined {
+    kinds: Cow::Borrowed(&[CellKind::Node]),
+    rows: 3,
+    nodes: Cow::Borrowed(&[2, 3, 0]),
+    foreign_reads: 0,
+};
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("file_then_span_keys_find_covering_elements"),
         word: Word::Succeeds,
         input: || false,
-        expect: Expect::Value(()),
+        expect: Expect::Value(JOINED),
     },
     Case {
         name: CaseName("span_then_file_keys_find_covering_elements"),
         word: Word::Succeeds,
         input: || true,
-        expect: Expect::Value(()),
+        expect: Expect::Value(JOINED),
     },
 ];
 #[test]

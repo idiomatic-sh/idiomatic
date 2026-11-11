@@ -1,6 +1,6 @@
 //! Native heads keep their projected columns and source row order, and unused intents evaluate nothing.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
-use crate::interpreter::shared_walk::fixtures::counts;
+use crate::interpreter::shared_walk::fixtures::walked;
 use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
@@ -97,7 +97,7 @@ fn distinct_native_heads_keep_reordered_duplicate_columns_and_source_row_order()
             cells: vec![span, b, span, Value::Node(node_id(FileId(0), Position(2)))]
         }
     );
-    counts(&file, 1, 4);
+    assert_eq!(walked(&file), (1, 4));
     assert_eq!(
         semantics.selects(),
         0,
@@ -164,7 +164,7 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
                 cells
             }
         );
-        counts(&file, 1, 4);
+        assert_eq!(walked(&file), (1, 4));
         file.finish().unwrap();
         request.finish();
     }
@@ -202,7 +202,7 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
         complete(file.rule(RuleIndex(2), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2])
     );
-    counts(&file, 1, 4);
+    assert_eq!(walked(&file), (1, 4));
     for rule in [RuleIndex(0), RuleIndex(1)] {
         assert!(matches!(
             file.rule(rule, demand(), &mut symbols),
@@ -214,7 +214,7 @@ fn mixed_intents_keep_excluded_errors_unreachable_while_an_active_neighbor_walks
             )),
             Err(OperatingError::NotRun)
         ));
-        counts(&file, 1, 4);
+        assert_eq!(walked(&file), (1, 4));
     }
     assert_eq!(semantics.selects(), 0);
     assert_eq!(
@@ -254,7 +254,7 @@ fn a_run_intent_with_no_enabled_roots_does_not_evaluate_its_predicates() {
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2]),
     );
-    counts(&file, 1, 4);
+    assert_eq!(walked(&file), (1, 4));
     assert_eq!(
         file.fixture_walk_counts().predicate_rows.0,
         1,

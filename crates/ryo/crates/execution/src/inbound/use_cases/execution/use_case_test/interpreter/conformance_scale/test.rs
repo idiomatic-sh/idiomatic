@@ -1,6 +1,6 @@
 //! The interpreter's own visit bounds over increasing authored input populations: the rows each input of the operation is fed
 //! grow linearly with the population.
-use super::super::super::conformance::test::{author, compare_delivery, repeated};
+use super::super::super::conformance::test::{author, compare_delivery, repeated, settled};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::values::numbers;
@@ -139,7 +139,8 @@ fn subject(kind: Input) -> Result<Value, Failure> {
             SOURCE,
             &mut case.symbols,
             None,
-        )?;
+        )
+        .and_then(settled)?;
         scales.push(Scale {
             population,
             rows: delivered.rows.len(),

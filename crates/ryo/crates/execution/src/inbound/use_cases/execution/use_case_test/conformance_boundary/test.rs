@@ -1,5 +1,5 @@
 //! Public canonical error/delivery parity and independent ordered-bag controls.
-use super::super::conformance::test::{compare_delivery, repeated, same_rows};
+use super::super::conformance::test::{compare_delivery, repeated, same_rows, settled};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use OperationKind::{Join, Project, Select, SourceMatches, SpanBounds, Union};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial, PartialPlace};
@@ -272,6 +272,7 @@ fn observe(boundary: Boundary, kind: OperationKind) -> Result<Observed, Failure>
             &mut case.symbols,
             stop,
         )
+        .and_then(settled)
     };
     Ok(match boundary {
         Boundary::Delivered => {

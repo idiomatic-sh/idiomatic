@@ -6,6 +6,7 @@ use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::interface::FileRuleIntent;
 use ryo_execution::inbound::use_cases::execution::interface::ObservationDemand;
+use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::Partials;
 use ryo_execution::inbound::use_cases::execution::interface::PhaseRules;
 use ryo_execution::inbound::use_cases::execution::interface::ProgramFileSessionPort;
@@ -29,7 +30,7 @@ use ryo_relations::domain::relations::types::{Offset, Position, Span};
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_relations::domain::relations::{
     fixtures::kinds,
-    types::{CellKind, FileId, Relation, Value},
+    types::{FileId, Relation, Value},
 };
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
@@ -72,21 +73,12 @@ pub(super) fn files() -> Vec<Vec<Function>> {
 }
 
 /// The function rows of `file`, their names interned in its symbols; each function is a node of the file at its place.
+/// The cells follow the relation's columns by place, as `the_proofs_name_the_function_relations_columns_by_place` pins.
 fn functions(
     file: FileId,
     functions: &[Function],
     symbols: &mut Symbols,
 ) -> ryo_values::domain::rows::types::Table {
-    assert_eq!(
-        kinds(Relation::Function),
-        [
-            CellKind::Node,
-            CellKind::Symbol,
-            CellKind::File,
-            CellKind::Span
-        ],
-        "the proofs name the function relation's columns by place"
-    );
     let main = intern(symbols, ByteSlice(SOURCE), Offset(0), Offset(4));
     let other = intern(symbols, ByteSlice(SOURCE), Offset(4), Offset(9));
     let mut cells = Vec::new();
@@ -178,9 +170,13 @@ pub(super) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
         let file_id = FileId(u32::try_from(place).unwrap());
         let mut symbols = Symbols::default();
         let table = functions(file_id, each, &mut symbols);
+        // The fake serves the function relation alone; a read of any other is refused, and the rule with it.
         let read = |relation| {
-            assert_eq!(relation, Relation::Function);
-            Ok(SourceRows::Computed(&table))
+            if relation == Relation::Function {
+                Ok(SourceRows::Computed(&table))
+            } else {
+                Err(OperatingError::NotRead)
+            }
         };
         let elements = ryo_language::domain::elements::types::Elements::default();
         let mut file = request

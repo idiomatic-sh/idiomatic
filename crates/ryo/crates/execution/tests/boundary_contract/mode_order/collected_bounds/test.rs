@@ -53,7 +53,7 @@ fn collected_empty_rank_and_span_bounds_keep_layout_without_demanding_row_errors
                         RootOutcome::Failed(OperatingError::Unbound)
                     ));
                 } else {
-                    assert_column(outcome, 99);
+                    assert_eq!(failed_column(outcome), Some(99));
                 }
             } else {
                 let RootOutcome::Complete(table) = outcome else {

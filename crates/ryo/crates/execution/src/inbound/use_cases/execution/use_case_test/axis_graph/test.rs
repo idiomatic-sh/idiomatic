@@ -35,6 +35,7 @@ use ryo_values::{
         stored_facts::types::Digest,
     },
 };
+use std::borrow::Cow;
 const AXES: [&str; 5] = ["axis-0", "axis-1", "axis-2", "axis-3", "axis-4"];
 const DIRECTIONS: [Direction; 5] = [
     Direction::Parent,
@@ -104,7 +105,13 @@ fn plan(direction: Direction, stored: bool, projected: bool) -> Plan {
         ),
     ])
 }
-fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> {
+/// One run of the five rules: each rule's first answer (`None` when its root did not complete) and its replay.
+struct Run {
+    answers: Vec<Option<Table>>,
+    replays: Vec<Option<Table>>,
+    foreign_reads: usize,
+}
+fn execute(stored: bool, projected: bool) -> Result<Run, OperatingError> {
     let engine = Preparation::real();
     let plans = DIRECTIONS
         .into_iter()
@@ -155,12 +162,11 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
                 .collect(),
         ),
     ];
-    assert_eq!(
-        kinds(Relation::LanguageTarget),
-        [CellKind::File, CellKind::Number, CellKind::Number]
-    );
+    let foreign_reads = std::cell::Cell::new(0);
     let read = |relation| {
-        assert_eq!(relation, Relation::LanguageTarget);
+        if relation != Relation::LanguageTarget {
+            foreign_reads.set(foreign_reads.get() + 1);
+        }
         Ok(SourceRows::Stored(ColumnsView {
             kinds: kinds(relation),
             columns: &columns,
@@ -206,48 +212,82 @@ fn execute(stored: bool, projected: bool) -> Result<Vec<Table>, OperatingError> 
             crate::inbound::use_cases::execution::fixtures::requests::emitted(),
             &mut symbols,
         )?;
-        let RootOutcome::Complete(table) = result.emit else {
-            panic!("actual axis owner must complete")
-        };
-        answers.push(table);
+        answers.push(complete(result.emit));
     }
-    for (i, expected) in answers.iter().enumerate() {
+    let mut replays = vec![];
+    for i in 0..5 {
         let result = file.rule(
             RuleIndex(i),
             crate::inbound::use_cases::execution::fixtures::requests::emitted(),
             &mut symbols,
         )?;
-        let RootOutcome::Complete(table) = result.emit else {
-            panic!("a completed axis root must replay its exact output")
-        };
-        assert_eq!(&table, expected);
+        replays.push(complete(result.emit));
     }
     file.finish()?;
     request.finish();
-    Ok(answers)
+    Ok(Run {
+        answers,
+        replays,
+        foreign_reads: foreign_reads.get(),
+    })
+}
+fn complete(outcome: RootOutcome) -> Option<Table> {
+    if let RootOutcome::Complete(table) = outcome {
+        Some(table)
+    } else {
+        None
+    }
+}
+/// What the three populations answered across the five directions.
+#[derive(Debug, PartialEq, Eq)]
+struct Parity {
+    /// The stored relation's cell kinds the fake serves its columns as.
+    schema: Cow<'static, [CellKind]>,
+    /// The ordinary run's row count per direction, `None` where a root did not complete.
+    ordinary_rows: [Option<usize>; 5],
+    /// Whether every root of a run (ordinary, stored, projected) completed and replayed its exact output.
+    replayed: [bool; 3],
+    /// Duplicate and reordered selected columns retain the same graph meaning.
+    projected_is_ordinary: bool,
+    /// All five directions preserve exact BFS/direct order and duplicate bags.
+    stored_is_ordinary: bool,
+    /// Reads of any relation other than the stored graph, across the three runs.
+    foreign_reads: usize,
 }
 type Input = ();
-type Value = ();
+type Value = Parity;
 type Failure = OperatingError;
 fn subject((): Input) -> Result<Value, Failure> {
     let ordinary = execute(false, false)?;
     let stored = execute(true, false)?;
     let projected = execute(true, true)?;
-    assert_eq!(
-        projected, ordinary,
-        "duplicate/reordered selected columns retain the same graph meaning"
-    );
-    assert_eq!(
-        stored, ordinary,
-        "all five directions preserve exact BFS/direct order and duplicate bags"
-    );
-    Ok(())
+    let replayed =
+        |run: &Run| run.answers.iter().all(Option::is_some) && run.replays == run.answers;
+    let mut ordinary_rows = [None; 5];
+    for (rows, answer) in ordinary_rows.iter_mut().zip(&ordinary.answers) {
+        *rows = answer.as_ref().map(|table| table.count.0);
+    }
+    Ok(Parity {
+        schema: kinds(Relation::LanguageTarget).to_vec().into(),
+        ordinary_rows,
+        replayed: [replayed(&ordinary), replayed(&stored), replayed(&projected)],
+        projected_is_ordinary: projected.answers == ordinary.answers,
+        stored_is_ordinary: stored.answers == ordinary.answers,
+        foreign_reads: ordinary.foreign_reads + stored.foreign_reads + projected.foreign_reads,
+    })
 }
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("compact_axes_equal_ordinary_bfs_and_direct_bags_across_rules"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(()),
+    expect: Expect::Value(Parity {
+        schema: Cow::Borrowed(&[CellKind::File, CellKind::Number, CellKind::Number]),
+        ordinary_rows: [Some(4), Some(7), Some(12), Some(12), Some(3)],
+        replayed: [true; 3],
+        projected_is_ordinary: true,
+        stored_is_ordinary: true,
+        foreign_reads: 0,
+    }),
 }];
 #[test]
 fn succeeds() {

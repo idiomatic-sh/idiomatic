@@ -1,6 +1,6 @@
 //! Frontier and callback delivery share one atomic failure and one dependency contract in both orders.
 use crate::boundary_fixture::fixtures::{authored_request, corpus};
-use crate::interpreter::shared_walk::fixtures::counts;
+use crate::interpreter::shared_walk::fixtures::walked;
 use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
@@ -82,7 +82,7 @@ fn frontier_and_callback_share_the_same_atomic_semantic_failure() {
                 );
             }
         }
-        counts(&file, 1, 4);
+        assert_eq!(walked(&file), (1, 4));
         assert_eq!(file.fixture_walk_counts().predicate_rows.0, 2);
         file.finish().unwrap();
         request.finish();

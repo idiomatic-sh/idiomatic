@@ -64,19 +64,20 @@ pub(super) fn changed_ids() -> Result<[usize; 3], RuleCompilationError> {
     let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
         .compiling_into(plans.clone());
     let mut most = 0;
+    let mut answered_and_bounded = true;
     for run in 0..COMPILED_PLANS / PER_RUN + 2 {
         let rules: Vec<_> = (0..PER_RUN)
             .map(|place| rule(&format!("{run}-{place}"), "one"))
             .collect();
         let answer = service.compile(&rules, &[])?;
-        assert_eq!(answer.plans.len(), PER_RUN);
         most = most.max(population(&plans));
-        assert!(population(&plans) <= COMPILED_PLANS);
+        answered_and_bounded &=
+            answer.plans.len() == PER_RUN && population(&plans) <= COMPILED_PLANS;
     }
     Ok([
         population(&plans),
         compiler.calls.load(Ordering::SeqCst),
-        usize::from(most > 0),
+        usize::from(most > 0 && answered_and_bounded),
     ])
 }
 
@@ -86,15 +87,19 @@ pub(super) fn oversized_requests() -> Result<[usize; 3], RuleCompilationError> {
     let plans = CompiledPlans::default();
     let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
         .compiling_into(plans.clone());
+    let mut answered_and_full = true;
     for (tag, count) in [("big", COMPILED_PLANS + 1), ("bigger", COMPILED_PLANS * 2)] {
         let rules: Vec<_> = (0..count)
             .map(|place| rule(&format!("{tag}-{place}"), "one"))
             .collect();
         let answer = service.compile(&rules, &[])?;
-        assert_eq!(answer.plans.len(), count);
-        assert_eq!(population(&plans), COMPILED_PLANS);
+        answered_and_full &= answer.plans.len() == count && population(&plans) == COMPILED_PLANS;
     }
-    Ok([population(&plans), compiler.calls.load(Ordering::SeqCst), 1])
+    Ok([
+        population(&plans),
+        compiler.calls.load(Ordering::SeqCst),
+        usize::from(answered_and_full),
+    ])
 }
 
 /// FIFO eviction after later requests preserves every entry except the oldest.
@@ -103,6 +108,7 @@ pub(super) fn separate_request_eviction() -> Result<[usize; 3], RuleCompilationE
     let plans = CompiledPlans::default();
     let service = RuleCompilation::new(Arc::<QueryLanguageFake>::clone(&compiler))
         .compiling_into(plans.clone());
+    let mut answered = true;
     for (tag, count) in [
         ("old", COMPILED_PLANS / 2),
         ("newer", COMPILED_PLANS - COMPILED_PLANS / 2),
@@ -112,14 +118,15 @@ pub(super) fn separate_request_eviction() -> Result<[usize; 3], RuleCompilationE
             .map(|place| rule(&format!("{tag}-{place}"), "one"))
             .collect();
         let answer = service.compile(&rules, &[])?;
-        assert_eq!(answer.plans.len(), count);
+        answered &= answer.plans.len() == count;
     }
     let kept = plans.0.lock().unwrap_or_else(PoisonError::into_inner);
     let named = |tag: &str, place| {
         kept.plans
             .contains_key(&RuleId(format!("{tag}-{place}").into()))
     };
-    let only_the_oldest_went = kept.plans.len() == COMPILED_PLANS
+    let only_the_oldest_went = answered
+        && kept.plans.len() == COMPILED_PLANS
         && !named("old", 0)
         && named("old", 1)
         && named("newer", 0)

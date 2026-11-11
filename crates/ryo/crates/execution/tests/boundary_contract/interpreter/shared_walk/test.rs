@@ -1,6 +1,6 @@
 //! The `shared_walk` cases.
 use crate::boundary_fixture::fixtures::{corpus, demand};
-use crate::interpreter::shared_walk::fixtures::counts;
+use crate::interpreter::shared_walk::fixtures::walked;
 use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::ApplicabilityReason;
@@ -45,13 +45,13 @@ fn two_distinct_singleton_selectors_share_one_actual_native_walk() {
             &mut symbols,
         )
         .unwrap();
-    counts(&file, 0, 0);
+    assert_eq!(walked(&file), (0, 0));
     let words = complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap());
     assert_eq!(words, expected(FileId(0), &elements, &[1, 3]));
-    counts(&file, 1, 4);
+    assert_eq!(walked(&file), (1, 4));
     let other = complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap());
     assert_eq!(other, expected(FileId(0), &elements, &[2]));
-    counts(&file, 1, 4);
+    assert_eq!(walked(&file), (1, 4));
     assert_eq!(
         semantics.selects(),
         0,
@@ -80,7 +80,7 @@ fn inactive_file_has_zero_shared_walk_work() {
             &mut symbols,
         )
         .unwrap();
-    counts(&file, 0, 0);
+    assert_eq!(walked(&file), (0, 0));
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -105,7 +105,7 @@ fn skipping_all_demanded_rules_does_not_start_the_walk() {
             &mut symbols,
         )
         .unwrap();
-    counts(&file, 0, 0);
+    assert_eq!(walked(&file), (0, 0));
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -152,7 +152,7 @@ fn equal_predicates_with_different_parameters_have_independent_native_results() 
         complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[1])
     );
-    counts(&file, 1, 4);
+    assert_eq!(walked(&file), (1, 4));
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -192,16 +192,16 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2])
     );
-    counts(&file, 1, 4);
-    failed(
-        file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
-        regex_error("["),
+    assert_eq!(walked(&file), (1, 4));
+    assert_eq!(
+        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        Some(regex_error("["))
     );
     assert_eq!(
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2])
     );
-    counts(&file, 1, 4);
+    assert_eq!(walked(&file), (1, 4));
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
     request.finish();
@@ -222,10 +222,7 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
     corpus.push(second);
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
-    for (file_id, source, first, last) in [
-        (FileId(0), b"abc".as_slice(), 1, 3),
-        (FileId(1), b"cba".as_slice(), 3, 1),
-    ] {
+    for (file_id, source, first, last) in [(FileId(0), b"abc", 1, 3), (FileId(1), b"cba", 3, 1)] {
         let (elements, mut symbols) = tree(file_id, source);
         let mut file = request
             .open_file(
@@ -250,7 +247,7 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
                 &mut symbols,
             )
             .unwrap();
-        counts(&file, 0, 0);
+        assert_eq!(walked(&file), (0, 0));
         assert_eq!(
             complete(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
             expected(file_id, &elements, &[first])
@@ -259,7 +256,7 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
             complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
             expected(file_id, &elements, &[last])
         );
-        counts(&file, 1, 4);
+        assert_eq!(walked(&file), (1, 4));
         file.finish().unwrap();
     }
     assert_eq!(semantics.selects(), 0);

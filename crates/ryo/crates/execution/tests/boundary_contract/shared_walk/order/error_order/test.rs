@@ -43,9 +43,9 @@ fn an_earlier_dynamic_regex_error_is_not_hidden_by_a_later_false_kind_test() {
             &mut symbols,
         )
         .unwrap();
-    failed(
-        file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
-        regex_error("["),
+    assert_eq!(
+        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        Some(regex_error("["))
     );
     assert_eq!(semantics.selects(), 0);
     file.finish().unwrap();
@@ -137,13 +137,13 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
     // Regex compilation intentionally exposes the same generic reason for
     // these malformed patterns. The independent continuation count below proves
     // ordering instead of attributing the failure from indistinguishable text.
-    failed(
-        file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
-        child_error.clone(),
+    assert_eq!(
+        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        Some(child_error.clone())
     );
-    failed(
-        file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
-        child_error,
+    assert_eq!(
+        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        Some(child_error)
     );
     file.finish().expect("finish failed continuation owner");
     request.finish();
@@ -251,10 +251,12 @@ fn the_first_engine_error_of_an_evaluation_is_the_one_reported() {
             &mut symbols,
         )
         .expect("open the file");
-    failed(
-        file.rule(RuleIndex(0), demand(), &mut symbols)
-            .expect("the rule reports its outcome"),
-        OperatingError::NotRun,
+    assert_eq!(
+        failed(
+            file.rule(RuleIndex(0), demand(), &mut symbols)
+                .expect("the rule reports its outcome")
+        ),
+        Some(OperatingError::NotRun)
     );
     let _finished = file.finish();
     request.finish();

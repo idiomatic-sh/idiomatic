@@ -67,18 +67,10 @@ pub(in super::super) fn intent_place(value: FileRuleIntent) -> usize {
     }
 }
 
-/// An inventory lists each variant once, at the place its exhaustive match gives it.
-pub(in super::super) fn assert_inventory<T: Copy + std::fmt::Debug>(
-    name: &str,
-    values: &[T],
-    position: fn(T) -> usize,
-) {
-    let places: BTreeSet<usize> = values.iter().map(|&value| position(value)).collect();
-    assert_eq!(
-        places,
-        (0..values.len()).collect::<BTreeSet<_>>(),
-        "{name} lists each variant once at its place: add or remove its submission control"
-    );
+/// The places an inventory's variants take, by their exhaustive match: each variant once at its own place when the
+/// inventory is whole.
+pub(in super::super) fn places<T: Copy>(values: &[T], position: fn(T) -> usize) -> BTreeSet<usize> {
+    values.iter().map(|&value| position(value)).collect()
 }
 
 pub(in super::super) const DELIVERIES: [DiagnosticDelivery; 3] = [

@@ -1,6 +1,6 @@
 //! Every operation executes through the real prepare/open_file/collect-or-deliver protocol.
 use super::super::super::fixtures as owner_fixtures;
-use super::fixtures::{ObservedDelivery, RefusalOutcome, deliver};
+use super::fixtures::{ObservedDelivery, Settlement, deliver};
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
 use ryo_execution_domain::domain::operator::service::prepare_operator;
@@ -19,6 +19,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::types::Table;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub(crate) fn same_rows(table: &Table, rows: &[Vec<Cell>]) -> bool {
@@ -34,16 +35,7 @@ pub(crate) fn compare_delivery(
     symbols: &mut Symbols,
     stop: Option<usize>,
 ) -> Result<ObservedDelivery, OperatingError> {
-    compare_delivery_with_semantic(
-        operation,
-        inputs,
-        bindings,
-        source,
-        symbols,
-        stop,
-        None,
-        RefusalOutcome::Failed,
-    )
+    compare_delivery_with_semantic(operation, inputs, bindings, source, symbols, stop, None)
 }
 pub(crate) fn compare_delivery_with_semantic(
     operation: &Operation,
@@ -53,7 +45,6 @@ pub(crate) fn compare_delivery_with_semantic(
     symbols: &mut Symbols,
     stop: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
-    refusal: RefusalOutcome,
 ) -> Result<ObservedDelivery, OperatingError> {
     compare_delivery_with_port(
         operation,
@@ -63,7 +54,6 @@ pub(crate) fn compare_delivery_with_semantic(
         symbols,
         stop,
         semantic,
-        refusal,
         Arc::new(owner_fixtures::operators()),
     )
 }
@@ -77,14 +67,23 @@ pub(crate) fn compare_delivery_with_port(
     symbols: &mut Symbols,
     stop: Option<usize>,
     semantic: Option<&dyn SemanticLookup>,
-    refusal: RefusalOutcome,
     port: Arc<dyn OperatorsPort>,
 ) -> Result<ObservedDelivery, OperatingError> {
     let schema = schema(operation, inputs, bindings);
     let authored = author(operation, inputs, bindings, symbols);
     deliver(
-        authored, schema, bindings, source, symbols, stop, semantic, refusal, port,
+        authored, schema, bindings, source, symbols, stop, semantic, port,
     )
+}
+
+/// A delivery whose root completed or failed; an unknown or unsettled root is refused with its error.
+pub(crate) fn settled(observed: ObservedDelivery) -> Result<ObservedDelivery, OperatingError> {
+    match observed.settlement {
+        Settlement::Complete | Settlement::Failed => Ok(observed),
+        Settlement::Unknown | Settlement::Unsettled => {
+            Err(observed.collected.err().unwrap_or(OperatingError::NotRun))
+        }
+    }
 }
 
 /// The operation's output schema over these input tables.
@@ -170,21 +169,24 @@ pub(crate) fn author(
     }
 }
 
-fn all_registrations_refuse_a_foreign_variant() -> Result<(), Failure> {
-    for (at, kind) in OperationKind::ALL.iter().enumerate() {
-        let foreign = fixture(OperationKind::ALL[(at + 1) % OperationKind::ALL.len()]);
-        assert!(matches!(
-            prepare_operator(
+/// Each registered kind's preparation of the next kind's fixture operation: the refusal, or `None` when it prepared.
+fn all_registrations_refuse_a_foreign_variant() -> Result<Value, Failure> {
+    Ok(OperationKind::ALL
+        .iter()
+        .enumerate()
+        .map(|(at, kind)| {
+            let foreign = fixture(OperationKind::ALL[(at + 1) % OperationKind::ALL.len()]);
+            let refused = prepare_operator(
                 *kind,
                 &foreign.operation,
                 &[],
                 &[],
-                ryo_values::domain::plan_parts::types::StepScope::PerFile
-            ),
-            Err(OperatingError::WrongOperation)
-        ));
-    }
-    Ok(())
+                ryo_values::domain::plan_parts::types::StepScope::PerFile,
+            )
+            .err();
+            (*kind, refused)
+        })
+        .collect())
 }
 pub(crate) fn repeated(table: &Table, times: usize) -> Table {
     Table {
@@ -194,13 +196,45 @@ pub(crate) fn repeated(table: &Table, times: usize) -> Table {
     }
 }
 type Input = fn() -> Result<Value, Failure>;
-type Value = ();
+type Value = Cow<'static, [(OperationKind, Option<OperatingError>)]>;
 type Failure = OperatingError;
+const FOREIGN: &[(OperationKind, Option<OperatingError>)] = {
+    use OperationKind::*;
+    const W: Option<OperatingError> = Some(OperatingError::WrongOperation);
+    &[
+        (Replace, W),
+        (OrderedMatch, W),
+        (Select, W),
+        (Project, W),
+        (Extend, W),
+        (Join, W),
+        (Union, W),
+        (Intersection, W),
+        (Difference, W),
+        (Antijoin, W),
+        (GroupCount, W),
+        (GroupDigest, W),
+        (Capture, W),
+        (Rank, W),
+        (Words, W),
+        (Axis, W),
+        (Closure, W),
+        (Cycles, W),
+        (Rows, W),
+        (Hosted, W),
+        (SpanBetween, W),
+        (SourceMatches, W),
+        (RenderSyntax, W),
+        (FitsRendered, W),
+        (SpanBounds, W),
+        (OrderedDfs, W),
+    ]
+};
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName(stringify!(all_registrations_refuse_a_foreign_variant)),
     word: Word::Succeeds,
     input: || all_registrations_refuse_a_foreign_variant,
-    expect: Expect::Value(()),
+    expect: Expect::Value(Cow::Borrowed(FOREIGN)),
 }];
 fn subject(input: Input) -> Result<Value, Failure> {
     input()

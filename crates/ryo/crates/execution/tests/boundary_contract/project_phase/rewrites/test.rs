@@ -276,3 +276,17 @@ fn pushing_a_filter_into_a_join_on_the_file_keeps_the_rows() {
     );
     assert_eq!(rows(after, after_emitted, &files), before);
 }
+
+#[test]
+fn the_proofs_name_the_function_relations_columns_by_place() {
+    use ryo_relations::domain::relations::{service::kinds, types::CellKind};
+    assert_eq!(
+        kinds(Relation::Function),
+        [
+            CellKind::Node,
+            CellKind::Symbol,
+            CellKind::File,
+            CellKind::Span
+        ]
+    );
+}

@@ -137,7 +137,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         .unwrap();
     for index in [0, 1] {
         let outcome = file.rule(RuleIndex(index), demand(), &mut symbols).unwrap();
-        failed(outcome, OperatingError::NotRead);
+        assert_eq!(failed(outcome), Some(OperatingError::NotRead));
     }
     assert_eq!(
         *calls.borrow(),
@@ -145,7 +145,7 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
         "the shared pure source is borrowed once; waiting ancestors do not retry it"
     );
     let again = file.rule(RuleIndex(0), demand(), &mut symbols).unwrap();
-    failed(again, OperatingError::NotRead);
+    assert_eq!(failed(again), Some(OperatingError::NotRead));
     assert_eq!(*calls.borrow(), [Relation::Function]);
     let mut expected = readiness_expected();
     expected.count = RowCount(4);

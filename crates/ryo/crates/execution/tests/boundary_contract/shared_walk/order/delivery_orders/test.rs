@@ -129,10 +129,12 @@ fn identical_join_diagnostics_have_equal_errors_for_both_delivery_orders() {
                     "forwarded empty Join has no diagnostic rows"
                 );
             } else {
-                failed(
-                    file.rule(rule, demand(), &mut symbols)
-                        .expect("collected diagnostic outcome"),
-                    regex_error("["),
+                assert_eq!(
+                    failed(
+                        file.rule(rule, demand(), &mut symbols)
+                            .expect("collected diagnostic outcome")
+                    ),
+                    Some(regex_error("["))
                 );
             }
         }

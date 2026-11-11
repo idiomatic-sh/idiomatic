@@ -2,7 +2,6 @@
 //! no row.
 use super::super::super::fixtures as owner_fixtures;
 use super::super::conformance::fixtures::ObservedDelivery;
-use super::super::conformance::fixtures::RefusalOutcome;
 use crate::inbound::use_cases::execution::interface::OperatingError;
 use crate::inbound::use_cases::execution::interface::SemanticLookup;
 use ryo_execution_runtime::application::file_dag::fixtures::operator_contract::expectations::SOURCE;
@@ -17,6 +16,7 @@ use ryo_values::cases::run;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::types::Table;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 /// Delivers an operation whose listed inputs have no rows while the region that computes it runs. Each such input is
@@ -78,7 +78,6 @@ fn compare_emptied(
         symbols,
         None,
         semantic,
-        RefusalOutcome::Failed,
         Arc::new(owner_fixtures::operators()),
     )
 }
@@ -87,26 +86,30 @@ fn compare_emptied(
 /// no row; a union of two empty inputs gives none; and a reach join over no edge finds no pair, so closure is not
 /// reflexive. Each emptied input is computed empty inside a region that runs, so the kernel answers, not the presence
 /// decision.
-fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
+fn every_required_input_empty_answers_no_rows() -> Result<Value, Failure> {
     use ryo_execution_domain::domain::operator::contract::presence::types::PresenceMask;
     let semantic = KnownSyntax;
-    let rows = |case: &mut expectations::Fixture, emptied: &[usize]| {
-        compare_emptied(
-            &case.operation,
-            &case.inputs,
-            emptied,
-            &case.bindings,
-            SOURCE,
-            &mut case.symbols,
-            Some(&semantic),
-        )
-        .map(|observed| {
-            (
-                observed.collected.map(|table| table.count.0),
-                observed.rows.len(),
+    let probe =
+        |kind: Option<OperationKind>, case: &mut expectations::Fixture, emptied: Vec<usize>| {
+            compare_emptied(
+                &case.operation,
+                &case.inputs,
+                &emptied,
+                &case.bindings,
+                SOURCE,
+                &mut case.symbols,
+                Some(&semantic),
             )
-        })
-    };
+            .map(|observed| Probe {
+                kind,
+                emptied: emptied.into(),
+                collected: observed.collected.as_ref().map_or(0, |table| table.count.0),
+                refusal: observed.collected.err(),
+                streamed: observed.rows.len(),
+            })
+        };
+    let mut probes = vec![];
+    let mut lacking = vec![];
     for kind in OperationKind::ALL {
         let presence =
             ryo_execution_domain::domain::operator::contract::service::semantics(*kind).presence;
@@ -121,17 +124,11 @@ fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
             }
             PresenceMask::Always => continue,
         };
-        assert!(
-            !emptied.is_empty(),
-            "{kind:?} declares a required input its fixture lacks"
-        );
+        if emptied.is_empty() {
+            lacking.push(*kind);
+        }
         for inputs in emptied {
-            let mut case = fixture(*kind);
-            assert_eq!(
-                rows(&mut case, &inputs)?,
-                (Ok(0), 0),
-                "{kind:?} with inputs {inputs:?} empty"
-            );
+            probes.push(probe(Some(*kind), &mut fixture(*kind), inputs)?);
         }
     }
     let mut reach = fixture(OperationKind::Join);
@@ -146,21 +143,82 @@ fn every_required_input_empty_answers_no_rows() -> Result<(), Failure> {
             ],
         });
     }
-    assert_eq!(
-        rows(&mut reach, &[1])?,
-        (Ok(0), 0),
-        "a reach join over no edge"
-    );
-    Ok(())
+    probes.push(probe(None, &mut reach, vec![1])?);
+    Ok(Emptied {
+        probes: probes.into(),
+        lacking: lacking.into(),
+    })
+}
+/// One delivery with some inputs computed empty: the kind (`None` for a reach join over no edge), the emptied input
+/// positions, and what was collected, refused and streamed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Probe {
+    kind: Option<OperationKind>,
+    emptied: Cow<'static, [usize]>,
+    collected: usize,
+    refusal: Option<OperatingError>,
+    streamed: usize,
+}
+/// Every probe, and the kinds that declare a required input their fixture lacks.
+#[derive(Debug, PartialEq, Eq)]
+struct Emptied {
+    probes: Cow<'static, [Probe]>,
+    lacking: Cow<'static, [OperationKind]>,
+}
+/// A probe that collected and streamed no row.
+const fn none(kind: Option<OperationKind>, emptied: &'static [usize]) -> Probe {
+    Probe {
+        kind,
+        emptied: Cow::Borrowed(emptied),
+        collected: 0,
+        refusal: None,
+        streamed: 0,
+    }
 }
 type Input = fn() -> Result<Value, Failure>;
-type Value = ();
+type Value = Emptied;
 type Failure = OperatingError;
+const PROBES: &[Probe] = {
+    use OperationKind::*;
+    &[
+        none(Some(Replace), &[0]),
+        none(Some(OrderedMatch), &[0]),
+        none(Some(OrderedMatch), &[1]),
+        none(Some(Select), &[0]),
+        none(Some(Project), &[0]),
+        none(Some(Extend), &[0]),
+        none(Some(Join), &[0]),
+        none(Some(Join), &[1]),
+        none(Some(Union), &[0, 1]),
+        none(Some(Intersection), &[0]),
+        none(Some(Intersection), &[1]),
+        none(Some(Difference), &[0]),
+        none(Some(Antijoin), &[0]),
+        none(Some(GroupCount), &[0]),
+        none(Some(GroupDigest), &[0]),
+        none(Some(Capture), &[0]),
+        none(Some(Rank), &[0]),
+        none(Some(Words), &[0]),
+        none(Some(Axis), &[0]),
+        none(Some(Closure), &[0]),
+        none(Some(Cycles), &[0]),
+        none(Some(SpanBetween), &[0]),
+        none(Some(SourceMatches), &[0]),
+        none(Some(RenderSyntax), &[0]),
+        none(Some(FitsRendered), &[0]),
+        none(Some(SpanBounds), &[0]),
+        none(Some(OrderedDfs), &[0]),
+        none(None, &[1]),
+    ]
+};
 const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName(stringify!(every_required_input_empty_answers_no_rows)),
     word: Word::Succeeds,
     input: || every_required_input_empty_answers_no_rows,
-    expect: Expect::Value(()),
+    expect: Expect::Value(Emptied {
+        probes: Cow::Borrowed(PROBES),
+        lacking: Cow::Borrowed(&[]),
+    }),
 }];
 fn subject(input: Input) -> Result<Value, Failure> {
     input()

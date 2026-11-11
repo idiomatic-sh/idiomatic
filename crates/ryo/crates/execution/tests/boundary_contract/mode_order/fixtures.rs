@@ -106,10 +106,13 @@ pub(super) fn axis(from: Input, domain: Input, parent: u32) -> Operation {
     }
 }
 
-pub(super) fn assert_column(outcome: RootOutcome, index: u32) {
-    assert!(
-        matches!(outcome, RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn { index: actual })) if actual == index)
-    );
+/// The column a root failed for want of; `None` when it did not fail on a missing column.
+pub(super) fn failed_column(outcome: RootOutcome) -> Option<u32> {
+    if let RootOutcome::Failed(OperatingError::Table(RowsError::NoSuchColumn { index })) = outcome {
+        Some(index)
+    } else {
+        None
+    }
 }
 
 pub(super) struct Forwarded {

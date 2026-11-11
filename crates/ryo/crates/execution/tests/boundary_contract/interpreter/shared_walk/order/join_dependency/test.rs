@@ -1,6 +1,6 @@
 //! The shared walk uses one join dependency contract for callback delivery and shares one source walk.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
-use crate::interpreter::shared_walk::fixtures::counts;
+use crate::interpreter::shared_walk::fixtures::walked;
 use crate::shared_walk::fixtures::no_catalog;
 use crate::shared_walk::fixtures::*;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
@@ -130,7 +130,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
                 }
                 // The LHS cannot match the file ("absent-kind"), so it publishes empty without a walk: the independent
                 // selector and the Join's demanded RHS share the one head cohort. A terminal retry adds no work.
-                counts(&file, 1, 4);
+                assert_eq!(walked(&file), (1, 4));
                 assert_eq!(
                     file.fixture_walk_counts().predicate_rows.0,
                     2,
@@ -193,7 +193,7 @@ fn independent_semantic_relation_selectors_share_one_source_walk() {
             },
         );
     }
-    counts(&file, 1, 3);
+    assert_eq!(walked(&file), (1, 3));
     assert_eq!(file.fixture_walk_counts().predicate_rows.0, 6);
     assert_eq!(
         semantics.selects(),

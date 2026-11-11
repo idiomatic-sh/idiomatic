@@ -185,9 +185,9 @@ fn a_fault_in_another_active_class_is_delayed_until_that_rule_is_requested() {
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
         expected(FileId(0), &elements, &[2])
     );
-    failed(
-        file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
-        regex_error("["),
+    assert_eq!(
+        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        Some(regex_error("["))
     );
     assert_eq!(
         complete(file.rule(RuleIndex(1), demand(), &mut symbols).unwrap()),
@@ -213,10 +213,7 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     entry.path = ryo_language::domain::files::types::FilePath("second.py".into());
     corpus.push(second);
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, None);
-    for (file_id, source, first, last) in [
-        (FileId(0), b"abc".as_slice(), 1, 3),
-        (FileId(1), b"cba".as_slice(), 3, 1),
-    ] {
+    for (file_id, source, first, last) in [(FileId(0), b"abc", 1, 3), (FileId(1), b"cba", 3, 1)] {
         let (elements, mut symbols) = tree(file_id, source);
         let mut file = request
             .open_file(
@@ -253,4 +250,15 @@ fn the_second_file_starts_with_fresh_walk_state_and_its_own_source_rows() {
     }
     assert_eq!(semantics.selects(), 0);
     request.finish();
+}
+
+#[test]
+fn the_fixture_tree_has_four_real_elements_and_its_whole_vocabulary_named() {
+    use ryo_language::domain::elements::fixtures::{kind_names, real_count};
+    let (elements, _) = tree(FileId(0), b"abc");
+    assert_eq!(real_count(&elements).0, 4);
+    assert!(
+        kind_names(&elements).len() > 3,
+        "fully completed vocabulary enables the physical shared pass"
+    );
 }

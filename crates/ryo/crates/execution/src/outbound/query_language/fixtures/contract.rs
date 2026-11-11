@@ -49,24 +49,24 @@ pub fn check(adapter: &impl QueryLanguagePort) {
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);
     // Inside a compilation session the first compile over a catalog answers as `compile` does, and so does a later one handed
-    // the modules the first left parsed.
-    let in_session = |text| {
+    // the modules the first left parsed: each answers every row.
+    let first_in_session = |text| {
         let mut modules = ParsedModules::default();
-        let first = adapter
+        adapter
             .compile_parsed(&text, &mut modules, &[], &[])
-            .map(|_| true);
-        let again = adapter
-            .compile_parsed(&text, &mut modules, &[], &[])
-            .map(|_| true);
-        assert_eq!(
-            first.is_ok(),
-            again.is_ok(),
-            "a later compile of the session answers as the first"
-        );
-        first
+            .map(|_| true)
     };
-    run(CASES, Word::Succeeds, in_session);
-    run(CASES, Word::Refuses, in_session);
+    let again_in_session = |text| {
+        let mut modules = ParsedModules::default();
+        let _first = adapter.compile_parsed(&text, &mut modules, &[], &[]);
+        adapter
+            .compile_parsed(&text, &mut modules, &[], &[])
+            .map(|_| true)
+    };
+    run(CASES, Word::Succeeds, first_in_session);
+    run(CASES, Word::Refuses, first_in_session);
+    run(CASES, Word::Succeeds, again_in_session);
+    run(CASES, Word::Refuses, again_in_session);
     let validated = |text| adapter.validate(&text, &[], &[]).map(|_| true);
     run(CASES, Word::Succeeds, validated);
     run(CASES, Word::Refuses, validated);

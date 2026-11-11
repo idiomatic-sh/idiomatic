@@ -204,7 +204,7 @@ pub(crate) fn project_roots<R: ProjectRootExecution>(
         .collect()
 }
 
-/// The one occurrence of `phase` through [`project_roots`].
+/// The one occurrence of `phase` through [`project_roots`]; `ShapeMismatch` when the batch does not answer it exactly once.
 pub(crate) fn project_root<R: ProjectRootExecution>(
     root: &R,
     phase: PhaseRules<'_>,
@@ -212,9 +212,9 @@ pub(crate) fn project_root<R: ProjectRootExecution>(
     publication: &Partials,
     symbols: &mut Symbols,
 ) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
-    let mut done = project_roots(root, phase, evaluation, publication, symbols);
-    assert_eq!(done.len(), 1, "one occurrence has one answer");
-    done.remove(0)
+    // One occurrence has one answer: a batch that answers it other than once is refused as a mismatched shape.
+    <[_; 1]>::try_from(project_roots(root, phase, evaluation, publication, symbols))
+        .map_or(Err(OperatingError::ShapeMismatch), |[one]| one)
 }
 
 /// The authored plans of a request a control builds, for the control to edit before it prepares.

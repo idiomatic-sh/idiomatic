@@ -126,9 +126,9 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
         )
         .unwrap();
     for _delivery in 0..2 {
-        failed(
-            file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
-            regex_error("["),
+        assert_eq!(
+            failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+            Some(regex_error("["))
         );
     }
     assert_eq!(semantics.selects(), 0);
@@ -293,9 +293,9 @@ fn shared_prefixes_preserve_distinct_parameter_bindings_and_first_errors() {
             &mut symbols,
         )
         .unwrap();
-    failed(
-        file.rule(RuleIndex(0), demand(), &mut symbols).unwrap(),
-        regex_error("["),
+    assert_eq!(
+        failed(file.rule(RuleIndex(0), demand(), &mut symbols).unwrap()),
+        Some(regex_error("["))
     );
     for rule in [RuleIndex(2), RuleIndex(1)] {
         assert_eq!(

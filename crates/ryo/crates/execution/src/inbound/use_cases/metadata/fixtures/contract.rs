@@ -14,22 +14,20 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
     expect: Expect::Value(6),
 }];
 
-/// Every listed operator has one nonempty, distinct public description.
+/// How many distinct, nonempty public names the catalog's operators have: one per listed operator when each has its own.
 ///
 /// # Panics
 ///
-/// When a case fails, an operator's description is empty or repeats another's, or the catalog does not list 25 operators.
+/// When a case fails.
 pub fn check(subject: &impl MetadataUseCase) -> usize {
     run(CASES, Word::Succeeds, |operator| {
         Ok::<_, Failure>(subject.describe(operator).name.0.len())
     });
-    let operators = subject.operators();
-    let mut names = std::collections::BTreeSet::new();
-    for &operator in operators {
-        let description = subject.describe(operator);
-        assert!(!description.name.0.is_empty());
-        assert!(names.insert(description.name.0));
-    }
-    assert_eq!(operators.len(), 25);
-    names.len()
+    subject
+        .operators()
+        .iter()
+        .map(|&operator| subject.describe(operator).name.0)
+        .filter(|name| !name.is_empty())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
 }
