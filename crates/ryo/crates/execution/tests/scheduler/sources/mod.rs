@@ -1,3 +1,5 @@
 //! Source roots and named member dependencies enter the public scheduling owner.
 #[cfg(test)]
-pub(crate) mod test;
+pub(crate) mod fixtures;
+#[cfg(test)]
+pub(super) mod test;

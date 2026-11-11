@@ -1,5 +1,6 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
-use crate::boundary_fixture::fixtures::{authored_request, corpus, engine, source};
+use super::fixtures::named;
+use crate::boundary_fixture::fixtures::{corpus, engine, source};
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
@@ -10,9 +11,7 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecution as _;
 use ryo_execution::inbound::use_cases::execution::interface::RuleIndex;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
-use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
 use ryo_execution_domain::domain::rule_intent::types::FrontierPurpose;
 use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
@@ -28,111 +27,12 @@ use ryo_relations::domain::relations::{fixtures::node_id, types::*};
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::runs::types::ApplicabilityRefusal;
 use ryo_values::domain::{
-    observations::types::*,
-    plan_parts::types::{Input, ObservationBindingId, StepId, StepScope},
-    plans::types::{Operation, PlanStep},
-    records::types::ObservationReadinessLayout,
+    plan_parts::types::{Input, ObservationBindingId, StepId},
     rows::types::RowCount,
-    stored_facts::types::{Bucket, Digest},
+    stored_facts::types::Bucket,
     table_words::fixtures::decode_complete,
 };
 use std::cell::Cell;
-
-pub(crate) fn named() -> PrepareRequest {
-    let mut authored = authored_request(3);
-    let columns = vec![ObservationColumn {
-        name: ObservationColumnName("node".into()),
-        kind: CellKind::Node,
-    }];
-    crate::boundary_fixture::fixtures::plans(&mut authored)[0].observations =
-        vec![PlanObservation {
-            name: ObservationName("nodes".into()),
-            source: Input::Step(StepId(0)),
-            columns: columns.clone(),
-            scope: StepScope::PerFile,
-        }];
-    crate::boundary_fixture::fixtures::plans(&mut authored)[1].observation_inputs =
-        vec![BoundObservationInput {
-            name: ObservationBindingName("nodes".into()),
-            columns: columns.clone(),
-            scope: StepScope::PerFile,
-        }];
-    crate::boundary_fixture::fixtures::plans(&mut authored)[1].steps = vec![PlanStep {
-        scope: StepScope::PerFile,
-        operation: Operation::Union {
-            left: Input::BoundObservation(ObservationBindingId(0)),
-            right: Input::BoundObservation(ObservationBindingId(0)),
-        },
-    }];
-    // The linker retains exports only when another rule reads them, and its
-    // canonical export contract uses Step roots. Keep the per-file union as a
-    // real export; a separately demanded cross-file step reads the bound input
-    // directly, making that Observation source an actual file frontier.
-    crate::boundary_fixture::fixtures::plans(&mut authored)[1]
-        .steps
-        .push(PlanStep {
-            scope: StepScope::CrossFile,
-            operation: Operation::Union {
-                left: Input::BoundObservation(ObservationBindingId(0)),
-                right: Input::BoundObservation(ObservationBindingId(0)),
-            },
-        });
-    crate::boundary_fixture::fixtures::plans(&mut authored)[1].observations = vec![
-        PlanObservation {
-            name: ObservationName("forwarded".into()),
-            source: Input::Step(StepId(0)),
-            columns: columns.clone(),
-            scope: StepScope::PerFile,
-        },
-        PlanObservation {
-            name: ObservationName("projected".into()),
-            source: Input::Step(StepId(1)),
-            columns: columns.clone(),
-            scope: StepScope::CrossFile,
-        },
-    ];
-    crate::boundary_fixture::fixtures::plans(&mut authored)[2].observation_inputs = vec![
-        BoundObservationInput {
-            name: ObservationBindingName("forwarded".into()),
-            columns: columns.clone(),
-            scope: StepScope::PerFile,
-        },
-        BoundObservationInput {
-            name: ObservationBindingName("projected".into()),
-            columns: columns.clone(),
-            scope: StepScope::CrossFile,
-        },
-    ];
-    crate::boundary_fixture::fixtures::plans(&mut authored)[2].steps = vec![PlanStep {
-        scope: StepScope::CrossFile,
-        operation: Operation::Union {
-            left: Input::BoundObservation(ObservationBindingId(0)),
-            right: Input::BoundObservation(ObservationBindingId(1)),
-        },
-    }];
-    authored.rules[2].observations = ["forwarded", "projected"]
-        .into_iter()
-        .map(|name| ObservationBinding {
-            name: ObservationBindingName(name.into()),
-            columns: columns.clone(),
-            producers: vec![ObservationProducer::Output {
-                rule: authored.rules[1].id.clone(),
-                output: ObservationName(name.into()),
-            }],
-        })
-        .collect();
-    authored.rules[1].observations = vec![ObservationBinding {
-        name: ObservationBindingName("nodes".into()),
-        columns,
-        producers: vec![ObservationProducer::Output {
-            rule: authored.rules[0].id.clone(),
-            output: ObservationName("nodes".into()),
-        }],
-    }];
-    authored.observations =
-        ObservationIdentity::Named(ObservationReadinessLayout(Digest([117; 16])));
-    authored
-}
 
 #[test]
 fn direct_bound_root_and_union_share_the_actual_member_before_producer_delivery() {

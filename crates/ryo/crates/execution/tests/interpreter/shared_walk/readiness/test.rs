@@ -1,6 +1,6 @@
 //! Actual public file-owner readiness bounds and terminal failure replay.
 use crate::boundary_fixture::fixtures::{authored_request, corpus, demand};
-use crate::shared_walk::readiness::test::{
+use crate::shared_walk::readiness::fixtures::{
     readiness_budget, readiness_chain, readiness_expected, readiness_hosted, readiness_intent,
 };
 use crate::shared_walk::{fixtures::no_catalog, fixtures::*};

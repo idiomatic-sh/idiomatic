@@ -1,6 +1,6 @@
 //! Real relation, region, observation and member roots, including direct bound capture.
 use crate::boundary_fixture::fixtures::{corpus, engine, source};
-use crate::scheduler::sources::test::named;
+use crate::scheduler::sources::fixtures::named;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;

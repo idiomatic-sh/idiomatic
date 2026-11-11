@@ -1,6 +1,6 @@
 //! Hosted ordered dependencies use the same scheduler for both delivery modes.
 use crate::boundary_fixture::fixtures::{corpus, demand, engine};
-use crate::scheduler::physical::test::ordered;
+use crate::scheduler::physical::fixtures::ordered;
 use ryo_execution::inbound::use_cases::execution::interface::CaptureIntent;
 use ryo_execution::inbound::use_cases::execution::interface::DiagnosticDelivery;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest as _;
