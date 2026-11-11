@@ -1,7 +1,5 @@
 //! The test data of `linter lint` that fixes the refusals its rows tell apart.
 
-use crate::resources::linter::lint::errors::LintError;
-
 /// The refusals the rows tell apart.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Refusal {
@@ -31,26 +29,4 @@ pub(crate) enum Refusal {
     Host,
     /// The run held more than the budget.
     MemoryBudgetExceeded,
-}
-
-/// The refusal a row tells apart for the error `lint` ends in.
-pub(crate) fn refusal(error: LintError) -> Refusal {
-    match error {
-        LintError::Execution { reason } => Refusal::Execution(reason),
-        LintError::ObservationBindings { .. } => Refusal::ObservationBindings,
-        LintError::ObservationExecution { .. } => Refusal::ObservationExecution,
-        LintError::SourceLanguage { .. } => Refusal::SourceLanguage,
-        LintError::Rule { .. } => Refusal::Rule,
-        LintError::Unrunnable { .. } => Refusal::Unrunnable,
-        LintError::MissingParameter { .. } => Refusal::MissingParameter,
-        LintError::TooLarge { .. } => Refusal::TooLarge,
-        LintError::PathNotText { .. } => Refusal::PathNotText,
-        LintError::ProjectPath { .. } => Refusal::PathNotText,
-        LintError::Io { .. } => Refusal::Io,
-        LintError::Provider { .. } => Refusal::Provider,
-        LintError::DuplicateHostRelation { .. }
-        | LintError::HostRowWidth { .. }
-        | LintError::HostCellKind { .. } => Refusal::Host,
-        LintError::MemoryBudgetExceeded { .. } => Refusal::MemoryBudgetExceeded,
-    }
 }

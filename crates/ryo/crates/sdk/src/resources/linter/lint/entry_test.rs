@@ -1,8 +1,9 @@
 //! What `linter lint` promises its caller, one row of `CASES` for each case it has.
 
-use std::num::{NonZeroU64, NonZeroUsize};
+use std::num::NonZeroUsize;
 
 use super::entry::lint;
+use super::errors::LintError;
 use super::fixtures::capability_cache::capability_cache;
 use super::fixtures::configured_scope::configured_scope;
 use super::fixtures::excluded_producer::excluded_producer;
@@ -11,19 +12,20 @@ use super::fixtures::outcome::Outcome;
 use super::fixtures::permission::{permission_bytes, permission_unavailable};
 use super::fixtures::producer_without_query::producer_without_query;
 use super::fixtures::queries::{
-    HOSTED, LITERAL_PARSE_POSITIVE, OPTIONAL_POSITIVE, RAW_FORMAT_POSITIVE,
+    HOSTED, LITERAL_PARSE_POSITIVE, MISSPELLED, OPTIONAL_ABSENCE, OPTIONAL_POSITIVE,
+    RAW_FORMAT_POSITIVE,
 };
 use super::fixtures::re_exported_publication::re_exported_publication;
-use super::fixtures::refusal::{Refusal, refusal};
+use super::fixtures::refusal::Refusal;
 use super::fixtures::refused_and_empty_producers::refused_and_empty_producers;
-use super::fixtures::request::{Given, Hosting, Linting, Reads, Root, request};
+use super::fixtures::request::{
+    Given, Hosting, LINTED, Linting, Reads, Root, cache, memory, request,
+};
 use super::fixtures::shared_calls::shared;
 use super::fixtures::unbound_export::unbound_export;
 use super::fixtures::zero_finding_producer::zero_finding_producer;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::language::types::Languages;
-use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::Workers;
 
 /// What a row gives the function: the rule's text, where the repository is and what else the caller states.
@@ -33,24 +35,6 @@ type Input = Given;
 type Value = Outcome;
 /// Why the function ends in error.
 type Failure = Refusal;
-
-const FUNCTIONS: &str =
-    "let functions = select * from \"function\"; emit functions subject \"file\" key(\"span\");";
-const MISSPELLED: &str =
-    "let functions = selekt * from \"function\"; emit functions subject \"file\" key(\"span\");";
-
-/// What most rows state: the functions rule over a directory holding one file, walked, with nothing kept, no budget and nothing hosted.
-const OPTIONAL_ABSENCE: &str = "let names = select * from \"identifier\" where name = \"missing\"; let absent = antijoin(left=\"syntax-tree\",right=names,left-on=[\"file\"],right-on=[\"file\"]); emit absent subject file key(span);";
-
-const LINTED: Given = Given {
-    query: FUNCTIONS,
-    kept: false,
-    root: Root::Directory,
-    bytes: None,
-    hosted: Hosting::None,
-    corpus: Reads::Walked,
-    linter: Linting::Fresh,
-};
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -337,6 +321,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+/// The refusal a row tells apart for the error `lint` ends in.
+pub(crate) fn refusal(error: LintError) -> Refusal {
+    match error {
+        LintError::Execution { reason } => Refusal::Execution(reason),
+        LintError::ObservationBindings { .. } => Refusal::ObservationBindings,
+        LintError::ObservationExecution { .. } => Refusal::ObservationExecution,
+        LintError::SourceLanguage { .. } => Refusal::SourceLanguage,
+        LintError::Rule { .. } => Refusal::Rule,
+        LintError::Unrunnable { .. } => Refusal::Unrunnable,
+        LintError::MissingParameter { .. } => Refusal::MissingParameter,
+        LintError::TooLarge { .. } => Refusal::TooLarge,
+        LintError::PathNotText { .. } => Refusal::PathNotText,
+        LintError::ProjectPath { .. } => Refusal::PathNotText,
+        LintError::Io { .. } => Refusal::Io,
+        LintError::Provider { .. } => Refusal::Provider,
+        LintError::DuplicateHostRelation { .. }
+        | LintError::HostRowWidth { .. }
+        | LintError::HostCellKind { .. } => Refusal::Host,
+        LintError::MemoryBudgetExceeded { .. } => Refusal::MemoryBudgetExceeded,
+    }
+}
+
 /// Lints a directory holding one file, with no language linked: the file is unread.
 fn subject(given: Input) -> Result<Value, Failure> {
     if matches!(given.linter, Linting::Capabilities) {
@@ -352,21 +358,11 @@ fn subject(given: Input) -> Result<Value, Failure> {
     let elsewhere = tempfile::tempdir().expect("a temporary directory");
     std::fs::write(root.path().join("notes.txt"), "text").expect("a file");
     let request = request(given, root.path());
-    let memory = given
-        .bytes
-        .and_then(NonZeroU64::new)
-        .map_or(MemoryBudget::Machine, MemoryBudget::Bytes);
-    // A cache directory no run has made yet: the run spills there before it keeps its store, so it is made first.
-    let cache = if given.kept {
-        Cache::At(elsewhere.path().join("cache").join("ryo"))
-    } else {
-        Cache::None
-    };
     let report = lint(
         Languages::default(),
         &crate::domain::capacity::types::WorkerPool::from(Workers(NonZeroUsize::MIN)),
-        memory,
-        cache,
+        memory(given),
+        cache(given, elsewhere.path()),
         request,
     )
     .map_err(refusal)?;

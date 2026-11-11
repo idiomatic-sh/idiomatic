@@ -1,11 +1,15 @@
 //! The test data of `linter lint` that fixes the request a row states: what the caller states and the request it makes.
 
 use std::collections::BTreeMap;
+use std::num::NonZeroU64;
 
 use super::outcome::Outcome;
+use super::queries::FUNCTIONS;
+use crate::domain::capacity::types::MemoryBudget;
 use crate::domain::cell::types::{Cell, HostNumber, HostText};
 use crate::domain::file::types::RelativePath;
 use crate::domain::host::types::{HostColumn, HostColumnName, HostKind, HostRelationName};
+use crate::resources::linter::lint::types::Cache;
 use crate::resources::linter::lint::types::CaseSource;
 use crate::resources::linter::lint::types::Corpus;
 use crate::resources::linter::lint::types::HostRelation;
@@ -182,5 +186,34 @@ pub(crate) fn request(given: Given, root: &std::path::Path) -> LintRequest {
         } else {
             Vec::new()
         },
+    }
+}
+
+/// What most rows state: the functions rule over a directory holding one file, walked, with nothing kept, no budget and nothing hosted.
+pub(crate) const LINTED: Given = Given {
+    query: FUNCTIONS,
+    kept: false,
+    root: Root::Directory,
+    bytes: None,
+    hosted: Hosting::None,
+    corpus: Reads::Walked,
+    linter: Linting::Fresh,
+};
+
+/// The most memory a row lets the run use: its bytes, or the machine's when it states none.
+pub(crate) fn memory(given: Given) -> MemoryBudget {
+    given
+        .bytes
+        .and_then(NonZeroU64::new)
+        .map_or(MemoryBudget::Machine, MemoryBudget::Bytes)
+}
+
+/// Where a row's run keeps its store, `elsewhere` when it keeps one: a cache directory no run has made yet, where the run spills
+/// before it keeps its store, so it is made first.
+pub(crate) fn cache(given: Given, elsewhere: &std::path::Path) -> Cache {
+    if given.kept {
+        Cache::At(elsewhere.join("cache").join("ryo"))
+    } else {
+        Cache::None
     }
 }
