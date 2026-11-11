@@ -6,6 +6,6 @@ variables = { domain-libraries = [], libraries = ["toml_parser::*", "toml::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
