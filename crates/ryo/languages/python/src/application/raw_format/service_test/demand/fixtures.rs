@@ -267,11 +267,13 @@ pub(super) fn raw_format_malformed_segments_are_atomic_and_success_order_is_flat
         )
     ));
     observed.push(format!("{:?}", pieces[2].first_field.0));
-    let Some(FormatParseResult::Parsed(last)) = result(&index, &pieces[2]) else {
-        panic!("valid last segment")
-    };
-    observed.push(format!("{:?}", last.fields.len()));
-    observed.push(format!("{:?}", last.summary.positional_consumption.0));
+    match result(&index, &pieces[2]) {
+        Some(FormatParseResult::Parsed(last)) => {
+            observed.push(format!("{:?}", last.fields.len()));
+            observed.push(format!("{:?}", last.summary.positional_consumption.0));
+        }
+        other => observed.push(format!("{other:?}")),
+    }
     observed.push(format!("{}", bool::from(index.occurrences[0].complete)));
     observed.join("|")
 }

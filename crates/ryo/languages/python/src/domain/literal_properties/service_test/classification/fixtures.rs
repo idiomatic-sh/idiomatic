@@ -1,7 +1,7 @@
 //! The support of the group's tests.
 
 use super::super::super::service::classify;
-use super::super::super::types::{LiteralClassification, Properties};
+use super::super::super::types::LiteralClassification;
 use crate::domain::{
     nodes::types::Node,
     semantic_syntax::service::positions,
@@ -10,7 +10,8 @@ use crate::domain::{
 use crate::fixtures::reading::parsed;
 use ryo::languages::{self, ByteSlice, Tree};
 
-pub(super) fn properties(source: &'static str) -> Vec<Properties> {
+/// The classification of every primitive literal of the source: a missing payload shows as its variant.
+pub(super) fn properties(source: &'static str) -> Vec<LiteralClassification> {
     let file = parsed(source.as_bytes()).expect("literal examples parse");
     let tree = Tree {
         elements: &file.elements,
@@ -19,13 +20,8 @@ pub(super) fn properties(source: &'static str) -> Vec<Properties> {
     };
     positions(&tree)
         .filter(|at| kind(&tree, *at) == Kind::Node(Node::Constant))
-        .filter_map(|at| match classify(&tree, at) {
-            LiteralClassification::Known(properties) => Some(properties),
-            LiteralClassification::NotPrimitive => None,
-            LiteralClassification::MissingPayload => {
-                panic!("a primitive literal has complete payload")
-            }
-        })
+        .map(|at| classify(&tree, at))
+        .filter(|classified| *classified != LiteralClassification::NotPrimitive)
         .collect()
 }
 
