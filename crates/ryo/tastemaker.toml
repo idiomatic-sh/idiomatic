@@ -88,7 +88,6 @@ rules = [
 ]
 templates = [
   { template = "idiomatic.arch/value", file = "crates/matching/src/inbound/use_cases/matching/compiled.rs", description = "Opaque compiled semantic values own their regex/glob representation; only inbound operations inspect it." },
-  { template = "idiomatic.arch/value", file = "crates/values/src/domain/observations/validated.rs", description = "The checked view of frontier readiness is sealed: only the observations service constructs it." },
   { template = "idiomatic.arch/clippy-config", file = "clippy.toml", description = "The product's clippy configuration: the in-tests allowances that go with the restriction lints at deny." },
   { template = "idiomatic.arch/build-script", file = "cli/build.rs", description = "The command line's build script: it writes `src/languages.rs`, the one file that links the language crates, from the directories of `languages/` (LG3, LG4)." },
   { template = "idiomatic.arch/compile-fail", file = "crates/language/tests/compile_fail.rs", description = "The trybuild runner of the language crate's compile cases: the cases that compile, then the ones that do not." },

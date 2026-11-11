@@ -1,12 +1,13 @@
 //! Ordinary project rules share one preparation and refuse another generation.
-use super::super::cases::assert_count_findings;
-use super::super::cases::evaluate_fixture;
 use crate::application::cross_file::fixtures::ProjectCalls;
 use crate::application::cross_file::fixtures::counting_plan;
+use crate::application::cross_file::fixtures::evaluation::count_findings;
+use crate::application::cross_file::fixtures::evaluation::evaluate_fixture;
 use crate::application::cross_file::fixtures::fed_steps;
 use crate::application::cross_file::fixtures::frontier_rows;
 use crate::application::cross_file::fixtures::todo;
 use crate::application::cross_file::fixtures::world_with;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::answering::types::Todo;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionRequest;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
@@ -14,14 +15,14 @@ use ryo_execution::inbound::use_cases::execution::interface::ProjectStage;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Covered;
 use ryo_execution::inbound::use_cases::metadata::interface::RuleIndex;
-use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use std::sync::Arc;
 
-pub(crate) fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
--> Result<(), RuleRequestsError> {
+fn ordinary_project_rules_share_one_preparation_and_reject_another_generation()
+-> Result<String, RuleRequestsError> {
+    let mut seen: Vec<String> = Vec::new();
     use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
     use std::sync::atomic::Ordering;
     for order in [[0, 1], [1, 0]] {
@@ -46,17 +47,12 @@ pub(crate) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
                 &phase,
             )
             .unwrap();
-            assert_eq!(fed_steps(&rules, rule), 2);
+            seen.push(format!("{:?}", fed_steps(&rules, rule)));
             let rendered = result.rendered.expect("actual core project rendering");
-            let payload = assert_count_findings(
-                &rendered,
-                RuleIndex(rule),
-                &rules.ids[rule],
-                &[2, 1],
-                &[1, 0],
-            );
+            let (shown, payload) = count_findings(&rendered);
+            seen.push(shown);
             if let Some(first) = &first_payload {
-                assert_eq!(&payload, first);
+                seen.push(format!("{:?}", (&payload) == (first)));
             } else {
                 first_payload = Some(payload);
             }
@@ -65,16 +61,8 @@ pub(crate) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
             if rule == 0 {
                 first_rendered = Some(rendered);
             }
-            assert_eq!(
-                calls.reductions.load(Ordering::SeqCst),
-                1,
-                "one real grouping setup across both logical roots"
-            );
-            assert_eq!(
-                calls.aggregates.load(Ordering::SeqCst),
-                2,
-                "the two authored node groups aggregate once each"
-            );
+            seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
+            seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
         }
         // A changed physical coverage declaration cannot consume a cached publication.
         let changed = [Covered {
@@ -94,21 +82,13 @@ pub(crate) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
             &mut symbols,
             &phase,
         );
-        assert!(
-            matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
+        seen.push(format!("{:?}", matches!(result, Err(error) if error == ryo_values::domain::rule_requests::service::failed(
                 &rules.ids[1], &OperatingError::WrongOperation,
-            )),
-            "one interpreter cannot replay a different declared physical partition"
-        );
-        assert_eq!(calls.reductions.load(Ordering::SeqCst), 1);
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 2);
+            ))));
+        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
         phase.finish().unwrap();
 
-        let engine = PrepareUseCaseImpl::new(
-            calls.clone(),
-            ryo_execution::derived(),
-            Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
-        );
         rules.request = ExecutionUseCaseImpl::new().execution(&rules.program, &rules.files, None);
         let phase = rules.request.project_phase().unwrap();
         let result = evaluate_fixture(
@@ -120,14 +100,48 @@ pub(crate) fn ordinary_project_rules_share_one_preparation_and_reject_another_ge
             &phase,
         )
         .unwrap();
-        assert_eq!(result.rendered, first_rendered);
-        assert_eq!(
-            calls.reductions.load(Ordering::SeqCst),
-            2,
-            "a new request requires its own grouping payload"
-        );
-        assert_eq!(calls.aggregates.load(Ordering::SeqCst), 4);
+        seen.push(format!("{:?}", (result.rendered) == (first_rendered)));
+        seen.push(format!("{:?}", calls.reductions.load(Ordering::SeqCst)));
+        seen.push(format!("{:?}", calls.aggregates.load(Ordering::SeqCst)));
         phase.finish().unwrap();
     }
-    Ok(())
+    Ok(seen.join("|"))
+}
+
+/// Which scenario a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Given {
+    /// The `ordinary_project_rules_share_one_preparation_and_reject_another_generation` scenario.
+    OrdinaryProjectRulesShareOnePreparationAndRejectAnotherGeneration,
+}
+/// What a row is given.
+type Input = Given;
+/// What the scenario observed, each check in order, joined by `|`.
+type Value = &'static str;
+/// What a scenario's run refuses.
+type Failure = RuleRequestsError;
+
+/// The rows of this group's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("ordinary_project_rules_share_one_preparation_and_reject_another_generation"),
+    word: Word::Succeeds,
+    input: || Given::OrdinaryProjectRulesShareOnePreparationAndRejectAnotherGeneration,
+    expect: Expect::Value(
+        "2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|1|2|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|true|1|2|true|1|2|true|2|4|2|rule-1,2,0,-,-,rule-1,1,0,-,- rule-1rule-1 [5, 10] 1:0:0:1,1:0:0:0|1|2|2|rule,2,0,-,-,rule,1,0,-,- rulerule [5, 10] 0:0:0:1,0:0:0:0|true|1|2|true|1|2|true|2|4",
+    ),
+}];
+
+/// Runs the scenario the row names.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let observed = match given {
+        Given::OrdinaryProjectRulesShareOnePreparationAndRejectAnotherGeneration => {
+            ordinary_project_rules_share_one_preparation_and_reject_another_generation()?
+        }
+    };
+    Ok(Box::leak(observed.into_boxed_str()))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

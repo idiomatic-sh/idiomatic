@@ -29,12 +29,10 @@ let foreign-capabilities = select source as file, span from capability-targets w
 let lease-boundaries = union(left=foreign-leases, right=foreign-capabilities);
 let dispatch-violations = union(left=program-violations, right=lease-boundaries);
 let owner-violations = union(left=dispatch-violations, right=foreign-cache);
-let positioned-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/relations/{issuer}.rs", captures=["target-root", "issuer"]);
-let foreign-positioned = select source as file, span from positioned-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and ((issuer = "positioned" and not glob_any(source-tail, "{application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}")) or (issuer = "selection" and not glob_any(source-tail, "{application/file_dag/program/selection.rs,application/file_dag/derived/owner/selection.rs}")));
 let derived-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{*owned-tail}", captures=["target-root", "owned-tail"]);
 let raw-derived = select source as file, span, source-tail from derived-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and glob_any(owned-tail, "{graphs/types/retained/**,selection/candidates/**,selection/fanout/**,acquisition/semantics/**}");
 let foreign-derived = select file, span from raw-derived where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/derived/owner_test.rs}");
-let publication-violations = union(left=owner-violations, right=foreign-positioned);
+let publication-violations = project(from=owner-violations, columns=["file", "span"]);
 let app-violations = union(left=publication-violations, right=foreign-derived);
 let application-targets = capture(from=paths, path="target", pattern="{*target-root}/application/{*application-tail}", captures=["target-root", "application-tail"]);
 let local-application = select source as file, span, source-tail from application-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
@@ -154,7 +152,7 @@ edition = "2024"
 '''
 files.'src/lib.rs' = 'pub mod application; pub mod domain;'
 files.'src/application.rs' = 'pub mod file_dag; pub mod caller;'
-files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod relations;'
+files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived;'
 files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
 files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission;'
 files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}"
@@ -180,11 +178,8 @@ files.'src/application/file_dag/derived/owner/acquisition.rs' = 'pub fn acquire(
 files.'src/application/file_dag/derived/owner/future_acquisition.rs' = 'pub fn acquire() {}'
 files.'src/application/file_dag/derived/owner/raw_scope.rs' = 'pub fn make_scope() {}'
 files.'src/application/file_dag/derived/owner/leases.rs' = 'pub fn make_lease() {}'
-files.'src/application/file_dag/relations.rs' = 'pub mod positioned; pub mod selection;'
-files.'src/application/file_dag/relations/positioned.rs' = 'pub fn publish() {}'
 files.'src/application/file_dag/program/selection.rs' = 'pub fn evaluate() {}'
 files.'src/application/file_dag/program/positions.rs' = 'pub fn evaluate() {}'
-files.'src/application/file_dag/relations/selection.rs' = 'pub fn publish() {}'
 files.'src/application/caller.rs' = 'pub fn invoke() {}'
 files.'src/domain.rs' = "pub mod semantic; pub mod executable_program; pub mod operator; pub mod table_model;"
 files.'src/domain/semantic.rs' = 'pub fn read_borrowed() {}'
@@ -416,34 +411,6 @@ scenario = "The cache owner may invoke its own acquisition implementation."
 given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod raw_scope; pub mod leases; pub fn acquire() { acquisition::acquire(); }'
 
 [[scenarios]]
-id = "foreign-positioned-population"
-scenario = "A sibling caller cannot invoke the native relation population issuer."
-given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::relations::positioned::publish(); }'
-then.findings = [{ path = "src/application/caller.rs", line = 1 }]
-
-[[scenarios]]
-id = "foreign-positioned-alias"
-scenario = "An alias does not grant native relation publication authority."
-given.files.'src/application/caller.rs' = 'use crate::application::file_dag::relations::positioned::publish as create;'
-then.findings = [{ path = "src/application/caller.rs", line = 1 }]
-
-[[scenarios]]
-id = "declared-positioned-bridge"
-scenario = "The admitted native instruction may finish a relation population through its owner."
-given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
-
-[[scenarios]]
-id = "foreign-selected-population"
-scenario = "A sibling caller cannot invoke the selected relation population issuer."
-given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::relations::selection::publish(); }'
-then.findings = [{ path = "src/application/caller.rs", line = 1 }]
-
-[[scenarios]]
-id = "declared-selected-bridge"
-scenario = "The admitted selector finishes its population through the same relation owner."
-given.files.'src/application/file_dag/program/selection.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::selection::publish(); }'
-
-[[scenarios]]
 id = "primitive-cannot-call-application-root"
 scenario = "Declarations directly in application.rs are application authority too."
 given.files.'src/application.rs' = 'pub mod file_dag; pub mod caller; pub fn acquire() {}'
@@ -531,20 +498,6 @@ given.files.'src/application/file_dag/derived/owner/rogue.rs' = 'use crate::appl
 then.findings = [{ path = "src/application/file_dag/derived/owner/rogue.rs", line = 1 }]
 
 [[scenarios]]
-id = "selector-owner-publishes-leased-result"
-given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod selection;'
-
-scenario = "The common acquisition owner publishes selected positions while their required resources remain attached."
-given.files.'src/application/file_dag/derived/owner/selection.rs' = 'pub fn finish() { crate::application::file_dag::relations::selection::publish(); }'
-
-[[scenarios]]
-id = "derived-peer-cannot-publish-selected-storage"
-scenario = "An adjacent derived helper cannot replace the admitted selector publication owner."
-given.files.'src/application/file_dag/derived.rs' = 'pub mod owner; pub mod future;'
-given.files.'src/application/file_dag/derived/future.rs' = 'use crate::application::file_dag::relations::selection::publish as bypass;'
-then.findings = [{ path = "src/application/file_dag/derived/future.rs", line = 1 }]
-
-[[scenarios]]
 id = "retained-graph-payload-is-owner-private"
 scenario = "A new engine consumer cannot import a retained raw graph allocation by alias."
 given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod graphs;'
@@ -564,25 +517,6 @@ given.files.'src/application/file_dag/derived/owner/graphs/types.rs' = 'pub mod 
 given.files.'src/application/file_dag/derived/owner/graphs/types/retained.rs' = 'pub mod types;'
 given.files.'src/application/file_dag/derived/owner/graphs/types/retained/types.rs' = 'pub struct GraphEntry;'
 given.files.'src/application/file_dag/derived/owner/future.rs' = 'use crate::application::file_dag::derived::owner::graphs::types::retained::types::GraphEntry;'
-
-[[scenarios]]
-id = "pure-selection-compile-cannot-move-to-application"
-scenario = "The exact fully qualified accidental descriptor-compiler rewrite is rejected from the domain executable-program service."
-given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod selection;'
-given.files.'src/application/file_dag/derived/owner/selection.rs' = 'pub fn compile() {} pub struct SelectionAlternative;'
-given.files.'src/domain/executable_program.rs' = 'pub mod service; pub mod types;'
-given.files.'src/domain/executable_program/service.rs' = 'pub fn compile() { crate::application::file_dag::derived::owner::selection::compile(); }'
-given.files.'src/domain/executable_program/types.rs' = 'pub struct Region;'
-then.findings = [{ path = "src/domain/executable_program/service.rs", line = 1 }]
-
-[[scenarios]]
-id = "pure-selection-descriptor-cannot-alias-application"
-scenario = "A domain executable-program descriptor cannot alias its type from the mutable application owner."
-given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod selection;'
-given.files.'src/application/file_dag/derived/owner/selection.rs' = 'pub struct SelectionAlternative;'
-given.files.'src/domain/executable_program.rs' = 'pub mod types;'
-given.files.'src/domain/executable_program/types.rs' = 'use crate::application::file_dag::derived::owner::selection::SelectionAlternative as Alternative; pub struct Region { pub selection: Option<Alternative> }'
-then.findings = [{ path = "src/domain/executable_program/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "pure-selection-descriptors-and-compiler-stay-domain"
@@ -1040,3 +974,22 @@ scenario = "A directory that only begins with the kernel session's name is not t
 given.files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod kernel_session_extra; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
 given.files.'src/application/file_dag/program/kernel_session_extra.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
 then.findings = [{ path = "src/application/file_dag/program/kernel_session_extra.rs", line = 1 }]
+[[scenarios]]
+id = "pure-selection-compile-cannot-move-to-application"
+scenario = "The exact fully qualified accidental descriptor-compiler rewrite is rejected from the domain executable-program service."
+given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod selection;'
+given.files.'src/application/file_dag/derived/owner/selection.rs' = 'pub fn compile() {} pub struct SelectionAlternative;'
+given.files.'src/domain/executable_program.rs' = 'pub mod service; pub mod types;'
+given.files.'src/domain/executable_program/service.rs' = 'pub fn compile() { crate::application::file_dag::derived::owner::selection::compile(); }'
+given.files.'src/domain/executable_program/types.rs' = 'pub struct Region;'
+then.findings = [{ path = "src/domain/executable_program/service.rs", line = 1 }]
+
+[[scenarios]]
+id = "pure-selection-descriptor-cannot-alias-application"
+scenario = "A domain executable-program descriptor cannot alias its type from the mutable application owner."
+given.files.'src/application/file_dag/derived/owner.rs' = 'pub mod selection;'
+given.files.'src/application/file_dag/derived/owner/selection.rs' = 'pub struct SelectionAlternative;'
+given.files.'src/domain/executable_program.rs' = 'pub mod types;'
+given.files.'src/domain/executable_program/types.rs' = 'use crate::application::file_dag::derived::owner::selection::SelectionAlternative as Alternative; pub struct Region { pub selection: Option<Alternative> }'
+then.findings = [{ path = "src/domain/executable_program/types.rs", line = 1 }]
+

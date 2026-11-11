@@ -3,12 +3,12 @@
 //! The case `positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots`.
 
 use super::support::ReaderOutcome;
-use crate::cases::{Case, CaseName, Expect, Word};
 use crate::fixtures::projects::notes_of;
 use ryo::languages;
-use ryo::languages::Project as _;
 
-fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() {
+pub(crate) fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() -> String
+{
+    let mut seen: Vec<String> = Vec::new();
     use crate::domain::project_namespace::{
         constants::UNKNOWN_CONTEXT,
         service::memberships,
@@ -72,27 +72,29 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
             notes: vec![notes_of("source.py", "import acme\n")],
             wanted: vec![languages::Relation::ProjectNamespaceMembership],
         };
-        assert_eq!(
-            derived
+        seen.push(format!(
+            "{:?}",
+            (derived
                 .namespace_memberships
                 .rows
                 .iter()
                 .map(|row| row.kind)
-                .collect::<Vec<_>>(),
-            expected
-        );
+                .collect::<Vec<_>>())
+                == (expected)
+        ));
         let positives = derived
             .namespace_memberships
             .rows
             .iter()
             .filter(|row| row.kind != EntryKind::Unknown)
             .collect::<Vec<_>>();
-        assert!(!positives.is_empty());
-        assert!(
+        seen.push(format!("{:?}", !positives.is_empty()));
+        seen.push(format!(
+            "{:?}",
             positives
                 .iter()
                 .all(|row| row.state == MembershipState::Present)
-        );
+        ));
         let mut output = ReaderOutcome::default();
         let mut symbols = languages::Symbols::default();
         let input = languages::ManifestInput {
@@ -100,28 +102,16 @@ fn positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots() 
             derived: &derived,
         };
         (crate::domain::manifests::collections::manifests::project_namespace_membership::item::ProjectNamespaceMembershipItem::READER.read)(&input, &mut symbols, &mut output);
-        assert_eq!(output.rows, expected.len());
-        assert_eq!(
-            output.partial,
-            if incomplete {
-                vec![UNKNOWN_CONTEXT.to_owned()]
-            } else {
-                vec![]
-            }
-        );
+        seen.push(format!("{:?}", (output.rows) == (expected.len())));
+        seen.push(format!(
+            "{:?}",
+            (output.partial)
+                == (if incomplete {
+                    vec![UNKNOWN_CONTEXT.to_owned()]
+                } else {
+                    vec![]
+                })
+        ));
     }
-}
-
-/// The row of this case.
-pub(crate) const CASES: &[Case<(), (), ()>] = &[Case {
-    name: CaseName("positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
-
-/// Runs the body of the case.
-pub(crate) fn subject((): ()) -> Result<(), ()> {
-    positive_namespace_facts_retain_actual_reader_partial_for_unobserved_roots();
-    Ok(())
+    seen.join("|")
 }

@@ -1,14 +1,15 @@
 //! The cases of replayed buckets: selection before any read, and stale proofs refused.
-use super::super::errors::FileAnalysisError;
-use super::super::service::FileAnalysis;
-use super::super::types::RequestVisitSetting;
-use super::NOTHING_HANDED;
-use super::NOTHING_STORED;
-use super::one_capture_plan;
-use super::prepared_test_program;
-use super::replay_under;
-use super::replay_under_capture;
-use crate::domain::visit::types::Keeping;
+
+use crate::application::file_analysis::errors::FileAnalysisError;
+use crate::application::file_analysis::fixtures::NOTHING_HANDED;
+use crate::application::file_analysis::fixtures::NOTHING_STORED;
+use crate::application::file_analysis::fixtures::one_capture_plan;
+use crate::application::file_analysis::fixtures::prepared_test_program;
+use crate::application::file_analysis::fixtures::replay_under;
+use crate::application::file_analysis::fixtures::replay_under_capture;
+use crate::application::file_analysis::service::FileAnalysis;
+use crate::application::file_analysis::types::RequestVisitSetting;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::workers::service::tables_for;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
@@ -17,28 +18,14 @@ use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution_runtime::outbound::facts::interface::FactsPort;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::WorkerNumber;
-use ryo_values::domain::files::types::FileNumber;
-use ryo_values::domain::files::types::FileSize;
-use ryo_values::domain::files::types::Nanoseconds;
-use ryo_values::domain::records::types::FileOutcome;
-use ryo_values::domain::records::types::Handed;
-use ryo_values::domain::records::types::HandedWords;
-use ryo_values::domain::records::types::Handing;
-use ryo_values::domain::records::types::Ran;
-use ryo_values::domain::records::types::Record;
-use ryo_values::domain::records::types::RecordWords;
-use ryo_values::domain::records::types::StagedWords;
-use ryo_values::domain::records::types::StagingSession;
-use ryo_values::domain::row_texts::types::FindingRows;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::BucketsWanted;
-use ryo_values::domain::stores::types::KeptRows;
-pub(crate) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read()
--> Result<usize, FileAnalysisError> {
+
+fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read()
+-> Result<String, FileAnalysisError> {
+    let mut seen: Vec<String> = Vec::new();
     use ryo_values::domain::records::types::FrontierCoverage;
     use ryo_values::domain::stored_facts::types::{Bucket, Digest};
     let good = crate::outbound::lint_store::fixtures::proof();
@@ -58,31 +45,29 @@ pub(crate) fn a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected
             ))
         )
     };
-    assert!(
-        refused(replay_under_capture(good.clone(), &selected, false)),
-        "a bucket whose frontier the prepared root does not capture is refused when selected"
-    );
+    seen.push(format!(
+        "{:?}",
+        refused(replay_under_capture(good.clone(), &selected, false))
+    ));
     replay_under_capture(good.clone(), &BucketsWanted::These(Vec::new()), false)
         .expect("the capture flag of a bucket the run does not select is never checked");
     for stale in [wrong_digest, wrong_ordinal, wrong_coverage] {
-        assert!(
-            matches!(
+        seen.push(format!("{:?}", matches!(
                 replay_under(stale.clone(), &selected),
                 Err(FileAnalysisError::Execution(
                     ryo_execution::inbound::use_cases::execution::interface::OperatingError::ObservationIncomplete { .. }
                 ))
-            ),
-            "{stale:?} must be refused for a selected bucket"
-        );
+            )));
         replay_under(stale, &BucketsWanted::These(Vec::new()))
             .expect("the proof of a bucket the run does not select is never checked");
     }
-    Ok(1)
+    Ok(seen.join("|"))
 }
 
-pub(crate) fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops()
--> Result<usize, FileAnalysisError> {
-    use super::super::types::{FileVisit, Worker};
+fn staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops()
+-> Result<String, FileAnalysisError> {
+    let mut seen: Vec<String> = Vec::new();
+    use crate::application::file_analysis::types::{FileVisit, Worker};
 
     use crate::domain::visit::types::{Keeping, Noting, RoleRead};
     use crate::domain::workers::types::FileOrder;
@@ -96,7 +81,6 @@ pub(crate) fn staged_replay_reads_only_selected_buckets_after_the_producing_work
     };
     use ryo_values::domain::row_texts::types::FindingRows;
     use ryo_values::domain::stored_facts::types::{ArenaBytes, Bucket, Digest};
-    use ryo_values::domain::stores::types::BucketsWanted;
     use ryo_values::domain::table_words::service::{encode_table, pack};
     use ryo_values::domain::table_words::types::WordSlice;
 
@@ -228,11 +212,14 @@ pub(crate) fn staged_replay_reads_only_selected_buckets_after_the_producing_work
         store: visit.store,
     };
     // Once the bucket is selected its staged descriptor is read, and the store refuses a span of another session as unreadable.
-    assert!(matches!(
-        FileAnalysis::hand_again(&mut replay, &all_visit, FileOrder(0), FileId(0), &record),
-        Err(FileAnalysisError::Store(
-            crate::outbound::lint_store::errors::LintStoreError::Unreadable { .. }
-        ))
+    seen.push(format!(
+        "{:?}",
+        matches!(
+            FileAnalysis::hand_again(&mut replay, &all_visit, FileOrder(0), FileId(0), &record),
+            Err(FileAnalysisError::Store(
+                crate::outbound::lint_store::errors::LintStoreError::Unreadable { .. }
+            ))
+        )
     ));
 
     // The persistent old-row path uses the same filter-before-resolution contract.
@@ -318,11 +305,67 @@ pub(crate) fn staged_replay_reads_only_selected_buckets_after_the_producing_work
         },
     };
     // Once the bucket is selected its old descriptor is resolved, and the store refuses a row of another snapshot as unreadable.
-    assert!(matches!(
-        FileAnalysis::hand_again(&mut replay, &old_all, FileOrder(0), FileId(0), &old_record),
-        Err(FileAnalysisError::Store(
-            crate::outbound::lint_store::errors::LintStoreError::Unreadable { .. }
-        ))
+    seen.push(format!(
+        "{:?}",
+        matches!(
+            FileAnalysis::hand_again(&mut replay, &old_all, FileOrder(0), FileId(0), &old_record),
+            Err(FileAnalysisError::Store(
+                crate::outbound::lint_store::errors::LintStoreError::Unreadable { .. }
+            ))
+        )
     ));
-    Ok(1)
+    Ok(seen.join("|"))
+}
+
+/// Which scenario a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Given {
+    /// The `a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read` scenario.
+    ASelectedBucketUnderAStaleProofIsRefusedAndAnUnselectedOneIsNotRead,
+    /// The `staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops` scenario.
+    StagedReplayReadsOnlySelectedBucketsAfterTheProducingWorkerDrops,
+}
+/// What a row is given.
+type Input = Given;
+/// What the scenario observed, each check in order, joined by `|`.
+type Value = &'static str;
+/// What a scenario's run refuses.
+type Failure = FileAnalysisError;
+
+/// The rows of this group's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read",
+        ),
+        word: Word::Succeeds,
+        input: || Given::ASelectedBucketUnderAStaleProofIsRefusedAndAnUnselectedOneIsNotRead,
+        expect: Expect::Value("true|true|true|true"),
+    },
+    Case {
+        name: CaseName(
+            "staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops",
+        ),
+        word: Word::Succeeds,
+        input: || Given::StagedReplayReadsOnlySelectedBucketsAfterTheProducingWorkerDrops,
+        expect: Expect::Value("true|true"),
+    },
+];
+
+/// Runs the scenario the row names.
+fn subject(given: Input) -> Result<Value, Failure> {
+    let observed = match given {
+        Given::ASelectedBucketUnderAStaleProofIsRefusedAndAnUnselectedOneIsNotRead => {
+            a_selected_bucket_under_a_stale_proof_is_refused_and_an_unselected_one_is_not_read()?
+        }
+        Given::StagedReplayReadsOnlySelectedBucketsAfterTheProducingWorkerDrops => {
+            staged_replay_reads_only_selected_buckets_after_the_producing_worker_drops()?
+        }
+    };
+    Ok(Box::leak(observed.into_boxed_str()))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

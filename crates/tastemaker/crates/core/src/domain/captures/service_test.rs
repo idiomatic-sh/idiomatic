@@ -79,6 +79,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Question::Reads("\\*\\?\\{a\\}{b}"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("a_directory_capture_names_its_name_without_the_mark"),
+        word: Word::Succeeds,
+        input: || Question::Reads("{x:dir}.rs"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_bound_directory_capture_is_put_in_place"),
+        word: Word::Succeeds,
+        input: || Question::SubstitutePattern("{a:dir}.rs"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("an_unbound_directory_capture_is_written_back_with_its_mark"),
+        word: Word::Succeeds,
+        input: || Question::SubstitutePattern("{x:dir}.rs"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 fn captures(pairs: &[(&str, &str)]) -> Captures {
@@ -98,7 +116,10 @@ fn expected(question: Question) -> &'static str {
         Question::Inheriting => "a = 1, b = 2, c = 4",
         Question::Escaped(_) => "a\\*b\\?\\{c\\}\\\\[1]",
         Question::Unescaped(_) => "data[1]/*{x}",
+        Question::SubstitutePattern("{a:dir}.rs") => "1.rs",
+        Question::SubstitutePattern("{x:dir}.rs") => "{x:dir}.rs",
         Question::SubstitutePattern(_) => "\\{a\\}/1/2/{c}",
+        Question::Reads("{x:dir}.rs") => "false x",
         Question::Reads(_) => "false b",
     }
 }

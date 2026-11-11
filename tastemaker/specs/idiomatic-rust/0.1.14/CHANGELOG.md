@@ -6,7 +6,11 @@ Edited in place: the module file of a directory is `<dir>.rs` beside it, never `
 
 Edited in place: `no-string-literals` treats a group `test.rs` as test code when `<dir>.rs` declares it gated (was `<dir>/mod.rs`), its scenarios in the `<dir>.rs` form; `test-names-nothing-beside`'s description no longer names `foo/mod.rs`; `module-declares` is placed at 0.2.0, whose help names one module-file form.
 
-Edited in place: `test-names-nothing-beside` reads a namespace `foo_test.rs` with what the files beneath `foo_test/` name (scenarios `namespace-test-names-through-its-groups`, `namespace-test-whose-groups-name-nothing`); places `parallel-members@0.2.0`, which counts no file beneath a test role, and `client-at-adapter@0.2.0`, whose entry no longer excludes `**/adapters/**`, `**/factory.rs` and `**/composition.rs`: the rule admits them itself; the test-role, schemas, languages.rs, benches and `{apart}` excludes stay.
+Edited in place: `test-names-nothing-beside` reads a namespace `foo_test.rs` with what the files beneath `foo_test/` name (scenarios `namespace-test-names-through-its-groups`, `namespace-test-whose-groups-name-nothing`); places `parallel-members@0.2.0`, which counts no file beneath a test role, and `client-at-adapter@0.2.0`, whose entry no longer excludes `**/adapters/**`, `**/factory.rs` and `**/composition.rs`: the rule admits them itself; the test-role, benches and `{apart}` excludes stay, and `**/schemas.rs` and `**/src/languages.rs` are no longer excluded (production files no entry needs left out).
+
+Edited in place: `no-hardcoded-paths` no longer leaves out `**/fixtures.rs`, and `no-panicking-closure` and `no-sentinel-values` no longer leave out `**/fixtures.rs` and `**/fixtures/**`: the fixtures globs this version added to them are removed, since each reports nothing in fixtures, so reading them costs nothing. `directions-root` no longer lists `**/fixtures/**`, which cannot match its `**/src/*.rs` include.
+
+Edited in place: `test-names-nothing-beside` no longer pairs a `tests.rs` with a `mod.rs` in its directory: the module file of a directory is `<dir>.rs`, so that join read nothing; `tests.rs` beside `<dir>.rs` stays paired.
 
 # idiomatic-rust 0.1.13
 

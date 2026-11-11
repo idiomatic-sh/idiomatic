@@ -41,7 +41,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("reset_discards_old_identities_results_and_key_bytes_but_keeps_capacity"),
         word: Word::Succeeds,
         input: || Given::ResetDiscardsOldIdentitiesResultsAndKeyBytesButKeepsCapacity,
-        expect: Expect::Value("Fresh|true|true|true|true|true|Fresh|true|true|true|true|true|Fresh|true|true|true|true|true|Fresh|true|true|true|true|true|Fresh|true|true|true|true|true|Fresh|true|true|true|true|true"),
+        expect: Expect::Value(
+            "Fresh|true|true|true|true|true|Fresh|true|true|true|true|true|Fresh|true|true|true|true|true|Fresh|true|true|true|true|true|Fresh|true|true|true|true|true|Fresh|true|true|true|true|true",
+        ),
     },
     Case {
         name: CaseName("equal_decoded_text_keeps_representation_sensitive_parser_modes"),

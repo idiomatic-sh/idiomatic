@@ -2,7 +2,7 @@
 
 use super::errors::ObservationsError;
 use super::service;
-use super::validated::ValidatedFrontiers;
+use super::types::validated_frontiers::value::ValidatedFrontiers;
 use crate::domain::records::types::{
     FrontierReadiness, ObservationReadinessCount, ObservationReadinessLayout,
     ObservationReadinessSlot, ProducerReadiness,

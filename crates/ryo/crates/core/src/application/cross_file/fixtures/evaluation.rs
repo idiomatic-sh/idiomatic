@@ -20,25 +20,15 @@ use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::rule_requests::service::failed;
-use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::stored_facts::types::ArenaBytes;
 use ryo_values::domain::stored_facts::types::Bucket;
-pub(crate) mod budget;
-pub(crate) mod generation;
-pub(crate) mod partials;
-pub(crate) mod population;
-pub(crate) mod rendering;
-pub(crate) mod root_set;
-pub(crate) mod single_rule;
 
 pub(crate) fn completed_batch<T>(
     batch: ProjectBatch<Result<T, PhaseStop<CrossFileError>>, CrossFileError>,
 ) -> Vec<Result<T, PhaseStop<CrossFileError>>> {
     match batch {
         ProjectBatch::Complete(completed) => completed,
-        ProjectBatch::Refused { error, .. } => {
-            panic!("the fixture declares no memory limit: {error}")
-        }
+        ProjectBatch::Refused { error, .. } => vec![Err(PhaseStop::Caller(error))],
     }
 }
 
@@ -169,8 +159,10 @@ fn evaluate_one<T>(
         partials,
         complete,
     );
-    assert_eq!(done.len(), 1, "one declared occurrence has one result");
-    done.pop().expect("the exact result count was checked")
+    match (done.pop(), done.is_empty()) {
+        (Some(one), true) => one,
+        _ => Err(PhaseStop::Unevaluated),
+    }
 }
 
 /// The declared occurrences of `rules`, in order, through the production phase call, over one facts port that keeps each rule's
@@ -224,63 +216,52 @@ pub(crate) fn evaluate_all<T>(
     completed_batch(batch)
 }
 
-/// Independent Findings-layout oracle for the authored count emit (no keys or headings).
-/// The grouping input arrives as count 2 then count 1; the rendered presentation
-/// orders subjects numerically, retaining each rule's own header and row identity.
-pub(crate) fn assert_count_findings(
+/// What a rendered count emit shows, cell by cell: each row's rule, count subject, key and line and column, its text and
+/// row ends, and its presentation order as `[rule, line, column, row]`; and the count subjects in the order rendered.
+pub(crate) fn count_findings(
     rendered: &crate::domain::render::types::Rendered,
-    rule: RuleIndex,
-    id: &RuleId,
-    counts: &[i64],
-    presentation: &[u32],
-) -> Vec<i64> {
+) -> (String, Vec<i64>) {
     use ryo_relations::domain::relations::types::Integer;
     use ryo_values::domain::records::service::lent;
     use ryo_values::domain::row_texts::types::{Cell as RecordCell, CellText, RowsTextView};
-    let observed = rendered
+    let cells = rendered
         .cells
         .iter()
-        .map(|cell| cell.map(|cell| lent(RowsTextView(&rendered.text.0), cell)))
+        .map(
+            |cell| match cell.map(|cell| lent(RowsTextView(&rendered.text.0), cell)) {
+                Some(RecordCell::Text(CellText(text))) => text.to_owned(),
+                Some(RecordCell::Number(Integer(number))) => number.to_string(),
+                Some(other) => format!("{other:?}"),
+                None => "-".to_owned(),
+            },
+        )
         .collect::<Vec<_>>();
-    let expected = counts
-        .iter()
-        .flat_map(|&count| {
-            [
-                Some(RecordCell::Text(CellText(&id.0))),
-                Some(RecordCell::Number(Integer(count))),
-                Some(RecordCell::Number(Integer(0))),
-                None,
-                None,
-            ]
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        observed, expected,
-        "rule, count subject, empty key, and unplaced line/column"
-    );
-    assert_eq!(rendered.text.0, id.0.repeat(counts.len()));
-    assert_eq!(
-        rendered.ends.0,
-        (1..=counts.len())
-            .map(|row| u32::try_from(row * 5).unwrap())
-            .collect::<Vec<_>>()
-    );
-    assert_eq!(
-        rendered
-            .order
-            .iter()
-            .map(|row| [row.rule.0, row.line.0, row.column.0, row.row.0])
-            .collect::<Vec<_>>(),
-        presentation
-            .iter()
-            .map(|&row| [u32::try_from(rule.0).unwrap(), 0, 0, row])
-            .collect::<Vec<_>>()
-    );
-    observed
+    let counts = rendered
+        .cells
         .chunks_exact(5)
-        .map(|row| match row[1] {
-            Some(RecordCell::Number(Integer(count))) => count,
-            _ => panic!("count subject must remain a typed number"),
+        .filter_map(
+            |row| match row[1].map(|cell| lent(RowsTextView(&rendered.text.0), cell)) {
+                Some(RecordCell::Number(Integer(count))) => Some(count),
+                _ => None,
+            },
+        )
+        .collect::<Vec<_>>();
+    let order = rendered
+        .order
+        .iter()
+        .map(|row| {
+            format!(
+                "{}:{}:{}:{}",
+                row.rule.0, row.line.0, row.column.0, row.row.0
+            )
         })
-        .collect()
+        .collect::<Vec<_>>();
+    let shown = format!(
+        "{} {} {:?} {}",
+        cells.join(","),
+        rendered.text.0,
+        rendered.ends.0,
+        order.join(",")
+    );
+    (shown, counts)
 }

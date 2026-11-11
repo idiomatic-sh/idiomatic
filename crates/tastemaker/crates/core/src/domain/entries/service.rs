@@ -149,9 +149,9 @@ pub fn derived(
             .iter()
             .all(|piece| match piece {
                 PatternPiece::Literal(_) => true,
-                PatternPiece::Capture(name) | PatternPiece::Span(name) => {
-                    interpolated.contains(&ParamName(name.0.into()))
-                }
+                PatternPiece::Capture(name)
+                | PatternPiece::Span(name)
+                | PatternPiece::Directory(name) => interpolated.contains(&ParamName(name.0.into())),
                 PatternPiece::Star | PatternPiece::Question => false,
             })
     };

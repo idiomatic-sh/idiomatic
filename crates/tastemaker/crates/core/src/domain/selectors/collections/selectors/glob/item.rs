@@ -1,19 +1,22 @@
 //! The glob selector: a path pattern, written as a bare string. It is spelled here into the glob and the binding
 //! expression the matching port compiles: `*` one segment, `**` any depth, `?` one character, `{name}` a capture within a
-//! segment (never empty), `{*name}` one or more whole segments; a name with a value is interpolated instead. A `\\` makes
-//! the character after it stand for itself (the captures concept's grammar, `pieces`).
+//! segment (never empty), `{*name}` one or more whole segments, `{name:dir}` a capture within the last segment of a
+//! template entry's `file` whose value names a directory beside the file; a name with a value is interpolated instead. A
+//! `\\` makes the character after it stand for itself (the captures concept's grammar, `pieces`).
 
 use std::collections::BTreeSet;
 
 use super::super::interface::SelectorsItem;
+use crate::domain::captures::constants::MARK_OPEN;
 use crate::domain::captures::service::{captured_names, pieces};
 use crate::domain::captures::types::{CaptureName, Interpolations, PatternPiece, Template};
 use crate::domain::paths::service::join;
 use crate::domain::paths::types::{PathText, RepoPath, Segment};
 use crate::domain::selectors::constants::{
     ANY_DEPTH, ANY_DEPTH_LEADING, ANY_DEPTH_MIDDLE, ANY_DEPTH_TRAILING, BASE_ITSELF,
-    CAPTURE_SEGMENT, CAPTURE_SEGMENTS, ONE_CHARACTER, REGEX_SPECIALS, WHOLE_DEPTH,
-    WHOLE_DEPTH_LEADING, WHOLE_DEPTH_MIDDLE, WHOLE_DEPTH_TRAILING, WITHIN_SEGMENT,
+    CAPTURE_SEGMENT, CAPTURE_SEGMENTS, DIRECTORY_IN_SELECTOR, DIRECTORY_NOT_LAST, ONE_CHARACTER,
+    REGEX_SPECIALS, UNKNOWN_MARK, WHOLE_DEPTH, WHOLE_DEPTH_LEADING, WHOLE_DEPTH_MIDDLE,
+    WHOLE_DEPTH_TRAILING, WITHIN_SEGMENT,
 };
 use crate::domain::selectors::errors::SelectorsError;
 use crate::domain::selectors::types::{
@@ -34,12 +37,23 @@ impl SelectorsItem for GlobItem {
         let Selector::Glob(pattern) = selector else {
             return Ok(Resolution::NotMine);
         };
+        // A selector is a path test that reads no workspace: a `{name:dir}` would silently mean `{name}` in it.
+        if pieces(Template(&pattern.0))
+            .iter()
+            .any(|piece| matches!(piece, PatternPiece::Directory(_)))
+        {
+            return Err(SelectorsError::Pattern {
+                pattern: pattern.0.to_string(),
+                reason: DIRECTORY_IN_SELECTOR.to_owned(),
+            });
+        }
         place(context.base, pattern, context.values, context.compile)
             .map(|matcher| Resolution::Resolved(Resolved::Pattern(matcher)))
     }
 }
 
-/// The values among `values` the pattern interpolates: those of the names it writes as `{name}` or `{*name}`.
+/// The values among `values` the pattern interpolates: those of the names it writes as `{name}`, `{*name}` or
+/// `{name:dir}`.
 #[must_use]
 pub(crate) fn interpolated(pattern: &PathPattern, values: &Interpolations) -> Interpolations {
     let mut found = Interpolations::default();
@@ -51,11 +65,13 @@ pub(crate) fn interpolated(pattern: &PathPattern, values: &Interpolations) -> In
     found
 }
 
-/// `pattern` placed at `base` with `values` interpolated, compiled through `compile`.
+/// `pattern` placed at `base` with `values` interpolated, compiled through `compile`, with the `{name:dir}` captures of
+/// its last segment.
 ///
 /// # Errors
 ///
-/// `Pattern` when the spelled glob or expression does not compile.
+/// `Pattern` when the spelled glob or expression does not compile, a capture's name holds a `:` other than the one
+/// `:dir` mark, or a `{name:dir}` is written before the last segment.
 pub(crate) fn place(
     base: &RepoPath,
     pattern: &PathPattern,
@@ -70,8 +86,11 @@ pub(crate) fn place(
             prefix: base.clone(),
             shape: MatcherShape::Itself,
             values,
+            directories: Vec::new(),
         });
     }
+    marks(pattern)?;
+    let directories = directory_captures(pattern)?;
     let Spelled { spelling, prefix } = spell(pattern, &values);
     let repeats = if spelling.groups.iter().collect::<BTreeSet<_>>().len() == spelling.groups.len()
     {
@@ -102,7 +121,63 @@ pub(crate) fn place(
             repeats,
         }),
         values,
+        directories,
     })
+}
+
+/// Refuses a capture whose name holds a `:`: `{*name:dir}` and `{name:dirs}` are misspelt marks, never plain captures.
+///
+/// # Errors
+///
+/// `Pattern` when one does.
+fn marks(pattern: &PathPattern) -> Result<(), SelectorsError> {
+    let misspelt = pieces(Template(&pattern.0))
+        .iter()
+        .any(|piece| match piece {
+            PatternPiece::Capture(name)
+            | PatternPiece::Span(name)
+            | PatternPiece::Directory(name) => name.0.contains(MARK_OPEN),
+            PatternPiece::Literal(_) | PatternPiece::Star | PatternPiece::Question => false,
+        });
+    if misspelt {
+        return Err(SelectorsError::Pattern {
+            pattern: pattern.0.to_string(),
+            reason: UNKNOWN_MARK.to_owned(),
+        });
+    }
+    Ok(())
+}
+
+/// The `{name:dir}` captures of the pattern's last segment, the one that names the file.
+///
+/// # Errors
+///
+/// `Pattern` when one is written in an earlier segment, which has no directory beside it to name.
+fn directory_captures(pattern: &PathPattern) -> Result<Vec<CaptureName>, SelectorsError> {
+    let mut segments = pattern.0.rsplit('/');
+    let last = segments.next().unwrap_or_default();
+    let directory = |piece: &PatternPiece<'_>| match piece {
+        PatternPiece::Directory(name) => Some(CaptureName(name.0.into())),
+        PatternPiece::Literal(_)
+        | PatternPiece::Star
+        | PatternPiece::Question
+        | PatternPiece::Capture(_)
+        | PatternPiece::Span(_) => None,
+    };
+    if segments.any(|segment| {
+        pieces(Template(segment))
+            .iter()
+            .any(|piece| directory(piece).is_some())
+    }) {
+        return Err(SelectorsError::Pattern {
+            pattern: pattern.0.to_string(),
+            reason: DIRECTORY_NOT_LAST.to_owned(),
+        });
+    }
+    Ok(pieces(Template(last))
+        .iter()
+        .filter_map(directory)
+        .collect())
 }
 
 /// The pattern as it is being spelled.
@@ -269,7 +344,9 @@ fn spell_segment(
     let mut text = Some(String::new());
     for piece in pieces(Template(segment.0)) {
         match piece {
-            PatternPiece::Capture(name) | PatternPiece::Span(name) => {
+            PatternPiece::Capture(name)
+            | PatternPiece::Span(name)
+            | PatternPiece::Directory(name) => {
                 let name = CaptureName(name.0.into());
                 if let Some(value) = values.0.get(&name) {
                     writing.literal(Verbatim(&value.0));
