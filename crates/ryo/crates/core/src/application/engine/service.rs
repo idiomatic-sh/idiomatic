@@ -4,6 +4,7 @@
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase as _;
 use std::sync::Arc;
 
+use crate::application::derived::service::Derived;
 use ryo_execution::inbound::use_cases::compile_rules::interface::{
     CompileRulesUseCase, CompiledPlans, CompiledRules, RuleCompilationError,
 };
@@ -13,7 +14,6 @@ use ryo_execution::inbound::use_cases::execution::interface::OperatingError;
 use ryo_execution::inbound::use_cases::execution::interface::PreparedExecutionProgram;
 use ryo_execution::inbound::use_cases::execution::interface::RequestExecution;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
 use ryo_execution::inbound::use_cases::prepare::interface::PrepareUseCase;
 use ryo_execution::inbound::use_cases::prepare::types::PrepareRequest;
 use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
@@ -69,10 +69,14 @@ impl Execution {
     #[must_use]
     pub fn new(
         operators: Arc<dyn OperatorsPort>,
-        derived: impl Into<DerivedAccess>,
+        derived: impl Into<Derived>,
         digest: Arc<dyn DigestPort>,
     ) -> Self {
-        Self(PrepareUseCaseImpl::new(operators, derived, digest))
+        Self(PrepareUseCaseImpl::new(
+            operators,
+            derived.into().access(),
+            digest,
+        ))
     }
 
     /// Begins the execution of a prepared program over the corpus it runs on, telling `observer` of the engine's work.
