@@ -3,7 +3,6 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::super::interface::JobSchedulingPort;
-use super::super::types::Job;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
 /// What a row of the contract is given: how many jobs to run.
@@ -39,7 +38,7 @@ pub(crate) fn turns(adapter: &impl JobSchedulingPort, count: u32) -> Vec<u32> {
         .map(|turn| {
             let next = &next;
             {
-                let job: Job<'_> =
+                let job: Box<dyn FnOnce() + Send + '_> =
                     Box::new(move || *turn = Some(next.fetch_add(1, Ordering::Relaxed)));
                 job
             }

@@ -4,14 +4,13 @@
 use rayon::prelude::*;
 
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
-use crate::outbound::job_scheduling::types::Job;
 
 /// The rayon job scheduling adapter.
 #[derive(Debug)]
 pub(crate) struct JobSchedulingRayonAdapter;
 
 impl JobSchedulingPort for JobSchedulingRayonAdapter {
-    fn run(&self, jobs: Vec<Job<'_>>) {
+    fn run(&self, jobs: Vec<Box<dyn FnOnce() + Send + '_>>) {
         jobs.into_par_iter().for_each(|job| job());
     }
 }

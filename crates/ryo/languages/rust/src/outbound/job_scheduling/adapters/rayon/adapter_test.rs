@@ -6,7 +6,6 @@ use super::adapter::JobSchedulingRayonAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::job_scheduling::fixtures::contract::check;
 use crate::outbound::job_scheduling::interface::JobSchedulingPort as _;
-use crate::outbound::job_scheduling::types::Job;
 
 /// What a row of the cases asks of the adapter: how many threads the pool it is called inside has.
 type Input = usize;
@@ -34,7 +33,7 @@ fn subject(threads: Input) -> Value {
         let inside = &inside;
         let jobs = (0..16)
             .map(|_| {
-                let job: Job<'_> = Box::new(move || {
+                let job: Box<dyn FnOnce() + Send + '_> = Box::new(move || {
                     if rayon::current_thread_index().is_none_or(|index| index >= threads) {
                         inside.store(false, Ordering::Relaxed);
                     }

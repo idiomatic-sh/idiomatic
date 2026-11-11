@@ -45,7 +45,6 @@ use crate::domain::workspaces::service::settled;
 use crate::domain::workspaces::types::{Looking, Reason, WorkspaceConfiguration};
 use crate::outbound::conditions::interface::ConditionsPort;
 use crate::outbound::job_scheduling::interface::JobSchedulingPort;
-use crate::outbound::job_scheduling::types::Job;
 use crate::outbound::manifest::interface::ManifestPort;
 use crate::outbound::notes::errors::NotesError;
 use crate::outbound::notes::interface::NotesPort;
@@ -106,7 +105,8 @@ impl ProjectContract {
             .zip(items)
             .enumerate()
             .map(|(at, (answer, item))| {
-                let job: Job<'_> = Box::new(move || *answer = Some(each(ListIndex(at), item)));
+                let job: Box<dyn FnOnce() + Send + '_> =
+                    Box::new(move || *answer = Some(each(ListIndex(at), item)));
                 job
             })
             .collect();
