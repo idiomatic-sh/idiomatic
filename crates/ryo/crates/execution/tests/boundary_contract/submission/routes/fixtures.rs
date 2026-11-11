@@ -17,7 +17,6 @@ use ryo_execution_runtime::application::file_dag::program::file_session::types::
 use ryo_execution_runtime::application::file_dag::program::file_session::types::FileStop;
 use ryo_execution_runtime::application::file_dag::program::file_session::types::SourceLanguage;
 use ryo_execution_runtime::application::file_dag::program::request_execution::types::RequestExecution;
-use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
 use ryo_execution_runtime::outbound::facts::types::ResidentStability;
 use ryo_language::domain::{elements::types::Elements, symbols::types::Symbols};
 use ryo_relations::domain::relations::types::FileId;
@@ -92,7 +91,7 @@ pub(in super::super) fn run_file_route() -> Vec<Probe> {
         let mut arena = Vec::new();
         let mut places = Vec::new();
         let mut words = ryo_relations::domain::relations::types::Words::default();
-        let worker = facts.worker().expect("a fake worker");
+        let worker = facts.open_worker().expect("a fake worker");
         request
             .run_file(
                 FileRunInput {

@@ -33,8 +33,14 @@ ryo_execution_store = { package = "idiomatic-sh-ryo-execution-store", path = "..
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.1.3", features = ["fixtures"] }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.1.3", features = ["fixtures"] }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.1.3", features = ["fixtures"] }
+dhat.workspace = true
 divan.workspace = true
 tempfile.workspace = true
+
+[[test]]
+name = "allocation"
+path = "tests/allocation/main.rs"
+harness = false
 
 [[bench]]
 name = "performance"

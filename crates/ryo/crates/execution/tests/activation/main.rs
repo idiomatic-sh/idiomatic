@@ -1,5 +1,4 @@
-//! Actual derived activation visits and allocator blocks exclude dormant compiled roots, and the facts finish reads a stored
-//! population without allocating a copy of its words.
+//! Actual derived activation visits and allocator blocks exclude dormant compiled roots.
 #[cfg(test)]
 mod fixtures;
 use fixtures::file::measure;
@@ -25,7 +24,6 @@ enum Input {
     ProjectSparse,
     ProjectDense,
     ProjectUncounted,
-    FactsFinishBorrows,
 }
 /// What a case compared, in counters (exact) and allocation relations (allocation sizes are the allocator's).
 #[derive(Debug, PartialEq, Eq)]
@@ -73,12 +71,6 @@ enum Answer {
     Uncounted {
         counters_unchanged: bool,
         matches: [bool; 2],
-    },
-    /// The words kept, whether the read made at most two blocks, and whether it copied fewer bytes than the words.
-    Facts {
-        kept: usize,
-        at_most_two_blocks: bool,
-        words_not_copied: bool,
     },
 }
 /// Every measurement's window, in order, and what the case compared.
@@ -178,57 +170,9 @@ fn subject(input: Input) -> Result<Value, OperatingError> {
                 ],
             }
         }
-        Input::FactsFinishBorrows => {
-            let (kept, blocks, bytes) =
-                facts_finish_blocks().map_err(|error| OperatingError::ObservationIncomplete {
-                    reason: error.to_string(),
-                })?;
-            // One block for the sources and one for the joined list: no block for the words, which are the worker's own.
-            // Before one copy (checkpoint 322) the same read made four: the clone of the words and the sources, then the
-            // concatenation of each.
-            Answer::Facts {
-                kept,
-                at_most_two_blocks: blocks <= 2,
-                words_not_copied: usize::try_from(bytes).is_ok_and(|bytes| bytes < WORDS),
-            }
-        }
     };
     Ok((Cow::Owned(windows.into_inner()), answer))
 }
-/// How many packed bytes the stored population of the facts finish case holds.
-const WORDS: usize = 4096;
-
-/// The words it kept, and the blocks and bytes one read of a stored population from the memory facts finish allocates.
-fn facts_finish_blocks()
--> Result<(usize, u64, u64), ryo_execution_runtime::outbound::facts::errors::FactsError> {
-    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
-    let facts = ryo_execution_runtime::outbound::facts::factory::memory();
-    let worker = facts.worker()?;
-    let proof = ryo_values::domain::records::types::FrontierProof {
-        rule: ryo_values::domain::records::types::ProducerRule(0),
-        input: ryo_values::domain::records::types::FrontierOrdinal(0),
-        rule_digest: ryo_values::domain::stored_facts::types::Digest([0; 16]),
-        coverage: ryo_values::domain::records::types::FrontierCoverage::Complete,
-    };
-    worker.keep(
-        ryo_values::domain::stored_facts::types::Bucket(3),
-        ryo_execution_runtime::outbound::facts::types::WordsToKeep {
-            words: &ryo_values::domain::stored_facts::types::PackedWords(vec![1; WORDS]),
-            file: ryo_relations::domain::relations::types::FileId(0),
-            proof: &proof,
-        },
-    )?;
-    let finished = facts.finish(&mut std::iter::once(worker))?;
-    let before = dhat::HeapStats::get();
-    let kept = finished.kept(ryo_values::domain::stored_facts::types::Bucket(3))?;
-    let after = dhat::HeapStats::get();
-    Ok((
-        kept.words.0.0.len(),
-        after.total_blocks - before.total_blocks,
-        after.total_bytes - before.total_bytes,
-    ))
-}
-
 /// A measurement that saw no activation work and no allocation.
 const IDLE: Sample = Sample {
     work: [0; 3],
@@ -379,19 +323,6 @@ const CASES: &[Case<Input, Value, OperatingError>] = &[
             Answer::Uncounted {
                 counters_unchanged: true,
                 matches: [true, false],
-            },
-        )),
-    },
-    Case {
-        name: CaseName("the_facts_finish_reads_a_stored_population_without_copying_its_words"),
-        word: Word::Succeeds,
-        input: || Input::FactsFinishBorrows,
-        expect: Expect::Value((
-            windows(&[]),
-            Answer::Facts {
-                kept: WORDS,
-                at_most_two_blocks: true,
-                words_not_copied: true,
             },
         )),
     },

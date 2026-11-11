@@ -91,7 +91,6 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
 fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     use crate::shared_walk::fixtures::{compared, text, tree};
     use ryo_execution::inbound::use_cases::execution::interface::ObserverPort as _;
-    use ryo_execution_runtime::outbound::facts::interface::FactsPort as _;
     use ryo_values::domain::plan_parts::types::Test;
     let (engine, _) = crate::shared_walk::fixtures::engine();
     let mut input = authored_request(1);
@@ -126,7 +125,7 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     let request = ExecutionUseCaseImpl::new().execution(&program, &corpus, Some(observer));
     let (elements, mut symbols) = tree(FileId(0), b"abc");
     let facts = ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake::default();
-    let worker = facts.worker().expect("a fake worker");
+    let worker = facts.open_worker().expect("a fake worker");
     let (ran, _) = crate::file_intents::fixtures::ran_file(
         &request,
         FileId(0),

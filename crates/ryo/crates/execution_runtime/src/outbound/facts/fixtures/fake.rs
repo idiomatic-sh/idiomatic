@@ -50,6 +50,15 @@ impl FactsFake {
     pub fn calls(&self) -> usize {
         self.calls.load(Ordering::Relaxed)
     }
+
+    /// A worker of this fake, handed to a test that names only the worker, never the port.
+    ///
+    /// # Errors
+    ///
+    /// `Store` when the fake is told to fail.
+    pub fn open_worker(&self) -> Result<Box<dyn FactsWorker>, FactsError> {
+        FactsPort::worker(self)
+    }
 }
 
 /// Counts a call, and refuses it when told to fail.
