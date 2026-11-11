@@ -3,14 +3,14 @@
 //! The case `metadata_rejection_and_dependency_refusal_have_independent_applicability`.
 
 use super::support::{ReaderOutcome, pep};
-use crate::cases::{Case, CaseName, Expect, Word};
 use crate::inbound::contracts::project::contract::ProjectContract;
 use crate::outbound::notes::factory::postcard;
 use ryo::languages;
 use ryo::languages::Project as _;
 use std::sync::Arc;
 
-fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
+pub(crate) fn metadata_rejection_and_dependency_refusal_have_independent_applicability() -> String {
+    let mut seen: Vec<String> = Vec::new();
     let contract = ProjectContract::new(
         pep,
         Arc::new(postcard()),
@@ -38,32 +38,35 @@ fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
     let metadata = contract
         .resolve(&request)
         .expect("metadata diagnostic is a completed observation");
-    assert!(metadata.refused.is_empty());
-    assert!(metadata.derived.packages.packages.is_empty());
-    assert!(
-        metadata.derived.packages.refused.is_empty(),
-        "undemanded dependencies are not read"
-    );
-    assert_eq!(
+    seen.push(format!("{:?}", metadata.refused.is_empty()));
+    seen.push(format!(
+        "{:?}",
+        metadata.derived.packages.packages.is_empty()
+    ));
+    seen.push(format!(
+        "{:?}",
+        metadata.derived.packages.refused.is_empty()
+    ));
+    seen.push(format!(
+        "{:?}",
         metadata.derived.manifest_validation.files[0]
             .validation
             .diagnostics
-            .len(),
-        1
-    );
+            .len()
+    ));
     request.wanted.push(languages::Relation::PackageDependency);
     let both = contract
         .resolve(&request)
         .expect("dependency rejection remains partial");
-    assert_eq!(both.refused.len(), 1);
-    assert!(both.derived.packages.packages.is_empty());
-    assert_eq!(
+    seen.push(format!("{:?}", both.refused.len()));
+    seen.push(format!("{:?}", both.derived.packages.packages.is_empty()));
+    seen.push(format!(
+        "{:?}",
         both.derived.manifest_validation.files[0]
             .validation
             .diagnostics
-            .len(),
-        1
-    );
+            .len()
+    ));
     use languages::ManifestItem as _;
     let mut symbols = languages::Symbols::default();
     let input = languages::ManifestInput {
@@ -72,35 +75,16 @@ fn metadata_rejection_and_dependency_refusal_have_independent_applicability() {
     };
     let mut dependencies = ReaderOutcome::default();
     (crate::domain::manifests::collections::manifests::package_dependency::item::PackageDependencyItem::READER.read)(&input, &mut symbols, &mut dependencies);
-    assert_eq!(dependencies.rows, 0);
-    assert!(
-        !dependencies.partial.is_empty(),
-        "rejected dependency output stays unknown"
-    );
+    seen.push(format!("{:?}", dependencies.rows));
+    seen.push(format!("{:?}", !dependencies.partial.is_empty()));
     let mut diagnostics = ReaderOutcome::default();
     (crate::domain::manifests::collections::manifests::manifest_diagnostic::item::ManifestDiagnosticItem::READER.read)(&input, &mut symbols, &mut diagnostics);
-    assert_eq!(diagnostics.rows, 1);
-    assert!(
-        diagnostics.partial.is_empty(),
-        "actual schema diagnostic is completely observed"
-    );
+    seen.push(format!("{:?}", diagnostics.rows));
+    seen.push(format!("{:?}", diagnostics.partial.is_empty()));
     request.wanted = vec![languages::Relation::SyntaxError];
     let unrelated = contract
         .resolve(&request)
         .expect("unrequested projection cannot create a read failure");
-    assert!(unrelated.refused.is_empty());
-}
-
-/// The row of this case.
-pub(crate) const CASES: &[Case<(), (), ()>] = &[Case {
-    name: CaseName("metadata_rejection_and_dependency_refusal_have_independent_applicability"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
-
-/// Runs the body of the case.
-pub(crate) fn subject((): ()) -> Result<(), ()> {
-    metadata_rejection_and_dependency_refusal_have_independent_applicability();
-    Ok(())
+    seen.push(format!("{:?}", unrelated.refused.is_empty()));
+    seen.join("|")
 }

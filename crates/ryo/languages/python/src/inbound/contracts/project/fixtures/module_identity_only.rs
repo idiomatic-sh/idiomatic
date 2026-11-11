@@ -2,7 +2,6 @@
 //!
 //! The case `module_identity_only_preserves_inputs_without_projecting_or_validating`.
 
-use crate::cases::{Case, CaseName, Expect, Word};
 use crate::inbound::contracts::project::contract::ProjectContract;
 use crate::outbound::manifest_reading::fixtures::fake::ManifestReadingFake;
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
@@ -22,7 +21,8 @@ fn no_projection(manifests: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestR
     vec![Arc::new(ManifestReadingFake)]
 }
 
-fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
+pub(crate) fn module_identity_only_preserves_inputs_without_projecting_or_validating() -> String {
+    let mut seen: Vec<String> = Vec::new();
     let (probe, lookups) = ContextProbe::around(Arc::new(
         crate::outbound::module_context::factory::filesystem(),
     ));
@@ -44,25 +44,21 @@ fn module_identity_only_preserves_inputs_without_projecting_or_validating() {
     let resolved = contract
         .resolve(&request)
         .expect("module context owns its original complete request");
-    assert_eq!(lookups.count(), 1);
-    assert!(resolved.refused.is_empty());
-    assert!(resolved.derived.packages.packages.is_empty());
-    assert!(resolved.derived.manifest_validation.files.is_empty());
-    assert!(resolved.derived.manifest_validation.incomplete.is_empty());
-}
-
-/// The row of this case.
-pub(crate) const CASES: &[Case<(), (), ()>] = &[Case {
-    name: CaseName("module_identity_only_preserves_inputs_without_projecting_or_validating"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
-
-/// Runs the body of the case.
-pub(crate) fn subject((): ()) -> Result<(), ()> {
-    module_identity_only_preserves_inputs_without_projecting_or_validating();
-    Ok(())
+    seen.push(format!("{:?}", lookups.count()));
+    seen.push(format!("{:?}", resolved.refused.is_empty()));
+    seen.push(format!(
+        "{:?}",
+        resolved.derived.packages.packages.is_empty()
+    ));
+    seen.push(format!(
+        "{:?}",
+        resolved.derived.manifest_validation.files.is_empty()
+    ));
+    seen.push(format!(
+        "{:?}",
+        resolved.derived.manifest_validation.incomplete.is_empty()
+    ));
+    seen.join("|")
 }
 
 /// A module context that counts the lookups it answers and checks the request it is given.

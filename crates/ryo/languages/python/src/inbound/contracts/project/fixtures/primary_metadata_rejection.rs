@@ -3,14 +3,14 @@
 //! The case `primary_metadata_rejection_keeps_real_dependency_projection`.
 
 use super::support::pep;
-use crate::cases::{Case, CaseName, Expect, Word};
 use crate::inbound::contracts::project::contract::ProjectContract;
 use crate::outbound::notes::factory::postcard;
 use ryo::languages;
 use ryo::languages::Project as _;
 use std::sync::Arc;
 
-fn primary_metadata_rejection_keeps_real_dependency_projection() {
+pub(crate) fn primary_metadata_rejection_keeps_real_dependency_projection() -> String {
+    let mut seen: Vec<String> = Vec::new();
     let contract = ProjectContract::new(
         pep,
         Arc::new(postcard()),
@@ -37,39 +37,29 @@ fn primary_metadata_rejection_keeps_real_dependency_projection() {
     let resolved = contract
         .resolve(&request)
         .expect("pure manifest processing");
-    assert!(resolved.refused.is_empty());
-    assert_eq!(resolved.derived.packages.packages.len(), 1);
-    assert_eq!(
+    seen.push(format!("{:?}", resolved.refused.is_empty()));
+    seen.push(format!("{:?}", resolved.derived.packages.packages.len()));
+    seen.push(format!(
+        "{:?}",
         resolved.derived.packages.packages[0].declared.requirements[0]
             .written
             .0
-            .as_ref(),
-        "requests>=2"
-    );
-    assert_eq!(
-        resolved.derived.manifest_validation.files[0].file,
-        languages::FileId(0)
-    );
-    assert_eq!(
+            .as_ref()
+    ));
+    seen.push(format!(
+        "{:?}",
+        (resolved.derived.manifest_validation.files[0].file) == (languages::FileId(0))
+    ));
+    seen.push(format!(
+        "{:?}",
         resolved.derived.manifest_validation.files[0]
             .validation
             .diagnostics
-            .len(),
-        1
-    );
-    assert!(resolved.derived.manifest_validation.incomplete.is_empty());
-}
-
-/// The row of this case.
-pub(crate) const CASES: &[Case<(), (), ()>] = &[Case {
-    name: CaseName("primary_metadata_rejection_keeps_real_dependency_projection"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value(()),
-}];
-
-/// Runs the body of the case.
-pub(crate) fn subject((): ()) -> Result<(), ()> {
-    primary_metadata_rejection_keeps_real_dependency_projection();
-    Ok(())
+            .len()
+    ));
+    seen.push(format!(
+        "{:?}",
+        resolved.derived.manifest_validation.incomplete.is_empty()
+    ));
+    seen.join("|")
 }
