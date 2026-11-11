@@ -3,8 +3,8 @@
 use std::collections::BTreeSet;
 
 use super::constants::{
-    CAPTURE_CLOSE, CAPTURE_OPEN, CAPTURE_SEPARATOR, PATTERN_ESCAPE, PATTERN_SPECIALS, QUESTION,
-    SPAN_MARK, STAR,
+    CAPTURE_CLOSE, CAPTURE_OPEN, CAPTURE_SEPARATOR, DIRECTORY_MARK, PATTERN_ESCAPE,
+    PATTERN_SPECIALS, QUESTION, SPAN_MARK, STAR,
 };
 use super::types::{
     CaptureBinding, CaptureName, Captures, CapturesText, NamedPath, PatternChar, PatternName,
@@ -60,8 +60,8 @@ pub fn captures_text(captures: &Captures) -> CapturesText {
     )
 }
 
-/// The pieces of a path pattern's text: `\\c` is `c` standing for itself, `*` and `?` are wildcards, `{name}` and `{*name}`
-/// captures, and every other character itself. A `{` with no `}` after it, and a trailing `\\`, stand for themselves.
+/// The pieces of a path pattern's text: `\\c` is `c` standing for itself, `*` and `?` are wildcards, `{name}`, `{*name}`
+/// and `{name:dir}` captures, and every other character itself. A `{` with no `}` after it, and a trailing `\\`, stand for themselves.
 #[must_use]
 pub fn pieces(text: Template<'_>) -> Vec<PatternPiece<'_>> {
     let mut found = Vec::new();
@@ -81,10 +81,16 @@ pub fn pieces(text: Template<'_>) -> Vec<PatternPiece<'_>> {
         if character == CAPTURE_OPEN
             && let Some((name, closed)) = after.split_once(CAPTURE_CLOSE)
         {
-            found.push(match name.strip_prefix(SPAN_MARK) {
-                Some(span) => PatternPiece::Span(PatternName(span)),
-                None => PatternPiece::Capture(PatternName(name)),
-            });
+            found.push(
+                match (
+                    name.strip_prefix(SPAN_MARK),
+                    name.strip_suffix(DIRECTORY_MARK),
+                ) {
+                    (Some(span), _) => PatternPiece::Span(PatternName(span)),
+                    (None, Some(directory)) => PatternPiece::Directory(PatternName(directory)),
+                    (None, None) => PatternPiece::Capture(PatternName(name)),
+                },
+            );
             rest = closed;
             continue;
         }
@@ -124,21 +130,23 @@ pub fn unescaped(text: Template<'_>) -> NamedPath {
                 other @ (PatternPiece::Star
                 | PatternPiece::Question
                 | PatternPiece::Capture(_)
-                | PatternPiece::Span(_)) => written_piece(other).0,
+                | PatternPiece::Span(_)
+                | PatternPiece::Directory(_)) => written_piece(other).0,
             })
             .collect(),
     )
 }
 
-/// The names a path pattern captures, in order: those of its `{name}`s and `{*name}`s, never an escaped brace's.
+/// The names a path pattern captures, in order: those of its `{name}`s, `{*name}`s and `{name:dir}`s, never an escaped
+/// brace's.
 #[must_use]
 pub fn captured_names(text: Template<'_>) -> Vec<CaptureName> {
     pieces(text)
         .into_iter()
         .filter_map(|piece| match piece {
-            PatternPiece::Capture(name) | PatternPiece::Span(name) => {
-                Some(CaptureName(name.0.into()))
-            }
+            PatternPiece::Capture(name)
+            | PatternPiece::Span(name)
+            | PatternPiece::Directory(name) => Some(CaptureName(name.0.into())),
             PatternPiece::Literal(_) | PatternPiece::Star | PatternPiece::Question => None,
         })
         .collect()
@@ -173,7 +181,9 @@ pub fn substitute_pattern<'v>(
     for piece in pieces(pattern) {
         match piece {
             // A bound capture is its value; one the bindings do not name stays as the pattern writes it.
-            PatternPiece::Capture(name) | PatternPiece::Span(name) => match bound.get(name.0) {
+            PatternPiece::Capture(name)
+            | PatternPiece::Span(name)
+            | PatternPiece::Directory(name) => match bound.get(name.0) {
                 Some(value) => written.push_str(&escaped(PlainText(value)).0),
                 None => written.push_str(&written_piece(piece).0),
             },
@@ -197,6 +207,10 @@ pub fn written_piece(piece: PatternPiece<'_>) -> PatternWritten {
         }
         PatternPiece::Span(name) => PatternWritten(format!(
             "{CAPTURE_OPEN}{SPAN_MARK}{}{CAPTURE_CLOSE}",
+            name.0
+        )),
+        PatternPiece::Directory(name) => PatternWritten(format!(
+            "{CAPTURE_OPEN}{}{DIRECTORY_MARK}{CAPTURE_CLOSE}",
             name.0
         )),
     }

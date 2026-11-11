@@ -13,6 +13,8 @@ pub const CAPTURE_OPEN: char = '{';
 pub const CAPTURE_CLOSE: char = '}';
 /// What marks a capture of whole segments: `{*name}`.
 pub const SPAN_MARK: char = '*';
+/// What marks a capture whose value names a directory beside the file: `{name:dir}`.
+pub const DIRECTORY_MARK: &str = ":dir";
 /// A path pattern's wildcard of any text within a segment.
 pub const STAR: char = '*';
 /// A path pattern's wildcard of one character.
