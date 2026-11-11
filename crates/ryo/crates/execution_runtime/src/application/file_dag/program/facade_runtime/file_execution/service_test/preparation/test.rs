@@ -24,8 +24,7 @@ use ryo_execution_store::application::file_dag::relations::types::ReuseEligibili
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_relations::domain::relations::{
-    service::node_id,
-    types::{CellKind, FileId, Integer, Position, Relation, Value as Cell},
+    types::{CellKind, FileId, Integer, Relation},
 };
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
@@ -42,17 +41,116 @@ use ryo_values::domain::{
     plan_parts::types::{ObservationBindingId, Operand, QueryLiteral},
     records::types::ObservationReadinessLayout,
 };
+use ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND;
+use ryo_execution_domain::domain::executable_program::file_demand::types::{
+    FileDemand, FrontierSelection, RootSelection,
+};
+use std::borrow::Cow;
 use std::sync::Arc;
 
-fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_aliases() {
-    const PRODUCERS: usize = 128;
+/// The request: how many producers feed the consumer's observation binding.
+#[derive(Clone, Copy, Debug)]
+struct Request {
+    producers: usize,
+}
+
+/// The first producer's file demand under no demand, full demand and observation-only capture:
+/// the readers of no and full demand, the roots of full and observation-only demand, and the
+/// observations observation-only capture selects.
+#[derive(Debug, PartialEq)]
+struct Selected {
+    readers: [usize; 2],
+    roots: [usize; 2],
+    observing_observations: usize,
+}
+
+/// The opened file's state before any rule runs.
+#[derive(Debug, PartialEq)]
+struct Opened {
+    roots: usize,
+    prepared_named: usize,
+    prepared_roots: usize,
+    slots: usize,
+    dormant_obligations: usize,
+}
+
+/// The disabled sibling's refusal and its reads, every relation read, the demanded rule's
+/// diagnostic rows and observation, and the slots and evaluations after it ran.
+#[derive(Debug, PartialEq)]
+struct Ran {
+    sibling: Option<OperatingError>,
+    sibling_reads: usize,
+    reads: Cow<'static, [Relation]>,
+    /// Whether the diagnostic rows are the node column of the function rows read.
+    emits_the_read_nodes: bool,
+    observation_complete: bool,
+    slots: usize,
+    evaluations: u64,
+}
+
+#[derive(Debug, PartialEq)]
+struct Prepared {
+    selected: Selected,
+    opened: Opened,
+    ran: Ran,
+}
+
+type Input = Request;
+type Value = Prepared;
+type Failure = OperatingError;
+
+/// What opening and running the first of any number of producers observes.
+const PREPARED: Prepared = Prepared {
+    selected: Selected {
+        readers: [0, 3],
+        roots: [3, 1],
+        observing_observations: 0,
+    },
+    opened: Opened {
+        roots: 1,
+        prepared_named: 1,
+        prepared_roots: 1,
+        slots: 0,
+        dormant_obligations: 0,
+    },
+    ran: Ran {
+        sibling: Some(OperatingError::NotRun),
+        sibling_reads: 0,
+        reads: Cow::Borrowed(&[Relation::Function; 4]),
+        emits_the_read_nodes: true,
+        observation_complete: true,
+        slots: 2,
+        evaluations: 2,
+    },
+};
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName(
+            "opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_aliases",
+        ),
+        word: Word::Succeeds,
+        input: || Request { producers: 128 },
+        expect: Expect::Value(PREPARED),
+    },
+    Case {
+        name: CaseName("two_producers_open_the_same_reached_metadata_as_many"),
+        word: Word::Succeeds,
+        input: || Request { producers: 2 },
+        expect: Expect::Value(PREPARED),
+    },
+];
+
+/// Prepares the request, opens one file demanding the first producer only, and runs a disabled
+/// sibling and the demanded rule.
+fn subject(request: Input) -> Result<Value, Failure> {
     let columns = vec![ObservationColumn {
         name: ObservationColumnName("node".into()),
         kind: CellKind::Node,
     }];
     let mut rules = Vec::new();
     let mut plans = Vec::new();
-    for literal in 0..PRODUCERS {
+    for literal in 0..request.producers {
         let mut authored = rule();
         authored.id = RuleId(format!("opening-{literal}").into());
         rules.push(authored);
@@ -121,8 +219,7 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         plans,
         vec![vec![]; rules.len()],
         &rules,
-    )
-    .unwrap();
+    )?;
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
         compiled,
@@ -131,56 +228,24 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         &[],
         Arc::clone(&derived),
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([33; 16]))),
-    )
-    .unwrap();
-    let roots = prepared.file_demand(RuleIndex(0)).unwrap();
-    use ryo_execution_domain::domain::executable_program::file_demand::types::{
-        FileDemand, FrontierSelection, RootSelection,
+    )?;
+    let roots = prepared
+        .file_demand(RuleIndex(0))?;
+    let none = roots.selected(NO_FILE_DEMAND);
+    let full = roots.selected(FileDemand {
+        diagnostic: RootSelection::Required,
+        observations: RootSelection::Required,
+        capture: FrontierSelection::All,
+    });
+    let observing = roots.selected(FileDemand {
+        capture: FrontierSelection::Observations,
+        ..NO_FILE_DEMAND
+    });
+    let selected = Selected {
+        readers: [none.readers.len(), full.readers.len()],
+        roots: [full.roots.len(), observing.roots.len()],
+        observing_observations: observing.observations.len(),
     };
-    assert_eq!(roots.selected(ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND).readers.len(), 0);
-    assert_eq!(
-        roots
-            .selected(FileDemand {
-                diagnostic: RootSelection::Required,
-                observations: RootSelection::Required,
-                capture: FrontierSelection::All
-            })
-            .readers
-            .len(),
-        3
-    );
-    assert_eq!(
-        roots
-            .selected(FileDemand {
-                diagnostic: RootSelection::Required,
-                observations: RootSelection::Required,
-                capture: FrontierSelection::All
-            })
-            .roots
-            .len(),
-        3,
-        "reader aliases remain distinct in the compiled obligation multiset"
-    );
-    assert_eq!(
-        roots
-            .selected(FileDemand {
-                capture: FrontierSelection::Observations,
-                ..ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND
-            })
-            .roots
-            .len(),
-        1,
-        "observation-only capture retains its declared frontier"
-    );
-    assert!(
-        roots
-            .selected(FileDemand {
-                capture: FrontierSelection::Observations,
-                ..ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND
-            })
-            .observations
-            .is_empty()
-    );
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
@@ -214,53 +279,32 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
         &mut symbols,
         None,
         None,
-    )
-    .unwrap();
-    assert_eq!(
-        file.roots.len(),
-        1,
-        "unrequested named outputs have no file-owned state"
-    );
-    assert_eq!(file.prepared_named.len(), 1);
-    assert_eq!(
-        file.prepared_roots.len(),
-        1,
-        "Emit/named/frontier aliases queue their shared root once"
-    );
-    assert_eq!(
-        file.execution.state_counts().slots.0,
-        0,
-        "opening admits no executable region"
-    );
-    assert_eq!(
-        file.execution.state_counts().dormant_obligations.0,
-        0,
-        "disabled siblings do not populate cancellation counters at file opening"
-    );
+    )?;
+    let opened = Opened {
+        roots: file.roots.len(),
+        prepared_named: file.prepared_named.len(),
+        prepared_roots: file.prepared_roots.len(),
+        slots: file.execution.state_counts().slots.0,
+        dormant_obligations: file.execution.state_counts().dormant_obligations.0,
+    };
     let rows = function_rows(&[2]);
-    let reads = std::cell::Cell::new(0);
+    let reads = std::cell::RefCell::new(Vec::new());
     let read = |relation| {
-        assert_eq!(relation, Relation::Function);
-        reads.set(reads.get() + 1);
+        reads.borrow_mut().push(relation);
         Ok(Rows::Computed(&rows))
     };
-    assert!(matches!(
-        file.rule(
+    let sibling = file
+        .rule(
             RuleIndex(1),
             RuleDemand {
                 emit: EmitDemand::Enabled,
-                observations: ObservationDemand::Required
+                observations: ObservationDemand::Required,
             },
             &read,
-            &mut symbols
-        ),
-        Err(OperatingError::NotRun)
-    ));
-    assert_eq!(
-        reads.get(),
-        0,
-        "a disabled sibling cannot acquire its source"
-    );
+            &mut symbols,
+        )
+        .err();
+    let sibling_reads = reads.borrow().len();
     let outcome = file
         .rule(
             RuleIndex(0),
@@ -270,55 +314,31 @@ fn opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_a
             },
             &read,
             &mut symbols,
-        )
-        .unwrap();
+        )?;
     let RootOutcome::Complete(actual) = outcome.emit else {
-        panic!("declared diagnostic root")
+        return Err(OperatingError::NotRun);
     };
-    assert_eq!(
-        actual.cells,
-        vec![Cell::Node(node_id(FileId(0), Position(2)))]
-    );
-    assert!(matches!(
-        outcome.observations[0].outcome,
-        RootOutcome::Complete(_)
-    ));
-    assert!(
-        file.execution.state_counts().slots.0 <= 3,
-        "unrequested program siblings remain untouched"
-    );
-    assert!(file.readiness_counts().evaluations.0 <= 3);
-    file.finish().unwrap();
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Proof {
-    OpeningAndPreparingOneRuleUsesOnlyItsReachedMetadataAndPreservesAliases,
-}
-
-type Input = Proof;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName(
-        "opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_aliases",
-    ),
-    word: Word::Succeeds,
-    input: || Proof::OpeningAndPreparingOneRuleUsesOnlyItsReachedMetadataAndPreservesAliases,
-    expect: Expect::Value(()),
-}];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Proof::OpeningAndPreparingOneRuleUsesOnlyItsReachedMetadataAndPreservesAliases => {
-            opening_and_preparing_one_rule_uses_only_its_reached_metadata_and_preserves_aliases();
-            Ok(())
-        }
-    }
+    let ran = Ran {
+        sibling,
+        sibling_reads,
+        reads: reads.borrow().clone().into(),
+        emits_the_read_nodes: actual.cells
+            == rows
+                .cells
+                .chunks_exact(rows.kinds.len())
+                .map(|row| row[0])
+                .collect::<Vec<_>>(),
+        observation_complete: matches!(outcome.observations[0].outcome, RootOutcome::Complete(_)),
+        slots: file.execution.state_counts().slots.0,
+        evaluations: file.readiness_counts().evaluations.0,
+    };
+    // The finished file's frontier readiness is not this case's observation.
+    let _readiness = file.finish()?;
+    Ok(Prepared {
+        selected,
+        opened,
+        ran,
+    })
 }
 
 #[test]
