@@ -8,6 +8,8 @@ Edited in place: the `language-tastemaker` template writes `client-at-adapter` a
 
 Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
 
+Edited in place: the `unit-cases` entry also reads the group tests (`*_test/**/test.rs`), so a namespace `service_test.rs` is judged by its groups' rows (scenario `namespace-service-test-rows-in-its-groups` in concept).
+
 # language 0.4.2
 
 Places `benchmark` 0.2.1 (and through it `benchmark-linter` 0.2.1).

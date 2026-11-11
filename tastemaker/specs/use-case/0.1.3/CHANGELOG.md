@@ -8,6 +8,8 @@ Edited in place: places `test-directory-layout@0.2.0`, which accepts a group's m
 
 Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
 
+Edited in place: the `unit-cases` entry also reads the group tests (`*_test/**/test.rs`), so a namespace `service_test.rs` is judged by its groups' rows (scenario `namespace-service-test-rows-in-its-groups` in concept).
+
 # use-case 0.1.2
 
 A use case places its test support along concept as `fixtures/<concept>.rs`, which `fixtures.rs` declares, with no contract: `contract-only-files` refuses only a directory below `fixtures/` and a file of another kind. The rules that excuse `fixtures.rs` excuse these files too.
