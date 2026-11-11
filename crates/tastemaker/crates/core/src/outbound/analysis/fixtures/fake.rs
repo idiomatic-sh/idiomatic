@@ -97,6 +97,16 @@ impl AnalysisPort for AnalysisFake {
                 reason: "the fake fails".to_owned(),
             });
         }
+        // As the port's contract says: two rules of one id are refused whole, since one of them would never run.
+        let mut ids = std::collections::BTreeSet::new();
+        if let Some(rule) = request.rules.iter().find(|rule| !ids.insert(&rule.id)) {
+            return Err(AnalysisError::Engine {
+                reason: format!(
+                    "two rules of one lint call share the id `{}`: one of them would never run; this is a Tastemaker bug",
+                    rule.id.0
+                ),
+            });
+        }
         let hosted = match &request.hosted {
             Hosted::Verdict(rows) => Some(super::answers::verdict_answers(rows)),
             Hosted::Counts(rows) => Some(super::answers::count_answers(rows)),
