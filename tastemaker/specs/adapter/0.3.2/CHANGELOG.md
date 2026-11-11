@@ -1,6 +1,12 @@
 # adapter 0.3.2
 
-An adapter may keep nested parts and groups of cases, as a concept does. A nested part is placed by its roles: `{*part}/mod.rs` by the new spec-local `part` template, and `{*part}/adapter.rs`, `types.rs`, `errors.rs` and `constants.rs` by their own templates, read by the same role rules. The part is still the adapter: it sits beneath `adapters/`, where clients and the outside world stay allowed. `adapter_test.rs` is a case table or the namespace of its groups (`test-group-namespace` with `case-table = "exempt"`), placed by `test-group-module@0.2.0`; a group `adapter_test/{*group}/test.rs` is `scenario-test`, held to the case-table rules when it declares `CASES`; and `adapter-contract` holds the adapter whole: its `adapter_test.rs` or one of its groups runs the port's contract. 0.3.1 is removed with this version, not kept as published: no lock names it, nothing has been released.
+Places `no-runtime-fixtures@0.2.0` and `public-fields@0.3.0` where 0.3.1 named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query. Nothing else changes: `adapter_test.rs` is the spec-local `adapter-test` template, which holds the contract import and the `CASES` table, and an adapter places no nested part and no group of cases; scenario `adapter-with-a-nested-part` holds a nested part's files closed. A part too long for one file is split by the adapter's own roles (`types.rs`, `errors.rs`, `schemas.rs`, `{document}/schemas.rs`). 0.3.1 is removed with this version, not kept as published: no lock names it, nothing has been released.
+
+Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0); scenario `adapter-with-a-nested-part` names `decode.rs`, which the adapter reads as a document module.
+
+Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
+
+Edited in place: the `unit-cases` entry reads `*_test/**/*.rs` beside its own files, the flat groups and the group directories of a namespace test, which the rule reads only when its entry includes them.
 
 # adapter 0.3.1
 

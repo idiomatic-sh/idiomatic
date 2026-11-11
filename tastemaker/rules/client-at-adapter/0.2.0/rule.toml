@@ -1,0 +1,265 @@
+description = "A client or store library of the core is named - imported or written as a path - only in an adapter (a file the adapter spec places, or any file beneath an outbound port's `adapters/`), its port's factory.rs and an edge's composition (a file a composition template places: `composition`, a `*-composition` such as a command's or a language contract's reader's, or a benchmark host's `workflow`), never in a port's types.rs or errors.rs: the rule itself admits those files, so an entry reads `**` and excludes no production role."
+why = "A client library (a database driver, an HTTP client, a store) is the part of an adapter that touches the outside world. The core depends on it as an ordinary dependency, with no cargo feature per adapter, so the placement is what keeps use cases and domain free of it: the library is named in the adapter that wraps it (`src/outbound/<port>/adapters/<implementation>/`), in its port's `factory.rs`, which receives the client the edge opened, and in an edge's `composition.rs`, which opens it. The libraries are those the entry lists in `libraries`, and the rule is a shared one of the product (a nested spec instance's files are not its enclosing spec's to check). A port's own `types.rs` and `errors.rs` are not excluded: the library is named in none of a port's plain files. Not seen: a path inside an attribute or a macro invocation."
+
+query = '''
+param libraries: set<string>;
+let imports = project(from="static-import", columns=["occurrence", "file", "span", "target"]);
+let references = project(from="reference", columns=["occurrence", "file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let clients = select * from mentions where glob_any(target, $libraries);
+let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{adapter,adapter-connection,adapter-writer,settings,schemas}");
+let adapter-tree = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "{**/outbound/*/adapters/**,**/outbound/*/factory.rs}");
+let placed-compositions = select l."path" as "file" from "tastemaker.placed" as l where glob_any(l."template", "{composition,*-composition,workflow}");
+let adapter-roles = union(left=governed-roles, right=adapter-tree);
+let adapters = union(left=adapter-roles, right=placed-compositions);
+let outside = antijoin(left=clients, right=adapters, left-on=["file"], right-on=["file"]);
+emit outside subject "file" key("span");
+'''
+
+[params.libraries]
+type = "set<string>"
+description = "The client and store libraries of the product's adapters, each as a path glob of the crate as it is written in code: `rusqlite::*`."
+
+[diagnostic]
+primary = "span"
+message = "client library `{target}` is named outside an adapter, a port's factory and an edge's composition"
+help = "Move the code that uses `{target}` into the adapter of the outbound port it serves (`src/outbound/<port>/adapters/<implementation>/`), and take the client it needs as a parameter of the port's `factory.rs`, which the edge's `composition.rs` opens and passes. An ignore is never the fix."
+
+[given]
+include = ['**']
+params = { libraries = ['rusqlite::*'] }
+
+[[scenarios]]
+id = 'adapter-names-client-library'
+scenario = 'An adapter names its client library.'
+given.files.'src/outbound/store/adapters/sqlite/adapter.rs' = '''
+use rusqlite::Connection;
+
+/// The store adapter over a SQLite connection.
+pub struct SqliteStore {
+    connection: Connection,
+}
+'''
+given.files.'src/lib.rs' = '''
+//! The crate.
+'''
+
+[[scenarios]]
+id = 'port-s-factory-names-client-library'
+scenario = "A port's factory names the client library."
+given.files.'src/outbound/store/factory.rs' = '''
+use rusqlite::Connection;
+
+/// Builds the SQLite adapter from the connection the edge opened.
+pub fn sqlite(connection: Connection) -> Connection {
+    connection
+}
+'''
+given.files.'src/lib.rs' = '''
+//! The crate.
+'''
+
+[[scenarios]]
+id = 'edge-s-composition-opens-client'
+scenario = "An edge's composition, placed by the `composition` template, opens the client: it passes by its placement."
+given.files.'src/resources/greeting/show/composition.rs' = '''
+pub fn compose() {
+    let _ = rusqlite::Connection::open_in_memory();
+}
+'''
+given.files.'src/lib.rs' = '''
+//! The crate.
+'''
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = ["rusqlite::*"] } }]
+templates = [{ template = "idiomatic.arch/composition", file = "src/resources/{resource}/{part}/composition.rs" }]
+'''
+then.only = ['idiomatic.arch/client-at-adapter']
+[[scenarios]]
+id = 'no-client'
+scenario = 'A core with no client library in its code.'
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use std::sync::Arc;
+
+/// The greet use case.
+pub struct GreetUseCaseImpl {
+    names: Arc<str>,
+}
+
+/// Pure matching libraries do not open a client or touch the outside world.
+pub fn prepare_pattern() {
+    let _pattern = globset::GlobBuilder::new("hello*").build();
+}
+'''
+
+[[scenarios]]
+id = 'use-case-import'
+scenario = 'A use case imports the client library.'
+given.files.'src/inbound/use_cases/greet/use_case.rs' = '''
+use rusqlite::Connection;
+
+/// The greet use case.
+pub struct GreetUseCaseImpl {
+    connection: Connection,
+}
+'''
+then.findings = [
+  { path = 'src/inbound/use_cases/greet/use_case.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'domain-path'
+scenario = 'A domain file writes a path into the client library.'
+given.files.'src/domain/name/domain.rs' = '''
+pub fn open() {
+    let _ = rusqlite::Connection::open_in_memory();
+}
+'''
+then.findings = [
+  { path = 'src/domain/name/domain.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'interface-import'
+scenario = "A port's interface imports the client library."
+given.files.'src/outbound/store/interface.rs' = '''
+use rusqlite::Connection;
+
+/// The store port.
+pub trait StoreInterface {
+    fn connection(&self) -> &Connection;
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/interface.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'port-types'
+scenario = "A port's types name the client library."
+given.files.'src/outbound/store/types.rs' = '''
+/// A connection the port should not hold.
+pub struct Held {
+    pub connection: rusqlite::Connection,
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/types.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'port-errors'
+scenario = "A port's errors name the client library."
+given.files.'src/outbound/store/errors.rs' = '''
+/// What the store refuses with.
+pub enum StoreError {
+    Driver(rusqlite::Error),
+}
+'''
+then.findings = [
+  { path = 'src/outbound/store/errors.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'port-types-plain'
+scenario = "A port's plain types name no client library."
+given.files.'src/outbound/store/types.rs' = '''
+/// A row of the store.
+pub struct Row {
+    pub id: u32,
+}
+'''
+
+[[scenarios]]
+id = 'domain-test'
+scenario = 'A domain test names the client library.'
+given.files.'src/domain/name/domain_test.rs' = '''
+pub fn opens() {
+    let _ = rusqlite::Connection::open_in_memory();
+}
+'''
+then.findings = [
+  { path = 'src/domain/name/domain_test.rs', line = 2 },
+]
+
+[[scenarios]]
+id = 'adapter-test'
+scenario = "An adapter's test names the client library."
+given.files.'src/outbound/store/adapters/sqlite/adapter_test.rs' = '''
+pub fn opens() {
+    let _ = rusqlite::Connection::open_in_memory();
+}
+'''
+given.files.'src/lib.rs' = '''
+//! The crate.
+'''
+
+[[scenarios]]
+id = "governed-external-adapter-roles"
+scenario = "Only explicitly placed adapter roles gain boundary access; unplaced lookalikes and other roles remain rejected."
+given.include = ["**"]
+given.exclude = []
+given.files.'edge/adapter.rs' = 'use rusqlite::Connection;'
+given.files.'edge/schemas.rs' = 'use rusqlite::Connection;'
+given.files.'edge/writer.rs' = 'use rusqlite::Connection;'
+given.files.'domain/writer.rs' = 'use rusqlite::Connection;'
+given.files.'domain/adapter.rs' = 'use rusqlite::Connection;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = ["rusqlite::*"] } }]
+specs = [{ spec = "idiomatic.arch/adapter", include = ["edge"], params = { core = "foreign_core", port = "names" } }]
+'''
+then.only = ['idiomatic.arch/client-at-adapter', 'idiomatic.arch/client-at-adapter#unknown']
+then.findings = [
+  { path = 'domain/adapter.rs', line = 1 },
+  { path = 'domain/writer.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'unplaced-adapter-tree-names-client-library'
+scenario = "Read from `**` with no exclude: a file beneath an outbound port's `adapters/` that the adapter spec does not place (a language's own adapter layout) and the port's `factory.rs` name the client library and pass; the domain, an unplaced `composition.rs` and a fixture are reported."
+given.include = ["**"]
+given.exclude = []
+given.files.'src/outbound/syntax/adapters/parser/grammar.rs' = 'use rusqlite::Connection;'
+given.files.'src/domain/grammar/service.rs' = 'use rusqlite::Connection;'
+given.files.'src/outbound/syntax/factory.rs' = 'use rusqlite::Connection;'
+given.files.'src/domain/grammar/composition.rs' = 'use rusqlite::Connection;'
+given.files.'src/fixtures/x.rs' = 'use rusqlite::Connection;'
+then.findings = [
+  { path = 'src/domain/grammar/service.rs', line = 1 },
+  { path = 'src/fixtures/x.rs', line = 1 },
+  { path = 'src/domain/grammar/composition.rs', line = 1 },
+]
+[[scenarios]]
+id = 'unplaced-composition-names-client-library'
+scenario = "A `composition.rs` no template entry places (in the domain) is no edge's: its client library is reported, beside a placed edge composition that passes."
+given.files.'src/resources/greeting/show/composition.rs' = 'use rusqlite::Connection;'
+given.files.'src/domain/greeting/composition.rs' = 'use rusqlite::Connection;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = ["rusqlite::*"] } }]
+templates = [{ template = "idiomatic.arch/composition", file = "src/resources/{resource}/{part}/composition.rs" }]
+'''
+then.only = ['idiomatic.arch/client-at-adapter']
+then.findings = [
+  { path = 'src/domain/greeting/composition.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'composition-placed-by-another-template-names-client-library'
+scenario = "A `composition.rs` a template entry places as another role (here a `service`) is no edge's composition: its client library is reported, beside an edge composition the `composition` template places, which passes."
+given.files.'src/resources/greeting/show/composition.rs' = 'use rusqlite::Connection;'
+given.files.'src/domain/greeting/composition.rs' = 'use rusqlite::Connection;'
+given.files.'tastemaker.toml' = '''
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "../../.." }] }
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = ["rusqlite::*"] } }]
+templates = [
+  { template = "idiomatic.arch/composition", file = "src/resources/{resource}/{part}/composition.rs" },
+  { template = "idiomatic.arch/service", file = "src/domain/{concept}/composition.rs" },
+]
+'''
+then.only = ['idiomatic.arch/client-at-adapter']
+then.findings = [
+  { path = 'src/domain/greeting/composition.rs', line = 1 },
+]

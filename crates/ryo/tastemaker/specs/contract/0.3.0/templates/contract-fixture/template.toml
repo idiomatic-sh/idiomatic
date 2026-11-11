@@ -8,13 +8,13 @@ content = '''
 group = { type = "identifier", description = "The group, captured from its path." }
 
 [given]
-file = 'fixtures/links/mod.rs'
+file = 'fixtures/links.rs'
 params = { group = 'links' }
 
 [[scenarios]]
 id = 'rendered-template-passes'
 scenario = 'The rendered template passes.'
-given.files.'fixtures/links/mod.rs' = '''
+given.files.'fixtures/links.rs' = '''
 //! A group of the contract's cases.
 '''
 

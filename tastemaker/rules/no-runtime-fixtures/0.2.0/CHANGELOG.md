@@ -4,6 +4,8 @@
 
 An item gated `#[cfg(any(test, feature = "fixtures"))]` is test-only like an exact `#[cfg(test)]` one, with its syntax descendants: the gate compiles it for the crate's own tests and, through the `fixtures` feature, for the tests of the crates that consume it, so what it names is test support, not production code. A crate split from the engine keeps its proof observations behind that gate because its consumers' tests read them. Fixture `fixtures-gated-item-reads` (the gated field and method are not findings; the same read in an ungated method is). Everything else is as in 0.1.0.
 
+Edited in place: a group's `test.rs` is test code when the module file `<dir>.rs` beside its directory declares it gated, where it was keyed on `<dir>/mod.rs` (the one module-file style, owner 2026-11-11); the scenarios name module files `<dir>.rs`, and a `#[path]` in one resolves from that file's directory.
+
 ## 0.1.0
 
 

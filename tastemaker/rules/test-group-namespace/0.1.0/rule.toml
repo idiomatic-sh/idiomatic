@@ -1,5 +1,5 @@
-description = "A test group's module file declares modules only: its test, its fixtures and its sub-groups, never a test function or a helper."
-why = "A group of cases is a directory: its `mod.rs` names what the group holds (`test`, `fixtures`, and the groups nested in it), and the group's tests and support live in those files. A module file that declares only sub-groups is a group namespace and needs no `test` of its own; a module file that holds a `#[test]` function, a helper, a type or a constant has become a second test file nobody looks for. A module file that declares no module at all is reported where its code begins. Every top-level item that is not a `mod x;` declaration is reported where it stands, an inline module with a body (`mod tests { … }`) among them: it would hold the tests and helpers the group's files are for (attributes on the declarations, such as `#[cfg(test)]`, are part of them)."
+description = "A test group's module file declares modules only: its test, its fixtures and its sub-groups, never a test function or a helper; a spec that places a nested part's module file holds it here the same way, to the part's role files. With `case-table = \"exempt\"`, a file that declares a `CASES` table is a case table instead, and holds the table's skeleton: `type Input`, `type Value`, `type Failure`, `const CASES: &[Case<Input, Value, Failure>]` and `fn subject`."
+why = "A group of cases is a directory: its module file `<group>.rs`, beside it, names what the group holds (`test`, `fixtures`, and the groups nested in it), and the group's tests and support live in those files. A module file that declares only sub-groups is a group namespace and needs no `test` of its own; a module file that holds a `#[test]` function, a helper, a type or a constant has become a second test file nobody looks for. A module file that declares no module at all is reported where its code begins. Every top-level item that is not a `mod x;` declaration is reported where it stands, an inline module with a body (`mod tests { … }`) among them: it would hold the tests and helpers the group's files are for (attributes on the declarations, such as `#[cfg(test)]`, are part of them). A service's proof that is one of two forms (`case-table = \"exempt\"`) and declares `CASES` is the other form, a case table: it is placed by a template of one doc line, so the table's skeleton, which the `unit-test` template writes, is held here, each missing piece and an untyped table reported at the table; its runners are `test-shape`'s."
 
 query = '''
 param case-table: string;
@@ -25,32 +25,73 @@ let table-files = project(from=table-files-rows, columns=["file"]);
 let exempt-files = select * from table-files where $case-table = "exempt";
 let other-items = antijoin(left=items, right=declarations, left-on=["id"], right-on=["id"]);
 let other = antijoin(left=other-items, right=exempt-files, left-on=["file"], right-on=["file"]);
-let other-found = select l."kind" as "kind", l."file" as "file", l."span" as "span" from other as l;
+let other-rows = select l."kind" as "kind", l."file" as "file", l."span" as "span" from other as l;
+let other-found = extend(from=other-rows, values={"problem": "in a module file that declares its directory's modules only (`mod x;`, never a module with a body)"});
 let declaring = project(from=declared-modules, columns=["file"]);
 let undeclaring = antijoin(left=roots, right=declaring, left-on=["file"], right-on=["file"]);
 let hollow = antijoin(left=undeclaring, right=exempt-files, left-on=["file"], right-on=["file"]);
-let hollow-found = select l."kind" as "kind", l."file" as "file", l."span" as "span" from hollow as l;
-let found = union(left=other-found, right=hollow-found);
-emit found subject "file" key("span");
+let hollow-rows = select l."kind" as "kind", l."file" as "file", l."span" as "span" from hollow as l;
+let hollow-found = extend(from=hollow-rows, values={"problem": "in a module file that declares its directory's modules only (`mod x;`, never a module with a body)"});
+let names = select * from tree-nodes where kind = "name";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let skeleton-items = select * from tree-nodes where glob_any(kind, "{type-alias,fn,const}");
+let skeleton-kids = select l."id" as "item", l."kind" as "kind", l."file" as "file", r."child" as "child" from skeleton-items as l join "syntax-child" as r on l."id" = r."parent";
+let skeleton-name-nodes = select l."item" as "item", l."kind" as "kind", l."file" as "file", r."id" as "name" from skeleton-kids as l join names as r on l."child" = r."id";
+let skeleton-name-kids = select l."item" as "item", l."kind" as "kind", l."file" as "file", r."child" as "token" from skeleton-name-nodes as l join "syntax-child" as r on l."name" = r."parent";
+let skeleton-declared = select l."item" as "item", l."kind" as "kind", l."file" as "file", r."text" as "text" from skeleton-name-kids as l join tree-tokens as r on l."token" = r."id";
+let case-const-names = select * from skeleton-declared where kind = "const" and text = "CASES";
+let case-consts = select l."item" as "item", l."file" as "file", r."span" as "span" from case-const-names as l join tree-nodes as r on l."item" = r."id";
+let read-case-consts = select * from case-consts where $case-table = "exempt";
+let want-input = extend(from=read-case-consts, values={"kind": "type-alias", "text": "Input", "problem": "is a case table, so its file declares `type Input`, the input of its rows"});
+let want-value = extend(from=read-case-consts, values={"kind": "type-alias", "text": "Value", "problem": "is a case table, so its file declares `type Value`, what its rows expect on success"});
+let want-failure = extend(from=read-case-consts, values={"kind": "type-alias", "text": "Failure", "problem": "is a case table, so its file declares `type Failure`, what its rows expect on refusal"});
+let want-subject = extend(from=read-case-consts, values={"kind": "fn", "text": "subject", "problem": "is a case table, so its file declares `fn subject`, which its runners call on each row's input"});
+let wanted-a = union(left=want-input, right=want-value);
+let wanted-b = union(left=want-failure, right=want-subject);
+let wanted = union(left=wanted-a, right=wanted-b);
+let missing = antijoin(left=wanted, right=skeleton-declared, left-on=["file", "kind", "text"], right-on=["file", "kind", "text"]);
+let missing-rows = project(from=missing, columns=["file", "span", "problem"]);
+let missing-found = extend(from=missing-rows, values={"kind": "CASES"});
+let ref-types = select * from tree-nodes where kind = "ref-type";
+let case-type-edges = select l."item" as "item", l."file" as "file", l."span" as "span", r."child" as "child" from read-case-consts as l join "syntax-child" as r on l."item" = r."parent";
+let case-types = select l."item" as "item", l."file" as "file", l."span" as "span", r."id" as "id" from case-type-edges as l join ref-types as r on l."child" = r."id";
+let case-type-refs = axis(from=case-types, relation="syntax-child", direction=descendant, domain=name-refs);
+let case-type-ref-kids = select l."item" as "item", r."child" as "token" from case-type-refs as l join "syntax-child" as r on l."related" = r."parent";
+let case-type-words = select l."item" as "item", r."text" as "text" from case-type-ref-kids as l join tree-tokens as r on l."token" = r."id";
+let typed-case = select * from case-type-words where text = "Case";
+let typed-input = select * from case-type-words where text = "Input";
+let typed-value = select * from case-type-words where text = "Value";
+let typed-failure = select * from case-type-words where text = "Failure";
+let typed-1 = select l."item" as "item" from typed-case as l join typed-input as r on l."item" = r."item";
+let typed-2 = select l."item" as "item" from typed-1 as l join typed-value as r on l."item" = r."item";
+let typed = select l."item" as "item" from typed-2 as l join typed-failure as r on l."item" = r."item";
+let untyped = antijoin(left=read-case-consts, right=typed, left-on=["item"], right-on=["item"]);
+let untyped-rows = project(from=untyped, columns=["file", "span"]);
+let untyped-found = extend(from=untyped-rows, values={"kind": "CASES", "problem": "is a case table, so it is typed `&[Case<Input, Value, Failure>]`, over the file's three aliases"});
+let skeleton-found = union(left=missing-found, right=untyped-found);
+let namespace-found = union(left=other-found, right=hollow-found);
+let found = union(left=namespace-found, right=skeleton-found);
+emit found subject "file" key("span", "problem");
 '''
 
 [params.case-table]
 type = { one-of = ["refused", "exempt"] }
-description = "What a file that declares a `CASES` table is: `refused` for a group's `mod.rs`, which only declares the group's modules; `exempt` for a service's `service_test.rs`, which is one of two forms chosen by that one fact, a case table (held by the case-table rules) or a namespace of groups (held here)."
+description = "What a file that declares a `CASES` table is: `refused` for a group's module file `<group>.rs`, or a nested part's `<part>.rs`, which only declares the group's modules; `exempt` for a service's `service_test.rs`, which is one of two forms chosen by that one fact, a case table (its skeleton held here, its runners by the case-table rules) or a namespace of groups (held here)."
 
 [diagnostic]
 primary = "span"
-message = "`{kind}` in a test group's module file, which declares the group's modules only (`mod x;`, never a module with a body)"
-help = "Move a `#[test]` function into the group's `test.rs`, and a helper, a type or a constant into its `fixtures.rs`; the module file declares `test`, `fixtures` and the nested groups."
+message = "`{kind}` {problem}"
+help = "A module file declares its directory's modules and nothing else: move each item into the file of its role beside it. In a group of cases, a `#[test]` function goes in the group's `test.rs` and a helper, a type or a constant in its `fixtures.rs`; in a nested part, a function goes in its `service.rs`, data in its `types.rs`, a failure in its `errors.rs` and a constant in its `constants.rs`. A case table declares the skeleton the `unit-test` template writes: `type Input`, `type Value`, `type Failure`, `const CASES: &[Case<Input, Value, Failure>]` and `fn subject`."
 
 [given]
-include = ["**/mod.rs"]
+include = ["**/service_test/*.rs"]
 params = { case-table = "refused" }
 
 [[scenarios]]
 id = "group-with-its-test"
 scenario = "A group module that declares its test and its fixtures passes."
-given.files.'src/owner/service_test/publication/mod.rs' = '''
+given.files.'src/owner/service_test/publication.rs' = '''
 //! The publication group.
 #[cfg(test)]
 mod fixtures;
@@ -61,7 +102,7 @@ pub(super) mod test;
 [[scenarios]]
 id = "group-namespace"
 scenario = "A group module that only declares its sub-groups is a namespace and passes with no test of its own."
-given.files.'src/owner/service_test/interpreter/mod.rs' = '''
+given.files.'src/owner/service_test/interpreter.rs' = '''
 //! The interpreter's groups.
 #[cfg(test)]
 mod budget;
@@ -72,30 +113,30 @@ mod population;
 [[scenarios]]
 id = "group-module-holding-a-test"
 scenario = "A group module that holds a `#[test]` function is reported at it."
-given.files.'src/owner/service_test/publication/mod.rs' = '''
+given.files.'src/owner/service_test/publication.rs' = '''
 #[cfg(test)]
 pub(super) mod test;
 
 #[test]
 fn publishes() {}
 '''
-then.findings = [{ path = "src/owner/service_test/publication/mod.rs", line = 4 }]
+then.findings = [{ path = "src/owner/service_test/publication.rs", line = 4 }]
 
 [[scenarios]]
 id = "group-module-holding-a-helper"
 scenario = "A group module that holds a helper function is reported at it."
-given.files.'src/owner/service_test/interpreter/mod.rs' = '''
+given.files.'src/owner/service_test/interpreter.rs' = '''
 #[cfg(test)]
 mod budget;
 
 pub(super) fn owner() {}
 '''
-then.findings = [{ path = "src/owner/service_test/interpreter/mod.rs", line = 4 }]
+then.findings = [{ path = "src/owner/service_test/interpreter.rs", line = 4 }]
 
 [[scenarios]]
 id = "group-module-holding-an-inline-module"
 scenario = "A group module that hides tests in an inline module with a body is reported at it."
-given.files.'src/owner/service_test/publication/mod.rs' = '''
+given.files.'src/owner/service_test/publication.rs' = '''
 #[cfg(test)]
 pub(super) mod test;
 
@@ -105,7 +146,7 @@ mod inline {
     fn hidden() {}
 }
 '''
-then.findings = [{ path = "src/owner/service_test/publication/mod.rs", line = 4 }]
+then.findings = [{ path = "src/owner/service_test/publication.rs", line = 4 }]
 
 [[scenarios]]
 id = "service-test-namespace"
@@ -120,13 +161,16 @@ mod publication;
 
 [[scenarios]]
 id = "service-test-case-table"
-scenario = "A `service_test.rs` that declares a `CASES` table is a case table, left to the case-table rules."
+scenario = "A `service_test.rs` that declares a `CASES` table with its skeleton is a case table, left to the case-table rules."
 given.params = { case-table = "exempt" }
 given.include = ["**/service_test.rs"]
 given.files.'src/owner/service_test.rs' = '''
 use crate::cases::{Case, Word, run};
-const CASES: &[Case<u8, u8, ()>] = &[];
-fn subject(input: u8) -> Result<u8, ()> {
+type Input = u8;
+type Value = u8;
+type Failure = ();
+const CASES: &[Case<Input, Value, Failure>] = &[];
+fn subject(input: Input) -> Result<Value, Failure> {
     Ok(input)
 }
 #[test]
@@ -161,3 +205,67 @@ then.findings = [
   { path = "src/owner/service_test.rs", line = 1 },
 ]
 
+[[scenarios]]
+id = 'case-table-holds-the-skeleton'
+scenario = 'A `service_test.rs` that declares `CASES` holds the table skeleton: a `subject` under another name is reported at the table.'
+given.params = { case-table = "exempt" }
+given.include = ["**/service_test.rs"]
+given.files.'src/owner/service_test.rs' = '''
+use crate::cases::{Case, Word, run};
+
+type Input = u8;
+type Value = u8;
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+fn call(input: Input) -> Result<Value, Failure> {
+    Ok(input)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, call);
+}
+'''
+then.findings = [
+  { path = 'src/owner/service_test.rs', line = 7 },
+]
+[[scenarios]]
+id = 'case-table-holds-the-typed-table'
+scenario = 'A `service_test.rs` whose table is typed without the three aliases is reported once for each missing alias and once for its type.'
+given.params = { case-table = "exempt" }
+given.include = ["**/service_test.rs"]
+given.files.'src/owner/service_test.rs' = '''
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<u8, u8, ()>] = &[];
+
+fn subject(input: u8) -> Result<u8, ()> {
+    Ok(input)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+then.findings = [
+  { path = 'src/owner/service_test.rs', line = 3 },
+  { path = 'src/owner/service_test.rs', line = 3 },
+  { path = 'src/owner/service_test.rs', line = 3 },
+  { path = 'src/owner/service_test.rs', line = 3 },
+]
+[[scenarios]]
+id = 'group-module-table-is-not-a-case-table'
+scenario = 'A group module that declares `CASES` is refused at the table as an item, and is not read as a case table.'
+given.include = ["**/service_test/*.rs"]
+given.files.'src/owner/service_test/order.rs' = '''
+#[cfg(test)]
+pub(super) mod test;
+
+const CASES: &[u8] = &[];
+'''
+then.findings = [
+  { path = 'src/owner/service_test/order.rs', line = 4 },
+]

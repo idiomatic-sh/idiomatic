@@ -1,13 +1,17 @@
 description = "Production code never names a `fixtures` module or imports colocated acceptance steps: a path segment `fixtures` in a use or an expression outside test code is a finding. An item gated `cfg(test)` or `cfg(any(test, feature = \"fixtures\"))` is test support, compiled for the crate's own tests and, through the feature, for its consumers' tests: what it names is not production code."
-why = "`fixtures.rs` holds test data and fakes, compiled for the crate's own tests and, through the `fixtures` feature, for other crates' tests; it never ships. What production runs is not a fixture: a probe or a certification case the product needs is a value in `types.rs` or a use case's input. A reached concept/test.rs normally declared as #[cfg(test)] mod test; by its reached concept/mod.rs is test code; module syntax, exact cfg metadata and analyzed-source establish this role, never its filename alone. Mixed ungated declarations refuse this exception. As module membership is not a resolved fact, production include! or an explicit path/cfg_attr literal naming a generic test.rs conservatively refuses the new exception across all candidate roles, since cross-package redirection cannot be resolved from these facts; decoded literals handle escaped and raw spelling without pretending to normalize paths. Existing module-declares and test-directory-layout placements enforce the surrounding ownership. Legacy test/support placement exclusions remain as before. Exact #[cfg(test)] item syntax also excludes that item and its syntax descendants; negated or feature-enabled cfgs do not. Test-only include sites cannot invalidate registered test roles. The entry leaves out other test code (`*_test.rs`, `tests/`, `benches/`) and `fixtures.rs` itself; declaring the module (`pub mod fixtures;`) names no path and is not a finding. A `fixtures` that is the whole of an expression's path (a local binding, `fixtures.first()`) names no module and is not a finding: a module is named by a path that goes on past it (`fixtures::fake`) or by an import. A domain concept named `fixtures` (`domain::fixtures`, a product whose subject is test cases, such as a linter's fixtures of its rules) is the product's own domain, not test support, and is not a finding, in a path of code, of an import or of a type."
+why = "`fixtures.rs` holds test data and fakes, compiled for the crate's own tests and, through the `fixtures` feature, for other crates' tests; it never ships. What production runs is not a fixture: a probe or a certification case the product needs is a value in `types.rs` or a use case's input. A reached concept/test.rs normally declared as #[cfg(test)] mod test; by its reached concept.rs is test code; module syntax, exact cfg metadata and analyzed-source establish this role, never its filename alone. Mixed ungated declarations refuse this exception. As module membership is not a resolved fact, production include! or an explicit path/cfg_attr literal naming a generic test.rs conservatively refuses the new exception across all candidate roles, since cross-package redirection cannot be resolved from these facts; decoded literals handle escaped and raw spelling without pretending to normalize paths. Existing module-declares and test-directory-layout placements enforce the surrounding ownership. Legacy test/support placement exclusions remain as before. Exact #[cfg(test)] item syntax also excludes that item and its syntax descendants; negated or feature-enabled cfgs do not. Test-only include sites cannot invalidate registered test roles. The entry leaves out other test code (`*_test.rs`, `tests/`, `benches/`) and `fixtures.rs` itself; declaring the module (`pub mod fixtures;`) names no path and is not a finding. A `fixtures` that is the whole of an expression's path (a local binding, `fixtures.first()`) names no module and is not a finding: a module is named by a path that goes on past it (`fixtures::fake`) or by an import. A domain concept named `fixtures` (`domain::fixtures`, a product whose subject is test cases, such as a linter's fixtures of its rules) is the product's own domain, not test support, and is not a finding, in a path of code, of an import or of a type."
 
 query = '''
 let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
 let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
 let role-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
-let role-owners = capture(from=role-files, path="file", pattern="{*dir}/mod.rs", captures=["dir"]);
-let role-tests = capture(from=role-files, path="file", pattern="{*dir}/test.rs", captures=["dir"]);
-let role-pairs = select l."file" as "owner", r."file" as "file" from role-owners as l join role-tests as r on l."dir" = r."dir";
+let role-owners = capture(from=role-files, path="file", pattern="{*parent}/{stem}.rs", captures=["parent", "stem"]);
+let role-tests = capture(from=role-files, path="file", pattern="{*parent}/{stem}/test.rs", captures=["parent", "stem"]);
+let role-nested-pairs = select l."file" as "owner", r."file" as "file" from role-owners as l join role-tests as r on l."parent" = r."parent" and l."stem" = r."stem";
+let role-top-owners = capture(from=role-files, path="file", pattern="{stem}.rs", captures=["stem"]);
+let role-top-tests = capture(from=role-files, path="file", pattern="{stem}/test.rs", captures=["stem"]);
+let role-top-pairs = select l."file" as "owner", r."file" as "file" from role-top-owners as l join role-top-tests as r on l."stem" = r."stem";
+let role-pairs = union(left=role-nested-pairs, right=role-top-pairs);
 let role-roots = select * from tree-nodes where kind = "source-file";
 let role-top-edges = select r."child" as "id" from role-roots as l join "syntax-child" as r on l."id" = r."parent";
 let role-modules = select r."id" as "id", r."file" as "file" from role-top-edges as l join tree-nodes as r on l."id" = r."id" where r."kind" = "module";
@@ -453,7 +457,7 @@ runtime = []
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)]
 mod test;
 '''
@@ -477,7 +481,7 @@ runtime = []
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 mod test;
 '''
 given.files.'src/concept/test.rs' = '''
@@ -504,7 +508,7 @@ runtime = []
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(not(test))]
 mod test;
 '''
@@ -532,7 +536,7 @@ runtime = []
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(any(test, feature = "runtime"))]
 mod test;
 '''
@@ -560,7 +564,7 @@ runtime = []
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)]
 mod other;
 mod test;
@@ -590,7 +594,7 @@ runtime = []
 given.files.'src/lib.rs' = '''
 
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)]
 mod test;
 '''
@@ -618,7 +622,7 @@ runtime = []
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)]
 mod test {}
 '''
@@ -646,9 +650,9 @@ runtime = []
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)]
-#[path = "other.rs"]
+#[path = "concept/other.rs"]
 mod test;
 '''
 given.files.'src/concept/test.rs' = '''
@@ -674,7 +678,7 @@ edition = "2024"
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 mod test;
 mod nested { #[cfg(test)] mod test; }
 '''
@@ -703,7 +707,7 @@ edition = "2024"
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)] mod test;
 #[cfg(not(test))] mod test;
 '''
@@ -729,9 +733,9 @@ edition = "2024"
 given.files.'src/lib.rs' = '''
 mod concept;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)] mod test;
-#[path = "test.rs"] mod runtime;
+#[path = "concept/test.rs"] mod runtime;
 '''
 given.files.'src/concept/test.rs' = '''
 use crate::fixtures::VALUE as input;
@@ -756,7 +760,7 @@ given.files.'src/lib.rs' = '''
 mod concept;
 #[path = "concept/test.rs"] mod runtime;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)] mod test;
 '''
 given.files.'src/concept/test.rs' = '''
@@ -782,7 +786,7 @@ given.files.'src/lib.rs' = '''
 mod concept;
 #[path = r#"./concept/../concept/test.rs"#] mod runtime;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)] mod test;
 '''
 given.files.'src/concept/test.rs' = '''
@@ -808,7 +812,7 @@ given.files.'src/lib.rs' = '''
 mod concept;
 #[path = "concept/te\x73t.rs"] mod runtime;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)] mod test;
 '''
 given.files.'src/concept/test.rs' = '''
@@ -834,7 +838,7 @@ given.files.'src/lib.rs' = '''
 mod concept;
 #[cfg_attr(not(test), path = "concept/test.rs")] mod runtime;
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)] mod test;
 '''
 given.files.'src/concept/test.rs' = '''
@@ -863,7 +867,7 @@ given.files.'src/lib.rs' = '''
 mod concept;
 mod runtime { include!("concept/test.rs"); }
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)] mod test;
 '''
 given.files.'src/concept/test.rs' = '''
@@ -889,7 +893,7 @@ given.files.'src/lib.rs' = '''
 mod concept;
 mod runtime { include!(concat!("concept/", "test.rs")); }
 '''
-given.files.'src/concept/mod.rs' = '''
+given.files.'src/concept.rs' = '''
 #[cfg(test)] mod test;
 '''
 given.files.'src/concept/test.rs' = '''
@@ -928,7 +932,7 @@ given.files.'crate_a/src/lib.rs' = '''
 given.files.'crate_b/src/lib.rs' = '''
 mod concept;
 '''
-given.files.'crate_b/src/concept/mod.rs' = '''
+given.files.'crate_b/src/concept.rs' = '''
 #[cfg(test)] mod test;
 '''
 given.files.'crate_b/src/concept/test.rs' = '''
@@ -967,7 +971,7 @@ include!("../../crate_b/src/concept/test.rs");
 given.files.'crate_b/src/lib.rs' = '''
 mod concept;
 '''
-given.files.'crate_b/src/concept/mod.rs' = '''
+given.files.'crate_b/src/concept.rs' = '''
 #[cfg(test)] mod test;
 '''
 given.files.'crate_b/src/concept/test.rs' = '''
@@ -1009,7 +1013,7 @@ version="0.1.0"
 edition="2024"'''
 scenario = "test include preserves registered role"
 given.files.'src/lib.rs' = "mod concept;\n#[cfg(test)] mod checks { include!(\"generated.rs\"); }"
-given.files.'src/concept/mod.rs' = "#[cfg(test)] mod test;"
+given.files.'src/concept.rs' = "#[cfg(test)] mod test;"
 given.files.'src/concept/test.rs' = "use crate::fixtures::VALUE as expected;\nfn check() { let _ = expected; }"
 given.files.'src/generated.rs' = ""
 

@@ -103,7 +103,7 @@ rules = [
   { rule = "bench-checks-growth", include = ["benchmarks/provider/bench.rs"], description = "A language's bench, which exists exactly when it has a workload, checks the growth of the parse: a function `complexity` against a `GROWTH_LIMIT`, called only under `BENCH_FLAG`." },
   { rule = "domain-modules", include = ["src/domain.rs"], description = "The list of domain concepts only declares modules and holds no rule." },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/schemas.rs", "**/*_test.rs"], description = "Nothing in the core's namespace files validates: a `TryFrom`, an `impl FromStr` or a fallible constructor stands only in a schemas.rs." },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/*_test.rs", "src/fixtures.rs"], description = "Nothing in the core's namespace files but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], exclude = ["**/*_test.rs", "src/fixtures.rs"], description = "Nothing in the core's namespace files but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/*.rs", "src/inbound/*.rs", "src/inbound/use_cases/*.rs", "src/inbound/contracts/*.rs", "src/domain/*.rs", "src/outbound/*.rs"], description = "No namespace file of the core is only comments and imports, and no type in it is an empty placeholder." },
   { rule = "service-has-fn", include = ["src/domain/*/service.rs"], description = "A service declares at least one free function: a concept that declares none has no service.rs. (Held over the language's concept parts.)" },
   { rule = "fns-only-in-service", include = ["src/domain/*/types.rs", "src/domain/*/errors.rs"], description = "A concept declares its functions in service.rs, so one that declares a function has a service and its test. (Held over the language's concept parts.)" },
@@ -112,18 +112,18 @@ rules = [
   { rule = "idiomatic.arch/no-serde-in-domain@0.1.0", include = ["src/**/*.rs"], exclude = ["**/*_test.rs", "**/fixtures/**", "**/fixtures.rs"], description = "Serde is used only in an outbound adapter's schemas: a language's domain and ports encode nothing." },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/domain/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["src/domain/*/types.rs"], description = "A part's types.rs declares at least one type. (Held over the language's concept parts.)" },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["src/domain/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's concept parts.)" },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["src/domain/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["src/domain/*/types.rs", "src/domain/*/errors.rs"], description = "A part's types and errors are nominal types, never type aliases. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["src/domain/*/errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type. (Held over the language's concept parts.)" },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["src/domain/*/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's concept parts.)" },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["src/domain/*/*.rs", "src/domain/*/*_test/**/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["src/domain/*/*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/domain/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/domain/*/*.rs"], exclude = ["src/domain/*/schemas.rs", "src/domain/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's concept parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/domain/*/*.rs"], exclude = ["src/domain/*/*_test.rs", "src/domain/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's concept parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/domain/*/*.rs"], exclude = ["src/domain/*/*_test.rs", "src/domain/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's concept parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/domain/*/*.rs"], exclude = ["src/domain/*/composition.rs", "src/domain/*/fixtures.rs", "src/domain/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's concept parts.)" },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's concept parts.)" },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's concept parts.)" },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/domain/*/*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's concept parts.)" },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/*_test.rs", "src/domain/*/*_test/**/*.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's concept parts.)" },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/*_test.rs", "src/domain/*/*_test/**/*.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's concept parts.)" },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/domain/*/*_test.rs", "src/domain/*/*_test/**/*.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's concept parts.)" },
   { rule = "factory-name", include = ["src/outbound/*/factory.rs"], description = "Each function of a port's factory.rs is named for the adapter directory it builds. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/kind-suffix@0.1.0", include = ["src/outbound/*/interface.rs"], params = { kind = "port", exposed = [] }, description = "A use case's or a port's interface.rs declares exactly one pub trait, named <Dir>UseCase or <Dir>Port. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/interface-shape@0.1.0", include = ["src/outbound/*/interface.rs"], description = "A use case's or a port's interface.rs declares one port trait plus only the traits its methods return (handles), no free function, and default bodies that call only the trait itself. (Held over the language's port parts.)" },
@@ -133,20 +133,20 @@ rules = [
   { rule = "contract-methods", include = ["src/outbound/*/interface.rs", "src/outbound/*/fixtures/contract.rs"], description = "A port's contract calls every method the port trait declares. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/outbound/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["src/outbound/*/types.rs"], description = "A part's types.rs declares at least one type. (Held over the language's port parts.)" },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["src/outbound/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's port parts.)" },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["src/outbound/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["src/outbound/*/types.rs", "src/outbound/*/errors.rs"], description = "A part's types and errors are nominal types, never type aliases. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["src/outbound/*/errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type. (Held over the language's port parts.)" },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["src/outbound/*/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's port parts.)" },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["src/outbound/*/*.rs", "src/outbound/*/*_test/**/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["src/outbound/*/*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/schema-name@0.1.0", include = ["src/outbound/*/schemas.rs"], description = "A schemas.rs names its wire shapes <Name>Schema and their refusals <Name>SchemaError, converts with TryFrom and does nothing else. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["src/outbound/*/schemas.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/outbound/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/outbound/*/*.rs"], exclude = ["src/outbound/*/schemas.rs", "src/outbound/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's port parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/outbound/*/*.rs"], exclude = ["src/outbound/*/*_test.rs", "src/outbound/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's port parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/outbound/*/*.rs"], exclude = ["src/outbound/*/*_test.rs", "src/outbound/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's port parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/outbound/*/*.rs"], exclude = ["src/outbound/*/composition.rs", "src/outbound/*/fixtures.rs", "src/outbound/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's port parts.)" },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/outbound/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's port parts.)" },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/outbound/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's port parts.)" },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/outbound/*/*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's port parts.)" },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/outbound/*/*_test.rs", "src/outbound/*/*_test/**/*.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's port parts.)" },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/outbound/*/*_test.rs", "src/outbound/*/*_test/**/*.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's port parts.)" },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/outbound/*/*_test.rs", "src/outbound/*/*_test/**/*.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's port parts.)" },
   { rule = "adapter-name", include = ["src/outbound/*/adapters/*/adapter.rs"], description = "An adapter.rs holds one struct named <Port><Dir>Adapter that implements the trait of its port; any other struct in it is a handle that implements a trait the port returns. (Held over the language's adapter parts.)" },
   { rule = "settings-name", include = ["src/outbound/*/adapters/*/settings.rs"], description = "An adapter's settings are one struct named <Port><Dir>Settings. (Held over the language's adapter parts.)" },
   { rule = "library-walk-is-its-own", include = ["src/outbound/syntax/adapters/*/fixtures/walk.rs", "src/outbound/syntax/adapters/*/fixtures/oracle.rs"], description = "A syntax adapter's walk and oracle name nothing of the adapter, its schemas or the element table: they are the library's own tree and reading, which the conformance holds ours to." },
@@ -161,45 +161,45 @@ rules = [
   { rule = "schemas-members", include = ["src/outbound/*/adapters/*/*.rs"], description = "An adapter that parses or writes an external format and whose port carries data has a schemas.rs and its test; one whose port carries none has neither; an adapter with no external format owes none. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "A part's types.rs declares at least one type. (Held over the language's adapter parts.)" },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's adapter parts.)" },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["src/outbound/*/adapters/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["src/outbound/*/adapters/*/types.rs", "src/outbound/*/adapters/*/errors.rs"], description = "A part's types and errors are nominal types, never type aliases. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["src/outbound/*/adapters/*/errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type. (Held over the language's adapter parts.)" },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's adapter parts.)" },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["src/outbound/*/adapters/*/*.rs", "src/outbound/*/adapters/*/*_test/**/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/schema-name@0.1.0", include = ["src/outbound/*/adapters/*/schemas.rs"], description = "A schemas.rs names its wire shapes <Name>Schema and their refusals <Name>SchemaError, converts with TryFrom (or From, where the conversion cannot fail) and does nothing else. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["src/outbound/*/adapters/*/schemas.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/schemas.rs", "src/outbound/*/adapters/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's adapter parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/*_test.rs", "src/outbound/*/adapters/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's adapter parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/*_test.rs", "src/outbound/*/adapters/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/outbound/*/adapters/*/*.rs"], exclude = ["src/outbound/*/adapters/*/composition.rs", "src/outbound/*/adapters/*/fixtures.rs", "src/outbound/*/adapters/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's adapter parts.)" },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/outbound/*/adapters/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's adapter parts.)" },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/outbound/*/adapters/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's adapter parts.)" },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/outbound/*/adapters/*/*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's adapter parts.)" },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/outbound/*/adapters/*/*_test.rs", "src/outbound/*/adapters/*/*_test/**/*.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's adapter parts.)" },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/outbound/*/adapters/*/*_test.rs", "src/outbound/*/adapters/*/*_test/**/*.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's adapter parts.)" },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/outbound/*/adapters/*/*_test.rs", "src/outbound/*/adapters/*/*_test/**/*.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's adapter parts.)" },
   { rule = "idiomatic.arch/kind-suffix@0.1.0", include = ["src/domain/*/collections/*/interface.rs"], params = { kind = "collection", exposed = [] }, description = "A use case's or a port's interface.rs declares exactly one pub trait, named <Dir>UseCase or <Dir>Port. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/interface-shape@0.1.0", include = ["src/domain/*/collections/*/interface.rs"], description = "A use case's or a port's interface.rs declares exactly one trait, no free function, and default bodies that call only the trait itself. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["src/domain/*/collections/*/errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/no-inherent-impls@0.1.0", include = ["src/domain/*/collections/*/types.rs"], description = "A part's types.rs is its data and its trait impls: no `impl Type { }` block. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/hollow-types@0.1.0", include = ["src/domain/*/collections/*/types.rs"], description = "A part's types.rs declares at least one type. (Held over the language's collection parts.)" },
-  { rule = "idiomatic.arch/public-fields@0.2.0", include = ["src/domain/*/collections/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's collection parts.)" },
+  { rule = "idiomatic.arch/public-fields@0.3.0", include = ["src/domain/*/collections/*/types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["src/domain/*/collections/*/types.rs", "src/domain/*/collections/*/errors.rs"], description = "A part's types and errors are nominal types, never type aliases. (Held over the language's collection parts.)" },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/collections/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's collection parts.)" },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/collections/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's collection parts.)" },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/domain/*/collections/*/*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's collection parts.)" },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["src/domain/*/collections/*/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's collection parts.)" },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/collections/*/*_test.rs", "src/domain/*/collections/*/*_test/**/*.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's collection parts.)" },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/collections/*/*_test.rs", "src/domain/*/collections/*/*_test/**/*.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's collection parts.)" },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/domain/*/collections/*/*_test.rs", "src/domain/*/collections/*/*_test/**/*.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's collection parts.)" },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["src/domain/*/collections/*/*.rs", "src/domain/*/collections/*/*_test/**/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["src/domain/*/collections/*/*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/domain/*/collections/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/domain/*/collections/*/*.rs"], exclude = ["src/domain/*/collections/*/schemas.rs", "src/domain/*/collections/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's collection parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/domain/*/collections/*/*.rs"], exclude = ["src/domain/*/collections/*/*_test.rs", "src/domain/*/collections/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's collection parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/domain/*/collections/*/*.rs"], exclude = ["src/domain/*/collections/*/*_test.rs", "src/domain/*/collections/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's collection parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/domain/*/collections/*/*.rs"], exclude = ["src/domain/*/collections/*/composition.rs", "src/domain/*/collections/*/fixtures.rs", "src/domain/*/collections/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's collection parts.)" },
   { rule = "item-implements-trait", include = ["src/domain/*/collections/*/*/item.rs"], description = "The item implements a trait: an `impl <Trait> for` its struct, or a `reads!` call that names its struct. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], exclude = ["src/domain/*/collections/*/*/schemas.rs", "src/domain/*/collections/*/*/*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs. (Held over the language's item parts.)" },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], exclude = ["src/domain/*/collections/*/*/*_test.rs", "src/domain/*/collections/*/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's item parts.)" },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["src/domain/*/collections/*/*/*.rs"], exclude = ["src/domain/*/collections/*/*/*_test.rs", "src/domain/*/collections/*/*/fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], exclude = ["src/domain/*/collections/*/*/composition.rs", "src/domain/*/collections/*/*/fixtures.rs", "src/domain/*/collections/*/*/*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter. (Held over the language's item parts.)" },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/collections/*/*/*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's item parts.)" },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/collections/*/*/*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's item parts.)" },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/domain/*/collections/*/*/*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's item parts.)" },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["src/domain/*/collections/*/*/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's item parts.)" },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["src/domain/*/collections/*/*/*_test.rs", "src/domain/*/collections/*/*/*_test/**/*.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table. (Held over the language's item parts.)" },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["src/domain/*/collections/*/*/*_test.rs", "src/domain/*/collections/*/*/*_test/**/*.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of. (Held over the language's item parts.)" },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["src/domain/*/collections/*/*/*_test.rs", "src/domain/*/collections/*/*/*_test/**/*.rs"], description = "A row of a part's table expects a value or an error variant, never any success. (Held over the language's item parts.)" },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["src/domain/*/collections/*/*/*.rs", "src/domain/*/collections/*/*/*_test/**/*.rs"], description = "A part's test has a `succeeds` row, a `refuses` row where its errors.rs has a variant of its own, and a `fails` row where its production component constructs a wrapped dependency error; the part's production files are selected so that construction is seen. (Held over the language's item parts.)" },
   { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["src/cases.rs", "src/domain/**/*_test.rs", "src/outbound/**/*_test.rs"], description = "Proofs execute a real subject over nonempty cases, and the shared case runner compares expected error content rather than discriminants. (Held over the language's case runner and the tests of its concept, collection, item, port and adapter parts, which the product's `idiomatic-rust` entry leaves to the parts' own specs.)" },
   { rule = "thiserror-in-errors", include = ["**"], exclude = ["**/errors.rs", "**/schemas.rs"], description = "Outside a part's errors.rs nothing in the crate names `thiserror`. The refusal of a conversion, `<Name>SchemaError`, is derived in the schemas.rs it belongs to. (Held over the language's crate parts.)" },
   { rule = "error-shape", include = ["**"], description = "Every error type of the crate is a `thiserror` derive, never a hand-written `Error` or `Display` impl. (Held over the language's crate parts.)" },
@@ -209,7 +209,7 @@ rules = [
   { rule = "idiomatic.ryo/readers-in-items@0.2.0", include = ["src/**/*.rs"], exclude = ["**/fixtures/**", "**/*_test.rs"], params = { homes = ["**/src/domain/{relations,manifests,links}/collections/*/*/item.rs", "**/src/inbound/contracts/parse/readers/*/composition.rs"] }, description = "A reader is an item in `domain/{relations,manifests,links}/collections/<collection>/<name>/item.rs` or the composition of a parse reader concept, `inbound/contracts/parse/readers/<concept>/composition.rs`, the two answers to where it lives, and nowhere else." },
   { rule = "idiomatic.ryo/language-depends-on-ryo-only@0.2.0", include = ["Cargo.toml"], description = "A language depends on the SDK, `ryo`, and on no other crate of ryo: the engine's macros and types are the engine's, so that a relation added to the catalog is a compile error in every language until it answers it." },
   { rule = "idiomatic.ryo/language-test-entries@0.1.0", include = ["Cargo.toml"], description = "A language's manifest declares its closed tests, `conformance` and `allocation`, as targets without the libtest harness: a file Cargo never builds proves nothing." },
-  { rule = "idiomatic.arch/io-at-boundary@0.1.0", include = ["src/**"], exclude = ["**/outbound/*/adapters/**", "**/tests/**", "**/*_test.rs"], description = "A language reaches the file system, the network, the environment and processes only in the adapters of its outbound ports; the domain reads what it is given." },
+  { rule = "idiomatic.arch/io-at-boundary@0.2.0", include = ["src/**"], exclude = ["**/outbound/*/adapters/**", "**/tests/**", "**/*_test.rs"], description = "A language reaches the file system, the network, the environment and processes only in the adapters of its outbound ports; the domain reads what it is given." },
 ]
 
 [params]
@@ -2579,15 +2579,15 @@ closed = false
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+variables = { domain-libraries = ["indexmap::*"], libraries = ["demo_parser::*", "demo_lexer::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
-given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*", "demo_lexer::*", "indexmap::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 
@@ -2862,7 +2862,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -3196,7 +3196,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -3517,7 +3517,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -3813,7 +3813,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -4123,7 +4123,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -4767,7 +4767,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -5093,7 +5093,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -5501,7 +5501,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -5818,7 +5818,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -6212,7 +6212,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -6603,7 +6603,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -6994,7 +6994,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -7341,7 +7341,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -7721,7 +7721,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -8160,7 +8160,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -8566,7 +8566,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -9086,7 +9086,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -9483,7 +9483,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -9865,7 +9865,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -10255,7 +10255,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -10639,7 +10639,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -11105,7 +11105,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -11568,7 +11568,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -12015,7 +12015,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -12521,7 +12521,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -12960,7 +12960,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -13368,7 +13368,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -13803,7 +13803,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -14241,7 +14241,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -14649,7 +14649,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -15745,7 +15745,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -16842,7 +16842,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -17906,7 +17906,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -19002,7 +19002,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -20098,7 +20098,7 @@ variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
-  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/adapters/**", "**/factory.rs", "**/composition.rs", "**/*_test.rs", "**/tests/fixtures/**", "**/tests/allocation.rs", "**/tests/bdd.rs"], params = { libraries = { variable = "libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
@@ -20185,4 +20185,919 @@ The release or commit of the suite that is pinned here.
 then.only = ['idiomatic.arch/io-at-boundary']
 then.findings = [
   { rule = 'idiomatic.arch/io-at-boundary', path = 'demo/src/inbound/contracts/parse/contract.rs', line = 327 },
+]
+
+[[scenarios]]
+id = 'plain-test-in-a-flat-group'
+scenario = "A flat group of a concept's cases, `service_test/<group>_test.rs`, holds a plain `#[test]`: the group is a test of the part and is held to its shape."
+given.files.'demo/benchmarks/provider/bench.rs' = '''
+//! demo's workloads and the growth of its reading: a generated file, every relation asked, through
+//! the linked language.
+
+#![expect(
+    clippy::expect_used,
+    reason = "a bench that cannot read its own input has nothing to measure: the panic is the failure"
+)]
+
+use ryo::languages::{self, contract};
+use std::fmt::Write as _;
+
+/// How many packages the generated lock file the growth check starts from lists.
+const SIZE: usize = 2_500;
+
+/// The growth of the time for four times the input beyond which the reading is not linear enough: four is linear, sixteen quadratic.
+const GROWTH_LIMIT: u32 = 5;
+
+/// How many times the growth check reads each input: it compares the fastest read of each size.
+const ROUNDS: usize = 5;
+
+/// The argument `cargo bench` passes to a bench and `cargo test` does not: the growth check times the reading, so only the timing run makes it.
+const BENCH_FLAG: &str = "--bench";
+
+fn main() {
+    if std::env::args().any(|argument| argument == BENCH_FLAG) {
+        complexity();
+    }
+    divan::Divan::default()
+        .max_time(std::time::Duration::from_secs(10))
+        .config_with_args()
+        .main();
+}
+
+/// A file of `count` lines, each a different word.
+fn generated(count: usize) -> String {
+    let mut text = String::new();
+    for each in 0..count {
+        let _ = writeln!(text, "line{each}");
+    }
+    text
+}
+
+/// Reads `text` through the linked language, every relation of the catalog asked for, into the worker's table and rows.
+fn read(
+    text: &str,
+    table: &mut languages::Elements,
+    symbols: &mut languages::Symbols,
+    out: &mut contract::Collect,
+) {
+    let linked = ryo_demo::linked();
+    let engine = linked.parse_engine();
+    out.clear();
+    contract::read(
+        engine.as_ref(),
+        languages::ParseRequest {
+            path: languages::SourcePath("generated.demo"),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(text.as_bytes()),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        table,
+        symbols,
+        languages::all(),
+        out,
+    )
+    .expect("the lock file is read");
+}
+
+/// How long reading `text` takes at the fastest of `ROUNDS` reads: the fastest is the read the rest of the machine slowed
+/// least, so one disturbed read never decides the growth check.
+fn timed(text: &str) -> std::time::Duration {
+    let (mut table, mut symbols, mut out) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+        contract::Collect::default(),
+    );
+    (0..ROUNDS)
+        .map(|_| {
+            let started = std::time::Instant::now();
+            read(text, &mut table, &mut symbols, &mut out);
+            started.elapsed()
+        })
+        .min()
+        .unwrap_or_default()
+}
+
+/// Reads lock files of `SIZE` and of four times `SIZE` packages and fails when the larger takes more than `GROWTH_LIMIT` times the
+/// smaller.
+fn complexity() {
+    let small = timed(&generated(SIZE));
+    let large = timed(&generated(4 * SIZE));
+    assert!(
+        large < small * GROWTH_LIMIT,
+        "reading four times the lock file took {large:?} against {small:?}: the reading grows faster than linearly"
+    );
+}
+
+/// Reads a generated lock file of `packages` packages, every relation of the catalog asked for: N and 4N.
+#[divan::bench(args = [SIZE, 4 * SIZE])]
+fn generated_every_relation(bencher: divan::Bencher<'_, '_>, packages: usize) {
+    let text = generated(packages);
+    let (mut table, mut symbols, mut out) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+        contract::Collect::default(),
+    );
+    bencher.bench_local(|| read(&text, &mut table, &mut symbols, &mut out));
+}
+'''
+given.files.'demo/src/domain/syntax/service_test.rs' = '''
+//! The `syntax` service's cases.
+
+use super::service::{kind_bits, kind_name, kind_of, kinds};
+use super::types::Kind;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::extras::types::Extra;
+
+
+/// What a row asks of the service.
+#[derive(Clone, Copy, Debug)]
+enum Question {
+    /// Whether every kind's number names it again and every kind has a name, and how many kinds there are.
+    Every,
+    /// The name of an extra.
+    Extra(Extra),
+    /// How many extras there are.
+    Extras,
+}
+
+
+/// What a row asks.
+type Input = Question;
+/// The answer, as text.
+type Value = &'static str;
+type Failure = ();
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+fn subject(question: Input) -> Value {
+    let answer = match question {
+        Question::Every => {
+            let round = kinds()
+                .all(|kind| kind_of(kind_bits(kind)) == kind && !kind_name(kind).0.is_empty());
+            format!("{round} {}", kinds().count())
+        }
+        Question::Extra(extra) => kind_name(Kind::Extra(extra)).0.to_owned(),
+        Question::Extras => kinds()
+            .filter(|kind| matches!(kind, Kind::Extra(_)))
+            .count()
+            .to_string(),
+    };
+    Box::leak(answer.into_boxed_str())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| {
+        Ok::<Value, Failure>(subject(input))
+    });
+}
+
+mod plain_test;
+'''
+given.files.'demo/src/domain/syntax/service_test/plain_test.rs' = '''
+//! A group of the `syntax` service's cases that is a plain test.
+
+#[test]
+fn every_kind_has_a_name() {
+    assert!(super::super::service::kinds().count() > 0);
+}
+'''
+given.files.'demo/src/fixtures/kinds.rs' = '''
+//! How each kind of the language's trees is shown: the source whose tree holds it, or the reason no relation reads it.
+
+use ryo::languages::contract::KindSample;
+use ryo::languages::{KindName, Sample, SampleText, Why};
+
+use crate::domain::extras::types::Extra;
+use crate::domain::nodes::types::Node;
+use crate::domain::syntax::constants::UNREAD_TEXT;
+use crate::domain::syntax::service::{kind_bits, kinds};
+use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
+
+/// Every kind, in the order of their numbers, with how the language shows it.
+pub(super) fn shown() -> Vec<KindSample> {
+    kinds()
+        .map(|kind| KindSample {
+            kind: KindName(format!("{kind:?}").into()),
+            bits: kind_bits(kind),
+            sample: sample(kind),
+        })
+        .collect()
+}
+
+/// How the language shows a kind of its trees: the source whose tree holds it, for a kind a relation reads, and for every other the
+/// reason no relation models it. The match has no wildcard arm, so a kind the
+/// grammar gains is a compile error until it is shown.
+#[must_use]
+pub(crate) const fn sample(kind: Kind) -> Sample {
+    match kind {
+        Kind::Node(Node::SourceFile) => Sample::Node(SampleText("")),
+        Kind::Token(Token::Text) => Sample::Token(SampleText("a")),
+        Kind::Extra(Extra::Error) => Sample::Unread(Why(UNREAD_TEXT)),
+    }
+}
+'''
+given.files.'demo/src/fixtures/relations.rs' = '''
+//! The rows each relation read from trees must give for its fixture, one module for each relation.
+
+use ryo::languages::contract::Expected;
+
+mod syntax_tree {
+    include!("../../tests/fixtures/relations/syntax_tree/expected.rs");
+}
+
+/// The rows of every relation.
+pub(super) fn expected() -> Vec<Expected> {
+    vec![syntax_tree::expected()]
+}
+'''
+given.files.'demo/src/inbound/contracts/project/contract.rs' = '''
+//! The `project` contract: the language's implementation of `ryo::languages::Project`. It names no manifest and reads nothing, and answers
+//! every manifest relation of ryo's catalog as not in the language. A language with manifests lists their names in `manifests`, reads
+//! them in `resolve` and answers the relations its readers write with `languages::reads`.
+
+use ryo::languages::{
+    self, ManifestName, ManifestReader, Project, ProjectError, ProjectRequest, AbsenceCause, Resolved,
+    Support,
+};
+
+/// `project`, implementing `ryo::languages::Project`.
+pub(crate) struct ProjectContract;
+
+impl ProjectContract {
+    /// `project`, which calls no port.
+    #[must_use]
+    pub(crate) fn new() -> Self {
+        Self
+    }
+}
+
+impl Project for ProjectContract {
+    type Derived = ();
+
+    fn manifests(&self) -> &'static [ManifestName] {
+        &[]
+    }
+
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().copied(),
+        )
+    }
+
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+        Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
+            refused: Vec::new(),
+            unlisted: Vec::new(),
+            consulted: Vec::new(),
+            derived: (),
+        })
+    }
+
+    fn package_dependency(&self) -> Support<ManifestReader<languages::PackageDependency, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn workspace_member(&self) -> Support<ManifestReader<languages::WorkspaceMember, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn analyzed_source(&self) -> Support<ManifestReader<languages::AnalyzedSource, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+}
+'''
+given.files.'demo/src/inbound/contracts/project/contract_test.rs' = '''
+//! The `project` contract's own cases, beside the engine's conformance: the engine's rows run through it, and it names no manifest and refuses none.
+
+use ryo::languages::{self, Project, contract};
+
+use super::contract::ProjectContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+
+type Input = ();
+/// How many manifests it names and how many it refused.
+type Value = usize;
+type Failure = languages::ProjectError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("names_no_manifest_and_refuses_none"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(0),
+}];
+
+/// Runs the engine's rows against the contract, then asks it to resolve a repository that has no manifest.
+fn subject((): Input) -> Result<Value, Failure> {
+    let language = ProjectContract::new();
+    contract::project(&language);
+    let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
+        repository: languages::Repository::Disk,
+        root: languages::RootPath(Box::default()),
+        manifests: Vec::new(),
+        files: Vec::new(),
+        notes: Vec::new(),
+        wanted: Vec::new(),
+    })?;
+    Ok(language.manifests().len() + resolved.refused.len())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'demo/tastemaker.toml' = '''
+closed = false
+# The demo language's own placement (paths are directory-relative).
+# The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
+# language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
+# nothing else does.
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
+rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
+]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
+'''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
+given.files.'demo/tests/allocation.rs' = '''
+//! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+fn main() {
+    let linked = ryo_demo::linked();
+    ryo::languages::contract::allocations_of_linked(
+        &linked,
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+    );
+}
+'''
+given.files.'demo/tests/conformance.rs' = '''
+//! The conformance row of the language contract: every relation the language answers `Reads` is shown by a fixture and written as expected, every one it answers `NotInThisLanguage` has no fixture with the construct in it and says why, every manifest relation it reads gives rows from a project fixture, and every kind of its trees is shown or marked unread.
+
+fn main() {
+    ryo::languages::contract::conformance(
+        &ryo_demo::linked(),
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+        &ryo_demo::fixtures::expected(),
+    );
+}
+'''
+given.files.'demo/tests/fixtures/corpus/NOTICE' = '''
+This directory holds real-world demo files, copied unchanged and pinned: README.md names the source and the version pinned of each. Place the files beside this file, with the license of each source.
+'''
+given.files.'demo/tests/fixtures/corpus/README.md' = '''
+# demo corpus
+
+## Source
+
+The real-world files of the demo language that are held here and where each is published.
+
+## Version
+
+The release or commit of each source that is pinned here.
+'''
+given.files.'demo/tests/fixtures/relations/function/expected.rs' = '''
+// The rows the input of `relations/function` must give: none while the language reads no tree.
+
+use ryo::languages::contract::{Expected, FunctionExpectedRow, expected_rows};
+
+pub(super) fn expected() -> Expected {
+    expected_rows::<FunctionExpectedRow>(&[])
+}
+'''
+given.files.'demo/tests/fixtures/relations/function/input.demo' = '''
+fn main
+'''
+given.files.'demo/tests/fixtures/standard/NOTICE' = '''
+This directory holds the standard that defines the nodes and the tokens of the demo language, copied unchanged and pinned: README.md names its source and the version pinned. Place the standard's files beside this file, with the license of the standard.
+'''
+given.files.'demo/tests/fixtures/standard/README.md' = '''
+# demo standard
+
+## Source
+
+The standard that defines the nodes and the tokens of the language and where it is published, or the grammar file that lists them.
+
+## Version
+
+The version of the standard that is pinned here.
+'''
+given.files.'demo/tests/fixtures/suite/NOTICE' = '''
+This directory holds the official test suite of the demo language, copied unchanged and pinned: README.md names its source and the version pinned. Place the suite's cases beside this file, the valid ones under valid/ and the invalid ones under invalid/ as the suite lays them out, with the suite's license.
+'''
+given.files.'demo/tests/fixtures/suite/README.md' = '''
+# demo test suite
+
+## Source
+
+The official test suite of the language and where it is published.
+
+## Version
+
+The release or commit of the suite that is pinned here.
+'''
+then.only = ['idiomatic.arch/test-shape']
+then.findings = [
+  { rule = 'idiomatic.arch/test-shape', path = 'demo/src/domain/syntax/service_test/plain_test.rs', line = 3 },
+]
+
+
+[[scenarios]]
+id = 'plain-test-in-a-declared-group-file'
+scenario = "A file of a concept's flat group not named `_test.rs`, `service_test/support.rs` declared by `mod support;`, holds a plain `#[test]`: every file of the group is a test of the part and is held to its shape."
+given.files.'demo/benchmarks/provider/bench.rs' = '''
+//! demo's workloads and the growth of its reading: a generated file, every relation asked, through
+//! the linked language.
+
+#![expect(
+    clippy::expect_used,
+    reason = "a bench that cannot read its own input has nothing to measure: the panic is the failure"
+)]
+
+use ryo::languages::{self, contract};
+use std::fmt::Write as _;
+
+/// How many packages the generated lock file the growth check starts from lists.
+const SIZE: usize = 2_500;
+
+/// The growth of the time for four times the input beyond which the reading is not linear enough: four is linear, sixteen quadratic.
+const GROWTH_LIMIT: u32 = 5;
+
+/// How many times the growth check reads each input: it compares the fastest read of each size.
+const ROUNDS: usize = 5;
+
+/// The argument `cargo bench` passes to a bench and `cargo test` does not: the growth check times the reading, so only the timing run makes it.
+const BENCH_FLAG: &str = "--bench";
+
+fn main() {
+    if std::env::args().any(|argument| argument == BENCH_FLAG) {
+        complexity();
+    }
+    divan::Divan::default()
+        .max_time(std::time::Duration::from_secs(10))
+        .config_with_args()
+        .main();
+}
+
+/// A file of `count` lines, each a different word.
+fn generated(count: usize) -> String {
+    let mut text = String::new();
+    for each in 0..count {
+        let _ = writeln!(text, "line{each}");
+    }
+    text
+}
+
+/// Reads `text` through the linked language, every relation of the catalog asked for, into the worker's table and rows.
+fn read(
+    text: &str,
+    table: &mut languages::Elements,
+    symbols: &mut languages::Symbols,
+    out: &mut contract::Collect,
+) {
+    let linked = ryo_demo::linked();
+    let engine = linked.parse_engine();
+    out.clear();
+    contract::read(
+        engine.as_ref(),
+        languages::ParseRequest {
+            path: languages::SourcePath("generated.demo"),
+            file: languages::FileId(0),
+            bytes: languages::ByteSlice(text.as_bytes()),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Unwanted,
+        },
+        table,
+        symbols,
+        languages::all(),
+        out,
+    )
+    .expect("the lock file is read");
+}
+
+/// How long reading `text` takes at the fastest of `ROUNDS` reads: the fastest is the read the rest of the machine slowed
+/// least, so one disturbed read never decides the growth check.
+fn timed(text: &str) -> std::time::Duration {
+    let (mut table, mut symbols, mut out) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+        contract::Collect::default(),
+    );
+    (0..ROUNDS)
+        .map(|_| {
+            let started = std::time::Instant::now();
+            read(text, &mut table, &mut symbols, &mut out);
+            started.elapsed()
+        })
+        .min()
+        .unwrap_or_default()
+}
+
+/// Reads lock files of `SIZE` and of four times `SIZE` packages and fails when the larger takes more than `GROWTH_LIMIT` times the
+/// smaller.
+fn complexity() {
+    let small = timed(&generated(SIZE));
+    let large = timed(&generated(4 * SIZE));
+    assert!(
+        large < small * GROWTH_LIMIT,
+        "reading four times the lock file took {large:?} against {small:?}: the reading grows faster than linearly"
+    );
+}
+
+/// Reads a generated lock file of `packages` packages, every relation of the catalog asked for: N and 4N.
+#[divan::bench(args = [SIZE, 4 * SIZE])]
+fn generated_every_relation(bencher: divan::Bencher<'_, '_>, packages: usize) {
+    let text = generated(packages);
+    let (mut table, mut symbols, mut out) = (
+        languages::Elements::default(),
+        languages::Symbols::default(),
+        contract::Collect::default(),
+    );
+    bencher.bench_local(|| read(&text, &mut table, &mut symbols, &mut out));
+}
+'''
+given.files.'demo/src/domain/syntax/service_test.rs' = '''
+//! The `syntax` service's cases.
+
+use super::service::{kind_bits, kind_name, kind_of, kinds};
+use super::types::Kind;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::extras::types::Extra;
+
+
+/// What a row asks of the service.
+#[derive(Clone, Copy, Debug)]
+enum Question {
+    /// Whether every kind's number names it again and every kind has a name, and how many kinds there are.
+    Every,
+    /// The name of an extra.
+    Extra(Extra),
+    /// How many extras there are.
+    Extras,
+}
+
+
+/// What a row asks.
+type Input = Question;
+/// The answer, as text.
+type Value = &'static str;
+type Failure = ();
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+fn subject(question: Input) -> Value {
+    let answer = match question {
+        Question::Every => {
+            let round = kinds()
+                .all(|kind| kind_of(kind_bits(kind)) == kind && !kind_name(kind).0.is_empty());
+            format!("{round} {}", kinds().count())
+        }
+        Question::Extra(extra) => kind_name(Kind::Extra(extra)).0.to_owned(),
+        Question::Extras => kinds()
+            .filter(|kind| matches!(kind, Kind::Extra(_)))
+            .count()
+            .to_string(),
+    };
+    Box::leak(answer.into_boxed_str())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, |input| {
+        Ok::<Value, Failure>(subject(input))
+    });
+}
+
+mod support;
+'''
+given.files.'demo/src/domain/syntax/service_test/support.rs' = '''
+//! A support file of the `syntax` service's cases that holds a plain test.
+
+#[test]
+fn every_kind_has_a_name() {
+    assert!(super::super::service::kinds().count() > 0);
+}
+'''
+given.files.'demo/src/fixtures/kinds.rs' = '''
+//! How each kind of the language's trees is shown: the source whose tree holds it, or the reason no relation reads it.
+
+use ryo::languages::contract::KindSample;
+use ryo::languages::{KindName, Sample, SampleText, Why};
+
+use crate::domain::extras::types::Extra;
+use crate::domain::nodes::types::Node;
+use crate::domain::syntax::constants::UNREAD_TEXT;
+use crate::domain::syntax::service::{kind_bits, kinds};
+use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
+
+/// Every kind, in the order of their numbers, with how the language shows it.
+pub(super) fn shown() -> Vec<KindSample> {
+    kinds()
+        .map(|kind| KindSample {
+            kind: KindName(format!("{kind:?}").into()),
+            bits: kind_bits(kind),
+            sample: sample(kind),
+        })
+        .collect()
+}
+
+/// How the language shows a kind of its trees: the source whose tree holds it, for a kind a relation reads, and for every other the
+/// reason no relation models it. The match has no wildcard arm, so a kind the
+/// grammar gains is a compile error until it is shown.
+#[must_use]
+pub(crate) const fn sample(kind: Kind) -> Sample {
+    match kind {
+        Kind::Node(Node::SourceFile) => Sample::Node(SampleText("")),
+        Kind::Token(Token::Text) => Sample::Token(SampleText("a")),
+        Kind::Extra(Extra::Error) => Sample::Unread(Why(UNREAD_TEXT)),
+    }
+}
+'''
+given.files.'demo/src/fixtures/relations.rs' = '''
+//! The rows each relation read from trees must give for its fixture, one module for each relation.
+
+use ryo::languages::contract::Expected;
+
+mod syntax_tree {
+    include!("../../tests/fixtures/relations/syntax_tree/expected.rs");
+}
+
+/// The rows of every relation.
+pub(super) fn expected() -> Vec<Expected> {
+    vec![syntax_tree::expected()]
+}
+'''
+given.files.'demo/src/inbound/contracts/project/contract.rs' = '''
+//! The `project` contract: the language's implementation of `ryo::languages::Project`. It names no manifest and reads nothing, and answers
+//! every manifest relation of ryo's catalog as not in the language. A language with manifests lists their names in `manifests`, reads
+//! them in `resolve` and answers the relations its readers write with `languages::reads`.
+
+use ryo::languages::{
+    self, ManifestName, ManifestReader, Project, ProjectError, ProjectRequest, AbsenceCause, Resolved,
+    Support,
+};
+
+/// `project`, implementing `ryo::languages::Project`.
+pub(crate) struct ProjectContract;
+
+impl ProjectContract {
+    /// `project`, which calls no port.
+    #[must_use]
+    pub(crate) fn new() -> Self {
+        Self
+    }
+}
+
+impl Project for ProjectContract {
+    type Derived = ();
+
+    fn manifests(&self) -> &'static [ManifestName] {
+        &[]
+    }
+
+    fn primary_role(&self, path: languages::SourcePath<'_>) -> languages::PrimaryFileRole {
+        languages::primary_role_from_manifests(
+            path,
+            self.manifests().iter().copied(),
+        )
+    }
+
+    fn project_entries(
+        &self,
+        _request: &ProjectRequest,
+        _entries: &mut Vec<languages::FilePath>,
+    ) {
+    }
+
+    fn resolve(&self, request: &ProjectRequest) -> Result<Resolved<()>, ProjectError> {
+        Ok(Resolved {
+            observed_entries: request.observed_entries.0.to_vec(),
+            refused: Vec::new(),
+            unlisted: Vec::new(),
+            consulted: Vec::new(),
+            derived: (),
+        })
+    }
+
+    fn package_dependency(&self) -> Support<ManifestReader<languages::PackageDependency, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn workspace_member(&self) -> Support<ManifestReader<languages::WorkspaceMember, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn source_dependency(&self) -> Support<ManifestReader<languages::SourceDependency, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn manifest_diagnostic(&self) -> Support<ManifestReader<languages::ManifestDiagnostic, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn module_identity(&self) -> Support<ManifestReader<languages::ModuleIdentity, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn project_namespace_membership(
+        &self,
+    ) -> Support<ManifestReader<languages::ProjectNamespaceMembership, ()>> {
+        languages::absent(AbsenceCause::NotYetRead)
+    }
+
+    fn file_package(&self) -> Support<ManifestReader<languages::FilePackage, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+
+    fn analyzed_source(&self) -> Support<ManifestReader<languages::AnalyzedSource, ()>> {
+        languages::absent(AbsenceCause::NoManifests)
+    }
+}
+'''
+given.files.'demo/src/inbound/contracts/project/contract_test.rs' = '''
+//! The `project` contract's own cases, beside the engine's conformance: the engine's rows run through it, and it names no manifest and refuses none.
+
+use ryo::languages::{self, Project, contract};
+
+use super::contract::ProjectContract;
+use crate::cases::{Case, CaseName, Expect, Word, run};
+
+type Input = ();
+/// How many manifests it names and how many it refused.
+type Value = usize;
+type Failure = languages::ProjectError;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("names_no_manifest_and_refuses_none"),
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value(0),
+}];
+
+/// Runs the engine's rows against the contract, then asks it to resolve a repository that has no manifest.
+fn subject((): Input) -> Result<Value, Failure> {
+    let language = ProjectContract::new();
+    contract::project(&language);
+    let resolved = language.resolve(&languages::ProjectRequest {
+        search_scope: Default::default(),
+        given_inventory: Default::default(),
+        observed_entries: Default::default(),
+        repository: languages::Repository::Disk,
+        root: languages::RootPath(Box::default()),
+        manifests: Vec::new(),
+        files: Vec::new(),
+        notes: Vec::new(),
+        wanted: Vec::new(),
+    })?;
+    Ok(language.manifests().len() + resolved.refused.len())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+given.files.'demo/tastemaker.toml' = '''
+closed = false
+# The demo language's own placement (paths are directory-relative).
+# The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
+# language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
+# nothing else does.
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
+rules = [
+  { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
+  { rule = "idiomatic.arch/client-at-adapter", include = ["**"], exclude = ["**/*_test.rs", "**/test.rs", "**/*_test/**", "**/fixtures/**", "**/fixtures.rs", "**/tests/**"], params = { libraries = { variable = "libraries" } } },
+]
+templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
+'''
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
+given.files.'demo/tests/allocation.rs' = '''
+//! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
+
+#[global_allocator]
+static ALLOCATOR: dhat::Alloc = dhat::Alloc;
+
+fn main() {
+    let linked = ryo_demo::linked();
+    ryo::languages::contract::allocations_of_linked(
+        &linked,
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+    );
+}
+'''
+given.files.'demo/tests/conformance.rs' = '''
+//! The conformance row of the language contract: every relation the language answers `Reads` is shown by a fixture and written as expected, every one it answers `NotInThisLanguage` has no fixture with the construct in it and says why, every manifest relation it reads gives rows from a project fixture, and every kind of its trees is shown or marked unread.
+
+fn main() {
+    ryo::languages::contract::conformance(
+        &ryo_demo::linked(),
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+        &ryo_demo::fixtures::expected(),
+    );
+}
+'''
+given.files.'demo/tests/fixtures/corpus/NOTICE' = '''
+This directory holds real-world demo files, copied unchanged and pinned: README.md names the source and the version pinned of each. Place the files beside this file, with the license of each source.
+'''
+given.files.'demo/tests/fixtures/corpus/README.md' = '''
+# demo corpus
+
+## Source
+
+The real-world files of the demo language that are held here and where each is published.
+
+## Version
+
+The release or commit of each source that is pinned here.
+'''
+given.files.'demo/tests/fixtures/relations/function/expected.rs' = '''
+// The rows the input of `relations/function` must give: none while the language reads no tree.
+
+use ryo::languages::contract::{Expected, FunctionExpectedRow, expected_rows};
+
+pub(super) fn expected() -> Expected {
+    expected_rows::<FunctionExpectedRow>(&[])
+}
+'''
+given.files.'demo/tests/fixtures/relations/function/input.demo' = '''
+fn main
+'''
+given.files.'demo/tests/fixtures/standard/NOTICE' = '''
+This directory holds the standard that defines the nodes and the tokens of the demo language, copied unchanged and pinned: README.md names its source and the version pinned. Place the standard's files beside this file, with the license of the standard.
+'''
+given.files.'demo/tests/fixtures/standard/README.md' = '''
+# demo standard
+
+## Source
+
+The standard that defines the nodes and the tokens of the language and where it is published, or the grammar file that lists them.
+
+## Version
+
+The version of the standard that is pinned here.
+'''
+given.files.'demo/tests/fixtures/suite/NOTICE' = '''
+This directory holds the official test suite of the demo language, copied unchanged and pinned: README.md names its source and the version pinned. Place the suite's cases beside this file, the valid ones under valid/ and the invalid ones under invalid/ as the suite lays them out, with the suite's license.
+'''
+given.files.'demo/tests/fixtures/suite/README.md' = '''
+# demo test suite
+
+## Source
+
+The official test suite of the language and where it is published.
+
+## Version
+
+The release or commit of the suite that is pinned here.
+'''
+then.only = ['idiomatic.arch/test-shape']
+then.findings = [
+  { rule = 'idiomatic.arch/test-shape', path = 'demo/src/domain/syntax/service_test/support.rs', line = 3 },
 ]

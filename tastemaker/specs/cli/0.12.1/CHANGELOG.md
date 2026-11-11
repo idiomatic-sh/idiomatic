@@ -4,9 +4,13 @@
 
 `factory-calls` leaves the generated `src/languages.rs` out: it is the one edge that links the language providers, built by `build.rs` from the directories of `languages/`, and hands the parts of each language to the language factory as a composition does. The scenario `languages-edge-names-the-factory` holds it; every other file of the command line's own that names a factory is still a finding (`infrastructure-calls-factory`). The `languages` template and the generated file are unchanged.
 
+Edited in place: the replay test's root `tests/replay/main.rs` is the crate spec's test-target root (`tests/<target>/main.rs`, crate 0.13.2); `replay-suite` places the suites beside it and leaves `main.rs` out, so the root is placed once.
+
 ### Moving up from 0.12.0
 
 - Nothing to change: the rule only stops reporting the generated file.
+
+Edited in place: places `no-runtime-fixtures@0.2.0`, `command@0.2.1`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query without their params (a `test-shape@0.1.0` entry reported nothing).
 
 ## 0.12.0
 

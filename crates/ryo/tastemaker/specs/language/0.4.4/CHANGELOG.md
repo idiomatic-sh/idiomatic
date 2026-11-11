@@ -2,6 +2,22 @@
 
 Places every other domain concept of a language, `src/domain/{concept}`, as an `idiomatic.arch/concept@0.1.2`, with its nested parts and groups of cases; the six concepts this spec places itself (`extras`, `language`, `nodes`, `relations`, `syntax`, `tokens`) are left to it. A language no longer places a concept with a manifest of its own beside the concept. Everything else is as in 0.4.3.
 
+Edited in place: places `no-runtime-fixtures@0.2.0`, `public-fields@0.3.0`, `io-at-boundary@0.2.0`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query.
+
+Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0); `domain-concept-is-a-concept` reads a stray domain file through `test-group-namespace`.
+
+Edited in place: the `language-tastemaker` template writes `client-at-adapter` as `include = ["**"]` with the test-role excludes `idiomatic-rust` names for the same rule, `**/*_test.rs`, `**/test.rs`, `**/*_test/**`, `**/fixtures/**`, `**/fixtures.rs`, `**/tests/**` (tests set a scene up with any library), where it excluded `**/adapters/**`, `**/factory.rs`, `**/composition.rs`, `**/*_test.rs`, `**/tests/fixtures/**`, `**/tests/allocation.rs` and `**/tests/bdd.rs` (python also `src/fixtures/**`). `client-at-adapter@0.2.0` itself admits the adapters, the port's `factory.rs` and an edge's `composition.rs`; every exclude left is a test role `manifest-excludes` checks.
+
+Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
+
+Edited in place: the `unit-cases` entry also reads the group tests (`*_test/**/test.rs`), so a namespace `service_test.rs` is judged by its groups' rows (scenario `namespace-service-test-rows-in-its-groups` in concept).
+
+Edited in place: the `unit-cases` entry reads `*_test/**/*.rs` beside its own files, the flat groups and the group directories of a namespace test, which the rule reads only when its entry includes them.
+
+Edited in place: the `language-tastemaker` template is exact (`match = "declarations"`): an entry that adds an exclude, an include or a param the template does not write is reported (scenarios `client-entry-with-an-extra-exclude`, `client-entry-with-an-extra-include`, `client-entry-with-an-extra-param`); a manifest's variables may hold values beyond it.
+
+Edited in place: the `test-shape`, `test-runners-match-rows` and `case-expectation` entries of every part (concept, port, adapter, collection, item) also read every file of its flat groups, `<part>/*_test/**/*.rs`, as `unit-cases` does, so a plain `#[test]` in a group is reported, whether in a `<group>_test.rs` or in another file the group declares (scenarios `plain-test-in-a-flat-group`, `plain-test-in-a-declared-group-file`).
+
 # language 0.4.3
 
 Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `benchmark-targets` 0.2.0: a linter's bench and test targets are declared by its own package under `benchmarks/linters/<linter>/`, and refused in the language's `Cargo.toml`.

@@ -1,4 +1,4 @@
-description = "A test file beside a module (`foo_test.rs` beside `foo.rs`, `tests.rs` beside `foo.rs` or `foo/mod.rs`) that names none of the items that module declares."
+description = "A test file beside a module (`foo_test.rs` beside `foo.rs`, or `tests.rs` beside `foo.rs`) that names none of the items that module declares; a `foo_test.rs` that is the namespace of its groups names what the files beneath `foo_test/` name."
 why = "A test file sits beside a module to test it; one that names nothing the module declares tests something else, or tests the module only through another module's API, and belongs where what it names lives. Read by name, across the pair of files: the module's items are its `defines` rows other than variables, the names it imports and its generic parameters (what it brings in or is generic over, which a test names without testing it), and the test file names one when any identifier token in it has the item's text (through `use super::*`, a path, or a call). Not seen: a test reaching the module only through a macro's tokens; a common name (`new`) the module declares counts when the test file names it for any reason."
 
 query = '''
@@ -10,11 +10,7 @@ let suffixed-pairs = select r."file" as "module", l."file" as "test" from suffix
 let nested-tests = capture(from=listed-files, path="file", pattern="{*parent}/{name}/tests.rs", captures=["parent", "name"]);
 let parent-modules = capture(from=listed-files, path="file", pattern="{*parent}/{name}.rs", captures=["parent", "name"]);
 let file-module-pairs = select r."file" as "module", l."file" as "test" from nested-tests as l join parent-modules as r on l."parent" = r."parent" and l."name" = r."name";
-let directory-tests = capture(from=listed-files, path="file", pattern="{*directory}/tests.rs", captures=["directory"]);
-let directory-modules = capture(from=listed-files, path="file", pattern="{*directory}/mod.rs", captures=["directory"]);
-let mod-pairs = select r."file" as "module", l."file" as "test" from directory-tests as l join directory-modules as r on l."directory" = r."directory";
-let nested-pairs = union(left=file-module-pairs, right=mod-pairs);
-let pairs = union(left=suffixed-pairs, right=nested-pairs);
+let pairs = union(left=suffixed-pairs, right=file-module-pairs);
 let tests = project(from=pairs, columns=["test"]);
 let declared = select * from "defines" where kind != "variable";
 let unimported = select * from declared where kind != "import";
@@ -23,7 +19,11 @@ let pair-items = select r."name" as "name", l."test" as "test" from pairs as l j
 let identifiers = select * from tree-tokens where kind = "ident";
 let mentions = project(from=identifiers, columns=["file", "text"]);
 let named = select l."test" as "test" from pair-items as l join mentions as r on l."test" = r."file" and l."name" = r."text";
-let naming-nothing = antijoin(left=tests, right=named, left-on=["test"], right-on=["test"]);
+let group-files = capture(from=mentions, path="file", pattern="{*directory}/{name}_test/{*rest}", captures=["directory", "name", "rest"]);
+let group-mentions = select r."file" as "test", l."text" as "text" from group-files as l join suffixed-tests as r on l."directory" = r."directory" and l."name" = r."name";
+let group-named = select l."test" as "test" from pair-items as l join group-mentions as r on l."test" = r."test" and l."name" = r."text";
+let any-named = union(left=named, right=group-named);
+let naming-nothing = antijoin(left=tests, right=any-named, left-on=["test"], right-on=["test"]);
 emit naming-nothing subject "test" key("test");
 '''
 
@@ -126,8 +126,8 @@ then.findings = [
 
 [[scenarios]]
 id = 'tests-beside-mod'
-scenario = 'A tests.rs beside mod.rs uses its struct.'
-given.files.'src/shapes/mod.rs' = '''
+scenario = 'A tests.rs in the directory beside its module file shapes.rs uses its struct.'
+given.files.'src/shapes.rs' = '''
 pub(crate) struct Square(pub(crate) u32);
 
 #[cfg(test)]
@@ -142,3 +142,48 @@ fn square_succeeds() {
     let _ = square.0;
 }
 '''
+
+[[scenarios]]
+id = 'namespace-test-names-through-its-groups'
+scenario = 'A service_test.rs that only declares its groups names the service through the groups beneath service_test/: no finding.'
+given.files.'src/shapes/service.rs' = '''
+pub(crate) fn area(side: u32) -> u32 {
+    side * side
+}
+'''
+given.files.'src/shapes/service_test.rs' = '''
+#[cfg(test)]
+mod order;
+'''
+given.files.'src/shapes/service_test/order.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/shapes/service_test/order/test.rs' = '''
+use super::super::super::service::area;
+
+#[test]
+fn area_succeeds() {
+    let _ = area(2);
+}
+'''
+
+[[scenarios]]
+id = 'namespace-test-whose-groups-name-nothing'
+scenario = 'A namespace service_test.rs whose groups name nothing of the service is reported.'
+given.files.'src/shapes/service.rs' = '''
+pub(crate) fn area(side: u32) -> u32 {
+    side * side
+}
+'''
+given.files.'src/shapes/service_test.rs' = '''
+#[cfg(test)]
+mod order;
+'''
+given.files.'src/shapes/service_test/order.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/shapes/service_test/order/test.rs' = '''
+#[test]
+fn nothing_succeeds() {
+    let _ = 1;
+}
+'''
+then.findings = [
+  { path = 'src/shapes/service_test.rs' },
+]

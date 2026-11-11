@@ -14,12 +14,12 @@ rules = [
   { rule = "item-implements-trait", include = ["item.rs"], description = "The item implements a trait: an `impl <Trait> for` its struct, or a `reads!` call that names its struct." },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
-  { rule = "idiomatic.arch/no-runtime-fixtures@0.1.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
+  { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
   { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs"], description = "Every test of a part is a runner named for a case word over a `CASES` table." },
   { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs"], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
   { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs"], description = "A row of a part's table expects a value or an error variant, never any success." },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*_test.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["*_test.rs", "*_test/**/*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
 ]
 
 [params]

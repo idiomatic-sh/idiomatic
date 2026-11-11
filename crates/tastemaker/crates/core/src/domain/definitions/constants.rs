@@ -30,6 +30,8 @@ pub const LAYERS_KEY: &str = "layers";
 pub const INDEPENDENT_KEY: &str = "independent";
 /// The folded key that kept crates acyclic.
 pub const ACYCLIC_KEY: &str = "acyclic";
+/// The manifest's table of the values each instance declares, read by `reporting::mismatch`.
+pub const VARIABLES_KEY: &str = "variables";
 
 /// Why a prospective root cannot initialize workspace loading.
 pub const MISSING_ROOT: &str = "the prospective manifest has no workspace table";

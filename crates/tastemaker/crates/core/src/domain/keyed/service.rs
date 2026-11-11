@@ -197,9 +197,16 @@ fn whole(declarations: &mut Vec<Declaration>, table: &DeclarationName) {
 /// every declaration of it, wherever it is placed; one no table of the file holds is the table left standing that makes
 /// the most of it, and is missing what that one lacks, or, when none is left standing, what none of the file's tables
 /// makes; a file's table no template's meets is, for an exact template, one extra element. A sequence of values holds
-/// the template's values in their order.
+/// the template's values in their order. `instance_values`, when given, names a top-level table of the document (a
+/// manifest's `variables`) whose entries' values are the instance's: each entry is held by name, the template's values
+/// within it are held, and the file's other values within it are not extra.
 #[must_use]
-pub fn compare_data(expected: &Facts<'_>, found: &Facts<'_>, exact: Exactness) -> Vec<Mismatch> {
+pub(crate) fn compare_data(
+    expected: &Facts<'_>,
+    found: &Facts<'_>,
+    exact: Exactness,
+    instance_values: Option<&DeclarationName>,
+) -> Vec<Mismatch> {
     let mut wanted = data_declarations(expected);
     let mut made = data_declarations(found);
     let wanted_tables = tables(expected);
@@ -302,7 +309,20 @@ pub fn compare_data(expected: &Facts<'_>, found: &Facts<'_>, exact: Exactness) -
         }
     }
     in_order(&wanted, &mut made);
-    compare(&wanted, &made, exact)
+    let mut mismatches = compare(&wanted, &made, exact);
+    if let Some(table) = instance_values {
+        // A value within an entry of the instance's table is the instance's: only the entry's name is held exactly.
+        let prefix = format!("{}{KEY_PATH_SEPARATOR}", table.0);
+        mismatches.retain(|mismatch| match mismatch {
+            Mismatch::Extra(declaration) => !declaration
+                .name
+                .0
+                .strip_prefix(&*prefix)
+                .is_some_and(|within| within.contains(KEY_PATH_SEPARATOR)),
+            Mismatch::Missing(_) => true,
+        });
+    }
+    mismatches
 }
 
 /// `made` with the values of each sequence of the template's `wanted` matched in order: each value of the template is

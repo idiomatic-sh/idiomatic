@@ -1,5 +1,5 @@
-description = "The directory module of a group of cases: it declares the group's test, its fixtures and its nested groups, or only its nested groups when it is a namespace."
-why = "The directory names the group; its mod.rs declares what the group holds: its generic test role, its fixtures, and the groups nested in it. A group that only gathers sub-groups is a namespace and declares no test of its own. The spec that places this template applies `test-group-namespace`, so the file declares modules and nothing else; `orphan-rust-files` and `test-directory-layout` require that what it declares is reached."
+description = "The module file of a group of cases, `<group>.rs` beside the group's directory: it declares the group's test, its fixtures and its nested groups, or only its nested groups when it is a namespace."
+why = "The directory names the group; its module file `<group>.rs`, beside the directory, declares what the group holds: its generic test role, its fixtures, and the groups nested in it. A group that only gathers sub-groups is a namespace and declares no test of its own. The spec that places this template applies `test-group-namespace`, so the file declares modules and nothing else; `orphan-rust-files` and `test-directory-layout` require that what it declares is reached."
 content = '''
 //! One group of cases: its module file declares the group's test, its fixtures and its nested groups.
 '''
@@ -7,17 +7,17 @@ content = '''
 [[scenarios]]
 id = "directory-module"
 scenario = "A directory module declares its generic test role."
-given.file = "axis/mod.rs"
-given.files.'axis/mod.rs' = "#[cfg(test)] pub(super) mod test;"
+given.file = "axis.rs"
+given.files.'axis.rs' = "#[cfg(test)] pub(super) mod test;"
 
 [[scenarios]]
 id = "missing-directory-module"
 scenario = "A placed group module cannot disappear."
-given.file = "axis/mod.rs"
+given.file = "axis.rs"
 then.findings = [{ rule = "#count", path = "tastemaker.toml" }]
 
 [[scenarios]]
 id = "group-namespace-module"
 scenario = "A group module that only declares its nested groups is a namespace and has no finding."
-given.file = "interpreter/mod.rs"
-given.files.'interpreter/mod.rs' = "#[cfg(test)] mod budget; #[cfg(test)] mod population;"
+given.file = "interpreter.rs"
+given.files.'interpreter.rs' = "#[cfg(test)] mod budget; #[cfg(test)] mod population;"

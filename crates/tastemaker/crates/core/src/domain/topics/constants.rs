@@ -203,7 +203,7 @@ pub const TEMPLATE_TABLES: &[KeyTable] = &[KeyTable {
         "description | string | required | what the file is, on one line
 why | string | required | what the file is for
 params | table | optional | `[params.<name>]`, as in `explain rule`
-match | string | optional | `\"declarations\"`: the file declares what the content declares and nothing more, its bodies free; `\"text\"`: the file's text is the content's, byte for byte; `\"contains\"` (the default, not written): the file holds the content's declarations and may hold more
+match | string | optional | `\"declarations\"`: the file declares what the content declares and nothing more, its bodies free, and a `tastemaker.toml` placed by a `declarations` template declares what the template writes and nothing more, except that each of its `variables` may hold values beyond the template's; `\"text\"`: the file's text is the content's, byte for byte; `\"contains\"` (the default, not written): the file holds the content's declarations and may hold more
 content | string | required | the file's text, in Jinja
 scenarios | array of tables | optional | `[[scenarios]]`, as in `explain rule`, each naming `given.file`
 given | table | optional | `[given]`: what every scenario starts from; a scenario's own `given` adds to it, a key, file or param it writes again taking its own (`explain scenarios`)",
