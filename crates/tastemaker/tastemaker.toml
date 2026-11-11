@@ -2,7 +2,7 @@
 # Tastemaker is placed by the specs ryo is placed by (tastemaker): two crates, the command line and
 # its core, the core a nu-hex. A crate exists only when something outside calls it.
 # Distribution policy inputs deliberately include findings and ignore directives; their scenario expectations validate them.
-tastemaker = "0.1.0"
+tastemaker = "0.1.2"
 workspace = { name = "tastemaker", dependencies = [{ package = "idiomatic.arch", path = "../../tastemaker" }] }
 rules = [
   { rule = "idiomatic.arch/no-language-names", params = { languages = ["css", "html", "javascript", "python", "rust", "typescript"], written = ["go", "Go", "Go[!A-Za-z0-9]*", "*[!A-Za-z0-9]Go", "*[!A-Za-z0-9]Go[!A-Za-z0-9]*", "*golang*", "*JavaScript*", "*TypeScript*"] }, include = ["crates/core/src/**", "cli/src/**", "cli/Cargo.toml"], exclude = ["**/*_test.rs", "**/fixtures/**", "**/fixtures.rs", "**/acceptance.rs"], description = "The core names no language and dispatches on no file extension: a language decides its files, and the query names the relations." },

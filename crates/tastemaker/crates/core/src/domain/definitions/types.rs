@@ -118,7 +118,7 @@ pub struct RuleFile {
 pub enum Exactness {
     /// The file may hold more than the content: the default, `match = "contains"`.
     Contains,
-    /// The file holds exactly the content's declarations, in order: `match = "declarations"`.
+    /// The file holds exactly the content's declarations, in order: `match = "declarations"`. A `tastemaker.toml` placed by a `declarations` template declares what the template writes and nothing more, except that each of its `variables` may hold values beyond the template's.
     Exact,
     /// The file's text is the content's, byte for byte, as well as its declarations: `match = "text"`.
     Verbatim,

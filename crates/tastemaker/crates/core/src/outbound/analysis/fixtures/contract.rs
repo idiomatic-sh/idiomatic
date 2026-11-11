@@ -1,7 +1,8 @@
-//! What every `analysis` adapter must pass: a blank query is refused, a lint of no rules answers nothing, and every listed
-//! relation and operator has a page.
+//! What every `analysis` adapter must pass: a blank query is refused, a lint of no rules answers nothing, a lint of two
+//! rules of one id is refused whole, and every listed relation and operator has a page.
 
-use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::cases::{Case, CaseName, Expect, Selection, Word, run};
+use crate::domain::applications::types::{GlobText, LintRuleId, PlannedRule};
 use crate::domain::catalog::types::{CatalogName, OperatorAnswer, RelationAnswer};
 use crate::domain::definitions::types::QueryText;
 use crate::domain::files::types::MachinePath;
@@ -16,6 +17,8 @@ pub enum Question {
     NothingToLint,
     /// A blank query is refused.
     Blank,
+    /// A lint of two rules of one id is refused whole, by the engine: one of them would never run.
+    DuplicateIds,
     /// Every relation and operator listed has a page, a name none is has none, and the grammar has a production: the
     /// count of what breaks that.
     Catalog,
@@ -41,6 +44,18 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || Question::Blank,
         expect: Expect::error(String::new()),
+    },
+    Case {
+        name: CaseName("a_request_with_two_rules_of_one_id_is_refused_whole"),
+        word: Word::Refuses,
+        input: || Question::DuplicateIds,
+        expect: Expect::Refusal(|error| {
+            if error.starts_with("the analysis failed: ") && error.contains("`rule-0`") {
+                Selection::Matches
+            } else {
+                Selection::Differs
+            }
+        }),
     },
     Case {
         name: CaseName("every_listed_relation_and_operator_has_a_page"),
@@ -79,6 +94,30 @@ fn answer(
                 .lint(AnalysisRequest {
                     root: root.clone(),
                     rules: Vec::new(),
+                    placed: Vec::new(),
+                    corpus: Corpus::Walked,
+                    beside: Vec::new(),
+                    hosted: Hosted::Nothing,
+                })
+                .map_err(|error| error.to_string())?;
+            Ok(report.findings.len())
+        }
+        Question::DuplicateIds => {
+            // A valid rule, sent twice under one id.
+            let rule = PlannedRule {
+                id: LintRuleId("rule-0".into()),
+                query: QueryText(
+                    "let p = select * from \"tastemaker.placed\" where template = \"x\"; emit p subject \"path\" key(\"path\");"
+                        .into(),
+                ),
+                parameters: std::collections::BTreeMap::new(),
+                include: vec![GlobText("**".into())],
+                exclude: Vec::new(),
+            };
+            let report = adapter
+                .lint(AnalysisRequest {
+                    root: root.clone(),
+                    rules: vec![rule.clone(), rule],
                     placed: Vec::new(),
                     corpus: Corpus::Walked,
                     beside: Vec::new(),

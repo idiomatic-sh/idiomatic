@@ -166,6 +166,8 @@ pub struct PathMatcher {
     pub shape: MatcherShape,
     /// The values interpolated into it.
     pub values: Interpolations,
+    /// The `{name:dir}` captures of its last segment, each of whose values names a directory beside the file.
+    pub directories: Vec<CaptureName>,
 }
 
 /// What a placed pattern matches.

@@ -126,6 +126,96 @@ fn proving_analysis() -> AnalysisFake {
     fake
 }
 
+/// The marker rule at two versions, each over its own file.
+pub const TWO_VERSIONS_APART: &str = r#"rules = [
+  { rule = "p/marker@0.1.0", include = ["one.txt"], description = "First version." },
+  { rule = "p/marker@0.2.0", include = ["two.txt"], description = "Second version." },
+]
+"#;
+
+/// The marker rule at two versions, both over one file.
+pub const TWO_VERSIONS_TOGETHER: &str = r#"rules = [
+  { rule = "p/marker@0.1.0", include = ["one.txt"], description = "First version." },
+  { rule = "p/marker@0.2.0", include = ["one.txt"], description = "Second version." },
+]
+"#;
+
+/// A lock pinning both versions of the marker rule, and the part.
+const TWO_VERSIONS_LOCK: &str = r#"version = 1
+dependencies = ["p"]
+
+[packages.p]
+path = "p"
+
+[packages.p.rules]
+marker = ["0.1.0", "0.2.0"]
+
+[packages.p.specs]
+part = "0.1.0"
+"#;
+
+/// A workspace that places the part and no rule of its own: its rules come from the part.
+const TWO_VERSIONS_WORKSPACE: &str = r#"workspace = { name = "w", dependencies = [{ package = "p", path = "p" }] }
+closed = false
+specs = [{ spec = "p/part", include = ["src/{domain}"] }]
+"#;
+
+/// The package `p` with the marker rule at two versions, its part applying them as `rules` says.
+#[must_use]
+pub fn two_versions_package(rules: &str) -> PackagesFake {
+    let spec = SPEC.replacen("templates = [", &format!("{rules}templates = ["), 1);
+    PackagesFake::of(
+        "p",
+        &[
+            ("package.toml", PACKAGE),
+            ("rules/marker/0.1.0/rule.toml", RULE),
+            ("rules/marker/0.2.0/rule.toml", RULE),
+            ("specs/part/0.1.0/spec.toml", &spec),
+            ("specs/part/0.1.0/templates/errors/template.toml", TEMPLATE),
+        ],
+    )
+}
+
+/// The repository the two-versions package is proven over: its workspace and lock alone.
+#[must_use]
+pub fn two_versions_validation() -> RepositoryFake {
+    RepositoryFake::of(&[
+        ("tastemaker.toml", TWO_VERSIONS_WORKSPACE),
+        ("tastemaker.lock", TWO_VERSIONS_LOCK),
+    ])
+}
+
+/// The repository the two-versions package is checked over: two parts, each with its errors and a file of one version.
+#[must_use]
+pub fn two_versions_repository() -> RepositoryFake {
+    RepositoryFake::of(&[
+        ("tastemaker.toml", TWO_VERSIONS_WORKSPACE),
+        ("tastemaker.lock", TWO_VERSIONS_LOCK),
+        ("src/a/errors.txt", "MARKER\n"),
+        ("src/a/one.txt", "MARKER\n"),
+        ("src/b/errors.txt", "MARKER\n"),
+        ("src/b/two.txt", "MARKER\n"),
+    ])
+}
+
+/// What the analysis fake finds over the two-versions repository: the marker in each of `paths`, its query refused if
+/// check validates again.
+#[must_use]
+pub fn two_versions_analysis(paths: &[&str]) -> AnalysisFake {
+    let mut fake = AnalysisFake::default();
+    fake.invalid.push("MARKER".into());
+    drop(
+        fake.rows.insert(
+            "MARKER".into(),
+            paths
+                .iter()
+                .map(|path| ((*path).into(), "0..6".into()))
+                .collect(),
+        ),
+    );
+    fake
+}
+
 /// The project's store as the fixtures stand it in: validation's proofs and the check's answer, each its own fake.
 #[derive(Debug, Default)]
 pub struct StoreFake {
@@ -145,13 +235,34 @@ pub fn use_case(
     analysis: AnalysisFake,
     store: &StoreFake,
 ) -> Result<CheckUseCaseImpl, super::errors::CheckError> {
-    let scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort> =
-        Arc::new(crate::outbound::scheduler::fixtures::fake::SchedulerFake);
-    scheduled_use_case(repository, analysis, store, &scheduler)
+    use_case_of(package, self::repository, repository, analysis, store)
 }
 
-/// `use_case` over the scheduler the caller picks.
+/// `use_case` over the package `package` makes, proven over the repository `validation` makes: each port takes its own.
+///
+/// # Errors
+/// When the package cannot be validated.
+pub fn use_case_of(
+    package: fn() -> PackagesFake,
+    validation: fn() -> RepositoryFake,
+    repository: RepositoryFake,
+    analysis: AnalysisFake,
+    store: &StoreFake,
+) -> Result<CheckUseCaseImpl, super::errors::CheckError> {
+    let scheduler: Arc<dyn crate::outbound::scheduler::interface::SchedulerPort> =
+        Arc::new(crate::outbound::scheduler::fixtures::fake::SchedulerFake);
+    scheduled_use_case(
+        (package, validation),
+        repository,
+        analysis,
+        store,
+        &scheduler,
+    )
+}
+
+/// `use_case_of` over the scheduler the caller picks: `proven` makes the package, then the repository it is proven over.
 fn scheduled_use_case(
+    proven: (fn() -> PackagesFake, fn() -> RepositoryFake),
     repository: RepositoryFake,
     analysis: AnalysisFake,
     store: &StoreFake,
@@ -161,7 +272,7 @@ fn scheduled_use_case(
     use crate::inbound::use_cases::validate::types::ValidateRequest;
     use crate::inbound::use_cases::validate::use_case::{ValidatePorts, ValidateUseCaseImpl};
     let validation_repository: Arc<dyn crate::outbound::repository::interface::RepositoryPort> =
-        Arc::new(self::repository());
+        Arc::new((proven.1)());
     let repository: Arc<dyn crate::outbound::repository::interface::RepositoryPort> =
         Arc::new(repository);
     let matching: Arc<dyn crate::outbound::matching::interface::MatchingPort> =
@@ -193,7 +304,7 @@ fn scheduled_use_case(
         },
         repository: validation_repository,
         manifest: Arc::new(crate::outbound::manifest::factory::toml()),
-        packages: Arc::new(package()),
+        packages: Arc::new((proven.0)()),
         analysis: Arc::new(proving_analysis()),
         store: Arc::<ValidateStoreFake>::clone(&store.proofs),
         digest: Arc::new(DigestFake),
@@ -212,7 +323,7 @@ fn scheduled_use_case(
         reporting,
         repository,
         manifest: Arc::new(crate::outbound::manifest::factory::toml()),
-        packages: Arc::new(package()),
+        packages: Arc::new((proven.0)()),
         counting: Arc::clone(&analysis),
         analysis,
         store: Arc::<CheckStoreFake>::clone(&store.answers),
@@ -314,7 +425,13 @@ pub fn serial_and_parallel_agree() -> Result<(), super::errors::CheckError> {
             crate::outbound::scheduler::types::WorkerCount(2),
         )),
     );
-    let parallel = scheduled_use_case(parallel_files, parallel_analysis, &parallel_proofs, &pool)?;
+    let parallel = scheduled_use_case(
+        (package, repository),
+        parallel_files,
+        parallel_analysis,
+        &parallel_proofs,
+        &pool,
+    )?;
     for _ in 0_u8..2 {
         let serial_report = serial.check(request(Fixing::Fix))?;
         let parallel_report = parallel.check(request(Fixing::Fix))?;

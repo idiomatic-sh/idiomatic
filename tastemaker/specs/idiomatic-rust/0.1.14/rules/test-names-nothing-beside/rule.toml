@@ -10,11 +10,7 @@ let suffixed-pairs = select r."file" as "module", l."file" as "test" from suffix
 let nested-tests = capture(from=listed-files, path="file", pattern="{*parent}/{name}/tests.rs", captures=["parent", "name"]);
 let parent-modules = capture(from=listed-files, path="file", pattern="{*parent}/{name}.rs", captures=["parent", "name"]);
 let file-module-pairs = select r."file" as "module", l."file" as "test" from nested-tests as l join parent-modules as r on l."parent" = r."parent" and l."name" = r."name";
-let directory-tests = capture(from=listed-files, path="file", pattern="{*directory}/tests.rs", captures=["directory"]);
-let directory-modules = capture(from=listed-files, path="file", pattern="{*directory}/mod.rs", captures=["directory"]);
-let mod-pairs = select r."file" as "module", l."file" as "test" from directory-tests as l join directory-modules as r on l."directory" = r."directory";
-let nested-pairs = union(left=file-module-pairs, right=mod-pairs);
-let pairs = union(left=suffixed-pairs, right=nested-pairs);
+let pairs = union(left=suffixed-pairs, right=file-module-pairs);
 let tests = project(from=pairs, columns=["test"]);
 let declared = select * from "defines" where kind != "variable";
 let unimported = select * from declared where kind != "import";

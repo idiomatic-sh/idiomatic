@@ -80,7 +80,8 @@ pub fn placed_name(file: &PathPattern, captures: &Captures) -> PlacedName {
                 other @ (PatternPiece::Literal(_)
                 | PatternPiece::Question
                 | PatternPiece::Capture(_)
-                | PatternPiece::Span(_)) => written_piece(other).0,
+                | PatternPiece::Span(_)
+                | PatternPiece::Directory(_)) => written_piece(other).0,
             })
             .collect(),
         _ => named,

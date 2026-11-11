@@ -6,6 +6,8 @@ Places `no-runtime-fixtures@0.2.0`, where 0.2.0 named its 0.1.0: a product that 
 
 Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
 
+Edited in place: the `unit-cases` entry reads `*_test/**/*.rs` beside its own files, the flat groups and the group directories of a namespace test, which the rule reads only when its entry includes them.
+
 ## 0.2.0
 
 Edited in place: `command-refuses` owes no row for a command whose arguments struct has no field (`pub struct DownArguments;`): it reads no input, so it has nothing to refuse.

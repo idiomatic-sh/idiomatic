@@ -5,12 +5,17 @@ use std::sync::Arc;
 
 use super::errors::CheckError;
 use super::fixtures::StoreFake;
-use super::fixtures::{FOUND, analysis, repository, request, selection, use_case};
+use super::fixtures::{
+    FOUND, TWO_VERSIONS_APART, TWO_VERSIONS_TOGETHER, analysis, repository, request, selection,
+    two_versions_analysis, two_versions_package, two_versions_repository, two_versions_validation,
+    use_case, use_case_of,
+};
 use super::interface::CheckUseCase as _;
 use super::types::{CheckRequest, Fixing};
 use super::use_case::CheckUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::analysis::fixtures::fake::AnalysisFake;
+use crate::outbound::packages::fixtures::fake::PackagesFake;
 use crate::outbound::repository::fixtures::fake::RepositoryFake;
 
 /// What a row changes about the fixture.
@@ -68,6 +73,10 @@ enum Scenario {
     OneEdit,
     /// Checked again after a file's text changed, by an engine that fails: the store keeps the answer it held.
     FailedKeeps,
+    /// A part applies the marker rule at two versions, each over its own file.
+    TwoVersionsApart,
+    /// A part applies the marker rule at two versions, both over one file.
+    TwoVersionsTogether,
 }
 
 /// What a row changes about the fixture.
@@ -256,6 +265,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::FailedKeeps,
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("two_versions_reaching_one_file_with_one_finding_report_it_once"),
+        word: Word::Succeeds,
+        input: || Scenario::TwoVersionsTogether,
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("a_rule_placed_at_two_versions_reports_the_findings_of_both"),
+        word: Word::Succeeds,
+        input: || Scenario::TwoVersionsApart,
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The lifecycle rows: what a row answers, or nothing for a row of the others.
@@ -284,7 +305,9 @@ fn lifecycle(scenario: Scenario) -> Option<Result<Value, Failure>> {
         | Scenario::Local
         | Scenario::MemberWithWorkspace
         | Scenario::Nonexistent
-        | Scenario::Many => return None,
+        | Scenario::Many
+        | Scenario::TwoVersionsApart
+        | Scenario::TwoVersionsTogether => return None,
     }
     let store = Arc::new(StoreFake::default());
     let files = repository();
@@ -349,6 +372,9 @@ fn lifecycle(scenario: Scenario) -> Option<Result<Value, Failure>> {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if let Some(answer) = lifecycle(scenario) {
+        return answer;
+    }
+    if let Some(answer) = two_versions(scenario) {
         return answer;
     }
     if matches!(scenario, Scenario::Placed) {
@@ -442,6 +468,59 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     } else {
         found
     })
+}
+
+/// The two-versions rows: the marker findings of a part that applies the rule at two versions, or nothing for a row of
+/// the others.
+fn two_versions(scenario: Scenario) -> Option<Result<Value, Failure>> {
+    let (rules, paths, expected): (fn() -> PackagesFake, &[&str], &str) =
+        if matches!(scenario, Scenario::TwoVersionsApart) {
+            (
+                || two_versions_package(TWO_VERSIONS_APART),
+                &["src/a/one.txt", "src/b/two.txt"],
+                "p/marker src/a/one.txt; p/marker src/b/two.txt",
+            )
+        } else if matches!(scenario, Scenario::TwoVersionsTogether) {
+            (
+                || two_versions_package(TWO_VERSIONS_TOGETHER),
+                &["src/a/one.txt"],
+                "p/marker src/a/one.txt",
+            )
+        } else {
+            return None;
+        };
+    let store = Arc::new(StoreFake::default());
+    let answer = (|| -> Result<Value, Failure> {
+        let check = use_case_of(
+            rules,
+            two_versions_validation,
+            two_versions_repository(),
+            two_versions_analysis(paths),
+            &store,
+        )?;
+        let report = check.check(request(Fixing::Fix))?;
+        let mut found = report
+            .report
+            .findings
+            .iter()
+            .map(|finding| {
+                format!(
+                    "{} {}",
+                    crate::domain::findings::service::printed(&finding.rule).0,
+                    finding.path.0
+                )
+            })
+            .filter(|found| found.starts_with("p/marker "))
+            .collect::<Vec<_>>();
+        found.sort();
+        let found = found.join("; ");
+        Ok(if found == expected {
+            String::new()
+        } else {
+            found
+        })
+    })();
+    Some(answer)
 }
 
 /// How many times the check kept its answer: a run that checks again keeps it again.
@@ -611,7 +690,9 @@ fn edited_workspace(scenario: Scenario, files: &RepositoryFake) -> Option<String
         | Scenario::Many
         | Scenario::ReadsNothing
         | Scenario::OneEdit
-        | Scenario::FailedKeeps => None,
+        | Scenario::FailedKeeps
+        | Scenario::TwoVersionsApart
+        | Scenario::TwoVersionsTogether => None,
     }
 }
 
@@ -659,7 +740,9 @@ fn expected_rules(scenario: Scenario) -> String {
         | Scenario::Many
         | Scenario::ReadsNothing
         | Scenario::OneEdit
-        | Scenario::FailedKeeps => FOUND.to_owned(),
+        | Scenario::FailedKeeps
+        | Scenario::TwoVersionsApart
+        | Scenario::TwoVersionsTogether => FOUND.to_owned(),
     }
 }
 

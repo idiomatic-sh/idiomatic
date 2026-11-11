@@ -18,12 +18,12 @@ templates = [
   { template = "idiomatic.arch/collections@0.1.0", file = "collections.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The list of the part's collections, one module each, when it holds a repeated concept." },
   { alias = "collection-module", template = "idiomatic.arch/collection@0.1.0", file = "collections/{collection}.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "One collection of the part: its interface and its items in order." },
   { alias = "fixture-files", template = "concept-fixtures", file = "fixtures/{*fixture}", count = { min = 0 }, description = "A file of the concept's test support beneath `fixtures/`." },
-  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test/{group}.rs", exclude = ["mod.rs", "**/mod.rs", "service_test/*_test.rs"], count = { min = 0 }, description = "The module file of one group of the service's cases." },
-  { alias = "nested-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test/{*outer}/{group}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of one group of the service's cases, at any depth below the first." },
+  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test/{group:dir}.rs", exclude = ["service_test/*_test.rs"], count = { min = 0 }, description = "The module file of one group of the service's cases." },
+  { alias = "nested-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test/{*outer}/{group:dir}.rs", count = { min = 0 }, description = "The module file of one group of the service's cases, at any depth below the first." },
   { alias = "group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "service_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "One group of the service's cases, with its own case rows and runners." },
   { alias = "group-fixtures", template = "concept-fixtures", file = "service_test/{*group}/fixtures.rs", count = { min = 0 }, description = "The test support of one group of the service's cases." },
-  { alias = "part-module", template = "idiomatic.arch/part-module@0.1.0", file = "{part}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of a nested part: it declares the part's role files and holds none of its items, as the concept's own module file does." },
-  { alias = "nested-part-module", template = "idiomatic.arch/part-module@0.1.0", file = "{*outer}/{part}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of a nested part: it declares the part's role files and holds none of its items, as the concept's own module file does, at any depth below the first." },
+  { alias = "part-module", template = "idiomatic.arch/part-module@0.1.0", file = "{part:dir}.rs", count = { min = 0 }, description = "The module file of a nested part: it declares the part's role files and holds none of its items, as the concept's own module file does." },
+  { alias = "nested-part-module", template = "idiomatic.arch/part-module@0.1.0", file = "{*outer}/{part:dir}.rs", count = { min = 0 }, description = "The module file of a nested part: it declares the part's role files and holds none of its items, as the concept's own module file does, at any depth below the first." },
   { alias = "part-service", template = "service", file = "{*part}/service.rs", count = { min = 0 }, description = "A nested part's free functions." },
   { alias = "part-types", template = "idiomatic.arch/types@0.1.0", file = "{*part}/types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "A nested part's own data." },
   { alias = "part-constants", template = "idiomatic.arch/constants@0.1.0", file = "{*part}/constants.rs", count = { min = 0 }, description = "A nested part's constants." },
@@ -31,8 +31,8 @@ templates = [
   { alias = "part-fixtures", template = "concept-fixtures", file = "{*part}/fixtures.rs", count = { min = 0 }, description = "A nested part's test support." },
   { alias = "part-fixture-files", template = "concept-fixtures", file = "{*part}/fixtures/{*fixture}", count = { min = 0 }, description = "A file of a nested part's test support beneath its `fixtures/`." },
   { alias = "part-service-test", template = "idiomatic.arch/service-test@0.1.0", file = "{*part}/service_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of a nested part's service: a case table, or the namespace of its groups." },
-  { alias = "part-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/service_test/{group}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of one group of a nested part's cases." },
-  { alias = "nested-part-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/service_test/{*outer}/{group}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of one group of a nested part's cases, at any depth below the first." },
+  { alias = "part-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/service_test/{group:dir}.rs", count = { min = 0 }, description = "The module file of one group of a nested part's cases." },
+  { alias = "nested-part-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/service_test/{*outer}/{group:dir}.rs", count = { min = 0 }, description = "The module file of one group of a nested part's cases, at any depth below the first." },
   { alias = "part-group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/service_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "One group of a nested part's cases, with its own case rows and runners." },
   { alias = "part-group-fixtures", template = "concept-fixtures", file = "{*part}/service_test/{*group}/fixtures.rs", count = { min = 0 }, description = "The test support of one group of a nested part's cases." },
 ]
@@ -48,7 +48,7 @@ rules = [
   { rule = "idiomatic.arch/public-fields@0.3.0", include = ["types.rs", { placed-by = "part-types" }], description = "Every field of a struct in a types.rs is public: a type is its data." },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs", { placed-by = "part-types" }, { placed-by = "part-errors" }], description = "A part's types and errors are nominal types, never type aliases." },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs", { placed-by = "part-errors" }], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
-  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["*.rs", "*_test/**/test.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["*.rs", "*_test/**/*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs." },
   { rule = "idiomatic.arch/hollow-artifacts@0.1.0", include = ["*.rs"], description = "No file of a part is only comments and imports, and no type in it is an empty placeholder." },
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
@@ -718,8 +718,7 @@ fn succeeds() {
 }
 '''
 then.findings = [
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/polite/interface.rs', line = 4 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/polite/interface.rs', line = 4 },
+  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/polite/interface.rs' },
 ]
 
 [[scenarios]]
@@ -1649,9 +1648,9 @@ then.only = ['idiomatic.arch/concept#closed']
 id = "behavior-value-rejects-arbitrary-helper"
 scenario = "The value role does not open the directory to arbitrary implementation helpers."
 given.files.'src/domain/greeting/types/token/helper.rs' = 'pub fn bypass() {}'
-then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/test-group-namespace']
+then.only = ['idiomatic.arch/concept#closed']
 then.findings = [
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/types/token/helper.rs', line = 1 },
+  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/types/token/helper.rs' },
 ]
 
 [[scenarios]]
@@ -1848,7 +1847,7 @@ given.files.'src/domain/greeting/lowering.rs' = 'pub(crate) mod extra;'
 given.files.'src/domain/greeting/lowering/extra.rs' = 'pub(crate) fn extra() {}'
 then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/test-group-namespace']
 then.findings = [
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/extra.rs', line = 1 },
+  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/lowering/extra.rs' },
 ]
 
 [[scenarios]]
@@ -2207,10 +2206,8 @@ pub(super) struct LoweredSchema {
 '''
 then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/test-group-namespace']
 then.findings = [
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/interface.rs', line = 3 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/interface.rs', line = 3 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/schemas.rs', line = 3 },
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/schemas.rs', line = 3 },
+  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/lowering/interface.rs' },
+  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/lowering/schemas.rs' },
 ]
 
 [[scenarios]]
