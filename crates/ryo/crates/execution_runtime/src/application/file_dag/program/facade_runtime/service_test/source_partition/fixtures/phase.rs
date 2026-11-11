@@ -187,7 +187,7 @@ pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
         FileGeneration::from_owner(FileId(0), &walk_owner),
     );
     let project_walk =
-        crate::application::file_dag::program::native_walk::project::service::ProjectWalk::new();
+        crate::application::file_dag::program::native_walk::service::project::service::ProjectWalk::new();
     // The project stage admits only the heads of a rule its cohort declared.
     project_walk.owe(
         &prepared,
