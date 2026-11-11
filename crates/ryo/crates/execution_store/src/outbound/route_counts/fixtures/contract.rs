@@ -6,17 +6,17 @@ use crate::outbound::route_counts::types::{
     RecordKey, RecordTally, RecordText, RouteField, RouteValue,
 };
 
-/// What the contract asks of the port.
+/// The two route count records the port writes, each named by its route.
 #[derive(Clone, Copy, Debug)]
-pub enum Scenario {
-    /// One record written twice.
-    SameRecordTwice,
-    /// Two records that differ in one text.
-    RecordsThatDiffer,
+pub struct Records {
+    /// The route the first record counts.
+    pub first: &'static str,
+    /// The route the second record counts.
+    pub second: &'static str,
 }
 
 /// What a row of the contract is given.
-type Input = Scenario;
+type Input = Records;
 /// What a row of the contract expects when it succeeds: whether the two documents are equal.
 type Value = bool;
 /// What a row of the contract expects when it is refused.
@@ -27,13 +27,19 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("one_record_writes_one_document"),
         word: Word::Succeeds,
-        input: || Scenario::SameRecordTwice,
+        input: || Records {
+            first: "owner_build",
+            second: "owner_build",
+        },
         expect: Expect::Value(true),
     },
     Case {
         name: CaseName("records_that_differ_write_documents_that_differ"),
         word: Word::Succeeds,
-        input: || Scenario::RecordsThatDiffer,
+        input: || Records {
+            first: "owner_build",
+            second: "graph_domain_build",
+        },
         expect: Expect::Value(false),
     },
 ];
@@ -57,13 +63,9 @@ pub fn check(adapter: &impl RouteCountsPort) {
             },
         ])
     };
-    // Whether the adapter writes the scenario's two records as one document.
-    let subject = |scenario: Input| -> Result<Value, Failure> {
-        let (first, second) = match scenario {
-            Scenario::SameRecordTwice => (row("owner_build"), row("owner_build")),
-            Scenario::RecordsThatDiffer => (row("owner_build"), row("graph_domain_build")),
-        };
-        Ok(adapter.document(&first) == adapter.document(&second))
+    // Whether the adapter writes the two records as one document.
+    let subject = |records: Input| -> Result<Value, Failure> {
+        Ok(adapter.document(&row(records.first)) == adapter.document(&row(records.second)))
     };
     run(CASES, Word::Succeeds, subject);
 }

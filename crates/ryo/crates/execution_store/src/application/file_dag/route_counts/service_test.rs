@@ -4,18 +4,16 @@ use super::constants::{
     GRAPH_ADJACENCY_BUILD, KIND_EQUALITY, KIND_MEMBERSHIP, MAX_KEYS, OWNER_BUILD,
     REPRESENTATION_STORED,
 };
+use super::fixtures::{
+    Answer, EXAMPLE_RULE, ORIGINAL_FAILURE, QUERY_NAME, QUERY_TWO, SCOPED_BUILD, Workload, capture,
+    run_workload,
+};
 use super::types::{RouteCount, RouteKey, RouteOrigin, RouteOwnership, RouteTally};
 use crate::application::file_dag::derived::constants::{OWNER_HIT, OWNER_REQUEST};
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use fixtures::{
-    Answer, EXAMPLE_RULE, ORIGINAL_FAILURE, QUERY_NAME, QUERY_TWO, SCOPED_BUILD, Workload, capture,
-    run_workload,
-};
 use std::borrow::Cow;
-
-mod fixtures;
 
 /// A recorded owner or plan id: one the workload named, or one taken from an allocation's
 /// address, which differs from run to run.
