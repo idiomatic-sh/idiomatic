@@ -8,7 +8,7 @@ use crate::domain::table_scratch::types::Patterns;
 use crate::domain::table_texts::types::Datum;
 use crate::domain::table_texts::types::{RegexPattern, TextView};
 use ryo_matching::inbound::use_cases::matching::{
-    compiled::CompiledRegex,
+    types::CompiledRegex,
     types::{MatchOutcome, SearchText},
 };
 

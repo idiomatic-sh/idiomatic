@@ -121,7 +121,7 @@ pub(crate) fn moved_words(
 /// changes only what one rule reads leaves the others' steps as they were.
 pub(crate) fn frontier_flat(
     moved: &[BucketWords],
-    observations: Option<ryo_values::domain::observations::validated::ValidatedFrontiers<'_>>,
+    observations: Option<ryo_values::domain::observations::types::ValidatedFrontiers<'_>>,
     slots: &[ryo_execution::inbound::use_cases::execution::interface::ObservedFrontierRoot],
     setting: &VisitSetting<'_>,
     rule: RuleIndex,

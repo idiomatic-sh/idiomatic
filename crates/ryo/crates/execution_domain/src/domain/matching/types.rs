@@ -2,8 +2,8 @@
 
 pub mod prepared;
 
-use ryo_matching::inbound::use_cases::matching::compiled::{CompiledRegex, CompiledTextGlobs};
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
+use ryo_matching::inbound::use_cases::matching::types::{CompiledRegex, CompiledTextGlobs};
 use ryo_matching::inbound::use_cases::matching::types::{
     GlobPattern, GroupName, MatchOutcome, RegexSource, SearchText, TextSpan,
 };

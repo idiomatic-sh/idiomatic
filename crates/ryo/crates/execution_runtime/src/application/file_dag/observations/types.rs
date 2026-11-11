@@ -2,7 +2,7 @@
 use crate::application::file_dag::program::preparation::types::ObservationMetadata;
 use ryo_relations::domain::relations::types::{FileId, WorkerNumber};
 use ryo_values::domain::{
-    observations::validated::ValidatedFrontiers, stored_facts::types::ArenaBytes,
+    observations::types::ValidatedFrontiers, stored_facts::types::ArenaBytes,
 };
 use std::rc::Rc;
 

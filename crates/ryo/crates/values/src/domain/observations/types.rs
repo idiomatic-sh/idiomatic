@@ -125,3 +125,6 @@ pub(crate) enum ReadinessBit {
 /// Text bytes written into an identity, length first.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ObservationText<'a>(pub &'a [u8]);
+/// Only the common pure validation boundary can lend this checked view.
+#[derive(Clone, Copy, Debug)]
+pub struct ValidatedFrontiers<'a>(pub(super) &'a crate::domain::records::types::FrontierReadiness);

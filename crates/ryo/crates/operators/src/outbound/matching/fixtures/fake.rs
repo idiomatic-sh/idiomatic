@@ -2,9 +2,9 @@
 //! so the fake answers with the matching crate's own use case.
 
 use crate::outbound::matching::interface::MatchingPort;
-use ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase as _;
+use ryo_matching::inbound::use_cases::matching::types::CompiledRegex;
 use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText, TextSpan};
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 

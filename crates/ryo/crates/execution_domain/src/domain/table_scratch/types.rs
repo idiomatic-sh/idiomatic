@@ -141,7 +141,7 @@ pub struct SelectScratch {
     /// Fixed glob operands made ready once for each comparison, for this run's bindings.
     pub compiled_globs: hashbrown::HashMap<
         ComparisonSlot,
-        ryo_matching::inbound::use_cases::matching::compiled::CompiledTextGlobs,
+        ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs,
     >,
 
     /// Compiled regular expressions reused across rows, bounded by the matching service.
@@ -162,7 +162,7 @@ pub struct SelectScratch {
 pub struct Patterns(
     pub  hashbrown::HashMap<
         crate::domain::table_texts::types::RegexPattern,
-        ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex,
+        ryo_matching::inbound::use_cases::matching::types::CompiledRegex,
     >,
 );
 

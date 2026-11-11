@@ -44,7 +44,7 @@ pub(crate) fn evaluate(
     row: &[ryo_relations::domain::relations::types::Value],
     column: ryo_values::domain::plan_parts::types::ColumnIndex,
     replacement: ReplacementText<'_>,
-    regex: Option<&ryo_matching::inbound::use_cases::matching::compiled::CompiledRegex>,
+    regex: Option<&ryo_matching::inbound::use_cases::matching::types::CompiledRegex>,
     driver: &mut dyn crate::domain::contract::types::RowDriver,
     scratch: &mut crate::domain::contract::types::RowScratch,
     occurrences: &dyn crate::domain::contract::types::Occurrences,

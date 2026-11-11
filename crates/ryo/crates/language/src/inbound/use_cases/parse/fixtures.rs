@@ -1,6 +1,7 @@
 //! The test support of the `parse` use case: the contract every implementation of its trait runs, and the
 //! conformance of a language to the whole catalog.
 
+pub mod allocating;
 #[cfg(test)]
 pub mod breaking;
 pub mod collect;
