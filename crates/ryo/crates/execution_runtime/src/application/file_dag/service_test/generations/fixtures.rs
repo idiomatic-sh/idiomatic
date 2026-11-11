@@ -1,10 +1,8 @@
 //! The support of the `generations` cases.
-use super::super::{
-    FRESH_GENERATION_READS, Prepared, RuleRun, TRANSFERRED_INDEPENDENT, language_columns, prepare,
-    run_rule,
-};
+use super::super::{Prepared, RuleRun, language_columns, prepare, run_rule};
 use crate::application::file_dag::program::facade_runtime::file_execution::service::open_file;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
 use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
@@ -12,12 +10,34 @@ use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{FileId, Integer, Value as CellValue};
-use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::{plan_parts::types::WholeNumber, query_bindings::types::ParameterBinding};
+use std::borrow::Cow;
 use std::sync::Arc;
 
-pub(super) fn two_file_generation_owners_cannot_reuse_the_other_files_results()
--> Result<Answer, Failure> {
+/// What one file's generation owner answered: the provider reads its rule took, the cells it
+/// emitted, and whether finishing it answered a frontier readiness.
+#[derive(Debug, PartialEq)]
+pub(super) struct Generation {
+    pub(super) read: bool,
+    pub(super) cells: Cow<'static, [CellValue]>,
+    pub(super) readiness: bool,
+}
+
+/// What two file generation owners of one prepared request answered, each over its own file's
+/// language column, and the first owner's cells once both finished.
+#[derive(Debug, PartialEq)]
+pub(super) struct Generations {
+    pub(super) first: Generation,
+    pub(super) second: Generation,
+    pub(super) first_cells_after_finish: Cow<'static, [CellValue]>,
+}
+
+/// Opens two generation owners of one prepared request (the rule bound to 3), runs each over
+/// the language column of its file, and finishes both.
+pub(super) fn two_generations(
+    first_file: FileId,
+    second_file: FileId,
+) -> Result<Generations, OperatingError> {
     let Prepared { prepared, services } =
         prepare(vec![vec![ParameterBinding::Number(WholeNumber(3))]]);
     let mut first_symbols = Symbols::default();
@@ -47,7 +67,7 @@ pub(super) fn two_file_generation_owners_cannot_reuse_the_other_files_results()
     } = run_rule(
         &mut first,
         RuleIndex(0),
-        &language_columns(FileId(1), Integer(3)),
+        &language_columns(first_file, Integer(3)),
         &mut first_symbols,
     );
     let mut second_symbols = Symbols::default();
@@ -77,43 +97,22 @@ pub(super) fn two_file_generation_owners_cannot_reuse_the_other_files_results()
     } = run_rule(
         &mut second,
         RuleIndex(0),
-        &language_columns(FileId(9), Integer(3)),
+        &language_columns(second_file, Integer(3)),
         &mut second_symbols,
     );
-    assert!(first_reads.0 > 0);
-    assert!(second_reads.0 > 0, "{FRESH_GENERATION_READS}");
-    assert_eq!(left.cells, vec![CellValue::File(FileId(1))]);
-    assert_eq!(right.cells, vec![CellValue::File(FileId(9))]);
-    first.finish().unwrap();
-    second.finish().unwrap();
-    assert_eq!(
-        left.cells,
-        vec![CellValue::File(FileId(1))],
-        "{TRANSFERRED_INDEPENDENT}"
-    );
-    Ok(1)
+    let first_readiness = first.finish()?.is_some();
+    let second_readiness = second.finish()?.is_some();
+    Ok(Generations {
+        first_cells_after_finish: left.cells.clone().into(),
+        first: Generation {
+            read: first_reads.0 > 0,
+            cells: left.cells.into(),
+            readiness: first_readiness,
+        },
+        second: Generation {
+            read: second_reads.0 > 0,
+            cells: right.cells.into(),
+            readiness: second_readiness,
+        },
+    })
 }
-
-/// A scenario of this group: it answers how many times it held.
-pub(super) type Scenario = fn() -> Result<Answer, Failure>;
-
-/// What a scenario answers: a yes as one.
-type Answer = usize;
-
-/// This part has no failure of its own.
-pub(crate) type Failure = ();
-
-pub(crate) fn subject(scenario: Scenario) -> Result<Answer, Failure> {
-    scenario()
-}
-
-/// The input of a row.
-pub(crate) type Input = Scenario;
-/// The value of a row.
-pub(crate) type Value = Answer;
-pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("two_file_generation_owners_cannot_reuse_the_other_files_results"),
-    word: Word::Succeeds,
-    input: || two_file_generation_owners_cannot_reuse_the_other_files_results,
-    expect: Expect::Value(1),
-}];

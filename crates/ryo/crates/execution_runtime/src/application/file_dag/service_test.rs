@@ -52,10 +52,6 @@ const GENERATION_FILE: &str = "generation";
 const FIRST_ROOT_READS: &str = "the actual file generation consults its provider";
 /// Why the second prepared root reads nothing.
 const SECOND_ROOT_REPLAYS: &str = "the prepared second root replays its own bound result";
-/// Why a fresh generation reads its provider.
-pub(super) const FRESH_GENERATION_READS: &str = "a fresh file generation consults its provider";
-/// Why the transferred output is independent.
-pub(super) const TRANSFERRED_INDEPENDENT: &str = "transferred first output remains independent";
 /// Why a compiled file rule must complete.
 const MUST_COMPLETE: &str = "compiled file rule must complete";
 

@@ -7,7 +7,6 @@ use super::super::super::super::fixtures::{
     },
 };
 use super::super::super::super::heads::service::expected;
-use crate::cases::{Case, CaseName, Expect, Word};
 use ryo_execution_domain::domain::executable_program::types::{InputSource, LogicalInstruction};
 use ryo_execution_domain::domain::shared_walk::types::walk_route::value::{
     WalkBarrier, WalkRoute, source_barrier,
@@ -17,6 +16,7 @@ use ryo_values::domain::{
     plan_parts::types::{Input as Source, ObservationBindingId, RepeatedRows, StepId},
     plans::{service::kind_of, types::Operation},
 };
+use std::borrow::Cow;
 use std::collections::HashSet;
 
 pub(super) fn engine(route: Option<WalkRoute>) -> Option<Route> {
@@ -42,11 +42,38 @@ pub(super) enum RouteRefusal {
     VariantUncovered,
 }
 
+/// Every route, in the order a coverage names them.
+const ROUTES: [Route; 8] = [
+    Route::Shared,
+    Route::Representation,
+    Route::Dependent,
+    Route::Observation,
+    Route::Row,
+    Route::Derived,
+    Route::Request,
+    Route::Continuation,
+];
+
+/// What a verified routing covered.
+#[derive(Debug, PartialEq)]
+pub(super) enum Covered {
+    /// The classifier: how many operations it routed and how many kinds they were.
+    Classifier { operations: usize, kinds: usize },
+    /// The compiled corpus: how many instructions it routed, how many kinds its heads were, and
+    /// the routes it took, in [`ROUTES`] order.
+    Program {
+        instructions: usize,
+        kinds: usize,
+        routes: Cow<'static, [Route]>,
+    },
+}
+
 /// Every instruction of the compiled corpus routes as its meaning says.
-pub(super) fn verify_program(corpus: &Corpus) -> Result<(), RouteRefusal> {
+pub(super) fn verify_program(corpus: &Corpus) -> Result<Covered, RouteRefusal> {
     let shared = expected(&corpus.program);
     let mut kinds = HashSet::new();
     let mut routes = HashSet::new();
+    let mut instructions = 0;
     for region in corpus.program.regions() {
         for (at, instruction) in region.instructions().iter().enumerate() {
             let place = if at > 0 {
@@ -64,6 +91,7 @@ pub(super) fn verify_program(corpus: &Corpus) -> Result<(), RouteRefusal> {
                 kinds.extend([kind_of(&instruction.operation())]);
             }
             routes.extend([want]);
+            instructions += 1;
         }
     }
     let all = OperationKind::ALL.iter().copied().collect::<HashSet<_>>();
@@ -81,19 +109,28 @@ pub(super) fn verify_program(corpus: &Corpus) -> Result<(), RouteRefusal> {
         }
     }
     if kinds == all {
-        Ok(())
+        Ok(Covered::Program {
+            instructions,
+            kinds: kinds.len(),
+            routes: ROUTES
+                .into_iter()
+                .filter(|route| routes.contains(route))
+                .collect::<Vec<_>>()
+                .into(),
+        })
     } else {
         Err(RouteRefusal::VariantUncovered)
     }
 }
 
 /// The classifier agrees with the meaning for every variant and every input kind.
-pub(super) fn verify_classifier() -> Result<(), RouteRefusal> {
+pub(super) fn verify_classifier() -> Result<Covered, RouteRefusal> {
     let mut seen = HashSet::new();
-    for operation in operations() {
-        seen.extend([kind_of(&operation)]);
-        let want = head_route(&operation, FirstInput::Ordinary, Eligibility::Ineligible);
-        if barrier(source_barrier(&operation, &[])) != want {
+    let catalog = operations();
+    for operation in &catalog {
+        seen.extend([kind_of(operation)]);
+        let want = head_route(operation, FirstInput::Ordinary, Eligibility::Ineligible);
+        if barrier(source_barrier(operation, &[])) != want {
             return Err(RouteRefusal::RouteMismatch);
         }
     }
@@ -131,59 +168,14 @@ pub(super) fn verify_classifier() -> Result<(), RouteRefusal> {
             .iter()
             .all(|kind| meaning(*kind) != Meaning::RequestOwned || seen.contains(kind))
     {
-        Ok(())
+        Ok(Covered::Classifier {
+            operations: catalog.len(),
+            kinds: seen.len(),
+        })
     } else {
         Err(RouteRefusal::VariantUncovered)
     }
 }
-
-#[derive(Clone, Copy)]
-pub(super) enum RouteScenario {
-    Classifier,
-    Program,
-    MisclassifiedExtend,
-    RowsSource,
-    RelabelledBarrier,
-}
-
-/// The input of a row.
-pub(crate) type Input = RouteScenario;
-/// The value of a row.
-pub(crate) type Value = ();
-/// The failure of a row.
-pub(crate) type Failure = RouteRefusal;
-pub(crate) const ROUTE_CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("every variant's classifier route matches its meaning"),
-        word: Word::Succeeds,
-        input: || RouteScenario::Classifier,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("every instruction of the compiled corpus routes as its meaning says"),
-        word: Word::Succeeds,
-        input: || RouteScenario::Program,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("an extend head relabelled as a derived barrier is refused"),
-        word: Word::Rejects,
-        input: || RouteScenario::MisclassifiedExtend,
-        expect: Expect::Error(RouteRefusal::RouteMismatch),
-    },
-    Case {
-        name: CaseName("a rows source relabelled as row semantics is refused"),
-        word: Word::Rejects,
-        input: || RouteScenario::RowsSource,
-        expect: Expect::Error(RouteRefusal::RouteMismatch),
-    },
-    Case {
-        name: CaseName("a join head relabelled as a continuation is refused"),
-        word: Word::Rejects,
-        input: || RouteScenario::RelabelledBarrier,
-        expect: Expect::Error(RouteRefusal::RouteMismatch),
-    },
-];
 
 pub(super) fn head_of(corpus: &Corpus, kind: OperationKind) -> LogicalInstruction {
     corpus
@@ -196,27 +188,13 @@ pub(super) fn head_of(corpus: &Corpus, kind: OperationKind) -> LogicalInstructio
         .logical()
 }
 
-pub(crate) fn route_subject(scenario: RouteScenario) -> Result<(), RouteRefusal> {
-    match scenario {
-        RouteScenario::Classifier => verify_classifier(),
-        RouteScenario::Program => verify_program(&compiled_operations()),
-        RouteScenario::MisclassifiedExtend => {
-            let mut corpus = compiled_operations();
-            let at = head_of(&corpus, OperationKind::Extend);
-            corpus.walk.physical[at.0] = Some(WalkRoute::Barrier(WalkBarrier::DerivedOrOrdered));
-            verify_program(&corpus)
-        }
-        RouteScenario::RowsSource => {
-            let mut corpus = compiled_operations();
-            let at = head_of(&corpus, OperationKind::Rows);
-            corpus.walk.physical[at.0] = Some(WalkRoute::Barrier(WalkBarrier::RowSemantics));
-            verify_program(&corpus)
-        }
-        RouteScenario::RelabelledBarrier => {
-            let mut corpus = compiled_operations();
-            let at = head_of(&corpus, OperationKind::Join);
-            corpus.walk.physical[at.0] = Some(WalkRoute::Barrier(WalkBarrier::Continuation));
-            verify_program(&corpus)
-        }
-    }
+/// The compiled corpus with the head of `kind` relabelled to `barrier`, verified.
+pub(super) fn relabelled(
+    kind: OperationKind,
+    barrier: WalkBarrier,
+) -> Result<Covered, RouteRefusal> {
+    let mut corpus = compiled_operations();
+    let at = head_of(&corpus, kind);
+    corpus.walk.physical[at.0] = Some(WalkRoute::Barrier(barrier));
+    verify_program(&corpus)
 }

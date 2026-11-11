@@ -1,6 +1,7 @@
 //! The subject of the source partition cases: one project phase run over the partitioned sources.
 use super::*;
-pub(crate) fn subject(case: Input) -> Result<Value, Failure> {
+/// Runs the case's project phase over the partitioned sources and answers how it was admitted.
+pub(crate) fn admit(case: SourceCase) -> Result<&'static str, OperatingError> {
     let SmallTree {
         elements,
         mut symbols,

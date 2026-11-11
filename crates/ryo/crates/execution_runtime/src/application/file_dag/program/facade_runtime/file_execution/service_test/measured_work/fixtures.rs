@@ -10,7 +10,6 @@ use ryo_relations::domain::relations::{
     service::node_id,
     types::{CellKind, FileId, Integer, Position, Relation, Value as Cell},
 };
-use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::plan_parts::types::Direction;
 use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::rows::service::push_row;
@@ -19,12 +18,6 @@ use ryo_values::domain::{
     plans::types::Operation,
     rows::types::{RowCount, Table},
 };
-
-pub(crate) type Value = ();
-
-pub(crate) type Failure = OperatingError;
-
-pub(crate) type Input = fn() -> Result<Value, Failure>;
 
 pub(super) const FROM: PlanInput = PlanInput::Relation(Relation::Function);
 
@@ -90,42 +83,22 @@ pub(super) fn empty(width: usize) -> Table {
     }
 }
 
-/// A later owner holds only its own partition rows, and an empty owner none.
-pub(super) fn successive_owners_hold_only_their_own_partition_rows() -> Result<Value, Failure> {
-    let (first, _) = closure(&numbers(&[&[1, 2], &[2, 3], &[1, 4]]), &[])?;
-    assert_eq!(first.count.0, 4);
-    let (later, observed) = closure(&numbers(&[&[5, 6]]), &[])?;
-    assert_eq!(later.count.0, 1);
-    assert_eq!(observed.closure_partition_rows, 1);
-    let (cleared, observed) = closure(&empty(2), &[])?;
-    assert_eq!(cleared.count.0, 0);
-    assert_eq!(observed.closure_partition_rows, 0);
-    let (_, observed) = closure(&empty(3), &[2])?;
-    assert_eq!(observed.closure_partition_rows, 0);
-    Ok(())
-}
-
-/// An interleaved closure visits each node of its walk at most once.
-pub(super) fn interleaved_closure_visits_are_bounded() -> Result<Value, Failure> {
+/// Edges from 0 through each of `fans` middle nodes to its own end: an interleaved closure.
+pub(super) fn interleaved(fans: i64) -> Table {
     let mut edges = empty(2);
-    for i in 0..1024 {
+    for i in 0..fans {
         let middle = Cell::Number(Integer(2 * i + 1));
         push_row(&mut edges, &[Cell::Number(Integer(0)), middle]);
         push_row(&mut edges, &[middle, Cell::Number(Integer(2 * i + 2))]);
     }
-    let (out, observed) = closure(&edges, &[])?;
-    assert_eq!(out.count.0, 3072);
-    assert!(observed.closure_visited > 0);
-    assert!(observed.closure_visited <= 2049);
-    Ok(())
+    edges
 }
 
-/// Many tiny partitions keep one partition's adjacency, keys and work rows live at a time.
-pub(super) fn many_tiny_partitions_bound_the_working_graph() -> Result<Value, Failure> {
-    let n = 2048;
+/// The edges 1-2, 2-3 and 1-4 in each of `partitions` partitions, keyed by the third column.
+pub(super) fn partitioned(partitions: i64) -> Table {
     let mut edges = empty(3);
     for edge in [[1, 2], [2, 3], [1, 4]] {
-        for partition in 0..n {
+        for partition in 0..partitions {
             push_row(
                 &mut edges,
                 &[
@@ -136,162 +109,102 @@ pub(super) fn many_tiny_partitions_bound_the_working_graph() -> Result<Value, Fa
             );
         }
     }
-    let (out, observed) = closure(&edges, &[2])?;
-    assert_eq!(out.count.0, 4 * 2048);
-    assert!(
-        observed.closure_partition_rows <= 3,
-        "all simultaneously live adjacency tables must fit one three-row partition"
-    );
-    assert!(
-        observed.closure_partition_capacity < 64,
-        "aggregate live Value capacity (adjacency, keys, sources and work rows), not only the last partition"
-    );
-    assert!(observed.closure_visited <= 4);
-    // Positive reads: the bounds above cannot pass on counters that were never written.
-    assert!(observed.closure_partition_rows > 0);
-    assert!(observed.closure_partition_capacity > 0);
-    assert!(observed.closure_visited > 0);
-    Ok(())
+    edges
 }
 
 pub(super) fn node(position: u32) -> Cell {
     Cell::Node(node_id(FileId(0), Position(position)))
 }
 
-/// A sparse computed-edge axis walk visits no unrelated component, including equal local positions in another file.
-pub(super) fn sparse_axis_walk_visits_only_its_component() -> Result<Value, Failure> {
-    let mut symbols = Symbols::default();
-    for unrelated in [0_u32, 64, 4096] {
-        for cycle in [false, true] {
-            let mut edges = Table {
-                kinds: vec![CellKind::Node; 2],
-                ..Table::default()
-            };
-            for [parent, child] in [[1, 4], [4, 2], [1, 3]] {
-                push_row(&mut edges, &[node(parent), node(child)]);
-            }
-            if cycle {
-                push_row(&mut edges, &[node(2), node(1)]);
-            }
-            for position in 1..=unrelated {
-                push_row(
-                    &mut edges,
-                    &[
-                        Cell::Node(node_id(FileId(1), Position(position))),
-                        Cell::Node(node_id(FileId(1), Position(position + 1))),
-                    ],
-                );
-            }
-            let mut starts = Table {
-                kinds: vec![CellKind::Node, CellKind::Number],
-                ..Table::default()
-            };
-            for payload in [11, 22] {
-                push_row(&mut starts, &[node(1), Cell::Number(Integer(payload))]);
-            }
-            let mut domain = Table {
-                kinds: vec![CellKind::Node],
-                ..Table::default()
-            };
-            for position in [1, 2, 3] {
-                push_row(&mut domain, &[node(position)]);
-            }
-            let axis = Operation::Axis {
-                from: FROM,
-                edges: FROM,
-                domain: FROM,
-                direction: Direction::Descendant,
-                id: ColumnIndex(0),
-                parent: ColumnIndex(0),
-                child: ColumnIndex(1),
-                domain_id: ColumnIndex(0),
-                domain_filter: vec![],
-                domain_view: Vec::new(),
-                output: vec![],
-            };
-            let (out, observed) = measured(axis, &[&starts, &edges, &domain], b"", &mut symbols)?;
-            let targets = if cycle { 3 } else { 2 };
-            assert_eq!(out.count.0, 2 * targets);
-            assert_eq!(observed.closure_visited, if cycle { 4 } else { 3 });
-        }
+/// A computed-edge descendant axis from node 1 of file 0 (two starts) over the edges 1-4, 4-2
+/// and 1-3, with 2-1 closing a cycle when `cycle`, beside a chain of `unrelated` edges in file 1
+/// at equal local positions, within the domain 1, 2, 3: the rows it answered and the nodes it
+/// visited.
+pub(super) fn axis(unrelated: u32, cycle: bool) -> Result<(usize, usize), OperatingError> {
+    let mut edges = Table {
+        kinds: vec![CellKind::Node; 2],
+        ..Table::default()
+    };
+    for [parent, child] in [[1, 4], [4, 2], [1, 3]] {
+        push_row(&mut edges, &[node(parent), node(child)]);
     }
-    Ok(())
-}
-
-/// The former unary pilots hold the same exact row and other scratch when their input doubles.
-pub(super) fn unary_pilots_keep_bounded_row_scratch() -> Result<Value, Failure> {
-    // The exact row and other scratch each pilot holds: Select streams with none, so the positive reads of the other
-    // three prove the counters are written.
-    for (kind, scratch) in [
-        (OperationKind::Select, (0, 0)),
-        (OperationKind::Project, (0, 4)),
-        (OperationKind::SourceMatches, (4, 0)),
-        (OperationKind::SpanBounds, (4, 0)),
-    ] {
-        let mut case = fixture(kind);
-        if let Operation::Project { distinct, .. } = &mut case.operation {
-            *distinct = RepeatedRows::Kept;
-        }
-        let repeated = |times: usize| Table {
-            kinds: case.inputs[0].kinds.clone(),
-            cells: case.inputs[0].cells.repeat(times),
-            count: RowCount(case.inputs[0].count.0 * times),
-        };
-        let (small, large) = (repeated(32), repeated(64));
-        let (first_rows, first) =
-            measured(case.operation.clone(), &[&small], SOURCE, &mut case.symbols)?;
-        let (second_rows, second) =
-            measured(case.operation.clone(), &[&large], SOURCE, &mut case.symbols)?;
-        assert_eq!(second_rows.count.0, first_rows.count.0 * 2, "{kind:?}");
-        assert_eq!(
-            (first.row_capacity, first.other_capacity),
-            scratch,
-            "{kind:?}"
-        );
-        assert_eq!(
-            (second.row_capacity, second.other_capacity),
-            scratch,
-            "{kind:?}"
+    if cycle {
+        push_row(&mut edges, &[node(2), node(1)]);
+    }
+    for position in 1..=unrelated {
+        push_row(
+            &mut edges,
+            &[
+                Cell::Node(node_id(FileId(1), Position(position))),
+                Cell::Node(node_id(FileId(1), Position(position + 1))),
+            ],
         );
     }
-    Ok(())
+    let mut starts = Table {
+        kinds: vec![CellKind::Node, CellKind::Number],
+        ..Table::default()
+    };
+    for payload in [11, 22] {
+        push_row(&mut starts, &[node(1), Cell::Number(Integer(payload))]);
+    }
+    let mut domain = Table {
+        kinds: vec![CellKind::Node],
+        ..Table::default()
+    };
+    for position in [1, 2, 3] {
+        push_row(&mut domain, &[node(position)]);
+    }
+    let axis = Operation::Axis {
+        from: FROM,
+        edges: FROM,
+        domain: FROM,
+        direction: Direction::Descendant,
+        id: ColumnIndex(0),
+        parent: ColumnIndex(0),
+        child: ColumnIndex(1),
+        domain_id: ColumnIndex(0),
+        domain_filter: vec![],
+        domain_view: Vec::new(),
+        output: vec![],
+    };
+    let (out, observed) = measured(
+        axis,
+        &[&starts, &edges, &domain],
+        b"",
+        &mut Symbols::default(),
+    )?;
+    Ok((out.count.0, observed.closure_visited))
 }
 
-pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName(stringify!(
-            successive_owners_hold_only_their_own_partition_rows
-        )),
-        word: Word::Succeeds,
-        input: || successive_owners_hold_only_their_own_partition_rows,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(interleaved_closure_visits_are_bounded)),
-        word: Word::Succeeds,
-        input: || interleaved_closure_visits_are_bounded,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(many_tiny_partitions_bound_the_working_graph)),
-        word: Word::Succeeds,
-        input: || many_tiny_partitions_bound_the_working_graph,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(sparse_axis_walk_visits_only_its_component)),
-        word: Word::Succeeds,
-        input: || sparse_axis_walk_visits_only_its_component,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(stringify!(unary_pilots_keep_bounded_row_scratch)),
-        word: Word::Succeeds,
-        input: || unary_pilots_keep_bounded_row_scratch,
-        expect: Expect::Value(()),
-    },
-];
+/// The rows a pilot answered over its input repeated 32 and 64 times, and the exact row and other
+/// scratch each run held.
+#[derive(Debug, PartialEq)]
+pub(super) struct Pilot {
+    pub(super) rows: (usize, usize),
+    pub(super) small_scratch: (usize, usize),
+    pub(super) large_scratch: (usize, usize),
+}
 
-pub(crate) fn subject(input: Input) -> Result<Value, Failure> {
-    input()
+/// The pilot of `kind` (a project keeping repeated rows) over its fixture's input repeated 32
+/// and 64 times.
+pub(super) fn pilot(kind: OperationKind) -> Result<Pilot, OperatingError> {
+    let mut case = fixture(kind);
+    if let Operation::Project { distinct, .. } = &mut case.operation {
+        *distinct = RepeatedRows::Kept;
+    }
+    let repeated = |times: usize| Table {
+        kinds: case.inputs[0].kinds.clone(),
+        cells: case.inputs[0].cells.repeat(times),
+        count: RowCount(case.inputs[0].count.0 * times),
+    };
+    let (small, large) = (repeated(32), repeated(64));
+    let (first_rows, first) =
+        measured(case.operation.clone(), &[&small], SOURCE, &mut case.symbols)?;
+    let (second_rows, second) =
+        measured(case.operation.clone(), &[&large], SOURCE, &mut case.symbols)?;
+    Ok(Pilot {
+        rows: (first_rows.count.0, second_rows.count.0),
+        small_scratch: (first.row_capacity, first.other_capacity),
+        large_scratch: (second.row_capacity, second.other_capacity),
+    })
 }

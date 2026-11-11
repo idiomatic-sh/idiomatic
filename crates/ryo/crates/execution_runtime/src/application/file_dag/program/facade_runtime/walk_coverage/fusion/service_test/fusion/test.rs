@@ -1,10 +1,11 @@
 //! Every operation kind and route of the compiled corpus has a fusion classification.
 use super::super::super::super::fixtures::operations::corpus::compiled_operations;
-use super::fixtures::{Refusal, verify};
+use super::fixtures::{Coverage, Refusal, verify};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::executable_program::fusion::types::{Barrier, Fusibility};
 use ryo_values::domain::plans::service::kind_of;
 use ryo_values::domain::query_operators::types::OperationKind;
+use std::borrow::Cow;
 
 /// The classification the coverage check is handed for the compiled corpus of every operation.
 #[derive(Clone, Copy, Debug)]
@@ -20,8 +21,7 @@ enum Classified {
 }
 
 type Input = Classified;
-/// A verified classification answers nothing more.
-type Value = ();
+type Value = Coverage;
 type Failure = Refusal;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -29,7 +29,19 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_operation_kind_and_route_has_a_fusion_classification"),
         word: Word::Succeeds,
         input: || Classified::AsCompiled,
-        expect: Expect::Value(()),
+        expect: Expect::Value(Coverage {
+            instructions: 33,
+            kinds: OperationKind::ALL.len(),
+            routes: Cow::Borrowed(&[
+                "continuation",
+                "dependent",
+                "derived",
+                "representation",
+                "request",
+                "row",
+                "shared",
+            ]),
+        }),
     },
     Case {
         name: CaseName("an_unclassified_instruction_is_refused"),

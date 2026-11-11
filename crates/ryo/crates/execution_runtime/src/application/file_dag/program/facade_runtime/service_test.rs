@@ -2,8 +2,7 @@
 mod evaluation;
 #[cfg(test)]
 mod fixtures;
-use fixtures::request::{plan, rule};
-use fixtures::scenario::ProgramShape;
+use fixtures::{ProgramShape, plan, rule};
 
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;

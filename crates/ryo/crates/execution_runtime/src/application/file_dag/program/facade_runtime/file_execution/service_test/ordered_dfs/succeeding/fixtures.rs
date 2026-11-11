@@ -3,7 +3,6 @@ use super::super::fixtures::{compute, expected, numbers, operation};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
-use ryo_values::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::rows::service::push_row;
 
 pub(super) fn numeric_order_and_diamond() -> Result<usize, OperatingError> {
@@ -219,60 +218,3 @@ pub(super) fn many_interleaved_partitions_bound_expansions() -> Result<usize, Op
     assert!(scratch.dfs_visited_len <= 4);
     Ok(out.count.0)
 }
-
-pub(crate) type Input = fn() -> Result<usize, OperatingError>;
-
-pub(crate) type Value = usize;
-
-pub(crate) type Failure = OperatingError;
-
-pub(crate) const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("numeric_depth_first_order_and_diamond"),
-        word: Word::Succeeds,
-        input: || numeric_order_and_diamond,
-        expect: Expect::Value(4),
-    },
-    Case {
-        name: CaseName("cycles_and_self_edges_are_emitted_before_seen_check"),
-        word: Word::Succeeds,
-        input: || cycles_preserve_every_edge_visit,
-        expect: Expect::Value(4),
-    },
-    Case {
-        name: CaseName("parallel_distinct_orders_preserve_visits"),
-        word: Word::Succeeds,
-        input: || parallel_distinct_orders_preserve_multiplicity,
-        expect: Expect::Value(2),
-    },
-    Case {
-        name: CaseName("duplicate_roots_and_independent_walks"),
-        word: Word::Succeeds,
-        input: || roots_are_independent_and_duplicates_are_deduplicated,
-        expect: Expect::Value(3),
-    },
-    Case {
-        name: CaseName("multiple_exact_partition_keys_keep_output_order"),
-        word: Word::Succeeds,
-        input: || partitions_and_multiple_keys_are_exact,
-        expect: Expect::Value(3),
-    },
-    Case {
-        name: CaseName("caller_entry_node_encodes_initial_empty_seen"),
-        word: Word::Succeeds,
-        input: || entry_node_encodes_initial_empty_class_seen,
-        expect: Expect::Value(4),
-    },
-    Case {
-        name: CaseName("deep_chain_uses_iterative_frames"),
-        word: Word::Succeeds,
-        input: || deep_chain_and_work_are_bounded,
-        expect: Expect::Value(20_000),
-    },
-    Case {
-        name: CaseName("many_partitions_bound_work_without_timing"),
-        word: Word::Succeeds,
-        input: || many_interleaved_partitions_bound_expansions,
-        expect: Expect::Value(4096),
-    },
-];

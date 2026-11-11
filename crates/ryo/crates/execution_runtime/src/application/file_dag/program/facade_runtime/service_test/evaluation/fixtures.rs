@@ -1,6 +1,5 @@
 //! The support of the `evaluation` cases.
-use super::super::fixtures::request::{plan, rule};
-use super::super::fixtures::scenario::ProgramShape;
+use super::super::fixtures::{ProgramShape, plan, rule};
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::file_execution::service::open_file;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
