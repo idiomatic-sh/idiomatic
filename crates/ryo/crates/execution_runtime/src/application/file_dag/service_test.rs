@@ -38,6 +38,7 @@ use ryo_values::domain::{
     runs::types::{RuleApplicability, RuleId},
     stored_facts::types::Digest,
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 
 /// The one parameter every generation plan binds.
@@ -48,10 +49,6 @@ const RULE_IDS: [&str; 2] = ["generation-first", "generation-second"];
 const NO_TEXT: &str = "";
 /// The one file every generation request reads.
 const GENERATION_FILE: &str = "generation";
-/// Why the first root reads its provider.
-const FIRST_ROOT_READS: &str = "the actual file generation consults its provider";
-/// Why the second prepared root reads nothing.
-const SECOND_ROOT_REPLAYS: &str = "the prepared second root replays its own bound result";
 /// Why a compiled file rule must complete.
 const MUST_COMPLETE: &str = "compiled file rule must complete";
 
@@ -238,10 +235,8 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> R
         .as_ref()
         .unwrap()
         .logical;
-    assert_ne!(
-        program.logical_regions()[first.0],
-        program.logical_regions()[second.0]
-    );
+    let distinct_regions =
+        program.logical_regions()[first.0] != program.logical_regions()[second.0];
     let mut symbols = Symbols::default();
     let mut file = open_file(
         &prepared,
@@ -275,24 +270,41 @@ fn identical_binding_dependent_operations_do_not_share_rule_graph_results() -> R
         table: first,
         reads: first_reads,
     } = run_rule(&mut file, RuleIndex(0), &storage, &mut symbols);
-    assert!(first_reads.0 > 0, "{FIRST_ROOT_READS}");
     let prepared_work = file.readiness_counts();
     let RuleRun {
         table: second,
         reads: second_reads,
     } = run_rule(&mut file, RuleIndex(1), &storage, &mut symbols);
-    assert_eq!(first.cells, vec![Cell::File(FileId(7))]);
-    assert_eq!(second.count.0, 0);
-    assert_eq!(second_reads, Reads(0), "{SECOND_ROOT_REPLAYS}");
-    assert_eq!(file.readiness_counts(), prepared_work);
+    let readiness_unchanged = file.readiness_counts() == prepared_work;
     file.finish().unwrap();
-    Ok(1)
+    Ok(Bound {
+        distinct_regions,
+        first_cells: first.cells.into(),
+        first_reads,
+        second_rows: second.count.0,
+        second_reads,
+        readiness_unchanged,
+    })
 }
 
 /// A scenario: what a row asks of the generation owner.
 type Input = fn() -> Result<Value, Failure>;
-/// What a scenario answers: a yes as one.
-type Value = usize;
+/// Two rules alike but for their bound numbers: whether their operations sit in distinct regions,
+/// the first rule's cells and provider reads, the second rule's rows and reads, and whether the
+/// second run left the readiness counts as the first left them.
+#[derive(Debug, PartialEq)]
+struct Bound {
+    distinct_regions: bool,
+    first_cells: Cow<'static, [Cell]>,
+    /// The actual file generation consults its provider.
+    first_reads: Reads,
+    second_rows: usize,
+    /// The prepared second root replays its own bound result.
+    second_reads: Reads,
+    readiness_unchanged: bool,
+}
+/// What a scenario answers.
+type Value = Bound;
 /// This part has no failure of its own.
 type Failure = ();
 
@@ -301,7 +313,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("identical_binding_dependent_operations_do_not_share_rule_graph_results"),
     word: Word::Succeeds,
     input: || identical_binding_dependent_operations_do_not_share_rule_graph_results,
-    expect: Expect::Value(1),
+    expect: Expect::Value(Bound {
+        distinct_regions: true,
+        first_cells: Cow::Borrowed(&[Cell::File(FileId(7))]),
+        first_reads: Reads(7),
+        second_rows: 0,
+        second_reads: Reads(0),
+        readiness_unchanged: true,
+    }),
 }];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
