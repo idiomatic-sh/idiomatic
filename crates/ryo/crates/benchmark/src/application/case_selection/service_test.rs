@@ -32,9 +32,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an unsharded inventory selects every case in rule and name order"),
         word: Word::Succeeds,
-        input: || Request {
-            shard: None,
-        },
+        input: || Request { shard: None },
         expect: Expect::Value(Chosen {
             global: 3,
             names: ['a', 'b', 'c'],
@@ -85,5 +83,7 @@ fn subject(request: Input) -> Value {
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, |request| Ok::<_, Failure>(subject(request)));
+    run(CASES, Word::Succeeds, |request| {
+        Ok::<_, Failure>(subject(request))
+    });
 }
