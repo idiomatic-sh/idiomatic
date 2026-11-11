@@ -19,6 +19,7 @@ use crate::application::file_dag::derived::{
         cache::types::CacheBackend,
         graphs::service::{replace, slot},
         service::DerivedOwner,
+        types::{MemoBudget, Room},
     },
 };
 use ryo_derived::domain::vertices::types::VertexId;
@@ -248,11 +249,10 @@ impl<'a> DemandAnswers<'a> {
                 .checked_mul(size_of::<u32>())?
                 .checked_add(arc_bytes::<Vec<u32>>().0)?
                 .checked_add(size_of::<RootMemo>())?;
-            if self.owner.graph_room(
-                cache,
-                ByteCount(minimum),
-                crate::application::file_dag::derived::owner::types::MemoBudget::Charged,
-            ) == crate::application::file_dag::derived::owner::types::Room::Full
+            if self
+                .owner
+                .graph_room(cache, ByteCount(minimum), MemoBudget::Charged)
+                == Room::Full
             {
                 return None;
             }
@@ -284,12 +284,9 @@ impl<'a> DemandAnswers<'a> {
             retention_units: UnitCount(0),
             bytes: ByteCount(arc_bytes::<Vec<u32>>().0 + vector(&reached.0).0),
         };
-        let Some(lease) = self.owner.try_graph_lease(
-            cache,
-            &[backing],
-            ByteCount(cost),
-            crate::application::file_dag::derived::owner::types::MemoBudget::Charged,
-        )?
+        let Some(lease) =
+            self.owner
+                .try_graph_lease(cache, &[backing], ByteCount(cost), MemoBudget::Charged)?
         else {
             return Ok(None);
         };
@@ -337,11 +334,10 @@ impl<'a> DemandAnswers<'a> {
                 .len()
                 .checked_mul(size_of::<u32>())?
                 .checked_add(size_of::<NearestMemo>())?;
-            if self.owner.graph_room(
-                cache,
-                ByteCount(minimum),
-                crate::application::file_dag::derived::owner::types::MemoBudget::Charged,
-            ) == crate::application::file_dag::derived::owner::types::Room::Full
+            if self
+                .owner
+                .graph_room(cache, ByteCount(minimum), MemoBudget::Charged)
+                == Room::Full
             {
                 return None;
             }
@@ -373,12 +369,9 @@ impl<'a> DemandAnswers<'a> {
             bytes: vector(&answers),
             retention_units: UnitCount(0),
         });
-        let Some(lease) = self.owner.try_graph_lease(
-            cache,
-            &backings,
-            ByteCount(cost),
-            crate::application::file_dag::derived::owner::types::MemoBudget::Charged,
-        )?
+        let Some(lease) =
+            self.owner
+                .try_graph_lease(cache, &backings, ByteCount(cost), MemoBudget::Charged)?
         else {
             return Ok(None);
         };

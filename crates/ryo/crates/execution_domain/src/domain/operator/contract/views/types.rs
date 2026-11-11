@@ -142,6 +142,19 @@ pub trait PredicateProgram {
 /// use ryo_execution_domain::domain::operator::contract::views::types::ValidatedSource;
 /// fn named(_: Option<&ValidatedSource<'_>>) {}
 /// ```
+///
+/// Only the source gate's check makes one: no other crate can claim a span is checked.
+///
+/// ```compile_fail
+/// use ryo_execution_domain::domain::operator::contract::views::types::ValidatedSource;
+/// use ryo_operators::domain::source_matches::types::{BaseLine, SourceBase};
+/// use ryo_values::domain::row_texts::types::CellText;
+/// let forged = ValidatedSource {
+///     base: SourceBase(0),
+///     text: CellText(""),
+///     line: BaseLine::Unnumbered,
+/// };
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct ValidatedSource<'a> {
     pub(crate) base: SourceBase,
