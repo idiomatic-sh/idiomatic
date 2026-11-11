@@ -1,4 +1,5 @@
 //! The support of the `lifecycle` cases.
+use std::borrow::Cow;
 use super::super::super::super::service::*;
 use super::super::super::super::*;
 use super::super::cases::fixtures::table_of;
@@ -85,7 +86,41 @@ impl ryo_execution_domain::domain::operating::types::SemanticLookup for Delivery
     }
 }
 
-pub(super) fn exercise_nested(single_result: bool) -> Result<(), OperatingError> {
+/// One delivery attempt of the outer join: the rows delivered before it ended, the frames
+/// entered, the nested rows each frame published, and what was kept across frames.
+#[derive(Debug, PartialEq)]
+pub(super) struct Attempt {
+    pub(super) refused: Option<OperatingError>,
+    pub(super) delivered: Cow<'static, [Cell]>,
+    pub(super) frames: usize,
+    pub(super) nested: Cow<'static, [Cell]>,
+    /// Frames that borrowed the exact existing lookup and rendered nothing through it.
+    pub(super) frames_on_the_lookup: usize,
+    /// Frames whose memo held the nested invocation's answer.
+    pub(super) frames_holding_their_memo: usize,
+    /// Whether the outer memo was restored after the attempt.
+    pub(super) memo_restored: bool,
+    /// Whether both providers had been read after the attempt.
+    pub(super) providers_read: bool,
+    /// Whether the attempt read the providers again after the first publication.
+    pub(super) reread: bool,
+}
+
+/// What a nested join over one owner observed across a refused and a replayed delivery.
+#[derive(Debug, PartialEq)]
+pub(super) struct Observed {
+    pub(super) attempts: [Attempt; 2],
+    pub(super) lookup_calls: usize,
+    pub(super) reads_unchanged_after_release: bool,
+    pub(super) builds: u64,
+    pub(super) index_shared: bool,
+    pub(super) working_bytes: usize,
+}
+
+/// Runs an outer join whose every delivered row invokes a nested join (with a select, extend
+/// and project after it when `single_result`) over one owner; the first delivery is refused
+/// after one row, the second replays.
+pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, OperatingError> {
     let n = |at| Cell::Number(Integer(at));
     let key = if single_result { 7 } else { 2 };
     let left_table = table_of(&[CellKind::Number], &[&[n(key)]]);
@@ -257,26 +292,26 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<(), OperatingError>
     // Failure resets only the delivery attempt. The retry uses this exact owner,
     // prepared region, admitted providers, cache and invocation implementation.
     let mut published_reads = None;
+    let mut attempts = Vec::new();
     for fail_after in [Some(1), None] {
         let mut prefix = vec![];
         let mut nested_rows = vec![];
         let mut entries = 0;
+        let mut frames_on_the_lookup = 0;
+        let mut frames_holding_their_memo = 0;
         let mut nested_observed = FxHashMap::default();
         let mut each = |context: &mut OperatorContext<'_>, row: &[Cell]| {
             entries += 1;
-            let admitted = context
-                .semantic
-                .expect("the same admitted file lookup survives delivery");
-            assert_eq!(
-                std::ptr::from_ref(admitted) as *const (),
-                std::ptr::from_ref(&lookup) as *const (),
-                "the frame borrows the exact existing lookup, without replacing or extending its session"
-            );
-            assert!(
-                admitted
+            // The frame borrows the exact existing lookup, without replacing or extending its
+            // session.
+            let admitted = context.semantic.ok_or(OperatingError::NotRead)?;
+            if std::ptr::from_ref(admitted) as *const () == std::ptr::from_ref(&lookup) as *const ()
+                && admitted
                     .render_batch(&[], ryo_values::domain::files::types::SourceView(b""))?
                     .is_empty()
-            );
+            {
+                frames_on_the_lookup += 1;
+            }
             context.memo.clear();
             context.memo.push(Memo::Holds);
             let mut inputs = SourceInputs {
@@ -304,18 +339,14 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<(), OperatingError>
             };
             let mut table = Table::default();
             materialize(&input.rows(&owner, &read)?, &mut table, &mut vec![]);
-            let expected = if single_result {
-                vec![n(42)]
-            } else {
-                vec![n(20), n(21), n(22)]
-            };
-            assert_eq!(table.cells, expected);
-            nested_rows.extend(table.cells.chunks_exact(1).map(<[Cell]>::to_vec));
-            assert_eq!(*context.memo, vec![Memo::Holds]);
+            nested_rows.extend(table.cells);
+            if *context.memo == [Memo::Holds] {
+                frames_holding_their_memo += 1;
+            }
             if fail_after == Some(prefix.len()) {
                 return Err(OperatingError::NotRead);
             }
-            prefix.push(row.to_vec());
+            prefix.extend_from_slice(row);
             Ok(())
         };
         let mut sink = Callback(&mut each);
@@ -349,62 +380,45 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<(), OperatingError>
             });
         drop(sink);
         drop(each);
-        if fail_after.is_some() {
-            assert!(matches!(result, Err(OperatingError::NotRead)));
-            assert_eq!(prefix, vec![vec![n(key)]]);
-            assert_eq!(entries, 2);
-        } else {
-            result?;
-            assert_eq!(prefix, vec![vec![n(key)]; 3]);
-            assert_eq!(entries, 3);
-            let expected = if single_result {
-                vec![vec![n(42)]; 3]
-            } else {
-                [20, 21, 22]
-                    .into_iter()
-                    .map(|at| vec![n(at)])
-                    .cycle()
-                    .take(9)
-                    .collect()
-            };
-            assert_eq!(nested_rows, expected);
-        }
-        assert_eq!(*context.memo, vec![Memo::Fails]);
         let after_delivery = reads.each_ref().map(|count| count.get());
-        if let Some(prepared_reads) = published_reads {
-            assert_eq!(
-                after_delivery, prepared_reads,
-                "retry and nested publication replay do not reread the admitted provider populations"
-            );
-        } else {
-            assert!(
-                after_delivery.iter().all(|count| *count > 0),
-                "the first committed publications come from both actual providers"
-            );
+        // The first committed publications come from both actual providers; retry and nested
+        // publication replay do not reread the admitted provider populations.
+        let reread = published_reads.is_some_and(|prepared| prepared != after_delivery);
+        let providers_read = after_delivery.iter().all(|count| *count > 0);
+        if published_reads.is_none() {
             published_reads = Some(after_delivery);
         }
+        attempts.push(Attempt {
+            refused: result.err(),
+            delivered: Cow::Owned(prefix),
+            frames: entries,
+            nested: Cow::Owned(nested_rows),
+            frames_on_the_lookup,
+            frames_holding_their_memo,
+            memo_restored: *context.memo == [Memo::Fails],
+            providers_read,
+            reread,
+        });
     }
-    assert_eq!(
-        lookup.calls.get(),
-        5,
-        "two callbacks before refusal and three on replay"
-    );
+    // Two callbacks before refusal and three on replay.
+    let lookup_calls = lookup.calls.get();
     drop(context);
     drop(kernels);
-    assert_eq!(
-        reads.map(|count| count.get()),
-        published_reads.expect("first delivery prepares both roots")
-    );
-    assert_eq!(
-        owner.derived().counts().0,
-        1,
-        "one equality index for the actual shared admitted RHS"
-    );
-    assert!(
-        owner.derived().counts().1 > 0,
-        "nested consumer shares the live index"
-    );
+    let reads_unchanged_after_release =
+        Some(reads.map(|count| count.get())) == published_reads;
+    // One equality index for the actual shared admitted RHS; the nested consumer shares it.
+    let builds = owner.derived().counts().0.0;
+    let index_shared = owner.derived().counts().1.0 > 0;
     file.finish()?;
-    assert_eq!(owner.derived().working_bytes(), 0);
-    Ok(())
+    let [first, second]: [Attempt; 2] = attempts
+        .try_into()
+        .map_err(|_| OperatingError::NotRun)?;
+    Ok(Observed {
+        attempts: [first, second],
+        lookup_calls,
+        reads_unchanged_after_release,
+        builds,
+        index_shared,
+        working_bytes: owner.derived().working_bytes().0,
+    })
 }

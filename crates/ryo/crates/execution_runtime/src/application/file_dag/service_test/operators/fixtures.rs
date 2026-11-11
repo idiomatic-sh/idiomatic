@@ -251,7 +251,7 @@ pub(super) const RULE_NAME: &str = "span-contract";
 pub(crate) const NO_TEXT: &str = "";
 
 /// The span from `start` to `end`, as a provider row writes it.
-pub(super) fn span(start: u32, end: u32) -> Span {
+pub(super) const fn span(start: u32, end: u32) -> Span {
     Span {
         start: Offset(start),
         end: Offset(end),

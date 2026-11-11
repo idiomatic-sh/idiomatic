@@ -8,106 +8,100 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::Input as PlanInput;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::table_words::types::DecodeMode;
+use std::borrow::Cow;
 
 // Preparation leaves a stored frontier packed. Its decode runs on the first demand (open of the
 // project run), and a decode failure is the same typed refusal preparation used to record: it is
 // consulted at the same place, the first supply of that source, so the error precedence holds.
 
-fn a_cut_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
-    let input = PlanInput::Relation(Relation::Function);
-    let refused = crate::application::file_dag::frontiers::service::admit(
-        packed(input, DecodeMode::Complete),
-        &mut Symbols::default(),
-    )
-    .err()
-    .expect("a cut frame is never complete");
-    assert_eq!(refused.input, input);
-    assert!(matches!(
-        refused.error,
-        OperatingError::ObservationIncomplete { .. }
-    ));
+/// What an admitted frontier became.
+#[derive(Debug, PartialEq)]
+enum Admitted {
+    Decoded,
+    Compact,
+    Packed,
 }
 
-fn a_cut_step_frontier_is_refused_by_its_input_when_admitted_in_complete_mode() {
-    let input = PlanInput::Step(StepId(0));
-    let refused = crate::application::file_dag::frontiers::service::admit(
-        packed(input, DecodeMode::Complete),
-        &mut Symbols::default(),
-    )
-    .err()
-    .expect("a cut frame is never complete");
-    assert_eq!(refused.input, input);
-    assert!(matches!(
-        refused.error,
-        OperatingError::ObservationIncomplete { .. }
-    ));
+/// Why a frontier was refused: its observation is incomplete, for this reason, or another error.
+#[derive(Debug, PartialEq)]
+enum Refusal {
+    Incomplete(Cow<'static, str>),
+    Other(OperatingError),
 }
 
-fn the_permissive_diagnostic_decode_never_refuses_a_packed_frontier() {
-    let input = PlanInput::Relation(Relation::Function);
-    let admitted = crate::application::file_dag::frontiers::service::admit(
-        packed(input, DecodeMode::Permissive),
-        &mut Symbols::default(),
-    )
-    .expect("diagnostic frontiers decode what they can");
-    assert!(matches!(admitted, FrontierInput::Decoded { .. }));
+/// A refused frontier: the input it was packed for, and why.
+#[derive(Debug, PartialEq)]
+struct Refused {
+    input: PlanInput,
+    refusal: Refusal,
 }
 
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    ACutFrontierIsRefusedByItsInputWhenAdmittedInCompleteMode,
-    ACutStepFrontierIsRefusedByItsInputWhenAdmittedInCompleteMode,
-    ThePermissiveDiagnosticDecodeNeverRefusesAPackedFrontier,
-}
+/// The input a cut frontier is packed for, and the mode it is admitted in.
+type Input = (PlanInput, DecodeMode);
+type Value = Admitted;
+type Failure = Refused;
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_cut_frontier_is_refused_by_its_input_when_admitted_in_complete_mode"),
-        word: Word::Succeeds,
-        input: || Scenario::ACutFrontierIsRefusedByItsInputWhenAdmittedInCompleteMode,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || (PlanInput::Relation(Relation::Function), DecodeMode::Complete),
+        expect: Expect::Error(Refused {
+            input: PlanInput::Relation(Relation::Function),
+            refusal: Refusal::Incomplete(Cow::Borrowed(
+                "encoded publication is truncated, noncanonical or has incompatible frame schemas",
+            )),
+        }),
     },
     Case {
         name: CaseName(
             "a_cut_step_frontier_is_refused_by_its_input_when_admitted_in_complete_mode",
         ),
-        word: Word::Succeeds,
-        input: || Scenario::ACutStepFrontierIsRefusedByItsInputWhenAdmittedInCompleteMode,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || (PlanInput::Step(StepId(0)), DecodeMode::Complete),
+        expect: Expect::Error(Refused {
+            input: PlanInput::Step(StepId(0)),
+            refusal: Refusal::Incomplete(Cow::Borrowed(
+                "encoded publication is truncated, noncanonical or has incompatible frame schemas",
+            )),
+        }),
     },
     Case {
         name: CaseName("the_permissive_diagnostic_decode_never_refuses_a_packed_frontier"),
         word: Word::Succeeds,
-        input: || Scenario::ThePermissiveDiagnosticDecodeNeverRefusesAPackedFrontier,
-        expect: Expect::Value(()),
+        input: || (PlanInput::Relation(Relation::Function), DecodeMode::Permissive),
+        expect: Expect::Value(Admitted::Decoded),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::ACutFrontierIsRefusedByItsInputWhenAdmittedInCompleteMode => {
-            a_cut_frontier_is_refused_by_its_input_when_admitted_in_complete_mode();
-            Ok(())
-        }
-        Scenario::ACutStepFrontierIsRefusedByItsInputWhenAdmittedInCompleteMode => {
-            a_cut_step_frontier_is_refused_by_its_input_when_admitted_in_complete_mode();
-            Ok(())
-        }
-        Scenario::ThePermissiveDiagnosticDecodeNeverRefusesAPackedFrontier => {
-            the_permissive_diagnostic_decode_never_refuses_a_packed_frontier();
-            Ok(())
-        }
-    }
+/// Admits the cut frontier packed for the input in the mode.
+fn subject((input, mode): Input) -> Result<Value, Failure> {
+    crate::application::file_dag::frontiers::service::admit(
+        packed(input, mode),
+        &mut Symbols::default(),
+    )
+    .map(|admitted| match admitted {
+        FrontierInput::Decoded { .. } => Admitted::Decoded,
+        FrontierInput::Compact { .. } => Admitted::Compact,
+        FrontierInput::Packed(_) => Admitted::Packed,
+    })
+    .map_err(|refused| Refused {
+        input: refused.input,
+        refusal: match refused.error {
+            OperatingError::ObservationIncomplete { reason } => {
+                Refusal::Incomplete(Cow::Owned(reason))
+            }
+            other => Refusal::Other(other),
+        },
+    })
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

@@ -1,7 +1,25 @@
 //! The support of the `closure_abort` cases.
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
 use super::super::super::*;
+use super::super::super::service::*;
 use super::super::fixtures::*;
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
@@ -22,14 +40,59 @@ use ryo_values::domain::{
 };
 use std::{rc::Rc, sync::Arc};
 
-#[derive(Clone, Copy)]
+/// Where the later partition's failure comes from.
+#[derive(Clone, Copy, Debug)]
 pub(super) enum Refusal {
     CollectedPattern,
     DeliveredPattern,
     Callback,
 }
 
-pub(super) fn exercise(refusal: Refusal, fused: bool) {
+/// The first row a sink was delivered: its key, its hosted text and its two endpoints.
+#[derive(Debug, PartialEq)]
+pub(super) struct Delivered {
+    pub(super) key: Cell,
+    pub(super) text: std::borrow::Cow<'static, str>,
+    pub(super) endpoints: [Cell; 2],
+}
+
+/// A refusal: a pattern the regex compiler refused (its explanation is the compiler's), or
+/// another error in full.
+#[derive(Debug, PartialEq)]
+pub(super) enum Refused {
+    InvalidRegex,
+    Error(OperatingError),
+}
+
+impl From<OperatingError> for Refused {
+    fn from(error: OperatingError) -> Self {
+        match error {
+            OperatingError::InvalidRegex { .. } => Self::InvalidRegex,
+            other => Self::Error(other),
+        }
+    }
+}
+
+/// What a closure whose later partition fails observed.
+#[derive(Debug, PartialEq)]
+pub(super) struct Observed {
+    /// Whether the closure and its select share one physical region.
+    pub(super) fused: bool,
+    pub(super) refused: Option<Refused>,
+    pub(super) rows_delivered: usize,
+    pub(super) first_row: Option<Delivered>,
+    pub(super) partition_builds: usize,
+    pub(super) order_first_on_keys: bool,
+    pub(super) requests: usize,
+    pub(super) rest_are_adjacency: bool,
+    pub(super) backing_released: bool,
+    pub(super) working_bytes: usize,
+    pub(super) publication_bytes: usize,
+}
+
+/// Runs a closure over three keyed partitions whose select fails on the second (a bad pattern)
+/// or whose sink refuses the first row, fused with its select or not.
+pub(super) fn exercise(refusal: Refusal, fused: bool) -> Observed {
     let mut plan = plan(Scenario::ProjectRetry);
     plan.steps = vec![
         PlanStep {
@@ -126,11 +189,8 @@ pub(super) fn exercise(refusal: Refusal, fused: bool) {
             .logical;
         program.logical_regions()[logical.0]
     };
-    assert_eq!(
-        physical(1) == physical(2),
-        fused,
-        "the test must observe the actual fused or materialized compiled boundary"
-    );
+    // The test observes the actual fused or materialized compiled boundary.
+    let fused_boundary = physical(1) == physical(2);
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
@@ -170,7 +230,8 @@ pub(super) fn exercise(refusal: Refusal, fused: bool) {
     .unwrap();
     let owner = Rc::clone(&file.owner);
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
-    match refusal {
+    let mut delivered = Vec::new();
+    let refused = match refusal {
         Refusal::CollectedPattern => {
             let result = file
                 .rule(
@@ -183,90 +244,68 @@ pub(super) fn exercise(refusal: Refusal, fused: bool) {
                     &mut symbols,
                 )
                 .unwrap();
-            assert!(matches!(
-                result.emit,
-                RootOutcome::Failed(OperatingError::InvalidRegex { .. })
-            ));
+            match result.emit {
+                RootOutcome::Failed(error) => Some(Refused::from(error)),
+                _ => None,
+            }
         }
-        Refusal::DeliveredPattern | Refusal::Callback => {
-            let mut rows = Vec::new();
-            let result = file.emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
-                rows.push(row.to_vec());
+        Refusal::DeliveredPattern | Refusal::Callback => file
+            .emit_rows(RuleIndex(0), &read, &mut symbols, &mut |row| {
+                delivered.push(row.to_vec());
                 if matches!(refusal, Refusal::Callback) {
                     Err(OperatingError::WrongBinding)
                 } else {
                     Ok(())
                 }
-            });
-            match refusal {
-                Refusal::Callback => assert!(matches!(result, Err(OperatingError::WrongBinding))),
-                _ => assert!(matches!(result, Err(OperatingError::InvalidRegex { .. }))),
-            }
-            if matches!(refusal, Refusal::DeliveredPattern) {
-                assert!(
-                    rows.is_empty(),
-                    "a later semantic failure is atomic for callbacks too"
-                );
-            } else {
-                assert_eq!(
-                    rows.len(),
-                    1,
-                    "completed publication delivery stops at the first sink refusal"
-                );
-                assert_eq!(rows[0].len(), 4);
-                assert_eq!(rows[0][0], Cell::Number(Integer(0)));
-                assert_eq!(
-                    rows[0][2..],
-                    [Cell::Number(Integer(1)), Cell::Number(Integer(2))]
-                );
-                let Cell::Symbol(symbol) = rows[0][1] else {
-                    panic!("hosted text retains its symbol")
-                };
-                assert_eq!(
-                    ryo_language::domain::symbols::service::text_of(
-                        &symbols,
-                        ryo_language::domain::symbols::types::ByteSlice(b""),
-                        symbol
-                    )
-                    .unwrap()
-                    .0,
-                    "a"
-                );
-            }
+            })
+            .err()
+            .map(Refused::from),
+    };
+    // A later semantic failure is atomic for callbacks too; completed publication delivery
+    // stops at the first sink refusal.
+    let first_row = delivered.first().map(|row| {
+        let text = match row.get(1) {
+            Some(Cell::Symbol(symbol)) => ryo_language::domain::symbols::service::text_of(
+                &symbols,
+                ryo_language::domain::symbols::types::ByteSlice(b""),
+                *symbol,
+            )
+            .map_or_else(String::new, |text| text.0.to_owned()),
+            _ => String::new(),
+        };
+        Delivered {
+            key: row[0],
+            text: std::borrow::Cow::Owned(text),
+            endpoints: [row[2], row[3]],
         }
-    }
+    });
     let (builds, last_backing) = owner.derived().scoped_observation();
-    assert_eq!(
-        builds,
-        if fused && !matches!(refusal, Refusal::Callback) {
-            2
-        } else {
-            3
-        },
-        "only a real fused continuation can stop partition construction at its semantic failure"
-    );
+    // Only a real fused continuation can stop partition construction at its semantic failure;
+    // the shared partition order is a separate family from actual scoped adjacency construction.
     let calls = recorded.builds();
-    assert!(
-        matches!(calls.first(), Some(ryo_derived::domain::request::types::DerivedRequest::PartitionOrder { keys })
-        if keys == &[ColumnIndex(2), ColumnIndex(3)])
-    );
-    assert_eq!(
-        calls.len(),
-        1 + builds,
-        "the shared partition order is a separate family from actual scoped adjacency construction"
-    );
-    assert!(calls[1..].iter().all(|request| matches!(
+    let order_first_on_keys = matches!(calls.first(), Some(ryo_derived::domain::request::types::DerivedRequest::PartitionOrder { keys })
+        if keys == &[ColumnIndex(2), ColumnIndex(3)]);
+    let rest_are_adjacency = calls.iter().skip(1).all(|request| matches!(
         request,
         ryo_derived::domain::request::types::DerivedRequest::ClosureAdjacency {
             source: ColumnIndex(0),
             destination: ColumnIndex(1)
         }
-    )));
-    assert!(
-        last_backing.upgrade().is_none(),
-        "failed invocation releases its current partition backing"
-    );
+    ));
+    // A failed invocation releases its current partition backing.
+    let backing_released = last_backing.upgrade().is_none();
     file.finish().unwrap();
-    assert_eq!(owner.derived().working_bytes(), 0);
-    assert_eq!(owner.derived().publication_ownership_bytes().0, 0);
+    Observed {
+        fused: fused_boundary,
+        refused,
+        rows_delivered: delivered.len(),
+        first_row,
+        partition_builds: builds,
+        order_first_on_keys,
+        requests: calls.len(),
+        rest_are_adjacency,
+        backing_released,
+        working_bytes: owner.derived().working_bytes().0,
+        publication_bytes: owner.derived().publication_ownership_bytes().0,
+    }
 }

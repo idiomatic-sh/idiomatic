@@ -13,7 +13,6 @@ use ryo_values::domain::plan_parts::types::{
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;
 use ryo_values::domain::query_bindings::types::{BindingCell, BindingTable, ParameterBinding};
-use ryo_values::domain::query_operators::types::OperationKind;
 use ryo_values::domain::row_texts::types::Cell as HostedCell;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
@@ -33,34 +32,6 @@ pub(crate) enum RowRoute {
     SpanBounds,
     Rows,
     Hosted,
-}
-impl RowRoute {
-    pub(crate) const ALL: [Self; 10] = [
-        Self::Capture,
-        Self::Rank,
-        Self::Replace,
-        Self::SpanBetween,
-        Self::SourceMatches,
-        Self::RenderSyntax,
-        Self::FitsRendered,
-        Self::SpanBounds,
-        Self::Rows,
-        Self::Hosted,
-    ];
-    pub(crate) fn kind(self) -> OperationKind {
-        match self {
-            Self::Capture => OperationKind::Capture,
-            Self::Rank => OperationKind::Rank,
-            Self::Replace => OperationKind::Replace,
-            Self::SpanBetween => OperationKind::SpanBetween,
-            Self::SourceMatches => OperationKind::SourceMatches,
-            Self::RenderSyntax => OperationKind::RenderSyntax,
-            Self::FitsRendered => OperationKind::FitsRendered,
-            Self::SpanBounds => OperationKind::SpanBounds,
-            Self::Rows => OperationKind::Rows,
-            Self::Hosted => OperationKind::Hosted,
-        }
-    }
 }
 const TEXT: ColumnIndex = ColumnIndex(1);
 const SPAN: ColumnIndex = ColumnIndex(3);

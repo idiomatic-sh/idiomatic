@@ -100,13 +100,6 @@ pub(in super::super) fn text_of(place: u32, text: &str) -> PlanComparison {
     }
 }
 
-pub(in super::super) fn agreed(
-    made: Result<Table, OperatingError>,
-    expected: &[Cell],
-) -> Result<usize, OperatingError> {
-    Ok(usize::from(made?.cells == expected))
-}
-
 /// Joins nodes of the file with the edges of its tree on the column of the edges, answering the parents found.
 pub(in super::super) fn joins_the_tree(starts: &[u32], on: u32) -> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(1, false);
@@ -120,27 +113,9 @@ pub(in super::super) fn joins_the_tree(starts: &[u32], on: u32) -> Result<Table,
     made(&operation, inputs, &mut symbols, &[])
 }
 
-pub(in super::super) fn a_node_joined_on_the_child_of_the_tree_finds_its_parent()
--> Result<usize, OperatingError> {
-    let parents = [node(2), node(3), node(0), node(1)];
-    agreed(joins_the_tree(&[3, 1], 1), &parents)
-}
-
-pub(in super::super) fn a_node_joined_on_the_parent_of_the_tree_finds_its_children()
--> Result<usize, OperatingError> {
-    let children = [node(0), node(1), node(0), node(2)];
-    agreed(joins_the_tree(&[0], 0), &children)
-}
-
-pub(in super::super) fn the_root_has_no_parent_and_a_leaf_no_children()
--> Result<usize, OperatingError> {
-    let (root, leaf) = (joins_the_tree(&[0], 1)?, joins_the_tree(&[3], 0)?);
-    Ok(usize::from(root.cells.is_empty() && leaf.cells.is_empty()))
-}
-
 /// Joins nodes with the elements on their ids, keeping those whose text is `b`: answers the node and the span.
-pub(in super::super) fn only_the_elements_a_filter_admits_are_joined_by_their_ids()
--> Result<usize, OperatingError> {
+pub(in super::super) fn elements_whose_text_is_b()
+-> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(1, false);
     let left = table_of(&[CellKind::Node], &[&[node(1)], &[node(3)], &[node(2)]]);
     let output = [(Side::Left, 0), (Side::Right, 1)];
@@ -149,12 +124,11 @@ pub(in super::super) fn only_the_elements_a_filter_admits_are_joined_by_their_id
         Rows::Computed(&left),
         tree_rows(&elements, TreeForm::Elements),
     ];
-    let joined = made(&operation, inputs, &mut symbols, b"abcd");
-    agreed(joined, &[node(3), stretch(1, 2)])
+    made(&operation, inputs, &mut symbols, b"abcd")
 }
 
 /// Joins the root with the edges whose child is the second of its parent's, child first: answers the children.
-pub(in super::super) fn only_the_edges_a_filter_admits_are_joined() -> Result<usize, OperatingError>
+pub(in super::super) fn edges_to_a_second_child() -> Result<Table, OperatingError>
 {
     let (elements, mut symbols) = wide_tree(1, false);
     let left = table_of(&[CellKind::Node], &[&[node(0)]]);
@@ -166,12 +140,12 @@ pub(in super::super) fn only_the_edges_a_filter_admits_are_joined() -> Result<us
     };
     let operation = operation(&[0], &[1], &[(Side::Right, 0)], vec![second], &[1, 0]);
     let inputs = [Rows::Computed(&left), tree_rows(&elements, TreeForm::Edges)];
-    agreed(made(&operation, inputs, &mut symbols, b"abcd"), &[node(2)])
+    made(&operation, inputs, &mut symbols, b"abcd")
 }
 
 /// Joins every edge of a wide tree with the elements of a kind, by the child of the edge: answers the parent and the child.
-pub(in super::super) fn the_edges_of_the_children_of_a_kind_are_found_by_the_kind()
--> Result<usize, OperatingError> {
+pub(in super::super) fn edges_to_children_of_kind_inner()
+-> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(40, true);
     let output = [(Side::Left, 0), (Side::Right, 0)];
     let operation = operation(&[1], &[0], &output, vec![text_of(1, "inner")], &[]);
@@ -179,12 +153,11 @@ pub(in super::super) fn the_edges_of_the_children_of_a_kind_are_found_by_the_kin
         tree_rows(&elements, TreeForm::Edges),
         tree_rows(&elements, TreeForm::Elements),
     ];
-    let joined = made(&operation, inputs, &mut symbols, b"abcd");
-    agreed(joined, &[node(0), node(41)])
+    made(&operation, inputs, &mut symbols, b"abcd")
 }
 
 /// Joins the edges of a wide tree with a few rows naming nodes, by the child of the edge: answers the children, in the order of the edges.
-pub(in super::super) fn a_few_rows_leave_in_the_order_of_the_edges() -> Result<usize, OperatingError>
+pub(in super::super) fn edges_to_a_few_named_rows() -> Result<Table, OperatingError>
 {
     let (elements, mut symbols) = wide_tree(40, true);
     let number = |value| Cell::Number(Integer(value));
@@ -202,14 +175,12 @@ pub(in super::super) fn a_few_rows_leave_in_the_order_of_the_edges() -> Result<u
         tree_rows(&elements, TreeForm::Edges),
         Rows::Computed(&right),
     ];
-    let joined = made(&operation, inputs, &mut symbols, b"abcd");
-    let expected = [node(5), number(1), node(5), number(3), node(41), number(2)];
-    agreed(joined, &expected)
+    made(&operation, inputs, &mut symbols, b"abcd")
 }
 
 /// Joins the stretch of the node at 41 of a wide tree, on the stretch alone, with the elements covering it.
-pub(in super::super) fn the_elements_covering_a_stretch_are_found_by_it_alone()
--> Result<usize, OperatingError> {
+pub(in super::super) fn elements_covering_one_to_two()
+-> Result<Table, OperatingError> {
     let (elements, mut symbols) = wide_tree(40, true);
     let left = table_of(&[CellKind::Span], &[&[stretch(1, 2)]]);
     let operation = operation(&[0], &[4], &[(Side::Right, 0)], Vec::new(), &[]);
@@ -217,6 +188,5 @@ pub(in super::super) fn the_elements_covering_a_stretch_are_found_by_it_alone()
         Rows::Computed(&left),
         tree_rows(&elements, TreeForm::Elements),
     ];
-    let joined = made(&operation, inputs, &mut symbols, b"abcd");
-    agreed(joined, &[node(41), node(42)])
+    made(&operation, inputs, &mut symbols, b"abcd")
 }

@@ -1,77 +1,175 @@
 //! The engine's sharing contract, language-free: every admitted sharing class is shared by two
 //! rules and walks one traversal beside a distinct class, and every barrier kind is accounted
-//! for. Coverage is an exhaustive match over the engine's own enums, so a new class shape,
-//! partition or barrier fails to compile until it has a case here.
+//! for. The fixtures match the engine's own enums exhaustively, so a new class shape or barrier
+//! fails to compile until it is decided there, and then has its row here.
 use super::fixtures::{
-    accounted, admitted_head, after_barrier, after_scope, barrier_fixture, counted, program, shares,
+    Accounted, FileWalk, Shared, accounted, admitted_head, barrier_fixture, counted, program,
+    shares,
 };
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::shared_walk::types::walk_route::value::WalkBarrier;
+use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepScope;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::query_operators::types::OperationKind;
 
-fn every_admitted_class_is_shared_across_rules_in_one_traversal() {
-    let mut scope = after_scope(None);
-    let mut cases = 0;
-    while let Some(within) = scope {
-        for kind in OperationKind::ALL.iter().copied() {
-            if let Some(head) = admitted_head(kind) {
-                shares(within, head);
-                cases += 1;
-            }
-        }
-        scope = after_scope(Some(within));
-    }
-    assert!(cases > 0, "at least one admitted class shape");
-}
-
-fn every_barrier_kind_is_accounted_for() {
-    let mut barrier = after_barrier(None);
-    while let Some(kind) = barrier {
-        let census = accounted(&program(barrier_fixture(kind)));
-        assert!(
-            counted(&census, kind) > 0,
-            "the {kind:?} fixture holds an instruction behind its barrier"
-        );
-        barrier = after_barrier(Some(kind));
-    }
-}
-
-/// The case each row runs: one of the proofs below.
+/// What the sharing contract is asked: an admitted class head of a kind in a partition, or the
+/// fixture holding an instruction behind a barrier.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    EveryAdmittedClassIsSharedAcrossRulesInOneTraversal,
-    EveryBarrierKindIsAccountedFor,
+enum Sharing {
+    Class(StepScope, OperationKind),
+    Barrier(WalkBarrier),
 }
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
+/// What the compiled program and its files observed.
+#[derive(Debug, PartialEq)]
+enum Observed {
+    Shared(Shared),
+    /// The accounting, and the instructions the census counts behind the barrier.
+    Barrier { accounted: Accounted, behind: usize },
+}
 
-/// One row per proof: its name, and the scenario that runs it.
+const ACCOUNTED: Accounted = Accounted {
+    every_instruction_bound: true,
+    classes_on_shared_routes_only: true,
+    census_classes_held: true,
+};
+
+/// Two rules share one admitted class beside a distinct class in `scope`, over the source;
+/// per file, all three rules complete in one traversal of its three rows.
+const fn shared(scope: StepScope) -> Shared {
+    Shared {
+        accounted: ACCOUNTED,
+        shared_heads: true,
+        one_class_for_two_rules: true,
+        another_class_for_another_predicate: true,
+        scopes: [scope, scope],
+        sources: [Relation::LanguageTarget, Relation::LanguageTarget],
+        files: match scope {
+            StepScope::PerFile => Some([
+                FileWalk {
+                    completed: 3,
+                    passes: 1,
+                    source_rows: 3,
+                },
+                FileWalk {
+                    completed: 3,
+                    passes: 1,
+                    source_rows: 3,
+                },
+            ]),
+            StepScope::CrossFile => None,
+        },
+    }
+}
+
+type Input = Sharing;
+type Value = Observed;
+type Failure = OperatingError;
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("every_admitted_class_is_shared_across_rules_in_one_traversal"),
         word: Word::Succeeds,
-        input: || Scenario::EveryAdmittedClassIsSharedAcrossRulesInOneTraversal,
-        expect: Expect::Value(()),
+        input: || Sharing::Class(StepScope::PerFile, OperationKind::Select),
+        expect: Expect::Value(Observed::Shared(shared(StepScope::PerFile))),
+    },
+    Case {
+        name: CaseName("an_admitted_projection_is_shared_across_rules_in_one_traversal"),
+        word: Word::Succeeds,
+        input: || Sharing::Class(StepScope::PerFile, OperationKind::Project),
+        expect: Expect::Value(Observed::Shared(shared(StepScope::PerFile))),
+    },
+    Case {
+        name: CaseName("an_admitted_project_selection_is_shared_across_rules"),
+        word: Word::Succeeds,
+        input: || Sharing::Class(StepScope::CrossFile, OperationKind::Select),
+        expect: Expect::Value(Observed::Shared(shared(StepScope::CrossFile))),
+    },
+    Case {
+        name: CaseName("an_admitted_project_projection_is_shared_across_rules"),
+        word: Word::Succeeds,
+        input: || Sharing::Class(StepScope::CrossFile, OperationKind::Project),
+        expect: Expect::Value(Observed::Shared(shared(StepScope::CrossFile))),
     },
     Case {
         name: CaseName("every_barrier_kind_is_accounted_for"),
         word: Word::Succeeds,
-        input: || Scenario::EveryBarrierKindIsAccountedFor,
-        expect: Expect::Value(()),
+        input: || Sharing::Barrier(WalkBarrier::Representation),
+        expect: Expect::Value(Observed::Barrier {
+            accounted: ACCOUNTED,
+            behind: 1,
+        }),
+    },
+    Case {
+        name: CaseName("the_dependent_input_barrier_is_accounted_for"),
+        word: Word::Succeeds,
+        input: || Sharing::Barrier(WalkBarrier::DependentInput),
+        expect: Expect::Value(Observed::Barrier {
+            accounted: ACCOUNTED,
+            behind: 4,
+        }),
+    },
+    Case {
+        name: CaseName("the_observation_barrier_is_accounted_for"),
+        word: Word::Succeeds,
+        input: || Sharing::Barrier(WalkBarrier::Observation),
+        expect: Expect::Value(Observed::Barrier {
+            accounted: ACCOUNTED,
+            behind: 2,
+        }),
+    },
+    Case {
+        name: CaseName("the_row_semantics_barrier_is_accounted_for"),
+        word: Word::Succeeds,
+        input: || Sharing::Barrier(WalkBarrier::RowSemantics),
+        expect: Expect::Value(Observed::Barrier {
+            accounted: ACCOUNTED,
+            behind: 1,
+        }),
+    },
+    Case {
+        name: CaseName("the_derived_or_ordered_barrier_is_accounted_for"),
+        word: Word::Succeeds,
+        input: || Sharing::Barrier(WalkBarrier::DerivedOrOrdered),
+        expect: Expect::Value(Observed::Barrier {
+            accounted: ACCOUNTED,
+            behind: 1,
+        }),
+    },
+    Case {
+        name: CaseName("the_request_owned_source_barrier_is_accounted_for"),
+        word: Word::Succeeds,
+        input: || Sharing::Barrier(WalkBarrier::RequestOwnedSource),
+        expect: Expect::Value(Observed::Barrier {
+            accounted: ACCOUNTED,
+            behind: 1,
+        }),
+    },
+    Case {
+        name: CaseName("the_continuation_barrier_is_accounted_for"),
+        word: Word::Succeeds,
+        input: || Sharing::Barrier(WalkBarrier::Continuation),
+        expect: Expect::Value(Observed::Barrier {
+            accounted: ACCOUNTED,
+            behind: 2,
+        }),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+/// Compiles and runs the sharing fixture of the class, or the barrier's fixture.
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::EveryAdmittedClassIsSharedAcrossRulesInOneTraversal => {
-            every_admitted_class_is_shared_across_rules_in_one_traversal();
-            Ok(())
+        Sharing::Class(scope, kind) => {
+            let head = admitted_head(kind).ok_or(OperatingError::WrongOperation)?;
+            shares(scope, head).map(Observed::Shared)
         }
-        Scenario::EveryBarrierKindIsAccountedFor => {
-            every_barrier_kind_is_accounted_for();
-            Ok(())
+        Sharing::Barrier(barrier) => {
+            let (census, accounted) = accounted(&program(barrier_fixture(barrier)));
+            Ok(Observed::Barrier {
+                accounted,
+                behind: counted(&census, barrier),
+            })
         }
     }
 }

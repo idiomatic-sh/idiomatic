@@ -9,7 +9,7 @@ use ryo_values::domain::{
     plans::types::Operation,
 };
 
-pub(super) fn span(start: u32, end: u32) -> Span {
+pub(super) const fn span(start: u32, end: u32) -> Span {
     Span {
         start: Offset(start),
         end: Offset(end),

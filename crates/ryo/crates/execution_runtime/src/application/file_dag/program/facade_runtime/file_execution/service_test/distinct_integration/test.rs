@@ -2,57 +2,38 @@
 use super::super::fixtures::Scenario;
 use super::fixtures::run as run_file;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use std::borrow::Cow;
 
-fn reach_restarts_distinct_for_each_identical_left_row() {
-    let actual = run_file(Scenario::ReachDuplicate).expect("compiled reach");
-    assert_eq!(actual, vec![1, 2, 3, 1, 2, 3]);
-}
-fn project_and_union_retry_replay_completed_distinct_after_sink_failure() {
-    for scenario in [Scenario::ProjectRetry, Scenario::UnionRetry] {
-        let actual = run_file(scenario).expect("compiled retry");
-        assert_eq!(actual, vec![0, 2]);
-    }
-}
+type Input = Scenario;
+/// The node numbers the run delivered, in order.
+type Value = Cow<'static, [u64]>;
+type Failure = OperatingError;
 
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Proof {
-    ReachRestartsDistinctForEachIdenticalLeftRow,
-    ProjectAndUnionRetryReplayCompletedDistinctAfterSinkFailure,
-}
-
-type Input = Proof;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("reach_restarts_distinct_for_each_identical_left_row"),
         word: Word::Succeeds,
-        input: || Proof::ReachRestartsDistinctForEachIdenticalLeftRow,
-        expect: Expect::Value(()),
+        input: || Scenario::ReachDuplicate,
+        expect: Expect::Value(Cow::Borrowed(&[1, 2, 3, 1, 2, 3])),
     },
     Case {
         name: CaseName("project_and_union_retry_replay_completed_distinct_after_sink_failure"),
         word: Word::Succeeds,
-        input: || Proof::ProjectAndUnionRetryReplayCompletedDistinctAfterSinkFailure,
-        expect: Expect::Value(()),
+        input: || Scenario::ProjectRetry,
+        expect: Expect::Value(Cow::Borrowed(&[0, 2])),
+    },
+    Case {
+        name: CaseName("union_retry_replays_completed_distinct_after_sink_failure"),
+        word: Word::Succeeds,
+        input: || Scenario::UnionRetry,
+        expect: Expect::Value(Cow::Borrowed(&[0, 2])),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+/// Compiles the scenario's plan and runs it through one file.
 fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Proof::ReachRestartsDistinctForEachIdenticalLeftRow => {
-            reach_restarts_distinct_for_each_identical_left_row();
-            Ok(())
-        }
-        Proof::ProjectAndUnionRetryReplayCompletedDistinctAfterSinkFailure => {
-            project_and_union_retry_replay_completed_distinct_after_sink_failure();
-            Ok(())
-        }
-    }
+    run_file(input).map(Cow::Owned)
 }
 
 #[test]

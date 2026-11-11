@@ -1,27 +1,36 @@
 //! The support of the `row_semantics` cases.
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use super::super::super::super::*;
+use super::super::super::super::service::*;
 use super::super::fixtures::plans::Authored;
 use super::super::fixtures::routes::RowRoute;
 use super::super::fixtures::semantics::{Derived, Meanings};
-use super::super::fixtures::{Population, Program, Residency, cells, demand};
-use ryo_execution_domain::domain::executable_program::fusion::types::{Fusibility, Ineligible};
+use super::super::fixtures::{Population, Program, Residency, demand};
+use super::super::super::fixtures::Root;
+use ryo_execution_domain::domain::executable_program::fusion::types::Fusibility;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::plans::service::kind_of;
 use std::sync::Arc;
 
-pub(super) fn describe(attempt: Result<String, OperatingError>) -> String {
-    attempt.unwrap_or_else(|error| format!("refused {error:?}"))
+/// What a per-row or request-owned route beside a shared head observed.
+#[derive(Debug, PartialEq)]
+pub(super) struct Observed {
+    pub(super) kind: ryo_values::domain::query_operators::types::OperationKind,
+    /// Whether the routed instruction is a member of the source walk's class.
+    pub(super) class_member: bool,
+    pub(super) fusibility: Option<Fusibility>,
+    pub(super) instructions: usize,
+    pub(super) head: Root,
+    pub(super) routed: Result<Root, OperatingError>,
+    pub(super) walk_counts_unchanged: bool,
+    pub(super) retry_same: bool,
+    pub(super) head_unpoisoned: bool,
 }
 
-pub(super) fn view(root: RootOutcome) -> String {
-    match root {
-        RootOutcome::Complete(table) => format!("Complete({:?}, {})", table.cells, table.count.0),
-        RootOutcome::Failed(error) => format!("Failed({error:?})"),
-        _ => "Other".to_owned(),
-    }
-}
-
-pub(super) fn exercise(route: RowRoute) -> Result<(), OperatingError> {
+/// Runs a shared head over three function rows and the route as a second rule, the route
+/// twice and the head again.
+pub(super) fn exercise(route: RowRoute) -> Result<Observed, OperatingError> {
     let meanings = Arc::new(Meanings::default());
     let derived = Arc::new(Derived::new());
     let program = Program::new(
@@ -44,68 +53,38 @@ pub(super) fn exercise(route: RowRoute) -> Result<(), OperatingError> {
         .instructions()
         .first()
         .ok_or(OperatingError::NotRun)?;
-    assert_eq!(kind_of(&instruction.operation()), route.kind(), "{route:?}");
-    assert!(
-        program.prepared.walk_class(instruction).is_none(),
-        "{route:?} is a barrier of the source walk, not a class member"
-    );
-    let expected = match route {
-        RowRoute::Rows | RowRoute::Hosted => Ineligible::Source,
-        _ => Ineligible::RowFault,
-    };
-    assert_eq!(
-        compiled.fusibility(logical),
-        Some(Fusibility::Excluded(expected)),
-        "{route:?}"
-    );
-    assert_eq!(
-        compiled.regions()[region.0].instructions().len(),
-        1,
-        "{route:?}"
-    );
+    let kind = kind_of(&instruction.operation());
+    let class_member = program.prepared.walk_class(instruction).is_some();
+    let fusibility = compiled.fusibility(logical);
+    let instructions = compiled.regions()[region.0].instructions().len();
 
     let mut symbols = Symbols::default();
     let mut file = program.open(&mut symbols)?;
     let read = |relation| program.read(relation);
     let head = |file: &mut FileRun, symbols: &mut Symbols| {
         file.rule(RuleIndex(0), demand(), &read, symbols)
-            .map(|outcome| view(outcome.emit))
+            .map(|outcome| Root::from(outcome.emit))
     };
     let routed = |file: &mut FileRun, symbols: &mut Symbols| {
         file.rule(RuleIndex(1), demand(), &read, symbols)
-            .map(|outcome| view(outcome.emit))
+            .map(|outcome| Root::from(outcome.emit))
     };
-    let first = describe(head(&mut file, &mut symbols));
-    assert!(
-        first.starts_with("Complete"),
-        "the shared head answers its three rows: {first}"
-    );
+    let first = head(&mut file, &mut symbols)?;
     let counts = file.walk_counts();
-    let answer = describe(routed(&mut file, &mut symbols));
-    match route {
-        RowRoute::Hosted => assert_eq!(
-            answer,
-            format!("Complete({:?}, 2)", cells(&[5, 6])),
-            "the host relation's rows"
-        ),
-        RowRoute::Rows => assert!(answer.starts_with("Complete"), "{answer}"),
-        _ => {}
-    }
-    assert_eq!(
-        file.walk_counts(),
-        counts,
-        "{route:?} neither joins nor repeats a source pass"
-    );
-    assert_eq!(
-        describe(routed(&mut file, &mut symbols)),
-        answer,
-        "{route:?} retry"
-    );
-    assert_eq!(
-        describe(head(&mut file, &mut symbols)),
-        first,
-        "{route:?} cannot poison its healthy shared-class sibling"
-    );
+    let answer = routed(&mut file, &mut symbols);
+    let walk_counts_unchanged = file.walk_counts() == counts;
+    let retry_same = routed(&mut file, &mut symbols) == answer;
+    let head_unpoisoned = head(&mut file, &mut symbols)? == first;
     file.finish()?;
-    Ok(())
+    Ok(Observed {
+        kind,
+        class_member,
+        fusibility,
+        instructions,
+        head: first,
+        routed: answer,
+        walk_counts_unchanged,
+        retry_same,
+        head_unpoisoned,
+    })
 }

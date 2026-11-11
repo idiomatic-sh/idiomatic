@@ -1,6 +1,32 @@
 //! The plans, rules, sinks and the exercise harness that file execution's case groups share.
+use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::application::file_dag::program::admission::service::Inputs;
+use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
+use ryo_execution_domain::domain::table_model::types::Rows;
+use ryo_execution_domain::domain::rule_intent::types::FileRuleIntent;
+use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use crate::application::file_dag::program::runtime::service::InvocationOutcome;
+use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::RuleDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::ObservationDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::EmitDemand;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::DiagnosticDelivery;
+#[cfg(test)]
+use ryo_execution_domain::domain::rule_intent::types::CaptureIntent;
+#[cfg(test)]
+use ryo_execution_domain::domain::operator::types::OperatorContext;
+#[cfg(test)]
+use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
+#[cfg(test)]
+use crate::application::file_dag::program::facade_runtime::source_admission::service::SourceInputs;
 use super::super::*;
-use crate::application::file_dag::execution::CommonOperatorEngine;
+use super::super::service::*;
+use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::runtime::types::AttemptCheckpoint;
 use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
 #[cfg(test)]
@@ -31,7 +57,9 @@ use ryo_values::domain::{
 };
 use std::{rc::Rc, sync::Arc};
 
-#[derive(Clone, Copy)]
+/// The plan a file runs: a reach over duplicated left rows, or a project or union whose first
+/// delivery a sink refuses before the retry.
+#[derive(Clone, Copy, Debug)]
 pub(super) enum Scenario {
     ReachDuplicate,
     ProjectRetry,
@@ -177,7 +205,7 @@ pub(super) fn forward<'a, 'service, 'facts>(
     };
     let completion = CompletionPolicy::file_inputs(rule, file.file, evaluation, publication);
     let mut context = file.context.borrow(symbols, file.program, rule)?;
-    let kernels = super::super::super::super::kernel_session::KernelSession::file(
+    let kernels = super::super::super::super::kernel_session::service::KernelSession::file(
         file.services.kernels(),
         file.program,
         Rc::clone(&file.owner),
@@ -341,3 +369,60 @@ pub(super) fn exercise(
     }
 }
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
+
+/// What a root answered, in the terms a case's expected value states: a table's cells and rows,
+/// or the outcome's kind and its error or phase.
+#[derive(Debug, PartialEq)]
+pub(super) enum Root {
+    Complete {
+        cells: std::borrow::Cow<'static, [Cell]>,
+        rows: usize,
+    },
+    Partial {
+        cells: std::borrow::Cow<'static, [Cell]>,
+        rows: usize,
+    },
+    Skipped,
+    Unknown(ryo_execution_domain::domain::operating::errors::OperatingError),
+    /// Unknown because the semantics are incomplete, for this reason.
+    SemanticIncomplete(std::borrow::Cow<'static, str>),
+    Failed(ryo_execution_domain::domain::operating::errors::OperatingError),
+    NoQuery,
+    Deferred(StepScope),
+}
+
+impl Root {
+    /// A complete table of these cells in `rows` rows.
+    pub(super) const fn complete(cells: &'static [Cell], rows: usize) -> Self {
+        Self::Complete {
+            cells: std::borrow::Cow::Borrowed(cells),
+            rows,
+        }
+    }
+}
+
+impl From<crate::application::file_dag::program::rule_outcome::types::RootOutcome> for Root {
+    fn from(outcome: crate::application::file_dag::program::rule_outcome::types::RootOutcome) -> Self {
+        use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+        match outcome {
+            RootOutcome::Complete(table) => Self::Complete {
+                cells: std::borrow::Cow::Owned(table.cells),
+                rows: table.count.0,
+            },
+            RootOutcome::Partial { table, .. } => Self::Partial {
+                cells: std::borrow::Cow::Owned(table.cells),
+                rows: table.count.0,
+            },
+            RootOutcome::Skipped(_) => Self::Skipped,
+            RootOutcome::Unknown(
+                ryo_execution_domain::domain::operating::errors::OperatingError::SemanticIncomplete {
+                    reason,
+                },
+            ) => Self::SemanticIncomplete(std::borrow::Cow::Owned(reason)),
+            RootOutcome::Unknown(error) => Self::Unknown(error),
+            RootOutcome::Failed(error) => Self::Failed(error),
+            RootOutcome::NoQuery => Self::NoQuery,
+            RootOutcome::Deferred { phase } => Self::Deferred(phase),
+        }
+    }
+}
