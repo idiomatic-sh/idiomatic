@@ -1,6 +1,6 @@
 //! Request-qualified observation slots and the complete synthetic instruction census.
-use super::fixtures::{Compiled, Refusal, Refused, Slots, exercise};
 use super::super::fixtures::FrontierSlots;
+use super::fixtures::{Compiled, Refusal, Refused, Slots, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::types::{InputSource, ObservationPlace};

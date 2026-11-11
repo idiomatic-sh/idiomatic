@@ -2,10 +2,7 @@
 use super::super::fixtures::{self, DeclaredFileProducers, Fixture, FrontierSlots, Names};
 use ryo_execution_domain::domain::{
     coverage::types::RuleIndex,
-    executable_program::{
-        service::compile,
-        types::InputSource,
-    },
+    executable_program::{service::compile, types::InputSource},
     observation_schedule::types::ResolvedObservationProducer,
     operating::errors::OperatingError,
 };
@@ -53,7 +50,6 @@ pub(super) struct Refused {
     pub(super) refusal: Refusal,
     pub(super) sibling: Option<InputSource>,
 }
-
 
 /// Compiles the request with its slots and reads rules 2 and 3's first frontier sources.
 pub(super) fn exercise(slots: Slots) -> Result<Compiled, Refused> {
