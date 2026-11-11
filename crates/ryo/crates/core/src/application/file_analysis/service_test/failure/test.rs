@@ -149,7 +149,10 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
             .unwrap();
             seen.push(format!("{:?}", replayed.failure.is_none()));
             seen.push(format!("{:?}", excluded.reads.load(Ordering::Relaxed)));
-            seen.push(format!("{:?}", excluded.dirty_starts.load(Ordering::Relaxed)));
+            seen.push(format!(
+                "{:?}",
+                excluded.dirty_starts.load(Ordering::Relaxed)
+            ));
 
             let included = Arc::new(ChangingRead {
                 reads: AtomicUsize::new(0),
@@ -174,7 +177,10 @@ fn read_failure_demand_retries_unchanged_metadata_and_clears_reused_worker_bytes
             .unwrap();
             seen.push(format!("{:?}", fresh.failure.is_none()));
             seen.push(format!("{:?}", included.reads.load(Ordering::Relaxed)));
-            seen.push(format!("{:?}", included.dirty_starts.load(Ordering::Relaxed)));
+            seen.push(format!(
+                "{:?}",
+                included.dirty_starts.load(Ordering::Relaxed)
+            ));
         }
     }
     Ok(seen.join("|"))
