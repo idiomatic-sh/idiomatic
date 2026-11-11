@@ -1,4 +1,5 @@
 //! An observation stage: its declared batches run behind one call, with its reservations, installs and restored frontiers.
+use super::types::ObservationStage;
 use crate::application::file_dag::frontiers::types::BoundInput;
 use crate::application::file_dag::frontiers::types::InputReadiness;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
@@ -9,7 +10,6 @@ use crate::application::file_dag::program::observation_stage::types::{
     AdmittedOutput, BatchOccurrence, Install, ObservationBatches,
 };
 use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort;
-use crate::application::file_dag::program::project_phase::service::ProjectPhase;
 use crate::application::file_dag::program::project_phase::service::reserved;
 use crate::application::file_dag::program::project_phase::types::{
     FrontierDemand, OccurrenceNumber, PhaseOccurrence, PhaseOccurrences, PhasePartials, PhaseStop,
@@ -299,20 +299,4 @@ pub(crate) struct OccurrenceBinding {
     ready: ReadinessProof,
     slot: PublicationSlot,
     bound: Vec<BoundInput>,
-}
-
-/// One project publication generation shared by every ready batch.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_dag::program::observation_stage::service::ObservationStage;
-/// fn stage(stage: &ObservationStage<'_>) {
-///     let _ = stage;
-/// }
-/// ```
-pub struct ObservationStage<'a> {
-    pub(crate) phase: ProjectPhase<'a>,
-    pub(crate) publications:
-        crate::application::file_dag::observations::types::CrossPublications<'a>,
 }

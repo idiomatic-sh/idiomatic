@@ -1,6 +1,6 @@
 //! The support of the `frontiers` cases.
 use crate::application::file_dag::frontiers::types::PreparedFrontiers;
-use crate::application::file_dag::program::project_phase::service::ProjectPhase;
+use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::project_phase::types::{
     PhaseScope, ProjectInput, ProjectTask,
 };

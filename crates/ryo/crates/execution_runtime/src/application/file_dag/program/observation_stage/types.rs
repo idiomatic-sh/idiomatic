@@ -1,4 +1,5 @@
 //! One project publication generation shared by every ready batch, and what a caller hands it and is handed.
+use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::outbound::facts::interface::FactsFinish;
 use crate::outbound::facts::interface::FactsWorker;
 use ryo_execution_domain::domain::coverage::types::Covered;
@@ -121,4 +122,29 @@ pub struct Install {
     pub transfer: CrossPublicationTransfer,
     /// The admitted publication of each named output it delivers.
     pub publications: Vec<AdmittedOutput>,
+}
+
+/// One project publication generation shared by every ready batch.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
+/// fn stage(stage: &ObservationStage<'_>) {
+///     let _ = stage;
+/// }
+/// ```
+///
+/// Only its crate opens one: no field is reachable outside it.
+///
+/// ```compile_fail,E0616
+/// use ryo_execution_runtime::application::file_dag::program::observation_stage::types::ObservationStage;
+/// fn forge(handle: &ObservationStage<'_>) {
+///     let _ = &handle.phase;
+/// }
+/// ```
+pub struct ObservationStage<'a> {
+    pub(crate) phase: ProjectPhase<'a>,
+    pub(crate) publications:
+        crate::application::file_dag::observations::types::CrossPublications<'a>,
 }

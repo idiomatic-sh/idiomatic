@@ -191,3 +191,30 @@ pub(crate) struct ReadyOccurrence<'a> {
     pub(crate) bound: &'a [BoundInput],
     pub(crate) slot: PublicationSlot,
 }
+
+/// One project-phase publication/interpreter and symbol generation, shared across rules.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
+/// fn phase(phase: &ProjectPhase<'_>) {
+///     let _ = phase;
+/// }
+/// ```
+///
+/// Only its crate opens one: no field is reachable outside it.
+///
+/// ```compile_fail,E0616
+/// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
+/// fn forge(handle: &ProjectPhase<'_>) {
+///     let _ = &handle.request;
+/// }
+/// ```
+pub struct ProjectPhase<'a> {
+    pub(crate) request:
+        &'a crate::application::file_dag::program::request_execution::types::RequestExecution,
+    pub(crate) publication: std::rc::Rc<
+        crate::application::file_dag::program::facade_runtime::service::PublicationScope,
+    >,
+}

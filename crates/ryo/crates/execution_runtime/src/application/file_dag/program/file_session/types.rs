@@ -141,3 +141,24 @@ pub(crate) struct RuleFile<'a> {
     pub file: ryo_relations::domain::relations::types::FileId,
     pub first: &'a [ryo_values::domain::stored_facts::types::Bucket],
 }
+
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+/// fn session(file: &FileSession<'_, '_>) {
+///     let _ = file;
+/// }
+/// ```
+///
+/// Only its crate opens one: no field is reachable outside it.
+///
+/// ```compile_fail,E0616
+/// use ryo_execution_runtime::application::file_dag::program::file_session::types::FileSession;
+/// fn forge(handle: &FileSession<'_, '_>) {
+///     let _ = &handle.parts;
+/// }
+/// ```
+pub struct FileSession<'a, 'facts> {
+    pub(crate) parts: SessionParts<'a, 'facts>,
+}

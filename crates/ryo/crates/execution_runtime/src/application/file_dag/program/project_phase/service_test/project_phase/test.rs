@@ -6,7 +6,7 @@ use super::super::super::fixtures::{corpus, covered, prepare_for, program};
 use super::fixtures::root;
 use crate::application::file_dag::frontiers::errors::FrontiersError;
 use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort as _;
-use crate::application::file_dag::program::project_phase::service::ProjectPhase;
+use crate::application::file_dag::program::project_phase::types::ProjectPhase;
 use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use crate::application::file_dag::program::request_execution::service::begin;
 use crate::cases::{Case, CaseName, Expect, Word, run};

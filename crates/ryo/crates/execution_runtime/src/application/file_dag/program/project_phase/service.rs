@@ -1,4 +1,5 @@
 //! A project phase: roots evaluated in declaration order over the request.
+use super::types::ProjectPhase;
 use crate::application::file_dag::frontiers::types::PublicationSlot;
 use crate::application::file_dag::program::facade_runtime;
 use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort;
@@ -16,7 +17,6 @@ use crate::application::file_dag::program::project_phase::types::PreparedOccurre
 use crate::application::file_dag::program::project_phase::types::ProjectInput;
 use crate::application::file_dag::program::project_phase::types::ProjectTask;
 use crate::application::file_dag::program::project_phase::types::ReadyOccurrence;
-use crate::application::file_dag::program::request_execution::types::RequestExecution;
 use crate::application::file_dag::program::rule_outcome::types::ProjectBatch;
 use crate::application::file_dag::program::rule_outcome::types::ProjectOutputOutcome;
 use crate::application::file_dag::program::rule_outcome::types::RuleOutcome;
@@ -221,7 +221,7 @@ impl ProjectPhase<'_> {
     /// ```
     /// // A project phase exists only inside a running project phase: the call's types, checked.
     /// use ryo_execution_domain::domain::readiness::types::ReadinessCounts;
-    /// use ryo_execution_runtime::application::file_dag::program::project_phase::service::ProjectPhase;
+    /// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
     /// fn readiness(phase: &ProjectPhase<'_>) -> ReadinessCounts {
     ///     phase.fixture_readiness_counts()
     /// }
@@ -237,7 +237,7 @@ impl ProjectPhase<'_> {
     /// ```
     /// // A project phase exists only inside a running project phase: the call's types, checked.
     /// use ryo_execution_domain::domain::readiness::types::InvocationStateCounts;
-    /// use ryo_execution_runtime::application::file_dag::program::project_phase::service::ProjectPhase;
+    /// use ryo_execution_runtime::application::file_dag::program::project_phase::types::ProjectPhase;
     /// fn states(phase: &ProjectPhase<'_>) -> InvocationStateCounts {
     ///     phase.fixture_state_counts()
     /// }
@@ -287,7 +287,7 @@ impl ProjectPhase<'_> {
             } else {
                 Err(OperatingError::NotRead)
             };
-            roots.push(facade_runtime::project_execution::types::ProjectRoot {
+            roots.push(facade_runtime::project_execution::service::ProjectRoot {
                 rule: task.rule,
                 demand: task.demand,
                 run,
@@ -348,19 +348,4 @@ impl ProjectPhase<'_> {
             slot: occurrence.slot,
         })
     }
-}
-
-/// One project-phase publication/interpreter and symbol generation, shared across rules.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_dag::program::project_phase::service::ProjectPhase;
-/// fn phase(phase: &ProjectPhase<'_>) {
-///     let _ = phase;
-/// }
-/// ```
-pub struct ProjectPhase<'a> {
-    pub(crate) request: &'a RequestExecution,
-    pub(crate) publication: std::rc::Rc<facade_runtime::service::PublicationScope>,
 }
