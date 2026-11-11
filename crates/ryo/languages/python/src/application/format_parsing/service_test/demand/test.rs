@@ -27,7 +27,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("duplicate_inputs_are_parsed_once_and_retained_until_source_reset"),
         word: Word::Succeeds,
         input: || Given::DuplicateInputsAreParsedOnceAndRetainedUntilSourceReset,
-        expect: Expect::Value("Fresh|0|1|2|2|Some(Parsed(ParsedFormat { fields: [], summary: FormatSummary { positional_consumption: PositionalConsumption(0), mapping_present: Absent, dynamic_width: Absent, dynamic_precision: Absent } }))|1|true|2|Fresh|2"),
+        expect: Expect::Value(
+            "Fresh|0|1|2|2|Some(Parsed(ParsedFormat { fields: [], summary: FormatSummary { positional_consumption: PositionalConsumption(0), mapping_present: Absent, dynamic_width: Absent, dynamic_precision: Absent } }))|1|true|2|Fresh|2",
+        ),
     },
     Case {
         name: CaseName("malformed_results_are_cached_and_unavailable_results_mark_partial"),

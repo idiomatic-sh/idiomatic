@@ -39,13 +39,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("raw_format_envelopes_borrow_exact_bodies"),
         word: Word::Succeeds,
         input: || Given::RawFormatEnvelopesBorrowExactBodies,
-        expect: Expect::Value("true|true|true|true|true|true|true|true|true|true|true|true|true|true|true|true|true"),
+        expect: Expect::Value(
+            "true|true|true|true|true|true|true|true|true|true|true|true|true|true|true|true|true",
+        ),
     },
     Case {
         name: CaseName("raw_format_cache_is_lazy_shared_and_reset_independently"),
         word: Word::Succeeds,
         input: || Given::RawFormatCacheIsLazySharedAndResetIndependently,
-        expect: Expect::Value("Fresh|0|2|2|2|3|true|Some(FormatResultIndex(1))|true|Fresh|Fresh|2|2|Fresh|true|true|true|3"),
+        expect: Expect::Value(
+            "Fresh|0|2|2|2|3|true|Some(FormatResultIndex(1))|true|Fresh|Fresh|2|2|Fresh|true|true|true|3",
+        ),
     },
     Case {
         name: CaseName("raw_format_is_not_demanded_by_decoded_or_brace_readers"),

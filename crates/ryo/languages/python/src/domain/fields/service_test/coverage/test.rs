@@ -38,7 +38,7 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 .chain(control_flow_roles_test::CASES)
                 .chain(expression_roles_test::CASES)
                 .chain(pattern_and_parameter_roles_test::CASES)
-                .any(|case| matches!(case.expect, Expect::Value(wanted) if wanted == *name))
+                .any(|case| matches!(case.expect, Expect::Value((_, _, wanted)) if wanted == *name))
         })
         .collect();
     Ok(Box::leak(without_a_row.join(",").into_boxed_str()))

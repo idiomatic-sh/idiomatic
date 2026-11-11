@@ -16,7 +16,9 @@ use super::super::constants::{
 };
 /// Whether subscription operands of this resolved standard-library object are types.
 /// Literal and Annotated have distinct value-operand rules handled by the caller.
-pub(in super::super) fn operands(path: ryo::languages::NameText<'_>) -> super::super::types::TypeContext {
+pub(in super::super) fn operands(
+    path: ryo::languages::NameText<'_>,
+) -> super::super::types::TypeContext {
     use super::super::types::TypeContext;
     let path = path.0;
     if let Some(name) = path.strip_prefix(BUILTINS) {
