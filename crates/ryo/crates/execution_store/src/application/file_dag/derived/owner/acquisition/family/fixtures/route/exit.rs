@@ -37,8 +37,11 @@ pub(crate) fn entry(kind: DerivedKind) -> Entry {
 /// is still live, so nothing but the entry's own release can have returned the required bytes to
 /// `floor`, what the owner keeps for its admitted sources until the generation retires. Answers the
 /// lease left charged when they were not.
-pub(crate) fn left_at_exit(required: usize, floor: usize) -> Option<super::super::Leaked> {
-    (required != floor).then_some(super::super::Leaked {
+pub(crate) fn left_at_exit(
+    required: usize,
+    floor: usize,
+) -> Option<super::super::departed::Leaked> {
+    (required != floor).then_some(super::super::departed::Leaked {
         before: floor,
         after: required,
     })

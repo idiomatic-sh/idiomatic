@@ -5,7 +5,7 @@ mod refusing;
 mod request;
 pub mod route;
 use self::demand::demand;
-use self::departed::{Departed, Refused, Seen, advanced, departed, read};
+use self::departed::{Departed, Leaked, Refused, Seen, advanced, departed, read};
 use self::request::{observed, request};
 use crate::application::file_dag::relations::publication::types::ProducerScope;
 use crate::application::file_dag::relations::types::ProducerId;
@@ -59,14 +59,6 @@ fn numbers() -> Table {
             .into(),
         count: RowCount(2),
     }
-}
-/// A production exit that returned with its lease still charged.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Leaked {
-    /// Required bytes before the view was acquired.
-    pub before: usize,
-    /// Required bytes after the exit ran, before any fixture-side release.
-    pub after: usize,
 }
 /// Who releases the pins at the last consumer's exit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

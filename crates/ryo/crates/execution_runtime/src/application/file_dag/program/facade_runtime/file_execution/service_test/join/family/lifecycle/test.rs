@@ -6,8 +6,8 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::request::types::DerivedKind as K;
 use ryo_execution_domain::domain::operating::errors::OperatingError as E;
 use ryo_execution_store::application::file_dag::derived::owner::acquisition::family::fixtures::{
-    Departure, Leaked,
-    departed::{Departed, Refused, Seen},
+    Departure,
+    departed::{Departed, Leaked, Refused, Seen},
     exercise, exercise_forgetful,
     route::{exit::Exit, leave},
 };

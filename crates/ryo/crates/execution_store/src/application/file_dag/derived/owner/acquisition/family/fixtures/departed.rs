@@ -1,6 +1,5 @@
 //! What a family's route answers: the family read or the refusal, what it saw on the way, the lease
 //! its exit left charged, and the bytes the owner still charges once its generation retired.
-use super::Leaked;
 use crate::application::file_dag::closure_partitions::types::PartitionAdvance;
 use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
@@ -85,4 +84,13 @@ pub(crate) fn advanced(advance: Result<PartitionAdvance, OperatingError>) -> See
 /// What reading a demanded view answered.
 pub(crate) fn read(view: Result<DerivedKind, OperatingError>) -> Seen {
     view.map_or_else(Seen::Refused, Seen::Read)
+}
+
+/// A production exit that returned with its lease still charged.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Leaked {
+    /// Required bytes before the view was acquired.
+    pub before: usize,
+    /// Required bytes after the exit ran, before any fixture-side release.
+    pub after: usize,
 }
