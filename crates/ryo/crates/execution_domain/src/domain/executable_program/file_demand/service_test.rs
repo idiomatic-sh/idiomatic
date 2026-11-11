@@ -1,4 +1,6 @@
 //! File root activation preserves a reader multiset and independent intent masks.
+use std::borrow::Cow;
+
 use super::{service::compile, types::*};
 use crate::domain::executable_program::types::absent_regions::value::AbsentRegions;
 use crate::domain::executable_program::types::absent_roots::value::AbsentRoots;
@@ -16,124 +18,83 @@ use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::plan_parts::types::StepScope,
 };
-/// Two per-file regions, each depending on what `dependencies` names, over one rule whose roots read region 0 twice and
-/// region 1 once.
-fn build(
-    dependencies: [Box<[RegionId]>; 2],
-    observation_regions: Box<[Result<RegionId, OperatingError>]>,
-) -> ExecutableProgram {
-    let regions = dependencies
-        .into_iter()
-        .enumerate()
-        .map(|(at, dependencies)| {
-            let mut region = Region::new(
-                RuleIndex(0),
-                Ok(Box::new([])),
-                StepScope::PerFile,
-                Box::new([]),
-                Box::new([]),
-                ReaderMultiplicity(1),
-            );
-            region.set_dependencies(dependencies);
-            region
-        })
-        .collect::<Vec<_>>()
-        .into_boxed_slice();
-    let rules = vec![RuleProgram {
-        root_readers: vec![RegionId(0), RegionId(0), RegionId(1)].into_boxed_slice(),
-        original_steps: Box::new([]),
-        emit: Ok(RegionId(0)),
-        frontier: vec![Ok(InputSource::Region(RegionId(1)))].into_boxed_slice(),
-    }]
-    .into_boxed_slice();
-    let file_readers = super::service::readers(&regions, &rules).unwrap();
-    ExecutableProgram::new(
-        regions,
-        file_readers,
-        rules,
-        Box::new([]),
-        observation_regions,
-    )
+/// The regions of a one-rule program, by what each depends on, and the regions the rule's roots and frontier read.
+#[derive(Clone, Copy, Debug)]
+struct Graph {
+    dependencies: &'static [&'static [usize]],
+    root_readers: &'static [usize],
+    /// The region the rule's diagnostic frontier reads, if it has one.
+    frontier: Option<usize>,
 }
-fn program() -> ExecutableProgram {
-    build([Box::new([]), Box::new([])], Box::new([]))
+
+/// Two regions depending on nothing, read twice and once by the rule's roots, the frontier reading region 1.
+const PAIR: Graph = Graph {
+    dependencies: &[&[], &[]],
+    root_readers: &[0, 0, 1],
+    frontier: Some(1),
+};
+
+/// The same, region 0 depending on region 1 twice.
+const DOUBLE_EDGE: Graph = Graph {
+    dependencies: &[&[1, 1], &[]],
+    root_readers: &[0, 0, 1],
+    frontier: Some(1),
+};
+
+/// Rule A's root (region 1) reads X (region 2), which reads Y (region 3); A is also an input of rule F's root (region 0).
+const CHAIN: Graph = Graph {
+    dependencies: &[&[1], &[2], &[3], &[]],
+    root_readers: &[0, 1],
+    frontier: None,
+};
+
+/// The same, F also reading Y directly.
+const CHAIN_SHARED: Graph = Graph {
+    dependencies: &[&[1, 3], &[2], &[3], &[]],
+    root_readers: &[0, 1],
+    frontier: None,
+};
+
+/// What a row asks of a file's demand.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// How many readers the producer region (last) has, the roots selected with their readers, the regions whose roots are
+    /// absent.
+    Readers(Graph, &'static [(usize, usize)], &'static [usize], usize),
+    /// What a file selects of `PAIR` under the demand, one observation reading region 0.
+    Select(FileDemand),
+    /// What a file selects under the demand of `PAIR` whose only observation's region is not read, and whose two observation
+    /// sources are a stored observation and a fault.
+    Defer(FileDemand),
 }
-fn counted(
-    program: &ExecutableProgram,
-    selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
-    producer: RegionId,
-) -> Result<ReaderMultiplicity, OperatingError> {
-    walked(program, selected, &AbsentRoots::default(), producer)
+
+/// What a file's demand answers.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    /// The readers of the producer.
+    Readers(ReaderMultiplicity),
+    /// How many of the rule's root readers were cancelled, and the roots and observations selected.
+    Selected {
+        cancelled: usize,
+        roots: usize,
+        observations: usize,
+    },
+    /// Each root selected, as the fault it defers (none for a root that is not deferred), and the readers and observations.
+    Deferred {
+        roots: Cow<'static, [Option<OperatingError>]>,
+        readers: usize,
+        observations: usize,
+    },
 }
-fn walked(
-    program: &ExecutableProgram,
-    selected: &std::collections::HashMap<RegionId, ReaderMultiplicity>,
-    absent: &AbsentRoots,
-    producer: RegionId,
-) -> Result<ReaderMultiplicity, OperatingError> {
-    let mut roots: Vec<SelectedRoot> = selected
+
+type Input = Ask;
+type Value = Answer;
+type Failure = OperatingError;
+
+fn build(graph: Graph, observed: Box<[Result<RegionId, OperatingError>]>) -> ExecutableProgram {
+    let regions = graph
+        .dependencies
         .iter()
-        .map(|(region, readers)| SelectedRoot {
-            region: *region,
-            readers: *readers,
-        })
-        .collect();
-    roots.sort_unstable_by_key(|root| root.region.0);
-    super::service::table(program.regions(), &roots, absent)
-        .and_then(|table| super::service::reader_count(&table, producer))
-}
-fn selected_reader_counts_keep_duplicate_edges_without_disabled_siblings() {
-    let program = build(
-        [
-            vec![RegionId(1), RegionId(1)].into_boxed_slice(),
-            Box::new([]),
-        ],
-        Box::new([]),
-    );
-    let mut selected = std::collections::HashMap::from([(RegionId(0), ReaderMultiplicity(2))]);
-    assert_eq!(
-        counted(&program, &selected, RegionId(0)).unwrap(),
-        ReaderMultiplicity(2)
-    );
-    assert_eq!(
-        counted(&program, &selected, RegionId(1)).unwrap(),
-        ReaderMultiplicity(2),
-        "the same dependency is consumed once per declared edge"
-    );
-    selected.insert(RegionId(1), ReaderMultiplicity(1));
-    assert_eq!(
-        counted(&program, &selected, RegionId(1)).unwrap(),
-        ReaderMultiplicity(3),
-        "a source's external reader is independent of consumer edges"
-    );
-    selected.clear();
-    assert_eq!(
-        counted(&program, &selected, RegionId(1)).unwrap(),
-        ReaderMultiplicity(0)
-    );
-    selected.insert(RegionId(99), ReaderMultiplicity(1));
-    assert_eq!(
-        counted(&program, &selected, RegionId(1)),
-        Err(OperatingError::NotRun)
-    );
-}
-/// Rule A's absent root (region 1) reads X (region 2), which reads Y (region 3); A is also an input of admitted rule F's root
-/// (region 0). The walk counts A for F's edge and its own selection, and never follows A's edges: X and Y get no count. When
-/// F also reads Y directly, Y is counted once, through F.
-fn absent_roots_stop_the_walk_at_any_depth() {
-    let program = |shared: bool| {
-        let f: Box<[RegionId]> = if shared {
-            vec![RegionId(1), RegionId(3)].into_boxed_slice()
-        } else {
-            vec![RegionId(1)].into_boxed_slice()
-        };
-        let regions = [
-            f,
-            vec![RegionId(2)].into_boxed_slice(),
-            vec![RegionId(3)].into_boxed_slice(),
-            Box::new([]),
-        ]
-        .into_iter()
         .map(|dependencies| {
             let mut region = Region::new(
                 RuleIndex(0),
@@ -143,141 +104,62 @@ fn absent_roots_stop_the_walk_at_any_depth() {
                 Box::new([]),
                 ReaderMultiplicity(1),
             );
-            region.set_dependencies(dependencies);
+            region.set_dependencies(dependencies.iter().copied().map(RegionId).collect());
             region
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();
-        let rules = vec![RuleProgram {
-            root_readers: vec![RegionId(0), RegionId(1)].into_boxed_slice(),
-            original_steps: Box::new([]),
-            emit: Ok(RegionId(0)),
-            frontier: Box::new([]),
-        }]
-        .into_boxed_slice();
-        let file_readers = super::service::readers(&regions, &rules).unwrap();
-        ExecutableProgram::new(regions, file_readers, rules, Box::new([]), Box::new([]))
-    };
-    let selected = std::collections::HashMap::from([
-        (RegionId(0), ReaderMultiplicity(1)),
-        (RegionId(1), ReaderMultiplicity(1)),
-    ]);
-    let mut regions = AbsentRegions::none(crate::domain::executable_program::types::RegionCount(4));
-    regions.insert(RegionId(1));
-    let absent = AbsentRoots::decided(regions);
-    let alone = program(false);
-    assert_eq!(
-        walked(&alone, &selected, &absent, RegionId(1)).unwrap(),
-        ReaderMultiplicity(2)
-    );
-    assert_eq!(
-        walked(&alone, &selected, &absent, RegionId(2)).unwrap(),
-        ReaderMultiplicity(0)
-    );
-    assert_eq!(
-        walked(&alone, &selected, &absent, RegionId(3)).unwrap(),
-        ReaderMultiplicity(0)
-    );
-    assert_eq!(
-        walked(&alone, &selected, &AbsentRoots::default(), RegionId(3)).unwrap(),
-        ReaderMultiplicity(1),
-        "with no absent root, the walk is today's table"
-    );
-    let shared = program(true);
-    assert_eq!(
-        walked(&shared, &selected, &absent, RegionId(2)).unwrap(),
-        ReaderMultiplicity(0)
-    );
-    assert_eq!(
-        walked(&shared, &selected, &absent, RegionId(3)).unwrap(),
-        ReaderMultiplicity(1)
-    );
+    let frontier = graph
+        .frontier
+        .map(|region| Ok(InputSource::Region(RegionId(region))))
+        .into_iter()
+        .collect();
+    let rules = vec![RuleProgram {
+        root_readers: graph.root_readers.iter().copied().map(RegionId).collect(),
+        original_steps: Box::new([]),
+        emit: Ok(RegionId(0)),
+        frontier,
+    }]
+    .into_boxed_slice();
+    let file_readers = super::service::readers(&regions, &rules).unwrap();
+    ExecutableProgram::new(regions, file_readers, rules, Box::new([]), observed)
 }
-enum Scenario {
-    Mode(bool, bool, usize, usize, usize),
-    Readers,
-    DeferredSources,
-    AbsentDepth,
-}
-type Input = Scenario;
-type Value = ();
-type Failure = OperatingError;
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("stored observation faults remain deferred under compiled demand"),
-        word: Word::Succeeds,
-        input: || Scenario::DeferredSources,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName(
-            "selected reverse readers preserve duplicate edges and reject unknown roots",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::Readers,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("an absent root's edges are never counted, at any depth"),
-        word: Word::Succeeds,
-        input: || Scenario::AbsentDepth,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("undeclared readers all cancel"),
-        word: Word::Succeeds,
-        input: || Scenario::Mode(false, false, 0, 3, 0),
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("diagnostic keeps one alias"),
-        word: Word::Succeeds,
-        input: || Scenario::Mode(true, false, 0, 2, 1),
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("named reader stays independent"),
-        word: Word::Succeeds,
-        input: || Scenario::Mode(false, true, 0, 2, 1),
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("observation capture excludes unrelated frontier"),
-        word: Word::Succeeds,
-        input: || Scenario::Mode(false, false, 1, 3, 0),
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("full capture includes unrelated frontier"),
-        word: Word::Succeeds,
-        input: || Scenario::Mode(false, false, 2, 2, 1),
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("all root aliases have distinct obligations"),
-        word: Word::Succeeds,
-        input: || Scenario::Mode(true, true, 2, 0, 3),
-        expect: Expect::Value(()),
-    },
-];
-fn subject(input: Input) -> Result<Value, Failure> {
-    let (diagnostic, observations, capture, cancelled, roots) = match input {
-        Scenario::Readers => {
-            selected_reader_counts_keep_duplicate_edges_without_disabled_siblings();
-            return Ok(());
+
+fn readers(
+    graph: Graph,
+    selected: &[(usize, usize)],
+    absent: &[usize],
+    producer: usize,
+) -> Result<Value, Failure> {
+    let program = build(graph, Box::new([]));
+    let mut roots: Vec<SelectedRoot> = selected
+        .iter()
+        .map(|(region, readers)| SelectedRoot {
+            region: RegionId(*region),
+            readers: ReaderMultiplicity(*readers),
+        })
+        .collect();
+    roots.sort_unstable_by_key(|root| root.region.0);
+    let absent = if absent.is_empty() {
+        AbsentRoots::default()
+    } else {
+        let mut regions = AbsentRegions::none(
+            crate::domain::executable_program::types::RegionCount(graph.dependencies.len()),
+        );
+        for region in absent {
+            regions.insert(RegionId(*region));
         }
-        Scenario::DeferredSources => {
-            return deferred_sources();
-        }
-        Scenario::AbsentDepth => {
-            absent_roots_stop_the_walk_at_any_depth();
-            return Ok(());
-        }
-        Scenario::Mode(diagnostic, observations, capture, cancelled, roots) => {
-            (diagnostic, observations, capture, cancelled, roots)
-        }
+        AbsentRoots::decided(regions)
     };
-    let program = program();
+    let table = super::service::table(program.regions(), &roots, &absent)?;
+    Ok(Answer::Readers(super::service::reader_count(
+        &table,
+        RegionId(producer),
+    )?))
+}
+
+fn select(demand: FileDemand) -> Result<Value, Failure> {
+    let program = build(PAIR, Box::new([]));
     let prepared = compile(
         &program,
         RuleIndex(0),
@@ -287,41 +169,16 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }],
         &[FrontierPurpose::Diagnostic],
     )?;
-    let selected = prepared.selected(FileDemand {
-        diagnostic: if diagnostic {
-            RootSelection::Required
-        } else {
-            RootSelection::Undemanded
-        },
-        observations: if observations {
-            RootSelection::Required
-        } else {
-            RootSelection::Undemanded
-        },
-        capture: match capture {
-            0 => FrontierSelection::Disabled,
-            1 => FrontierSelection::Observations,
-            _ => FrontierSelection::All,
-        },
-    });
-    assert_eq!(
-        program.rules()[0].root_readers.len() - selected.readers.len(),
-        cancelled
-    );
-    assert_eq!(selected.roots.len(), roots);
-    assert_eq!(selected.observations.len(), usize::from(observations));
-    Ok(())
-}
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+    let selected = prepared.selected(demand);
+    Ok(Answer::Selected {
+        cancelled: program.rules()[0].root_readers.len() - selected.readers.len(),
+        roots: selected.roots.len(),
+        observations: selected.observations.len(),
+    })
 }
 
-fn deferred_sources() -> Result<(), OperatingError> {
-    let program = build(
-        [Box::new([]), Box::new([])],
-        vec![Err(OperatingError::NotRead)].into_boxed_slice(),
-    );
+fn defer(demand: FileDemand) -> Result<Value, Failure> {
+    let program = build(PAIR, vec![Err(OperatingError::NotRead)].into_boxed_slice());
     let prepared = compile(
         &program,
         RuleIndex(0),
@@ -337,24 +194,199 @@ fn deferred_sources() -> Result<(), OperatingError> {
         ],
         &[FrontierPurpose::Diagnostic],
     )?;
-    assert!(
-        prepared
-            .selected(super::constants::NO_FILE_DEMAND)
+    let selected = prepared.selected(demand);
+    Ok(Answer::Deferred {
+        roots: selected
             .roots
-            .is_empty()
-    );
-    let named = prepared.selected(FileDemand {
-        observations: RootSelection::Required,
-        ..super::constants::NO_FILE_DEMAND
-    });
-    assert!(matches!(
-        &named.roots[..],
-        [
-            FileRootDemand::Deferred(OperatingError::NotRead),
-            FileRootDemand::Deferred(OperatingError::WrongOperation)
-        ]
-    ));
-    assert!(named.readers.is_empty());
-    assert_eq!(named.observations.len(), 2);
-    Ok(())
+            .iter()
+            .map(|root| match root {
+                FileRootDemand::Deferred(fault) => Some(fault.clone()),
+                FileRootDemand::Ordinary(_) | FileRootDemand::Observation { .. } => None,
+            })
+            .collect(),
+        readers: selected.readers.len(),
+        observations: selected.observations.len(),
+    })
+}
+
+fn subject(ask: Input) -> Result<Value, Failure> {
+    match ask {
+        Ask::Readers(graph, selected, absent, producer) => {
+            readers(graph, selected, absent, producer)
+        }
+        Ask::Select(demand) => select(demand),
+        Ask::Defer(demand) => defer(demand),
+    }
+}
+
+/// A demand of the diagnostic roots, the observation roots and the frontiers captured.
+const fn demand(diagnostic: bool, observations: bool, capture: FrontierSelection) -> FileDemand {
+    const fn root(required: bool) -> RootSelection {
+        if required {
+            RootSelection::Required
+        } else {
+            RootSelection::Undemanded
+        }
+    }
+    FileDemand {
+        diagnostic: root(diagnostic),
+        observations: root(observations),
+        capture,
+    }
+}
+
+/// The root readers cancelled, and the roots and observations selected.
+const fn selected(cancelled: usize, roots: usize, observations: usize) -> Answer {
+    Answer::Selected {
+        cancelled,
+        roots,
+        observations,
+    }
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("stored observation faults remain deferred under compiled demand"),
+        word: Word::Succeeds,
+        input: || Ask::Defer(super::constants::NO_FILE_DEMAND),
+        expect: Expect::Value(Answer::Deferred {
+            roots: Cow::Borrowed(&[]),
+            readers: 0,
+            observations: 0,
+        }),
+    },
+    Case {
+        name: CaseName("a named observation demand defers each faulty source"),
+        word: Word::Succeeds,
+        input: || {
+            Ask::Defer(FileDemand {
+                observations: RootSelection::Required,
+                ..super::constants::NO_FILE_DEMAND
+            })
+        },
+        expect: Expect::Value(Answer::Deferred {
+            roots: Cow::Borrowed(&[
+                Some(OperatingError::NotRead),
+                Some(OperatingError::WrongOperation),
+            ]),
+            readers: 0,
+            observations: 2,
+        }),
+    },
+    Case {
+        name: CaseName(
+            "selected reverse readers preserve duplicate edges and reject unknown roots",
+        ),
+        word: Word::Succeeds,
+        input: || Ask::Readers(DOUBLE_EDGE, &[(0, 2)], &[], 0),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(2))),
+    },
+    Case {
+        name: CaseName("the same dependency is consumed once per declared edge"),
+        word: Word::Succeeds,
+        input: || Ask::Readers(DOUBLE_EDGE, &[(0, 2)], &[], 1),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(2))),
+    },
+    Case {
+        name: CaseName("a source's external reader is independent of consumer edges"),
+        word: Word::Succeeds,
+        input: || Ask::Readers(DOUBLE_EDGE, &[(0, 2), (1, 1)], &[], 1),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(3))),
+    },
+    Case {
+        name: CaseName("with no root selected a dependency has no reader"),
+        word: Word::Succeeds,
+        input: || Ask::Readers(DOUBLE_EDGE, &[], &[], 1),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(0))),
+    },
+    Case {
+        name: CaseName("an unknown selected root is refused"),
+        word: Word::Refuses,
+        input: || Ask::Readers(DOUBLE_EDGE, &[(99, 1)], &[], 1),
+        expect: Expect::Error(OperatingError::NotRun),
+    },
+    Case {
+        name: CaseName("an absent root's edges are never counted, at any depth"),
+        word: Word::Succeeds,
+        input: || Ask::Readers(CHAIN, &[(0, 1), (1, 1)], &[1], 1),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(2))),
+    },
+    Case {
+        name: CaseName("an absent root's first dependency gets no count"),
+        word: Word::Succeeds,
+        input: || Ask::Readers(CHAIN, &[(0, 1), (1, 1)], &[1], 2),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(0))),
+    },
+    Case {
+        name: CaseName("an absent root's deeper dependency gets no count"),
+        word: Word::Succeeds,
+        input: || Ask::Readers(CHAIN, &[(0, 1), (1, 1)], &[1], 3),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(0))),
+    },
+    Case {
+        name: CaseName("with no absent root, the walk is today's table"),
+        word: Word::Succeeds,
+        input: || Ask::Readers(CHAIN, &[(0, 1), (1, 1)], &[], 3),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(1))),
+    },
+    Case {
+        name: CaseName(
+            "an absent root's dependency another root shares still gets no count through it",
+        ),
+        word: Word::Succeeds,
+        input: || Ask::Readers(CHAIN_SHARED, &[(0, 1), (1, 1)], &[1], 2),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(0))),
+    },
+    Case {
+        name: CaseName("a dependency an admitted root reads directly is counted once"),
+        word: Word::Succeeds,
+        input: || Ask::Readers(CHAIN_SHARED, &[(0, 1), (1, 1)], &[1], 3),
+        expect: Expect::Value(Answer::Readers(ReaderMultiplicity(1))),
+    },
+    Case {
+        name: CaseName("undeclared readers all cancel"),
+        word: Word::Succeeds,
+        input: || Ask::Select(demand(false, false, FrontierSelection::Disabled)),
+        expect: Expect::Value(selected(3, 0, 0)),
+    },
+    Case {
+        name: CaseName("diagnostic keeps one alias"),
+        word: Word::Succeeds,
+        input: || Ask::Select(demand(true, false, FrontierSelection::Disabled)),
+        expect: Expect::Value(selected(2, 1, 0)),
+    },
+    Case {
+        name: CaseName("named reader stays independent"),
+        word: Word::Succeeds,
+        input: || Ask::Select(demand(false, true, FrontierSelection::Disabled)),
+        expect: Expect::Value(selected(2, 1, 1)),
+    },
+    Case {
+        name: CaseName("observation capture excludes unrelated frontier"),
+        word: Word::Succeeds,
+        input: || Ask::Select(demand(false, false, FrontierSelection::Observations)),
+        expect: Expect::Value(selected(3, 0, 0)),
+    },
+    Case {
+        name: CaseName("full capture includes unrelated frontier"),
+        word: Word::Succeeds,
+        input: || Ask::Select(demand(false, false, FrontierSelection::All)),
+        expect: Expect::Value(selected(2, 1, 0)),
+    },
+    Case {
+        name: CaseName("all root aliases have distinct obligations"),
+        word: Word::Succeeds,
+        input: || Ask::Select(demand(true, true, FrontierSelection::All)),
+        expect: Expect::Value(selected(0, 3, 1)),
+    },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

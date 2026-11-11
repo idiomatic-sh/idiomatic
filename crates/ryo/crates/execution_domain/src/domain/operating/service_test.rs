@@ -6,87 +6,122 @@ use super::{
 };
 use crate::domain::operating::service::derived_fault;
 use ryo_derived::domain::fault::types::DerivedFault;
+use ryo_language::domain::symbols::{
+    service::{hash_in, intern_derived, place_of},
+    types::{ByteSlice, Symbols},
+};
+use ryo_relations::domain::{
+    relations::types::{CROSS_FILE, Origin, Value as Cell},
+    terms::types::NameText,
+};
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::plan_parts::types::Test,
 };
-#[derive(Clone)]
-enum Scenario {
-    Family,
-    ProjectName,
+use std::borrow::Cow;
+/// What a row asks of the operating contracts.
+#[derive(Clone, Debug)]
+enum Ask {
+    /// The family a test belongs to.
+    Family(Test),
+    /// The cell minted for the project text, interned as derived text, before or after the files were read.
+    Mint(&'static str, AfterTheFiles),
+    /// The refusal a derived fault becomes.
     Fault(DerivedFault),
 }
-type Input = Scenario;
-type Value = ();
+
+/// What a minted cell is.
+#[derive(Debug, PartialEq)]
+enum Minted {
+    /// The symbol, and whether it is the symbol interned.
+    Symbol(bool),
+    /// A name: whether its hash is the symbol's, where its text is, and the text it reads as.
+    Name {
+        hashed: bool,
+        origin: Option<Origin>,
+        text: Option<Cow<'static, str>>,
+    },
+    /// Some other cell.
+    Other,
+}
+
+/// What the operating contracts answer.
+#[derive(Debug, PartialEq)]
+enum Answer {
+    Family(Family),
+    Minted(Minted),
+}
+
+type Input = Ask;
+type Value = Answer;
 type Failure = OperatingError;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_test_belongs_to_its_family"),
         word: Word::Succeeds,
-        input: || Scenario::Family,
-        expect: Expect::Value(()),
+        input: || Ask::Family(Test::NotGlobAny),
+        expect: Expect::Value(Answer::Family(Family::Glob)),
     },
     Case {
         name: CaseName("a_name_made_after_the_files_were_read_compares_with_theirs"),
         word: Word::Succeeds,
-        input: || Scenario::ProjectName,
-        expect: Expect::Value(()),
+        input: || Ask::Mint("here", AfterTheFiles::After),
+        expect: Expect::Value(Answer::Minted(Minted::Name {
+            hashed: true,
+            origin: Some(Origin::Derived(CROSS_FILE)),
+            text: Some(Cow::Borrowed("here")),
+        })),
+    },
+    Case {
+        name: CaseName("a_name_made_before_the_files_were_read_stays_its_symbol"),
+        word: Word::Succeeds,
+        input: || Ask::Mint("here", AfterTheFiles::Before),
+        expect: Expect::Value(Answer::Minted(Minted::Symbol(true))),
     },
     Case {
         name: CaseName("a_duplicate_order_fault_is_refused_as_a_duplicate_order"),
         word: Word::Refuses,
-        input: || Scenario::Fault(DerivedFault::DuplicateOrder),
+        input: || Ask::Fault(DerivedFault::DuplicateOrder),
         expect: Expect::Error(OperatingError::DuplicateOrder),
     },
     Case {
         name: CaseName("a_duplicate_dfs_order_fault_is_refused_as_a_duplicate_dfs_order"),
         word: Word::Refuses,
-        input: || Scenario::Fault(DerivedFault::DuplicateDfsOrder),
+        input: || Ask::Fault(DerivedFault::DuplicateDfsOrder),
         expect: Expect::Error(OperatingError::DuplicateDfsOrder),
     },
 ];
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::Fault(fault) => return Err(derived_fault(fault)),
-        Scenario::Family => assert_eq!(family_of(Test::NotGlobAny), Family::Glob),
-        Scenario::ProjectName => {
-            use ryo_language::domain::symbols::{
-                service::{hash_in, intern_derived, place_of},
-                types::{ByteSlice, Symbols},
-            };
-            use ryo_relations::domain::{
-                relations::types::{CROSS_FILE, Origin, Value},
-                terms::types::NameText,
-            };
-            let mut symbols = Symbols::default();
-            let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText("here"));
-            assert_eq!(
-                minted(&symbols, symbol, AfterTheFiles::Before),
-                Value::Symbol(symbol)
-            );
-            let Value::Name(name) = minted(&symbols, symbol, AfterTheFiles::After) else {
-                panic!("project text is a name")
-            };
-            assert_eq!(Some(name.hash), hash_in(&symbols, symbol));
-            assert_eq!(
-                place_of(name, &[], &symbols).unwrap().origin,
-                Origin::Derived(CROSS_FILE)
-            );
-            let texts = crate::domain::table_texts::types::Texts {
+fn minted_of(text: &'static str, after: AfterTheFiles) -> Minted {
+    use crate::domain::table_texts::types::{Datum, TextView, Texts};
+    let mut symbols = Symbols::default();
+    let symbol = intern_derived(&mut symbols, ByteSlice(b""), NameText(text));
+    match minted(&symbols, symbol, after) {
+        Cell::Symbol(kept) => Minted::Symbol(kept == symbol),
+        Cell::Name(name) => {
+            let texts = Texts {
                 symbols: &symbols,
                 source: ryo_values::domain::files::types::SourceView(b""),
                 paths: &[],
                 arenas: &[],
             };
-            assert_eq!(
-                crate::domain::table_texts::service::datum(Value::Name(name), &texts),
-                crate::domain::table_texts::types::Datum::Text(
-                    crate::domain::table_texts::types::TextView("here")
-                )
-            );
+            Minted::Name {
+                hashed: Some(name.hash) == hash_in(&symbols, symbol),
+                origin: place_of(name, &[], &symbols).map(|place| place.origin),
+                text: match crate::domain::table_texts::service::datum(Cell::Name(name), &texts) {
+                    Datum::Text(TextView(read)) => Some(Cow::Owned(read.into())),
+                    _ => None,
+                },
+            }
         }
+        _ => Minted::Other,
     }
-    Ok(())
+}
+fn subject(ask: Input) -> Result<Value, Failure> {
+    match ask {
+        Ask::Fault(fault) => Err(derived_fault(fault)),
+        Ask::Family(test) => Ok(Answer::Family(family_of(test))),
+        Ask::Mint(text, after) => Ok(Answer::Minted(minted_of(text, after))),
+    }
 }
 #[test]
 fn succeeds() {
