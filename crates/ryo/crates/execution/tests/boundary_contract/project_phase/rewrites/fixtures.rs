@@ -30,7 +30,7 @@ use ryo_relations::domain::relations::types::{Offset, Position, Span};
 use ryo_relations::domain::relations::types::{Words, WorkerNumber};
 use ryo_relations::domain::relations::{
     fixtures::kinds,
-    types::{FileId, Relation, Value},
+    types::{CellKind, FileId, Relation, Value},
 };
 use ryo_values::domain::files::types::{
     CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds,
@@ -70,6 +70,11 @@ pub(super) fn files() -> Vec<Vec<Function>> {
         vec![function(false, 0, 4), function(true, 4, 9)],
         vec![function(false, 0, 4)],
     ]
+}
+
+/// The function relation's columns, in place order: the cells `functions` builds follow them.
+pub(super) fn function_columns() -> &'static [CellKind] {
+    kinds(Relation::Function)
 }
 
 /// The function rows of `file`, their names interned in its symbols; each function is a node of the file at its place.

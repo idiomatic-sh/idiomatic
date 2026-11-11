@@ -4,11 +4,10 @@
 //! the plans here are built by hand to show the rewrites still leave it after the files, never making it in each file, where it would
 //! answer other rows. A join on the file is made in each file. Narrowing cuts a per-file input by the nodes or files the other input
 //! holds, never by a span.
-use super::fixtures::{FILE, ID, NAME, SPAN, files, functions_kept, rows};
+use super::fixtures::{FILE, ID, NAME, SPAN, files, function_columns, functions_kept, rows};
 use ryo_query_language::inbound::use_cases::compile::fixtures::rewrites::{
     narrowed, regrouped, selections_pushed,
 };
-use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Relation, Value};
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::plan_parts::types::{
@@ -281,7 +280,7 @@ fn pushing_a_filter_into_a_join_on_the_file_keeps_the_rows() {
 #[test]
 fn the_proofs_name_the_function_relations_columns_by_place() {
     assert_eq!(
-        kinds(Relation::Function),
+        function_columns(),
         [
             CellKind::Node,
             CellKind::Symbol,
