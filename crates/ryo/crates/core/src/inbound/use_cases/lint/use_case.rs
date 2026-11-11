@@ -244,9 +244,8 @@ impl LintUseCase for LintUseCaseImpl {
         );
         let unknown = self.language.unknown_reasons();
         let execution = Execution::new(
-            Arc::clone(&self.operators),
-            self.derived.clone(),
-            Arc::clone(&self.digest),
+            self.derived
+                .prepare(Arc::clone(&self.operators), Arc::clone(&self.digest)),
         );
         let digests: Vec<_> = stored_rules.iter().map(|rule| rule.digest).collect();
         let request_failed = |error: &dyn std::fmt::Display| {

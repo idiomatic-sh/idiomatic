@@ -1,8 +1,4 @@
 //! Selected missing inputs are prepared once before the SDK adapter receives the request.
-use super::fixtures::scenarios::{
-    actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread,
-    prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule,
-};
 use super::service::prepare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
@@ -13,27 +9,20 @@ use ryo_benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+#[cfg(test)]
+mod sdk;
+
 #[derive(Clone, Copy)]
 enum Scenario {
     Sealed,
     UndeclaredMissing,
     WrongMode,
-    ActualSdk,
     TraceSessions,
-    PreparedContext,
 }
 type Input = Scenario;
 type Value = usize;
 type Failure = &'static str;
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName(
-            "a prepared context's disabled pair leaves the selected pairs and its sibling rule's findings on a retained store",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::PreparedContext,
-        expect: Expect::Value(1),
-    },
     Case {
         name: CaseName(
             "actual trace guards survive loading configuration SDK errors and abandonment",
@@ -46,14 +35,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("only selected sealed absences are passed to the SDK adapter"),
         word: Word::Succeeds,
         input: || Scenario::Sealed,
-        expect: Expect::Value(1),
-    },
-    Case {
-        name: CaseName(
-            "actual SDK observes declared missing input without masking provider refusal",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::ActualSdk,
         expect: Expect::Value(1),
     },
     Case {
@@ -72,14 +53,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn subject(scenario: Input) -> Result<Value, Failure> {
     if matches!(scenario, Scenario::TraceSessions) {
         super::fixtures::trace_sessions();
-        return Ok(1);
-    }
-    if matches!(scenario, Scenario::PreparedContext) {
-        prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule();
-        return Ok(1);
-    }
-    if matches!(scenario, Scenario::ActualSdk) {
-        actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread();
         return Ok(1);
     }
     let missing = if matches!(scenario, Scenario::UndeclaredMissing) {

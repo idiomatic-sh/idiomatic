@@ -5,7 +5,7 @@ use ryo_execution::inbound::use_cases::publication::interface::{
     PublicationError, PublicationInput, PublicationReason, PublicationUseCase,
 };
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value, WorkerNumber};
+use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell, WorkerNumber};
 use ryo_values::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::{
@@ -38,9 +38,9 @@ enum Scenario {
     Partial,
 }
 type Input = Scenario;
-type Answer = usize;
+type Value = usize;
 type Failure = std::convert::Infallible;
-const CASES: &[Case<Input, Answer, Failure>] = &[
+const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("partial_publication_keeps_words_without_rewriting_unknown_readiness"),
         word: Word::Succeeds,
@@ -69,11 +69,11 @@ const CASES: &[Case<Input, Answer, Failure>] = &[
 fn numeric() -> Table {
     Table {
         kinds: vec![CellKind::Number],
-        cells: vec![Value::Number(Integer(1))],
+        cells: vec![Cell::Number(Integer(1))],
         count: RowCount(1),
     }
 }
-fn subject(scenario: Input) -> Result<Answer, Failure> {
+fn subject(scenario: Input) -> Result<Value, Failure> {
     let root = |output, table, readiness| ObservedRoot {
         output: ObservationIndex(output),
         table,

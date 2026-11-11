@@ -1,13 +1,13 @@
-//! Two cases of `worker_request` run through the real SDK: inputs declared missing are prepared once, and a prepared rule context
+//! A scenario of the `sdk` group: two cases of `worker_request` run through the real SDK: inputs declared missing are prepared once, and a prepared rule context
 //! keeps its sibling rule's findings.
-use super::super::service::{configure, prepare};
+use super::super::super::service::{configure, prepare};
 use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
 use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use ryo_benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeMap;
 
-pub(in super::super) fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread()
- {
+#[test]
+fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread() {
     use crate::outbound::engine::interface::EnginePort as _;
     use ryo_benchmark_contracts::domain::context::types::CaseContext;
     let scratch = tempfile::tempdir().unwrap();
@@ -109,7 +109,8 @@ pub(in super::super) fn actual_sdk_executes_missing_input_facts_but_refuses_unmo
 /// Two rules over two declared-missing files with a prepared rule context: the hosted tables and a disabled pair reach the SDK, the
 /// selected pairs the engine is given are the rules times the files less the disabled pairs, and the rule nothing disables keeps both
 /// findings on a retained store while the other rule's exclusion and hosted rows change.
-pub(in super::super) fn prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule() {
+#[test]
+fn prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule() {
     use crate::outbound::engine::interface::EnginePort as _;
     use ryo_benchmark_contracts::domain::context::types::{
         CaseContext, ExternalPrefix, PreparedRuleContext, RuleConfiguration, RuleContextTables,

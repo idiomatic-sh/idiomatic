@@ -2,6 +2,10 @@
 //! with a clone of it. This is the one place in the core that names the access.
 
 use ryo_execution::inbound::use_cases::prepare::interface::DerivedAccess;
+use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
+use ryo_execution_runtime::outbound::digest::interface::DigestPort;
+use ryo_execution_runtime::outbound::operators::interface::OperatorsPort;
+use std::sync::Arc;
 
 /// The derived owner's access, held between the edge that composes it and the engine each run prepares.
 ///
@@ -21,6 +25,16 @@ impl Derived {
     #[must_use]
     pub fn access(&self) -> DerivedAccess {
         self.0.clone()
+    }
+
+    /// The engine's prepare use case over `operators` and `digest`, preparing with a clone of the held access.
+    #[must_use]
+    pub fn prepare(
+        &self,
+        operators: Arc<dyn OperatorsPort>,
+        digest: Arc<dyn DigestPort>,
+    ) -> PrepareUseCaseImpl {
+        PrepareUseCaseImpl::new(operators, self.access(), digest)
     }
 }
 
