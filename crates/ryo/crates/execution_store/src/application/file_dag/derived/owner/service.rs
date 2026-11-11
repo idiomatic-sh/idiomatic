@@ -1,5 +1,6 @@
 //! The owner-issued capability over the derived port.
 use crate::outbound::derived::interface::DerivedPort;
+use crate::outbound::route_counts::interface::RouteCountsPort;
 use ryo_derived::domain::contract::types::prepared_derived::value::PreparedDerived;
 use ryo_derived::domain::request::types::DerivedRequest;
 use std::sync::Arc;
@@ -20,6 +21,8 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct DerivedAccess {
     port: Arc<dyn DerivedPort>,
+    /// The format route accounting writes its documents in, when the edge composed one.
+    routes: Option<Arc<dyn RouteCountsPort>>,
 }
 
 impl DerivedAccess {
@@ -41,6 +44,39 @@ impl DerivedAccess {
     ) -> Arc<PreparedDerived> {
         Arc::new(self.port.prepare(request, schemas))
     }
+    /// The same capability, whose route accounting writes its documents through `routes`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
+    /// use ryo_execution_store::outbound::route_counts::interface::RouteCountsPort;
+    /// use std::sync::Arc;
+    /// fn routed(access: DerivedAccess, routes: Arc<dyn RouteCountsPort>) -> DerivedAccess {
+    ///     access.routed(routes)
+    /// }
+    /// ```
+    #[must_use]
+    pub fn routed(self, routes: Arc<dyn RouteCountsPort>) -> Self {
+        Self {
+            routes: Some(routes),
+            ..self
+        }
+    }
+    /// The format route accounting writes in, when the edge composed one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_store::application::file_dag::derived::owner::service::DerivedAccess;
+    /// fn accounted(access: &DerivedAccess) -> bool {
+    ///     access.routes().is_some()
+    /// }
+    /// ```
+    #[must_use]
+    pub fn routes(&self) -> Option<Arc<dyn RouteCountsPort>> {
+        self.routes.clone()
+    }
     /// The builder is reachable only inside the owner tree.
     pub(crate) fn port(&self) -> &Arc<dyn DerivedPort> {
         &self.port
@@ -49,13 +85,13 @@ impl DerivedAccess {
 
 impl From<Arc<dyn DerivedPort>> for DerivedAccess {
     fn from(port: Arc<dyn DerivedPort>) -> Self {
-        Self { port }
+        Self { port, routes: None }
     }
 }
 
 impl<T: DerivedPort + 'static> From<Arc<T>> for DerivedAccess {
     fn from(port: Arc<T>) -> Self {
-        Self { port }
+        Self { port, routes: None }
     }
 }
 

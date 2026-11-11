@@ -208,7 +208,7 @@ impl InvocationWorkspace {
         Self {
             work: Default::default(),
             #[cfg(feature = "diagnostic-row-progress")]
-            progress_origin: super::super::route_counts::capture(owner.routes()),
+            progress_origin: super::super::route_counts::service::capture(owner.routes()),
             derived_scratch: Default::default(),
             relation_owner: owner,
             publications: Default::default(),

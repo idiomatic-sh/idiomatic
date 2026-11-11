@@ -34,7 +34,7 @@ pub struct RouteProfile(pub(in super::super) Option<Arc<Mutex<RouteState>>>);
 ///
 /// ```
 /// use ryo_execution_store::application::file_dag::route_counts::profile::service::FileScope;
-/// let scope = FileScope::begin(0);
+/// let scope = FileScope::begin(0_usize, None);
 /// let _profile = scope.profile();
 /// ```
 #[derive(Debug)]

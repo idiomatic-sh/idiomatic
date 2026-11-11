@@ -62,7 +62,7 @@ impl<'a> DemandAnswers<'a> {
             let cache = &mut *self.cache;
             cache.graph_counts.roots.0 += 1;
         }
-        crate::application::file_dag::route_counts::event(
+        crate::application::file_dag::route_counts::service::event(
             &self.owner.routes,
             constants::REACH_REQUEST,
             constants::ROUTE_GRAPH,
@@ -88,7 +88,7 @@ impl<'a> DemandAnswers<'a> {
                 .iter()
                 .find(|answer| answer.root.0 == root && answer.orientation == access.orientation())
         {
-            crate::application::file_dag::route_counts::event(
+            crate::application::file_dag::route_counts::service::event(
                 &self.owner.routes,
                 constants::REACH_MEMO_HIT,
                 constants::ROUTE_GRAPH,
@@ -96,7 +96,7 @@ impl<'a> DemandAnswers<'a> {
             cache.graph_counts.memo_hits.0 += 1;
             return completed(self.owner, entry, Arc::clone(&answer.reached)).map(Some);
         }
-        crate::application::file_dag::route_counts::event(
+        crate::application::file_dag::route_counts::service::event(
             &self.owner.routes,
             constants::REACH_TRAVERSAL,
             constants::ROUTE_GRAPH,
@@ -156,7 +156,7 @@ impl<'a> DemandAnswers<'a> {
         access.validate_owner(self.owner)?;
         domain.validate_owner(self.owner, access)?;
         let domain = domain.raw_domain();
-        crate::application::file_dag::route_counts::event(
+        crate::application::file_dag::route_counts::service::event(
             &self.owner.routes,
             constants::NEAREST_REQUEST,
             constants::ROUTE_GRAPH,
@@ -170,7 +170,7 @@ impl<'a> DemandAnswers<'a> {
             )
             .is_none()
         {
-            crate::application::file_dag::route_counts::event(
+            crate::application::file_dag::route_counts::service::event(
                 &self.owner.routes,
                 constants::NEAREST_TRAVERSAL,
                 constants::ROUTE_GRAPH,
@@ -212,7 +212,7 @@ impl<'a> DemandAnswers<'a> {
         let hit = memo == MemoStatus::Memoized;
         {
             let cache = &mut *self.cache;
-            crate::application::file_dag::route_counts::event(
+            crate::application::file_dag::route_counts::service::event(
                 &self.owner.routes,
                 if hit {
                     constants::NEAREST_MEMO_HIT

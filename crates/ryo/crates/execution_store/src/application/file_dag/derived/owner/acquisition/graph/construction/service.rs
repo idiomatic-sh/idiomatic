@@ -50,10 +50,10 @@ pub(crate) fn adjacency(
         }));
     }
     let expected_identity = source.identity.clone();
-    let storage = crate::application::file_dag::route_counts::observe(
+    let storage = crate::application::file_dag::route_counts::service::observe(
         &owner.routes,
         crate::application::file_dag::route_counts::types::BuildRoute::GraphAdjacency.label(),
-        crate::application::file_dag::route_counts::derived(plan.kind),
+        crate::application::file_dag::route_counts::service::derived(plan.kind),
         || {
             owner.build_admitted(
                 plan,
@@ -127,10 +127,10 @@ pub(crate) fn domain(
             construction: Construction::Reused,
         });
     }
-    let storage = crate::application::file_dag::route_counts::observe(
+    let storage = crate::application::file_dag::route_counts::service::observe(
         &owner.routes,
         crate::application::file_dag::route_counts::types::BuildRoute::GraphDomain.label(),
-        crate::application::file_dag::route_counts::derived(plan.kind),
+        crate::application::file_dag::route_counts::service::derived(plan.kind),
         || {
             owner.build_admitted(
                 plan,

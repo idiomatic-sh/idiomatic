@@ -107,6 +107,7 @@ pub(crate) fn open_file<'a>(
     }
     let routes = ryo_execution_store::application::file_dag::route_counts::profile::service::FileScope::begin(
         file.0 as usize,
+        services.derived().routes(),
     );
     #[cfg(feature = "diagnostic-row-progress")]
     if let Some(path) = services.request.path(file) {

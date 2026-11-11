@@ -32,10 +32,10 @@ impl DerivedOwner {
             return Err(OperatingError::WrongOperation);
         }
         let recycled = recycled.and_then(AcquiredView::into_storage);
-        let storage = crate::application::file_dag::route_counts::observe(
+        let storage = crate::application::file_dag::route_counts::service::observe(
             &self.routes,
             route.label(),
-            crate::application::file_dag::route_counts::derived(plan.kind),
+            crate::application::file_dag::route_counts::service::derived(plan.kind),
             || self.build_admitted(plan, admitted, inputs, scratch, recycled),
         )?
         .ok_or(OperatingError::WrongOperation)?;

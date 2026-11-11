@@ -1,12 +1,11 @@
 use super::constants::{
     GRAPH_ADJACENCY_BUILD, KIND_EQUALITY, KIND_MEMBERSHIP, MAX_KEYS, OWNER_BUILD,
 };
-use super::service::document;
 use super::types::{
     BuildRoute, RouteCount, RouteOrigin, RouteOwnerId, RouteOwnership, RoutePlanId, RouteRuleName,
     RouteState, RouteTally,
 };
-use super::{event, identity, observe, owner};
+use super::{service::event, service::identity, service::observe, service::owner};
 use crate::application::file_dag::derived::constants::{OWNER_HIT, OWNER_REQUEST};
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
 use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
@@ -24,17 +23,16 @@ const EXAMPLE_RULE: &str = "example";
 const QUERY_NAME: &str = "query-name";
 const QUERY_TWO: &str = "query-two";
 const ORIGINAL_FAILURE: &str = "original failure";
-const QUOTED_TEXT: &str = "a\"b\n";
-const QUOTED_JSON: &str = "\"a\\\"b\\n\"";
 fn recording() -> RouteState {
     RouteState {
+        format: std::sync::Arc::new(crate::outbound::route_counts::fixtures::fake::RouteCountsFake),
         file: 7.into(),
         origin: RouteOrigin::default(),
         counts: HashMap::new(),
         overflow: RouteTally::default(),
         rules: HashMap::new(),
         #[cfg(feature = "diagnostic-row-progress")]
-        progress: super::new_progress(),
+        progress: super::service::new_progress(),
     }
 }
 /// Runs `run` with a recording profile handed to it, and answers what it recorded.
@@ -154,10 +152,6 @@ fn owner_identity_distinguishes_live_population_keys_and_rules_are_named_once() 
             .keys()
             .all(|key| key.origin.plan == Some(RoutePlanId(29))
                 && key.origin.owner_id == Some(RouteOwnerId(17)))
-    );
-    assert_eq!(
-        document(&RouteRuleName(QUOTED_TEXT.to_owned())).0,
-        QUOTED_JSON
     );
 }
 

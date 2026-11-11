@@ -75,16 +75,16 @@ impl DerivedOwner {
             len: PopulationCount(len),
             context,
         };
-        let _owner = route_counts::owner(&self.routes, std::ptr::from_ref(self).addr());
-        let _identity = route_counts::identity(
+        let _owner = route_counts::service::owner(&self.routes, std::ptr::from_ref(self).addr());
+        let _identity = route_counts::service::identity(
             &self.routes,
             Arc::as_ptr(plan).addr(),
             ids.map(|id| (id.0 != usize::MAX).then_some(id.0)),
         );
-        route_counts::event(
+        route_counts::service::event(
             &self.routes,
             constants::OWNER_REQUEST,
-            route_counts::derived(plan.kind),
+            route_counts::service::derived(plan.kind),
         );
         {
             let mut guard = self.state.borrow_mut();
@@ -133,10 +133,10 @@ impl DerivedOwner {
                 }
                 entry.lease = Arc::downgrade(handle.lease());
                 state.hits += 1;
-                route_counts::event(
+                route_counts::service::event(
                     &self.routes,
                     constants::OWNER_HIT,
-                    route_counts::derived(plan.kind),
+                    route_counts::service::derived(plan.kind),
                 );
                 if let Some(cache) = cache.as_deref_mut() {
                     if stored_observation == StoredObservation::Observed
