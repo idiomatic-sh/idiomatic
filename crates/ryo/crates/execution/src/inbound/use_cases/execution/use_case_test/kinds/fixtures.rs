@@ -44,7 +44,7 @@ pub(super) enum Kinds {
     Mask(Test, &'static str),
 }
 /// The positions of the nodes each labelled selection found, in order.
-pub(super) type Found = Cow<'static, [(&'static str, Cow<'static, [u32]>)]>;
+type Found = Cow<'static, [(&'static str, Cow<'static, [u32]>)]>;
 /// What a row observed.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum Observed {

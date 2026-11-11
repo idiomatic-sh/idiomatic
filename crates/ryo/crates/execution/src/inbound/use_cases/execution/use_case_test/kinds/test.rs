@@ -1,6 +1,6 @@
 //! The `kind_sets` service's cases: the elements of a named kind are found among that kind, and a file nothing read teaches nothing.
 use super::fixtures::{
-    Found, Kinds, Observed, a_file_with_no_names_teaches_nothing_about_kinds,
+    Kinds, Observed, a_file_with_no_names_teaches_nothing_about_kinds,
     another_language_does_not_inherit_the_sets_of_the_first, finds_the_elements_of_a_named_kind,
     masked, names_a_kind_by_a_test_on_its_name,
 };
@@ -15,7 +15,7 @@ use std::borrow::Cow;
 type Input = Kinds;
 type Value = Observed;
 type Failure = OperatingError;
-const FOUND: Found = Cow::Borrowed(&[
+const FOUND: Cow<'static, [(&'static str, Cow<'static, [u32]>)]> = Cow::Borrowed(&[
     ("nodes", Cow::Borrowed(&[0])),
     ("tokens", Cow::Borrowed(&[1, 2, 3])),
     ("one_of", Cow::Borrowed(&[1, 3])),
@@ -29,7 +29,7 @@ const FOUND: Found = Cow::Borrowed(&[
     ("neither", Cow::Borrowed(&[2])),
     ("a_word_that_is_not_the_file", Cow::Borrowed(&[1, 3])),
 ]);
-const LANGUAGES: Found = Cow::Borrowed(&[
+const LANGUAGES: Cow<'static, [(&'static str, Cow<'static, [u32]>)]> = Cow::Borrowed(&[
     ("first", Cow::Borrowed(&[1])),
     ("second", Cow::Borrowed(&[1])),
     ("wrong", Cow::Borrowed(&[])),
