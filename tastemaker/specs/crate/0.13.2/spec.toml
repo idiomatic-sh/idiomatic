@@ -18904,7 +18904,7 @@ then.findings = [
 ]
 [[scenarios]]
 id = 'test-target-support'
-scenario = 'A test target keeps its own support beside its `main.rs`: `fixtures.rs` and the files beneath `fixtures/` are placed, and nothing is closed or read as a group.'
+scenario = 'A test target keeps its own support beside its `main.rs`: `fixtures.rs` and the files beneath `fixtures/` are placed, and nothing is closed or read as a group: the group beside them is read by `test-group-namespace`, the support is not.'
 given.at = 'app'
 given.params = { package = 'absent', library = 'absent', binary = 'absent', distribution = 'absent', product = 'demo', folder = 'app' }
 given.files.'Cargo.toml' = '''
@@ -19001,7 +19001,9 @@ given.files.'app/LICENSE' = "MIT\n"
 given.files.'app/src/cases_test.rs' = '''
 //! The case runner's cases.
 '''
-given.files.'app/tests/activation/main.rs' = '#[cfg(test)] mod fixtures;'
+given.files.'app/tests/activation/main.rs' = '#[cfg(test)] mod fixtures; mod order;'
+given.files.'app/tests/activation/order.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'app/tests/activation/order/test.rs' = '#[test] fn keeps_order() {}'
 given.files.'app/tests/activation/fixtures.rs' = 'pub(super) mod file;'
 given.files.'app/tests/activation/fixtures/file.rs' = 'pub(crate) fn read() -> u8 { 1 }'
-then.only = ['idiomatic.arch/crate#closed']
+then.only = ['idiomatic.arch/crate#closed', 'idiomatic.arch/test-group-namespace']

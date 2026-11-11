@@ -6,7 +6,9 @@ Edited in place: places `no-runtime-fixtures@0.2.0`, `public-fields@0.3.0`, `io-
 
 Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0); `domain-concept-is-a-concept` reads a stray domain file through `test-group-namespace`.
 
-Edited in place: the `language-tastemaker` template writes `client-at-adapter` with an `include` that leaves the adapters out (`src/*.rs`, `src/domain/**`, `src/application/**`, `src/inbound/**`, `src/settings/**`, `src/outbound/*.rs`, `src/outbound/*/*.rs`, `benchmarks/**`, `tests/**`), where it excluded `**/adapters/**`: a rule that a client lives only in an adapter does not read the adapters, and the manifest needs no carve-out (`manifest-excludes`). Fixtures are test support and are no longer read.
+Edited in place: the `language-tastemaker` template writes `client-at-adapter` as `include = ["**"]` with no `exclude`, where it excluded `**/adapters/**`, `**/factory.rs`, `**/composition.rs`, `**/*_test.rs`, `**/tests/fixtures/**`, `**/tests/allocation.rs` and `**/tests/bdd.rs` (python also `src/fixtures/**`). `client-at-adapter@0.2.0` itself admits a file beneath an outbound port's `adapters/`, a port's `factory.rs` and an edge's `composition.rs`, so the manifest holds no carve-out; tests and fixtures are read, as the rule's contract covers them.
+
+Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
 
 # language 0.4.3
 

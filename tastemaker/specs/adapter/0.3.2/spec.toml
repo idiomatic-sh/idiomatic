@@ -36,7 +36,7 @@ rules = [
   { rule = "idiomatic.arch/public-fields@0.3.0", include = ["types.rs"], description = "Every field of a struct in a types.rs is public: a type is its data." },
   { rule = "idiomatic.arch/no-domain-aliases@0.1.0", include = ["types.rs", "errors.rs"], description = "A part's types and errors are nominal types, never type aliases." },
   { rule = "idiomatic.arch/error-name@0.1.0", include = ["errors.rs"], description = "A part's errors.rs, and the errors.rs of a collection below it, declares exactly one enum named <Name>Error and no other type." },
-  { rule = "idiomatic.arch/unit-cases@0.1.0", include = ["*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
+  { rule = "idiomatic.arch/unit-cases@0.2.0", include = ["*.rs"], description = "A part's test has a `succeeds` row, and a `refuses` row where its errors.rs has a variant of its own." },
   { rule = "idiomatic.arch/proof-beside@0.1.0", include = ["*.rs"], description = "A schemas test exists exactly beside the schemas it proves: schemas_test.rs beside schemas.rs." },
   { rule = "idiomatic.arch/schema-name@0.1.0", include = ["schemas.rs"], description = "A schemas.rs names its wire shapes <Name>Schema and their refusals <Name>SchemaError, converts with TryFrom (or From, where the conversion cannot fail) and does nothing else." },
   { rule = "idiomatic.arch/schema-visibility@0.1.0", include = ["schemas.rs"], description = "Nothing in a part's schemas is visible beyond the module that owns them." },

@@ -2,6 +2,8 @@
 
 Places `no-runtime-fixtures@0.2.0` where 0.1.1 named its earlier version, so a product that places it locks one version of the rule: two versions of one rule share its id, and the earlier entry ran the later query. Nothing else changes: an entry's schemas are its one `schemas.rs`, and scenario `schemas-split-by-kind` holds a `schemas/` directory of per-kind files closed. 0.1.1 is removed with this version, not kept as published: no lock names it, nothing has been released.
 
+Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
+
 # entry
 
 ## 0.1.0

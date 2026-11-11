@@ -466,3 +466,5 @@ The system allocator: `cargo-package` no longer lists `mimalloc.workspace = true
 
 - **No budgets, no divan requirement.** `crate-bench` asks for a `fn main` and, for a split bench, the declared workload modules; it keeps no `budgeted` helper, and `cargo-package` no longer requires `divan.workspace`. `bench-workload` is only the workload's doc. A product's measured workloads are the command line's `commands` bench (the `cli` spec).
 - **The growth check times the fastest of five reads.** `crate-bench`'s `timed` returns the fastest of `ROUNDS` reads of each size, so one disturbed read never fails the check; `GROWTH_LIMIT` is unchanged.
+
+Edited in place: scenario `test-target-support` also holds a group beside the target's support, so `test-group-namespace` is read and shows the support is not taken for a group.

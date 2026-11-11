@@ -1,5 +1,5 @@
 description = "Every module declares its actual Rust children through its module file `X.rs` beside the directory `X/`, with the required test/support gating."
-why = "A directory's module file is `X.rs` beside the directory `X/`, one style (clippy `mod_module_files` refuses the other form, so this rule need not); it declares the actual child files and nested directory modules it compiles. lib.rs declares the source directory. A child written in both forms is ambiguous and refused. A normal namespace (inbound, use_cases, outbound, domain, application, collections, adapters, and their architecture members) contains declarations rather than logic. Test proof directory modules outside those namespace-owner positions may retain their existing proof items while declaring children normally. An ordinary test role is test.rs or X_test.rs and its declaration must name test in cfg; fixtures and cases must use exact cfg(test) or name both test and the fixtures feature. Existing X_test.rs sibling self-declaration with an exact #[path] remains recognized; arbitrary #[path] remains refused. Module declarations with bodies are not external child registrations. A directory containing Rust source without either supported module file remains uncompiled, and a directory module that is never declared by its parent remains uncompiled. Cargo-explicit targets keep their existing exact manifest recognition; src/bin and crate entry roots retain their existing handling."
+why = "A directory's module file is `X.rs` beside the directory `X/`, one style (clippy `mod_module_files` refuses the other form, so this rule need not); it declares the actual child files and nested directory modules it compiles. lib.rs declares the source directory. A child written in both forms is ambiguous and refused. A normal namespace (inbound, use_cases, outbound, domain, application, collections, adapters, and their architecture members) contains declarations rather than logic. Test proof directory modules outside those namespace-owner positions may retain their existing proof items while declaring children normally. An ordinary test role is test.rs or X_test.rs and its declaration must name test in cfg; fixtures and cases must use exact cfg(test) or name both test and the fixtures feature. Existing X_test.rs sibling self-declaration with an exact #[path] remains recognized; arbitrary #[path] remains refused. Module declarations with bodies are not external child registrations. A directory containing Rust source without its module file `X.rs` remains uncompiled, and a directory module that is never declared by its parent remains uncompiled. Cargo-explicit targets keep their existing exact manifest recognition; src/bin and crate entry roots retain their existing handling."
 
 query = '''
 let listed-files = select l."path" as "file" from "filesystem.file" as l where not glob_any(l."path", "**/src/inbound/{use_cases,contracts}/*/acceptance.rs");
@@ -1058,23 +1058,6 @@ given.files.'src/outbound/names/interface.rs' = '''
 '''
 
 [[scenarios]]
-id = 'mod-rs'
-scenario = 'A conventional directory module and its declared child compile normally.'
-given.files.'src/inbound/hello.rs' = '''
-//! Hello.
-'''
-given.files.'src/inbound/mod.rs' = '''
-//! Inbound.
-
-pub mod hello;
-'''
-given.files.'src/lib.rs' = '''
-//! The core.
-
-pub mod inbound;
-'''
-
-[[scenarios]]
 id = 'directory-without-module-file'
 scenario = 'A directory of .rs files with no module file beside it.'
 given.files.'src/cases.rs' = '''
@@ -1524,17 +1507,17 @@ then.findings = [{ path = "app/src/driver/adapter_test.rs", line = 1 }]
 id = "directory-test-and-fixture-groups-register-normally"
 scenario = "Conventional proof and fixture directory modules are reached through normal parent declarations, with test role gating."
 given.files.'src/lib.rs' = "#[cfg(test)] mod proof;"
-given.files.'src/proof/mod.rs' = "#[cfg(test)] pub(super) mod alpha;\n#[cfg(any(test, feature = \"fixtures\"))] pub(super) mod fixtures;"
-given.files.'src/proof/alpha/mod.rs' = "#[cfg(test)] pub(super) mod test;"
+given.files.'src/proof.rs' = "#[cfg(test)] pub(super) mod alpha;\n#[cfg(any(test, feature = \"fixtures\"))] pub(super) mod fixtures;"
+given.files.'src/proof/alpha.rs' = "#[cfg(test)] pub(super) mod test;"
 given.files.'src/proof/alpha/test.rs' = "#[test] fn actual_contract() {}"
-given.files.'src/proof/fixtures/mod.rs' = "pub(super) fn prepared_data() {}"
+given.files.'src/proof/fixtures.rs' = "pub(super) fn prepared_data() {}"
 
 [[scenarios]]
 id = "beside-module-registers-directory-child"
-scenario = "A stock X.rs module declares its nested child through X/child/mod.rs."
+scenario = "A stock X.rs module declares its nested child through X/child.rs."
 given.files.'src/lib.rs' = "mod proof;"
 given.files.'src/proof.rs' = "#[cfg(test)] mod alpha;"
-given.files.'src/proof/alpha/mod.rs' = "#[cfg(test)] pub(super) mod test;"
+given.files.'src/proof/alpha.rs' = "#[cfg(test)] pub(super) mod test;"
 given.files.'src/proof/alpha/test.rs' = "#[test] fn actual_contract() {}"
 
 [[scenarios]]
@@ -1590,7 +1573,7 @@ id = "population-directory-service"
 scenario = "A private population directory and generic service compile through normal parent and child declarations."
 given.files."src/lib.rs" = "mod program;\n"
 given.files."src/program.rs" = "mod project_population;\n"
-given.files."src/program/project_population/mod.rs" = "pub(super) mod service;\n"
+given.files."src/program/project_population.rs" = "pub(super) mod service;\n"
 given.files."src/program/project_population/service.rs" = "pub(super) struct ProjectFrontierPopulation { id: usize }\n"
 
 [[scenarios]]
@@ -1615,8 +1598,8 @@ then.findings = [{ path = "src/program/project_population/service.rs", line = 1 
 id = "private-directory-fixtures"
 scenario = "private directory fixtures"
 given.files.'src/lib.rs' = "#[cfg(test)] mod fixtures;"
-given.files.'src/fixtures/mod.rs' = "pub(super) mod graph;"
-given.files.'src/fixtures/graph/mod.rs' = "pub(super) struct Data;"
+given.files.'src/fixtures.rs' = "pub(super) mod graph;"
+given.files.'src/fixtures/graph.rs' = "pub(super) struct Data;"
 
 [[scenarios]]
 id = "ungated-directory-fixtures"

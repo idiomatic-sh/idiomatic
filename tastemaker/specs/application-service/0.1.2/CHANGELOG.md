@@ -6,6 +6,8 @@ The operation's `service_test.rs` is a case table or the namespace of its groups
 
 Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0). A nested part's module file is `<part>.rs`, placed by the new `idiomatic.arch/part-module@0.1.0`, and a group's is `service_test/<group>.rs`, each at any depth and none of them `mod.rs`. `service_test.rs` and a nested part's `service_test.rs` are placed by the new `idiomatic.arch/service-test@0.1.0` (`kind = "application"`, its scaffold a case table, its doc line 0.1.1's "Behavioral proof of `<operation>` through its injected ports"). A nested part has no `test.rs` (scenario `nested-part-test-is-no-role`, refused) and no `schemas.rs` or `schemas_test.rs`: wire shapes belong to an outbound adapter, admission to the part's `service.rs`.
 
+Edited in place: places `unit-cases@0.2.0`, which reads a namespace `*_test.rs` with the tables of its groups.
+
 # application-service 0.1.1
 
 Places the corrected rules (`public-fields@0.2.0`, `constants-once@0.2.0`, `mirrored-types@0.2.0`, `no-json-in-process@0.4.0`) and the specs that place them at their corrected versions, where 0.1.0 named the earlier ones. Nothing else changes.

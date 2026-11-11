@@ -1,0 +1,1147 @@
+description = "Three or more child directories of one parent share their names with three or more child directories of another parent in the same product (a test group, a fixture or anything beneath a test role is no member): one concept split by role across parents, reported at each shared child's module file with the other parent's copy."
+why = "Colocation is by domain, not by primitive: a concept is one directory holding every role of it, so the same set of names under two parents (the same ten query operators under a planner, two evaluators and a conformance check) is one set of concepts split by role, and every change to one of them is made in each copy. A child directory counts when it holds a file and has its module file `<parent>/<name>.rs` beside it; what is not a Rust module tree is not read. Names in `roles` are the structural directories every tree repeats by design and never count: `adapters`, `methods`, `commands`, `macros`, `tests`, `benches`, `fixtures` and `src`, and the nu-hex layer directories every hex repeats, `domain`, `inbound`, `outbound`, `application`, `use_cases`, `contracts` and `collections`. Trees a spec places as mirrors of another tree are left out by the entry's `exclude`, not by the rule: the CLI's resource and verb directories (`**/src/commands/**` and `**/src/resources/**`, resource then verb, mirroring the service hexes the CLI layer calls), the test trees that mirror what they test (`**/tests/**`) and the bench trees that mirror the commands (`**/benches/**`, outside `src` because Cargo requires it). Parents that mirror each other because they are independent instances of one contract, such as the language providers implementing the same ports and the shared relation shapes they fill, lie under a directory named in `independent`: a pair whose two copies both do is not a finding."
+
+query = '''
+param roles: set<string>;
+param independent: set<string>;
+let modules = capture(from="filesystem.file", path="path", pattern="{*parent}/{name}.rs", captures=["parent", "name"]);
+let directories = capture(from="filesystem.file", path="path", pattern="{*parent}/{name}/{file}", captures=["parent", "name", "file"]);
+let directory-names = project(from=directories, columns=["parent", "name"]);
+let nested-members = select l."name" as "name", l."parent" as "parent", l."path" as "path" from modules as l join directory-names as r on l."parent" = r."parent" and l."name" = r."name";
+let root-modules = capture(from="filesystem.file", path="path", pattern="{name}.rs", captures=["name"]);
+let root-directories = capture(from="filesystem.file", path="path", pattern="{name}/{file}", captures=["name", "file"]);
+let root-directory-names = project(from=root-directories, columns=["name"]);
+let root-names = select l."name" as "name", l."path" as "path" from root-modules as l join root-directory-names as r on l."name" = r."name";
+let root-members = extend(from=root-names, values={"parent": ""});
+let members = union(left=nested-members, right=root-members);
+let role-members = select * from members where name not in $roles;
+let named-members = select * from role-members where not glob_any(path, "{**/*_test/**,**/test.rs,**/fixtures/**,**/fixtures.rs,**/tests/**}");
+let pairs = select r."parent" as "counterpart", l."name" as "name", r."path" as "other", l."parent" as "parent", l."path" as "path" from named-members as l join named-members as r on l."name" = r."name";
+let distinct-pairs = select * from pairs where parent != counterpart;
+let inner-directories = capture(from=named-members, path="path", pattern="{*above}/{directory}/{*below}", captures=["above", "directory", "below"]);
+let inner-independent = select * from inner-directories where directory in $independent;
+let inner-dependent = antijoin(left=named-members, right=inner-independent, left-on=["path"], right-on=["path"]);
+let first-directories = capture(from=inner-dependent, path="path", pattern="{directory}/{*below}", captures=["directory", "below"]);
+let first-independent = select * from first-directories where directory in $independent;
+let dependent = antijoin(left=inner-dependent, right=first-independent, left-on=["path"], right-on=["path"]);
+let left-dependent = select l."counterpart" as "counterpart", l."name" as "name", l."other" as "other", l."parent" as "parent", l."path" as "path" from distinct-pairs as l join dependent as r on l."path" = r."path";
+let right-dependent = select l."counterpart" as "counterpart", l."name" as "name", l."other" as "other", l."parent" as "parent", l."path" as "path" from distinct-pairs as l join dependent as r on l."other" = r."path";
+let dependent-pairs = union(left=left-dependent, right=right-dependent);
+let shared-names = group-count(from=dependent-pairs, keys=["parent", "counterpart"], count="shared", distinct="name");
+let split-parents = select * from shared-names where shared >= 3;
+let split-members = select l."name" as "name", l."other" as "other", l."path" as "path" from dependent-pairs as l join split-parents as r on l."parent" = r."parent" and l."counterpart" = r."counterpart";
+emit split-members subject "path" key("path", "other");
+'''
+
+[params.roles]
+type = "set<string>"
+description = "Directory names that are structural roles every tree repeats by design, never a member (the idiomatic-rust spec sets adapters, methods, commands, macros, tests, benches, fixtures and src, and the nu-hex layer directories domain, inbound, outbound, application, use_cases, contracts and collections)."
+
+[params.independent]
+type = "set<string>"
+description = "Names of directories that hold independent instances of one contract, which mirror each other by design, such as `languages` (the language providers) and `relations` (the shared relation shapes they fill); a pair whose two copies both lie under one of them is not a finding."
+
+[diagnostic]
+primary = "path"
+message = "directory `{name}` is repeated at `{other}`, and the two parents share three or more child directory names: one concept split by role across parents"
+help = "Colocate by domain: for each shared name, make one directory that holds every role of that concept (each parent's file for it side by side), move the copies' files into it, and delete the copies. If the two trees are independent implementations of one contract by design (such as language providers), name their common parent in the rule entry's `independent` param instead of moving them."
+
+[[scenarios]]
+id = 'split-concept'
+scenario = 'Two parents with the same three member directories are reported at every shared member.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/evaluation/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+'''
+given.files.'src/evaluation/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod plan;
+mod evaluation;
+'''
+given.files.'src/plan/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+'''
+given.files.'src/plan/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+then.findings = [
+  { path = 'src/evaluation/operations/join.rs' },
+  { path = 'src/evaluation/operations/union.rs' },
+  { path = 'src/evaluation/operations/where.rs' },
+  { path = 'src/plan/operations/join.rs' },
+  { path = 'src/plan/operations/union.rs' },
+  { path = 'src/plan/operations/where.rs' },
+]
+
+[[scenarios]]
+id = 'three-parents'
+scenario = 'Three parents sharing three names pairwise are each reported, and a name only one parent holds is not.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/evaluation/indexed/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+'''
+given.files.'src/evaluation/indexed/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/indexed/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/indexed/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/indexed/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/indexed/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/indexed/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/reference/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+mod extend;
+'''
+given.files.'src/evaluation/reference/operations/extend.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/reference/operations/extend/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/reference/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/reference/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/reference/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/reference/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/reference/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/reference/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod plan;
+mod evaluation;
+'''
+given.files.'src/plan/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+mod axis;
+'''
+given.files.'src/plan/operations/axis.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/axis/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+then.findings = [
+  { path = 'src/evaluation/indexed/operations/join.rs' },
+  { path = 'src/evaluation/indexed/operations/join.rs' },
+  { path = 'src/evaluation/indexed/operations/union.rs' },
+  { path = 'src/evaluation/indexed/operations/union.rs' },
+  { path = 'src/evaluation/indexed/operations/where.rs' },
+  { path = 'src/evaluation/indexed/operations/where.rs' },
+  { path = 'src/evaluation/reference/operations/join.rs' },
+  { path = 'src/evaluation/reference/operations/join.rs' },
+  { path = 'src/evaluation/reference/operations/union.rs' },
+  { path = 'src/evaluation/reference/operations/union.rs' },
+  { path = 'src/evaluation/reference/operations/where.rs' },
+  { path = 'src/evaluation/reference/operations/where.rs' },
+  { path = 'src/plan/operations/join.rs' },
+  { path = 'src/plan/operations/join.rs' },
+  { path = 'src/plan/operations/union.rs' },
+  { path = 'src/plan/operations/union.rs' },
+  { path = 'src/plan/operations/where.rs' },
+  { path = 'src/plan/operations/where.rs' },
+]
+
+[[scenarios]]
+id = 'four-shared'
+scenario = 'Two parents sharing four names are reported at all four, not only at exactly three.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/evaluation/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+mod axis;
+'''
+given.files.'src/evaluation/operations/axis.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/axis/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod plan;
+mod evaluation;
+'''
+given.files.'src/plan/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+mod axis;
+'''
+given.files.'src/plan/operations/axis.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/axis/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+then.findings = [
+  { path = 'src/evaluation/operations/axis.rs' },
+  { path = 'src/evaluation/operations/join.rs' },
+  { path = 'src/evaluation/operations/union.rs' },
+  { path = 'src/evaluation/operations/where.rs' },
+  { path = 'src/plan/operations/axis.rs' },
+  { path = 'src/plan/operations/join.rs' },
+  { path = 'src/plan/operations/union.rs' },
+  { path = 'src/plan/operations/where.rs' },
+]
+
+[[scenarios]]
+id = 'root-parent'
+scenario = 'Members at the repository root count against members of the same names elsewhere.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'join.rs' = '''
+mod operation;
+'''
+given.files.'join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+'''
+given.files.'src/evaluation/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod evaluation;
+'''
+given.files.'union.rs' = '''
+mod operation;
+'''
+given.files.'union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'where.rs' = '''
+mod operation;
+'''
+given.files.'where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+then.findings = [
+  { path = 'join.rs' },
+  { path = 'src/evaluation/operations/join.rs' },
+  { path = 'src/evaluation/operations/union.rs' },
+  { path = 'src/evaluation/operations/where.rs' },
+  { path = 'union.rs' },
+  { path = 'where.rs' },
+]
+
+[[scenarios]]
+id = 'two-shared'
+scenario = 'Two parents sharing only two names pass.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/evaluation/operations.rs' = '''
+mod join;
+mod union;
+mod where;
+'''
+given.files.'src/evaluation/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/operations/where.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/operations/where/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod plan;
+mod evaluation;
+'''
+given.files.'src/plan/operations.rs' = '''
+mod join;
+mod union;
+mod axis;
+'''
+given.files.'src/plan/operations/axis.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/axis/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/join.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/operations/union.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/operations/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+
+[[scenarios]]
+id = 'structural-role-directories-never-count-members'
+scenario = 'Structural role directories never count as members.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/evaluation.rs' = '''
+mod adapters;
+mod methods;
+mod fixtures;
+mod union;
+'''
+given.files.'src/evaluation/adapters.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/adapters/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/fixtures.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/fixtures/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/methods.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/methods/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/union.rs' = '''
+mod operation;
+'''
+given.files.'src/evaluation/union/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod plan;
+mod evaluation;
+'''
+given.files.'src/plan.rs' = '''
+mod adapters;
+mod methods;
+mod fixtures;
+mod join;
+'''
+given.files.'src/plan/adapters.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/adapters/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/fixtures.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/fixtures/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/join.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/join/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/methods.rs' = '''
+mod operation;
+'''
+given.files.'src/plan/methods/operation.rs' = '''
+pub(crate) fn run() {}
+'''
+
+[[scenarios]]
+id = 'no-module-file'
+scenario = 'Directories without an M1 module file are not a Rust module tree and are not read.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'data/first/join/case.txt' = '''
+x
+'''
+given.files.'data/first/union/case.txt' = '''
+x
+'''
+given.files.'data/first/where/case.txt' = '''
+x
+'''
+given.files.'data/second/join/case.txt' = '''
+x
+'''
+given.files.'data/second/union/case.txt' = '''
+x
+'''
+given.files.'data/second/where/case.txt' = '''
+x
+'''
+given.files.'src/lib.rs' = '''
+mod plan;
+mod evaluation;
+'''
+
+[[scenarios]]
+id = 'leaf-modules'
+scenario = 'Leaf module files without a directory are not member directories.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/evaluation/join.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/union.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/evaluation/where.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod plan;
+mod evaluation;
+'''
+given.files.'src/plan/join.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/union.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/plan/where.rs' = '''
+pub(crate) fn run() {}
+'''
+
+[[scenarios]]
+id = 'commands-excluded'
+scenario = "The CLI's resource and verb tree and the bench trees mirroring it pass when the entry excludes them."
+given.include = ['**']
+given.exclude = ['**/src/commands/**', '**/benches/**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'benches/performance.rs' = '''
+mod check;
+mod list;
+mod validate;
+'''
+given.files.'benches/performance/check.rs' = '''
+mod bench;
+'''
+given.files.'benches/performance/check/bench.rs' = '''
+fn main() {}
+'''
+given.files.'benches/performance/list.rs' = '''
+mod bench;
+'''
+given.files.'benches/performance/list/bench.rs' = '''
+fn main() {}
+'''
+given.files.'benches/performance/validate.rs' = '''
+mod bench;
+'''
+given.files.'benches/performance/validate/bench.rs' = '''
+fn main() {}
+'''
+given.files.'src/commands.rs' = '''
+mod rule;
+mod spec;
+'''
+given.files.'src/commands/rule.rs' = '''
+mod check;
+mod list;
+mod validate;
+'''
+given.files.'src/commands/rule/check.rs' = '''
+mod command;
+'''
+given.files.'src/commands/rule/check/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/rule/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/rule/list.rs' = '''
+mod command;
+'''
+given.files.'src/commands/rule/list/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/rule/validate.rs' = '''
+mod command;
+'''
+given.files.'src/commands/rule/validate/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/spec.rs' = '''
+mod check;
+mod list;
+mod validate;
+'''
+given.files.'src/commands/spec/check.rs' = '''
+mod command;
+'''
+given.files.'src/commands/spec/check/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/spec/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/spec/list.rs' = '''
+mod command;
+'''
+given.files.'src/commands/spec/list/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/spec/validate.rs' = '''
+mod command;
+'''
+given.files.'src/commands/spec/validate/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod commands;
+'''
+
+[[scenarios]]
+id = 'commands-included'
+scenario = 'The same trees are reported when the entry does not exclude them.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'benches/performance.rs' = '''
+mod check;
+mod list;
+mod validate;
+'''
+given.files.'benches/performance/check.rs' = '''
+mod bench;
+'''
+given.files.'benches/performance/check/bench.rs' = '''
+fn main() {}
+'''
+given.files.'benches/performance/list.rs' = '''
+mod bench;
+'''
+given.files.'benches/performance/list/bench.rs' = '''
+fn main() {}
+'''
+given.files.'benches/performance/validate.rs' = '''
+mod bench;
+'''
+given.files.'benches/performance/validate/bench.rs' = '''
+fn main() {}
+'''
+given.files.'src/commands.rs' = '''
+mod rule;
+mod spec;
+'''
+given.files.'src/commands/rule.rs' = '''
+mod check;
+mod list;
+mod validate;
+'''
+given.files.'src/commands/rule/check.rs' = '''
+mod command;
+'''
+given.files.'src/commands/rule/check/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/rule/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/rule/list.rs' = '''
+mod command;
+'''
+given.files.'src/commands/rule/list/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/rule/validate.rs' = '''
+mod command;
+'''
+given.files.'src/commands/rule/validate/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/spec.rs' = '''
+mod check;
+mod list;
+mod validate;
+'''
+given.files.'src/commands/spec/check.rs' = '''
+mod command;
+'''
+given.files.'src/commands/spec/check/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/spec/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/spec/list.rs' = '''
+mod command;
+'''
+given.files.'src/commands/spec/list/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/commands/spec/validate.rs' = '''
+mod command;
+'''
+given.files.'src/commands/spec/validate/command.rs' = '''
+pub(crate) fn run() {}
+'''
+given.files.'src/lib.rs' = '''
+mod commands;
+'''
+then.findings = [
+  { path = 'benches/performance/check.rs' },
+  { path = 'benches/performance/check.rs' },
+  { path = 'benches/performance/list.rs' },
+  { path = 'benches/performance/list.rs' },
+  { path = 'benches/performance/validate.rs' },
+  { path = 'benches/performance/validate.rs' },
+  { path = 'src/commands/rule/check.rs' },
+  { path = 'src/commands/rule/check.rs' },
+  { path = 'src/commands/rule/list.rs' },
+  { path = 'src/commands/rule/list.rs' },
+  { path = 'src/commands/rule/validate.rs' },
+  { path = 'src/commands/rule/validate.rs' },
+  { path = 'src/commands/spec/check.rs' },
+  { path = 'src/commands/spec/check.rs' },
+  { path = 'src/commands/spec/list.rs' },
+  { path = 'src/commands/spec/list.rs' },
+  { path = 'src/commands/spec/validate.rs' },
+  { path = 'src/commands/spec/validate.rs' },
+]
+
+[[scenarios]]
+id = 'independent-providers'
+scenario = 'Providers and the shared relation shapes under directories named in independent mirror each other and pass.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/relations/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'crates/relations/src/evidence/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'crates/relations/src/lib.rs' = '''
+mod evidence;
+mod recognition;
+mod source;
+'''
+given.files.'crates/relations/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'crates/relations/src/recognition/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'crates/relations/src/source.rs' = '''
+mod types;
+'''
+given.files.'crates/relations/src/source/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/css/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'languages/css/src/evidence/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/css/src/lib.rs' = '''
+mod evidence;
+mod recognition;
+mod source;
+'''
+given.files.'languages/css/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'languages/css/src/recognition/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/css/src/source.rs' = '''
+mod types;
+'''
+given.files.'languages/css/src/source/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/toml/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'languages/toml/src/evidence/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/toml/src/lib.rs' = '''
+mod evidence;
+mod recognition;
+mod source;
+'''
+given.files.'languages/toml/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'languages/toml/src/recognition/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/toml/src/source.rs' = '''
+mod types;
+'''
+given.files.'languages/toml/src/source/types.rs' = '''
+pub(crate) struct Row;
+'''
+
+[[scenarios]]
+id = 'provider-and-core'
+scenario = "A crate outside the independent directories that repeats the providers' domains is reported with them."
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/engine/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'crates/engine/src/evidence/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'crates/engine/src/lib.rs' = '''
+mod evidence;
+mod recognition;
+mod source;
+'''
+given.files.'crates/engine/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'crates/engine/src/recognition/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'crates/engine/src/source.rs' = '''
+mod types;
+'''
+given.files.'crates/engine/src/source/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'crates/relations/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'crates/relations/src/evidence/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'crates/relations/src/lib.rs' = '''
+mod evidence;
+mod recognition;
+mod source;
+'''
+given.files.'crates/relations/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'crates/relations/src/recognition/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'crates/relations/src/source.rs' = '''
+mod types;
+'''
+given.files.'crates/relations/src/source/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/css/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'languages/css/src/evidence/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/css/src/lib.rs' = '''
+mod evidence;
+mod recognition;
+mod source;
+'''
+given.files.'languages/css/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'languages/css/src/recognition/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/css/src/source.rs' = '''
+mod types;
+'''
+given.files.'languages/css/src/source/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/toml/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'languages/toml/src/evidence/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/toml/src/lib.rs' = '''
+mod evidence;
+mod recognition;
+mod source;
+'''
+given.files.'languages/toml/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'languages/toml/src/recognition/types.rs' = '''
+pub(crate) struct Row;
+'''
+given.files.'languages/toml/src/source.rs' = '''
+mod types;
+'''
+given.files.'languages/toml/src/source/types.rs' = '''
+pub(crate) struct Row;
+'''
+then.findings = [
+  { path = 'crates/engine/src/evidence.rs' },
+  { path = 'crates/engine/src/evidence.rs' },
+  { path = 'crates/engine/src/evidence.rs' },
+  { path = 'crates/engine/src/recognition.rs' },
+  { path = 'crates/engine/src/recognition.rs' },
+  { path = 'crates/engine/src/recognition.rs' },
+  { path = 'crates/engine/src/source.rs' },
+  { path = 'crates/engine/src/source.rs' },
+  { path = 'crates/engine/src/source.rs' },
+  { path = 'crates/relations/src/evidence.rs' },
+  { path = 'crates/relations/src/recognition.rs' },
+  { path = 'crates/relations/src/source.rs' },
+  { path = 'languages/css/src/evidence.rs' },
+  { path = 'languages/css/src/recognition.rs' },
+  { path = 'languages/css/src/source.rs' },
+  { path = 'languages/toml/src/evidence.rs' },
+  { path = 'languages/toml/src/recognition.rs' },
+  { path = 'languages/toml/src/source.rs' },
+]
+
+[[scenarios]]
+id = 'independent-deep'
+scenario = 'A directory named in independent at any depth makes the providers under it independent.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/css/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/css/src/evidence/types.rs' = '''
+pub struct Value;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/css/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/css/src/recognition/types.rs' = '''
+pub struct Value;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/css/src/source.rs' = '''
+mod types;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/css/src/source/types.rs' = '''
+pub struct Value;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/toml/src/evidence.rs' = '''
+mod types;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/toml/src/evidence/types.rs' = '''
+pub struct Value;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/toml/src/recognition.rs' = '''
+mod types;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/toml/src/recognition/types.rs' = '''
+pub struct Value;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/toml/src/source.rs' = '''
+mod types;
+'''
+given.files.'a/b/c/d/e/f/g/h/i/j/languages/toml/src/source/types.rs' = '''
+pub struct Value;
+'''
+
+[[scenarios]]
+id = 'nu-hex-layers'
+scenario = 'Two crates of nu-hex layout repeat the layer directories every hex has: with the layers named in `roles`, nothing is reported.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src', 'domain', 'inbound', 'outbound', 'application', 'use_cases', 'contracts', 'collections'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[workspace]
+members = ["crates/first", "crates/second"]
+'''
+given.files.'crates/first/Cargo.toml' = '''
+[package]
+name = "first"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/first/src/lib.rs' = '''
+pub mod domain;
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'crates/first/src/domain.rs' = '''
+pub mod greeting;
+'''
+given.files.'crates/first/src/domain/greeting.rs' = '''
+pub fn greet() {}
+'''
+given.files.'crates/first/src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'crates/first/src/inbound/use_cases.rs' = '''
+pub fn run() {}
+'''
+given.files.'crates/first/src/outbound.rs' = '''
+pub mod store;
+'''
+given.files.'crates/first/src/outbound/store.rs' = '''
+pub fn keep() {}
+'''
+given.files.'crates/second/Cargo.toml' = '''
+[package]
+name = "second"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'crates/second/src/lib.rs' = '''
+pub mod domain;
+pub mod inbound;
+pub mod outbound;
+'''
+given.files.'crates/second/src/domain.rs' = '''
+pub mod parting;
+'''
+given.files.'crates/second/src/domain/parting.rs' = '''
+pub fn part() {}
+'''
+given.files.'crates/second/src/inbound.rs' = '''
+pub mod use_cases;
+'''
+given.files.'crates/second/src/inbound/use_cases.rs' = '''
+pub fn run() {}
+'''
+given.files.'crates/second/src/outbound.rs' = '''
+pub mod files;
+'''
+given.files.'crates/second/src/outbound/files.rs' = '''
+pub fn read() {}
+'''
+then.findings = []
+
+[[scenarios]]
+id = 'test-groups-named-like-domain-concepts'
+scenario = 'Test groups under a use case test, named for the domain concepts they prove, are no members: three shared names with the domain are no finding.'
+given.include = ['**']
+given.params = { roles = ['adapters', 'methods', 'commands', 'macros', 'tests', 'benches', 'fixtures', 'src', 'domain', 'inbound', 'use_cases'], independent = ['languages', 'relations'] }
+given.files.'Cargo.toml' = '''
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+'''
+given.files.'src/domain/join.rs' = 'mod service;'
+given.files.'src/domain/join/service.rs' = 'pub(crate) fn run() {}'
+given.files.'src/inbound/use_cases/compile/use_case_test/join.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/inbound/use_cases/compile/use_case_test/join/test.rs' = '#[test] fn compiles() {}'
+given.files.'src/domain/union.rs' = 'mod service;'
+given.files.'src/domain/union/service.rs' = 'pub(crate) fn run() {}'
+given.files.'src/inbound/use_cases/compile/use_case_test/union.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/inbound/use_cases/compile/use_case_test/union/test.rs' = '#[test] fn compiles() {}'
+given.files.'src/domain/merge.rs' = 'mod service;'
+given.files.'src/domain/merge/service.rs' = 'pub(crate) fn run() {}'
+given.files.'src/inbound/use_cases/compile/use_case_test/merge.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/inbound/use_cases/compile/use_case_test/merge/test.rs' = '#[test] fn compiles() {}'
