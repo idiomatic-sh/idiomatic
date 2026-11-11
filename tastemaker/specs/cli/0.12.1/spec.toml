@@ -22,7 +22,7 @@ templates = [
   { template = "readme-test", file = "tests/readme.rs", description = "The product README's Usage, each command run and its output compared." },
   { template = "command-line-contract", file = "tests/command_line.rs", params = { product = { param = "product" }, library = { param = "library" } }, description = "The generated contract test over the built binary: what the Command Line Interface Guidelines (clig.dev) ask of every command line when it runs." },
   # The replay test: one module per concern, run against recorded answers.
-  { template = "replay-suite", file = "tests/replay/{suite}.rs", count = { min = 0 }, description = "One module of the product's replay test." },
+  { template = "replay-suite", file = "tests/replay/{suite}.rs", exclude = ["tests/replay/main.rs"], count = { min = 0 }, description = "One module of the product's replay test." },
   { template = "outcome", file = "src/outcome.rs", description = "The one type every command's `run` returns, turning `Success`, `Failure` and `Error` into the exit codes 0, 1 and 2." },
   # Every answer printed through one `--format` switch.
   { template = "output", file = "src/output.rs", params = { markdown = { param = "markdown" } }, description = "The only module that prints: every command hands it an answer and the `--format` its caller chose." },
