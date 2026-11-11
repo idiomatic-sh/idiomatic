@@ -68,7 +68,7 @@ pub(crate) struct InvocationInputs<'f> {
     /// The file's profile, the observer the lent indexes report their probes to.
     #[cfg(feature = "diagnostic-row-progress")]
     pub(crate) progress:
-        ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
+        ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile,
 }
 impl<'f> InvocationResources<'f> {
     /// Validate required Join resource metadata without constructing a payload.

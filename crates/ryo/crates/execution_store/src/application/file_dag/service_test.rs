@@ -14,7 +14,7 @@ fn opened(reuse: ReuseEligibility) -> Result<ReuseEligibility, Failure> {
         super::relations::types::ProducerCapacity(1),
         super::fixtures::program_derived_port(),
         reuse,
-        super::route_counts::types::RouteProfile::default(),
+        super::route_counts::profile::service::RouteProfile::default(),
     );
     Ok(owner.stable())
 }

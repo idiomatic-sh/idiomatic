@@ -61,7 +61,7 @@ pub struct RelationOwner {
     checks: Cell<CheckCount>,
     reuses: Cell<CheckCount>,
     /// The route profile of the scope that opened this owner.
-    routes: super::route_counts::types::RouteProfile,
+    routes: super::route_counts::profile::service::RouteProfile,
 }
 impl RelationOwner {
     /// The derived-view owner of this generation.
@@ -69,7 +69,7 @@ impl RelationOwner {
         &self.derived
     }
     /// The route profile the opening scope handed down, for this owner's work to record into.
-    pub fn routes(&self) -> &super::route_counts::types::RouteProfile {
+    pub fn routes(&self) -> &super::route_counts::profile::service::RouteProfile {
         &self.routes
     }
     /// The admitted inputs this owner has inspected, built or reused: one per input a view checked against the resident population
@@ -96,7 +96,7 @@ impl RelationOwner {
         permit: super::service::types::ScopePermit,
         views: PinnedViewCount,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-        routes: super::route_counts::types::RouteProfile,
+        routes: super::route_counts::profile::service::RouteProfile,
     ) -> Self {
         Self::with_limits(ReuseEligibility::from(permit), views, semantic, routes)
     }
@@ -113,7 +113,7 @@ impl RelationOwner {
     pub(crate) fn recording(
         stable: ReuseEligibility,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-        routes: super::route_counts::types::RouteProfile,
+        routes: super::route_counts::profile::service::RouteProfile,
     ) -> Self {
         Self::with_limits(stable, PinnedViewCount(1024), semantic, routes)
     }
@@ -129,7 +129,7 @@ impl RelationOwner {
         stable: ReuseEligibility,
         max_views: PinnedViewCount,
         semantic: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
-        routes: super::route_counts::types::RouteProfile,
+        routes: super::route_counts::profile::service::RouteProfile,
     ) -> Self {
         let max_derived = super::derived::owner::types::EntryLimit(
             max_views

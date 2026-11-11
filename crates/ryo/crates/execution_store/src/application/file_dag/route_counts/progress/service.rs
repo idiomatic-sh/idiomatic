@@ -1,4 +1,7 @@
 //! Row-progress accounting of the opt-in diagnostic profile.
+use crate::application::file_dag::route_counts::ids::service::RouteFileIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteLabel;
+use crate::application::file_dag::route_counts::profile::service::RouteProfile;
 use std::time::Instant;
 
 use ryo_language::domain::files::types::FilePath;
@@ -10,9 +13,8 @@ use super::super::constants::{self, MAX_KEYS};
 use super::super::profile::service::with_state;
 use super::super::schemas::document;
 use super::super::types::{
-    RouteCardinality, RouteCounters, RouteFileIndex, RouteFileName, RouteHotRow, RouteInputKey,
-    RouteInputSlot, RouteKey, RouteLabel, RouteProfile, RouteRowFile, RouteRuleName, RouteSnapshot,
-    RouteTally,
+    RouteCardinality, RouteCounters, RouteFileName, RouteHotRow, RouteInputKey, RouteInputSlot,
+    RouteKey, RouteRowFile, RouteRuleName, RouteSnapshot, RouteTally,
 };
 
 impl RouteProfile {

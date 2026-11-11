@@ -1,6 +1,15 @@
 //! Opt-in diagnostic accounting; never participates in execution or admission decisions.
+use crate::application::file_dag::route_counts::ids::service::RouteFileIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteLabel;
+use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
+use crate::application::file_dag::route_counts::profile::service::CapturedOrigin;
+use crate::application::file_dag::route_counts::profile::service::FileScope;
+use crate::application::file_dag::route_counts::profile::service::OriginScope;
+use crate::application::file_dag::route_counts::profile::service::RouteProfile;
 mod constants;
-mod profile;
+pub mod ids;
+pub mod profile;
 #[cfg(feature = "diagnostic-row-progress")]
 pub mod progress;
 mod schemas;
@@ -15,14 +24,13 @@ use ryo_values::domain::runs::types::RuleId;
 use constants::MAX_KEYS;
 use profile::service::with_state;
 use schemas::document;
+#[cfg(feature = "diagnostic-row-progress")]
+use types::RouteProgressState;
 use types::{
-    BuildRoute, FileScope, OriginScope, RouteActivity, RouteCount, RouteCountRow, RouteFileIndex,
-    RouteKey, RouteLabel, RouteNodeIndex, RouteOrigin, RouteOutcome, RouteOwnerId, RouteOwnership,
-    RoutePlanId, RoutePopulations, RouteProfile, RouteRuleIndex, RouteRuleName, RouteRuleRow,
+    BuildRoute, RouteActivity, RouteCount, RouteCountRow, RouteKey, RouteOrigin, RouteOutcome,
+    RouteOwnerId, RouteOwnership, RoutePlanId, RoutePopulations, RouteRuleName, RouteRuleRow,
     RouteState, RouteTally,
 };
-#[cfg(feature = "diagnostic-row-progress")]
-use types::{CapturedOrigin, RouteProgressState};
 
 impl BuildRoute {
     pub(crate) fn label(self) -> RouteLabel {

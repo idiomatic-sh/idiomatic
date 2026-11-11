@@ -112,7 +112,7 @@ pub struct DerivedOwner {
     state: RefCell<State>,
     max_entries: EntryLimit,
     /// The route profile its relation owner hands down.
-    routes: crate::application::file_dag::route_counts::types::RouteProfile,
+    routes: crate::application::file_dag::route_counts::profile::service::RouteProfile,
 }
 impl DerivedOwner {
     /// Prepares the contract of a view request against its input schemas.
@@ -133,7 +133,7 @@ impl DerivedOwner {
     pub(crate) fn new(
         max_entries: EntryLimit,
         semantic: impl Into<types::DerivedAccess>,
-        routes: crate::application::file_dag::route_counts::types::RouteProfile,
+        routes: crate::application::file_dag::route_counts::profile::service::RouteProfile,
     ) -> Self {
         Self {
             identity: Arc::new(()),

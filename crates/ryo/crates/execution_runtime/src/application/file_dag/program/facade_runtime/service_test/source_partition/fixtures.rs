@@ -257,7 +257,7 @@ pub(super) fn subject(case: Input) -> Result<Value, Failure> {
         ),
         Arc::clone(&derived),
         ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(),
+        ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile::default(),
     );
     let project = Partition::Project(required);
     let scope = if project_case {
@@ -305,7 +305,7 @@ pub(super) fn subject(case: Input) -> Result<Value, Failure> {
         }
     };
     let walk_owner = if matches!(case, SourceCase::ForeignWalkGeneration) {
-        open_program_owner(ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(prepared.program().regions().len()), Arc::clone(&derived), ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible, ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default())
+        open_program_owner(ryo_execution_store::application::file_dag::relations::types::ProducerCapacity(prepared.program().regions().len()), Arc::clone(&derived), ryo_execution_store::application::file_dag::relations::types::ReuseEligibility::Eligible, ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile::default())
     } else {
         Rc::clone(&owner)
     };

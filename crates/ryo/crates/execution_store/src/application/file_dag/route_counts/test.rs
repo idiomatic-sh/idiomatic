@@ -3,12 +3,16 @@ use super::constants::{
 };
 use super::schemas::document;
 use super::types::{
-    BuildRoute, RouteCount, RouteNodeIndex, RouteOrigin, RouteOwnerId, RouteOwnership, RoutePlanId,
-    RouteProfile, RouteRuleIndex, RouteRuleName, RouteState, RouteTally,
+    BuildRoute, RouteCount, RouteOrigin, RouteOwnerId, RouteOwnership, RoutePlanId, RouteRuleName,
+    RouteState, RouteTally,
 };
 use super::{event, identity, observe, owner};
 use crate::application::file_dag::derived::constants::{OWNER_HIT, OWNER_REQUEST};
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
+use crate::application::file_dag::route_counts::ids::service::RouteLabel;
+use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
+use crate::application::file_dag::route_counts::profile::service::RouteProfile;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::HashMap;
@@ -75,7 +79,7 @@ fn physical_build_is_once_and_original_error_survives_nested_scopes() {
         physical[0].0.origin,
         RouteOrigin {
             #[cfg(feature = "diagnostic-row-progress")]
-            namespace: super::types::RouteLabel(super::constants::DAG_NAMESPACE),
+            namespace: super::ids::service::RouteLabel(super::constants::DAG_NAMESPACE),
             rule: Some(RouteRuleIndex(3)),
             node: Some(RouteNodeIndex(19)),
             owner: RouteOwnership::Owned,

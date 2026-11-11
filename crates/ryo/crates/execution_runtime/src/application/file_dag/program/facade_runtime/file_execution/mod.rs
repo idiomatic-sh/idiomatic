@@ -76,7 +76,7 @@ pub(crate) struct FileRun<'a> {
     context: super::super::context::RunContext<'a>,
     walk: super::super::native_walk::FileWalk,
     walk_prepared: WalkPreparation,
-    routes: ryo_execution_store::application::file_dag::route_counts::types::FileScope,
+    routes: ryo_execution_store::application::file_dag::route_counts::profile::service::FileScope,
     presence: super::types::FilePresence,
     source: SourceView<'a>,
     /// The file's selected roots, bound before any region is touched: presence reads the file's rows, so it runs when the
@@ -108,7 +108,7 @@ pub(crate) fn open_file<'a>(
     if !matches!(partials, ScopePartials::File { .. }) {
         return Err(OperatingError::WrongOperation);
     }
-    let routes = ryo_execution_store::application::file_dag::route_counts::types::FileScope::begin(
+    let routes = ryo_execution_store::application::file_dag::route_counts::profile::service::FileScope::begin(
         file.0 as usize,
     );
     #[cfg(feature = "diagnostic-row-progress")]

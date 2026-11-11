@@ -3,11 +3,14 @@ use super::constants;
 #[cfg(feature = "diagnostic-row-progress")]
 use super::types::RouteCardinality;
 use super::types::{
-    RouteCountRow, RouteDocument, RouteLabel, RouteNodeIndex, RouteOwnerId, RouteOwnership,
-    RoutePlanId, RoutePopulationId, RouteRuleIndex, RouteRuleName, RouteRuleRow, RouteTally,
+    RouteCountRow, RouteDocument, RouteOwnerId, RouteOwnership, RoutePlanId, RoutePopulationId,
+    RouteRuleName, RouteRuleRow, RouteTally,
 };
 #[cfg(feature = "diagnostic-row-progress")]
 use super::types::{RouteCounters, RouteHotRow};
+use crate::application::file_dag::route_counts::ids::service::RouteLabel;
+use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
 
 /// A value that writes itself as JSON.
 pub(super) trait Encode {

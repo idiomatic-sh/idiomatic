@@ -15,7 +15,7 @@ use ryo_relations::domain::relations::types::{Position, Value};
 pub struct InvocationWorkspace {
     work: ryo_execution_domain::domain::operator::contract::types::WorkCounters,
     #[cfg(feature = "diagnostic-row-progress")]
-    progress_origin: super::route_counts::types::CapturedOrigin,
+    progress_origin: super::route_counts::profile::service::CapturedOrigin,
     derived_scratch:
         std::cell::RefCell<ryo_execution_domain::domain::derived_views::types::DerivedScratch>,
     relation_owner: std::rc::Rc<super::relations::RelationOwner>,
@@ -138,7 +138,7 @@ impl InvocationWorkspace {
     }
     /// The route profile position this invocation was opened at.
     #[cfg(feature = "diagnostic-row-progress")]
-    pub fn progress_origin(&self) -> &super::route_counts::types::CapturedOrigin {
+    pub fn progress_origin(&self) -> &super::route_counts::profile::service::CapturedOrigin {
         &self.progress_origin
     }
     /// The primitive operators' working allocations, to read what they hold.

@@ -1,30 +1,10 @@
 //! Values of the opt-in route accounting; never participates in execution or admission decisions.
+use crate::application::file_dag::route_counts::ids::service::RouteFileIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteLabel;
+use crate::application::file_dag::route_counts::ids::service::RouteNodeIndex;
+use crate::application::file_dag::route_counts::ids::service::RouteRuleIndex;
 use std::{collections::HashMap, fmt};
 
-/// Text label of one route, family, counter, namespace or consumer.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RouteLabel(pub(crate) &'static str);
-impl From<&'static str> for RouteLabel {
-    fn from(text: &'static str) -> Self {
-        Self(text)
-    }
-}
-/// The index of the rule a route is recorded under.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RouteRuleIndex(pub(crate) usize);
-impl From<usize> for RouteRuleIndex {
-    fn from(index: usize) -> Self {
-        Self(index)
-    }
-}
-/// The program node a route is recorded under.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct RouteNodeIndex(pub(crate) usize);
-impl From<usize> for RouteNodeIndex {
-    fn from(index: usize) -> Self {
-        Self(index)
-    }
-}
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct RouteOwnerId(pub usize);
 impl From<usize> for RouteOwnerId {
@@ -47,14 +27,6 @@ pub(crate) struct RoutePopulations(pub [Option<RoutePopulationId>; 2]);
 impl From<[Option<usize>; 2]> for RoutePopulations {
     fn from(ids: [Option<usize>; 2]) -> Self {
         Self(ids.map(|id| id.map(RoutePopulationId)))
-    }
-}
-/// The index of the file a profile counts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RouteFileIndex(pub(crate) usize);
-impl From<usize> for RouteFileIndex {
-    fn from(index: usize) -> Self {
-        Self(index)
     }
 }
 /// Number of events; counts and overflow are summed in place.
@@ -138,30 +110,6 @@ pub(crate) struct RouteState {
     pub progress: RouteProgressState,
 }
 
-/// The profile of one file, opened by its scope and handed down to every part that records
-/// into it; it holds no state when the scope does not record.
-#[derive(Clone, Debug, Default)]
-pub struct RouteProfile(pub(super) Option<std::sync::Arc<std::sync::Mutex<RouteState>>>);
-
-/// The profile of one file while its scope is open; it reports the file's counts when it closes.
-#[derive(Debug)]
-pub struct FileScope {
-    pub(super) profile: RouteProfile,
-}
-/// The origin a profile records under until this scope ends, when the previous one is restored.
-#[derive(Debug)]
-pub struct OriginScope {
-    pub(super) profile: RouteProfile,
-    pub(super) previous: Option<RouteOrigin>,
-}
-
-/// The origin a profile had when an invocation began, with the profile it belongs to.
-#[cfg(feature = "diagnostic-row-progress")]
-#[derive(Clone, Debug)]
-pub struct CapturedOrigin {
-    pub(super) profile: RouteProfile,
-    pub(super) origin: Option<RouteOrigin>,
-}
 /// Display path of the file under profile.
 #[cfg(feature = "diagnostic-row-progress")]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

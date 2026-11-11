@@ -27,7 +27,7 @@ pub(crate) struct BoundPredicate<'a> {
     pub names: &'a mut Option<ryo_execution_domain::domain::operating::types::NameCount>,
     /// The file's profile, which counts the predicates this binding decides.
     #[cfg(feature = "diagnostic-row-progress")]
-    pub progress: &'a ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
+    pub progress: &'a ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile,
 }
 impl PredicateProgram for BoundPredicate<'_> {
     fn holds(&mut self, row: &[Value], symbols: &Symbols) -> Result<Verdict, OperatingError> {
@@ -155,7 +155,7 @@ mod tests {
         let mut names = None;
         #[cfg(feature = "diagnostic-row-progress")]
         let routes =
-            ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(
+            ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile::default(
             );
         let mut evaluator = BoundPredicate {
             program: &program,

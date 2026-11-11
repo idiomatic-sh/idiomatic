@@ -32,7 +32,7 @@ pub fn open_program_owner(
     producers: crate::application::file_dag::relations::types::ProducerCapacity,
     derived: impl Into<crate::application::file_dag::derived::owner::types::DerivedAccess>,
     reuse: ReuseEligibility,
-    routes: crate::application::file_dag::route_counts::types::RouteProfile,
+    routes: crate::application::file_dag::route_counts::profile::service::RouteProfile,
 ) -> Rc<RelationOwner> {
     Rc::new(RelationOwner::for_scope(
         ScopePermit { reuse },

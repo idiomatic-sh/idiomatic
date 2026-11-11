@@ -38,7 +38,7 @@ pub(crate) struct PrimitiveSemanticsBridge<'a> {
     /// The file's profile, the observer a primitive reports its progress to.
     #[cfg(feature = "diagnostic-row-progress")]
     pub(super) progress:
-        &'a ryo_execution_store::application::file_dag::route_counts::types::RouteProfile,
+        &'a ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile,
     pub(super) port: &'a dyn PrimitiveExecutor,
     pub(super) permit: crate::application::file_dag::program::runtime::service::SemanticPermit<'a>,
     pub(super) binding:

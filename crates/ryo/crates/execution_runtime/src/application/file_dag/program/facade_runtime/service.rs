@@ -21,7 +21,7 @@ pub(crate) fn publication_owner(
         ),
         services.derived().clone(),
         ReuseEligibility::Eligible,
-        ryo_execution_store::application::file_dag::route_counts::types::RouteProfile::default(),
+        ryo_execution_store::application::file_dag::route_counts::profile::service::RouteProfile::default(),
     );
     // It reads every file's frontier rows and is never prepared for one file: it holds no graph cache.
     owner.derived().serve_project()?;
