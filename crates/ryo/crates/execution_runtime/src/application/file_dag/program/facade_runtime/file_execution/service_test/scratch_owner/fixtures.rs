@@ -135,7 +135,7 @@ pub(crate) fn execute(
         "dynamic matcher state belongs to the actual invocation, not reusable rule scratch"
     );
     let owner = Rc::clone(&file.owner);
-    file.finish().unwrap();
+    let _readiness = file.finish().unwrap();
     assert_eq!(
         owner.derived().working_bytes(),
         0,

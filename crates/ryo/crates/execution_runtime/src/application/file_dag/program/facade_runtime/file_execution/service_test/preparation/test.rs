@@ -6,6 +6,10 @@ use crate::application::file_dag::program::facade_runtime::service::ProgramServi
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
+use ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND;
+use ryo_execution_domain::domain::executable_program::file_demand::types::{
+    FileDemand, FrontierSelection, RootSelection,
+};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 #[cfg(test)]
@@ -23,9 +27,7 @@ use ryo_execution_domain::domain::table_model::types::Rows;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
-use ryo_relations::domain::relations::{
-    types::{CellKind, FileId, Integer, Relation},
-};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Integer, Relation};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
@@ -40,10 +42,6 @@ use ryo_values::domain::{
     },
     plan_parts::types::{ObservationBindingId, Operand, QueryLiteral},
     records::types::ObservationReadinessLayout,
-};
-use ryo_execution_domain::domain::executable_program::file_demand::constants::NO_FILE_DEMAND;
-use ryo_execution_domain::domain::executable_program::file_demand::types::{
-    FileDemand, FrontierSelection, RootSelection,
 };
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -229,8 +227,7 @@ fn subject(request: Input) -> Result<Value, Failure> {
         Arc::clone(&derived),
         ObservationIdentity::Named(ObservationReadinessLayout(Digest([33; 16]))),
     )?;
-    let roots = prepared
-        .file_demand(RuleIndex(0))?;
+    let roots = prepared.file_demand(RuleIndex(0))?;
     let none = roots.selected(NO_FILE_DEMAND);
     let full = roots.selected(FileDemand {
         diagnostic: RootSelection::Required,
@@ -305,16 +302,15 @@ fn subject(request: Input) -> Result<Value, Failure> {
         )
         .err();
     let sibling_reads = reads.borrow().len();
-    let outcome = file
-        .rule(
-            RuleIndex(0),
-            RuleDemand {
-                emit: EmitDemand::Enabled,
-                observations: ObservationDemand::Required,
-            },
-            &read,
-            &mut symbols,
-        )?;
+    let outcome = file.rule(
+        RuleIndex(0),
+        RuleDemand {
+            emit: EmitDemand::Enabled,
+            observations: ObservationDemand::Required,
+        },
+        &read,
+        &mut symbols,
+    )?;
     let RootOutcome::Complete(actual) = outcome.emit else {
         return Err(OperatingError::NotRun);
     };

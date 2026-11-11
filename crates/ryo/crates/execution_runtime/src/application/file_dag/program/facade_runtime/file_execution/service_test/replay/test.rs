@@ -2,211 +2,183 @@
 use super::fixtures::{CheckedSink, context, files, indexed_join, project_into};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::replay::{service::scan, types::Collect};
+use ryo_execution_domain::domain::replay::service::scan;
 use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_relations::domain::relations::types::{Integer, Value as Cell};
+use ryo_relations::domain::relations::types::{FileId, Integer, Value as Cell};
 use ryo_values::domain::rows::errors::RowsError;
-use ryo_values::domain::rows::types::Table;
-fn a_scan_passes_on_every_row_of_a_table() {
-    context(|context| {
-        let from = files(3);
-        let mut into = Table::default();
-        scan(
-            &Rows::Computed(&from),
-            &mut vec![],
-            context,
-            &mut Collect(&mut into),
-        )
-        .unwrap();
-        assert_eq!(into.cells, from.cells);
-    });
-}
-fn a_scan_stops_at_the_row_the_taker_refuses() {
-    context(|context| {
-        let mut sink = CheckedSink {
-            calls: 0,
-            refuse: true,
-            rows: vec![],
-        };
-        assert_eq!(
-            scan(&Rows::Computed(&files(3)), &mut vec![], context, &mut sink),
-            Err(OperatingError::NotRun)
-        );
-        assert_eq!(sink.calls, 1);
-    });
-}
-fn the_engine_sink_reads_the_original_source_context() {
-    let mut sink = CheckedSink {
-        calls: 0,
-        refuse: false,
-        rows: vec![],
-    };
-    project_into(0, &mut sink).unwrap();
-    assert_eq!(sink.rows, files(2).cells);
-    assert_eq!(sink.calls, 2);
-}
-fn a_real_step_passes_on_the_rows_it_computes() {
-    let mut into = CheckedSink {
-        calls: 0,
-        refuse: false,
-        rows: vec![],
-    };
-    project_into(0, &mut into).unwrap();
-    assert_eq!(into.rows, files(2).cells);
-}
-fn rows_the_real_computation_refuses_are_not_passed_on() {
-    let mut sink = CheckedSink {
-        calls: 0,
-        refuse: false,
-        rows: vec![],
-    };
-    assert!(matches!(
-        project_into(99, &mut sink),
-        Err(OperatingError::Table(RowsError::NoSuchColumn { index: 99 }))
-    ));
-    assert_eq!(sink.calls, 0);
-}
-fn a_key_finds_the_rows_that_have_it_in_input_order() {
-    assert_eq!(
-        indexed_join(1, 0).unwrap().cells,
-        [Cell::Number(Integer(10)), Cell::Number(Integer(30))]
-    );
-}
-fn a_key_no_row_has_finds_nothing() {
-    assert_eq!(indexed_join(9, 0).unwrap().count.0, 0);
-}
-fn a_join_row_without_its_key_column_is_refused() {
-    assert!(matches!(
-        indexed_join(1, 3),
-        Err(OperatingError::Table(RowsError::NoSuchColumn { index: 3 }))
-    ));
-}
-fn computed_inputs_use_the_common_typed_index_without_a_native_tree_finding() {
-    assert_eq!(
-        indexed_join(2, 0).unwrap().cells,
-        [Cell::Number(Integer(20))]
-    );
-}
-
-/// The case each row runs: one of the proofs below.
+use std::borrow::Cow;
+/// What a row replays rows through.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    AScanPassesOnEveryRowOfATable,
-    AScanStopsAtTheRowTheTakerRefuses,
-    TheEngineSinkReadsTheOriginalSourceContext,
-    ARealStepPassesOnTheRowsItComputes,
-    RowsTheRealComputationRefusesAreNotPassedOn,
-    AKeyFindsTheRowsThatHaveItInInputOrder,
-    AKeyNoRowHasFindsNothing,
-    AJoinRowWithoutItsKeyColumnIsRefused,
-    ComputedInputsUseTheCommonTypedIndexWithoutANativeTreeFinding,
+enum Replay {
+    /// A pure scan of `files` file rows into a taker that refuses its first row or takes all.
+    Scan { files: u32, refuse: bool },
+    /// The real compiled projection of column `column` of two file rows into a checking sink.
+    Project { column: u32 },
+    /// The real indexed join of the hosted rows on `key`, keyed by column `column`.
+    Join { key: i64, column: u32 },
 }
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
+/// The cells passed on, and how often the taker was called (scans and projections only).
+#[derive(Debug, PartialEq)]
+struct Replayed {
+    cells: Cow<'static, [Cell]>,
+    calls: Option<usize>,
+}
 
-/// One row per proof: its name, and the scenario that runs it.
+/// The refusal, and how often the taker was called before it.
+#[derive(Debug, PartialEq)]
+struct Refused {
+    error: OperatingError,
+    calls: usize,
+}
+
+type Input = Replay;
+type Value = Replayed;
+type Failure = Refused;
+
+const fn number(value: i64) -> Cell {
+    Cell::Number(Integer(value))
+}
+
+const FILES_2: &[Cell] = &[Cell::File(FileId(0)), Cell::File(FileId(1))];
+const FILES_3: &[Cell] = &[
+    Cell::File(FileId(0)),
+    Cell::File(FileId(1)),
+    Cell::File(FileId(2)),
+];
+
+const fn ok(cells: &'static [Cell], calls: Option<usize>) -> Replayed {
+    Replayed {
+        cells: Cow::Borrowed(cells),
+        calls,
+    }
+}
+
+const fn err(error: OperatingError, calls: usize) -> Refused {
+    Refused { error, calls }
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_scan_passes_on_every_row_of_a_table"),
         word: Word::Succeeds,
-        input: || Scenario::AScanPassesOnEveryRowOfATable,
-        expect: Expect::Value(()),
+        input: || Replay::Scan {
+            files: 3,
+            refuse: false,
+        },
+        expect: Expect::Value(ok(FILES_3, Some(3))),
     },
     Case {
         name: CaseName("a_scan_stops_at_the_row_the_taker_refuses"),
-        word: Word::Succeeds,
-        input: || Scenario::AScanStopsAtTheRowTheTakerRefuses,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Replay::Scan {
+            files: 3,
+            refuse: true,
+        },
+        expect: Expect::Error(err(OperatingError::NotRun, 1)),
     },
     Case {
         name: CaseName("the_engine_sink_reads_the_original_source_context"),
         word: Word::Succeeds,
-        input: || Scenario::TheEngineSinkReadsTheOriginalSourceContext,
-        expect: Expect::Value(()),
+        input: || Replay::Project { column: 0 },
+        expect: Expect::Value(ok(FILES_2, Some(2))),
     },
     Case {
         name: CaseName("a_real_step_passes_on_the_rows_it_computes"),
         word: Word::Succeeds,
-        input: || Scenario::ARealStepPassesOnTheRowsItComputes,
-        expect: Expect::Value(()),
+        input: || Replay::Project { column: 0 },
+        expect: Expect::Value(ok(FILES_2, Some(2))),
     },
     Case {
         name: CaseName("rows_the_real_computation_refuses_are_not_passed_on"),
-        word: Word::Succeeds,
-        input: || Scenario::RowsTheRealComputationRefusesAreNotPassedOn,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Replay::Project { column: 99 },
+        expect: Expect::Error(err(
+            OperatingError::Table(RowsError::NoSuchColumn { index: 99 }),
+            0,
+        )),
     },
     Case {
         name: CaseName("a_key_finds_the_rows_that_have_it_in_input_order"),
         word: Word::Succeeds,
-        input: || Scenario::AKeyFindsTheRowsThatHaveItInInputOrder,
-        expect: Expect::Value(()),
+        input: || Replay::Join { key: 1, column: 0 },
+        expect: Expect::Value(ok(&[number(10), number(30)], None)),
     },
     Case {
         name: CaseName("a_key_no_row_has_finds_nothing"),
         word: Word::Succeeds,
-        input: || Scenario::AKeyNoRowHasFindsNothing,
-        expect: Expect::Value(()),
+        input: || Replay::Join { key: 9, column: 0 },
+        expect: Expect::Value(ok(&[], None)),
     },
     Case {
         name: CaseName("a_join_row_without_its_key_column_is_refused"),
-        word: Word::Succeeds,
-        input: || Scenario::AJoinRowWithoutItsKeyColumnIsRefused,
-        expect: Expect::Value(()),
+        word: Word::Refuses,
+        input: || Replay::Join { key: 1, column: 3 },
+        expect: Expect::Error(err(
+            OperatingError::Table(RowsError::NoSuchColumn { index: 3 }),
+            0,
+        )),
     },
     Case {
         name: CaseName("computed_inputs_use_the_common_typed_index_without_a_native_tree_finding"),
         word: Word::Succeeds,
-        input: || Scenario::ComputedInputsUseTheCommonTypedIndexWithoutANativeTreeFinding,
-        expect: Expect::Value(()),
+        input: || Replay::Join { key: 2, column: 0 },
+        expect: Expect::Value(ok(&[number(20)], None)),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::AScanPassesOnEveryRowOfATable => {
-            a_scan_passes_on_every_row_of_a_table();
-            Ok(())
+/// Replays the rows and reports what was passed on.
+fn subject(replay: Input) -> Result<Value, Failure> {
+    let refused = |calls| move |error| Refused { error, calls };
+    match replay {
+        Replay::Scan {
+            files: count,
+            refuse,
+        } => context(|context| {
+            let mut sink = CheckedSink {
+                calls: 0,
+                refuse,
+                rows: vec![],
+            };
+            let scanned = scan(
+                &Rows::Computed(&files(count)),
+                &mut vec![],
+                context,
+                &mut sink,
+            );
+            scanned.map_err(refused(sink.calls))?;
+            Ok(ok_owned(sink.rows, Some(sink.calls)))
+        }),
+        Replay::Project { column } => {
+            let mut sink = CheckedSink {
+                calls: 0,
+                refuse: false,
+                rows: vec![],
+            };
+            let projected = project_into(column, &mut sink);
+            projected.map_err(refused(sink.calls))?;
+            Ok(ok_owned(sink.rows, Some(sink.calls)))
         }
-        Scenario::AScanStopsAtTheRowTheTakerRefuses => {
-            a_scan_stops_at_the_row_the_taker_refuses();
-            Ok(())
+        Replay::Join { key, column } => {
+            let joined = indexed_join(key, column).map_err(refused(0))?;
+            Ok(ok_owned(joined.cells, None))
         }
-        Scenario::TheEngineSinkReadsTheOriginalSourceContext => {
-            the_engine_sink_reads_the_original_source_context();
-            Ok(())
-        }
-        Scenario::ARealStepPassesOnTheRowsItComputes => {
-            a_real_step_passes_on_the_rows_it_computes();
-            Ok(())
-        }
-        Scenario::RowsTheRealComputationRefusesAreNotPassedOn => {
-            rows_the_real_computation_refuses_are_not_passed_on();
-            Ok(())
-        }
-        Scenario::AKeyFindsTheRowsThatHaveItInInputOrder => {
-            a_key_finds_the_rows_that_have_it_in_input_order();
-            Ok(())
-        }
-        Scenario::AKeyNoRowHasFindsNothing => {
-            a_key_no_row_has_finds_nothing();
-            Ok(())
-        }
-        Scenario::AJoinRowWithoutItsKeyColumnIsRefused => {
-            a_join_row_without_its_key_column_is_refused();
-            Ok(())
-        }
-        Scenario::ComputedInputsUseTheCommonTypedIndexWithoutANativeTreeFinding => {
-            computed_inputs_use_the_common_typed_index_without_a_native_tree_finding();
-            Ok(())
-        }
+    }
+}
+
+fn ok_owned(cells: Vec<Cell>, calls: Option<usize>) -> Replayed {
+    Replayed {
+        cells: cells.into(),
+        calls,
     }
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
 }

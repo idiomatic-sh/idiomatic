@@ -35,7 +35,10 @@ pub(crate) fn plan(scenario: ProgramShape) -> Plan {
                     origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
                 }]
             },
-            kept: if matches!(scenario, ProgramShape::DistinctKinds | ProgramShape::KeptKinds) {
+            kept: if matches!(
+                scenario,
+                ProgramShape::DistinctKinds | ProgramShape::KeptKinds
+            ) {
                 vec![ColumnIndex(1)]
             } else {
                 vec![ColumnIndex(0), ColumnIndex(1)]

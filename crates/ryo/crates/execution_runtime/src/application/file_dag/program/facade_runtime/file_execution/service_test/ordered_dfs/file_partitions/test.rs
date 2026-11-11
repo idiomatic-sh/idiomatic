@@ -215,7 +215,10 @@ fn subject(walk: Input) -> Result<Value, Failure> {
             delivery,
         } => execute_request(
             hosted_plan(operation(&[], &[]), 0, 1),
-            &[host(&numbers(1, roots), "roots"), host(&numbers(4, edges), "edges")],
+            &[
+                host(&numbers(1, roots), "roots"),
+                host(&numbers(4, edges), "edges"),
+            ],
             &[],
             &mut Symbols::default(),
             b"",

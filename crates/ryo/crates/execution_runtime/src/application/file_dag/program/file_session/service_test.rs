@@ -54,7 +54,8 @@ fn subject(relations: Input) -> Result<Value, Failure> {
         let stored = source_rows(&read, &elements, FileId(0), *relation)
             .ok()
             .is_some_and(|rows| matches!(rows, Rows::Stored(_)));
-        let column = ColumnIndex(u32::try_from(number).map_err(|_| OperatingError::WrongOperation)?);
+        let column =
+            ColumnIndex(u32::try_from(number).map_err(|_| OperatingError::WrongOperation)?);
         if proves_stored_number(*relation, column) != stored {
             disagreeing.push(*relation);
         }

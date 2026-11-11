@@ -3,12 +3,12 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operator::contract::views::types::{
     ClosureParts, PartitionCount, PartitionIndex,
 };
-use ryo_values::domain::rows::types::Table;
-use std::borrow::Cow;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_store::application::file_dag::relations::interface::RelationsPort as _;
 use ryo_relations::domain::relations::types::{CellKind, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::rows::types::Table;
+use std::borrow::Cow;
 use {
     ryo_execution_domain::domain::derived_views::types::*,
     ryo_execution_domain::domain::operating::errors::OperatingError,

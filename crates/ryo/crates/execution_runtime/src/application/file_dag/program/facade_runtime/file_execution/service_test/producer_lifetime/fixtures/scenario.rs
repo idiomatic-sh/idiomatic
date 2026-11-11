@@ -70,7 +70,9 @@ fn integers(table: &Table) -> Cow<'static, [i64]> {
     numbers(table).into_iter().map(|number| number.0).collect()
 }
 
-pub(in super::super) fn exercise(final_consumer: FinalConsumer) -> Result<Lifetime, OperatingError> {
+pub(in super::super) fn exercise(
+    final_consumer: FinalConsumer,
+) -> Result<Lifetime, OperatingError> {
     let skipped_at_start = matches!(final_consumer, FinalConsumer::SkippedAtStart);
     let refuse_provider = matches!(final_consumer, FinalConsumer::RefusingProvider);
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();

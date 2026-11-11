@@ -11,9 +11,7 @@ mod cut_refusal;
 mod required_files;
 
 /// The stored words of a one-column table of numbers, in an allocation of their own.
-fn number_words(
-    numbers: &[i64],
-) -> Arc<ryo_values::domain::stored_facts::types::KeptWords> {
+fn number_words(numbers: &[i64]) -> Arc<ryo_values::domain::stored_facts::types::KeptWords> {
     let table = ryo_values::domain::rows::types::Table {
         kinds: vec![ryo_relations::domain::relations::types::CellKind::Number],
         cells: numbers
@@ -89,7 +87,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("content_equal_words_are_decoded_once_and_relabelled_for_each_root"),
         word: Word::Succeeds,
-        input: || const { &[admission(FUNCTION, &[1, 2], 0), admission(IDENTIFIER, &[1, 2], 0)] },
+        input: || {
+            const {
+                &[
+                    admission(FUNCTION, &[1, 2], 0),
+                    admission(IDENTIFIER, &[1, 2], 0),
+                ]
+            }
+        },
         expect: Expect::Value(Decoded {
             counts: Cow::Borrowed(&[1, 1]),
             inputs: Cow::Borrowed(&[Some(FUNCTION), Some(IDENTIFIER)]),
@@ -122,7 +127,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "a_decode_releases_its_packed_words_and_an_equal_second_root_decodes_nothing",
         ),
         word: Word::Succeeds,
-        input: || const { &[admission(IDENTIFIER, &[1, 2], 0), admission(FUNCTION, &[1, 2], 0)] },
+        input: || {
+            const {
+                &[
+                    admission(IDENTIFIER, &[1, 2], 0),
+                    admission(FUNCTION, &[1, 2], 0),
+                ]
+            }
+        },
         expect: Expect::Value(Decoded {
             counts: Cow::Borrowed(&[1, 1]),
             inputs: Cow::Borrowed(&[Some(IDENTIFIER), Some(FUNCTION)]),
@@ -137,7 +149,11 @@ fn subject(admissions: Input) -> Result<Value, Failure> {
     let decodes = FrontierDecodes::new(Arc::new(
         crate::outbound::digest::fixtures::fake::DigestFake,
     ));
-    let generations = admissions.iter().map(|each| each.generation).max().map_or(0, |last| last + 1);
+    let generations = admissions
+        .iter()
+        .map(|each| each.generation)
+        .max()
+        .map_or(0, |last| last + 1);
     let mut symbols: Vec<Symbols> = (0..generations).map(|_| Symbols::default()).collect();
     let mut counts = Vec::new();
     let mut inputs = Vec::new();
@@ -160,7 +176,8 @@ fn subject(admissions: Input) -> Result<Value, Failure> {
             _ => None,
         });
     }
-    let shared_rows = matches!(tables.as_slice(), [Some(one), Some(two), ..] if Arc::ptr_eq(one, two));
+    let shared_rows =
+        matches!(tables.as_slice(), [Some(one), Some(two), ..] if Arc::ptr_eq(one, two));
     Ok(Decoded {
         counts: counts.into(),
         inputs: inputs.into(),

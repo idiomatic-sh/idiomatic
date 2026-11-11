@@ -17,7 +17,11 @@ enum Written {
     Nothing,
     /// The function relation's first two columns grown to these lengths, then released, then
     /// one number pushed to every function column.
-    Released { first: usize, second: usize, next: u64 },
+    Released {
+        first: usize,
+        second: usize,
+        next: u64,
+    },
     /// These words kept in bucket 3, then read twice from the finish.
     Kept(&'static [u8]),
 }

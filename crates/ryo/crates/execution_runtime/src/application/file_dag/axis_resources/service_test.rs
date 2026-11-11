@@ -2,7 +2,6 @@
 use super::service::*;
 use super::view::service::AxisResource;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::rows::types::Table;
 use ryo_execution_domain::domain::derived_views::types::{
     DerivedInputs, DerivedScratch, MembershipSpace,
 };
@@ -14,6 +13,7 @@ use ryo_execution_store::application::file_dag::relations::interface::RelationsP
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Direction;
+use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::table_words::types::ColumnCount;
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -253,11 +253,19 @@ fn subject(axis: Input) -> Result<Value, Failure> {
                 edges: view, to, ..
             } = viewed
             else {
-                return Ok(Prepared::Other("an indexed resource without an indexed view"));
+                return Ok(Prepared::Other(
+                    "an indexed resource without an indexed view",
+                ));
             };
             let mut key = Vec::new();
             let mut direct = Vec::new();
-            follow(&view, to, number(Integer(axis.start)), &mut key, &mut direct);
+            follow(
+                &view,
+                to,
+                number(Integer(axis.start)),
+                &mut key,
+                &mut direct,
+            );
             let mut walk = Walk::default();
             reach_breadth(&view, to, number(Integer(axis.start)), &mut walk);
             Ok(Prepared::Indexed {

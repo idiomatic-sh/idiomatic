@@ -10,11 +10,11 @@ use ryo_execution_domain::domain::shared_walk::types::{
     walk_route::value::{WalkBarrier, WalkRoute},
 };
 use ryo_relations::domain::relations::service::ALL;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::{
     plan_parts::types::{Input as Source, RepeatedRows, StepScope},
     plans::types::Operation,
 };
-use ryo_relations::domain::relations::types::Relation;
 use std::borrow::Cow;
 use std::collections::HashSet;
 
@@ -272,9 +272,7 @@ fn subject(corpus: Input) -> Result<Value, Failure> {
         cross_file: regions
             .iter()
             .any(|region| region.phase() == StepScope::CrossFile),
-        multi_instruction: regions
-            .iter()
-            .any(|region| region.instructions().len() > 1),
+        multi_instruction: regions.iter().any(|region| region.instructions().len() > 1),
         step_select: regions
             .iter()
             .filter_map(|region| region.instructions().first())

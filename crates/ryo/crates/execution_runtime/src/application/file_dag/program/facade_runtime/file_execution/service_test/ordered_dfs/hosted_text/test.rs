@@ -1,9 +1,7 @@
 //! Hosted text vertices and one file owner reset the traversal across closures and graphs.
 use super::super::super::super::service::*;
 use super::super::super::fixtures::*;
-use super::super::fixtures::{
-    column, execute_request, host, hosted_plan, numbers, operation,
-};
+use super::super::fixtures::{column, execute_request, host, hosted_plan, numbers, operation};
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
@@ -170,10 +168,7 @@ fn succeeds() {
 }
 
 /// Walks the hosted text graph and reads each row back as its texts and ordinal.
-fn text_walk(
-    roots: &[[&str; 2]],
-    edges: &[(&str, &str, i64)],
-) -> Result<Observed, OperatingError> {
+fn text_walk(roots: &[[&str; 2]], edges: &[(&str, &str, i64)]) -> Result<Observed, OperatingError> {
     let text = |s: &str| HostCell::Text(s.into());
     let number = |n| HostCell::Number(Integer(n));
     let host_rows = |role: &str, kinds: Vec<HostKind>, rows: Vec<Vec<HostCell>>| HostRelation {
@@ -209,7 +204,13 @@ fn text_walk(
             edges
                 .iter()
                 .map(|(from, to, order)| {
-                    vec![text(from), text(to), number(*order), text("edge"), text("ctx")]
+                    vec![
+                        text(from),
+                        text(to),
+                        number(*order),
+                        text("edge"),
+                        text("ctx"),
+                    ]
                 })
                 .collect(),
         ),

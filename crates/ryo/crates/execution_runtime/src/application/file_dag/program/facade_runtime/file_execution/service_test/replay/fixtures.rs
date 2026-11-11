@@ -331,6 +331,6 @@ pub(super) fn indexed_join(key: i64, column: u32) -> Result<Table, OperatingErro
         RootOutcome::Failed(error) | RootOutcome::Unknown(error) => Err(error),
         _ => Err(OperatingError::NotRun),
     };
-    file.finish()?;
+    let _readiness = file.finish()?;
     result
 }
