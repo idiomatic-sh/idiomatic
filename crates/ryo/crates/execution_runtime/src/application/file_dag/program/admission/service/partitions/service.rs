@@ -177,13 +177,41 @@ impl ApplicabilityProof {
 
 impl ApplicabilityProof {
     /// The declared producer for this positive applicability result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_runtime::application::file_dag::program::admission::service::ApplicabilityProof;
+    /// fn read(proof: &ApplicabilityProof) {
+    ///     let _ = proof.producer();
+    /// }
+    /// ```
     pub fn producer(&self) -> RuleIndex {
         self.producer
     }
     /// The file whose generation issued this fact; this cannot mint a new capability.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_runtime::application::file_dag::program::admission::service::ApplicabilityProof;
+    /// fn read(proof: &ApplicabilityProof) {
+    ///     let _ = proof.file();
+    /// }
+    /// ```
     pub fn file(&self) -> FileId {
         self.file.file
     }
+    /// Why the producer applies to the file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_execution_runtime::application::file_dag::program::admission::service::ApplicabilityProof;
+    /// fn read(proof: &ApplicabilityProof) {
+    ///     let _ = proof.reason();
+    /// }
+    /// ```
     pub fn reason(&self) -> ApplicabilityReason {
         self.reason
     }
