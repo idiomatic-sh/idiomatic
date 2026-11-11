@@ -2,6 +2,7 @@
 use crate::application::cross_file::fixtures::counting_plan;
 use crate::application::cross_file::fixtures::crossing;
 use crate::application::cross_file::fixtures::world;
+use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::crossing::service::partials_for;
 use crate::domain::crossing::service::placeable;
 use crate::domain::crossing::types::Placeability;
@@ -43,7 +44,7 @@ fn file_number(partial: Option<&FilePartial>) -> usize {
 }
 
 /// The partials of a rule that reads what the project wrote: the files that cover it, in order.
-pub(crate) fn partials_found() -> [usize; 3] {
+fn partials_found() -> [usize; 3] {
     let mut rules = world(counting_plan(1, Vec::new()));
     rules.needs = vec![Needs {
         cross: vec![RelationRead {
@@ -76,7 +77,7 @@ pub(crate) fn partials_found() -> [usize; 3] {
     ]
 }
 
-pub(crate) fn placing_outcomes() -> [usize; 3] {
+fn placing_outcomes() -> [usize; 3] {
     let table = Table {
         kinds: vec![CellKind::Symbol, CellKind::Number],
         ..Table::default()
@@ -89,4 +90,50 @@ pub(crate) fn placing_outcomes() -> [usize; 3] {
         says(1, Vec::new()),
         says(1, vec![ColumnIndex(0)]),
     ]
+}
+
+/// Which scenario a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Given {
+    /// Findings whose columns do and do not say where they are.
+    Placeable,
+    /// Files and the project that read a relation in part which a rule trusts.
+    Partials,
+}
+/// What a row is given.
+type Input = Given;
+/// The three numbers the scenario observed.
+type Value = [usize; 3];
+/// No row refuses.
+type Failure = ();
+
+/// The rows of this group's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_finding_is_placeable_by_a_name_or_a_key_that_says_where_it_is"),
+        word: Word::Succeeds,
+        input: || Given::Placeable,
+        expect: Expect::Value([1, 0, 1]),
+    },
+    Case {
+        name: CaseName(
+            "the_partial_reads_of_the_project_and_the_files_that_govern_a_rule_bear_on_it",
+        ),
+        word: Word::Succeeds,
+        input: || Given::Partials,
+        expect: Expect::Value([2, 4294967295, 2]),
+    },
+];
+
+/// Runs the scenario the row names.
+fn subject(given: Input) -> Result<Value, Failure> {
+    Ok(match given {
+        Given::Placeable => placing_outcomes(),
+        Given::Partials => partials_found(),
+    })
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
 }

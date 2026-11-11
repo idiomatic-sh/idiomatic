@@ -38,32 +38,33 @@ enum Scenario {
     Partial,
 }
 type Input = Scenario;
-type Value = usize;
+/// The arena bytes kept, the publication calls made, and each root's words and readiness.
+type Value = &'static str;
 type Failure = std::convert::Infallible;
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("partial_publication_keeps_words_without_rewriting_unknown_readiness"),
         word: Word::Succeeds,
         input: || Scenario::Partial,
-        expect: Expect::Value(1),
+        expect: Expect::Value("arena [8], 1 call(s), published unknown"),
     },
     Case {
-        name: CaseName(stringify!(later_refusal_keeps_only_prior_arena_bytes)),
+        name: CaseName("later_refusal_keeps_only_prior_arena_bytes"),
         word: Word::Succeeds,
         input: || Scenario::LaterRefusal,
-        expect: Expect::Value(1),
+        expect: Expect::Value("arena [8], 2 call(s), published complete, withheld unknown"),
     },
     Case {
-        name: CaseName(stringify!(complete_without_table_is_unknown)),
+        name: CaseName("complete_without_table_is_unknown"),
         word: Word::Succeeds,
         input: || Scenario::MissingTable,
-        expect: Expect::Value(0),
+        expect: Expect::Value("arena [], 0 call(s), withheld unknown"),
     },
     Case {
-        name: CaseName(stringify!(skipped_root_is_not_normalized)),
+        name: CaseName("skipped_root_is_not_normalized"),
         word: Word::Succeeds,
         input: || Scenario::Skipped,
-        expect: Expect::Value(0),
+        expect: Expect::Value("arena [], 0 call(s), withheld skipped"),
     },
 ];
 fn numeric() -> Table {
@@ -94,53 +95,34 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let port = RefusingPublication(AtomicUsize::new(0));
     let transfer = pack_roots(roots, &mut Symbols::default(), &[], WorkerNumber(0), &port);
-    match scenario {
-        Scenario::Partial => {
-            assert_eq!(transfer.arena.0, [8]);
-            assert!(matches!(
-                transfer.roots[0].words,
+    let roots = transfer
+        .roots
+        .iter()
+        .map(|root| {
+            let words = if matches!(
+                root.words,
                 ryo_values::domain::records::types::RootWords::Published(_)
-            ));
-            assert!(matches!(
-                transfer.roots[0].readiness,
-                ProducerReadiness::Unknown(_)
-            ));
-        }
-        Scenario::LaterRefusal => {
-            assert_eq!(transfer.arena.0, [8]);
-            assert_eq!(port.0.load(Ordering::SeqCst), 2);
-            assert!(matches!(
-                transfer.roots[0].words,
-                ryo_values::domain::records::types::RootWords::Published(_)
-            ));
-            assert_eq!(transfer.roots[0].readiness, ProducerReadiness::Complete);
-            assert!(matches!(
-                transfer.roots[1].words,
-                ryo_values::domain::records::types::RootWords::Withheld
-            ));
-            assert!(matches!(
-                transfer.roots[1].readiness,
-                ProducerReadiness::Unknown(_)
-            ));
-        }
-        Scenario::MissingTable | Scenario::Skipped => {
-            assert!(transfer.arena.0.is_empty());
-            assert_eq!(port.0.load(Ordering::SeqCst), 0);
-            assert!(matches!(
-                transfer.roots[0].words,
-                ryo_values::domain::records::types::RootWords::Withheld
-            ));
-            if matches!(scenario, Scenario::MissingTable) {
-                assert!(matches!(
-                    transfer.roots[0].readiness,
-                    ProducerReadiness::Unknown(_)
-                ));
+            ) {
+                "published"
             } else {
-                assert_eq!(transfer.roots[0].readiness, ProducerReadiness::Skipped);
-            }
-        }
-    }
-    Ok(transfer.arena.0.len())
+                "withheld"
+            };
+            let readiness = match &root.readiness {
+                ProducerReadiness::Unknown(_) => "unknown",
+                ProducerReadiness::Skipped => "skipped",
+                ProducerReadiness::Complete => "complete",
+                ProducerReadiness::NoQuery => "no query",
+            };
+            format!("{words} {readiness}")
+        })
+        .collect::<Vec<_>>();
+    let observed = format!(
+        "arena {:?}, {} call(s), {}",
+        transfer.arena.0,
+        port.0.load(Ordering::SeqCst),
+        roots.join(", ")
+    );
+    Ok(Box::leak(observed.into_boxed_str()))
 }
 #[test]
 fn succeeds() {

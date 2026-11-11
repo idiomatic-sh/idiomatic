@@ -2,13 +2,9 @@
 use super::errors::FileAnalysisError;
 use super::service::FileAnalysis;
 use super::types::RequestVisitSetting;
-use super::types::RuleGate;
-use crate::domain::visit::types::Keeping;
 use crate::domain::workers::service::tables_for;
-use crate::domain::workers::types::Gating;
 use ryo_execution::inbound::use_cases::execution::interface::ExecutionUseCase;
 use ryo_execution::inbound::use_cases::execution::use_case::ExecutionUseCaseImpl;
-use ryo_execution::inbound::use_cases::metadata::interface::Mask;
 use ryo_execution::inbound::use_cases::metadata::interface::PlacedScopes;
 use ryo_execution::inbound::use_cases::metadata::interface::ScopePlacement;
 use ryo_execution::inbound::use_cases::prepare::interface::ObservationIdentity;
@@ -19,37 +15,23 @@ use ryo_execution::inbound::use_cases::prepare::use_case::PrepareUseCaseImpl;
 use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution_runtime::outbound::facts::fixtures::fake::FactsFake;
 use ryo_execution_runtime::outbound::facts::interface::FactsPort;
-use ryo_language::domain::elements::types::SyntaxAcceptance;
 use ryo_language::domain::files::types::FilePath;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::relations::types::WorkerNumber;
-use ryo_values::domain::files::types::FileNumber;
-use ryo_values::domain::files::types::FileSize;
-use ryo_values::domain::files::types::Nanoseconds;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::plans::types::Plan;
-use ryo_values::domain::records::types::FileOutcome;
-use ryo_values::domain::records::types::Handed;
-use ryo_values::domain::records::types::HandedWords;
-use ryo_values::domain::records::types::Handing;
-use ryo_values::domain::records::types::Ran;
-use ryo_values::domain::records::types::Record;
-use ryo_values::domain::row_texts::types::FindingRows;
 use ryo_values::domain::rows::types::RowCount;
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::runs::types::RuleApplicability;
 use ryo_values::domain::runs::types::RuleId;
-use ryo_values::domain::stored_facts::types::Bucket;
-use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::BucketsWanted;
 use std::sync::Arc;
 pub(crate) mod capture;
 pub(crate) mod failure;
 pub(crate) mod gating;
 pub(crate) mod manifest;
-pub(crate) mod replay;
 pub(crate) mod resident;
 pub(crate) mod visit;
 pub(crate) fn prepared_test_program(
@@ -255,124 +237,6 @@ pub(crate) fn replay_under_capture(
         failure: None,
     };
     FileAnalysis::hand_again(&mut worker, &visit, FileOrder(0), FileId(0), &record)
-}
-
-/// Check a rejected or undetermined source without mixing its owner tables with other cases.
-pub(crate) fn assert_gated_acceptance(
-    setting: &RequestVisitSetting<'_>,
-    acceptance: SyntaxAcceptance,
-    expected_reason: &str,
-) {
-    let mut tables = tables_for(WorkerNumber(0));
-    tables.mask = Mask(vec![0b11]);
-    let skipped = FileAnalysis::gate_rules(
-        &mut tables,
-        setting,
-        ryo_relations::domain::relations::types::FileId(0),
-        acceptance,
-    );
-    assert_eq!(skipped, [RuleGate::Blocked, RuleGate::Open]);
-    assert_eq!(tables.mask.0, [0b10]);
-    assert_eq!(
-        FileAnalysis::active_wanted(&tables, setting, acceptance).as_ref(),
-        [Relation::Identifier]
-    );
-    if acceptance == SyntaxAcceptance::Rejected {
-        assert!(tables.unknowns.is_empty());
-        assert_eq!(tables.skipped.len(), 1);
-        assert_eq!(tables.skipped[0].rule, setting.ids[0]);
-        assert_eq!(tables.skipped[0].path, setting.paths[0]);
-        assert_eq!(
-            tables.skipped[0].reason,
-            ryo_values::domain::runs::types::SkipReason::SyntaxRejected
-        );
-        assert!(expected_reason.contains("rejected"));
-    } else {
-        assert_eq!(tables.unknowns.len(), 1);
-        assert_eq!(tables.unknowns[0].rule, setting.ids[0]);
-        assert_eq!(tables.unknowns[0].path, setting.paths[0]);
-        assert_eq!(&*tables.unknowns[0].message.0, expected_reason);
-        assert!(tables.skipped.is_empty());
-    }
-}
-
-/// Accepted syntax keeps enabled rules; absent applicability metadata still records unknowns.
-pub(crate) fn assert_accepted_and_missing_applicability(setting: &RequestVisitSetting<'_>) {
-    let mut tables = tables_for(WorkerNumber(0));
-    tables.mask = Mask(vec![0b11]);
-    assert_eq!(
-        FileAnalysis::gate_rules(
-            &mut tables,
-            setting,
-            ryo_relations::domain::relations::types::FileId(0),
-            SyntaxAcceptance::Accepted,
-        ),
-        [RuleGate::Open, RuleGate::Open]
-    );
-    assert_eq!(tables.mask.0, [0b11]);
-    assert_eq!(
-        FileAnalysis::active_wanted(&tables, setting, SyntaxAcceptance::Accepted).as_ref(),
-        [Relation::Function, Relation::Identifier]
-    );
-    let always_setting = RequestVisitSetting {
-        source_language: None,
-        domain: crate::domain::workers::types::VisitSetting {
-            metadata: &setting.metadata[1..],
-            ids: &setting.ids[1..],
-            applicability: &setting.applicability[1..],
-            applicability_can_gate: crate::domain::workers::types::Gating::NeverGates,
-            needs: &setting.needs[1..],
-            ..(setting.clone()).domain
-        },
-        ..setting.clone()
-    };
-    assert!(matches!(
-        FileAnalysis::active_wanted(&tables, &always_setting, SyntaxAcceptance::Rejected),
-        std::borrow::Cow::Borrowed(_)
-    ));
-    assert_eq!(
-        FileAnalysis::may_gate_rules(setting, SyntaxAcceptance::Accepted),
-        Gating::NeverGates
-    );
-    assert_eq!(
-        FileAnalysis::may_gate_rules(setting, SyntaxAcceptance::Rejected),
-        Gating::MayGate
-    );
-    assert!(tables.unknowns.is_empty());
-
-    let missing_policy = RequestVisitSetting {
-        domain: crate::domain::workers::types::VisitSetting {
-            applicability: &[],
-            applicability_can_gate: crate::domain::workers::types::Gating::MayGate,
-            ..(setting.clone()).domain
-        },
-        ..setting.clone()
-    };
-    assert_eq!(
-        FileAnalysis::may_gate_rules(&missing_policy, SyntaxAcceptance::Accepted),
-        Gating::MayGate
-    );
-    let mut missing_tables = tables_for(WorkerNumber(0));
-    missing_tables.mask = Mask(vec![0b11]);
-    assert_eq!(
-        FileAnalysis::gate_rules(
-            &mut missing_tables,
-            &missing_policy,
-            ryo_relations::domain::relations::types::FileId(0),
-            SyntaxAcceptance::Accepted,
-        ),
-        [RuleGate::Blocked, RuleGate::Blocked]
-    );
-    assert_eq!(missing_tables.mask.0, [0]);
-    assert!(
-        FileAnalysis::active_wanted(&missing_tables, &missing_policy, SyntaxAcceptance::Accepted)
-            .is_empty()
-    );
-    assert_eq!(missing_tables.unknowns.len(), 2);
-    assert!(missing_tables.skipped.is_empty());
-    assert!(missing_tables.unknowns.iter().all(|unknown| {
-        &*unknown.message.0 == "rule skipped: applicability metadata unavailable"
-    }));
 }
 
 /// What the last run kept, for a run that uses nothing of it.

@@ -8,51 +8,35 @@ use ryo_language::domain::symbols::types::Symbols;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 
 #[cfg(test)]
+mod budget;
+#[cfg(test)]
+mod generation;
+#[cfg(test)]
 mod interpreter_budget;
 #[cfg(test)]
 mod interpreter_population;
 #[cfg(test)]
 mod interpreter_root_set;
+#[cfg(test)]
+mod partials;
+#[cfg(test)]
+mod population;
+#[cfg(test)]
+mod rendering;
+#[cfg(test)]
+mod root_set;
+#[cfg(test)]
+mod single_rule;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
 enum Scenario {
-    /// Resource substitution changes rendered source spelling.
-    Substitution,
-    /// An unreadable source yields no invented text.
-    Unreadable,
-    /// Findings whose columns do and do not say where they are.
-    Placeable,
-    /// Files and the project that read a relation in part which a rule trusts.
-    Partials,
     /// The nodes two files handed over, counted.
     CrossCounts,
     /// A rule the plans lack.
     CrossNoRule,
     /// A cross-file step that reads what nobody handed over.
     CrossNothingHanded,
-    /// The roots of the current project keep the original two-group, four-cell result.
-    CurrentRoots,
-    /// Rejected syntax blocks the cross-file complements without inventing a partial diagnostic.
-    RejectedSyntax,
-    /// Ordinary project rules share one preparation and reject another generation.
-    SharedPreparation,
-    /// An ordinary phase keeps the populations and the partiality of its rules separate.
-    SeparatePopulations,
-    /// Equal policies do not alias distinct admitted frontier payloads.
-    DistinctPayloads,
-    /// Many distinct project populations allocate only the state of the region they reach.
-    ReachedRegions,
-    /// A project root set prepares shared publications once, before the ordered delivery.
-    SharedPublications,
-    /// A project root set keeps the distinct actual population policy in both orders.
-    DistinctPolicies,
-    /// The budget stops a later population after actual work and releases the phase.
-    LaterPopulation,
-    /// A refused frontier ordinal keeps its compiled source in each cohort.
-    RefusedOrdinal,
-    /// The ordinary phase keeps each refusal with its occurrence, in declaration order.
-    OrdinaryOrder,
 }
 
 /// What a row of the cases asks of the service.
@@ -63,23 +47,18 @@ type Failure = RuleRequestsError;
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
-        Scenario::Substitution => Ok([
-            usize::from(super::fixtures::cases::rendering::source_text(b"one", false) == "one"),
-            usize::from(super::fixtures::cases::rendering::source_text(b"two", false) == "two"),
-            0,
-        ]),
-        Scenario::Unreadable => Ok([
-            usize::from(super::fixtures::cases::rendering::source_text(b"one", true).is_empty()),
-            0,
-            0,
-        ]),
-        Scenario::Placeable => Ok(super::fixtures::cases::partials::placing_outcomes()),
-        Scenario::Partials => Ok(super::fixtures::cases::partials::partials_found()),
         Scenario::CrossCounts => {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let phase = rules.request.project_phase().expect("one project phase");
-            let done = super::fixtures::cases::evaluate_fixture(&rules, &todo(0), &frontier_rows(), &rules.covered, &mut cross, &phase)?;
+            let done = super::fixtures::evaluation::evaluate_fixture(
+                &rules,
+                &todo(0),
+                &frontier_rows(),
+                &rules.covered,
+                &mut cross,
+                &phase,
+            )?;
             Ok([
                 done.rendered
                     .as_ref()
@@ -94,7 +73,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let phase = rules.request.project_phase().expect("one project phase");
-            let done = super::fixtures::cases::evaluate_fixture(&rules, &todo(3), &frontier_rows(), &rules.covered, &mut cross, &phase)?;
+            let done = super::fixtures::evaluation::evaluate_fixture(
+                &rules,
+                &todo(3),
+                &frontier_rows(),
+                &rules.covered,
+                &mut cross,
+                &phase,
+            )?;
             Ok([
                 done.rendered
                     .as_ref()
@@ -107,7 +93,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let rules = world(counting_plan(1, Vec::new()));
             let mut cross = Symbols::default();
             let phase = rules.request.project_phase().expect("one project phase");
-            let done = super::fixtures::cases::evaluate_fixture(&rules, &todo(0), &[], &rules.covered, &mut cross, &phase)?;
+            let done = super::fixtures::evaluation::evaluate_fixture(
+                &rules,
+                &todo(0),
+                &[],
+                &rules.covered,
+                &mut cross,
+                &phase,
+            )?;
             Ok([
                 done.rendered
                     .as_ref()
@@ -116,47 +109,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 0,
             ])
         }
-        Scenario::CurrentRoots => super::fixtures::cases::single_rule::current_project_roots_keep_the_original_two_group_four_cell_result().map(|()| [0; 3]),
-        Scenario::RejectedSyntax => super::fixtures::cases::single_rule::rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics().map(|()| [0; 3]),
-        Scenario::SharedPreparation => super::fixtures::cases::generation::ordinary_project_rules_share_one_preparation_and_reject_another_generation().map(|()| [0; 3]),
-        Scenario::SeparatePopulations => super::fixtures::cases::population::ordinary_phase_keeps_valid_rule_populations_and_partiality_separate().map(|()| [0; 3]),
-        Scenario::DistinctPayloads => super::fixtures::cases::population::equal_policies_do_not_alias_distinct_admitted_frontier_payloads().map(|()| [0; 3]),
-        Scenario::ReachedRegions => super::fixtures::cases::population::many_distinct_project_populations_allocate_only_reached_region_state().map(|()| [0; 3]),
-        Scenario::SharedPublications => super::fixtures::cases::root_set::project_root_set_prepares_shared_publications_once_before_ordered_delivery().map(|()| [0; 3]),
-        Scenario::DistinctPolicies => super::fixtures::cases::root_set::project_root_set_preserves_distinct_actual_population_policy_in_both_orders().map(|()| [0; 3]),
-        Scenario::LaterPopulation => super::fixtures::cases::budget::project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase().map(|()| [0; 3]),
-        Scenario::RefusedOrdinal => super::fixtures::cases::budget::refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort().map(|()| [0; 3]),
-        Scenario::OrdinaryOrder => super::fixtures::cases::budget::ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order().map(|()| [0; 3]),
     }
 }
 
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("substituting_the_injected_corpus_changes_source_spelling"),
-        word: Word::Succeeds,
-        input: || Scenario::Substitution,
-        expect: Expect::Value([1, 1, 0]),
-    },
-    Case {
-        name: CaseName("failed_source_reads_never_invent_a_spelling"),
-        word: Word::Succeeds,
-        input: || Scenario::Unreadable,
-        expect: Expect::Value([1, 0, 0]),
-    },
-    Case {
-        name: CaseName("a_finding_is_placeable_by_a_name_or_a_key_that_says_where_it_is"),
-        word: Word::Succeeds,
-        input: || Scenario::Placeable,
-        expect: Expect::Value([1, 0, 1]),
-    },
-    Case {
-        name: CaseName(
-            "the_partial_reads_of_the_project_and_the_files_that_govern_a_rule_bear_on_it",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::Partials,
-        expect: Expect::Value([2, 4_294_967_295, 2]),
-    },
     Case {
         name: CaseName(
             "the_nodes_two_files_handed_over_are_counted_into_two_findings_of_five_cells",
@@ -188,84 +144,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Selection::Differs
             }
         }),
-    },
-    Case {
-        name: CaseName("current_project_roots_keep_the_original_two_group_four_cell_result"),
-        word: Word::Succeeds,
-        input: || Scenario::CurrentRoots,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName(
-            "rejected_syntax_blocks_cross_file_complements_without_inventing_partial_diagnostics",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::RejectedSyntax,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName(
-            "ordinary_project_rules_share_one_preparation_and_reject_another_generation",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::SharedPreparation,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName("ordinary_phase_keeps_valid_rule_populations_and_partiality_separate"),
-        word: Word::Succeeds,
-        input: || Scenario::SeparatePopulations,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName("equal_policies_do_not_alias_distinct_admitted_frontier_payloads"),
-        word: Word::Succeeds,
-        input: || Scenario::DistinctPayloads,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName("many_distinct_project_populations_allocate_only_reached_region_state"),
-        word: Word::Succeeds,
-        input: || Scenario::ReachedRegions,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName(
-            "project_root_set_prepares_shared_publications_once_before_ordered_delivery",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::SharedPublications,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName(
-            "project_root_set_preserves_distinct_actual_population_policy_in_both_orders",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::DistinctPolicies,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName(
-            "project_budget_stops_a_later_population_after_actual_work_and_releases_the_phase",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::LaterPopulation,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName("refused_frontier_ordinal_keeps_its_actual_compiled_source_in_each_cohort"),
-        word: Word::Succeeds,
-        input: || Scenario::RefusedOrdinal,
-        expect: Expect::Value([0, 0, 0]),
-    },
-    Case {
-        name: CaseName(
-            "ordinary_phase_keeps_each_refusal_with_its_occurrence_in_declaration_order",
-        ),
-        word: Word::Succeeds,
-        input: || Scenario::OrdinaryOrder,
-        expect: Expect::Value([0, 0, 0]),
     },
 ];
 
