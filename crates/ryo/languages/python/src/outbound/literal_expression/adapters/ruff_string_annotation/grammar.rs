@@ -1,13 +1,13 @@
 //! Call the pinned Ruff string-annotation parser without retaining its AST.
-use crate::domain::literal_expression_parsing::{
-    interface::LiteralExpressionSyntax,
-    types::{CarrierInput, LiteralDialect, LiteralParseOutcome},
+use crate::domain::literal_expression_parsing::types::{
+    CarrierInput, LiteralDialect, LiteralParseOutcome,
 };
+use crate::outbound::literal_expression::interface::LiteralExpressionSyntaxPort;
 
 /// The parser used by the Python relation's static composition.
 pub(crate) struct RuffStringAnnotation;
 
-impl LiteralExpressionSyntax for RuffStringAnnotation {
+impl LiteralExpressionSyntaxPort for RuffStringAnnotation {
     const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
         crate::domain::literal_expression_parsing::constants::GRAMMAR;
 

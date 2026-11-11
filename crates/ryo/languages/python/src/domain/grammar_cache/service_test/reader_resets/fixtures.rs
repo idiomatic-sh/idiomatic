@@ -8,11 +8,9 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
     let mut observed: Vec<String> = Vec::new();
     use crate::domain::model::types::Declarations;
     use crate::fixtures::reading::{initialize_model, parsed};
+    use crate::outbound::brace_format::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
     use crate::outbound::{
-        format_syntax::adapters::{
-            ruff_literal_braceformat::grammar::RuffLiteralBraceFormat,
-            ruff_literal_cformat::grammar::RuffLiteralCFormat,
-        },
+        format_syntax::adapters::ruff_literal_cformat::grammar::RuffLiteralCFormat,
         literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation,
     };
     use ryo::languages::{self, ByteSlice, Tree};
@@ -31,7 +29,7 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
         };
         initialize_model(&tree, &mut model);
         let start = source.find(spelling).expect("literal in source");
-        let decoded = crate::domain::format_parsing::service::prepare::<RuffLiteralCFormat>(
+        let decoded = crate::application::format_parsing::service::prepare::<RuffLiteralCFormat>(
             &tree,
             &model.format_parsing,
             &mut file.symbols,
@@ -49,7 +47,7 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
         ));
         observed.push(format!("{}", matches!(&decoded.values[0].result, crate::domain::format_syntax::types::FormatParseResult::Parsed(result) if result.fields.len() == fields)));
         drop(decoded);
-        let raw = crate::domain::raw_format::service::prepare::<RuffLiteralCFormat>(
+        let raw = crate::application::raw_format::service::prepare::<RuffLiteralCFormat>(
             &tree,
             &model.raw_format,
             &mut file.symbols,
@@ -67,7 +65,7 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
         ));
         observed.push(format!("{}", matches!(&raw.values[0], crate::domain::format_syntax::types::FormatParseResult::Parsed(result) if result.fields.len() == fields)));
         drop(raw);
-        let brace = crate::domain::brace_format::service::prepare::<RuffLiteralBraceFormat>(
+        let brace = crate::application::brace_format::service::prepare::<RuffLiteralBraceFormat>(
             &tree,
             &model.brace_format,
             &mut file.symbols,
@@ -85,7 +83,7 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
         ));
         observed.push(format!("{}", matches!(&brace.values[0].result, crate::domain::brace_format::types::BraceFormatResult::Parsed(result) if result.fields.len() == fields)));
         drop(brace);
-        let literal = crate::domain::literal_expression_parsing::service::prepare::<
+        let literal = crate::application::literal_expression_parsing::service::prepare::<
             RuffStringAnnotation,
         >(
             &tree,
@@ -112,11 +110,9 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
     let mut observed: Vec<String> = Vec::new();
     use crate::domain::model::types::Declarations;
     use crate::fixtures::reading::{initialize_model, parsed};
+    use crate::outbound::brace_format::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
     use crate::outbound::{
-        format_syntax::adapters::{
-            ruff_literal_braceformat::grammar::RuffLiteralBraceFormat,
-            ruff_literal_cformat::grammar::RuffLiteralCFormat,
-        },
+        format_syntax::adapters::ruff_literal_cformat::grammar::RuffLiteralCFormat,
         literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation,
     };
     use ryo::languages::{self, ByteSlice, Tree};
@@ -147,7 +143,7 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
             service::len(&model.literal_expression_parsing.borrow().memo)
                 <= EntryCount(MEMO_ENTRIES)
         ));
-        drop(crate::domain::format_parsing::service::prepare::<
+        drop(crate::application::format_parsing::service::prepare::<
             RuffLiteralCFormat,
         >(
             &tree,
@@ -160,7 +156,7 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
                     .into()
             },
         ));
-        drop(crate::domain::raw_format::service::prepare::<
+        drop(crate::application::raw_format::service::prepare::<
             RuffLiteralCFormat,
         >(
             &tree,
@@ -173,7 +169,7 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
                     .into()
             },
         ));
-        drop(crate::domain::brace_format::service::prepare::<
+        drop(crate::application::brace_format::service::prepare::<
             RuffLiteralBraceFormat,
         >(
             &tree,
@@ -187,7 +183,7 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
             },
         ));
         drop(
-            crate::domain::literal_expression_parsing::service::prepare::<RuffStringAnnotation>(
+            crate::application::literal_expression_parsing::service::prepare::<RuffStringAnnotation>(
                 &tree,
                 &model.literal_expression_parsing,
                 &mut file.symbols,

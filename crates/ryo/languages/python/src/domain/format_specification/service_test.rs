@@ -3,8 +3,8 @@
 
 use super::service::observe;
 use super::types::ObservationCompleteness;
+use crate::application::brace_format::service::prepare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::brace_format::service::prepare;
 use crate::domain::model::types::Declarations;
 use crate::domain::semantic_syntax::{
     service::{positions, visibility},
@@ -12,7 +12,7 @@ use crate::domain::semantic_syntax::{
 };
 use crate::fixtures::reading::parsed;
 use crate::inbound::contracts::parse::contract::ParseContract;
-use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
+use crate::outbound::brace_format::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
 use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
 use crate::settings::PythonParserSettings;
 use ryo::languages::{self, ByteSlice, Parse as _, Tree};

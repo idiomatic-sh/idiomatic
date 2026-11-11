@@ -6,8 +6,9 @@ use super::constants::{
     PLACEHOLDER_RECURSION_EXCEEDED, UNKNOWN_CONVERSION, UNKNOWN_INPUT, UNMATCHED_BRACKET,
 };
 use super::types::{FieldCounts, OutcomeLabels};
+use crate::application::brace_format::service::prepare;
 use crate::domain::brace_format::constants::INCOMPLETE;
-use crate::domain::brace_format::service::{occurrences, prepare, result, state};
+use crate::domain::brace_format::service::{occurrences, result, state};
 use crate::domain::brace_format::types::{
     BraceFieldContext, BraceFormatError, BraceFormatResult, BraceFormatState, BraceSelector,
     SelectorRange,
@@ -17,7 +18,7 @@ use crate::domain::{
     model::types::Declarations, nodes::types::Node, semantic_syntax::types::Visibility,
     syntax::service::kind_bits, syntax::types::Kind,
 };
-use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
+use crate::outbound::brace_format::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
 use ryo::languages;
 
 /// One outcome row per source string occurrence.

@@ -1,8 +1,9 @@
 //! Bind syntactic literal validity independently of embedded AST publication.
 use super::constants::PYTHON_STRING_ANNOTATION;
+use crate::application::literal_expression_parsing::service::prepare;
 use crate::domain::{
     literal_expression_parsing::{
-        service::{INCOMPLETE, outcome_name, prepare},
+        service::{INCOMPLETE, outcome_name},
         types::LiteralParseState,
     },
     model::types::Declarations,

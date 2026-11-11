@@ -7,8 +7,9 @@ use super::constants::{
     UNMATCHED_KEY_PARENTHESES, UNSUPPORTED_FORMAT_CHARACTER, WIDTH_OR_PRECISION_TOO_LARGE,
 };
 use super::types::{ErrorParts, Summarized};
+use crate::application::format_parsing::service::prepare;
 use crate::domain::format_parsing::constants::INCOMPLETE;
-use crate::domain::format_parsing::service::{occurrences, prepare, result, state};
+use crate::domain::format_parsing::service::{occurrences, result, state};
 use crate::domain::format_syntax::types::{
     DynamicInput, FormatArgument, FormatCharacter, FormatErrorKind, FormatParseResult,
     FormatParseState, FormatProperty, FormatQuantityMode, FormatSummary,

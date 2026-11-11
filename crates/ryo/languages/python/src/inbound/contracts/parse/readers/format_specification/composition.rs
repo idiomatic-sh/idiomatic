@@ -1,8 +1,8 @@
 //! Inject the brace grammar into a language fact reader, independently of lint call policy.
 use super::constants::{DYNAMIC, INVALID_TYPE, OTHER_ERROR, PARTIAL_CAUSE, RECOGNIZED};
+use crate::application::brace_format::service::prepare;
 use crate::domain::format_specification::types::ObservationCompleteness;
 use crate::domain::{
-    brace_format::service::prepare,
     format_specification::service::observe,
     model::types::Declarations,
     nodes::types::Node,
@@ -10,7 +10,7 @@ use crate::domain::{
     standard_format_spec::types::StandardSpecOutcome,
     syntax::{service::kind_bits, types::Kind},
 };
-use crate::outbound::format_syntax::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
+use crate::outbound::brace_format::adapters::ruff_literal_braceformat::grammar::RuffLiteralBraceFormat;
 use ryo::languages;
 
 /// Reads the standard format specifications of whole string carriers.

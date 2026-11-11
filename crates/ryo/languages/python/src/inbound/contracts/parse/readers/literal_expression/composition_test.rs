@@ -1,9 +1,8 @@
 //! Actual reader rows and unchanged embedded-AST visibility.
 use super::composition::LiteralExpressionParseItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::literal_expression_parsing::{
-    interface::LiteralExpressionSyntax as _,
-    types::{CarrierInput, LiteralDialect, LiteralParseOutcome},
+use crate::domain::literal_expression_parsing::types::{
+    CarrierInput, LiteralDialect, LiteralParseOutcome,
 };
 use crate::domain::relations::collections::relations::{
     embedded_expression::item::EmbeddedExpressionItem, fixtures::contract::check,
@@ -11,6 +10,7 @@ use crate::domain::relations::collections::relations::{
 };
 use crate::fixtures::reading::{proposed, reading};
 use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation;
+use crate::outbound::literal_expression::interface::LiteralExpressionSyntaxPort as _;
 use ryo::languages::contract::{Reading, Want};
 
 /// Extract the stable outcome field from each complete typed row.

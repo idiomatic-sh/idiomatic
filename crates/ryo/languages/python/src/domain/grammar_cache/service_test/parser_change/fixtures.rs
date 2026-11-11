@@ -1,15 +1,15 @@
 //! The support of the group's tests.
-use crate::domain::format_syntax::interface::FormatSyntax;
 use crate::domain::format_syntax::types::FormatDialect;
 use crate::domain::format_syntax::types::FormatErrorKind;
 use crate::domain::format_syntax::types::FormatParseError;
 use crate::domain::format_syntax::types::FormatParseResult;
 use crate::domain::format_syntax::types::FormatSummary;
 use crate::domain::format_syntax::types::ParsedFormat;
+use crate::outbound::format_syntax::interface::FormatSyntaxPort;
 
 pub(super) struct ParsedGrammar;
 
-impl FormatSyntax for ParsedGrammar {
+impl FormatSyntaxPort for ParsedGrammar {
     const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
     const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
@@ -28,7 +28,7 @@ impl FormatSyntax for ParsedGrammar {
 
 pub(super) struct RejectedGrammar;
 
-impl FormatSyntax for RejectedGrammar {
+impl FormatSyntaxPort for RejectedGrammar {
     const DECODED_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-decoded");
     const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
@@ -49,7 +49,8 @@ impl FormatSyntax for RejectedGrammar {
 pub(super) fn completed_active_results_are_invalidated_when_parser_implementation_changes() -> String
 {
     let mut observed: Vec<String> = Vec::new();
-    use crate::domain::{format_parsing::service::prepare, model::types::Declarations};
+    use crate::application::format_parsing::service::prepare;
+    use crate::domain::model::types::Declarations;
     use crate::fixtures::reading::{initialize_model, parsed};
     use ryo::languages::{self, ByteSlice, Symbols, Tree};
     let file = parsed(b"value = 'same input'\n").expect("source parses");

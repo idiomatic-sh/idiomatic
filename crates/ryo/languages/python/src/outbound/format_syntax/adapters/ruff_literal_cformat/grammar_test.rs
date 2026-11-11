@@ -1,12 +1,12 @@
 //! Regression cases for ruff literal cformat bindings.
 use super::grammar::RuffLiteralCFormat;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::format_syntax::interface::FormatSyntax;
 use crate::domain::format_syntax::service::flag_text;
 use crate::domain::format_syntax::types::{
     FormatArgument, FormatDialect, FormatErrorKind, FormatParseError, FormatParseResult,
     FormatQuantityMode, FormatSummary, ParsedFormat,
 };
+use crate::outbound::format_syntax::interface::FormatSyntaxPort;
 
 fn parsed(source: &str) -> ParsedFormat {
     match RuffLiteralCFormat::parse(

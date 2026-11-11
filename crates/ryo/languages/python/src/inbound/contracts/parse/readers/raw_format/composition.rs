@@ -1,11 +1,12 @@
 //! Static raw-token reader binding; ordinary decoded format demand remains independent.
+use crate::application::raw_format::service::prepare;
 use crate::domain::format_syntax::service::flag_text;
 use crate::domain::raw_format::constants::INCOMPLETE;
 use crate::domain::{
     format_syntax::types::{DynamicInput, FormatParseResult, FormatParseState},
     model::types::Declarations,
     nodes::types::Node,
-    raw_format::service::{prepare, result, segments, state},
+    raw_format::service::{result, segments, state},
     syntax::{service::kind_bits, types::Kind},
 };
 use crate::inbound::contracts::parse::readers::format::composition::{
