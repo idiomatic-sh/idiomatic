@@ -1,452 +1,141 @@
 //! Compiled program lifecycle proof with a real owner.
-use super::super::super::fixtures::{
-    EvaluationCount, Reentry, RuntimeProbe, RuntimeProbeMode, Sink, SinkMode, context,
-};
-use super::super::super::inputs::fixtures::{CompiledCase, TestInputs, compiled};
-use crate::application::file_dag::program::admission::service::Inputs;
-use crate::application::file_dag::program::runtime::service::InvocationOutcome;
-use crate::application::file_dag::program::runtime::service::Slot;
-use crate::application::file_dag::program::runtime::service::State;
+use super::super::super::fixtures::{Reentry, RuntimeProbeMode};
+use super::fixtures::{Cleanup, Lived, cleanup, counted, initialized, nested, reentered, retried};
 use crate::application::file_dag::program::runtime::types::DependencyCheckpoint;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_execution_domain::domain::completion::types::completion_policy::value::CompletionPolicy;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::{
-    coverage::types::RuleIndex, table_scratch::types::OperatorScratch,
-};
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::FileId;
-use std::rc::Rc;
+use ryo_execution_domain::domain::readiness::types::{ReadinessCounts, ReadinessEvents};
+use std::borrow::Cow;
 
-fn nested_demand_preserves_both_frames_and_exact_semantic_failure() {
-    let CompiledCase { execution, roots } = compiled();
-    let probe = RuntimeProbe::new(
-        Rc::clone(&execution),
-        RuntimeProbeMode::NestedFailure {
-            outer: roots[0],
-            inner: roots[1],
-        },
-    );
-    let mut input = TestInputs::new(&execution);
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut memo = vec![];
-    let mut context = context(&mut symbols, &mut scratch, &mut memo);
-    let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
-    assert!(matches!(
-        execution.invoke(
-            execution.file_state(),
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context
-        ),
-        Err(OperatingError::WrongBinding)
-    ));
-    let slots = execution.file_state().slots.borrow();
-    // Each frame was its own root's while it ran (the probe asserts it inside the nested call); a failed
-    // region is never evaluated again, so its frames leave the slot.
-    for root in roots {
-        let slot = &slots[&root];
-        assert!(matches!(
-            slot.state,
-            State::Failed(OperatingError::WrongBinding)
-        ));
-        assert!(slot.scratch.is_empty(), "a failed region holds no frames");
-    }
-    drop(slots);
-    assert!(matches!(
-        execution.invoke(
-            execution.file_state(),
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context
-        ),
-        Err(OperatingError::WrongBinding)
-    ));
-    assert_eq!(
-        probe.calls.get(),
-        EvaluationCount(2),
-        "failed roots preserve their original error without rerunning"
-    );
+/// The lifecycle path a row runs one compiled program through.
+#[derive(Clone, Copy)]
+enum Lifecycle {
+    /// The outer root's nested demand of the inner root fails.
+    NestedFailure,
+    /// The root reenters its own region.
+    Reentry,
+    /// The root's first replay is refused by its sink, then retried.
+    RefusedReplay,
+    /// The root runs once under this probe mode.
+    Counted(RuntimeProbeMode),
+    /// Activated roots' slots are touched repeatedly.
+    Touched,
+    /// A retained root's repeated release meets another root's semantic failure.
+    Cleanup,
 }
 
-fn same_region_reentry_refuses_without_corrupting_successful_publication() {
-    let CompiledCase { execution, roots } = compiled();
-    let probe = RuntimeProbe::new(
-        Rc::clone(&execution),
-        RuntimeProbeMode::Reenter { root: roots[0] },
-    );
-    let mut input = TestInputs::new(&execution);
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut memo = vec![];
-    let mut context = context(&mut symbols, &mut scratch, &mut memo);
-    let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
-    assert!(matches!(
-        execution.invoke(
-            execution.file_state(),
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context
-        ),
-        Ok(InvocationOutcome::Published(_))
-    ));
-    assert_eq!(probe.reentry.get(), Reentry::Refused);
-    assert!(matches!(
-        execution.invoke(
-            execution.file_state(),
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context
-        ),
-        Ok(InvocationOutcome::Published(_))
-    ));
-    assert_eq!(
-        probe.calls.get(),
-        EvaluationCount(1),
-        "a retained root runs once"
-    );
-}
+type Input = Lifecycle;
+type Value = Lived;
+type Failure = OperatingError;
 
-fn downstream_error_keeps_publication_and_retry_does_not_repeat_semantics() {
-    let CompiledCase { execution, roots } = compiled();
-    let probe = RuntimeProbe::new(Rc::clone(&execution), RuntimeProbeMode::Plain);
-    let mut input = TestInputs::new(&execution);
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut memo = vec![];
-    let mut context = context(&mut symbols, &mut scratch, &mut memo);
-    let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
-    let mut fail = Sink {
-        mode: SinkMode::Reject,
-        rows: vec![],
-    };
-    let InvocationOutcome::Published(published) = execution
-        .invoke(
-            execution.file_state(),
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context,
-        )
-        .unwrap()
-    else {
-        panic!("canonical completed publication")
-    };
-    assert!(matches!(
-        input.replay(&published, &mut context, &mut fail),
-        Err(OperatingError::WrongBinding)
-    ));
-    {
-        let slots = execution.file_state().slots.borrow();
-        assert!(matches!(slots[&roots[0]].state, State::Published(_)));
-        assert!(
-            slots[&roots[0]].scratch.is_empty(),
-            "a published region holds no frames: a retry replays its publication"
-        );
-    }
-    let mut accept = Sink {
-        mode: SinkMode::Accept,
-        rows: vec![],
-    };
-    let InvocationOutcome::Published(repeated) = execution
-        .invoke(
-            execution.file_state(),
-            roots[0],
-            &mut input,
-            &probe,
-            &policy,
-            &mut context,
-        )
-        .unwrap()
-    else {
-        panic!("retry retains canonical publication")
-    };
-    input.replay(&repeated, &mut context, &mut accept).unwrap();
-    assert_eq!(accept.rows.len(), 1);
-    assert_eq!(
-        probe.calls.get(),
-        EvaluationCount(1),
-        "delivery retry replays the same publication without repeating semantic work"
-    );
-}
+const WRONG_BINDING: Option<OperatingError> = Some(OperatingError::WrongBinding);
+const NOT_RUN: Option<OperatingError> = Some(OperatingError::NotRun);
 
-fn a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is() {
-    use ryo_execution_domain::domain::readiness::types::{ReadinessCounts, ReadinessEvents};
-    // `Plain` declines the shared walk, so its region is evaluated inside its preparation poll; `Joined` waits for its
-    // cohort and is evaluated by a dispatched action. The queue counts both the same: one preparation, one evaluation.
-    for mode in [RuntimeProbeMode::Plain, RuntimeProbeMode::Joined] {
-        let CompiledCase { execution, roots } = compiled();
-        let probe = RuntimeProbe::new(Rc::clone(&execution), mode);
-        let mut input = TestInputs::new(&execution);
-        let mut symbols = Symbols::default();
-        let mut scratch = OperatorScratch::default();
-        let mut memo = vec![];
-        let mut context = context(&mut symbols, &mut scratch, &mut memo);
-        let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
-        assert!(matches!(
-            execution.invoke(
-                execution.file_state(),
-                roots[0],
-                &mut input,
-                &probe,
-                &policy,
-                &mut context
-            ),
-            Ok(InvocationOutcome::Published(_))
-        ));
-        assert_eq!(probe.calls.get(), EvaluationCount(1));
-        assert_eq!(
-            execution.readiness_counts(),
-            ReadinessCounts {
-                preparations: ReadinessEvents(1),
-                evaluations: ReadinessEvents(1),
-                suspensions: ReadinessEvents(0),
-                wakeups: ReadinessEvents(0),
-                presence_absent: ReadinessEvents(0),
-            }
-        );
-    }
-}
-
-fn reached_slots_initialize_reader_obligations_once() {
-    let CompiledCase { execution, roots } = compiled();
-    execution
-        .activate_file_roots(&roots, Default::default())
-        .unwrap();
-    let state = execution.file_state();
-    let before = state.reader_initializations.get();
-    let mut slots = state.slots.borrow_mut();
-    for _ in 0..64 {
-        Slot::touched(state, &mut slots, &execution.program, roots[0]).unwrap();
-    }
-    assert_eq!(state.reader_initializations.get().0 - before.0, 1);
-    Slot::touched(state, &mut slots, &execution.program, roots[1]).unwrap();
-    assert_eq!(state.reader_initializations.get().0 - before.0, 2);
-    assert_eq!(slots.len(), 2);
-}
-
-fn repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup() {
-    let CompiledCase { execution, roots } = compiled();
-    execution
-        .activate_file_roots(&[roots[0], roots[1], roots[1]], Default::default())
-        .unwrap();
-    let healthy = RuntimeProbe::new(Rc::clone(&execution), RuntimeProbeMode::Plain);
-    let mut input = TestInputs::new(&execution);
-    let mut symbols = Symbols::default();
-    let mut scratch = OperatorScratch::default();
-    let mut memo = vec![];
-    let mut context = context(&mut symbols, &mut scratch, &mut memo);
-    let policy = CompletionPolicy::file(RuleIndex(0), FileId(0), &[]);
-    assert!(matches!(
-        execution.invoke(
-            execution.file_state(),
-            roots[1],
-            &mut input,
-            &healthy,
-            &policy,
-            &mut context
-        ),
-        Ok(InvocationOutcome::Published(_))
-    ));
-    let retained = execution
-        .retry_checkpoint(execution.file_state(), roots[1])
-        .unwrap();
-    assert_eq!(
-        retained.remaining.0, 2,
-        "one completed evaluation retains both external obligations"
-    );
-    assert_eq!(retained.dependencies, DependencyCheckpoint::Consumed);
-    // Negative control: preflight refuses repeated retirement atomically. The
-    // kernel probe below repeats the same actual release while the new primary
-    // semantic error occurs, so both errors reach production terminal handling.
-    for _ in 0..2 {
-        assert!(matches!(
-            execution.retire(execution.file_state(), roots[1]),
-            Err(OperatingError::NotRun)
-        ));
-        assert_eq!(
-            execution
-                .retry_checkpoint(execution.file_state(), roots[1])
-                .unwrap(),
-            retained
-        );
-    }
-    let failing = RuntimeProbe::new(
-        Rc::clone(&execution),
-        RuntimeProbeMode::SemanticAndCleanupFailure {
-            completed: roots[1],
-        },
-    );
-    // Both entries still traverse the actual batch scheduler. The already
-    // published alias remains terminal; the other root keeps its semantic error.
-    execution
-        .prepare_roots(
-            execution.file_state(),
-            &[roots[0], roots[1], roots[1]],
-            &mut input,
-            &failing,
-            &policy,
-            &mut context,
-        )
-        .unwrap();
-    for _ in 0..2 {
-        assert!(
-            matches!(
-                execution.invoke(
-                    execution.file_state(),
-                    roots[0],
-                    &mut input,
-                    &failing,
-                    &policy,
-                    &mut context
-                ),
-                Err(OperatingError::WrongBinding)
-            ),
-            "the primary semantic failure must not become the earlier cleanup NotRun"
-        );
-    }
-    assert_eq!(
-        failing.calls.get(),
-        EvaluationCount(1),
-        "failed batch root is never reevaluated"
-    );
-    assert_eq!(healthy.calls.get(), EvaluationCount(1));
-    assert_eq!(
-        execution
-            .retry_checkpoint(execution.file_state(), roots[1])
-            .unwrap(),
-        retained
-    );
-    let InvocationOutcome::Published(publication) = execution
-        .invoke(
-            execution.file_state(),
-            roots[1],
-            &mut input,
-            &healthy,
-            &policy,
-            &mut context,
-        )
-        .unwrap()
-    else {
-        panic!("other root's retained publication")
-    };
-    let mut sink = Sink {
-        mode: SinkMode::Accept,
-        rows: vec![],
-    };
-    input.replay(&publication, &mut context, &mut sink).unwrap();
-    assert_eq!(
-        sink.rows.len(),
-        1,
-        "cleanup refusal does not erase another root's publication"
-    );
-    drop(publication);
-    drop(input);
-    drop(healthy);
-    drop(failing);
-    let execution = Rc::try_unwrap(execution).unwrap_or_else(|_| panic!("single production owner"));
-    assert!(
-        matches!(execution.finish(), Err(OperatingError::NotRun)),
-        "without a primary result, finish reports the real first cleanup refusal"
-    );
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    NestedDemandPreservesBothFramesAndExactSemanticFailure,
-    SameRegionReentryRefusesWithoutCorruptingSuccessfulPublication,
-    DownstreamErrorKeepsPublicationAndRetryDoesNotRepeatSemantics,
-    ARegionEvaluatedInItsPreparationIsCountedOnceAsADispatchedOneIs,
-    ReachedSlotsInitializeReaderObligationsOnce,
-    RepeatedConsumerReleaseIsAtomicAndPrimarySemanticFailureWinsCleanup,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("nested_demand_preserves_both_frames_and_exact_semantic_failure"),
         word: Word::Succeeds,
-        input: || Scenario::NestedDemandPreservesBothFramesAndExactSemanticFailure,
-        expect: Expect::Value(()),
+        input: || Lifecycle::NestedFailure,
+        expect: Expect::Value(Lived::Nested {
+            invocations: [WRONG_BINDING; 2],
+            slots: Cow::Borrowed(&[(WRONG_BINDING, true), (WRONG_BINDING, true)]),
+            evaluations: 2,
+        }),
     },
     Case {
         name: CaseName("same_region_reentry_refuses_without_corrupting_successful_publication"),
         word: Word::Succeeds,
-        input: || Scenario::SameRegionReentryRefusesWithoutCorruptingSuccessfulPublication,
-        expect: Expect::Value(()),
+        input: || Lifecycle::Reentry,
+        expect: Expect::Value(Lived::Reentered {
+            published: [true; 2],
+            reentry: Reentry::Refused,
+            evaluations: 1,
+        }),
     },
     Case {
         name: CaseName("downstream_error_keeps_publication_and_retry_does_not_repeat_semantics"),
         word: Word::Succeeds,
-        input: || Scenario::DownstreamErrorKeepsPublicationAndRetryDoesNotRepeatSemantics,
-        expect: Expect::Value(()),
+        input: || Lifecycle::RefusedReplay,
+        expect: Expect::Value(Lived::Retried {
+            refusal: WRONG_BINDING,
+            published: true,
+            frames_empty: true,
+            replayed: 1,
+            evaluations: 1,
+        }),
     },
     Case {
         name: CaseName(
             "a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is",
         ),
         word: Word::Succeeds,
-        input: || Scenario::ARegionEvaluatedInItsPreparationIsCountedOnceAsADispatchedOneIs,
-        expect: Expect::Value(()),
+        input: || Lifecycle::Counted(RuntimeProbeMode::Plain),
+        expect: Expect::Value(Lived::Counted {
+            published: true,
+            evaluations: 1,
+            counts: ReadinessCounts {
+                preparations: ReadinessEvents(1),
+                evaluations: ReadinessEvents(1),
+                suspensions: ReadinessEvents(0),
+                wakeups: ReadinessEvents(0),
+                presence_absent: ReadinessEvents(0),
+            },
+        }),
+    },
+    Case {
+        name: CaseName("a_region_evaluated_by_a_dispatched_action_is_counted_once"),
+        word: Word::Succeeds,
+        input: || Lifecycle::Counted(RuntimeProbeMode::Joined),
+        expect: Expect::Value(Lived::Counted {
+            published: true,
+            evaluations: 1,
+            counts: ReadinessCounts {
+                preparations: ReadinessEvents(1),
+                evaluations: ReadinessEvents(1),
+                suspensions: ReadinessEvents(0),
+                wakeups: ReadinessEvents(0),
+                presence_absent: ReadinessEvents(0),
+            },
+        }),
     },
     Case {
         name: CaseName("reached_slots_initialize_reader_obligations_once"),
         word: Word::Succeeds,
-        input: || Scenario::ReachedSlotsInitializeReaderObligationsOnce,
-        expect: Expect::Value(()),
+        input: || Lifecycle::Touched,
+        expect: Expect::Value(Lived::Initialized {
+            first: 1,
+            second: 2,
+            slots: 2,
+        }),
     },
     Case {
         name: CaseName(
             "repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup",
         ),
         word: Word::Succeeds,
-        input: || Scenario::RepeatedConsumerReleaseIsAtomicAndPrimarySemanticFailureWinsCleanup,
-        expect: Expect::Value(()),
+        input: || Lifecycle::Cleanup,
+        expect: Expect::Value(Lived::Cleanup(Cleanup {
+            retained: (2, DependencyCheckpoint::Consumed),
+            releases: [NOT_RUN; 2],
+            release_kept: true,
+            failing: [WRONG_BINDING; 2],
+            evaluations: (1, 1),
+            retained_kept: true,
+            replayed: 1,
+            finish: NOT_RUN,
+        })),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+/// Runs the compiled program through the row's lifecycle path.
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::NestedDemandPreservesBothFramesAndExactSemanticFailure => {
-            nested_demand_preserves_both_frames_and_exact_semantic_failure();
-            Ok(())
-        }
-        Scenario::SameRegionReentryRefusesWithoutCorruptingSuccessfulPublication => {
-            same_region_reentry_refuses_without_corrupting_successful_publication();
-            Ok(())
-        }
-        Scenario::DownstreamErrorKeepsPublicationAndRetryDoesNotRepeatSemantics => {
-            downstream_error_keeps_publication_and_retry_does_not_repeat_semantics();
-            Ok(())
-        }
-        Scenario::ARegionEvaluatedInItsPreparationIsCountedOnceAsADispatchedOneIs => {
-            a_region_evaluated_in_its_preparation_is_counted_once_as_a_dispatched_one_is();
-            Ok(())
-        }
-        Scenario::ReachedSlotsInitializeReaderObligationsOnce => {
-            reached_slots_initialize_reader_obligations_once();
-            Ok(())
-        }
-        Scenario::RepeatedConsumerReleaseIsAtomicAndPrimarySemanticFailureWinsCleanup => {
-            repeated_consumer_release_is_atomic_and_primary_semantic_failure_wins_cleanup();
-            Ok(())
-        }
+        Lifecycle::NestedFailure => nested(),
+        Lifecycle::Reentry => reentered(),
+        Lifecycle::RefusedReplay => retried(),
+        Lifecycle::Counted(mode) => counted(mode),
+        Lifecycle::Touched => initialized(),
+        Lifecycle::Cleanup => cleanup(),
     }
 }
 

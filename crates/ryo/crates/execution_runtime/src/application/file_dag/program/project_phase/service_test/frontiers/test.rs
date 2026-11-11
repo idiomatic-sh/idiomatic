@@ -6,7 +6,9 @@ use super::fixtures::{DIAGNOSTIC, evaluate_one};
 use crate::application::file_dag::program::project_phase::interface::ProgramProjectPhasePort as _;
 use crate::application::file_dag::program::request_execution::interface::ProgramRequestExecutionPort as _;
 use crate::application::file_dag::program::request_execution::service::begin;
-use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
+use crate::application::file_dag::program::rule_outcome::types::{
+    ProjectOutputOutcome, RootOutcome, RuleOutcome,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::coverage::types::{
     Covered, InapplicableFiles, RefusedFiles, RuleIndex,
@@ -14,163 +16,141 @@ use ryo_execution_domain::domain::coverage::types::{
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::symbols::types::Symbols;
+use std::borrow::Cow;
 
 /// Frontiers one request prepared are not admitted by another request's phase over the same program and corpus
 /// (`PreparedFrontiers::validate_scope`).
-fn frontiers_from_another_request_are_refused() {
+fn frontiers_from_another_request_are_refused() -> Result<Phased, OperatingError> {
     let prepared = program(Entry::Phase, 1);
     let corpus = corpus();
     let covered = covered(1);
-    let first = crate::application::file_dag::program::request_execution::service::begin(
-        &prepared, &corpus, None,
-    );
-    let second = crate::application::file_dag::program::request_execution::service::begin(
-        &prepared, &corpus, None,
-    );
-    let (owner, other) = (
-        first
-            .project_phase()
-            .expect("the first request's phase opens"),
-        second
-            .project_phase()
-            .expect("the second request's phase opens"),
-    );
-    let owned = owner
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered,
-            &[],
-            &InapplicableFiles::default(),
-            &RefusedFiles::default(),
-        )
-        .expect("a declared rule has a scope");
-    let frontiers =
-        prepare_for(&first, &owned, RuleIndex(0)).expect("the first request's frontiers");
-    let scope = other
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered,
-            &[],
-            &InapplicableFiles::default(),
-            &RefusedFiles::default(),
-        )
-        .expect("a declared rule has a scope");
-    assert!(
-        matches!(
-            evaluate_one(&other, RuleIndex(0), DIAGNOSTIC, &scope, frontiers),
-            Err(OperatingError::NotRead)
-        ),
-        "an unrelated request cannot admit the original frontiers"
-    );
+    let first = begin(&prepared, &corpus, None);
+    let second = begin(&prepared, &corpus, None);
+    let (owner, other) = (first.project_phase()?, second.project_phase()?);
+    let owned = owner.project_scope(
+        RuleIndex(0),
+        &corpus,
+        &covered,
+        &[],
+        &InapplicableFiles::default(),
+        &RefusedFiles::default(),
+    )?;
+    let frontiers = prepare_for(&first, &owned, RuleIndex(0)).expect("the declared frontiers");
+    let scope = other.project_scope(
+        RuleIndex(0),
+        &corpus,
+        &covered,
+        &[],
+        &InapplicableFiles::default(),
+        &RefusedFiles::default(),
+    )?;
+    // An unrelated request cannot admit the original frontiers.
+    let evaluated = Evaluated::from(evaluate_one(
+        &other,
+        RuleIndex(0),
+        DIAGNOSTIC,
+        &scope,
+        frontiers,
+    ));
     drop((owned, scope));
-    owner.finish().expect("the first phase finishes");
-    other.finish().expect("the second phase finishes");
+    let finishes = vec![owner.finish().err(), other.finish().err()];
     first.finish();
     second.finish();
+    Ok(phased(evaluated, finishes))
 }
 
 /// Frontiers prepared over one coverage are not admitted beside a scope over another (`PreparedFrontiers::validate_scope`).
-fn frontiers_over_another_coverage_are_refused() {
+fn frontiers_over_another_coverage_are_refused() -> Result<Phased, OperatingError> {
     let prepared = program(Entry::Phase, 2);
     let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(
-        &prepared, &corpus, None,
-    );
-    let phase = request.project_phase().expect("the phase opens");
-    let old = phase
-        .project_scope(
-            RuleIndex(1),
-            &corpus,
-            &[],
-            &[],
-            &InapplicableFiles::default(),
-            &RefusedFiles::default(),
-        )
-        .expect("a declared rule has a scope");
-    let frontiers =
-        prepare_for(&request, &old, RuleIndex(1)).expect("frontiers over the old coverage");
+    let request = begin(&prepared, &corpus, None);
+    let phase = request.project_phase()?;
+    let old = phase.project_scope(
+        RuleIndex(1),
+        &corpus,
+        &[],
+        &[],
+        &InapplicableFiles::default(),
+        &RefusedFiles::default(),
+    )?;
+    let frontiers = prepare_for(&request, &old, RuleIndex(1)).expect("the declared frontiers");
     let changed = [Covered {
         file: ryo_relations::domain::relations::types::FileId(0),
         rules: vec![RuleIndex(0)],
         partial: vec![],
     }];
-    let scope = phase
-        .project_scope(
-            RuleIndex(1),
-            &corpus,
-            &changed,
-            &[],
-            &InapplicableFiles::default(),
-            &RefusedFiles::default(),
-        )
-        .expect("a declared rule has a scope");
-    assert!(
-        matches!(
-            evaluate_one(&phase, RuleIndex(1), DIAGNOSTIC, &scope, frontiers),
-            Err(OperatingError::NotRead)
-        ),
-        "a changed physical coverage declaration cannot consume frontiers prepared over another"
-    );
+    let scope = phase.project_scope(
+        RuleIndex(1),
+        &corpus,
+        &changed,
+        &[],
+        &InapplicableFiles::default(),
+        &RefusedFiles::default(),
+    )?;
+    // A changed physical coverage declaration cannot consume frontiers prepared over another.
+    let evaluated = Evaluated::from(evaluate_one(
+        &phase,
+        RuleIndex(1),
+        DIAGNOSTIC,
+        &scope,
+        frontiers,
+    ));
     drop((old, scope));
-    phase.finish().expect("the phase finishes");
+    let finishes = vec![phase.finish().err()];
     request.finish();
+    Ok(phased(evaluated, finishes))
 }
 
 /// A root whose emit is not demanded answers `NoQuery` for it. The project phase's one call always demands the emit, so this is
 /// the only proof of the arm; execution's producer cases (`consumers`, `union`) name this test beside their weaker check.
-fn a_root_whose_emit_is_not_demanded_answers_no_query() {
+fn a_root_whose_emit_is_not_demanded_answers_no_query() -> Result<Phased, OperatingError> {
     let prepared = program(Entry::Phase, 1);
     let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(
-        &prepared, &corpus, None,
-    );
-    let phase = request.project_phase().expect("the phase opens");
-    let scope = phase
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered(1),
-            &[],
-            &InapplicableFiles::default(),
-            &RefusedFiles::default(),
-        )
-        .expect("a declared rule has a scope");
-    let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
+    let request = begin(&prepared, &corpus, None);
+    let phase = request.project_phase()?;
+    let scope = phase.project_scope(
+        RuleIndex(0),
+        &corpus,
+        &covered(1),
+        &[],
+        &InapplicableFiles::default(),
+        &RefusedFiles::default(),
+    )?;
+    let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("the declared frontiers");
     let silent = RuleDemand {
         emit: EmitDemand::Disabled,
         observations: ObservationDemand::NotRequired,
     };
-    let outcome = evaluate_one(&phase, RuleIndex(0), silent, &scope, frontiers)
-        .expect("the root is evaluated");
-    assert!(matches!(outcome.emit, RootOutcome::NoQuery));
-    assert!(outcome.observations.is_empty());
+    let evaluated = Evaluated::from(evaluate_one(
+        &phase,
+        RuleIndex(0),
+        silent,
+        &scope,
+        frontiers,
+    ));
     drop(scope);
-    phase.finish().expect("the phase finishes");
+    let finishes = vec![phase.finish().err()];
     request.finish();
+    Ok(phased(evaluated, finishes))
 }
 
 /// A root whose observations are not demanded invokes none of its observation roots, and its outcome publishes nothing. Preparation
 /// reads the producer's project relation through empty facts, so nothing refuses the observation root's read: the proof is the
 /// outcome's empty observations, which a `Required` demand would fill with one outcome per cross-file observation root.
-fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
+fn a_root_whose_observations_are_not_required_invokes_no_observation_root()
+-> Result<Phased, OperatingError> {
     let prepared = producer_program();
     let corpus = corpus();
-    let request = crate::application::file_dag::program::request_execution::service::begin(
-        &prepared, &corpus, None,
-    );
-    let phase = request.project_phase().expect("the phase opens");
-    let scope = phase
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered(1),
-            &[],
-            &InapplicableFiles::default(),
-            &RefusedFiles::default(),
-        )
-        .expect("a declared rule has a scope");
+    let request = begin(&prepared, &corpus, None);
+    let phase = request.project_phase()?;
+    let scope = phase.project_scope(
+        RuleIndex(0),
+        &corpus,
+        &covered(1),
+        &[],
+        &InapplicableFiles::default(),
+        &RefusedFiles::default(),
+    )?;
     // The exported observation's source is a frontier input, so preparation reads its project relation: no rows here.
     let project = crate::outbound::facts::interface::FactsPort::worker(
         &crate::outbound::facts::fixtures::fake::FactsFake::default(),
@@ -189,128 +169,201 @@ fn a_root_whose_observations_are_not_required_invokes_no_observation_root() {
             },
             &mut Symbols::default(),
         )
-        .expect("declared frontiers");
+        .expect("the declared frontiers");
     let emit_only = RuleDemand {
         emit: EmitDemand::Enabled,
         observations: ObservationDemand::NotRequired,
     };
-    let outcome = evaluate_one(&phase, RuleIndex(0), emit_only, &scope, frontiers)
-        .expect("the root is evaluated");
-    assert!(outcome.observations.is_empty(), "no observation root ran");
-    assert!(!matches!(
-        outcome.emit,
-        RootOutcome::Failed(_) | RootOutcome::Unknown(_)
+    let evaluated = Evaluated::from(evaluate_one(
+        &phase,
+        RuleIndex(0),
+        emit_only,
+        &scope,
+        frontiers,
     ));
     drop(scope);
-    phase.finish().expect("the phase finishes");
+    let finishes = vec![phase.finish().err()];
     request.finish();
+    Ok(phased(evaluated, finishes))
 }
 
 /// Each phase a request opens owns its own publication: a scope one phase still holds, its root evaluated, makes that phase's
 /// finish refuse, and leaves another phase of the same request free to finish.
-fn finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication() {
+fn finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication()
+-> Result<Phased, OperatingError> {
     let prepared = program(Entry::Phase, 3);
     let corpus = corpus();
     let request = begin(&prepared, &corpus, None);
-    let (held, other) = (
-        request.project_phase().expect("a phase opens"),
-        request.project_phase().expect("a phase opens"),
-    );
-    let scope = held
-        .project_scope(
-            RuleIndex(0),
-            &corpus,
-            &covered(3),
-            &[],
-            &InapplicableFiles::default(),
-            &RefusedFiles::default(),
-        )
-        .expect("a declared rule has a scope");
-    let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("declared frontiers");
-    evaluate_one(&held, RuleIndex(0), DIAGNOSTIC, &scope, frontiers)
-        .expect("the root is evaluated");
-    assert!(
-        other.finish().is_ok(),
-        "another phase's scope does not hold this phase's publication"
-    );
-    assert!(
-        matches!(held.finish(), Err(OperatingError::NotRead)),
-        "an outstanding scope keeps its own phase's publication shared, so finish reports the refusal"
-    );
+    let (held, other) = (request.project_phase()?, request.project_phase()?);
+    let scope = held.project_scope(
+        RuleIndex(0),
+        &corpus,
+        &covered(3),
+        &[],
+        &InapplicableFiles::default(),
+        &RefusedFiles::default(),
+    )?;
+    let frontiers = prepare_for(&request, &scope, RuleIndex(0)).expect("the declared frontiers");
+    let evaluated = Evaluated::from(evaluate_one(
+        &held,
+        RuleIndex(0),
+        DIAGNOSTIC,
+        &scope,
+        frontiers,
+    ));
+    // Another phase's scope does not hold this phase's publication; an outstanding scope keeps
+    // its own phase's publication shared, so its finish reports the refusal.
+    let finishes = vec![other.finish().err(), held.finish().err()];
     drop(scope);
     request.finish();
+    Ok(phased(evaluated, finishes))
 }
 
-/// The case each row runs: one of the proofs below.
+/// What the evaluated root answered: its emit and the observation outcomes it published, or the
+/// refusal of its evaluation.
+#[derive(Debug, PartialEq)]
+enum Evaluated {
+    Root { emit: Emit, observations: usize },
+    Refused(OperatingError),
+}
+
+/// The kind of a root's emit, with its rows or error.
+#[derive(Debug, PartialEq)]
+enum Emit {
+    Complete(usize),
+    Partial(usize),
+    Skipped,
+    Unknown(OperatingError),
+    Failed(OperatingError),
+    NoQuery,
+    Deferred,
+}
+
+impl From<Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>> for Evaluated {
+    fn from(evaluated: Result<RuleOutcome<ProjectOutputOutcome>, OperatingError>) -> Self {
+        evaluated.map_or_else(Self::Refused, |outcome| Self::Root {
+            emit: match outcome.emit {
+                RootOutcome::Complete(table) => Emit::Complete(table.count.0),
+                RootOutcome::Partial { table, .. } => Emit::Partial(table.count.0),
+                RootOutcome::Skipped(_) => Emit::Skipped,
+                RootOutcome::Unknown(error) => Emit::Unknown(error),
+                RootOutcome::Failed(error) => Emit::Failed(error),
+                RootOutcome::NoQuery => Emit::NoQuery,
+                RootOutcome::Deferred { .. } => Emit::Deferred,
+            },
+            observations: outcome.observations.len(),
+        })
+    }
+}
+
+/// What a row's phases observed: the evaluation, and each phase's finish refusal in finishing order.
+#[derive(Debug, PartialEq)]
+struct Phased {
+    evaluated: Evaluated,
+    finishes: Cow<'static, [Option<OperatingError>]>,
+}
+
+fn phased(evaluated: Evaluated, finishes: Vec<Option<OperatingError>>) -> Phased {
+    Phased {
+        evaluated,
+        finishes: Cow::Owned(finishes),
+    }
+}
+
+/// What a row opens and evaluates.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    FrontiersFromAnotherRequestAreRefused,
-    FrontiersOverAnotherCoverageAreRefused,
-    ARootWhoseEmitIsNotDemandedAnswersNoQuery,
-    ARootWhoseObservationsAreNotRequiredInvokesNoObservationRoot,
-    FinishRefusesWhileAScopeOfItsOwnPhaseSharesThePublication,
+enum Frontiers {
+    /// Frontiers one request prepared, evaluated in another request's phase.
+    OtherRequest,
+    /// Frontiers prepared over one coverage, evaluated beside a scope over another.
+    OtherCoverage,
+    /// A root evaluated without its emit demanded.
+    EmitUndemanded,
+    /// A producer root evaluated without its observations required.
+    ObservationsUnrequired,
+    /// A root evaluated in one of two phases, finished while its scope is still held.
+    HeldScope,
 }
 
-type Input = Scenario;
-type Value = ();
-type Failure = String;
+type Input = Frontiers;
+type Value = Phased;
+type Failure = OperatingError;
 
-/// One row per proof: its name, and the scenario that runs it.
+const fn evaluated(evaluated: Evaluated, finishes: &'static [Option<OperatingError>]) -> Phased {
+    Phased {
+        evaluated,
+        finishes: Cow::Borrowed(finishes),
+    }
+}
+
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("frontiers_from_another_request_are_refused"),
         word: Word::Succeeds,
-        input: || Scenario::FrontiersFromAnotherRequestAreRefused,
-        expect: Expect::Value(()),
+        input: || Frontiers::OtherRequest,
+        expect: Expect::Value(evaluated(
+            Evaluated::Refused(OperatingError::NotRead),
+            &[None, None],
+        )),
     },
     Case {
         name: CaseName("frontiers_over_another_coverage_are_refused"),
         word: Word::Succeeds,
-        input: || Scenario::FrontiersOverAnotherCoverageAreRefused,
-        expect: Expect::Value(()),
+        input: || Frontiers::OtherCoverage,
+        expect: Expect::Value(evaluated(
+            Evaluated::Refused(OperatingError::NotRead),
+            &[None],
+        )),
     },
     Case {
         name: CaseName("a_root_whose_emit_is_not_demanded_answers_no_query"),
         word: Word::Succeeds,
-        input: || Scenario::ARootWhoseEmitIsNotDemandedAnswersNoQuery,
-        expect: Expect::Value(()),
+        input: || Frontiers::EmitUndemanded,
+        expect: Expect::Value(evaluated(
+            Evaluated::Root {
+                emit: Emit::NoQuery,
+                observations: 0,
+            },
+            &[None],
+        )),
     },
     Case {
         name: CaseName("a_root_whose_observations_are_not_required_invokes_no_observation_root"),
         word: Word::Succeeds,
-        input: || Scenario::ARootWhoseObservationsAreNotRequiredInvokesNoObservationRoot,
-        expect: Expect::Value(()),
+        input: || Frontiers::ObservationsUnrequired,
+        expect: Expect::Value(evaluated(
+            Evaluated::Root {
+                emit: Emit::Deferred,
+                observations: 0,
+            },
+            &[None],
+        )),
     },
     Case {
         name: CaseName("finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication"),
         word: Word::Succeeds,
-        input: || Scenario::FinishRefusesWhileAScopeOfItsOwnPhaseSharesThePublication,
-        expect: Expect::Value(()),
+        input: || Frontiers::HeldScope,
+        expect: Expect::Value(evaluated(
+            Evaluated::Root {
+                emit: Emit::Deferred,
+                observations: 0,
+            },
+            &[None, Some(OperatingError::NotRead)],
+        )),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
+/// Opens the row's request phases and scopes, evaluates its root, and finishes the phases.
 fn subject(input: Input) -> Result<Value, Failure> {
     match input {
-        Scenario::FrontiersFromAnotherRequestAreRefused => {
-            frontiers_from_another_request_are_refused();
-            Ok(())
+        Frontiers::OtherRequest => frontiers_from_another_request_are_refused(),
+        Frontiers::OtherCoverage => frontiers_over_another_coverage_are_refused(),
+        Frontiers::EmitUndemanded => a_root_whose_emit_is_not_demanded_answers_no_query(),
+        Frontiers::ObservationsUnrequired => {
+            a_root_whose_observations_are_not_required_invokes_no_observation_root()
         }
-        Scenario::FrontiersOverAnotherCoverageAreRefused => {
-            frontiers_over_another_coverage_are_refused();
-            Ok(())
-        }
-        Scenario::ARootWhoseEmitIsNotDemandedAnswersNoQuery => {
-            a_root_whose_emit_is_not_demanded_answers_no_query();
-            Ok(())
-        }
-        Scenario::ARootWhoseObservationsAreNotRequiredInvokesNoObservationRoot => {
-            a_root_whose_observations_are_not_required_invokes_no_observation_root();
-            Ok(())
-        }
-        Scenario::FinishRefusesWhileAScopeOfItsOwnPhaseSharesThePublication => {
-            finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication();
-            Ok(())
+        Frontiers::HeldScope => {
+            finish_refuses_while_a_scope_of_its_own_phase_shares_the_publication()
         }
     }
 }
