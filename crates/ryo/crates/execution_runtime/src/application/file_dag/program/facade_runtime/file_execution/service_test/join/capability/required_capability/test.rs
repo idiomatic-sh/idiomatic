@@ -1,198 +1,182 @@
 //! Every provider kind reaches the required join capability, and empty or failed lefts never build a right index.
-use super::super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree};
-use super::super::super::*;
-use super::super::fixtures::Witness;
-use super::fixtures::checked_refusal;
+use super::super::super::fixtures::execution::SourceAttempt;
+use super::super::fixtures::REFUSAL;
+use super::fixtures::{Capability, Delivered, Gate, Join, Observed, Supply, exercise};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-#[cfg(test)]
-use fixtures::execution::*;
-#[cfg(test)]
-use fixtures::provider::*;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::table_cells::types::TreeForm;
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use ryo_relations::domain::relations::types::{ColumnsView, FactColumn};
-use ryo_values::domain::compact_table::service::admit_compact;
-use ryo_values::domain::plan_parts::types::Side;
-use ryo_values::domain::stored_facts::types::KeptWords;
-use ryo_values::domain::table_words::service::{encode_table, pack};
-use ryo_values::domain::table_words::types::{DecodeMode, WordSlice};
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
-fn computed_stored_compact_and_tree_providers_reach_the_same_required_capability() {
-    let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);
-    let right = table_of(
-        &[CellKind::Number, CellKind::Number],
-        &[
-            &[Cell::Number(Integer(7)), Cell::Number(Integer(1))],
-            &[Cell::Number(Integer(7)), Cell::Number(Integer(2))],
-        ],
-    );
-    let op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
-    let columns = [FactColumn(vec![7, 7]), FactColumn(vec![1, 2])];
-    for rows in [
-        Rows::Computed(&right),
-        Rows::Stored(ColumnsView {
-            kinds: &[CellKind::Number; 2],
-            columns: &columns,
-        }),
-    ] {
-        checked_refusal(&op, [Rows::Computed(&left), rows], &mut Symbols::default());
+use ryo_values::domain::rows::errors::RowsError;
+use std::borrow::Cow;
+
+type Input = Join;
+type Value = Observed;
+type Failure = OperatingError;
+
+/// A witness-refused run that delivers nothing, asks the witness once, and whose real rerun
+/// delivers `accepted` rows.
+const fn refused(delivery: bool, optional_limit: Option<usize>, accepted: usize) -> Capability {
+    Capability {
+        delivery,
+        optional_limit,
+        refused: Delivered::Error(OperatingError::Table(RowsError::NoSuchColumn {
+            index: REFUSAL,
+        })),
+        prefix_rows: 0,
+        witness_calls: 1,
+        accepted: Delivered::Rows(accepted),
     }
-    let mut words = ryo_relations::domain::relations::types::Words::default();
-    encode_table(&right, &[], &mut words);
-    let ryo_values::domain::table_words::types::Admitted {
-        table: compact,
-        names,
-    } = admit_compact(
-        ryo_values::domain::table_words::types::CompactBacking(Arc::new(KeptWords(pack(
-            WordSlice(&words.0),
-        )))),
-        &mut Vec::new(),
-        DecodeMode::Complete,
-    )
-    .unwrap();
-    assert!(names.is_empty());
-    checked_refusal(
-        &op,
-        [Rows::Computed(&left), Rows::Compact(&compact)],
-        &mut Symbols::default(),
-    );
-
-    let (elements, mut symbols) = wide_tree(1, true);
-    let nodes = table_of(&[CellKind::Node], &[&[node(1)]]);
-    let op = operation(&[0], &[0], &[(Side::Right, 0)], vec![], &[]);
-    checked_refusal(
-        &op,
-        [
-            Rows::Computed(&nodes),
-            tree_rows(&elements, TreeForm::Elements),
-        ],
-        &mut symbols,
-    );
-    checked_refusal(
-        &op,
-        [
-            tree_rows(&elements, TreeForm::Elements),
-            Rows::Computed(&nodes),
-        ],
-        &mut symbols,
-    );
 }
-fn empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index() {
-    let left = table_of(&[CellKind::Number], &[]);
-    let right = table_of(
-        &[CellKind::Number, CellKind::Number],
-        &[&[Cell::Number(Integer(7)), Cell::Number(Integer(1))]],
-    );
-    let op = operation(&[0], &[0], &[(Side::Right, 1)], vec![], &[]);
-    for failure in [None, Some(OperatingError::NotRun)] {
-        for delivery in [false, true] {
-            let witness = Arc::new(Witness {
-                refuse: true,
-                ..Witness::default()
-            });
-            let actual = invoke(
-                &op,
-                [Rows::Computed(&left), Rows::Computed(&right)],
-                &mut Symbols::default(),
-                b"",
-                delivery,
-                witness.clone(),
-                Faults {
-                    left: failure.clone(),
-                    ..Faults::default()
-                },
-            )
-            .unwrap();
-            match &failure {
-                Some(_) => assert!(matches!(actual.result, Err(OperatingError::NotRun))),
-                None => assert!(actual.result.unwrap().cells.is_empty()),
-            }
-            assert_eq!(witness.calls.load(Ordering::Relaxed), 0);
-            if let Some(error) = &failure {
-                assert_eq!(actual.attempts, [SourceAttempt::Refused(0, error.clone())]);
-                assert_eq!(actual.reads, [1, 0]);
-            } else {
-                assert_eq!(actual.attempts.first(), Some(&SourceAttempt::Available(0)));
-                assert!(
-                    actual
-                        .attempts
-                        .iter()
-                        .all(|attempt| matches!(attempt, SourceAttempt::Available(_)))
-                );
-                assert!(
-                    actual.attempts.contains(&SourceAttempt::Available(1)),
-                    "canonical dependency admission still checks RHS after a successful empty LHS"
-                );
-            }
-            assert_eq!(actual.work.index_rows, 0);
-            assert_eq!(actual.work.index_cells, 0);
-            assert!(actual.prefix.is_empty());
-        }
+
+/// Every delivery and optional limit refused by the witness, each rerun delivering `accepted` rows.
+const fn every_run(accepted: usize) -> [Capability; 4] {
+    [
+        refused(false, None, accepted),
+        refused(false, Some(0), accepted),
+        refused(true, None, accepted),
+        refused(true, Some(0), accepted),
+    ]
+}
+
+const NUMBER_RUNS: [Capability; 4] = every_run(2);
+const TREE_RUNS: [Capability; 4] = every_run(1);
+
+/// An empty left that delivers no rows, admits both sources and builds no index.
+const EMPTY: Gate = Gate {
+    delivered: Delivered::Rows(0),
+    witness_calls: 0,
+    attempts: Cow::Borrowed(&[SourceAttempt::Available(0), SourceAttempt::Available(1)]),
+    reads: [1, 1],
+    index: (0, 0),
+    prefix_rows: 0,
+};
+
+/// A left that fails before the join: its error, one refused attempt and one read.
+const FAILED: Gate = Gate {
+    delivered: Delivered::Error(OperatingError::NotRun),
+    witness_calls: 0,
+    attempts: Cow::Borrowed(&[SourceAttempt::Refused(0, OperatingError::NotRun)]),
+    reads: [1, 0],
+    index: (0, 0),
+    prefix_rows: 0,
+};
+
+const fn empty_left(left: Option<OperatingError>, delivery: bool) -> Join {
+    Join::EmptyLeft {
+        left,
+        right: None,
+        delivery,
+        refusing: true,
     }
-    let actual = invoke(
-        &op,
-        [Rows::Computed(&left), Rows::Computed(&right)],
-        &mut Symbols::default(),
-        b"",
-        true,
-        real_port(),
-        Faults {
-            right: Some(OperatingError::NotRead),
-            ..Faults::default()
-        },
-    )
-    .unwrap();
-    assert!(matches!(actual.result, Err(OperatingError::NotRead)));
-    assert_eq!(actual.work.index_rows, 0);
 }
 
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    ComputedStoredCompactAndTreeProvidersReachTheSameRequiredCapability,
-    EmptyOrFailedLeftNeverEntersTheJoinCapabilityOrBuildsARhsIndex,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName(
             "computed_stored_compact_and_tree_providers_reach_the_same_required_capability",
         ),
         word: Word::Succeeds,
-        input: || Scenario::ComputedStoredCompactAndTreeProvidersReachTheSameRequiredCapability,
-        expect: Expect::Value(()),
+        input: || Join::Number {
+            right: Supply::Computed,
+        },
+        expect: Expect::Value(Observed::Capability {
+            runs: Cow::Borrowed(&NUMBER_RUNS),
+            admitted_names: 0,
+        }),
+    },
+    Case {
+        name: CaseName("a_stored_right_reaches_the_required_capability"),
+        word: Word::Succeeds,
+        input: || Join::Number {
+            right: Supply::Stored,
+        },
+        expect: Expect::Value(Observed::Capability {
+            runs: Cow::Borrowed(&NUMBER_RUNS),
+            admitted_names: 0,
+        }),
+    },
+    Case {
+        name: CaseName("a_compact_right_reaches_the_required_capability"),
+        word: Word::Succeeds,
+        input: || Join::Number {
+            right: Supply::Compact,
+        },
+        expect: Expect::Value(Observed::Capability {
+            runs: Cow::Borrowed(&NUMBER_RUNS),
+            admitted_names: 0,
+        }),
+    },
+    Case {
+        name: CaseName("a_tree_right_reaches_the_required_capability"),
+        word: Word::Succeeds,
+        input: || Join::Tree { tree_left: false },
+        expect: Expect::Value(Observed::Capability {
+            runs: Cow::Borrowed(&TREE_RUNS),
+            admitted_names: 0,
+        }),
+    },
+    Case {
+        name: CaseName("a_tree_left_reaches_the_required_capability"),
+        word: Word::Succeeds,
+        input: || Join::Tree { tree_left: true },
+        expect: Expect::Value(Observed::Capability {
+            runs: Cow::Borrowed(&TREE_RUNS),
+            admitted_names: 0,
+        }),
     },
     Case {
         name: CaseName(
             "empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index",
         ),
         word: Word::Succeeds,
-        input: || Scenario::EmptyOrFailedLeftNeverEntersTheJoinCapabilityOrBuildsARhsIndex,
-        expect: Expect::Value(()),
+        input: || empty_left(None, false),
+        expect: Expect::Value(Observed::Gate(EMPTY)),
+    },
+    Case {
+        name: CaseName("a_delivered_empty_left_never_enters_the_join_capability"),
+        word: Word::Succeeds,
+        input: || empty_left(None, true),
+        expect: Expect::Value(Observed::Gate(EMPTY)),
+    },
+    Case {
+        name: CaseName("a_failed_left_never_enters_the_join_capability"),
+        word: Word::Succeeds,
+        input: || empty_left(Some(OperatingError::NotRun), false),
+        expect: Expect::Value(Observed::Gate(FAILED)),
+    },
+    Case {
+        name: CaseName("a_delivered_failed_left_never_enters_the_join_capability"),
+        word: Word::Succeeds,
+        input: || empty_left(Some(OperatingError::NotRun), true),
+        expect: Expect::Value(Observed::Gate(FAILED)),
+    },
+    Case {
+        name: CaseName("a_failed_right_under_the_real_operators_builds_no_index"),
+        word: Word::Succeeds,
+        input: || Join::EmptyLeft {
+            left: None,
+            right: Some(OperatingError::NotRead),
+            delivery: true,
+            refusing: false,
+        },
+        expect: Expect::Value(Observed::Gate(Gate {
+            delivered: Delivered::Error(OperatingError::NotRead),
+            witness_calls: 0,
+            attempts: Cow::Borrowed(&[
+                SourceAttempt::Available(0),
+                SourceAttempt::Refused(1, OperatingError::NotRead),
+                SourceAttempt::Available(0),
+                SourceAttempt::Available(0),
+                SourceAttempt::Available(0),
+            ]),
+            reads: [4, 1],
+            index: (0, 0),
+            prefix_rows: 0,
+        })),
     },
 ];
 
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::ComputedStoredCompactAndTreeProvidersReachTheSameRequiredCapability => {
-            computed_stored_compact_and_tree_providers_reach_the_same_required_capability();
-            Ok(())
-        }
-        Scenario::EmptyOrFailedLeftNeverEntersTheJoinCapabilityOrBuildsARhsIndex => {
-            empty_or_failed_left_never_enters_the_join_capability_or_builds_a_rhs_index();
-            Ok(())
-        }
-    }
+/// Runs the join and observes it.
+fn subject(join: Input) -> Result<Value, Failure> {
+    exercise(join)
 }
 
 #[test]

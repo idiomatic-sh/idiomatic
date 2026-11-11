@@ -5,39 +5,162 @@ use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,
-    types::{CellKind, FileId, Integer, Offset, Relation, Span, Value as Cell},
+    types::{CellKind, FileId, Integer, NodeId, Offset, Relation, Span, Value as Cell},
 };
 use ryo_values::domain::{
     plan_parts::types::Input as PlanInput,
     plans::types::Operation,
     rows::types::{RowCount, Table},
 };
-fn file_partition_keys_keep_identical_node_values_separate() {
-    use ryo_relations::domain::relations::types::NodeId;
-    let n = |at| Cell::Node(NodeId(at));
-    let edge_rows = [[1, 2, 10], [2, 3, 20], [1, 4, 20]].map(|[a, b, file]| {
-        vec![
-            n(a),
-            n(b),
-            Cell::Number(Integer(0)),
+use std::borrow::Cow;
+
+/// The walk a row runs.
+#[derive(Clone, Copy, Debug)]
+enum Walk {
+    /// Semantic child edges `(parent, child, file)` walked from node 1 in each root file.
+    FilePartitions {
+        edges: &'static [[u32; 3]],
+        roots: &'static [u32],
+    },
+    /// Hosted root and edge numbers, collected or delivered row by row.
+    Hosted {
+        roots: &'static [&'static [i64]],
+        edges: &'static [&'static [i64]],
+        delivery: bool,
+    },
+}
+
+/// The table the walk answered.
+#[derive(Debug, PartialEq)]
+struct Walked {
+    count: usize,
+    kinds: Cow<'static, [CellKind]>,
+    cells: Cow<'static, [Cell]>,
+}
+
+type Input = Walk;
+type Value = Walked;
+type Failure = String;
+
+const fn n(at: u64) -> Cell {
+    Cell::Node(NodeId(at))
+}
+
+const fn number(value: i64) -> Cell {
+    Cell::Number(Integer(value))
+}
+
+const HOSTED_ROOTS: &[&[i64]] = &[&[1], &[1]];
+const HOSTED_EDGES: &[&[i64]] = &[&[1, 2, 1, 12], &[1, 3, 0, 13], &[3, 1, 0, 31]];
+
+/// The hosted walk's rows in visit order, duplicates kept.
+const HOSTED_CELLS: &[Cell] = &[
+    number(1),
+    number(1),
+    number(3),
+    number(13),
+    number(0),
+    number(1),
+    number(3),
+    number(1),
+    number(31),
+    number(1),
+    number(1),
+    number(1),
+    number(2),
+    number(12),
+    number(2),
+];
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("file_partition_keys_keep_identical_node_values_separate"),
+        word: Word::Succeeds,
+        input: || Walk::FilePartitions {
+            edges: &[[1, 2, 10], [2, 3, 20], [1, 4, 20]],
+            roots: &[10, 20],
+        },
+        expect: Expect::Value(Walked {
+            count: 2,
+            kinds: Cow::Borrowed(&[
+                CellKind::File,
+                CellKind::Node,
+                CellKind::Node,
+                CellKind::Node,
+                CellKind::Node,
+                CellKind::Number,
+            ]),
+            cells: Cow::Borrowed(&[
+                Cell::File(FileId(10)),
+                n(1),
+                n(1),
+                n(2),
+                n(1),
+                number(0),
+                Cell::File(FileId(20)),
+                n(1),
+                n(1),
+                n(4),
+                n(1),
+                number(0),
+            ]),
+        }),
+    },
+    Case {
+        name: CaseName("row_delivery_and_collected_visits_keep_exact_order_and_duplicates"),
+        word: Word::Succeeds,
+        input: || Walk::Hosted {
+            roots: HOSTED_ROOTS,
+            edges: HOSTED_EDGES,
+            delivery: false,
+        },
+        expect: Expect::Value(Walked {
+            count: 3,
+            kinds: Cow::Borrowed(&[CellKind::Number; 5]),
+            cells: Cow::Borrowed(HOSTED_CELLS),
+        }),
+    },
+    Case {
+        name: CaseName("delivered_rows_are_the_collected_visits_in_the_same_order"),
+        word: Word::Succeeds,
+        input: || Walk::Hosted {
+            roots: HOSTED_ROOTS,
+            edges: HOSTED_EDGES,
+            delivery: true,
+        },
+        expect: Expect::Value(Walked {
+            count: 3,
+            // The delivered rows are gathered from the sink, which carries no column kinds.
+            kinds: Cow::Borrowed(&[]),
+            cells: Cow::Borrowed(HOSTED_CELLS),
+        }),
+    },
+];
+
+fn partitioned(edges: &[[u32; 3]], roots: &[u32]) -> Result<Table, String> {
+    let edge_cells = edges.iter().flat_map(|[parent, child, file]| {
+        [
+            n(u64::from(*parent)),
+            n(u64::from(*child)),
+            number(0),
             Cell::Symbol(ryo_relations::domain::terms::types::Symbol(0)),
-            Cell::File(FileId(file as u32)),
+            Cell::File(FileId(*file)),
         ]
     });
-    let root_rows = [10, 20].map(|file| {
-        vec![
+    let root_cells = roots.iter().flat_map(|file| {
+        [
             n(1),
-            Cell::File(FileId(file)),
+            Cell::File(FileId(*file)),
             Cell::Span(Span {
                 start: Offset(0),
                 end: Offset(0),
             }),
-            Cell::Number(Integer(1)),
-            Cell::Number(Integer(1)),
-            Cell::Number(Integer(0)),
-            Cell::Number(Integer(0)),
-            Cell::Number(Integer(0)),
-            Cell::Number(Integer(0)),
+            number(1),
+            number(1),
+            number(0),
+            number(0),
+            number(0),
+            number(0),
         ]
     });
     let providers = [
@@ -45,16 +168,16 @@ fn file_partition_keys_keep_identical_node_values_separate() {
             Relation::SemanticChild,
             Table {
                 kinds: kinds(Relation::SemanticChild).to_vec(),
-                cells: edge_rows.into_iter().flatten().collect(),
-                count: RowCount(3),
+                cells: edge_cells.collect(),
+                count: RowCount(edges.len()),
             },
         ),
         (
             Relation::SourceLocation,
             Table {
                 kinds: kinds(Relation::SourceLocation).to_vec(),
-                cells: root_rows.into_iter().flatten().collect(),
-                count: RowCount(2),
+                cells: root_cells.collect(),
+                count: RowCount(roots.len()),
             },
         ),
     ];
@@ -70,7 +193,7 @@ fn file_partition_keys_keep_identical_node_values_separate() {
         comparisons: vec![],
         kept: vec![column(0), column(1), column(2), column(0), column(4)],
     };
-    let out = execute_request(
+    execute_request(
         request,
         &[],
         &providers,
@@ -79,115 +202,33 @@ fn file_partition_keys_keep_identical_node_values_separate() {
         false,
         &mut ExecutionObservation::default(),
     )
-    .unwrap();
-    assert_eq!(out.count, RowCount(2));
-    assert_eq!(
-        out.kinds,
-        [
-            CellKind::File,
-            CellKind::Node,
-            CellKind::Node,
-            CellKind::Node,
-            CellKind::Node,
-            CellKind::Number
-        ]
-    );
-    assert_eq!(
-        out.cells,
-        vec![
-            Cell::File(FileId(10)),
-            n(1),
-            n(1),
-            n(2),
-            n(1),
-            Cell::Number(Integer(0)),
-            Cell::File(FileId(20)),
-            n(1),
-            n(1),
-            n(4),
-            n(1),
-            Cell::Number(Integer(0))
-        ]
-    );
-    assert!(!out.cells.chunks_exact(6).any(|row| row[3] == n(3)));
-}
-fn row_delivery_and_collected_visits_keep_exact_order_and_duplicates() {
-    let hosts = [
-        host(&numbers(1, &[&[1], &[1]]), "roots"),
-        host(
-            &numbers(4, &[&[1, 2, 1, 12], &[1, 3, 0, 13], &[3, 1, 0, 31]]),
-            "edges",
-        ),
-    ];
-    let request = hosted_plan(operation(&[], &[]), 0, 1);
-    let collected = execute_request(
-        request.clone(),
-        &hosts,
-        &[],
-        &mut Symbols::default(),
-        b"",
-        false,
-        &mut ExecutionObservation::default(),
-    )
-    .unwrap();
-    let emitted = execute_request(
-        request,
-        &hosts,
-        &[],
-        &mut Symbols::default(),
-        b"",
-        true,
-        &mut ExecutionObservation::default(),
-    )
-    .unwrap();
-    assert_eq!(collected.count, RowCount(3));
-    assert_eq!(emitted.count, collected.count);
-    assert_eq!(emitted.cells, collected.cells);
-    assert_eq!(
-        collected.cells,
-        [1, 1, 3, 13, 0, 1, 3, 1, 31, 1, 1, 1, 2, 12, 2].map(|n| Cell::Number(Integer(n)))
-    );
+    .map_err(|error| format!("{error:?}"))
 }
 
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    FilePartitionKeysKeepIdenticalNodeValuesSeparate,
-    RowDeliveryAndCollectedVisitsKeepExactOrderAndDuplicates,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("file_partition_keys_keep_identical_node_values_separate"),
-        word: Word::Succeeds,
-        input: || Scenario::FilePartitionKeysKeepIdenticalNodeValuesSeparate,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("row_delivery_and_collected_visits_keep_exact_order_and_duplicates"),
-        word: Word::Succeeds,
-        input: || Scenario::RowDeliveryAndCollectedVisitsKeepExactOrderAndDuplicates,
-        expect: Expect::Value(()),
-    },
-];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::FilePartitionKeysKeepIdenticalNodeValuesSeparate => {
-            file_partition_keys_keep_identical_node_values_separate();
-            Ok(())
-        }
-        Scenario::RowDeliveryAndCollectedVisitsKeepExactOrderAndDuplicates => {
-            row_delivery_and_collected_visits_keep_exact_order_and_duplicates();
-            Ok(())
-        }
-    }
+/// Runs the walk and answers its table.
+fn subject(walk: Input) -> Result<Value, Failure> {
+    let out = match walk {
+        Walk::FilePartitions { edges, roots } => partitioned(edges, roots)?,
+        Walk::Hosted {
+            roots,
+            edges,
+            delivery,
+        } => execute_request(
+            hosted_plan(operation(&[], &[]), 0, 1),
+            &[host(&numbers(1, roots), "roots"), host(&numbers(4, edges), "edges")],
+            &[],
+            &mut Symbols::default(),
+            b"",
+            delivery,
+            &mut ExecutionObservation::default(),
+        )
+        .map_err(|error| format!("{error:?}"))?,
+    };
+    Ok(Walked {
+        count: out.count.0,
+        kinds: out.kinds.into(),
+        cells: out.cells.into(),
+    })
 }
 
 #[test]

@@ -2,7 +2,7 @@
 use super::super::super::super::service::*;
 use super::super::super::fixtures::*;
 use super::super::fixtures::{
-    column, execute_request, expected, host, hosted_plan, numbers, operation,
+    column, execute_request, host, hosted_plan, numbers, operation,
 };
 use crate::application::file_dag::execution::service::CommonOperatorEngine;
 use crate::application::file_dag::program::facade_runtime::service::ProgramServices;
@@ -39,12 +39,141 @@ use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{Input as PlanInput, StepId},
     plans::types::Operation,
-    rows::types::RowCount,
     runs::types::RuleId,
     stored_facts::types::Digest,
 };
+use std::borrow::Cow;
 use std::{rc::Rc, sync::Arc};
-fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
+/// The hosted graph a row walks.
+#[derive(Clone, Copy, Debug)]
+enum Graph {
+    /// Text roots `(vertex, context)` and text edges `(from, to, order)` walked by partition key.
+    Text {
+        roots: &'static [[&'static str; 2]],
+        edges: &'static [(&'static str, &'static str, i64)],
+    },
+    /// One file owner running four rules in turn: a walk of 1 -> 2 -> 3, the same edges as a
+    /// closure, an empty graph, and a different graph 9 -> 8.
+    SharedOwner,
+}
+
+/// What the walk observed.
+#[derive(Debug, PartialEq)]
+enum Observed {
+    /// The text walk: its rows as their five texts joined by spaces and the ordinal, and the
+    /// traversal's expanded and examined counts.
+    Texts {
+        count: usize,
+        kinds: Cow<'static, [CellKind]>,
+        rows: Cow<'static, [(Cow<'static, str>, i64)]>,
+        expanded: usize,
+        examined: usize,
+    },
+    /// The shared owner: each rule's row count, the first and different graphs' sorted rows,
+    /// whether the first walk held an adjacency, the empty rule's adjacency, frame and visited
+    /// lengths, and the owner's working bytes once the file finished.
+    Owner {
+        counts: Cow<'static, [usize]>,
+        first: Cow<'static, [Cow<'static, [i64]>]>,
+        different: Cow<'static, [Cow<'static, [i64]>]>,
+        first_adjacency_held: bool,
+        empty_state: [usize; 3],
+        working_bytes: usize,
+    },
+}
+
+type Input = Graph;
+type Value = Observed;
+type Failure = OperatingError;
+
+const fn text_row(texts: &'static str, ordinal: i64) -> (Cow<'static, str>, i64) {
+    (Cow::Borrowed(texts), ordinal)
+}
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("text_vertices_and_partition_keys_use_the_actual_hosted_text_owner"),
+        word: Word::Succeeds,
+        input: || Graph::Text {
+            roots: &[["a", "ctx"], ["a", "ctx"], ["b", "ctx"]],
+            edges: &[("a", "b", 0), ("b", "c", 0), ("b", "a", 1)],
+        },
+        expect: Expect::Value(Observed::Texts {
+            count: 6,
+            kinds: Cow::Borrowed(&[
+                CellKind::Symbol,
+                CellKind::Symbol,
+                CellKind::Symbol,
+                CellKind::Symbol,
+                CellKind::Symbol,
+                CellKind::Number,
+            ]),
+            rows: Cow::Borrowed(&[
+                text_row("ctx a a b edge", 0),
+                text_row("ctx a b c edge", 1),
+                text_row("ctx a b a edge", 2),
+                text_row("ctx b b c edge", 0),
+                text_row("ctx b b a edge", 1),
+                text_row("ctx b a b edge", 2),
+            ]),
+            expanded: 6,
+            examined: 6,
+        }),
+    },
+    Case {
+        name: CaseName("one_file_owner_resets_dfs_across_closure_empty_and_different_graph"),
+        word: Word::Succeeds,
+        input: || Graph::SharedOwner,
+        expect: Expect::Value(Observed::Owner {
+            counts: Cow::Borrowed(&[2, 3, 0, 1]),
+            first: Cow::Borrowed(&[
+                Cow::Borrowed(&[1, 1, 2, 12, 0]),
+                Cow::Borrowed(&[1, 2, 3, 23, 1]),
+            ]),
+            different: Cow::Borrowed(&[Cow::Borrowed(&[9, 9, 8, 98, 0])]),
+            first_adjacency_held: true,
+            empty_state: [0, 0, 0],
+            working_bytes: 0,
+        }),
+    },
+];
+
+/// A table's number rows of width five, sorted.
+fn sorted(table: &ryo_values::domain::rows::types::Table) -> Cow<'static, [Cow<'static, [i64]>]> {
+    let mut rows: Vec<Cow<'static, [i64]>> = table
+        .cells
+        .chunks_exact(5)
+        .map(|row| {
+            row.iter()
+                .map(|cell| match cell {
+                    Cell::Number(Integer(value)) => *value,
+                    other => panic!("a number cell, not {other:?}"),
+                })
+                .collect()
+        })
+        .collect();
+    rows.sort_unstable();
+    rows.into()
+}
+
+/// Walks the graph and observes it.
+fn subject(graph: Input) -> Result<Value, Failure> {
+    match graph {
+        Graph::Text { roots, edges } => text_walk(roots, edges),
+        Graph::SharedOwner => shared_owner(),
+    }
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+/// Walks the hosted text graph and reads each row back as its texts and ordinal.
+fn text_walk(
+    roots: &[[&str; 2]],
+    edges: &[(&str, &str, i64)],
+) -> Result<Observed, OperatingError> {
     let text = |s: &str| HostCell::Text(s.into());
     let number = |n| HostCell::Number(Integer(n));
     let host_rows = |role: &str, kinds: Vec<HostKind>, rows: Vec<Vec<HostCell>>| HostRelation {
@@ -63,11 +192,10 @@ fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
         host_rows(
             "roots",
             vec![HostKind::Text; 2],
-            vec![
-                vec![text("a"), text("ctx")],
-                vec![text("a"), text("ctx")],
-                vec![text("b"), text("ctx")],
-            ],
+            roots
+                .iter()
+                .map(|[vertex, context]| vec![text(vertex), text(context)])
+                .collect(),
         ),
         host_rows(
             "edges",
@@ -78,11 +206,12 @@ fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
                 HostKind::Text,
                 HostKind::Text,
             ],
-            vec![
-                vec![text("a"), text("b"), number(0), text("edge"), text("ctx")],
-                vec![text("b"), text("c"), number(0), text("edge"), text("ctx")],
-                vec![text("b"), text("a"), number(1), text("edge"), text("ctx")],
-            ],
+            edges
+                .iter()
+                .map(|(from, to, order)| {
+                    vec![text(from), text(to), number(*order), text("edge"), text("ctx")]
+                })
+                .collect(),
         ),
     ];
     let mut symbols = Symbols::default();
@@ -95,20 +224,7 @@ fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
         b"",
         false,
         &mut observed,
-    )
-    .unwrap();
-    assert_eq!(out.count, RowCount(6));
-    assert_eq!(
-        out.kinds,
-        [
-            CellKind::Symbol,
-            CellKind::Symbol,
-            CellKind::Symbol,
-            CellKind::Symbol,
-            CellKind::Symbol,
-            CellKind::Number
-        ]
-    );
+    )?;
     let texts = ryo_execution_domain::domain::table_texts::types::Texts {
         symbols: &symbols,
         source: ryo_values::domain::files::types::SourceView(b""),
@@ -127,63 +243,24 @@ fn text_vertices_and_partition_keys_use_the_actual_hosted_text_owner() {
                 };
                 text.0.to_owned()
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<_>>()
+            .join(" ");
         let Cell::Number(ordinal) = row[5] else {
             panic!("ordinal")
         };
-        rows.push((strings, ordinal.0));
+        rows.push((Cow::Owned(strings), ordinal.0));
     }
-    assert_eq!(
-        rows,
-        vec![
-            (
-                vec!["ctx", "a", "a", "b", "edge"]
-                    .into_iter()
-                    .map(str::to_owned)
-                    .collect(),
-                0
-            ),
-            (
-                vec!["ctx", "a", "b", "c", "edge"]
-                    .into_iter()
-                    .map(str::to_owned)
-                    .collect(),
-                1
-            ),
-            (
-                vec!["ctx", "a", "b", "a", "edge"]
-                    .into_iter()
-                    .map(str::to_owned)
-                    .collect(),
-                2
-            ),
-            (
-                vec!["ctx", "b", "b", "c", "edge"]
-                    .into_iter()
-                    .map(str::to_owned)
-                    .collect(),
-                0
-            ),
-            (
-                vec!["ctx", "b", "b", "a", "edge"]
-                    .into_iter()
-                    .map(str::to_owned)
-                    .collect(),
-                1
-            ),
-            (
-                vec!["ctx", "b", "a", "b", "edge"]
-                    .into_iter()
-                    .map(str::to_owned)
-                    .collect(),
-                2
-            )
-        ]
-    );
-    assert_eq!(observed.dfs_expanded, 6);
-    assert_eq!(observed.dfs_examined, 6);
+    Ok(Observed::Texts {
+        count: out.count.0,
+        kinds: out.kinds.into(),
+        rows: rows.into(),
+        expanded: observed.dfs_expanded,
+        examined: observed.dfs_examined,
+    })
 }
-fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
+
+/// Runs the first, closure, empty and different-graph rules on one file owner.
+fn shared_owner() -> Result<Observed, OperatingError> {
     let hosts = [
         host(&numbers(1, &[&[1]]), "first-roots"),
         host(
@@ -230,8 +307,7 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         &hosts,
         Arc::clone(&derived),
         ObservationIdentity::Independent,
-    )
-    .unwrap();
+    )?;
     let services = Arc::new(ProgramServices::new(
         Arc::new(CommonOperatorEngine::new(Arc::new(
             crate::application::file_dag::fixtures::operators(),
@@ -263,10 +339,10 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
         &mut symbols,
         None,
         None,
-    )
-    .unwrap();
+    )?;
     let read = |_| Err::<Rows<'_>, _>(OperatingError::NotRead);
     let mut outputs = Vec::new();
+    let mut states = Vec::new();
     for index in 0..4 {
         let RootOutcome::Complete(table) = file
             .rule(
@@ -277,74 +353,28 @@ fn one_file_owner_resets_dfs_across_closure_empty_and_different_graph() {
                 },
                 &read,
                 &mut symbols,
-            )
-            .unwrap()
+            )?
             .emit
         else {
-            panic!("complete independent rule")
+            return Err(OperatingError::NotRun);
         };
-        let state = file.route_observation(RuleIndex(index), StepId(2)).unwrap();
-        if index == 0 {
-            assert!(state.dfs_adjacency_len > 0);
-        }
-        if index == 2 {
-            assert_eq!(state.dfs_adjacency_len, 0);
-            assert_eq!(state.dfs_frames_len, 0);
-            assert_eq!(state.dfs_visited_len, 0);
-        }
+        let state = file.route_observation(RuleIndex(index), StepId(2))?;
+        states.push([
+            state.dfs_adjacency_len,
+            state.dfs_frames_len,
+            state.dfs_visited_len,
+        ]);
         outputs.push(table);
     }
-    expected(&outputs[0], 5, &[&[1, 1, 2, 12, 0], &[1, 2, 3, 23, 1]]);
-    assert_eq!(outputs[1].count, RowCount(3));
-    assert_eq!(outputs[2].count, RowCount(0));
-    expected(&outputs[3], 5, &[&[9, 9, 8, 98, 0]]);
     let owner = Rc::clone(&file.owner);
-    file.finish().unwrap();
-    assert_eq!(owner.derived().working_bytes(), 0);
-}
-
-/// The case each row runs: one of the proofs below.
-#[derive(Clone, Copy, Debug)]
-enum Scenario {
-    TextVerticesAndPartitionKeysUseTheActualHostedTextOwner,
-    OneFileOwnerResetsDfsAcrossClosureEmptyAndDifferentGraph,
-}
-
-type Input = Scenario;
-type Value = ();
-type Failure = String;
-
-/// One row per proof: its name, and the scenario that runs it.
-const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("text_vertices_and_partition_keys_use_the_actual_hosted_text_owner"),
-        word: Word::Succeeds,
-        input: || Scenario::TextVerticesAndPartitionKeysUseTheActualHostedTextOwner,
-        expect: Expect::Value(()),
-    },
-    Case {
-        name: CaseName("one_file_owner_resets_dfs_across_closure_empty_and_different_graph"),
-        word: Word::Succeeds,
-        input: || Scenario::OneFileOwnerResetsDfsAcrossClosureEmptyAndDifferentGraph,
-        expect: Expect::Value(()),
-    },
-];
-
-/// Runs one scenario; its assertions are the case's expectation.
-fn subject(input: Input) -> Result<Value, Failure> {
-    match input {
-        Scenario::TextVerticesAndPartitionKeysUseTheActualHostedTextOwner => {
-            text_vertices_and_partition_keys_use_the_actual_hosted_text_owner();
-            Ok(())
-        }
-        Scenario::OneFileOwnerResetsDfsAcrossClosureEmptyAndDifferentGraph => {
-            one_file_owner_resets_dfs_across_closure_empty_and_different_graph();
-            Ok(())
-        }
-    }
-}
-
-#[test]
-fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
+    // The finished file's frontier readiness is not this case's observation.
+    let _readiness = file.finish()?;
+    Ok(Observed::Owner {
+        counts: outputs.iter().map(|table| table.count.0).collect(),
+        first: sorted(&outputs[0]),
+        different: sorted(&outputs[3]),
+        first_adjacency_held: states[0][0] > 0,
+        empty_state: states[2],
+        working_bytes: owner.derived().working_bytes().0,
+    })
 }
