@@ -1,6 +1,6 @@
 //! The `fields` service's cases for control: the role of an edge of the tree under its parent.
 
-use super::fixtures::{Edge, edge, subject};
+use super::super::fixtures::{Dialect, Edge, edge};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
@@ -12,6 +12,11 @@ type Input = Edge;
 type Value = &'static str;
 type Failure = ();
 
+/// Reads one row's input through the concept fixtures' shared reading.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::super::fixtures::subject(input)
+}
+
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -20,6 +25,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "x;",
+                Dialect::Plain,
                 Kind::Node(Node::ExpressionStatement),
                 Kind::Token(Token::Punctuator),
                 0,
@@ -33,6 +39,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a ? b : c;",
+                Dialect::Plain,
                 Kind::Node(Node::ConditionalExpression),
                 Kind::Node(Node::Identifier),
                 2,
@@ -46,6 +53,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "try {} finally {}",
+                Dialect::Plain,
                 Kind::Node(Node::TryStatement),
                 Kind::Node(Node::BlockStatement),
                 0,
@@ -59,6 +67,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "while (a) {}",
+                Dialect::Plain,
                 Kind::Node(Node::WhileStatement),
                 Kind::Node(Node::BlockStatement),
                 0,
@@ -72,6 +81,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "switch (a) { case 1: }",
+                Dialect::Plain,
                 Kind::Node(Node::SwitchStatement),
                 Kind::Node(Node::SwitchCase),
                 0,
@@ -85,6 +95,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "if (a) b;",
+                Dialect::Plain,
                 Kind::Node(Node::IfStatement),
                 Kind::Node(Node::ExpressionStatement),
                 0,
@@ -98,6 +109,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "switch (a) {}",
+                Dialect::Plain,
                 Kind::Node(Node::SwitchStatement),
                 Kind::Node(Node::Identifier),
                 0,
@@ -111,6 +123,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "try {} finally {}",
+                Dialect::Plain,
                 Kind::Node(Node::TryStatement),
                 Kind::Node(Node::BlockStatement),
                 1,
@@ -124,6 +137,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "try {} catch {}",
+                Dialect::Plain,
                 Kind::Node(Node::TryStatement),
                 Kind::Node(Node::CatchClause),
                 0,
@@ -137,6 +151,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "a: for (;;) break a;",
+                Dialect::Plain,
                 Kind::Node(Node::BreakStatement),
                 Kind::Node(Node::Identifier),
                 0,
@@ -150,6 +165,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "for (; a;) {}",
+                Dialect::Plain,
                 Kind::Node(Node::ForStatement),
                 Kind::Node(Node::Identifier),
                 0,
@@ -163,6 +179,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "for (;; a++) {}",
+                Dialect::Plain,
                 Kind::Node(Node::ForStatement),
                 Kind::Node(Node::UpdateExpression),
                 0,

@@ -1,9 +1,9 @@
 //! The `roles` service's cases for the pinned files: for every file the fixtures pin, the role of every element is the field of
 //! `go/ast` that holds it, as `tests/fixtures/standard/dump.go` reads it with `reflect` and `output.txt` pins it.
 
-use super::fixtures::{Given, table};
-use super::service::{field_name, field_of};
-use super::types::AstField;
+use super::super::fixtures::{Given, table};
+use super::super::service::{field_name, field_of};
+use super::super::types::AstField;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::{kind, kind_name};
 use crate::domain::syntax::types::Kind;

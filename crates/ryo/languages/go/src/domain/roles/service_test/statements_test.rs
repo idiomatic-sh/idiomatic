@@ -1,6 +1,6 @@
 //! The `roles` service's cases for statements: the role of an edge of the tree under its parent.
 
-use super::fixtures::{Given, edge, subject};
+use super::super::fixtures::{Given, edge};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
@@ -11,6 +11,11 @@ type Input = Given;
 /// The name of the role the edge plays, or the pinned files whose roles differ from `go/ast`'s, joined with ` | `.
 type Value = &'static str;
 type Failure = ();
+
+/// Reads one row's input through the concept fixtures' shared reading.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::super::fixtures::subject(input)
+}
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[

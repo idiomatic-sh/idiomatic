@@ -1,6 +1,6 @@
 //! The `fields` service's cases for identity: the role of an edge of the tree under its parent.
 
-use super::fixtures::{Edge, edge, subject};
+use super::super::fixtures::{Edge, edge};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
@@ -11,6 +11,11 @@ type Input = Edge;
 /// The name of the role the edge plays.
 type Value = &'static str;
 type Failure = ();
+
+/// Reads one row's input through the concept fixtures' shared reading.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::super::fixtures::subject(input)
+}
 
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[

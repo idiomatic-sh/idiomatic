@@ -1,6 +1,6 @@
 //! The `fields` service's cases for jsx: the role of an edge of the tree under its parent.
 
-use super::fixtures::{Edge, edge, subject};
+use super::super::fixtures::{Dialect, Edge, edge};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
@@ -11,6 +11,11 @@ type Input = Edge;
 type Value = &'static str;
 type Failure = ();
 
+/// Reads one row's input through the concept fixtures' shared reading.
+fn subject(input: Input) -> Result<Value, Failure> {
+    super::super::fixtures::subject(input)
+}
+
 /// The rows of this part's cases.
 pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -19,6 +24,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 r#"import a from "a" with { type: "json" };"#,
+                Dialect::Plain,
                 Kind::Node(Node::ImportDeclaration),
                 Kind::Node(Node::ImportAttribute),
                 0,
@@ -32,6 +38,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<a><b /></a>;",
+                Dialect::Jsx,
                 Kind::Node(Node::JSXElement),
                 Kind::Node(Node::JSXElement),
                 0,
@@ -45,6 +52,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<a></a>;",
+                Dialect::Jsx,
                 Kind::Node(Node::JSXElement),
                 Kind::Node(Node::JSXClosingElement),
                 0,
@@ -58,6 +66,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<></>;",
+                Dialect::Jsx,
                 Kind::Node(Node::JSXFragment),
                 Kind::Node(Node::JSXClosingFragment),
                 0,
@@ -71,6 +80,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<a></a>;",
+                Dialect::Jsx,
                 Kind::Node(Node::JSXElement),
                 Kind::Node(Node::JSXOpeningElement),
                 0,
@@ -84,6 +94,7 @@ pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             edge(
                 "<></>;",
+                Dialect::Jsx,
                 Kind::Node(Node::JSXFragment),
                 Kind::Node(Node::JSXOpeningFragment),
                 0,
