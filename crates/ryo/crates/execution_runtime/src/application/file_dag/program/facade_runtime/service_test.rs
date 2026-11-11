@@ -2,7 +2,7 @@
 mod evaluation;
 #[cfg(test)]
 mod fixtures;
-use evaluation::test::subject;
+use evaluation::fixtures::subject;
 use fixtures::request::{plan, rule};
 use fixtures::scenario::Scenario;
 

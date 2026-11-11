@@ -2,59 +2,17 @@
 use super::super::super::fixtures::{
     Entry, corpus, covered, prepare_for, producer_program, program,
 };
-use crate::application::file_dag::frontiers::types::PreparedFrontiers;
+use super::fixtures::{DIAGNOSTIC, evaluate_one};
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
-use crate::application::file_dag::program::project_phase::types::{
-    PhaseScope, ProjectInput, ProjectPhase, ProjectTask,
-};
 use crate::application::file_dag::program::request_execution::interface::ExecutionRequest as _;
 use crate::application::file_dag::program::request_execution::service::begin;
 use crate::application::file_dag::program::rule_outcome::types::RootOutcome;
-use crate::application::file_dag::program::rule_outcome::types::{
-    ProjectBatch, ProjectOutputOutcome, RuleOutcome,
-};
 use ryo_execution_domain::domain::coverage::types::{
-    Covered, InapplicableFiles, Partials, RefusedFiles, RuleIndex,
+    Covered, InapplicableFiles, RefusedFiles, RuleIndex,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::rule_intent::types::{EmitDemand, ObservationDemand, RuleDemand};
 use ryo_language::domain::symbols::types::Symbols;
-
-/// The one root `rule` evaluated in `phase` over `scope` and `ordinary`, with `demand`.
-fn evaluate_one(
-    phase: &ProjectPhase<'_>,
-    rule: RuleIndex,
-    demand: RuleDemand,
-    scope: &PhaseScope,
-    ordinary: PreparedFrontiers,
-) -> Result<RuleOutcome<ProjectOutputOutcome>, OperatingError> {
-    let partials = Partials::default();
-    let batch = phase.evaluate(
-        vec![ProjectTask {
-            rule,
-            demand,
-            input: ProjectInput {
-                scope,
-                evaluation: &partials,
-                publication: &partials,
-                ordinary,
-                bound: &[],
-                arenas: &[],
-            },
-        }],
-        &mut Symbols::default(),
-        |_| Ok::<(), OperatingError>(()),
-    );
-    match batch {
-        ProjectBatch::Complete(mut done) => done.remove(0),
-        ProjectBatch::Refused { error, .. } => Err(error),
-    }
-}
-
-const DIAGNOSTIC: RuleDemand = RuleDemand {
-    emit: EmitDemand::Enabled,
-    observations: ObservationDemand::Required,
-};
 
 /// Frontiers one request prepared are not admitted by another request's phase over the same program and corpus
 /// (`PreparedFrontiers::validate_scope`).

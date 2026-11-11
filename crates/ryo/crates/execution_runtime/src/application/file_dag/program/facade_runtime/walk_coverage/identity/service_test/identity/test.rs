@@ -1,88 +1,20 @@
 //! Fusion across an owner-issued identity is refused; equal Extends of two rules compute once.
 use super::super::super::super::fixtures::operations::{corpus::compile_program, heads::FUNCTION};
-use ryo_execution_domain::domain::executable_program::{
-    fusion::types::{Barrier, Fusibility, Ineligible},
-    types::{LogicalInstruction, executable_program::value::ExecutableProgram},
+use super::fixtures::{
+    class, compile, emit_region, equal, extended, keep, logical, plan_of, producer, region_len,
 };
-use ryo_relations::domain::relations::{service::kinds, types::Integer};
+use ryo_execution_domain::domain::executable_program::fusion::types::{
+    Barrier, Fusibility, Ineligible,
+};
+use ryo_relations::domain::relations::service::kinds;
 use ryo_values::domain::{
     observations::types::{
         ObservationColumn, ObservationColumnName, ObservationName, PlanObservation,
     },
-    plan_parts::types::{
-        ColumnIndex, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, RepeatedRows, Side,
-        StepId, StepScope, Test,
-    },
-    plans::types::{Emit, Operation, Plan, PlanStep},
+    plan_parts::types::{ColumnIndex, Input, JoinColumn, RepeatedRows, Side, StepId, StepScope},
+    plans::types::Operation,
 };
 use std::collections::HashSet;
-
-fn equal(column: ColumnIndex) -> PlanComparison {
-    PlanComparison {
-        test: Test::Equal,
-        left: Operand::Column(column),
-        right: Operand::Column(column),
-        origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-    }
-}
-fn plan_of(steps: Vec<Operation>, emit: u32) -> Plan {
-    Plan {
-        observation_inputs: vec![],
-        parameters: vec![],
-        comparison_origins: vec![],
-        observations: vec![],
-        steps: steps
-            .into_iter()
-            .map(|operation| PlanStep {
-                operation,
-                scope: StepScope::PerFile,
-            })
-            .collect(),
-        emit: Emit {
-            step: StepId(emit),
-            subject: ColumnIndex(0),
-            key: vec![],
-            headings: vec![],
-        },
-        frontier: vec![],
-    }
-}
-fn producer() -> Operation {
-    Operation::Select {
-        from: Input::Relation(FUNCTION),
-        comparisons: vec![equal(ColumnIndex(1))],
-        kept: vec![],
-    }
-}
-fn keep(step: u32) -> Operation {
-    Operation::Project {
-        from: Input::Step(StepId(step)),
-        columns: vec![ColumnIndex(0)],
-        distinct: RepeatedRows::Kept,
-    }
-}
-fn extended(step: u32, number: i64) -> Operation {
-    Operation::Extend {
-        from: Input::Step(StepId(step)),
-        values: vec![Operand::Literal(QueryLiteral::Number(Integer(number)))],
-    }
-}
-fn logical(program: &ExecutableProgram, rule: usize, step: usize) -> LogicalInstruction {
-    program.rules()[rule].original_steps[step]
-        .as_ref()
-        .unwrap()
-        .logical
-}
-fn class(program: &ExecutableProgram, step: usize) -> Fusibility {
-    program.fusibility(logical(program, 0, step)).unwrap()
-}
-fn region_len(program: &ExecutableProgram, step: usize) -> usize {
-    let region = program.logical_regions()[logical(program, 0, step).0];
-    program.regions()[region.0].instructions().len()
-}
-fn compile(plan: Plan) -> ExecutableProgram {
-    compile_program(&[plan], &[vec![]])
-}
 
 #[test]
 fn a_producer_read_once_by_a_pure_projection_is_fused() {
@@ -198,10 +130,6 @@ fn an_absence_sensitive_producer_publishes_before_a_continuation() {
     let program = compile(plan_of(vec![antijoin, keep(0)], 1));
     assert_eq!(class(&program, 1), Fusibility::Barrier(Barrier::Fault));
     assert_eq!(region_len(&program, 1), 1);
-}
-
-fn emit_region(program: &ExecutableProgram, rule: usize) -> usize {
-    program.rules()[rule].emit.as_ref().unwrap().0
 }
 
 #[test]

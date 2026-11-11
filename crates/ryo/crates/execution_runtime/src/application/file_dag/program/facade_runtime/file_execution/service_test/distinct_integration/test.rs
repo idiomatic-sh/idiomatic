@@ -1,15 +1,6 @@
 //! Distinct state survives repeated left rows and resets after a failed delivery.
-use super::super::fixtures::{Scenario, exercise};
-
-fn run(
-    scenario: Scenario,
-) -> Result<Vec<u64>, ryo_execution_domain::domain::operating::errors::OperatingError> {
-    exercise(
-        scenario,
-        ryo_execution_store::application::file_dag::fixtures::program_derived_port(),
-        std::sync::Arc::new(crate::application::file_dag::fixtures::operators()),
-    )
-}
+use super::super::fixtures::Scenario;
+use super::fixtures::run;
 
 #[test]
 fn reach_restarts_distinct_for_each_identical_left_row() {

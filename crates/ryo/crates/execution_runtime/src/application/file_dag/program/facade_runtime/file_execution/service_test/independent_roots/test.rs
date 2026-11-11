@@ -1,22 +1,18 @@
 //! Real semantic refusal at one compiled root cannot erase the independent root.
 use super::super::super::*;
 use super::super::fixtures::*;
+use super::fixtures::{RefuseCount, columns};
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use crate::outbound::operators::interface::OperatorsPort as _;
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
-use ryo_operators::domain::contract::types::PortableOperatorFault;
-use ryo_operators::inbound::use_cases::operators::interface::OperatorsUseCase;
-use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
-use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::{
     service::node_id,
-    types::{CellKind, FileId, Position, Relation, Value as Cell},
+    types::{FileId, Position, Relation, Value as Cell},
 };
 use ryo_values::domain::observations::types::{
-    BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationColumn,
-    ObservationColumnName, ObservationName, ObservationProducer, PlanObservation,
+    BoundObservationInput, ObservationBinding, ObservationBindingName, ObservationName,
+    ObservationProducer, PlanObservation,
 };
 use ryo_values::domain::plan_parts::types::ObservationBindingId;
 use ryo_values::domain::records::types::ObservationIndex;
@@ -30,36 +26,6 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::sync::Arc;
-#[derive(Debug)]
-struct RefuseCount;
-impl crate::outbound::operators::interface::OperatorsPort for RefuseCount {
-    fn operators(&self, call: OperatorCall<'_>) -> Result<OperatorAnswer, PortableOperatorFault> {
-        if matches!(
-            &call,
-            OperatorCall::ReduceCount { .. }
-                | OperatorCall::Evaluate {
-                    operation: Operation::GroupCount { .. },
-                    ..
-                }
-        ) {
-            return Err(PortableOperatorFault::WrongOperation);
-        }
-        crate::application::file_dag::fixtures::operators().operators(call)
-    }
-}
-fn columns(failed_emit: bool) -> Vec<ObservationColumn> {
-    let mut columns = vec![ObservationColumn {
-        name: ObservationColumnName("subject".into()),
-        kind: CellKind::Node,
-    }];
-    if !failed_emit {
-        columns.push(ObservationColumn {
-            name: ObservationColumnName("count".into()),
-            kind: CellKind::Number,
-        });
-    }
-    columns
-}
 #[test]
 fn failed_emit_and_failed_observation_do_not_erase_the_independent_root() {
     for failed_emit in [true, false] {

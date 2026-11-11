@@ -2,21 +2,9 @@
 use super::super::super::super::*;
 use super::super::fixtures::chain::{Chain, execute_chain, execute_fixture};
 use super::super::fixtures::describe;
+use super::fixtures::RefusingSemantics;
 use ryo_values::domain::query_operators::types::OperationKind;
 use std::sync::Arc;
-#[derive(Debug)]
-struct RefusingSemantics;
-impl crate::outbound::operators::interface::OperatorsPort for RefusingSemantics {
-    fn operators(
-        &self,
-        _: ryo_operators::inbound::use_cases::operators::types::OperatorCall<'_>,
-    ) -> Result<
-        ryo_operators::inbound::use_cases::operators::types::OperatorAnswer,
-        ryo_operators::domain::contract::types::PortableOperatorFault,
-    > {
-        Err(ryo_operators::domain::contract::types::PortableOperatorFault::WrongOperation)
-    }
-}
 #[test]
 fn production_route_cannot_bypass_an_injected_semantic_refusal() {
     assert!(matches!(

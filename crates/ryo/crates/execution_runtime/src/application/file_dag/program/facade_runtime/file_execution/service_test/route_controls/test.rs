@@ -1,17 +1,17 @@
 //! Refusal and physical-route controls through the real compiled owner.
 use super::super::super::*;
 use super::super::fixtures::*;
+use super::fixtures::ordered_strategy_fixture;
 use super::fixtures::{MeaningCalls, run};
 use ryo_execution_domain::domain::coverage::types::{Lacking, Partial};
 use ryo_relations::domain::relations::{
     service::{kinds, node_id},
     types::{CellKind, FileId, Flag, Integer, Offset, Position, Relation, Span, Value as Cell},
 };
-use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
 use ryo_values::domain::stored_facts::types::PartialCause;
 use ryo_values::domain::{
-    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
-    plans::types::{Emit, Operation, Plan, PlanStep},
+    plan_parts::types::{ColumnIndex, Input as PlanInput, StepId, StepScope},
+    plans::types::{Operation, PlanStep},
     rows::types::{RowCount, Table},
 };
 use std::sync::Arc;
@@ -184,84 +184,4 @@ fn ordered_strategy_and_real_extra_consumer_decline_preserve_the_same_root() {
             );
         }
     }
-}
-pub(crate) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
-    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
-    let schema = kinds(ryo_relations::domain::relations::types::Relation::SourceLocation).to_vec();
-    let number = ColumnIndex(
-        schema
-            .iter()
-            .position(|kind| *kind == CellKind::Number)
-            .expect("typed numeric source") as u32,
-    );
-    let source = Operation::Select {
-        from: PlanInput::Relation(
-            ryo_relations::domain::relations::types::Relation::SourceLocation,
-        ),
-        comparisons: vec![],
-        kept: vec![],
-    };
-    let join = Operation::Join {
-        left: PlanInput::Step(StepId(0)),
-        right: PlanInput::Step(StepId(0)),
-        left_on: vec![ColumnIndex(0)],
-        right_on: vec![ColumnIndex(0)],
-        output: vec![
-            JoinColumn {
-                side: Side::Left,
-                column: number,
-            },
-            JoinColumn {
-                side: Side::Right,
-                column: number,
-            },
-        ],
-        filter: vec![],
-        view: vec![],
-        reach: None,
-    };
-    let select = Operation::Select {
-        from: PlanInput::Step(StepId(1)),
-        comparisons: vec![PlanComparison {
-            test: Test::LessThan,
-            left: Operand::Column(ColumnIndex(0)),
-            right: Operand::Column(ColumnIndex(1)),
-            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
-        }],
-        kept: vec![],
-    };
-    let project = Operation::Project {
-        from: PlanInput::Step(StepId(2)),
-        columns: vec![ColumnIndex(0)],
-        distinct: RepeatedRows::Dropped,
-    };
-    let anti = Operation::Antijoin {
-        left: PlanInput::Step(StepId(0)),
-        right: PlanInput::Step(StepId(3)),
-        left_on: vec![number],
-        right_on: vec![ColumnIndex(0)],
-    };
-    (
-        Plan {
-            observation_inputs: Vec::new(),
-            observations: Vec::new(),
-            parameters: vec![],
-            steps: [source, join, select, project, anti]
-                .into_iter()
-                .map(|operation| PlanStep {
-                    operation,
-                    scope: StepScope::PerFile,
-                })
-                .collect(),
-            comparison_origins: vec![],
-            emit: Emit {
-                step: StepId(4),
-                subject: ColumnIndex(0),
-                key: vec![],
-                headings: vec![],
-            },
-            frontier: vec![],
-        },
-        schema,
-    )
 }

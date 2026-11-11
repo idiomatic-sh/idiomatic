@@ -3,6 +3,7 @@
 use super::super::super::fixtures::Entry;
 use super::super::super::fixtures::submission::{Root, foreign_phase_outcome, submit};
 use super::super::super::fixtures::{corpus, covered, prepare_for, program};
+use super::fixtures::root;
 use crate::application::file_dag::frontiers::errors::PreparationError;
 use crate::application::file_dag::program::project_phase::interface::ProjectStage as _;
 use crate::application::file_dag::program::project_phase::types::ProjectPhase;
@@ -11,13 +12,6 @@ use crate::application::file_dag::program::request_execution::service::begin;
 use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::coverage::types::{InapplicableFiles, RefusedFiles};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-
-fn root(rule: usize) -> Root {
-    Root {
-        declared: rule,
-        named: rule,
-    }
-}
 
 #[test]
 fn an_omitted_declared_root_gets_no_outcome_and_no_guard_and_every_submitted_root_gets_one() {

@@ -1,45 +1,9 @@
 //! A shared source batch lives until its last consumer is delivered, on every exit.
 use super::super::super::super::*;
-use super::super::fixtures::plans::Authored;
-use super::super::fixtures::semantics::{Derived, Meanings};
-use super::super::fixtures::{Population, Program, Residency, demand};
+use super::super::fixtures::Residency;
+use super::fixtures::{deliver, forward, program};
 use crate::application::file_dag::program::native_walk::RetainedBatches;
 use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::Value as Cell;
-use std::sync::Arc;
-fn program(residency: Residency) -> Program {
-    Program::new(
-        Authored::continuations(),
-        Population::Three,
-        residency,
-        Arc::new(Meanings::default()),
-        Arc::new(Derived::new()),
-    )
-    .unwrap()
-}
-fn deliver(
-    file: &mut FileRun<'_>,
-    program: &Program,
-    rule: RuleIndex,
-    symbols: &mut Symbols,
-) -> RootOutcome {
-    file.rule(rule, demand(), &|relation| program.read(relation), symbols)
-        .unwrap()
-        .emit
-}
-fn forward(
-    file: &mut FileRun<'_>,
-    program: &Program,
-    symbols: &mut Symbols,
-    each: &mut dyn FnMut(&[Cell]) -> Result<(), OperatingError>,
-) -> Result<ryo_execution_domain::domain::row_emission::types::RowEmission, OperatingError> {
-    file.emit_rows(
-        RuleIndex(2),
-        &|relation| program.read(relation),
-        symbols,
-        each,
-    )
-}
 
 #[test]
 fn success_of_the_last_consumer_retires_the_shared_batch_and_keeps_its_accounting() {

@@ -1,55 +1,15 @@
 //! Every provider kind reaches the required join capability, and empty or failed lefts never build a right index.
 use super::super::super::super::super::*;
-use super::super::super::cases::test::{node, table_of, tree_rows, wide_tree};
+use super::super::super::cases::fixtures::{node, table_of, tree_rows, wide_tree};
 use super::super::super::*;
-use super::super::fixtures::{Witness, refusal};
+use super::super::fixtures::Witness;
+use super::fixtures::checked_refusal;
 use ryo_execution_domain::domain::table_cells::types::TreeForm;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Integer, Value as Cell};
-use ryo_values::domain::{plan_parts::types::Side, plans::types::Operation};
+use ryo_values::domain::plan_parts::types::Side;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-fn checked_refusal(op: &Operation, rows: [Rows<'_>; 2], symbols: &mut Symbols) {
-    for delivery in [false, true] {
-        for optional_limit in [None, Some(0)] {
-            let witness = Arc::new(Witness {
-                refuse: true,
-                ..Witness::default()
-            });
-            let observed = invoke(
-                op,
-                rows.clone(),
-                symbols,
-                b"abcd",
-                delivery,
-                witness.clone(),
-                Faults {
-                    optional_limit,
-                    ..Faults::default()
-                },
-            )
-            .expect("real compiled owner");
-            refusal(observed.result);
-            assert!(observed.prefix.is_empty());
-            assert_eq!(witness.calls.load(Ordering::Relaxed), 1);
-            // A refusing dependency does not alter the immutable compiled meaning.
-            let accepted = invoke(
-                op,
-                rows.clone(),
-                symbols,
-                b"abcd",
-                delivery,
-                real_port(),
-                Faults {
-                    optional_limit,
-                    ..Faults::default()
-                },
-            )
-            .unwrap();
-            assert!(accepted.result.unwrap().count.0 > 0);
-        }
-    }
-}
 #[test]
 fn computed_stored_compact_and_tree_providers_reach_the_same_required_capability() {
     let left = table_of(&[CellKind::Number], &[&[Cell::Number(Integer(7))]]);

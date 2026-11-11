@@ -1,6 +1,6 @@
 //! Declared populations are refused or kept exactly, never silently shortened.
 use super::super::super::super::*;
-use super::super::super::scratch_owner::test::{execute, hosted};
+use super::super::super::scratch_owner::fixtures::{execute, hosted};
 use super::super::fixtures::source;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{

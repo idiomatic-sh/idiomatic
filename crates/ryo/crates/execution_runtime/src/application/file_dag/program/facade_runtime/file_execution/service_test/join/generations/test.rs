@@ -1,6 +1,6 @@
 //! File-generation freshness under one immutable prepared request and service set.
 use super::super::super::super::*;
-use super::super::direct::test::{request, schema_column, simple};
+use super::super::direct::fixtures::{request, schema_column, simple};
 use super::super::*;
 use crate::application::file_dag::execution::CommonOperatorEngine;
 use ryo_execution_domain::domain::{

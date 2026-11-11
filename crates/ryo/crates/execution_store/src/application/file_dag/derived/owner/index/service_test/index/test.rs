@@ -1,33 +1,12 @@
 //! Exact sharing keys, physical partiality, bounded retention and generation-local lifetimes.
 use super::super::super::service::LIMIT;
 use super::super::super::types::ByteLimit;
-use crate::application::file_dag::derived::owner::acquisition::admission::service::AcquiredView;
+use super::fixtures::{acquire, equality, new};
 use crate::application::file_dag::derived::owner::acquisition::population::types::Construction;
-use crate::application::file_dag::derived::owner::fixtures::graph::GraphFixture;
-use ryo_derived::domain::contract::types::DerivedView;
-use ryo_execution_domain::domain::table_model::types::Rows;
-fn new(wanted: &[Relation], partials: &[Partial], limit: ByteLimit) -> GraphFixture {
-    GraphFixture::new(wanted, partials, limit.0)
-}
-fn acquire(
-    owner: &GraphFixture,
-    relation: Relation,
-    rows: ColumnsView<'_>,
-    on: &[ColumnIndex],
-) -> Result<AcquiredView, ryo_execution_domain::domain::operating::errors::OperatingError> {
-    owner.index(relation, &Rows::Stored(rows), on)
-}
-fn equality(view: &AcquiredView) -> &KeyIndex {
-    let DerivedView::Equality(index) = view.view().expect("valid equality payload") else {
-        panic!("equality payload")
-    };
-    index
-}
 use ryo_execution_domain::domain::coverage::types::{Lacking, LackingKind, Partial};
 
 use ryo_execution_domain::domain::table_model::service::matching_stored;
 
-use ryo_derived::domain::equality::types::KeyIndex;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Flag, Integer, Relation, Value,
 };

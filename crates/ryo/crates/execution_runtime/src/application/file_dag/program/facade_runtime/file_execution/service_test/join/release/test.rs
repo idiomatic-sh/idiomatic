@@ -2,47 +2,12 @@
 //! `execute` finishes the owner and asserts the shared ledger, working and owned bytes are zero.
 use super::super::super::super::*;
 use super::super::capability::fixtures::Witness;
-use super::super::cases::test::{node, table_of, tree_rows, wide_tree};
 use super::super::*;
-use super::fixtures::{OrderedPort, ordered_sources, refused};
-use ryo_execution_domain::domain::table_cells::types::TreeForm;
-use ryo_language::domain::symbols::types::Symbols;
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::{plan_parts::types::Side, rows::types::RowCount};
+use super::fixtures::{OrderedPort, refused};
+use super::fixtures::{cancelled, ordered, tree_join};
+use ryo_values::domain::rows::types::RowCount;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-
-fn cancelled() -> Faults {
-    Faults {
-        sink_after: Some(0),
-        ..Faults::default()
-    }
-}
-
-fn tree_join(
-    port: Arc<dyn crate::outbound::operators::interface::OperatorsPort>,
-    faults: Faults,
-) -> Observation {
-    let (elements, mut symbols) = wide_tree(1, false);
-    let left = table_of(&[CellKind::Node], &[&[node(1)], &[node(2)]]);
-    let join = operation(
-        &[0],
-        &[1],
-        &[(Side::Right, 0), (Side::Right, 1)],
-        Vec::new(),
-        &[],
-    );
-    invoke(
-        &join,
-        [Rows::Computed(&left), tree_rows(&elements, TreeForm::Edges)],
-        &mut symbols,
-        b"abcd",
-        true,
-        port,
-        faults,
-    )
-    .unwrap()
-}
 
 #[test]
 fn native_tree_join_delivery_refusal_releases_and_the_completed_join_delivers() {
@@ -66,19 +31,6 @@ fn native_tree_join_semantic_refusal_is_primary_over_the_sink_refusal() {
     assert!(witness.calls.load(Ordering::Relaxed) > 0);
     assert_eq!(actual.result.unwrap_err(), refused());
     assert!(actual.prefix.is_empty(), "the sink is never reached");
-}
-
-fn ordered(port: Arc<OrderedPort>, faults: Faults) -> Result<Observation, OperatingError> {
-    let (request, _) = super::super::super::route_controls::test::ordered_strategy_fixture();
-    execute(
-        request,
-        ordered_sources(),
-        &mut Symbols::default(),
-        b"",
-        true,
-        port,
-        faults,
-    )
 }
 
 #[test]

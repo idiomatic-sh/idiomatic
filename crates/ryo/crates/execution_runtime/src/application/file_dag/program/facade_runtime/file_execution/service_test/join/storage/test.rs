@@ -1,7 +1,8 @@
 //! Stored/compact decoding and ordinary equality bag order through the compiled owner.
 use super::super::super::super::*;
-use super::super::cases::test::table_of;
+use super::super::cases::fixtures::table_of;
 use super::super::*;
+use super::fixtures::{assert_representation_parity, fact_column};
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{CellKind, Flag, Integer, Value as Cell};
 use ryo_values::domain::rows::service::push_row;
@@ -36,67 +37,7 @@ fn exact_scalar_join_bag_order_reordered_and_empty_keys() {
     assert_eq!(actual.count, RowCount(2));
     assert_eq!(actual.cells, [n(10), n(100), n(10), n(200)]);
 }
-fn fact_column(values: &[i64]) -> FactColumn {
-    FactColumn(
-        values
-            .iter()
-            .map(|n| to_bits(Cell::Number(Integer(*n))).0)
-            .collect(),
-    )
-}
 
-fn assert_representation_parity(op: &Operation, left: &Table, right: Rows<'_>, computed: &Table) {
-    let expected = made(
-        op,
-        [Rows::Computed(left), Rows::Computed(computed)],
-        &mut Symbols::default(),
-        b"",
-    )
-    .unwrap();
-    let actual = made(
-        op,
-        [Rows::Computed(left), right.clone()],
-        &mut Symbols::default(),
-        b"",
-    )
-    .unwrap();
-    assert_eq!(actual, expected);
-    let delivered = invoke(
-        op,
-        [Rows::Computed(left), right],
-        &mut Symbols::default(),
-        b"",
-        true,
-        real_port(),
-        Faults::default(),
-    )
-    .unwrap();
-    assert_eq!(delivered.result.as_ref().unwrap().cells, expected.cells);
-    assert_eq!(
-        delivered
-            .prefix
-            .iter()
-            .map(Vec::as_slice)
-            .collect::<Vec<_>>(),
-        expected
-            .cells
-            .chunks_exact(expected.kinds.len())
-            .collect::<Vec<_>>()
-    );
-    let empty = table_of(&left.kinds, &[]);
-    let skipped = invoke(
-        op,
-        [Rows::Computed(&empty), Rows::Computed(computed)],
-        &mut Symbols::default(),
-        b"",
-        true,
-        real_port(),
-        Faults::default(),
-    )
-    .unwrap();
-    assert!(skipped.result.unwrap().cells.is_empty());
-    assert_eq!(skipped.work.index_rows, 0);
-}
 #[test]
 fn stored_right_composite_reordered_empty_and_unlike_keys_preserve_rows() {
     const KINDS: &[CellKind] = &[CellKind::Number, CellKind::Flag, CellKind::Number];

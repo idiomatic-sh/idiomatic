@@ -1,12 +1,11 @@
 //! Chained registered evaluations reuse downstream invocation state and release their peaks.
 use super::super::super::super::*;
 use super::super::super::fixtures::*;
-use super::super::super::scratch_owner::test::{execute, hosted};
+use super::super::super::scratch_owner::fixtures::{execute, hosted};
+use super::fixtures::MemoSink;
 use crate::application::file_dag::execution::CommonOperatorEngine;
-use ryo_execution_domain::domain::operating::types::Memo;
 use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
-    operator::types::Emit as RowSink,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
 use ryo_execution_store::application::file_dag::service::ScopePartials;
@@ -22,22 +21,6 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::sync::Arc;
-struct MemoSink {
-    starts: Vec<usize>,
-    rows: Vec<Cell>,
-}
-impl RowSink for MemoSink {
-    fn row(
-        &mut self,
-        context: &mut OperatorContext<'_>,
-        row: &[Cell],
-    ) -> Result<(), OperatingError> {
-        self.starts.push(context.memo.len());
-        context.memo.push(Memo::Holds);
-        self.rows.extend_from_slice(row);
-        Ok(())
-    }
-}
 #[test]
 fn chained_registered_evaluations_reuse_downstream_invocation_state() {
     let mut plan = plan(Scenario::ProjectRetry);

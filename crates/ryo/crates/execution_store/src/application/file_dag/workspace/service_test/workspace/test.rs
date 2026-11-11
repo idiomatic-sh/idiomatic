@@ -1,21 +1,18 @@
 //! Actual view acquisition consumes one immutable proof and refuses stale/mismatched publications.
 use super::super::super::*;
+use super::fixtures::{context, owner, table, use_};
 use crate::application::file_dag::derived::owner::ViewContext;
 use crate::application::file_dag::relations::handle::service::Publication;
 use ryo_derived::domain::contract::types::DerivedView;
 use ryo_execution_domain::domain::{
-    derived_views::types::{contract::value::PreparedViewUse, *},
-    operating::errors::OperatingError,
-    operation_schema::types::InputShape,
-    operator::types::OperatorContext,
-    table_model::types::Rows,
+    derived_views::types::*, operating::errors::OperatingError, table_model::types::Rows,
 };
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Integer, Relation, Value,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 #[test]
 fn admission_requires_a_live_matching_publication_in_test_builds_too() {
@@ -50,67 +47,6 @@ fn admission_requires_a_live_matching_publication_in_test_builds_too() {
         workspace.admit(InputNumber(0), RepresentationInput::from(&rows)),
         Err(OperatingError::NotRead)
     ));
-}
-fn table(values: &[i64], width: usize) -> Table {
-    Table {
-        kinds: vec![CellKind::Number; width],
-        cells: values
-            .iter()
-            .map(|value| Value::Number(Integer(*value)))
-            .collect(),
-        count: RowCount(values.len() / width),
-    }
-}
-fn use_(
-    kind: DerivedKind,
-    request: ViewRequest,
-    schemas: &[&[CellKind]],
-    len: u8,
-) -> PreparedViewUse {
-    let schemas = schemas
-        .iter()
-        .map(|kinds| InputShape { kinds, tree: None })
-        .collect::<Vec<_>>();
-    PreparedViewUse {
-        plan: {
-            let plan = crate::application::file_dag::derived::prepare::view(
-                std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-                &request,
-                &schemas,
-            )
-            .unwrap();
-            assert_eq!(plan.kind, kind);
-            Arc::new(plan)
-        },
-        inputs: [
-            ryo_values::domain::plan_parts::types::InputNumber(0),
-            ryo_values::domain::plan_parts::types::InputNumber(1),
-        ],
-        relations: [None, None],
-        len: InputsUsed(len),
-    }
-}
-fn context<'a>(
-    symbols: &'a mut Symbols,
-    scratch: &'a mut ryo_execution_domain::domain::table_scratch::types::OperatorScratch,
-    memo: &'a mut Vec<ryo_execution_domain::domain::operating::types::Memo>,
-) -> OperatorContext<'a> {
-    OperatorContext {
-        phase: ryo_execution_domain::domain::operating::types::AfterTheFiles::Before,
-        semantic: None,
-        prepared_kinds: None,
-        prepared_matchers: None,
-        matcher: ryo_execution_domain::domain::matching::types::PatternMatcher(
-            &ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl,
-        ),
-        bindings: &[],
-        symbols: symbols.into(),
-        source: ryo_values::domain::files::types::SourceView(&[]),
-        paths: &[],
-        arenas: &[],
-        memo,
-        scratch,
-    }
 }
 #[test]
 fn immutable_demand_checks_identity_once_across_views_and_refuses_expired_proof() {
@@ -361,13 +297,4 @@ fn recapturing_publications_replaces_population_without_replacing_owner() {
     assert_eq!(owner.derived().counts().0, 2);
 }
 
-use ryo_values::domain::rows::types::RowCount;
-
 use ryo_derived::domain::request::types::DerivedKind;
-
-fn owner() -> Rc<crate::application::file_dag::relations::RelationOwner> {
-    Rc::new(crate::application::file_dag::relations::RelationOwner::new(
-        crate::application::file_dag::relations::types::ReuseEligibility::Eligible,
-        std::sync::Arc::new(crate::application::file_dag::fixtures::derived()),
-    ))
-}

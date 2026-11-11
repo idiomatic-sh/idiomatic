@@ -24,6 +24,7 @@ use self::adapter::ReadyAdapter;
 use self::events::Events;
 use super::super::fixtures::*;
 use crate::application::file_dag::program::kernel_session::KernelSession;
+use crate::cases::{Case, CaseName, Expect, Word};
 use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, QueryLiteral, Test};
 use std::cell::Cell as Counter;
 use std::collections::{BTreeMap, BTreeSet};
@@ -161,7 +162,7 @@ pub(crate) fn observe(omit: bool) -> Coverage {
         let mut plans = Vec::new();
         let mut rules = Vec::new();
         for index in 0..5 {
-            let mut authored = plan(Scenario::ProjectRetry);
+            let mut authored = plan(super::super::fixtures::Scenario::ProjectRetry);
             authored.steps.truncate(1);
             authored.emit.step = StepId(0);
             let relation = if index == 3 {
@@ -386,4 +387,65 @@ pub(crate) fn registration_probe(omission: bool) {
     } else {
         tracing::trace!(target: crate::application::file_dag::program::constants::WALK_TARGET, event = "capture_registration_actual");
     }
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum Scenario {
+    Actual,
+    Omitted,
+}
+
+#[derive(Debug, PartialEq)]
+pub(super) enum Refusal {
+    MissingSubmission,
+}
+
+pub(super) type Input = Scenario;
+
+pub(super) type Value = ();
+
+pub(super) type Failure = Refusal;
+
+pub(super) const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("runtime obligations precede actual ready callbacks and equivalent replay"),
+        word: Word::Succeeds,
+        input: || Scenario::Actual,
+        expect: Expect::Value(()),
+    },
+    Case {
+        name: CaseName(
+            "omitting one actual ready submission preserves its obligation while other dispatches continue",
+        ),
+        word: Word::Rejects,
+        input: || Scenario::Omitted,
+        expect: Expect::Error(Refusal::MissingSubmission),
+    },
+];
+
+pub(super) fn verify(observed: Coverage) -> Result<(), Refusal> {
+    assert!(
+        observed.dispatches >= 2,
+        "both actual source populations still dispatch"
+    );
+    assert!(observed.expected.len() > 1);
+    assert!(
+        observed.heads > observed.expected.len(),
+        "different physical heads can share one admitted class"
+    );
+    if observed.expected != observed.served {
+        return Err(Refusal::MissingSubmission);
+    }
+    Ok(())
+}
+
+pub(super) fn subject(scenario: Input) -> Result<Value, Failure> {
+    let omit = matches!(scenario, Scenario::Omitted);
+    let observed = observe(omit);
+    assert_eq!(
+        observed.skipped,
+        usize::from(omit),
+        "the adapter omits exactly one actual submission"
+    );
+    verify(observed)
 }

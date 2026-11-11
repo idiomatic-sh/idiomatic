@@ -12,6 +12,7 @@ use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::inbound::use_cases::operators::types::OperatorAnswer;
 use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{FileId, Relation},
@@ -20,11 +21,16 @@ use ryo_relations::domain::relations::{
     service::to_bits,
     types::{ColumnsView, FactColumn},
 };
+use ryo_values::domain::plan_parts::types::{Operand, PlanComparison, Test};
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plans::types::Plan,
     rows::types::Table,
     stored_facts::types::Digest,
+};
+use ryo_values::domain::{
+    plan_parts::types::{ColumnIndex, Input as PlanInput, RepeatedRows, StepId, StepScope},
+    plans::types::{Emit, Operation, PlanStep},
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -179,4 +185,85 @@ pub(crate) fn run_read(
         .unwrap();
     file.finish().unwrap();
     outcome.emit
+}
+
+pub(crate) fn ordered_strategy_fixture() -> (Plan, Vec<CellKind>) {
+    use ryo_values::domain::plan_parts::types::{JoinColumn, Side};
+    let schema = kinds(ryo_relations::domain::relations::types::Relation::SourceLocation).to_vec();
+    let number = ColumnIndex(
+        schema
+            .iter()
+            .position(|kind| *kind == CellKind::Number)
+            .expect("typed numeric source") as u32,
+    );
+    let source = Operation::Select {
+        from: PlanInput::Relation(
+            ryo_relations::domain::relations::types::Relation::SourceLocation,
+        ),
+        comparisons: vec![],
+        kept: vec![],
+    };
+    let join = Operation::Join {
+        left: PlanInput::Step(StepId(0)),
+        right: PlanInput::Step(StepId(0)),
+        left_on: vec![ColumnIndex(0)],
+        right_on: vec![ColumnIndex(0)],
+        output: vec![
+            JoinColumn {
+                side: Side::Left,
+                column: number,
+            },
+            JoinColumn {
+                side: Side::Right,
+                column: number,
+            },
+        ],
+        filter: vec![],
+        view: vec![],
+        reach: None,
+    };
+    let select = Operation::Select {
+        from: PlanInput::Step(StepId(1)),
+        comparisons: vec![PlanComparison {
+            test: Test::LessThan,
+            left: Operand::Column(ColumnIndex(0)),
+            right: Operand::Column(ColumnIndex(1)),
+            origin: ryo_values::domain::plan_parts::types::ComparisonOrigin::Unrecorded,
+        }],
+        kept: vec![],
+    };
+    let project = Operation::Project {
+        from: PlanInput::Step(StepId(2)),
+        columns: vec![ColumnIndex(0)],
+        distinct: RepeatedRows::Dropped,
+    };
+    let anti = Operation::Antijoin {
+        left: PlanInput::Step(StepId(0)),
+        right: PlanInput::Step(StepId(3)),
+        left_on: vec![number],
+        right_on: vec![ColumnIndex(0)],
+    };
+    (
+        Plan {
+            observation_inputs: Vec::new(),
+            observations: Vec::new(),
+            parameters: vec![],
+            steps: [source, join, select, project, anti]
+                .into_iter()
+                .map(|operation| PlanStep {
+                    operation,
+                    scope: StepScope::PerFile,
+                })
+                .collect(),
+            comparison_origins: vec![],
+            emit: Emit {
+                step: StepId(4),
+                subject: ColumnIndex(0),
+                key: vec![],
+                headings: vec![],
+            },
+            frontier: vec![],
+        },
+        schema,
+    )
 }

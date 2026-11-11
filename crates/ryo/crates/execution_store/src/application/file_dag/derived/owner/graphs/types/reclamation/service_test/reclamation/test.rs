@@ -1,24 +1,13 @@
 //! Graph admission reclaims only dormant resources owned by the real file owner.
 
 use super::super::super::constants;
+use super::fixtures::{columns, rows};
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
-use ryo_execution_domain::domain::table_model::types::Rows;
-use ryo_relations::domain::relations::types::{CellKind, ColumnsView, FactColumn, Relation};
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use std::sync::Arc;
-
-fn rows<'a>(columns: &'a [FactColumn; 2]) -> Rows<'a> {
-    Rows::Stored(ColumnsView {
-        kinds: &[CellKind::Number; 2],
-        columns,
-    })
-}
-
-fn columns() -> [FactColumn; 2] {
-    [FactColumn(vec![1, 2, 3, 4]), FactColumn(vec![4, 3, 2, 1])]
-}
 
 #[test]
 fn a_live_index_blocks_credit_until_its_consumer_releases_the_handle() {

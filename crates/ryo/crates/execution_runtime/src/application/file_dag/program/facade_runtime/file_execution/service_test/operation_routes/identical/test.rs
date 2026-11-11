@@ -2,12 +2,9 @@
 use super::super::super::super::*;
 use super::super::fixtures::chain::{Chain, execute_chain};
 use super::super::fixtures::describe;
+use super::fixtures::engine;
 use ryo_execution_domain::domain::executable_program::fusion::types::{Barrier, Fusibility};
 use ryo_values::domain::query_operators::types::OperationKind;
-use std::sync::Arc;
-fn engine() -> Arc<dyn crate::outbound::operators::interface::OperatorsPort> {
-    Arc::new(crate::application::file_dag::fixtures::operators())
-}
 #[test]
 fn all26_fused_and_single_instruction_programs_publish_identical_rows_in_identical_order() {
     for &kind in OperationKind::ALL {

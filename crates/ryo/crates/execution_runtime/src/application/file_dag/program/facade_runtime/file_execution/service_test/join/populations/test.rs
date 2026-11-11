@@ -1,36 +1,19 @@
 //! Typed populations, dense bag order, partial provenance and fused reach semantics.
 use super::super::super::super::*;
-use super::super::cases::test::{node, stretch, table_of};
+use super::super::cases::fixtures::{node, stretch, table_of};
 use super::super::*;
+use super::fixtures::functions;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{CellKind, FileId, Integer, Relation, Value as Cell},
 };
-use ryo_values::domain::rows::service::{push_row, row_in};
+use ryo_values::domain::rows::service::row_in;
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, ReachLookup, Side},
     plans::types::Operation,
-    rows::types::{RowCount, Table},
+    rows::types::RowCount,
 };
-fn functions(count: usize, dense: bool) -> Table {
-    let mut table = Table {
-        kinds: kinds(Relation::Function).to_vec(),
-        ..Table::default()
-    };
-    for place in 0..count {
-        push_row(
-            &mut table,
-            &[
-                node(if dense { 1 } else { (place % 8 + 1) as u32 }),
-                Cell::Symbol(Symbol(1)),
-                Cell::File(FileId((place % 2) as u32)),
-                stretch(place as u32, place as u32 + 1),
-            ],
-        );
-    }
-    table
-}
 #[test]
 fn composite_typed_keys_keep_duplicate_bag_order_under_stored_and_zero_budget_routes() {
     let left = functions(256, false);
