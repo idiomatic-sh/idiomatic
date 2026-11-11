@@ -4,6 +4,8 @@
 
 `factory-calls` leaves the generated `src/languages.rs` out: it is the one edge that links the language providers, built by `build.rs` from the directories of `languages/`, and hands the parts of each language to the language factory as a composition does. The scenario `languages-edge-names-the-factory` holds it; every other file of the command line's own that names a factory is still a finding (`infrastructure-calls-factory`). The `languages` template and the generated file are unchanged.
 
+Edited in place: the crate spec places a test group's module file at `tests/<group>.rs`, so `distribution-test-in-crate`'s stray `tests/distribution.rs` is refused by `test-group-namespace` where it was closed.
+
 ### Moving up from 0.12.0
 
 - Nothing to change: the rule only stops reporting the generated file.

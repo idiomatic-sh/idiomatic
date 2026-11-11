@@ -9,7 +9,7 @@ templates = [
   { template = "idiomatic.arch/value@0.1.0", file = "types/{value}/value.rs", count = { min = 0 }, description = "A value owns private representation and pure behavior, including checked construction." },
   { template = "idiomatic.arch/value-test@0.1.0", file = "types/{value}/value_test.rs", count = { min = 0 }, description = "Every behavior-owning value has its independent adjacent proof." },
   { template = "service", file = "service.rs", count = { min = 0 }, description = "The concept's service: free functions named by verb over the domain's types, with no port and no IO." },
-  { alias = "unit-test", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test.rs", count = { when = { condition = "has-service" }, then = 1, else = 0 }, description = "The proof of the concept's service, on values alone." },
+  { alias = "unit-test", template = "idiomatic.arch/service-test@0.1.0", file = "service_test.rs", params = { kind = "concept" }, count = { when = { condition = "has-service" }, then = 1, else = 0 }, description = "The proof of the concept's service, on values alone." },
   { alias = "flat-group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "service_test/{group}_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "A declared behavioral group of the service's cases, with its own case rows and runners." },
   { template = "concept-fixtures", file = "fixtures.rs", count = { min = 0 }, description = "The concept's test support, when its tests or the tests of the concepts that read through it need more than literals: declared by the module file under the `fixtures` gate." },
   { template = "idiomatic.arch/types@0.1.0", file = "types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The part's own plain types when it has any (a command's or an entry's: the dependencies its composition is given)." },
@@ -18,26 +18,28 @@ templates = [
   { template = "idiomatic.arch/collections@0.1.0", file = "collections.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "The list of the part's collections, one module each, when it holds a repeated concept." },
   { alias = "collection-module", template = "idiomatic.arch/collection@0.1.0", file = "collections/{collection}.rs", count = { min = 0 }, params = { item-trait = { param = "item-trait" } }, description = "One collection of the part: its interface and its items in order." },
   { alias = "fixture-files", template = "concept-fixtures", file = "fixtures/{*fixture}", count = { min = 0 }, description = "A file of the concept's test support beneath `fixtures/`." },
-  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test/{*group}/mod.rs", count = { min = 0 }, description = "The module file of one group of the service's cases." },
+  { alias = "group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test/{group}.rs", exclude = ["mod.rs", "**/mod.rs", "service_test/*_test.rs"], count = { min = 0 }, description = "The module file of one group of the service's cases." },
+  { alias = "nested-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "service_test/{*outer}/{group}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of one group of the service's cases, at any depth below the first." },
   { alias = "group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "service_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "One group of the service's cases, with its own case rows and runners." },
   { alias = "group-fixtures", template = "concept-fixtures", file = "service_test/{*group}/fixtures.rs", count = { min = 0 }, description = "The test support of one group of the service's cases." },
-  { alias = "part-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/mod.rs", count = { min = 0 }, description = "The module file of a nested part: it declares the part's role files and holds none of its items, as the concept's own module file does." },
+  { alias = "part-module", template = "idiomatic.arch/part-module@0.1.0", file = "{part}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of a nested part: it declares the part's role files and holds none of its items, as the concept's own module file does." },
+  { alias = "nested-part-module", template = "idiomatic.arch/part-module@0.1.0", file = "{*outer}/{part}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of a nested part: it declares the part's role files and holds none of its items, as the concept's own module file does, at any depth below the first." },
   { alias = "part-service", template = "service", file = "{*part}/service.rs", count = { min = 0 }, description = "A nested part's free functions." },
   { alias = "part-types", template = "idiomatic.arch/types@0.1.0", file = "{*part}/types.rs", count = { min = 0 }, params = { kind = "concept" }, description = "A nested part's own data." },
   { alias = "part-constants", template = "idiomatic.arch/constants@0.1.0", file = "{*part}/constants.rs", count = { min = 0 }, description = "A nested part's constants." },
   { alias = "part-errors", template = "idiomatic.arch/errors@0.1.0", file = "{*part}/errors.rs", count = { min = 0 }, params = { kind = "concept" }, description = "A nested part's failures." },
   { alias = "part-fixtures", template = "concept-fixtures", file = "{*part}/fixtures.rs", count = { min = 0 }, description = "A nested part's test support." },
   { alias = "part-fixture-files", template = "concept-fixtures", file = "{*part}/fixtures/{*fixture}", count = { min = 0 }, description = "A file of a nested part's test support beneath its `fixtures/`." },
-  { alias = "part-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of a nested part that is a test group of its own." },
-  { alias = "part-service-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/service_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of a nested part's service." },
-  { alias = "part-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/service_test/{*group}/mod.rs", count = { min = 0 }, description = "The module file of one group of a nested part's cases." },
+  { alias = "part-service-test", template = "idiomatic.arch/service-test@0.1.0", file = "{*part}/service_test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "The proof of a nested part's service: a case table, or the namespace of its groups." },
+  { alias = "part-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/service_test/{group}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of one group of a nested part's cases." },
+  { alias = "nested-part-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "{*part}/service_test/{*outer}/{group}.rs", exclude = ["mod.rs", "**/mod.rs"], count = { min = 0 }, description = "The module file of one group of a nested part's cases, at any depth below the first." },
   { alias = "part-group-test", template = "idiomatic.arch/unit-test@0.1.0", file = "{*part}/service_test/{*group}/test.rs", count = { min = 0 }, params = { kind = "concept" }, description = "One group of a nested part's cases, with its own case rows and runners." },
   { alias = "part-group-fixtures", template = "concept-fixtures", file = "{*part}/service_test/{*group}/fixtures.rs", count = { min = 0 }, description = "The test support of one group of a nested part's cases." },
 ]
 rules = [
   { rule = "idiomatic.arch/value-companions@0.1.0", include = ["types/**"], description = "Every behavior value has its module, implementation and adjacent proof; arbitrary helpers remain closed." },
   { rule = "idiomatic.arch/orphan-rust-files@0.1.0", include = ["**"], exclude = ["**/tests/fixtures/**", "**/tests/ui/**"], description = "Every Rust file of the concept is a module the crate reaches: a file its module files do not declare is never compiled." },
-  { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "Proofs execute a real subject over nonempty cases." },
+  { rule = "idiomatic.arch/no-vacuous-tests@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "Proofs execute a real subject over nonempty cases." },
   { rule = "service-has-fn", include = ["service.rs", { placed-by = "part-service" }], description = "A service declares at least one free function: a concept that declares none has no service.rs." },
   { rule = "fns-only-in-service", include = ["types.rs", "errors.rs", { placed-by = "part-types" }, { placed-by = "part-errors" }], description = "A concept declares its functions in service.rs, so one that declares a function has a service and its test." },
   { rule = "service-shape", include = ["service.rs", { placed-by = "part-service" }], description = "A concept's service is free functions only: no struct, enum, union, trait or impl." },
@@ -52,12 +54,12 @@ rules = [
   { rule = "idiomatic.arch/validation-at-edges@0.1.0", include = ["*.rs"], exclude = ["schemas.rs", "*_test.rs"], description = "A `TryFrom`, an `impl FromStr` or a fallible constructor is written only in a schemas.rs." },
   { rule = "idiomatic.arch/no-runtime-fixtures@0.2.0", include = ["*.rs"], exclude = ["*_test.rs", "fixtures.rs"], description = "Nothing in a part but its tests and its fixtures reads a `fixtures` module." },
   { rule = "idiomatic.arch/factory-calls@0.1.0", include = ["*.rs"], exclude = ["composition.rs", "fixtures.rs", "*_test.rs"], description = "Only an edge's composition (and the part's fixtures and tests) names a `factory` module: only an edge builds an adapter." },
-  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-test" }, { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "Every test of a part is a runner named for a case word over a `CASES` table, which holds the table skeleton; a `service_test.rs` that only declares its groups has no test of its own." },
-  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-test" }, { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
-  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "part-test" }, { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
-  { alias = "group-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "group-module" }, { placed-by = "part-group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
-  { alias = "part-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "part-module" }], description = "A nested part's module file declares the part's modules only, as the concept's own module file does: its free functions go in its service.rs, its data in its types.rs, its failures in its errors.rs, each held by the role's rules." },
-  { alias = "service-test-form", rule = "idiomatic.arch/test-group-namespace@0.1.0", include = ["service_test.rs"], params = { case-table = "exempt" }, description = "The service's proof is a case table, or the namespace of its groups (only `mod x;` declarations): a file that declares `CASES` is left to the case-table rules, any other is held here." },
+  { rule = "idiomatic.arch/test-shape@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "Every test of a part is a runner named for a case word over a `CASES` table, which holds the table skeleton; a `service_test.rs` that only declares its groups has no test of its own." },
+  { rule = "idiomatic.arch/test-runners-match-rows@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A test file has a runner `run(CASES, Word::<word>, subject)` exactly for each case word its `CASES` table has rows of." },
+  { rule = "idiomatic.arch/case-expectation@0.1.0", include = ["*_test.rs", { placed-by = "part-service-test" }, { placed-by = "flat-group-test" }, { placed-by = "group-test" }, { placed-by = "part-group-test" }], description = "A row of a part's table expects a value or an error variant, never any success." },
+  { alias = "group-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "group-module" }, { placed-by = "nested-group-module" }, { placed-by = "part-group-module" }, { placed-by = "nested-part-group-module" }], description = "A group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
+  { alias = "part-namespace", rule = "idiomatic.arch/test-group-namespace@0.1.0", params = { case-table = "refused" }, include = [{ placed-by = "part-module" }, { placed-by = "nested-part-module" }], description = "A nested part's module file declares the part's modules only, as the concept's own module file does: its free functions go in its service.rs, its data in its types.rs, its failures in its errors.rs, each held by the role's rules." },
+  { alias = "service-test-form", rule = "idiomatic.arch/test-group-namespace@0.1.0", include = ["service_test.rs", { placed-by = "part-service-test" }], params = { case-table = "exempt" }, description = "The service's proof is a case table, or the namespace of its groups (only `mod x;` declarations): a file that declares `CASES` is left to the case-table rules, any other is held here." },
 ]
 
 [params]
@@ -716,7 +718,8 @@ fn succeeds() {
 }
 '''
 then.findings = [
-  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/polite/interface.rs' },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/polite/interface.rs', line = 4 },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/polite/interface.rs', line = 4 },
 ]
 
 [[scenarios]]
@@ -822,7 +825,7 @@ pub fn is_polite(phrase: &str) -> bool {
 }
 '''
 then.findings = [
-  { rule = 'idiomatic.arch/test-group-module(unit-test)#count', path = 'src/domain/polite' },
+  { rule = 'idiomatic.arch/service-test(unit-test)#count', path = 'src/domain/polite' },
 ]
 
 [[scenarios]]
@@ -1646,8 +1649,10 @@ then.only = ['idiomatic.arch/concept#closed']
 id = "behavior-value-rejects-arbitrary-helper"
 scenario = "The value role does not open the directory to arbitrary implementation helpers."
 given.files.'src/domain/greeting/types/token/helper.rs' = 'pub fn bypass() {}'
-then.only = ['idiomatic.arch/concept#closed']
-then.findings = [{ rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/types/token/helper.rs' }]
+then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/test-group-namespace']
+then.findings = [
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/types/token/helper.rs', line = 1 },
+]
 
 [[scenarios]]
 id = "behavior-value-requires-proof"
@@ -1825,29 +1830,31 @@ then.findings = [{ rule = 'idiomatic.arch/orphan-rust-files', path = 'src/domain
 [[scenarios]]
 id = 'nested-part-is-placed'
 scenario = 'A nested part at any depth, with its module files, its service, its proofs in groups and its test support, is placed by its roles: nothing is closed.'
-given.files.'src/domain/greeting/lowering/mod.rs' = 'pub(crate) mod rows;'
-given.files.'src/domain/greeting/lowering/rows/mod.rs' = 'pub(crate) mod cells;'
+given.files.'src/domain/greeting/lowering.rs' = 'pub(crate) mod rows;'
+given.files.'src/domain/greeting/lowering/rows.rs' = 'pub(crate) mod cells;'
 given.files.'src/domain/greeting/lowering/rows/cells/service.rs' = 'pub(crate) fn cells() {}'
 given.files.'src/domain/greeting/lowering/rows/cells/types.rs' = 'pub(crate) struct Cell;'
-given.files.'src/domain/greeting/service_test/order/mod.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/domain/greeting/service_test/order.rs' = '#[cfg(test)] pub(super) mod test;'
 given.files.'src/domain/greeting/service_test/order/test.rs' = '#[test] fn keeps_order() {}'
 given.files.'src/domain/greeting/fixtures/inputs.rs' = 'pub(crate) fn input() {}'
-given.files.'src/domain/greeting/lowering/service_test/shape/mod.rs' = '#[cfg(test)] pub(super) mod test;'
+given.files.'src/domain/greeting/lowering/service_test/shape.rs' = '#[cfg(test)] pub(super) mod test;'
 given.files.'src/domain/greeting/lowering/service_test/shape/test.rs' = '#[test] fn keeps_shape() {}'
 then.only = ['idiomatic.arch/concept#closed']
 
 [[scenarios]]
 id = 'file-of-no-role-in-a-nested-part'
 scenario = 'A file of a nested part that is none of the roles is closed: the pattern places roles, never any file.'
-given.files.'src/domain/greeting/lowering/mod.rs' = 'pub(crate) mod extra;'
+given.files.'src/domain/greeting/lowering.rs' = 'pub(crate) mod extra;'
 given.files.'src/domain/greeting/lowering/extra.rs' = 'pub(crate) fn extra() {}'
-then.only = ['idiomatic.arch/concept#closed']
-then.findings = [{ rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/lowering/extra.rs' }]
+then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/test-group-namespace']
+then.findings = [
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/extra.rs', line = 1 },
+]
 
 [[scenarios]]
 id = 'nested-part-errors-hold-the-errors-role'
 scenario = "A nested part's errors.rs is held to the errors role as a top-level one is: an enum not named for the part is reported."
-given.files.'src/domain/greeting/publication/mod.rs' = 'pub(crate) mod errors;'
+given.files.'src/domain/greeting/publication.rs' = 'pub(crate) mod errors;'
 given.files.'src/domain/greeting/publication/errors.rs' = '''
 //! The publication part's failures.
 
@@ -1864,7 +1871,7 @@ then.findings = [
 [[scenarios]]
 id = 'nested-part-errors-named-for-the-part'
 scenario = "A nested part's errors.rs with one enum named for the part, `PublicationError`, holds the errors role."
-given.files.'src/domain/greeting/publication/mod.rs' = 'pub(crate) mod errors;'
+given.files.'src/domain/greeting/publication.rs' = 'pub(crate) mod errors;'
 given.files.'src/domain/greeting/publication/errors.rs' = '''
 //! The publication part's failures.
 
@@ -1927,7 +1934,7 @@ given.files.'src/domain/greeting/service_test.rs' = '''
 #[cfg(test)]
 mod order;
 '''
-given.files.'src/domain/greeting/service_test/order/mod.rs' = '#[cfg(test)] mod test;'
+given.files.'src/domain/greeting/service_test/order.rs' = '#[cfg(test)] mod test;'
 given.files.'src/domain/greeting/service_test/order/test.rs' = '''
 use crate::cases::{Case, Expect, Word, run};
 
@@ -1991,7 +1998,7 @@ given.files.'src/domain/greeting/service_test.rs' = '''
 #[cfg(test)]
 mod order;
 '''
-given.files.'src/domain/greeting/service_test/order/mod.rs' = '#[cfg(test)] mod test;'
+given.files.'src/domain/greeting/service_test/order.rs' = '#[cfg(test)] mod test;'
 given.files.'src/domain/greeting/service_test/order/test.rs' = '''
 #[test]
 fn keeps_order() {
@@ -2016,7 +2023,7 @@ given.files.'src/domain/greeting/service_test.rs' = '''
 #[cfg(test)]
 mod order;
 '''
-given.files.'src/domain/greeting/service_test/order/mod.rs' = '#[cfg(test)] mod test;'
+given.files.'src/domain/greeting/service_test/order.rs' = '#[cfg(test)] mod test;'
 given.files.'src/domain/greeting/service_test/order/test.rs' = '''
 use super::super::service::greet;
 '''
@@ -2118,7 +2125,7 @@ given.files.'src/domain/greeting/service_test.rs' = '''
 #[cfg(test)]
 mod order;
 '''
-given.files.'src/domain/greeting/service_test/order/mod.rs' = '#[cfg(test)] mod test;'
+given.files.'src/domain/greeting/service_test/order.rs' = '#[cfg(test)] mod test;'
 given.files.'src/domain/greeting/service_test/order/test.rs' = '''
 #[test]
 fn keeps_order() {
@@ -2131,7 +2138,7 @@ then.only = ['idiomatic.arch/test-group-namespace']
 [[scenarios]]
 id = 'nested-part-module-holding-an-item'
 scenario = "A nested part's module file that holds an item, not only the part's modules, is refused at the item: the item goes in the part's role file, held by that role's rules."
-given.files.'src/domain/greeting/lowering/mod.rs' = '''
+given.files.'src/domain/greeting/lowering.rs' = '''
 //! Lowering of the greeting.
 
 pub(crate) mod service;
@@ -2147,12 +2154,12 @@ pub(crate) fn lower() -> u8 {
 '''
 then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/test-group-namespace']
 then.findings = [
-  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/mod.rs', line = 5 },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering.rs', line = 5 },
 ]
 [[scenarios]]
 id = 'nested-part-module-declaring-its-roles'
 scenario = "A nested part's module file that declares only the part's role files passes."
-given.files.'src/domain/greeting/lowering/mod.rs' = '''
+given.files.'src/domain/greeting/lowering.rs' = '''
 //! Lowering of the greeting.
 
 pub(crate) mod service;
@@ -2177,7 +2184,7 @@ then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/test-group-namespa
 [[scenarios]]
 id = 'nested-part-port-and-schemas-are-closed'
 scenario = "A domain concept has no port and no IO at any depth: a nested part's interface.rs and schemas.rs are files of no role."
-given.files.'src/domain/greeting/lowering/mod.rs' = '''
+given.files.'src/domain/greeting/lowering.rs' = '''
 //! Lowering of the greeting.
 
 pub(crate) mod interface;
@@ -2198,8 +2205,32 @@ pub(super) struct LoweredSchema {
     pub(super) width: u8,
 }
 '''
+then.only = ['idiomatic.arch/concept#closed', 'idiomatic.arch/test-group-namespace']
+then.findings = [
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/interface.rs', line = 3 },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/interface.rs', line = 3 },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/schemas.rs', line = 3 },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'src/domain/greeting/lowering/schemas.rs', line = 3 },
+]
+
+[[scenarios]]
+id = 'nested-part-mod-rs-is-closed'
+scenario = "A nested part's module file is `<part>.rs` beside its directory: a `mod.rs`, at the part or in a group of cases, is a file of no role."
+given.files.'src/domain/greeting/lowering/mod.rs' = '''
+//! Lowering of the greeting.
+
+pub(crate) mod service;
+'''
+given.files.'src/domain/greeting/lowering/service.rs' = '''
+//! Lowers a greeting.
+
+pub(crate) fn lower() -> u8 {
+    1
+}
+'''
+given.files.'src/domain/greeting/service_test/order/mod.rs' = '#[cfg(test)] pub(super) mod test;'
 then.only = ['idiomatic.arch/concept#closed']
 then.findings = [
-  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/lowering/interface.rs' },
-  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/lowering/schemas.rs' },
+  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/lowering/mod.rs' },
+  { rule = 'idiomatic.arch/concept#closed', path = 'src/domain/greeting/service_test/order/mod.rs' },
 ]

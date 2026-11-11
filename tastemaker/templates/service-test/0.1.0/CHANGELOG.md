@@ -1,0 +1,3 @@
+# service-test 0.1.0
+
+The proof `service_test.rs` of a concept's, an application operation's or a use case's service: a case table, or the namespace of its groups. concept 0.1.2, application-service 0.1.2 and use-case 0.1.3 placed it with `test-group-module`, a group's one-line template, so `tm scaffold` wrote a doc line that `test-group-namespace` refuses (scenario `service-test-empty`). This template scaffolds the case-table skeleton the `unit-test` template writes, so a freshly scaffolded part passes its own spec, and checks only the doc line, so the namespace form still passes. It replaces application-service 0.1.1's spec-local `service-test` (its "Behavioral proof of `<operation>` through its injected ports" doc line returns with `kind = "application"`).

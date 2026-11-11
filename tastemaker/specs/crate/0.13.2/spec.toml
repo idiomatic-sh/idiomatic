@@ -13,7 +13,8 @@ templates = [
   { template = "cases", file = "src/cases.rs", count = { when = { condition = "cases" }, then = 1, else = 0 }, description = "The test support of a core, an SDK, a command line: the `Case` rows, the four case words, the expectation and the `run` every unit test calls." },
   # Another workspace's files, which the crate's tests run their code over.
   { alias = "test-root", template = "integration-test", file = "tests/test.rs", count = { min = 0 }, description = "The root of the crate's grouped integration tests, which declares its groups." },
-  { alias = "test-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "tests/{*group}/mod.rs", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "The module file of one group of the crate's integration tests." },
+  { alias = "test-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "tests/{group}.rs", exclude = ["mod.rs", "**/mod.rs", "tests/fixtures/**"], count = { min = 0 }, description = "The module file of one group of the crate's integration tests." },
+  { alias = "nested-test-group-module", template = "idiomatic.arch/test-group-module@0.2.0", file = "tests/{*outer}/{group}.rs", exclude = ["mod.rs", "**/mod.rs", "tests/fixtures/**"], count = { min = 0 }, description = "The module file of one group of the crate's integration tests, at any depth below the first." },
   { alias = "test-group-test", template = "integration-test", file = "tests/{*group}/test.rs", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "One group of the crate's integration tests." },
   { alias = "test-group-fixtures", template = "integration-test", file = "tests/{*group}/fixtures.rs", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "The test support of one group of the crate's integration tests." },
   { alias = "test-group-fixture-files", template = "integration-test", file = "tests/{*group}/fixtures/{*fixture}", exclude = ["tests/fixtures/**"], count = { min = 0 }, description = "A file of one group's test support beneath its `fixtures/`." },
@@ -39,7 +40,7 @@ rules = [
   { rule = "error-shape", include = ["**"], description = "Every error type of the crate is a `thiserror` derive, never a hand-written `Error` or `Display` impl." },
   # A part's fakes reach other crates' tests only.
   { rule = "fixtures-feature", include = ["Cargo.toml"], description = "The crate's `fixtures` feature is switched on only from `[dev-dependencies]`, so its fakes never ship." },
-  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "test-group-module" }], params = { case-table = "refused" }, description = "A test group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
+  { rule = "idiomatic.arch/test-group-namespace@0.1.0", include = [{ placed-by = "test-group-module" }, { placed-by = "nested-test-group-module" }], params = { case-table = "refused" }, description = "A test group's module file declares the group's modules only: its test, its fixtures and its nested groups." },
 ]
 
 [[scenarios]]
@@ -1247,7 +1248,8 @@ pub fn greeting() -> app::greeting::types::Greeting {
 '''
 then.findings = [
   { rule = 'idiomatic.arch/orphan-rust-files', path = 'app/tests/common/x.rs' },
-  { rule = 'idiomatic.arch/crate#closed', path = 'app/tests/common/x.rs' },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'app/tests/common/x.rs', line = 3 },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'app/tests/common/x.rs', line = 3 },
 ]
 
 [[scenarios]]
@@ -18674,9 +18676,9 @@ given.files.'app/src/cases_test.rs' = '''
 //! The case runner's cases.
 '''
 given.files.'app/tests/test.rs' = 'mod order;'
-given.files.'app/tests/order/mod.rs' = 'mod kept; #[cfg(test)] pub(super) mod test;'
+given.files.'app/tests/order.rs' = 'mod kept; #[cfg(test)] pub(super) mod test;'
 given.files.'app/tests/order/test.rs' = '#[test] fn keeps_order() {}'
-given.files.'app/tests/order/kept/mod.rs' = 'mod fixtures; #[cfg(test)] pub(super) mod test;'
+given.files.'app/tests/order/kept.rs' = 'mod fixtures; #[cfg(test)] pub(super) mod test;'
 given.files.'app/tests/order/kept/test.rs' = '#[test] fn keeps_what_it_kept() {}'
 given.files.'app/tests/order/kept/fixtures.rs' = 'pub(super) fn kept() {}'
 given.files.'app/tests/order/kept/fixtures/rows.rs' = 'pub(super) fn rows() {}'
@@ -18778,10 +18780,19 @@ given.files.'app/src/lib.rs' = '''
 #![cfg_attr(not(doc), doc = env!("CARGO_PKG_DESCRIPTION"))]
 '''
 given.files.'app/tests/test.rs' = 'mod order;'
-given.files.'app/tests/order/mod.rs' = 'mod extra; #[cfg(test)] pub(super) mod test;'
+given.files.'app/tests/order.rs' = 'mod extra; #[cfg(test)] pub(super) mod test;'
 given.files.'app/tests/order/test.rs' = '#[test] fn keeps_order() {}'
 given.files.'app/tests/order/extra.rs' = 'pub(super) fn extra() {}'
+then.only = ['idiomatic.arch/crate#closed', 'idiomatic.arch/test-group-namespace']
+then.findings = [
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'app/tests/order/extra.rs', line = 1 },
+]
+
+[[scenarios]]
+id = 'test-group-mod-rs-is-closed'
+scenario = "A group of the crate's integration tests has its module file `<group>.rs` beside its directory: a `mod.rs` is a file of no role."
+given.files.'app/tests/order/mod.rs' = '#[cfg(test)] pub(super) mod test;'
 then.only = ['idiomatic.arch/crate#closed']
 then.findings = [
-  { rule = 'idiomatic.arch/crate#closed', path = 'app/tests/order/extra.rs' },
+  { rule = 'idiomatic.arch/crate#closed', path = 'app/tests/order/mod.rs' },
 ]

@@ -1,0 +1,80 @@
+description = "The proof of a service beside it, `service_test.rs`: a case table of the service's cases, or the namespace of its groups of cases. Scaffolded as a case table."
+why = "A service's proof takes one of two forms, chosen by one fact the placing spec's `test-group-namespace` (`case-table = \"exempt\"`) reads: a file that declares `CASES` is a case table and holds its skeleton, any other file declares the service's groups of cases (`mod x;`) and nothing else. A new service starts with one table, so the scaffold writes the skeleton the `unit-test` template writes, a file that passes its own spec; the check asks only the doc line, since a namespace has no table."
+content = '''
+{% if kind == "application" -%}
+//! Behavioral proof of `{{ part }}` through its injected ports.
+{%- elif kind == "use-case" -%}
+//! The `{{ part }}` use case's focused cases, beside its behavioral proof.
+{%- else -%}
+//! The `{{ part }}` service's cases, on values alone.
+{%- endif %}
+{% if scaffold | default(false) %}
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the part on one input; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+{% endif %}
+'''
+
+[params]
+kind = { type = { one-of = ["concept", "application", "use-case"] }, description = "Whose service it proves: a domain concept's, an application operation's or a use case's." }
+part = { type = "identifier", from = "directory-name", description = "The part's directory name." }
+
+[[scenarios]]
+id = "case-table"
+scenario = "A service test that is a case table has no finding."
+given.file = "short/service_test.rs"
+given.params = { kind = "concept" }
+given.files.'short/service_test.rs' = '''
+//! The `short` service's cases, on values alone.
+
+use crate::cases::{Case, Word, run};
+
+type Input = u8;
+type Value = u8;
+type Failure = ();
+
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+fn subject(input: Input) -> Result<Value, Failure> {
+    Ok(input)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+'''
+
+[[scenarios]]
+id = "namespace-of-groups"
+scenario = "A service test that only declares its groups of cases has no finding."
+given.file = "short/service_test.rs"
+given.params = { kind = "concept" }
+given.files.'short/service_test.rs' = '''
+//! The `short` service's cases, on values alone.
+
+#[cfg(test)]
+mod order;
+'''
+
+[[scenarios]]
+id = "service-test-missing"
+scenario = "A placed service test cannot disappear."
+given.file = "short/service_test.rs"
+given.params = { kind = "application" }
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]

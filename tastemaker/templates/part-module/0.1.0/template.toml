@@ -1,0 +1,22 @@
+description = "The module file of a nested part, `<part>.rs` beside the part's directory: it declares the part's role files and holds none of their items."
+why = "A concept or an application operation may keep a cohesive part in a directory of its own. Its module file is the part's table of contents, as the part's own module file is at the top: it declares the part's `service`, `types`, `errors`, `constants` and its proofs, and the items live in those role files, where each role's rules read them. The placing spec applies `test-group-namespace` with `case-table = \"refused\"`, so a function, a type, a constant or an import written in the module file is reported where it stands."
+content = '''
+//! One nested part: its module file declares the part's role files.
+'''
+
+[[scenarios]]
+id = "part-module-declares-its-roles"
+scenario = "A nested part's module file that declares its service and its types has no finding."
+given.file = "lowering.rs"
+given.files.'lowering.rs' = '''
+//! Lowering of the greeting.
+
+pub(crate) mod service;
+pub(crate) mod types;
+'''
+
+[[scenarios]]
+id = "part-module-missing"
+scenario = "A placed part module cannot disappear."
+given.file = "lowering.rs"
+then.findings = [{ rule = "#count", path = "tastemaker.toml" }]

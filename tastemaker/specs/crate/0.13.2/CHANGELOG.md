@@ -4,6 +4,8 @@ Places by role what a product listed file by file: the crate's grouped integrati
 
 Edited in place: places `collection-members@0.2.0` with `item-trait = []`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query without their params (a `test-shape@0.1.0` entry reported nothing).
 
+Edited in place: the module file of a directory is `<dir>.rs` beside it, never `<dir>/mod.rs` (owner, 2026-11-11; `mod_module_files` denied by cargo-workspace 0.13.0). A group of the integration tests has its module file at `tests/<group>.rs`, at any depth, never `mod.rs` (`test-group-mod-rs-is-closed`); a file of no role in a group is refused by `test-group-namespace` where it was closed.
+
 # crate
 
 ## 0.13.1

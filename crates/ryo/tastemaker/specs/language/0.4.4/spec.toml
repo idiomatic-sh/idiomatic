@@ -20578,8 +20578,11 @@ The official test suite of the language and where it is published.
 The release or commit of the suite that is pinned here.
 '''
 given.files.'demo/src/domain/greeting/service.rs' = 'pub(crate) fn greet() {}'
-given.files.'demo/src/domain/greeting/lowering/mod.rs' = 'pub(crate) fn lower() {}'
+given.files.'demo/src/domain/greeting/lowering.rs' = 'pub(crate) fn lower() {}'
 given.files.'demo/src/domain/greeting/extra.rs' = 'pub(crate) fn extra() {}'
-then.only = ['idiomatic.arch/concept(domain-concept)#closed']
-then.findings = [{ rule = 'idiomatic.arch/concept(domain-concept)#closed', path = 'demo/src/domain/greeting/extra.rs' }]
+then.only = ['idiomatic.arch/concept(domain-concept)#closed', 'idiomatic.arch/test-group-namespace']
+then.findings = [
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'demo/src/domain/greeting/extra.rs', line = 1 },
+  { rule = 'idiomatic.arch/test-group-namespace', path = 'demo/src/domain/greeting/lowering.rs', line = 1 },
+]
 

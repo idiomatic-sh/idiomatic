@@ -1,5 +1,5 @@
 description = "Imports, external-crate bindings and type aliases of a path have inherited visibility outside the product’s placed SDK surface."
-why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary (the error a use case's signature carries is vocabulary as much as its data), and the application and domain types its contract is made of, wherever beneath `application/` or `domain/` they are declared: a type or trait of the crate that the signature of one of the interface's methods names, or that a type so named names in its fields, variants or methods, or that such a type implements or is implemented by, transitively (the handles a use case returns and the protocol traits they implement are its contract). An application item no such signature reaches, and every service function, stays forbidden. A test seam is no re-export: a `pub use` inside a `fixtures` module gated `cfg(any(test, feature = \"fixtures\"))` (its file, or an inline module) forwards the vocabulary a test needs, and only a test builds it. A use case's interface may forward an outbound port trait that the signature of an entry trait it declares or forwards names, since a caller must name the port to hand it in; an adapter, a port no entry signature names, and a forward from any other file stay forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
+why = "Consumers use the defining module. Public use, extern crate and type declarations forward another module’s item under a second path. A canonical inbound use-case interface may expose private domain */types and */errors signature vocabulary (the error a use case's signature carries is vocabulary as much as its data), and the application and domain types its contract is made of, wherever beneath `application/` or `domain/` they are declared: a type or trait of the crate that the signature of one of the interface's methods names, or that a type so named names in its fields, variants or methods, or that such a type implements or is implemented by, transitively (the handles a use case returns and the protocol traits they implement are its contract). An application item no such signature reaches, and every service function, stays forbidden. A `fixtures` module is no seam: a test imports the item from the module that defines it, as any consumer does. A use case's interface may forward an outbound port trait that the signature of an entry trait it declares or forwards names, since a caller must name the port to hand it in; an adapter, a port no entry signature names, and a forward from any other file stay forbidden. A port factory may expose its adapter connection module's named `Connection` handle for edge construction and injection; mixed exports or adapter implementations are not exempt. Only such a factory may also carry a local `clippy::pub_use` allowance that Clippy requires; `clippy::restriction` remains forbidden. This exception checks the factory location and imported path, not runtime ownership. The product excludes only the src tree of its actual SDK spec placement; CLI and ordinary crate roots receive no exception. The former derive-facade switch is removed. Syntax checking includes inactive cfg code and macro_rules bodies, but not procedural-macro expansion; the compiler construction boundary independently resolves aliases when checking composition."
 
 query = '''
 param internal-crates: set<string>;
@@ -109,27 +109,6 @@ let contract-named = select l."id" as "id" from contract-items as l join contrac
 let contract-application-imports = select l."id" as "id" from contract-named as l join contract-crate-rooted as r on l."id" = r."id";
 let domain-signature-ids = project(from=signature-imports, columns=["id"]);
 let contract-and-domain-ids = union(left=domain-signature-ids, right=contract-application-imports);
-let fixture-cfgs = select * from "decorates" where target = "cfg" and glob_any(arguments, "any(test, feature = ?fixtures?)");
-let fixture-modules = select r."id" as "id", r."file" as "file" from fixture-cfgs as l join "defines" as r on l."declaration" = r."id" where r."kind" = "namespace" and r."name" = "fixtures";
-let fixture-places = capture(from=fixture-modules, path="file", pattern="{*dir}/{stem}.rs", captures=["dir", "stem"]);
-let source-files = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "**/*.rs");
-let nested-fixture-files = capture(from=source-files, path="file", pattern="{*dir}/{stem}/fixtures.rs", captures=["dir", "stem"]);
-let nested-fixture-trees = capture(from=source-files, path="file", pattern="{*dir}/{stem}/fixtures/{*rest}", captures=["dir", "stem", "rest"]);
-let nested-gated-files = select r."file" as "file" from fixture-places as l join nested-fixture-files as r on l."dir" = r."dir" and l."stem" = r."stem";
-let nested-gated-trees = select r."file" as "file" from fixture-places as l join nested-fixture-trees as r on l."dir" = r."dir" and l."stem" = r."stem";
-let root-fixture-places = select * from fixture-places where glob_any(stem, "{lib,main,mod}");
-let root-fixture-files = capture(from=source-files, path="file", pattern="{*dir}/fixtures.rs", captures=["dir"]);
-let root-fixture-trees = capture(from=source-files, path="file", pattern="{*dir}/fixtures/{*rest}", captures=["dir", "rest"]);
-let root-gated-files = select r."file" as "file" from root-fixture-places as l join root-fixture-files as r on l."dir" = r."dir";
-let root-gated-trees = select r."file" as "file" from root-fixture-places as l join root-fixture-trees as r on l."dir" = r."dir";
-let gated-files-0 = union(left=nested-gated-files, right=nested-gated-trees);
-let gated-files-1 = union(left=gated-files-0, right=root-gated-files);
-let gated-fixture-files = union(left=gated-files-1, right=root-gated-trees);
-let fixture-file-imports = select l."id" as "id" from visible-imports as l join gated-fixture-files as r on l."file" = r."file";
-let inline-fixture-modules = project(from=fixture-modules, columns=["id"]);
-let inline-fixture-reach = axis(from=visible-imports, relation="syntax-child", direction=ancestor, domain=inline-fixture-modules);
-let inline-fixture-imports = project(from=inline-fixture-reach, columns=["id"]);
-let fixture-seam-ids = union(left=fixture-file-imports, right=inline-fixture-imports);
 let port-prefixes = select * from contract-prefix-names where text = "outbound";
 let contract-item-files = select l."id" as "id", l."text" as "text", r."file" as "forwarder" from contract-items as l join signature-interfaces as r on l."id" = r."id";
 let port-forwards = select l."id" as "id", l."text" as "text", l."forwarder" as "forwarder" from contract-item-files as l join port-prefixes as r on l."id" = r."id";
@@ -145,7 +124,7 @@ let entry-references = axis(from=entry-traits, relation="syntax-child", directio
 let entry-names = select l."forwarder" as "forwarder", r."text" as "text" from entry-references as l join token-edges as r on l."related" = r."parent";
 let seam-ports = select l."id" as "id" from port-traits as l join entry-names as r on l."text" = r."text" and l."forwarder" = r."forwarder";
 let seam-port-ids = project(from=seam-ports, columns=["id"]);
-let seam-ids = union(left=fixture-seam-ids, right=seam-port-ids);
+let seam-ids = project(from=seam-port-ids, columns=["id"]);
 let allowed-signature-ids = union(left=contract-and-domain-ids, right=seam-ids);
 let other-forwarding = antijoin(left=visible-forwarding, right=resource-imports, left-on=["id"], right-on=["id"]);
 let forbidden-forwarding = antijoin(left=other-forwarding, right=allowed-signature-ids, left-on=["id"], right-on=["id"]);
@@ -1859,8 +1838,9 @@ pub struct Row;
 given.files.'src/owner/fixtures.rs' = '''
 pub use super::types::Row;
 '''
-
-
+then.findings = [
+  { path = 'src/owner/fixtures.rs', line = 1 },
+]
 [[scenarios]]
 id = 'ungated-fixtures-module-forward'
 scenario = "A `pub use` in a fixtures module with no gate is still a re-export."

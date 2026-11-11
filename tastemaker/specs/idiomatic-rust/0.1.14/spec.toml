@@ -924,7 +924,7 @@ given.files.'demo/src/lib.rs' = '''
 
 pub mod size;
 '''
-given.files.'demo/src/size/mod.rs' = '''
+given.files.'demo/src/size.rs' = '''
 //! The size.
 
 pub mod types;
@@ -1149,7 +1149,7 @@ given.files.'demo/src/application/owner/service_test.rs' = '''
 #[cfg(test)]
 mod publication;
 '''
-given.files.'demo/src/application/owner/service_test/publication/mod.rs' = '''
+given.files.'demo/src/application/owner/service_test/publication.rs' = '''
 #[cfg(test)] mod fixtures;
 #[cfg(test)] mod test;
 '''
@@ -1250,7 +1250,7 @@ given.files.'demo/src/domain/x/service_test.rs' = '''
 #[cfg(test)]
 mod reads;
 '''
-given.files.'demo/src/domain/x/service_test/reads/mod.rs' = '''
+given.files.'demo/src/domain/x/service_test/reads.rs' = '''
 #[cfg(test)]
 mod fixtures;
 #[cfg(test)]
@@ -1274,7 +1274,7 @@ then.only = ['idiomatic.arch/no-ok-on-result']
 [[scenarios]]
 id = 'client-in-a-nested-adapter-part-is-allowed'
 scenario = "A nested part of an adapter is still the adapter: it may name a client library."
-given.files.'demo/src/outbound/store/adapters/disk/decode/mod.rs' = '''
+given.files.'demo/src/outbound/store/adapters/disk/decode.rs' = '''
 //! Decodes in parallel.
 use rayon::prelude::*;
 pub(crate) fn decode(rows: &[u8]) -> u8 {

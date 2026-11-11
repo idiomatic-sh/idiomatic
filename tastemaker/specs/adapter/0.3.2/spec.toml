@@ -4508,7 +4508,7 @@ pub mod journal;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod cases;
 '''
-given.files.'src/journal/adapters/memory/decode/mod.rs' = 'pub(crate) mod types;'
+given.files.'src/journal/adapters/memory/decode.rs' = 'pub(crate) mod types;'
 given.files.'src/journal/adapters/memory/decode/types.rs' = '''
 //! The decoder's data.
 
@@ -4520,6 +4520,5 @@ pub struct Frame {
 then.only = ['idiomatic.arch/adapter#closed']
 
 then.findings = [
-  { rule = 'idiomatic.arch/adapter#closed', path = 'src/journal/adapters/memory/decode/mod.rs' },
   { rule = 'idiomatic.arch/adapter#closed', path = 'src/journal/adapters/memory/decode/types.rs' },
 ]

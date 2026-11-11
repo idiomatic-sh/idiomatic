@@ -1,5 +1,5 @@
 description = "A test group's module file declares modules only: its test, its fixtures and its sub-groups, never a test function or a helper; a spec that places a nested part's module file holds it here the same way, to the part's role files. With `case-table = \"exempt\"`, a file that declares a `CASES` table is a case table instead, and holds the table's skeleton: `type Input`, `type Value`, `type Failure`, `const CASES: &[Case<Input, Value, Failure>]` and `fn subject`."
-why = "A group of cases is a directory: its `mod.rs` names what the group holds (`test`, `fixtures`, and the groups nested in it), and the group's tests and support live in those files. A module file that declares only sub-groups is a group namespace and needs no `test` of its own; a module file that holds a `#[test]` function, a helper, a type or a constant has become a second test file nobody looks for. A module file that declares no module at all is reported where its code begins. Every top-level item that is not a `mod x;` declaration is reported where it stands, an inline module with a body (`mod tests { … }`) among them: it would hold the tests and helpers the group's files are for (attributes on the declarations, such as `#[cfg(test)]`, are part of them). A service's proof that is one of two forms (`case-table = \"exempt\"`) and declares `CASES` is the other form, a case table: it is placed by a template of one doc line, so the table's skeleton, which the `unit-test` template writes, is held here, each missing piece and an untyped table reported at the table; its runners are `test-shape`'s."
+why = "A group of cases is a directory: its module file `<group>.rs`, beside it, names what the group holds (`test`, `fixtures`, and the groups nested in it), and the group's tests and support live in those files. A module file that declares only sub-groups is a group namespace and needs no `test` of its own; a module file that holds a `#[test]` function, a helper, a type or a constant has become a second test file nobody looks for. A module file that declares no module at all is reported where its code begins. Every top-level item that is not a `mod x;` declaration is reported where it stands, an inline module with a body (`mod tests { … }`) among them: it would hold the tests and helpers the group's files are for (attributes on the declarations, such as `#[cfg(test)]`, are part of them). A service's proof that is one of two forms (`case-table = \"exempt\"`) and declares `CASES` is the other form, a case table: it is placed by a template of one doc line, so the table's skeleton, which the `unit-test` template writes, is held here, each missing piece and an untyped table reported at the table; its runners are `test-shape`'s."
 
 query = '''
 param case-table: string;
@@ -77,21 +77,21 @@ emit found subject "file" key("span", "problem");
 
 [params.case-table]
 type = { one-of = ["refused", "exempt"] }
-description = "What a file that declares a `CASES` table is: `refused` for a group's `mod.rs`, which only declares the group's modules; `exempt` for a service's `service_test.rs`, which is one of two forms chosen by that one fact, a case table (its skeleton held here, its runners by the case-table rules) or a namespace of groups (held here)."
+description = "What a file that declares a `CASES` table is: `refused` for a group's module file `<group>.rs`, or a nested part's `<part>.rs`, which only declares the group's modules; `exempt` for a service's `service_test.rs`, which is one of two forms chosen by that one fact, a case table (its skeleton held here, its runners by the case-table rules) or a namespace of groups (held here)."
 
 [diagnostic]
 primary = "span"
 message = "`{kind}` {problem}"
-help = "Move a `#[test]` function into the group's `test.rs`, and a helper, a type or a constant into its `fixtures.rs`; the module file declares `test`, `fixtures` and the nested groups. A case table declares the skeleton the `unit-test` template writes: `type Input`, `type Value`, `type Failure`, `const CASES: &[Case<Input, Value, Failure>]` and `fn subject`."
+help = "A module file declares its directory's modules and nothing else: move each item into the file of its role beside it. In a group of cases, a `#[test]` function goes in the group's `test.rs` and a helper, a type or a constant in its `fixtures.rs`; in a nested part, a function goes in its `service.rs`, data in its `types.rs`, a failure in its `errors.rs` and a constant in its `constants.rs`. A case table declares the skeleton the `unit-test` template writes: `type Input`, `type Value`, `type Failure`, `const CASES: &[Case<Input, Value, Failure>]` and `fn subject`."
 
 [given]
-include = ["**/mod.rs"]
+include = ["**/service_test/*.rs"]
 params = { case-table = "refused" }
 
 [[scenarios]]
 id = "group-with-its-test"
 scenario = "A group module that declares its test and its fixtures passes."
-given.files.'src/owner/service_test/publication/mod.rs' = '''
+given.files.'src/owner/service_test/publication.rs' = '''
 //! The publication group.
 #[cfg(test)]
 mod fixtures;
@@ -102,7 +102,7 @@ pub(super) mod test;
 [[scenarios]]
 id = "group-namespace"
 scenario = "A group module that only declares its sub-groups is a namespace and passes with no test of its own."
-given.files.'src/owner/service_test/interpreter/mod.rs' = '''
+given.files.'src/owner/service_test/interpreter.rs' = '''
 //! The interpreter's groups.
 #[cfg(test)]
 mod budget;
@@ -113,30 +113,30 @@ mod population;
 [[scenarios]]
 id = "group-module-holding-a-test"
 scenario = "A group module that holds a `#[test]` function is reported at it."
-given.files.'src/owner/service_test/publication/mod.rs' = '''
+given.files.'src/owner/service_test/publication.rs' = '''
 #[cfg(test)]
 pub(super) mod test;
 
 #[test]
 fn publishes() {}
 '''
-then.findings = [{ path = "src/owner/service_test/publication/mod.rs", line = 4 }]
+then.findings = [{ path = "src/owner/service_test/publication.rs", line = 4 }]
 
 [[scenarios]]
 id = "group-module-holding-a-helper"
 scenario = "A group module that holds a helper function is reported at it."
-given.files.'src/owner/service_test/interpreter/mod.rs' = '''
+given.files.'src/owner/service_test/interpreter.rs' = '''
 #[cfg(test)]
 mod budget;
 
 pub(super) fn owner() {}
 '''
-then.findings = [{ path = "src/owner/service_test/interpreter/mod.rs", line = 4 }]
+then.findings = [{ path = "src/owner/service_test/interpreter.rs", line = 4 }]
 
 [[scenarios]]
 id = "group-module-holding-an-inline-module"
 scenario = "A group module that hides tests in an inline module with a body is reported at it."
-given.files.'src/owner/service_test/publication/mod.rs' = '''
+given.files.'src/owner/service_test/publication.rs' = '''
 #[cfg(test)]
 pub(super) mod test;
 
@@ -146,7 +146,7 @@ mod inline {
     fn hidden() {}
 }
 '''
-then.findings = [{ path = "src/owner/service_test/publication/mod.rs", line = 4 }]
+then.findings = [{ path = "src/owner/service_test/publication.rs", line = 4 }]
 
 [[scenarios]]
 id = "service-test-namespace"
@@ -259,13 +259,13 @@ then.findings = [
 [[scenarios]]
 id = 'group-module-table-is-not-a-case-table'
 scenario = 'A group module that declares `CASES` is refused at the table as an item, and is not read as a case table.'
-given.include = ["**/mod.rs"]
-given.files.'src/owner/service_test/order/mod.rs' = '''
+given.include = ["**/service_test/*.rs"]
+given.files.'src/owner/service_test/order.rs' = '''
 #[cfg(test)]
 pub(super) mod test;
 
 const CASES: &[u8] = &[];
 '''
 then.findings = [
-  { path = 'src/owner/service_test/order/mod.rs', line = 4 },
+  { path = 'src/owner/service_test/order.rs', line = 4 },
 ]
