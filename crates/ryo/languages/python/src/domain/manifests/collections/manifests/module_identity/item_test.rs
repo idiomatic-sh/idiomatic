@@ -22,8 +22,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[
                 "packages/lib_one/src/lib_one/__init__.py \"lib_one.__init__\" \"__init__\" \"lib_one\" \"lib_one\"",
             ],
-            causes: &[
-            ],
+            causes: &[],
         }),
     },
     Case {
@@ -37,8 +36,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "tools/__init__.py \"tools.__init__\" \"__init__\" \"tools\" \"tools\"",
                 "tools/cli.py \"tools.cli\" \"cli\" \"tools\" \"tools\"",
             ],
-            causes: &[
-            ],
+            causes: &[],
         }),
     },
 ];

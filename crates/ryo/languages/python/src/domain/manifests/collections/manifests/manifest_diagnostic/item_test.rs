@@ -13,7 +13,8 @@ type Value = Reading;
 type Failure = ();
 
 /// A repository whose one manifest is valid toml that names its project with a number.
-const A_NUMBER_FOR_A_NAME: &[(&str, &str)] = &[("pyproject.toml", "[project]\nname = 3\n"), ("a.py", "")];
+const A_NUMBER_FOR_A_NAME: &[(&str, &str)] =
+    &[("pyproject.toml", "[project]\nname = 3\n"), ("a.py", "")];
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -34,8 +35,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[
                 "b/pyproject.toml at 8..8 \"span\" \"parse\" \"python-project-metadata\" \"invalid-toml\" \"unclosed table, expected `]`\"",
             ],
-            causes: &[
-            ],
+            causes: &[],
         }),
     },
     Case {
@@ -46,8 +46,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             rows: &[
                 "pyproject.toml at 17..18 \"span\" \"validation\" \"python-project-metadata\" \"invalid-project-metadata\" \"invalid type: integer `3`, expected a string\"",
             ],
-            causes: &[
-            ],
+            causes: &[],
         }),
     },
 ];

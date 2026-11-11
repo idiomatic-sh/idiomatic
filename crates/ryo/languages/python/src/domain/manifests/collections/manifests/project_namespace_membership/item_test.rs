@@ -24,7 +24,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
-        name: CaseName("with_no_search_scope_each_prefix_of_an_absolute_import_is_unknown_and_the_relation_partial"),
+        name: CaseName(
+            "with_no_search_scope_each_prefix_of_an_absolute_import_is_unknown_and_the_relation_partial",
+        ),
         word: Word::Succeeds,
         input: || IMPORTS,
         expect: Expect::Value(Reading {
@@ -41,9 +43,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "app.py \"tools\" \"tools.cli\" \"unknown\" \"unknown\"",
                 "tools/cli.py \"app\" \"app\" \"unknown\" \"unknown\"",
             ],
-            causes: &[
-                "project namespace membership has an unobserved search entry",
-            ],
+            causes: &["project namespace membership has an unobserved search entry"],
         }),
     },
 ];
