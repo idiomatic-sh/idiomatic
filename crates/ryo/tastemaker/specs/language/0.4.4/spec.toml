@@ -2580,7 +2580,7 @@ closed = false
 # The parser crates demo reads with are declared here, once, as the variable `libraries`: `imports-allow` adds them to the
 # language's allow-list, and its own `client-at-adapter` below keeps them in its syntax adapter. Its own Cargo.toml names them, and
 # nothing else does.
-variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+variables = { domain-libraries = ["indexmap::*"], libraries = ["demo_parser::*", "demo_lexer::*"] }
 imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]
 rules = [
   { rule = "idiomatic.ryo/source-import-allowlist", include = ["src/tastemaker.toml"], params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } },
@@ -2588,7 +2588,7 @@ rules = [
 ]
 templates = [{ template = "idiomatic.ryo/provider-allowances", file = "src/tastemaker.toml", params = { libraries = { variable = "libraries" }, extra = { variable = "domain-libraries" } } }]
 '''
-given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*"]'
+given.files.'demo/src/tastemaker.toml' = 'imports-allow = ["demo_parser::*", "demo_lexer::*", "indexmap::*"]'
 given.files.'demo/tests/allocation.rs' = '''
 //! The allocation row of the language contract: reading a file allocates no more than the parser library does on its own. It runs alone in its process, with `dhat` as the global allocator, so nothing else counts.
 

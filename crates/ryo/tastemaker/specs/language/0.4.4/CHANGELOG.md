@@ -14,6 +14,8 @@ Edited in place: the `unit-cases` entry also reads the group tests (`*_test/**/t
 
 Edited in place: the `unit-cases` entry reads `*_test/**/*.rs` beside its own files, the flat groups and the group directories of a namespace test, which the rule reads only when its entry includes them.
 
+Edited in place: the `language-tastemaker` template is exact (`match = "declarations"`): an entry that adds an exclude, an include or a param the template does not write is reported (scenarios `client-entry-with-an-extra-exclude`, `client-entry-with-an-extra-include`, `client-entry-with-an-extra-param`); a manifest's variables may hold values beyond it.
+
 # language 0.4.3
 
 Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `benchmark-targets` 0.2.0: a linter's bench and test targets are declared by its own package under `benchmarks/linters/<linter>/`, and refused in the language's `Cargo.toml`.

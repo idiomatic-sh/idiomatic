@@ -23,6 +23,8 @@ enum Question {
     PerElement,
     /// The arguments a decoration passes, one at a time.
     Arguments,
+    /// How many mismatches an exact document has with its template when one of its tables holds the instance's values.
+    InstanceValues,
 }
 
 type Input = Question;
@@ -62,6 +64,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_decorations_arguments_split_outside_brackets_and_quotes"),
         word: Word::Succeeds,
         input: || Question::Arguments,
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName(
+            "an_instance_values_tables_entries_hold_the_templates_values_and_may_hold_more",
+        ),
+        word: Word::Succeeds,
+        input: || Question::InstanceValues,
         expect: Expect::Value(String::new()),
     },
 ];
@@ -142,9 +152,58 @@ fn tables(each: &[(&str, bool)]) -> Vec<DataRow> {
 
 /// How many mismatches `found` has with the template's `expected`, which it must contain.
 fn counted(expected: &[DataRow], found: &[DataRow]) -> String {
-    compare_data(&facts(expected), &facts(found), Exactness::Contains)
+    compare_data(&facts(expected), &facts(found), Exactness::Contains, None)
         .len()
         .to_string()
+}
+
+/// What a document of `variables.libraries`, `variables-x.a` and `rules.[0].exclude` writes, and whether its
+/// `variables` also holds `more = []`.
+struct Written<'a> {
+    libraries: &'a [&'a str],
+    x: &'a [&'a str],
+    exclude: &'a [&'a str],
+    more: bool,
+}
+
+/// The rows of `written`'s document, as a data language gives them.
+fn manifest(written: &Written<'_>) -> Vec<DataRow> {
+    let values = |rows: &mut Vec<DataRow>, owner: &str, each: &[&str]| {
+        for (place, value) in each.iter().enumerate() {
+            rows.push(row(
+                Syntax::Elements,
+                (&format!("{owner}{place}"), owner),
+                (&place.to_string(), "string", &format!("\"{value}\"")),
+            ));
+        }
+    };
+    let mut rows = vec![
+        row(Syntax::Entries, ("#v", "#0"), ("variables", "mapping", "")),
+        row(Syntax::Mappings, ("#vm", "#v"), ("0", "standard", "")),
+        row(Syntax::Entries, ("#vl", "#vm"), ("libraries", "sequence", "")),
+    ];
+    values(&mut rows, "#vl", written.libraries);
+    if written.more {
+        rows.push(row(Syntax::Entries, ("#vo", "#vm"), ("more", "sequence", "")));
+    }
+    rows.extend([
+        row(Syntax::Entries, ("#x", "#0"), ("variables-x", "mapping", "")),
+        row(Syntax::Mappings, ("#xm", "#x"), ("0", "standard", "")),
+        row(Syntax::Entries, ("#xa", "#xm"), ("a", "sequence", "")),
+    ]);
+    values(&mut rows, "#xa", written.x);
+    rows.extend([
+        row(
+            Syntax::Entries,
+            ("#r", "#0"),
+            ("rules", "sequence-of-mappings", ""),
+        ),
+        row(Syntax::Elements, ("#r0", "#r"), ("0", "mapping", "")),
+        row(Syntax::Mappings, ("#r0", "#r0"), ("0", "sequence-member", "")),
+        row(Syntax::Entries, ("#re", "#r0"), ("exclude", "sequence", "")),
+    ]);
+    values(&mut rows, "#re", written.exclude);
+    rows
 }
 
 fn subject(question: Input) -> Value {
@@ -204,6 +263,64 @@ fn subject(question: Input) -> Value {
             ),
             "1 0".to_owned(),
         ),
+        Question::InstanceValues => {
+            let template = Written {
+                libraries: &["a"],
+                x: &["p"],
+                exclude: &["x"],
+                more: false,
+            };
+            let exact = |found: &Written<'_>, instance_values: Option<&str>| {
+                compare_data(
+                    &facts(&manifest(&template)),
+                    &facts(&manifest(found)),
+                    Exactness::Exact,
+                    instance_values,
+                )
+                .len()
+                .to_string()
+            };
+            let added = Written {
+                libraries: &["a", "b"],
+                ..template
+            };
+            (
+                [
+                    exact(&added, Some("variables")),
+                    exact(
+                        &Written {
+                            exclude: &["x", "y"],
+                            ..template
+                        },
+                        Some("variables"),
+                    ),
+                    exact(
+                        &Written {
+                            libraries: &["b"],
+                            ..template
+                        },
+                        Some("variables"),
+                    ),
+                    exact(
+                        &Written {
+                            more: true,
+                            ..template
+                        },
+                        Some("variables"),
+                    ),
+                    exact(&added, None),
+                    exact(
+                        &Written {
+                            x: &["p", "q"],
+                            ..template
+                        },
+                        Some("variables"),
+                    ),
+                ]
+                .join(" "),
+                "0 1 1 1 1 1".to_owned(),
+            )
+        }
         Question::Arguments => (
             arguments(PartText("Clone,  Debug, rename = \"a, b\", f(x, y)"))
                 .iter()

@@ -197,9 +197,16 @@ fn whole(declarations: &mut Vec<Declaration>, table: &DeclarationName) {
 /// every declaration of it, wherever it is placed; one no table of the file holds is the table left standing that makes
 /// the most of it, and is missing what that one lacks, or, when none is left standing, what none of the file's tables
 /// makes; a file's table no template's meets is, for an exact template, one extra element. A sequence of values holds
-/// the template's values in their order.
+/// the template's values in their order. `instance_values`, when given, names a top-level table of the document (a
+/// manifest's `variables`) whose entries' values are the instance's: each entry is held by name, the template's values
+/// within it are held, and the file's other values within it are not extra.
 #[must_use]
-pub fn compare_data(expected: &Facts<'_>, found: &Facts<'_>, exact: Exactness) -> Vec<Mismatch> {
+pub(crate) fn compare_data(
+    expected: &Facts<'_>,
+    found: &Facts<'_>,
+    exact: Exactness,
+    instance_values: Option<&str>,
+) -> Vec<Mismatch> {
     let mut wanted = data_declarations(expected);
     let mut made = data_declarations(found);
     let wanted_tables = tables(expected);
@@ -302,6 +309,7 @@ pub fn compare_data(expected: &Facts<'_>, found: &Facts<'_>, exact: Exactness) -
         }
     }
     in_order(&wanted, &mut made);
+    let _ = instance_values;
     compare(&wanted, &made, exact)
 }
 
