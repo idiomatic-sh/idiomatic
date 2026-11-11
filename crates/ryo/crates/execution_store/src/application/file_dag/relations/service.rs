@@ -132,7 +132,7 @@ impl RelationOwner {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::{types::ReuseEligibility, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::{types::ReuseEligibility, service::RelationOwner};
     /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
     /// assert_eq!(owner.stable(), ReuseEligibility::Eligible);
     /// ```

@@ -86,7 +86,7 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 /// ```
 /// use ryo_execution_store::application::file_dag::relations::publication::types::PublicationBody;
 /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-/// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, RelationOwner};
+/// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
 /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 /// use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
 /// use ryo_values::domain::rows::types::{RowCount, Table};

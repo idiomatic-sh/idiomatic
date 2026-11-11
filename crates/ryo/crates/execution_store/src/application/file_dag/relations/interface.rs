@@ -12,7 +12,7 @@ use ryo_execution_domain::domain::table_model::types::{RepresentationInput, Rows
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 /// Seals [`RelationsPort`]: the trait is public so the runtime can hold the store through it, and its one implementation is
-/// [`RelationOwner`](super::RelationOwner)'s, so a replacement of the store touches `relations.rs` only.
+/// [`RelationOwner`](super::service::RelationOwner)'s, so a replacement of the store touches `relations.rs` only.
 pub(crate) mod sealed {
     /// Implemented only by `RelationOwner`: no other type, in this crate or another, implements it or `RelationsPort`.
     #[expect(
@@ -99,7 +99,7 @@ pub(crate) mod sealed {
 /// use ryo_execution_domain::domain::operating::errors::OperatingError;
 /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
 /// use ryo_execution_store::application::file_dag::relations::{
-///     interface::RelationsPort, types::ReuseEligibility, RelationOwner,
+///     interface::RelationsPort, types::ReuseEligibility, service::RelationOwner,
 /// };
 /// let store = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
 /// let resident = store.generation();

@@ -42,7 +42,7 @@ impl GenerationLease {
 ///
 /// ```
 /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-/// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, RelationOwner};
+/// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
 /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
 /// let generation = owner.generation();
@@ -58,7 +58,7 @@ impl ResidentGeneration {
     /// ```
     /// use ryo_execution_domain::domain::operating::errors::OperatingError;
     /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
     /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
     /// let a = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
     /// let b = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
@@ -86,7 +86,7 @@ impl ResidentGeneration {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
     /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
     /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
     /// let generation = owner.generation();
@@ -102,7 +102,7 @@ impl ResidentGeneration {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
     /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
     /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
     /// let generation = owner.generation();

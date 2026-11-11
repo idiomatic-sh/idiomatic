@@ -20,10 +20,10 @@ impl RequestDerived {
     ///
     /// ```
     /// use ryo_execution_store::application::file_dag::derived::owner::cache::types::GraphAdmission;
-    /// use ryo_execution_store::application::file_dag::derived::prepared::{RequestDerived, RuleDerivedNeeds};
+    /// use ryo_execution_store::application::file_dag::derived::prepared::{service::RequestDerived, types::RuleDerivedNeeds};
     /// use ryo_relations::domain::relations::types::Relation;
     /// use ryo_execution_store::application::file_dag::fixtures::program_derived_port;
-    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, RelationOwner};
+    /// use ryo_execution_store::application::file_dag::relations::{interface::RelationsPort, service::RelationOwner};
     /// use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
     /// let owner = RelationOwner::fixture(ReuseEligibility::Eligible, program_derived_port());
     /// let needs = RuleDerivedNeeds { relations: Box::new([Relation::Function]), graph: GraphAdmission::Disabled };
