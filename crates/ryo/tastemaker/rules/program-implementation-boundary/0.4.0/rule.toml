@@ -11,23 +11,29 @@ let callable-dependencies = antijoin(left="source-dependency", right=visibility-
 let paths = capture(from=callable-dependencies, path="source", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
 let targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/program/{*implementation-tail}", captures=["target-root", "implementation-tail"]);
 let local = select source as file, span, source-tail, implementation-tail from targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,rule_outcome/types.rs,observed_publication/types.rs,observed_publication/service.rs,prepared_execution/{interface,service,types}.rs,request_execution/{interface,service,types}.rs,file_session/{interface,types}.rs,project_phase/{interface,types}.rs,observation_stage/{interface,types}.rs,facade_runtime.rs,facade_runtime/file_execution.rs,facade_runtime/project_execution.rs,facade_runtime/service.rs,facade_runtime/types.rs,admission.rs,restored.rs,restored/types.rs}");
+let protected = select * from local where not glob_any(implementation-tail, "{preparation/service.rs,preparation/types.rs,rule_outcome/types.rs,observed_publication/types.rs,observed_publication/service.rs,prepared_execution/{interface,service,types}.rs,request_execution/{interface,service,types}.rs,file_session/{interface,types}.rs,project_phase/{interface,types}.rs,observation_stage/{interface,types}.rs,facade_runtime.rs,facade_runtime/file_execution.rs,facade_runtime/file_execution/service.rs,facade_runtime/project_execution.rs,facade_runtime/project_execution/service.rs,facade_runtime/service.rs,facade_runtime/types.rs,admission.rs,admission/{service,types}.rs,restored.rs,restored/{service,types}.rs}");
 let outsiders = select * from protected where not glob_any(source-tail, "{application/file_dag/program.rs,application/file_dag/program/**}");
-let ordinary-bridges = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,runtime/service.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs,application/file_dag/execution/lease/capability/service.rs}");
-let bridges = select * from ordinary-bridges where source-tail != "application/file_dag/executor.rs" or not glob_any(implementation-tail, "{native_walk/lease/service.rs,native_join/lease/service.rs}");
+let ordinary-bridges = select * from outsiders where not glob_any(implementation-tail, "{admission.rs,admission/{service,types}.rs,runtime/service.rs}") or not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/executor/{service,types}.rs,application/file_dag/execution.rs,application/file_dag/execution/{service,types}.rs,application/file_dag/execution/lease.rs,application/file_dag/execution/lease/service.rs,application/file_dag/execution/lease/capability/service.rs}");
+let bridges = select * from ordinary-bridges where not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/executor/{service,types}.rs}") or not glob_any(implementation-tail, "{native_walk/lease/service.rs,native_join/lease/service.rs}");
 let forbidden = select * from bridges where implementation-tail != "runtime/service.rs" or not glob_any(source-tail, "{application/file_dag/derived/owner/raw_scope.rs,application/file_dag/derived/owner/acquisition/admission/service/issuance/service.rs}");
 let program-violations = select file, span from forbidden;
-let lease-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
+let lease-modules = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease.rs", captures=["target-root"]);
+let lease-services = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease/service.rs", captures=["target-root"]);
+let lease-module-targets = select source, span, source-root, source-tail, target-root from lease-modules;
+let lease-service-targets = select source, span, source-root, source-tail, target-root from lease-services;
+let lease-targets = union(left=lease-module-targets, right=lease-service-targets);
 let local-leases = select source as file, span, source-tail from lease-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}");
-let cache-files = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
-let cache-modules = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
+let foreign-leases = select file, span from local-leases where not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/executor/{service,types}.rs,application/file_dag/execution.rs,application/file_dag/execution/{service,types}.rs,application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}");
+let cache-file-paths = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}.rs", captures=["target-root", "cache-part"]);
+let cache-module-paths = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/derived/owner/{cache-part}/{*cache-tail}", captures=["target-root", "cache-part", "cache-tail"]);
+let cache-files = select source, span, source-root, source-tail, target-root, cache-part from cache-file-paths;
+let cache-modules = select source, span, source-root, source-tail, target-root, cache-part from cache-module-paths;
 let cache-targets = union(left=cache-files, right=cache-modules);
 let local-cache = select source as file, span, source-tail, cache-part from cache-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let raw-cache = select * from local-cache where glob_any(cache-part, "{acquisition,raw_scope,leases}");
 let foreign-cache = select file, span from raw-cache where not glob_any(source-tail, "{application/file_dag/derived/owner.rs,application/file_dag/derived/owner/**,application/file_dag/testing.rs}");
 let capability-targets = capture(from=paths, path="target", pattern="{*target-root}/application/file_dag/execution/lease/capability/service.rs", captures=["target-root"]);
-let foreign-capabilities = select source as file, span from capability-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/execution.rs,application/file_dag/execution/lease.rs}");
+let foreign-capabilities = select source as file, span from capability-targets where source-root = target-root and glob_any(source-root, "{src,**/src}") and not glob_any(source-tail, "{application/file_dag/executor.rs,application/file_dag/executor/{service,types}.rs,application/file_dag/execution.rs,application/file_dag/execution/{service,types}.rs,application/file_dag/execution/lease.rs,application/file_dag/execution/lease/service.rs}");
 let lease-boundaries = union(left=foreign-leases, right=foreign-capabilities);
 let dispatch-violations = union(left=program-violations, right=lease-boundaries);
 let owner-violations = union(left=dispatch-violations, right=foreign-cache);
@@ -47,19 +53,27 @@ let domain-application = select file, span from all-application where source-tai
 let protected-app = union(left=app-violations, right=domain-application);
 let kernel-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/executable_program/kernel.rs", captures=["target-root"]);
 let local-kernel = select source as file, span, source-tail from kernel-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}");
-let registry-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
+let foreign-kernel = select file, span from local-kernel where not glob_any(source-tail, "{domain/executable_program.rs,domain/executable_program/**,application/file_dag/execution.rs,application/file_dag/execution/{service,types}.rs,application/file_dag/program/kernel_session.rs,application/file_dag/program/kernel_session/**}");
+let registry-modules = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration.rs", captures=["target-root"]);
+let registry-parts = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/registration/{*registry-tail}", captures=["target-root", "registry-tail"]);
+let registry-module-targets = select source, span, source-root, source-tail, target-root from registry-modules;
+let registry-part-targets = select source, span, source-root, source-tail, target-root from registry-parts;
+let registry-targets = union(left=registry-module-targets, right=registry-part-targets);
 let local-registry = select source as file, span, source-tail from registry-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
 let foreign-registry = select file, span from local-registry where not glob_any(source-tail, "{domain/operator/contract.rs,domain/operator/contract/**,domain/operator/service.rs,application/file_dag/execution/lease/capability/service.rs}");
-let context-targets = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/context.rs", captures=["target-root"]);
+let context-modules = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/context.rs", captures=["target-root"]);
+let context-parts = capture(from=paths, path="target", pattern="{*target-root}/domain/operator/contract/context/{*context-tail}", captures=["target-root", "context-tail"]);
+let context-module-targets = select source, span, source-root, source-tail, target-root from context-modules;
+let context-part-targets = select source, span, source-root, source-tail, target-root from context-parts;
+let context-targets = union(left=context-module-targets, right=context-part-targets);
 let local-context = select source as file, span, source-tail from context-targets where source-root = target-root and glob_any(source-root, "{src,**/src}");
-let foreign-context = select file, span from local-context where source-tail != "application/file_dag/execution/lease.rs";
+let foreign-context = select file, span from local-context where not glob_any(source-tail, "{application/file_dag/execution/lease.rs,application/file_dag/execution/lease/service.rs}");
 let domain-entry-violations = union(left=foreign-kernel, right=foreign-registry);
 let domain-violations = union(left=domain-entry-violations, right=foreign-context);
 let neutral-backrefs = select file, span from local where
     (glob_any(source-tail, "application/file_dag/program/{rule_outcome,observed_publication}/**") and glob_any(implementation-tail, "{preparation/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
     or (glob_any(source-tail, "application/file_dag/program/preparation/**") and glob_any(implementation-tail, "{rule_outcome/**,observed_publication/**,runtime/**,facade_runtime.rs,facade_runtime/**,kernel_session.rs,kernel_session/**,native_walk.rs,native_join.rs}"))
-    or (source-tail = "application/file_dag/program/admission.rs" and glob_any(implementation-tail, "runtime/**"))
+    or (glob_any(source-tail, "{application/file_dag/program/admission.rs,application/file_dag/program/admission/**}") and glob_any(implementation-tail, "runtime/**"))
     or (source-tail = "application/file_dag/program/runtime/types.rs" and implementation-tail = "runtime/service.rs");
 let invocation-boundary = union(left=protected-app, right=domain-violations);
 let direct-implementations = select file, span, declaration, target as contract from "inherits" where glob_any(target, "{KernelInvocation,*::KernelInvocation,Inputs,*::Inputs,PrimitiveExecutor,*::PrimitiveExecutor,PrimitiveSemantics,*::PrimitiveSemantics,OperatorsItem,*::OperatorsItem,RepresentationsItem,*::RepresentationsItem}");
@@ -67,24 +81,24 @@ let implementation-imports = select file, span, binding, target from "static-imp
 let aliased-implementations = select l.file as file, l.span as span, l.declaration as declaration, r.target as contract from "inherits" as l join implementation-imports as r on l.file = r.file and l.target = r.binding;
 let written-implementations = union(left=direct-implementations, right=aliased-implementations);
 let local-dependencies = capture(from=paths, path="target", pattern="{*target-root}/{*target-tail}", captures=["target-root", "target-tail"]);
-let contract-dependencies = select * from local-dependencies where source-root = target-root and glob_any(target-tail, "{application/file_dag/program/runtime/service.rs,application/file_dag/program/admission.rs,application/file_dag/executor.rs,domain/operator/contract/types.rs,domain/operator/collections/operators/interface.rs,domain/table_model/collections/representations/interface.rs}");
+let contract-dependencies = select * from local-dependencies where source-root = target-root and glob_any(target-tail, "{application/file_dag/program/runtime/service.rs,application/file_dag/program/admission/service.rs,application/file_dag/executor/service.rs,domain/operating/types.rs,domain/operator/collections/operators/interface.rs,domain/table_model/collections/representations/interface.rs}");
 let qualified-implementations = select l.file as file, l.span as span, l.declaration as declaration, l.contract as contract, r.source-tail as source-tail, r.source-root as source-root from written-implementations as l join contract-dependencies as r on l.file = r.source and l.span = r.span;
 let resolved-contract-imports = select l.file as file, l.binding as binding, l.target as contract, r.source-tail as source-tail, r.source-root as source-root from implementation-imports as l join contract-dependencies as r on l.file = r.source and l.span = r.span;
 let imported-implementations = select l.file as file, l.span as span, l.declaration as declaration, r.contract as contract, r.source-tail as source-tail, r.source-root as source-root from "inherits" as l join resolved-contract-imports as r on l.file = r.file and l.target = r.binding;
 let external-implementations = union(left=qualified-implementations, right=imported-implementations);
 let local-trait-files = capture(from="defines", path="file", pattern="{*source-root}/{*source-tail}", captures=["source-root", "source-tail"]);
-let local-traits = select * from local-trait-files where kind = "trait" and glob_any(name, "{KernelInvocation,Inputs,PrimitiveExecutor,PrimitiveSemantics,OperatorsItem,RepresentationsItem}") and glob_any(source-tail, "{application/file_dag/program/runtime/service.rs,application/file_dag/program/admission.rs,application/file_dag/executor.rs,domain/operator/contract/types.rs,domain/operator/collections/operators/interface.rs,domain/table_model/collections/representations/interface.rs}");
+let local-traits = select * from local-trait-files where kind = "trait" and glob_any(name, "{KernelInvocation,Inputs,PrimitiveExecutor,PrimitiveSemantics,OperatorsItem,RepresentationsItem}") and glob_any(source-tail, "{application/file_dag/program/runtime/service.rs,application/file_dag/program/admission/service.rs,application/file_dag/executor/service.rs,domain/operating/types.rs,domain/operator/collections/operators/interface.rs,domain/table_model/collections/representations/interface.rs}");
 let self-implementations = select l.file as file, l.span as span, l.declaration as declaration, r.name as contract, r.source-tail as source-tail, r.source-root as source-root from "inherits" as l join local-traits as r on l.file = r.file and l.target = r.name;
 let implementations = union(left=external-implementations, right=self-implementations);
 let named-implementations = select l.file as file, l.span as span, l.contract as contract, l.source-tail as source-tail, l.source-root as source-root, r.name as name from implementations as l join "defines" as r on l.declaration = r.id;
 let engine-implementations = select * from named-implementations where
-    (glob_any(contract, "{KernelInvocation,*::KernelInvocation}") and source-tail = "application/file_dag/program/kernel_session.rs" and name = "KernelSession")
-    or (glob_any(contract, "{Inputs,*::Inputs}") and source-tail = "application/file_dag/program/facade_runtime/source_admission.rs" and name = "SourceInputs")
-    or (glob_any(contract, "{PrimitiveExecutor,*::PrimitiveExecutor}") and source-tail = "application/file_dag/execution.rs" and name = "CommonOperatorEngine")
-    or (glob_any(contract, "{PrimitiveSemantics,*::PrimitiveSemantics}") and source-tail = "application/file_dag/execution.rs" and name = "PrimitiveSemanticsBridge");
-let registry-uses = select source, target, span, written, source-root, source-tail from local-dependencies where source-root = target-root and glob_any(source-tail, "{domain/operator/contract/registration.rs,domain/table_model/types/registered_representation/value.rs}");
+    (glob_any(contract, "{KernelInvocation,*::KernelInvocation}") and source-tail = "application/file_dag/program/kernel_session/service.rs" and name = "KernelSession")
+    or (glob_any(contract, "{Inputs,*::Inputs}") and source-tail = "application/file_dag/program/facade_runtime/source_admission/service.rs" and name = "SourceInputs")
+    or (glob_any(contract, "{PrimitiveExecutor,*::PrimitiveExecutor}") and source-tail = "application/file_dag/execution/service.rs" and name = "CommonOperatorEngine")
+    or (glob_any(contract, "{PrimitiveSemantics,*::PrimitiveSemantics}") and source-tail = "application/file_dag/execution/types.rs" and name = "PrimitiveSemanticsBridge");
+let registry-uses = select source, target, span, written, source-root, source-tail from local-dependencies where source-root = target-root and glob_any(source-tail, "{domain/operator/contract/registration.rs,domain/operator/contract/registration/service.rs,domain/table_model/types/registered_representation/value.rs}");
 let registry-nodes = select id, file, span, kind from "syntax-tree" where text = "";
-let candidate-registry-owners = select * from "defines" where kind = "implementation" and ((name = "RegisteredOperator" and glob_any(file, "{src,**/src}/domain/operator/contract/registration.rs")) or (name = "RegisteredRepresentation" and glob_any(file, "{src,**/src}/domain/table_model/types/registered_representation/value.rs")));
+let candidate-registry-owners = select * from "defines" where kind = "implementation" and ((name = "RegisteredOperator" and glob_any(file, "{src,**/src}/domain/operator/contract/{registration.rs,registration/service.rs}")) or (name = "RegisteredRepresentation" and glob_any(file, "{src,**/src}/domain/table_model/types/registered_representation/value.rs")));
 let registry-roots = select id from registry-nodes where kind = "source-file";
 let root-children = select r.child as id from registry-roots as l join "syntax-child" as r on l.id = r.parent;
 let registry-owners = select l.id as id from candidate-registry-owners as l join root-children as r on l.id = r.id;
@@ -127,7 +141,7 @@ let member-imports = capture(from="static-import", path="target", pattern="{*mem
 let imported-members = select l.target as file, r.name as name, l.source-root as source-root, l.source-tail as registry from dispatch-uses as l join member-imports as r on l.source = r.file and l.written = r.binding;
 let registered-members = union(left=direct-members, right=imported-members);
 let catalog-implementations = select l.file as file, l.span as span, l.contract as contract, l.source-tail as source-tail, l.source-root as source-root, l.name as name from named-implementations as l join registered-members as r on l.file = r.file and l.name = r.name and l.source-root = r.source-root where
-    (glob_any(l.contract, "{OperatorsItem,*::OperatorsItem}") and r.registry = "domain/operator/contract/registration.rs")
+    (glob_any(l.contract, "{OperatorsItem,*::OperatorsItem}") and glob_any(r.registry, "{domain/operator/contract/registration.rs,domain/operator/contract/registration/service.rs}"))
     or (glob_any(l.contract, "{RepresentationsItem,*::RepresentationsItem}") and r.registry = "domain/table_model/types/registered_representation/value.rs");
 let authorized-implementations = union(left=engine-implementations, right=catalog-implementations);
 let registered-sites = select file, span from authorized-implementations;
@@ -179,7 +193,8 @@ files.'src/application.rs' = 'pub mod file_dag; pub mod caller;'
 files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; pub mod execution; pub mod derived; pub mod relations;'
 files.'src/application/file_dag/program.rs' = 'pub mod preparation; pub mod rule_outcome; pub mod runtime; pub mod admission; pub mod restored; pub mod kernel_session; pub mod request_identity; pub mod facade_runtime; pub mod positions; pub mod selection;'
 files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission;'
-files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}"
+files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = 'pub mod service;'
+files.'src/application/file_dag/program/facade_runtime/source_admission/service.rs' = "pub fn raw_admit() {} use super::super::super::admission::service::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}"
 files.'src/application/file_dag/program/preparation.rs' = 'pub mod types; pub mod service;'
 files.'src/application/file_dag/program/preparation/types.rs' = 'pub struct PreparedProgram;'
 files.'src/application/file_dag/program/preparation/service.rs' = 'pub fn invoke() {}'
@@ -189,13 +204,23 @@ files.'src/application/file_dag/program/rule_outcome/service.rs' = 'pub fn valid
 files.'src/application/file_dag/program/runtime.rs' = 'pub mod types; pub mod service;'
 files.'src/application/file_dag/program/runtime/types.rs' = 'pub struct WorkCount;'
 files.'src/application/file_dag/program/runtime/service.rs' = "pub struct KernelPermit; pub fn execute() {} pub trait KernelInvocation {}"
-files.'src/application/file_dag/program/admission.rs' = "pub struct Permit; pub trait Inputs {}"
-files.'src/application/file_dag/program/restored.rs' = 'pub fn restore() {}'
-files.'src/application/file_dag/program/kernel_session.rs' = "pub fn dispatch() {} use super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}"
+files.'src/application/file_dag/program/admission.rs' = 'pub mod service; pub mod types;'
+files.'src/application/file_dag/program/admission/service.rs' = "pub struct Permit; pub trait Inputs {}"
+files.'src/application/file_dag/program/admission/types.rs' = 'pub struct RequiredPartitions;'
+files.'src/application/file_dag/program/restored.rs' = 'pub mod service; pub mod types;'
+files.'src/application/file_dag/program/restored/service.rs' = 'pub fn restore() {}'
+files.'src/application/file_dag/program/restored/types.rs' = 'pub struct ValidatedFrontier { proof: () }'
+files.'src/application/file_dag/program/kernel_session.rs' = 'pub mod service;'
+files.'src/application/file_dag/program/kernel_session/service.rs' = "pub fn dispatch() {} use super::super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}"
 files.'src/application/file_dag/program/request_identity.rs' = 'pub struct RequestId;'
-files.'src/application/file_dag/executor.rs' = "pub fn bridge() {} pub trait PrimitiveExecutor {}"
-files.'src/application/file_dag/execution.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}"
-files.'src/application/file_dag/execution/lease.rs' = 'pub fn bridge() {}'
+files.'src/application/file_dag/executor.rs' = 'pub mod service; pub mod types;'
+files.'src/application/file_dag/executor/service.rs' = "pub fn bridge() {} pub trait PrimitiveExecutor {}"
+files.'src/application/file_dag/executor/types.rs' = 'pub struct ExecutorRequest;'
+files.'src/application/file_dag/execution.rs' = 'pub mod lease; pub mod service; pub mod types;'
+files.'src/application/file_dag/execution/service.rs' = "use super::super::executor::service::PrimitiveExecutor; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {}"
+files.'src/application/file_dag/execution/types.rs' = "use crate::domain::operating::types::PrimitiveSemantics; pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}"
+files.'src/application/file_dag/execution/lease.rs' = 'pub mod service;'
+files.'src/application/file_dag/execution/lease/service.rs' = 'pub fn bridge() {}'
 files.'src/application/file_dag/derived.rs' = 'pub mod owner;'
 files.'src/application/file_dag/derived/owner.rs' = 'pub mod acquisition; pub mod raw_scope; pub mod leases; pub mod future_acquisition;'
 files.'src/application/file_dag/derived/owner/acquisition.rs' = 'pub fn acquire() {}'
@@ -208,7 +233,9 @@ files.'src/application/file_dag/program/selection.rs' = 'pub fn evaluate() {}'
 files.'src/application/file_dag/program/positions.rs' = 'pub fn evaluate() {}'
 files.'src/application/file_dag/relations/selection.rs' = 'pub fn publish() {}'
 files.'src/application/caller.rs' = 'pub fn invoke() {}'
-files.'src/domain.rs' = "pub mod semantic; pub mod executable_program; pub mod operator; pub mod table_model;"
+files.'src/domain.rs' = "pub mod semantic; pub mod executable_program; pub mod operating; pub mod operator; pub mod table_model;"
+files.'src/domain/operating.rs' = 'pub mod types;'
+files.'src/domain/operating/types.rs' = "pub trait PrimitiveSemantics {}"
 files.'src/domain/semantic.rs' = 'pub fn read_borrowed() {}'
 files.'src/domain/executable_program.rs' = 'pub mod kernel;'
 files.'src/domain/executable_program/kernel.rs' = 'pub fn evaluate() {}'
@@ -222,7 +249,7 @@ files.'src/domain/operator/contract/registration.rs' = "use super::super::collec
 files.'src/domain/operator/contract/context.rs' = 'pub fn with_primitive_context() {}'
 files.'src/domain/operator/service.rs' = 'pub fn registered() {}'
 
-files.'src/domain/operator/contract/types.rs' = "pub trait PrimitiveSemantics {}"
+files.'src/domain/operator/contract/types.rs' = 'pub struct PrimitiveLease;'
 
 files.'src/domain/operator/collections/operators/interface.rs' = "pub trait OperatorsItem {}"
 
@@ -273,7 +300,7 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 [[scenarios]]
 id = "new-nested-admission-implementation"
 scenario = "A newly added nested implementation is protected without listing its filename."
-given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::program::facade_runtime::source_admission::raw_admit(); }'
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::program::facade_runtime::source_admission::service::raw_admit(); }'
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
@@ -291,7 +318,7 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 [[scenarios]]
 id = "reexport-escape"
 scenario = "Re-exporting an implementation entrypoint is not an allowed facade."
-given.files.'src/application/caller.rs' = 'pub use crate::application::file_dag::program::kernel_session::dispatch;'
+given.files.'src/application/caller.rs' = 'pub use crate::application::file_dag::program::kernel_session::service::dispatch;'
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
@@ -363,7 +390,7 @@ then.findings = [{ path = "src/application/caller_test.rs", line = 1 }]
 [[scenarios]]
 id = "peer-cannot-dispatch-physical-lease"
 scenario = "An application peer cannot call the raw physical lease dispatcher."
-given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::execution::lease::bridge(); }'
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::application::file_dag::execution::lease::service::bridge(); }'
 then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 
 [[scenarios]]
@@ -396,22 +423,22 @@ given.files.'src/application/file_dag/program/runtime/service.rs' = 'use super::
 [[scenarios]]
 id = "physical-bridge-is-supported"
 scenario = "The physical execution bridge may borrow an admission permit."
-given.files.'src/application/file_dag/execution/lease.rs' = 'use super::super::program::runtime::service::KernelPermit;'
+given.files.'src/application/file_dag/execution/lease/service.rs' = 'use super::super::super::program::runtime::service::KernelPermit;'
 
 [[scenarios]]
 id = "program-dispatch-is-supported"
 scenario = "The program's kernel session may invoke the physical lease."
-given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::application::file_dag::execution::lease::bridge(); }'
+given.files.'src/application/file_dag/program/kernel_session/service.rs' = 'pub fn dispatch() { crate::application::file_dag::execution::lease::service::bridge(); }'
 
 [[scenarios]]
 id = "declared-domain-dispatch-bridge"
 scenario = "The physical bridge may call the semantic dispatcher."
-given.files.'src/application/file_dag/execution.rs' = 'pub mod lease; pub fn evaluate() { crate::domain::executable_program::kernel::evaluate(); }'
+given.files.'src/application/file_dag/execution/service.rs' = 'pub fn evaluate() { crate::domain::executable_program::kernel::evaluate(); }'
 
 [[scenarios]]
 id = "declared-row-admission-bridge"
 scenario = "The program kernel session may call the semantic row dispatcher."
-given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
+given.files.'src/application/file_dag/program/kernel_session/service.rs' = 'pub fn dispatch() { crate::domain::executable_program::kernel::evaluate(); }'
 
 [[scenarios]]
 id = "declared-operator-preparation"
@@ -422,14 +449,14 @@ given.files.'src/application/file_dag.rs' = 'pub mod program; pub mod executor; 
 [[scenarios]]
 id = "declared-context-bridge"
 scenario = "The application invocation bridge may construct a borrowed semantic context."
-given.files.'src/application/file_dag/execution/lease.rs' = 'pub fn bridge() { crate::domain::operator::contract::context::with_primitive_context(); }'
+given.files.'src/application/file_dag/execution/lease/service.rs' = 'pub fn bridge() { crate::domain::operator::contract::context::with_primitive_context(); }'
 
 [[scenarios]]
 id = "declared-operator-execution"
 scenario = "The application execution owner may dispatch the registered primitive after permit validation."
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = 'pub fn dispatch() { crate::domain::operator::contract::registration::registered(); }'
 
-given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability;'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub mod service;'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = 'pub mod service;'
 
 [[scenarios]]
@@ -452,7 +479,7 @@ then.findings = [{ path = "src/application/caller.rs", line = 1 }]
 [[scenarios]]
 id = "declared-positioned-bridge"
 scenario = "The admitted native instruction may finish a relation population through its owner."
-given.files.'src/application/file_dag/program/kernel_session.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
+given.files.'src/application/file_dag/program/kernel_session/service.rs' = 'pub fn evaluate() { crate::application::file_dag::relations::positioned::publish(); }'
 
 [[scenarios]]
 id = "foreign-selected-population"
@@ -495,8 +522,8 @@ then.findings = [{ path = "src/application/file_dag/program/preparation/service.
 [[scenarios]]
 id = "source-proofs-cannot-validate-interpreter-object"
 scenario = "Source admission depends on explicit owner and partition requirements rather than runtime state."
-given.files.'src/application/file_dag/program/admission.rs' = 'use crate::application::file_dag::program::runtime::service as execution; fn bypass(_: &execution::KernelPermit) {}'
-then.findings = [{ path = "src/application/file_dag/program/admission.rs", line = 1 }, { path = "src/application/file_dag/program/admission.rs", line = 1 }]
+given.files.'src/application/file_dag/program/admission/service.rs' = 'use crate::application::file_dag::program::runtime::service as execution; fn bypass(_: &execution::KernelPermit) {}'
+then.findings = [{ path = "src/application/file_dag/program/admission/service.rs", line = 1 }, { path = "src/application/file_dag/program/admission/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "runtime-types-cannot-import-runtime-interpreter"
@@ -507,13 +534,12 @@ then.findings = [{ path = "src/application/file_dag/program/runtime/types.rs", l
 [[scenarios]]
 id = "physical-bridge-borrows-runtime-capability-type"
 scenario = "The physical bridge may borrow the actual runtime-issued type while issuance remains private to the runtime owner."
-given.files.'src/application/file_dag/executor.rs' = 'use super::program::runtime::service::KernelPermit; fn borrowed(_: &KernelPermit) {}'
+given.files.'src/application/file_dag/executor/types.rs' = 'use super::super::program::runtime::service::KernelPermit; fn borrowed(_: &KernelPermit) {}'
 
 [[scenarios]]
 id = "caller-may-name-public-partition-descriptor"
 scenario = "The actual public partition descriptor remains available after removing the facade forwarding alias; admitted-input constructors stay private."
-given.files.'src/application/file_dag/program/admission.rs' = 'pub struct RequiredPartitions;'
-given.files.'src/application/caller.rs' = 'use super::file_dag::program::admission::RequiredPartitions; fn metadata(_: &RequiredPartitions) {}'
+given.files.'src/application/caller.rs' = 'use super::file_dag::program::admission::types::RequiredPartitions; fn metadata(_: &RequiredPartitions) {}'
 
 [[scenarios]]
 id = "caller-may-name-opaque-validated-frontier"
@@ -526,8 +552,9 @@ given.files.'src/application/caller.rs' = 'use super::file_dag::program::restore
 id = "caller-may-name-the-owning-run-module"
 scenario = "File runs are named at their owning module; the facade keeps no forwarding alias, and the other implementation modules stay protected."
 given.files.'src/application/file_dag/program/facade_runtime.rs' = 'pub mod source_admission; pub mod file_execution;'
-given.files.'src/application/file_dag/program/facade_runtime/file_execution.rs' = 'pub struct FileRun;'
-given.files.'src/application/caller.rs' = 'use super::file_dag::program::facade_runtime::file_execution::FileRun; fn run(_: &FileRun) {}'
+given.files.'src/application/file_dag/program/facade_runtime/file_execution.rs' = 'pub mod service;'
+given.files.'src/application/file_dag/program/facade_runtime/file_execution/service.rs' = 'pub struct FileRun;'
+given.files.'src/application/caller.rs' = 'use super::file_dag::program::facade_runtime::file_execution::service::FileRun; fn run(_: &FileRun) {}'
 
 [[scenarios]]
 id = "raw-scope-owner-borrows-required-runtime-capability"
@@ -659,8 +686,8 @@ given.files.'src/domain/operator/contract/registration.rs' = "use super::super::
 [[scenarios]]
 id = "unregistered-kernel-in-owner-file"
 scenario = "Another invocation implementation cannot hide next to the one required production bridge."
-given.files.'src/application/file_dag/program/kernel_session.rs' = "pub fn dispatch() {} use super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}\npub struct Extra; impl KernelInvocation for Extra {}"
-then.findings = [{ path = "src/application/file_dag/program/kernel_session.rs", line = 2 }]
+given.files.'src/application/file_dag/program/kernel_session/service.rs' = "pub fn dispatch() {} use super::super::runtime::service::KernelInvocation; pub struct KernelSession; impl KernelInvocation for KernelSession {}\npub struct Extra; impl KernelInvocation for Extra {}"
+then.findings = [{ path = "src/application/file_dag/program/kernel_session/service.rs", line = 2 }]
 
 [[scenarios]]
 id = "aliased-kernel-in-new-module"
@@ -672,20 +699,20 @@ then.findings = [{ path = "src/application/file_dag/program/extra.rs", line = 1 
 [[scenarios]]
 id = "qualified-source-implementation"
 scenario = "An alternate source supplier cannot bypass the admitted source owner."
-given.files.'src/application/file_dag/program/facade_runtime/source_admission.rs' = "pub fn raw_admit() {} use super::super::admission::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}\npub struct Extra; impl crate::application::file_dag::program::admission::Inputs for Extra {}"
-then.findings = [{ path = "src/application/file_dag/program/facade_runtime/source_admission.rs", line = 2 }]
+given.files.'src/application/file_dag/program/facade_runtime/source_admission/service.rs' = "pub fn raw_admit() {} use super::super::super::admission::service::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}\npub struct Extra; impl crate::application::file_dag::program::admission::service::Inputs for Extra {}"
+then.findings = [{ path = "src/application/file_dag/program/facade_runtime/source_admission/service.rs", line = 2 }]
 
 [[scenarios]]
 id = "unregistered-semantic-executor"
 scenario = "A new executor beside the adapter does not become the common engine."
-given.files.'src/application/file_dag/execution.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveExecutor for Extra {}"
-then.findings = [{ path = "src/application/file_dag/execution.rs", line = 2 }]
+given.files.'src/application/file_dag/execution/service.rs' = "use super::super::executor::service::PrimitiveExecutor; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {}\npub struct Extra; impl PrimitiveExecutor for Extra {}"
+then.findings = [{ path = "src/application/file_dag/execution/service.rs", line = 2 }]
 
 [[scenarios]]
 id = "unregistered-semantic-bridge"
 scenario = "Another borrowed semantics implementation cannot bypass physical authorization."
-given.files.'src/application/file_dag/execution.rs' = "pub mod lease; use super::executor::PrimitiveExecutor; use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct CommonOperatorEngine; impl PrimitiveExecutor for CommonOperatorEngine {} pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveSemantics for Extra {}"
-then.findings = [{ path = "src/application/file_dag/execution.rs", line = 2 }]
+given.files.'src/application/file_dag/execution/types.rs' = "use crate::domain::operating::types::PrimitiveSemantics; pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}\npub struct Extra; impl PrimitiveSemantics for Extra {}"
+then.findings = [{ path = "src/application/file_dag/execution/types.rs", line = 2 }]
 
 [[scenarios]]
 id = "unplaced-implementation-proof-refused"
@@ -723,13 +750,13 @@ then.findings = [{ path = "src/domain/table_model/collections/representations/st
 [[scenarios]]
 id = "invocation-coordinator-cannot-directly-dispatch-registry"
 scenario = "The invocation coordinator must use the issued lease rather than call the semantic registry directly."
-given.files.'src/application/file_dag/execution/lease.rs' = "pub fn bypass() { crate::domain::operator::contract::registration::registered(); }"
-then.findings = [{ path = "src/application/file_dag/execution/lease.rs", line = 1 }]
+given.files.'src/application/file_dag/execution/lease/service.rs' = "pub fn bypass() { crate::domain::operator::contract::registration::registered(); }"
+then.findings = [{ path = "src/application/file_dag/execution/lease/service.rs", line = 1 }]
 
 [[scenarios]]
 id = "peer-cannot-alias-issued-lease-capability"
 scenario = "A sibling cannot import the private data/dispatch capability by alias."
-given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability;'
+given.files.'src/application/file_dag/execution/lease.rs' = 'pub mod capability; pub mod service;'
 given.files.'src/application/file_dag/execution/lease/capability.rs' = 'pub mod service;'
 given.files.'src/application/file_dag/execution/lease/capability/service.rs' = 'pub struct Lease;'
 given.files.'src/application/caller.rs' = "use crate::application::file_dag::execution::lease::capability::service::Lease as Alternative;"
@@ -754,7 +781,7 @@ given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "p
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
 given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
-given.files.'src/application/file_dag/executor.rs' = "pub fn bridge() {} pub trait PrimitiveExecutor {} use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk; use crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin; fn borrowed(_: &PermittedWalk, _: &PermittedNativeJoin) {}"
+given.files.'src/application/file_dag/executor/types.rs' = "use crate::application::file_dag::program::native_walk::lease::service::PermittedWalk; use crate::application::file_dag::program::native_join::lease::service::PermittedNativeJoin; fn borrowed(_: &PermittedWalk, _: &PermittedNativeJoin) {}"
 
 [[scenarios]]
 id = "executor-cannot-borrow-old-walk-owner"
@@ -766,8 +793,8 @@ given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "p
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
 given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
-given.files.'src/application/file_dag/executor.rs' = "use crate::application::file_dag::program::native_walk::FileWalk; fn bypass(_: &FileWalk) {}"
-then.findings = [{ path = "src/application/file_dag/executor.rs", line = 1 }]
+given.files.'src/application/file_dag/executor/types.rs' = "use crate::application::file_dag::program::native_walk::FileWalk; fn bypass(_: &FileWalk) {}"
+then.findings = [{ path = "src/application/file_dag/executor/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "executor-cannot-borrow-old-join-owner"
@@ -779,8 +806,8 @@ given.files.'src/application/file_dag/program/native_walk/lease/service.rs' = "p
 given.files.'src/application/file_dag/program/native_join.rs' = "pub mod lease; pub enum Eligibility { Native }"
 given.files.'src/application/file_dag/program/native_join/lease.rs' = "pub mod service;"
 given.files.'src/application/file_dag/program/native_join/lease/service.rs' = "pub struct PermittedNativeJoin;"
-given.files.'src/application/file_dag/executor.rs' = "use crate::application::file_dag::program::native_join::Eligibility; fn bypass(_: &Eligibility) {}"
-then.findings = [{ path = "src/application/file_dag/executor.rs", line = 1 }]
+given.files.'src/application/file_dag/executor/types.rs' = "use crate::application::file_dag::program::native_join::Eligibility; fn bypass(_: &Eligibility) {}"
+then.findings = [{ path = "src/application/file_dag/executor/types.rs", line = 1 }]
 
 [[scenarios]]
 id = "foreign-alias-of-issued-walk-refused"
@@ -1087,9 +1114,40 @@ given.files.'src/application/file_dag/program/runtime/fixtures.rs' = "use super:
 [[scenarios]]
 id = "gated-group-fixtures-double"
 scenario = "A source double in a fixtures file beneath a test-gated group passes."
-given.files.'src/application/file_dag/program/admission.rs' = '''pub struct Permit; pub trait Inputs {}
+given.files.'src/application/file_dag/program/admission.rs' = '''pub mod service; pub mod types;
 #[cfg(test)]
 mod service_test;'''
 given.files.'src/application/file_dag/program/admission/service_test.rs' = 'mod probe;'
 given.files.'src/application/file_dag/program/admission/service_test/probe.rs' = 'mod fixtures;'
-given.files.'src/application/file_dag/program/admission/service_test/probe/fixtures.rs' = "use crate::application::file_dag::program::admission::Inputs; pub struct Probe; impl Inputs for Probe {}"
+given.files.'src/application/file_dag/program/admission/service_test/probe/fixtures.rs' = "use crate::application::file_dag::program::admission::service::Inputs; pub struct Probe; impl Inputs for Probe {}"
+
+[[scenarios]]
+id = "peer-cannot-call-registration-part"
+scenario = "A peer cannot call the domain registration through a part file of its module."
+given.files.'src/domain/operator/contract/registration.rs' = "pub mod service; use super::super::collections::operators::select::item::SelectItem; pub enum Kind { Select } pub struct RegisteredOperator { kind: Kind } impl RegisteredOperator { fn item(&self) -> &'static dyn super::super::collections::operators::interface::OperatorsItem { match self.kind { Kind::Select => &SelectItem } } }"
+given.files.'src/domain/operator/contract/registration/service.rs' = 'pub fn registered() {}'
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::operator::contract::registration::service::registered(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "peer-cannot-mint-context-part"
+scenario = "A peer cannot call the borrowed context constructor through the context's service file."
+given.files.'src/domain/operator/contract/context.rs' = 'pub mod service;'
+given.files.'src/domain/operator/contract/context/service.rs' = 'pub fn with_primitive_context() {}'
+given.files.'src/application/caller.rs' = 'pub fn run() { crate::domain::operator::contract::context::service::with_primitive_context(); }'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
+
+[[scenarios]]
+id = "lease-service-may-mint-context-part"
+scenario = "The physical lease's service may construct the borrowed context through the context's service file."
+given.files.'src/domain/operator/contract/context.rs' = 'pub mod service;'
+given.files.'src/domain/operator/contract/context/service.rs' = 'pub fn with_primitive_context() {}'
+given.files.'src/application/file_dag/execution/lease/service.rs' = 'pub fn bridge() { crate::domain::operator::contract::context::service::with_primitive_context(); }'
+
+[[scenarios]]
+id = "peer-cannot-reach-cache-part-module"
+scenario = "An application peer cannot reach a derived cache part through a file beneath its directory."
+given.files.'src/application/file_dag/derived/owner/leases.rs' = 'pub mod service;'
+given.files.'src/application/file_dag/derived/owner/leases/service.rs' = 'pub fn make_lease() {}'
+given.files.'src/application/caller.rs' = 'use crate::application::file_dag::derived::owner::leases::service::make_lease;'
+then.findings = [{ path = "src/application/caller.rs", line = 1 }]
