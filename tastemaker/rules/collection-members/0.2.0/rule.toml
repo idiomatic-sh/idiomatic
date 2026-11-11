@@ -1,0 +1,3410 @@
+description = "A collection is whole: its list `collections.rs` beside `collections/`, its module file beside its directory, its `interface.rs` and an item, whose module file and directory come together, and a name that is none of its neighbours'."
+why = "A collection is N implementations of one shape and is compiled only through its module files, which nothing else requires: `collections.rs` without a collection declares what does not exist, a collection without `collections.rs` or without its module file `collections/<collection>.rs` is never compiled, a collection without its `interface.rs` has no shape to hold its items to (unless the entry's `item-trait` names it: its items implement that trait of another crate, which states the shape, as the collection spec's `item-trait` says), one without an item has nothing to hold, and an item is its module file beside its directory. What the item's directory holds is the item part's: the part spec's counts hold its `item.rs` and `item_test.rs` where the product places an item part, and the closed placement refuses an item directory that nothing places. It is the same wherever a collection sits - the crate, a hex, a domain concept or an adapter - so one rule holds them all, and every pairing is keyed on the directory that holds `collections/` and on the collection, never on a constant: a crate with several collections, or several parts with collections of their own, is checked collection by collection. A collection is never named for a namespace or a member of the directory that holds it, and an item is never named for one of the collection's own files. It reads the item directories beside the module files, which are parts of their own, so the product's tastemaker.toml places it over the files that hold collections: a rule a spec places does not read the directories of the parts nested in the spec's instance. A finding is reported at the file concerned: for a collection with no list or no module file, at each file it has; with no interface or no item, at its module file; for an item, at its module file when its directory is missing and at the files of its directory otherwise."
+
+query = '''
+param item-trait: list<table>;
+let list-captures = capture(from="filesystem.file", path="path", pattern="{*owner}/collections.rs", captures=["owner"]);
+let lists = project(from=list-captures, columns=["path", "owner"]);
+let module-captures = capture(from="filesystem.file", path="path", pattern="{*owner}/collections/{collection}.rs", captures=["owner", "collection"]);
+let module-rows = project(from=module-captures, columns=["path", "owner", "collection"]);
+let module-keys = project(from=module-rows, columns=["owner", "collection"]);
+let inside-captures = capture(from="filesystem.file", path="path", pattern="{*owner}/collections/{collection}/{*more}", captures=["owner", "collection", "more"]);
+let inside-rows = project(from=inside-captures, columns=["path", "owner", "collection"]);
+let collection-files = union(left=module-rows, right=inside-rows);
+let interface-captures = capture(from="filesystem.file", path="path", pattern="{*owner}/collections/{collection}/interface.rs", captures=["owner", "collection"]);
+let interface-keys = project(from=interface-captures, columns=["owner", "collection"]);
+let direct-captures = capture(from="filesystem.file", path="path", pattern="{*owner}/collections/{collection}/{name}", captures=["owner", "collection", "name"]);
+let direct-rows = project(from=direct-captures, columns=["path", "owner", "collection"]);
+let direct-rs-captures = capture(from="filesystem.file", path="path", pattern="{*owner}/collections/{collection}/{item}.rs", captures=["owner", "collection", "item"]);
+let direct-rs-rows = project(from=direct-rs-captures, columns=["path", "owner", "collection", "item"]);
+let direct-rs-paths = project(from=direct-rs-captures, columns=["path"]);
+let own-files = select * from direct-rs-rows where glob_any(item, "{interface,fixtures,types,errors}");
+let own-paths = project(from=own-files, columns=["path"]);
+let item-modules = antijoin(left=direct-rs-rows, right=own-paths, left-on=["path"], right-on=["path"]);
+let item-module-keys = project(from=item-modules, columns=["owner", "collection", "item"]);
+let item-module-collections = project(from=item-modules, columns=["owner", "collection"]);
+let item-dir-captures = capture(from="filesystem.file", path="path", pattern="{*owner}/collections/{collection}/{item}/{*more}", captures=["owner", "collection", "item", "more"]);
+let item-dir-rows = project(from=item-dir-captures, columns=["path", "owner", "collection", "item"]);
+let item-dir-keys = project(from=item-dir-captures, columns=["owner", "collection", "item"]);
+let unlisted = antijoin(left=collection-files, right=lists, left-on=["owner"], right-on=["owner"]);
+let empty-lists = antijoin(left=lists, right=collection-files, left-on=["owner"], right-on=["owner"]);
+let orphans = antijoin(left=inside-rows, right=module-keys, left-on=["owner", "collection"], right-on=["owner", "collection"]);
+let representatives = union(left=module-rows, right=orphans);
+let interfaceless = antijoin(left=representatives, right=interface-keys, left-on=["owner", "collection"], right-on=["owner", "collection"]);
+let traited = rows(from=$item-trait, columns=["collection", "trait"]);
+let traited-names = project(from=traited, columns=["collection"]);
+let no-interface = antijoin(left=interfaceless, right=traited-names, left-on=["collection"], right-on=["collection"]);
+let strays = antijoin(left=direct-rows, right=direct-rs-paths, left-on=["path"], right-on=["path"]);
+let reserved-member-dirs = select * from item-dir-rows where glob_any(item, "{interface,types,errors}");
+let value-roles = select path as path from "tastemaker.placed" where package = "idiomatic.arch" and glob_any(template, "{value,value-module,value-test}");
+let member-dirs = antijoin(left=reserved-member-dirs, right=value-roles, left-on=["path"], right-on=["path"]);
+let fixtures-dirs = select * from item-dir-rows where glob_any(item, "fixtures");
+let non-item-dirs = union(left=reserved-member-dirs, right=fixtures-dirs);
+let plain-item-dirs = antijoin(left=item-dir-rows, right=non-item-dirs, left-on=["path"], right-on=["path"]);
+let plain-dir-collections = project(from=plain-item-dirs, columns=["owner", "collection"]);
+let item-collections = union(left=item-module-collections, right=plain-dir-collections);
+let no-items = antijoin(left=representatives, right=item-collections, left-on=["owner", "collection"], right-on=["owner", "collection"]);
+let dirless-items = antijoin(left=item-modules, right=item-dir-keys, left-on=["owner", "collection", "item"], right-on=["owner", "collection", "item"]);
+let unmoduled-items = antijoin(left=plain-item-dirs, right=item-module-keys, left-on=["owner", "collection", "item"], right-on=["owner", "collection", "item"]);
+let reserved-names = select * from collection-files where glob_any(collection, "{adapters,collections,domain,errors,factory,fixtures,inbound,interface,outbound,schemas,service,steps,types,use_cases}");
+let unlisted-labelled = extend(from=unlisted, values={"item": "", "problem": "is in a `collections/` directory with no `collections.rs` beside it to declare the collections", "fix": "Write the list that declares one module per collection: `tm scaffold collections --at <owner>/collections.rs`, where `<owner>` is the directory this finding names, then declare each collection in it."});
+let unlisted-found = project(from=unlisted-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let empty-lists-labelled = extend(from=empty-lists, values={"collection": "", "item": "", "problem": "has a `collections.rs` and no collection beside it: it declares the collections its directory holds", "fix": "Delete `<owner>/collections.rs`, or add a collection: `tm scaffold collection --at <owner>/collections/<collection>.rs` writes its module file, `collection-interface` its interface.rs and `item-module` an item's module file."});
+let empty-lists-found = project(from=empty-lists-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let orphans-labelled = extend(from=orphans, values={"item": "", "problem": "has files and no module file `collections/<collection>.rs` beside its directory to declare them", "fix": "Write the collection's module file, which declares its interface and each of its items: `tm scaffold collection --at <owner>/collections/<collection>.rs`."});
+let orphans-found = project(from=orphans-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let no-interface-labelled = extend(from=no-interface, values={"item": "", "problem": "has no `interface.rs`, the one trait every item implements", "fix": "Write the collection's interface: `tm scaffold collection-interface --at <owner>/collections/<collection>/interface.rs`, and declare it in the collection's module file."});
+let no-interface-found = project(from=no-interface-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let strays-labelled = extend(from=strays, values={"item": "", "problem": "holds a file that is none of a collection's files", "fix": "A collection directory holds `interface.rs`, its optional `fixtures.rs` with `fixtures/contract.rs`, `types.rs` and `errors.rs`, an item module file `<item>.rs` beside each item directory `<item>/`, and nothing else: move this file to the part that owns it, or delete it."});
+let strays-found = project(from=strays-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let member-dirs-labelled = extend(from=member-dirs, values={"problem": "has an item directory named for one of the collection's own files", "fix": "Rename the item directory and its module file `<item>.rs` to a name that is not `interface`, `types`, `errors` or `fixtures`: the collection's own interface.rs, types.rs and errors.rs sit in the same directory and would share the item's module name."});
+let member-dirs-found = project(from=member-dirs-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let no-items-labelled = extend(from=no-items, values={"item": "", "problem": "has no item: no item module file `collections/<collection>/<item>.rs` and no item directory", "fix": "Add an item: `tm scaffold item-module --at <owner>/collections/<collection>/<item>.rs` writes its module file and `tm scaffold part --at <owner>/collections/<collection>/<item>` writes its directory; or delete the collection with its module file."});
+let no-items-found = project(from=no-items-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let dirless-items-labelled = extend(from=dirless-items, values={"problem": "has an item module file and no item directory `<item>/` beside it", "fix": "Write the item's directory: `tm scaffold part --at <owner>/collections/<collection>/<item>` writes the item part's `item.rs` and `item_test.rs`, where `<item>` is this file's name without `.rs`; or delete the item's module file and its `mod` line."});
+let dirless-items-found = project(from=dirless-items-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let unmoduled-items-labelled = extend(from=unmoduled-items, values={"problem": "has an item directory with no module file `<item>.rs` beside it to compile it", "fix": "Write the item's module file, which declares its code and its test: `tm scaffold item-module --at <owner>/collections/<collection>/<item>.rs`, and declare it in the collection's module file."});
+let unmoduled-items-found = project(from=unmoduled-items-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let reserved-names-labelled = extend(from=reserved-names, values={"item": "", "problem": "is named for a namespace or a member of the directory that holds it", "fix": "Rename the collection's directory and its module file: a collection is never called `steps`, `use_cases`, `adapters`, `inbound`, `outbound`, `domain`, `fixtures`, `factory`, `schemas`, `service`, `interface`, `errors`, `types` or `collections`, so no name here hides another namespace's."});
+let reserved-names-found = project(from=reserved-names-labelled, columns=["path", "owner", "collection", "item", "problem", "fix"]);
+let findings-1 = union(left=unlisted-found, right=empty-lists-found);
+let findings-2 = union(left=findings-1, right=orphans-found);
+let findings-3 = union(left=findings-2, right=no-interface-found);
+let findings-4 = union(left=findings-3, right=strays-found);
+let findings-5 = union(left=findings-4, right=member-dirs-found);
+let findings-6 = union(left=findings-5, right=no-items-found);
+let findings-7 = union(left=findings-6, right=dirless-items-found);
+let findings-8 = union(left=findings-7, right=unmoduled-items-found);
+let findings-9 = union(left=findings-8, right=reserved-names-found);
+emit findings-9 subject "path" key("collection", "item", "problem");
+'''
+
+[params.item-trait]
+type = "list<table>"
+description = "The collections whose items implement a trait of another crate, `{ collection, trait }`: the trait states the shape, so the collection has no interface.rs of its own (the collection spec's `item-trait` pairs, `relations=ryo::languages::ReadItem`). `[]` when every collection declares its own."
+
+[diagnostic]
+primary = "path"
+message = "`collections/{collection}` in `{owner}` {problem}"
+help = "{fix} (`<owner>` and `<collection>` are the directory and the collection named above.) Exact placed value, value-module and value-test roles may live below a collection types namespace; unplaced files and other roles remain refused. An ignore is never the fix."
+
+[given]
+include = ['src/collections.rs', 'src/collections/**']
+params = { item-trait = [] }
+
+[[scenarios]]
+id = 'crate-collections'
+scenario = 'A crate whose collections are whole: a list, a module file, an interface and items with their module file, code and test.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+pub(crate) mod square;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes/square.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/square/item.rs' = '''
+//! One item of a collection.
+
+pub struct Square;
+'''
+given.files.'src/collections/shapes/square/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+
+[[scenarios]]
+id = 'concept-collection'
+scenario = 'A domain concept with a collection of its own.'
+given.include = ['src/domain/*/collections.rs', 'src/domain/*/collections/**']
+given.files.'src/domain/polite/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/domain/polite/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/domain/polite/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/domain/polite/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+
+[[scenarios]]
+id = 'adapter-collection'
+scenario = 'An adapter with a collection of its own.'
+given.include = ['src/*/adapters/*/collections.rs', 'src/*/adapters/*/collections/**']
+given.files.'src/names/adapters/memory/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/names/adapters/memory/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/names/adapters/memory/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/names/adapters/memory/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/names/adapters/memory/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/names/adapters/memory/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+
+[[scenarios]]
+id = 'hex-collection'
+scenario = 'A hex with a collection of its own.'
+given.include = ['src/*/collections.rs', 'src/*/collections/**']
+given.files.'src/names/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/names/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/names/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/names/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/names/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/names/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+
+[[scenarios]]
+id = 'product-placement'
+scenario = "The core's and the adapters' collections at the crate, a concept, a hex and an adapter, placed the way a product's tastemaker.toml places the rule."
+given.include = ['crates/shop/crates/core/src/**/collections*', 'crates/shop/crates/adapters/src/**/collections*']
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/lib.rs' = '''
+//! The crate.
+
+pub mod collections;
+'''
+
+[[scenarios]]
+id = 'optional-members'
+scenario = 'A collection with the optional shared cases in its fixtures, plain types and derived errors.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/errors.rs' = '''
+//! The errors.
+
+#[derive(Debug)]
+pub enum ShapesError {
+    Bad,
+}
+'''
+given.files.'src/collections/shapes/fixtures.rs' = '''
+pub mod contract;
+'''
+given.files.'src/collections/shapes/fixtures/contract.rs' = '''
+//! The shared cases of the items.
+
+pub const CASES: &[u32] = &[];
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes/types.rs' = '''
+//! Shared types.
+
+#[derive(Debug)]
+pub struct Point {
+    pub x: u32,
+}
+'''
+
+[[scenarios]]
+id = 'unrelated-files'
+scenario = "Files that merely sit near the collections, or have collections in a name, are none of the rule's concern."
+given.include = ['src/**']
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections_helpers.rs' = '''
+//! A service.
+
+pub fn greet() {}
+'''
+given.files.'src/domain/polite/service.rs' = '''
+//! A service.
+
+pub fn greet() {}
+'''
+given.files.'src/domain/polite/service_test.rs' = '''
+//! Proves the service.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/lib.rs' = '''
+//! The crate.
+
+pub mod collections;
+'''
+given.files.'src/notes/collections.txt' = '''
+not a collection
+'''
+
+[[scenarios]]
+id = 'names-near-reserved'
+scenario = 'Collections named like a reserved name but not the name itself.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod step;
+pub(crate) mod adapter;
+pub(crate) mod case;
+'''
+given.files.'src/collections/adapter.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/adapter/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/adapter/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/adapter/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/adapter/interface.rs' = '''
+//! The one trait every item of the adapter collection implements.
+
+pub trait AdapterItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/case.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/case/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/case/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/case/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/case/interface.rs' = '''
+//! The one trait every item of the case collection implements.
+
+pub trait CaseItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/step.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/step/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/step/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/step/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/step/interface.rs' = '''
+//! The one trait every item of the step collection implements.
+
+pub trait StepItem {
+    fn name(&self) -> &'static str;
+}
+'''
+
+[[scenarios]]
+id = 'list-missing'
+scenario = 'A concept whose collections have no collections.rs, beside a concept that has one.'
+given.include = ['src/domain/*/collections.rs', 'src/domain/*/collections/**']
+given.files.'src/domain/polite/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/domain/polite/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/domain/polite/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/domain/polite/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/domain/rude/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/domain/rude/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/domain/rude/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/domain/rude/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/domain/rude/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/domain/rude/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/domain/polite/collections/shapes.rs' },
+  { path = 'src/domain/polite/collections/shapes/circle.rs' },
+  { path = 'src/domain/polite/collections/shapes/circle/item.rs' },
+  { path = 'src/domain/polite/collections/shapes/circle/item_test.rs' },
+  { path = 'src/domain/polite/collections/shapes/interface.rs' },
+]
+
+[[scenarios]]
+id = 'list-without-collections'
+scenario = 'A collections.rs with no collection beside it, beside a concept whose collections are whole.'
+given.include = ['src/domain/*/collections.rs', 'src/domain/*/collections/**']
+given.files.'src/domain/polite/collections.rs' = '''
+//! The collections here.
+'''
+given.files.'src/domain/rude/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/domain/rude/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/domain/rude/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/domain/rude/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/domain/rude/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/domain/rude/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/domain/polite/collections.rs' },
+]
+
+[[scenarios]]
+id = 'module-file-missing'
+scenario = 'A collection directory with no module file beside it, beside a whole collection.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/circle.rs' },
+  { path = 'src/collections/shapes/circle/item.rs' },
+  { path = 'src/collections/shapes/circle/item_test.rs' },
+  { path = 'src/collections/shapes/interface.rs' },
+]
+
+[[scenarios]]
+id = 'interface-missing'
+scenario = 'A collection with a module file and no interface.rs, beside a whole collection.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+then.findings = [
+  { path = 'src/collections/shapes.rs' },
+]
+
+[[scenarios]]
+id = 'stray-file-in-collection'
+scenario = "A file in a collection directory that is none of a collection's files."
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes/notes.md' = '''
+notes
+'''
+then.findings = [
+  { path = 'src/collections/shapes/notes.md' },
+]
+
+[[scenarios]]
+id = 'item-named-for-a-member'
+scenario = "An item directory named types, as the collection's own types.rs."
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes/types.rs' = '''
+//! Shared types.
+
+#[derive(Debug)]
+pub struct Point {
+    pub x: u32,
+}
+'''
+given.files.'src/collections/shapes/types/item.rs' = '''
+//! One item of a collection.
+
+pub struct Pair;
+'''
+given.files.'src/collections/shapes/types/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/types/item.rs' },
+  { path = 'src/collections/shapes/types/item_test.rs' },
+]
+
+[[scenarios]]
+id = 'collection-without-items'
+scenario = 'A collection with a module file and an interface and no item, beside a whole collection.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/shapes.rs' },
+]
+
+[[scenarios]]
+id = 'item-directory-without-module-file'
+scenario = 'An item directory with no module file beside it, beside a whole item.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+pub(crate) mod square;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes/square.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/square/item.rs' = '''
+//! One item of a collection.
+
+pub struct Square;
+'''
+given.files.'src/collections/shapes/square/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/circle/item.rs' },
+  { path = 'src/collections/shapes/circle/item_test.rs' },
+]
+
+[[scenarios]]
+id = 'item-module-without-directory'
+scenario = 'An item module file with no item directory beside it, beside a whole item.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+pub(crate) mod square;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes/square.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/square/item.rs' = '''
+//! One item of a collection.
+
+pub struct Square;
+'''
+given.files.'src/collections/shapes/square/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+then.findings = [
+  { path = 'src/collections/shapes/circle.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-steps'
+scenario = 'A collection named steps, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod steps;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/steps.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/steps/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/steps/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/steps/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/steps/interface.rs' = '''
+//! The one trait every item of the steps collection implements.
+
+pub trait StepsItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/steps.rs' },
+  { path = 'src/collections/steps/circle.rs' },
+  { path = 'src/collections/steps/circle/item.rs' },
+  { path = 'src/collections/steps/circle/item_test.rs' },
+  { path = 'src/collections/steps/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-use-cases'
+scenario = 'A collection named use_cases, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod use_cases;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/use_cases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/use_cases/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/use_cases/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/use_cases/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/use_cases/interface.rs' = '''
+//! The one trait every item of the use_cases collection implements.
+
+pub trait UseCasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/use_cases.rs' },
+  { path = 'src/collections/use_cases/circle.rs' },
+  { path = 'src/collections/use_cases/circle/item.rs' },
+  { path = 'src/collections/use_cases/circle/item_test.rs' },
+  { path = 'src/collections/use_cases/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-adapters'
+scenario = 'A collection named adapters, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod adapters;
+'''
+given.files.'src/collections/adapters.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/adapters/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/adapters/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/adapters/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/adapters/interface.rs' = '''
+//! The one trait every item of the adapters collection implements.
+
+pub trait AdaptersItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/adapters.rs' },
+  { path = 'src/collections/adapters/circle.rs' },
+  { path = 'src/collections/adapters/circle/item.rs' },
+  { path = 'src/collections/adapters/circle/item_test.rs' },
+  { path = 'src/collections/adapters/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-inbound'
+scenario = 'A collection named inbound, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod inbound;
+'''
+given.files.'src/collections/inbound.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/inbound/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/inbound/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/inbound/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/inbound/interface.rs' = '''
+//! The one trait every item of the inbound collection implements.
+
+pub trait InboundItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/inbound.rs' },
+  { path = 'src/collections/inbound/circle.rs' },
+  { path = 'src/collections/inbound/circle/item.rs' },
+  { path = 'src/collections/inbound/circle/item_test.rs' },
+  { path = 'src/collections/inbound/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-outbound'
+scenario = 'A collection named outbound, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod outbound;
+'''
+given.files.'src/collections/outbound.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/outbound/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/outbound/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/outbound/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/outbound/interface.rs' = '''
+//! The one trait every item of the outbound collection implements.
+
+pub trait OutboundItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/outbound.rs' },
+  { path = 'src/collections/outbound/circle.rs' },
+  { path = 'src/collections/outbound/circle/item.rs' },
+  { path = 'src/collections/outbound/circle/item_test.rs' },
+  { path = 'src/collections/outbound/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-domain'
+scenario = 'A collection named domain, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod domain;
+'''
+given.files.'src/collections/domain.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/domain/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/domain/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/domain/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/domain/interface.rs' = '''
+//! The one trait every item of the domain collection implements.
+
+pub trait DomainItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/domain.rs' },
+  { path = 'src/collections/domain/circle.rs' },
+  { path = 'src/collections/domain/circle/item.rs' },
+  { path = 'src/collections/domain/circle/item_test.rs' },
+  { path = 'src/collections/domain/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-fixtures'
+scenario = 'A collection named fixtures, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod fixtures;
+'''
+given.files.'src/collections/fixtures.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/fixtures/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/fixtures/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/fixtures/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/fixtures/interface.rs' = '''
+//! The one trait every item of the fixtures collection implements.
+
+pub trait FixturesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/fixtures.rs' },
+  { path = 'src/collections/fixtures/circle.rs' },
+  { path = 'src/collections/fixtures/circle/item.rs' },
+  { path = 'src/collections/fixtures/circle/item_test.rs' },
+  { path = 'src/collections/fixtures/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-factory'
+scenario = 'A collection named factory, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod factory;
+'''
+given.files.'src/collections/factory.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/factory/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/factory/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/factory/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/factory/interface.rs' = '''
+//! The one trait every item of the factory collection implements.
+
+pub trait FactoryItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/factory.rs' },
+  { path = 'src/collections/factory/circle.rs' },
+  { path = 'src/collections/factory/circle/item.rs' },
+  { path = 'src/collections/factory/circle/item_test.rs' },
+  { path = 'src/collections/factory/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-schemas'
+scenario = 'A collection named schemas, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod schemas;
+'''
+given.files.'src/collections/schemas.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/schemas/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/schemas/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/schemas/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/schemas/interface.rs' = '''
+//! The one trait every item of the schemas collection implements.
+
+pub trait SchemasItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/schemas.rs' },
+  { path = 'src/collections/schemas/circle.rs' },
+  { path = 'src/collections/schemas/circle/item.rs' },
+  { path = 'src/collections/schemas/circle/item_test.rs' },
+  { path = 'src/collections/schemas/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-service'
+scenario = 'A collection named service, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod service;
+'''
+given.files.'src/collections/service.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/service/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/service/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/service/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/service/interface.rs' = '''
+//! The one trait every item of the service collection implements.
+
+pub trait ServiceItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/service.rs' },
+  { path = 'src/collections/service/circle.rs' },
+  { path = 'src/collections/service/circle/item.rs' },
+  { path = 'src/collections/service/circle/item_test.rs' },
+  { path = 'src/collections/service/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-interface'
+scenario = 'A collection named interface, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod interface;
+'''
+given.files.'src/collections/interface.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/interface/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/interface/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/interface/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/interface/interface.rs' = '''
+//! The one trait every item of the interface collection implements.
+
+pub trait InterfaceItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/interface.rs' },
+  { path = 'src/collections/interface/circle.rs' },
+  { path = 'src/collections/interface/circle/item.rs' },
+  { path = 'src/collections/interface/circle/item_test.rs' },
+  { path = 'src/collections/interface/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-errors'
+scenario = 'A collection named errors, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod errors;
+'''
+given.files.'src/collections/errors.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/errors/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/errors/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/errors/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/errors/interface.rs' = '''
+//! The one trait every item of the errors collection implements.
+
+pub trait ErrorsItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/errors.rs' },
+  { path = 'src/collections/errors/circle.rs' },
+  { path = 'src/collections/errors/circle/item.rs' },
+  { path = 'src/collections/errors/circle/item_test.rs' },
+  { path = 'src/collections/errors/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-types'
+scenario = 'A collection named types, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod types;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/types.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/types/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/types/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/types/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/types/interface.rs' = '''
+//! The one trait every item of the types collection implements.
+
+pub trait TypesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/types.rs' },
+  { path = 'src/collections/types/circle.rs' },
+  { path = 'src/collections/types/circle/item.rs' },
+  { path = 'src/collections/types/circle/item_test.rs' },
+  { path = 'src/collections/types/interface.rs' },
+]
+
+[[scenarios]]
+id = 'reserved-collections'
+scenario = 'A collection named collections, beside a collection with an ordinary name.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod collections;
+'''
+given.files.'src/collections/collections.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/collections/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/collections/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/collections/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/collections/interface.rs' = '''
+//! The one trait every item of the collections collection implements.
+
+pub trait CollectionsItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+then.findings = [
+  { path = 'src/collections/collections.rs' },
+  { path = 'src/collections/collections/circle.rs' },
+  { path = 'src/collections/collections/circle.rs' },
+  { path = 'src/collections/collections/circle/item.rs' },
+  { path = 'src/collections/collections/circle/item.rs' },
+  { path = 'src/collections/collections/circle/item_test.rs' },
+  { path = 'src/collections/collections/circle/item_test.rs' },
+  { path = 'src/collections/collections/interface.rs' },
+  { path = 'src/collections/collections/interface.rs' },
+  { path = 'src/collections/collections/interface.rs' },
+  { path = 'src/collections/collections/interface.rs' },
+]
+
+[[scenarios]]
+id = 'product-nu-hex-level-broken'
+scenario = "The core's crate-level collection, placed the way a product's tastemaker.toml places the rule, with no interface.rs while the other three levels are whole."
+given.include = ['crates/shop/crates/core/src/**/collections*', 'crates/shop/crates/adapters/src/**/collections*']
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/lib.rs' = '''
+//! The crate.
+
+pub mod collections;
+'''
+then.findings = [
+  { path = 'crates/shop/crates/core/src/collections/shapes.rs' },
+]
+
+[[scenarios]]
+id = 'product-core-concept-level-broken'
+scenario = "A domain concept's collection in the core, placed the way a product's tastemaker.toml places the rule, with no interface.rs while the other three levels are whole."
+given.include = ['crates/shop/crates/core/src/**/collections*', 'crates/shop/crates/adapters/src/**/collections*']
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/lib.rs' = '''
+//! The crate.
+
+pub mod collections;
+'''
+then.findings = [
+  { path = 'crates/shop/crates/core/src/domain/polite/collections/phrases.rs' },
+]
+
+[[scenarios]]
+id = 'product-adapters-hex-level-broken'
+scenario = "A hex's collection in the adapters, placed the way a product's tastemaker.toml places the rule, with no interface.rs while the other three levels are whole."
+given.include = ['crates/shop/crates/core/src/**/collections*', 'crates/shop/crates/adapters/src/**/collections*']
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/lib.rs' = '''
+//! The crate.
+
+pub mod collections;
+'''
+then.findings = [
+  { path = 'crates/shop/crates/adapters/src/names/collections/shapes.rs' },
+]
+
+[[scenarios]]
+id = 'product-adapters-adapter-level-broken'
+scenario = "An adapter's collection in the adapters, placed the way a product's tastemaker.toml places the rule, with no interface.rs while the other three levels are whole."
+given.include = ['crates/shop/crates/core/src/**/collections*', 'crates/shop/crates/adapters/src/**/collections*']
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/adapters/src/names/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod phrases;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'crates/shop/crates/core/src/domain/polite/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'crates/shop/crates/core/src/lib.rs' = '''
+//! The crate.
+
+pub mod collections;
+'''
+then.findings = [
+  { path = 'crates/shop/crates/adapters/src/names/adapters/memory/collections/phrases.rs' },
+]
+
+[[scenarios]]
+id = 'several-problems'
+scenario = 'Every problem of a crate is reported at once: a missing interface, an item module file without its directory and a missing module file.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+pub(crate) mod phrases;
+'''
+given.files.'src/collections/phrases/hello.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/phrases/hello/item.rs' = '''
+//! One item of a collection.
+
+pub struct Hello;
+'''
+given.files.'src/collections/phrases/hello/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/phrases/interface.rs' = '''
+//! The one trait every item of the phrases collection implements.
+
+pub trait PhrasesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+pub(crate) mod circle;
+pub(crate) mod square;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+given.files.'src/collections/shapes/square.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+then.findings = [
+  { path = 'src/collections/phrases/hello.rs' },
+  { path = 'src/collections/phrases/hello/item.rs' },
+  { path = 'src/collections/phrases/hello/item_test.rs' },
+  { path = 'src/collections/phrases/interface.rs' },
+  { path = 'src/collections/shapes.rs' },
+  { path = 'src/collections/shapes/square.rs' },
+]
+
+[[scenarios]]
+id = 'fixtures-without-items'
+scenario = 'A collection whose only directory is its fixtures holds no item.'
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: the interface every item implements, and each of its items in order.
+
+pub(crate) mod interface;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;
+'''
+given.files.'src/collections/shapes/errors.rs' = '''
+//! The errors.
+
+#[derive(Debug)]
+pub enum ShapesError {
+    Bad,
+}
+'''
+given.files.'src/collections/shapes/fixtures.rs' = '''
+pub mod contract;
+'''
+given.files.'src/collections/shapes/fixtures/contract.rs' = '''
+//! The shared cases of the items.
+
+pub const CASES: &[u32] = &[];
+'''
+given.files.'src/collections/shapes/interface.rs' = '''
+//! The one trait every item of the shapes collection implements.
+
+pub trait ShapesItem {
+    fn name(&self) -> &'static str;
+}
+'''
+given.files.'src/collections/shapes/types.rs' = '''
+//! Shared types.
+
+#[derive(Debug)]
+pub struct Point {
+    pub x: u32,
+}
+'''
+then.findings = [
+  { path = 'src/collections/shapes.rs' },
+]
+
+[[scenarios]]
+id = "placed-values-below-types"
+scenario = "Exact common value roles may use the collection types namespace."
+given.files.'src/collections.rs' = "pub mod shapes;"
+given.files.'src/collections/shapes.rs' = "pub mod interface; pub mod circle; pub mod types;"
+given.files.'src/collections/shapes/interface.rs' = "pub trait ShapesItem {}"
+given.files.'src/collections/shapes/circle.rs' = "pub mod item;"
+given.files.'src/collections/shapes/circle/item.rs' = "pub struct Circle;"
+given.files.'src/collections/shapes/types.rs' = "pub mod key;"
+given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
+given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
+given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
+given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"], params = { item-trait = [] } }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"idiomatic.arch/value\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
+then.only = ["idiomatic.arch/collection-members"]
+
+[[scenarios]]
+id = "unplaced-value-directory-is-refused"
+scenario = "Naming a directory types does not place its values."
+given.files.'src/collections.rs' = "pub mod shapes;"
+given.files.'src/collections/shapes.rs' = "pub mod interface; pub mod circle; pub mod types;"
+given.files.'src/collections/shapes/interface.rs' = "pub trait ShapesItem {}"
+given.files.'src/collections/shapes/circle.rs' = "pub mod item;"
+given.files.'src/collections/shapes/circle/item.rs' = "pub struct Circle;"
+given.files.'src/collections/shapes/types.rs' = "pub mod key;"
+given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
+given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
+given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
+then.findings = [{ path = "src/collections/shapes/types/key.rs" }, { path = "src/collections/shapes/types/key/value.rs" }, { path = "src/collections/shapes/types/key/value_test.rs" }]
+
+[[scenarios]]
+id = "wrong-role-does-not-authorize-types-directory"
+scenario = "A different placed role does not authorize reserved member directories."
+given.files.'src/collections.rs' = "pub mod shapes;"
+given.files.'src/collections/shapes.rs' = "pub mod interface; pub mod circle; pub mod types;"
+given.files.'src/collections/shapes/interface.rs' = "pub trait ShapesItem {}"
+given.files.'src/collections/shapes/circle.rs' = "pub mod item;"
+given.files.'src/collections/shapes/circle/item.rs' = "pub struct Circle;"
+given.files.'src/collections/shapes/types.rs' = "pub mod key;"
+given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
+given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
+given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
+given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"], params = { item-trait = [] } }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"idiomatic.arch/unit-test\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
+then.only = ["idiomatic.arch/collection-members"]
+then.findings = [{ path = "src/collections/shapes/types/key/value.rs" }]
+
+[[scenarios]]
+id = "foreign-package-cannot-spoof-value-role"
+scenario = "A different package defining a template named value does not acquire the common role."
+given.files.'src/collections.rs' = "pub mod shapes;"
+given.files.'src/collections/shapes.rs' = "pub mod interface; pub mod circle; pub mod types;"
+given.files.'src/collections/shapes/interface.rs' = "pub trait ShapesItem {}"
+given.files.'src/collections/shapes/circle.rs' = "pub mod item;"
+given.files.'src/collections/shapes/circle/item.rs' = "pub struct Circle;"
+given.files.'src/collections/shapes/types.rs' = "pub mod key;"
+given.files.'src/collections/shapes/types/key.rs' = "pub mod value; #[cfg(test)] mod value_test;"
+given.files.'src/collections/shapes/types/key/value.rs' = "pub struct Key(u32);"
+given.files.'src/collections/shapes/types/key/value_test.rs' = "#[test] fn succeeds() {}"
+given.files.'tastemaker.toml' = "workspace = { name = \"values\", dependencies = [{ package = \"idiomatic.arch\", path = \"../../..\" }, { package = \"foreign\", path = \"../../../../crates/tastemaker/cli/tests/fixtures/replay/roles\" }] }\nrules = [{ rule = \"idiomatic.arch/collection-members\", include = [\"src/**\"], params = { item-trait = [] } }]\ntemplates = [\n{ template = \"idiomatic.arch/value-module\", file = \"src/collections/shapes/types/key.rs\" },\n{ template = \"foreign/value\", file = \"src/collections/shapes/types/key/value.rs\" },\n{ template = \"idiomatic.arch/value-test\", file = \"src/collections/shapes/types/key/value_test.rs\" },\n]\n"
+then.only = ["idiomatic.arch/collection-members"]
+then.findings = [{ path = "src/collections/shapes/types/key/value.rs" }]
+
+[[scenarios]]
+id = 'collection-of-another-crates-trait'
+scenario = "A collection the entry's `item-trait` names has no interface.rs of its own: its items implement that trait of another crate."
+given.params = { item-trait = [{ collection = "shapes", trait = "other::ShapeItem" }] }
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection of another crate's trait, and each of its items in order.
+
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+
+[[scenarios]]
+id = 'item-trait-names-another-collection'
+scenario = "A collection with no interface.rs is still reported when the entry's `item-trait` names another collection."
+given.params = { item-trait = [{ collection = "phrases", trait = "other::PhraseItem" }] }
+given.files.'src/collections.rs' = '''
+//! The collections here.
+
+pub(crate) mod shapes;
+'''
+given.files.'src/collections/shapes.rs' = '''
+//! One collection: each of its items in order.
+
+pub(crate) mod circle;
+'''
+given.files.'src/collections/shapes/circle.rs' = '''
+//! One item of a collection.
+
+pub(crate) mod item;
+
+#[cfg(test)]
+mod item_test;
+'''
+given.files.'src/collections/shapes/circle/item.rs' = '''
+//! One item of a collection.
+
+pub struct Circle;
+'''
+given.files.'src/collections/shapes/circle/item_test.rs' = '''
+//! Proves the item.
+
+#[test]
+fn succeeds() {}
+'''
+then.findings = [
+  { path = 'src/collections/shapes.rs' },
+]

@@ -1,0 +1,3 @@
+# collection-members 0.2.0
+
+A collection whose items implement a trait of another crate has no `interface.rs` of its own, and 0.1.0 reported it as broken. The collection spec already says so with its `item-trait` pairs (`relations=ryo::languages::ReadItem`): a collection named there implements that trait and places no `interface.rs`. The rule now takes the same fact, the new required param `item-trait` (`{ collection, trait }`, `[]` for none), and leaves a named collection's missing `interface.rs` alone. Every other check is as in 0.1.0, a named collection's included. Scenarios `collection-of-another-crates-trait` (passes) and `item-trait-names-another-collection` (reported).
