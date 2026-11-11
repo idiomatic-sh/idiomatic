@@ -27,10 +27,10 @@ pub(super) fn measured(
     inputs: &[&Table],
     source: &[u8],
     symbols: &mut Symbols,
-) -> Result<(Table, ExecutionObservation), OperatingError> {
+) -> Result<(Table, ExecutionObservation, usize), OperatingError> {
     let authored = table_inputs(operation, inputs, &[], symbols);
     let mut observed = ExecutionObservation::default();
-    let table = execute_request(
+    let ran = execute_request(
         authored.plan,
         &authored.hosted,
         &authored.facts,
@@ -39,7 +39,7 @@ pub(super) fn measured(
         false,
         &mut observed,
     )?;
-    Ok((table, observed))
+    Ok((ran.answer?, observed, ran.retained.0))
 }
 
 pub(super) fn numbers(rows: &[&[i64]]) -> Table {
@@ -62,7 +62,7 @@ pub(super) fn numbers(rows: &[&[i64]]) -> Table {
 pub(super) fn closure(
     edges: &Table,
     keys: &[u32],
-) -> Result<(Table, ExecutionObservation), OperatingError> {
+) -> Result<(Table, ExecutionObservation, usize), OperatingError> {
     measured(
         Operation::Closure {
             edges: FROM,
@@ -120,7 +120,7 @@ pub(super) fn node(position: u32) -> Cell {
 /// and 1-3, with 2-1 closing a cycle when `cycle`, beside a chain of `unrelated` edges in file 1
 /// at equal local positions, within the domain 1, 2, 3: the rows it answered and the nodes it
 /// visited.
-pub(super) fn axis(unrelated: u32, cycle: bool) -> Result<(usize, usize), OperatingError> {
+pub(super) fn axis(unrelated: u32, cycle: bool) -> Result<(usize, usize, usize), OperatingError> {
     let mut edges = Table {
         kinds: vec![CellKind::Node; 2],
         ..Table::default()
@@ -167,13 +167,13 @@ pub(super) fn axis(unrelated: u32, cycle: bool) -> Result<(usize, usize), Operat
         domain_view: Vec::new(),
         output: vec![],
     };
-    let (out, observed) = measured(
+    let (out, observed, retained) = measured(
         axis,
         &[&starts, &edges, &domain],
         b"",
         &mut Symbols::default(),
     )?;
-    Ok((out.count.0, observed.closure_visited))
+    Ok((out.count.0, observed.closure_visited, retained))
 }
 
 /// The rows a pilot answered over its input repeated 32 and 64 times, and the exact row and other
@@ -187,7 +187,7 @@ pub(super) struct Pilot {
 
 /// The pilot of `kind` (a project keeping repeated rows) over its fixture's input repeated 32
 /// and 64 times.
-pub(super) fn pilot(kind: OperationKind) -> Result<Pilot, OperatingError> {
+pub(super) fn pilot(kind: OperationKind) -> Result<(Pilot, [usize; 2]), OperatingError> {
     let mut case = fixture(kind);
     if let Operation::Project { distinct, .. } = &mut case.operation {
         *distinct = RepeatedRows::Kept;
@@ -198,13 +198,16 @@ pub(super) fn pilot(kind: OperationKind) -> Result<Pilot, OperatingError> {
         count: RowCount(case.inputs[0].count.0 * times),
     };
     let (small, large) = (repeated(32), repeated(64));
-    let (first_rows, first) =
+    let (first_rows, first, first_retained) =
         measured(case.operation.clone(), &[&small], SOURCE, &mut case.symbols)?;
-    let (second_rows, second) =
+    let (second_rows, second, second_retained) =
         measured(case.operation.clone(), &[&large], SOURCE, &mut case.symbols)?;
-    Ok(Pilot {
-        rows: (first_rows.count.0, second_rows.count.0),
-        small_scratch: (first.row_capacity, first.other_capacity),
-        large_scratch: (second.row_capacity, second.other_capacity),
-    })
+    Ok((
+        Pilot {
+            rows: (first_rows.count.0, second_rows.count.0),
+            small_scratch: (first.row_capacity, first.other_capacity),
+            large_scratch: (second.row_capacity, second.other_capacity),
+        },
+        [first_retained, second_retained],
+    ))
 }

@@ -33,23 +33,27 @@ enum Pattern {
     BoundGlobs(&'static [&'static str]),
 }
 
-/// The rows the invocation answered and the regexes and globs its local caches compiled.
+/// The rows the invocation answered, the regexes and globs its local caches compiled, and the working bytes left
+/// once the file finished.
 #[derive(Debug, PartialEq)]
 struct Caches {
     rows: usize,
     regexes: usize,
     globs: usize,
+    /// The working bytes the graph owner still held after the file finished.
+    retained: usize,
 }
 
 type Input = Pattern;
 type Value = Caches;
 type Failure = OperatingError;
 
-const fn caches(rows: usize, regexes: usize, globs: usize) -> Caches {
+const fn caches(rows: usize, regexes: usize, globs: usize, retained: usize) -> Caches {
     Caches {
         rows,
         regexes,
         globs,
+        retained,
     }
 }
 
@@ -66,31 +70,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("only_dynamic_patterns_enter_local_caches"),
         word: Word::Succeeds,
         input: || literal(Test::Matches, r"\s+", "é\u{2003}雪"),
-        expect: Expect::Value(caches(1, 0, 0)),
+        expect: Expect::Value(caches(1, 0, 0, 0)),
     },
     Case {
         name: CaseName("a_literal_glob_never_enters_local_caches"),
         word: Word::Succeeds,
         input: || literal(Test::GlobAny, "*.rs", "src/lib.rs"),
-        expect: Expect::Value(caches(1, 0, 0)),
+        expect: Expect::Value(caches(1, 0, 0, 0)),
     },
     Case {
         name: CaseName("a_literal_wildcard_glob_never_enters_local_caches"),
         word: Word::Succeeds,
         input: || literal(Test::GlobAny, "*", "αβ"),
-        expect: Expect::Value(caches(1, 0, 0)),
+        expect: Expect::Value(caches(1, 0, 0, 0)),
     },
     Case {
         name: CaseName("a_literal_negated_glob_never_enters_local_caches"),
         word: Word::Succeeds,
         input: || literal(Test::NotGlobAny, "*", "αβ"),
-        expect: Expect::Value(caches(0, 0, 0)),
+        expect: Expect::Value(caches(0, 0, 0, 0)),
     },
     Case {
         name: CaseName("a_literal_single_character_glob_never_enters_local_caches"),
         word: Word::Succeeds,
         input: || literal(Test::GlobAny, "α?", "αβ"),
-        expect: Expect::Value(caches(1, 0, 0)),
+        expect: Expect::Value(caches(1, 0, 0, 0)),
     },
     Case {
         name: CaseName("a_literal_replacement_pattern_never_enters_local_caches"),
@@ -99,49 +103,49 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             pattern: r"\s+",
             text: "a \t b",
         },
-        expect: Expect::Value(caches(1, 0, 0)),
+        expect: Expect::Value(caches(1, 0, 0, 0)),
     },
     Case {
         name: CaseName("a_bound_regex_cannot_reuse_the_same_byte_literal_slot"),
         word: Word::Succeeds,
         input: || Pattern::Bound("a.*"),
-        expect: Expect::Value(caches(1, 1, 0)),
+        expect: Expect::Value(caches(1, 1, 0, 0)),
     },
     Case {
         name: CaseName("a_bound_regex_that_matches_nothing_enters_local_caches_once"),
         word: Word::Succeeds,
         input: || Pattern::Bound("b.*"),
-        expect: Expect::Value(caches(0, 1, 0)),
+        expect: Expect::Value(caches(0, 1, 0, 0)),
     },
     Case {
         name: CaseName("a_computed_regex_enters_local_caches_once"),
         word: Word::Succeeds,
         input: || Pattern::Computed,
-        expect: Expect::Value(caches(1, 1, 0)),
+        expect: Expect::Value(caches(1, 1, 0, 0)),
     },
     Case {
         name: CaseName("a_regex_read_from_the_row_enters_local_caches_once"),
         word: Word::Succeeds,
         input: || Pattern::ReadFromRow,
-        expect: Expect::Value(caches(1, 1, 0)),
+        expect: Expect::Value(caches(1, 1, 0, 0)),
     },
     Case {
         name: CaseName("a_bound_glob_list_enters_local_caches_once"),
         word: Word::Succeeds,
         input: || Pattern::BoundGlobs(&["a*", "α*"]),
-        expect: Expect::Value(caches(1, 0, 1)),
+        expect: Expect::Value(caches(1, 0, 1, 0)),
     },
     Case {
         name: CaseName("a_bound_glob_list_that_matches_nothing_enters_local_caches_once"),
         word: Word::Succeeds,
         input: || Pattern::BoundGlobs(&["b*"]),
-        expect: Expect::Value(caches(0, 0, 1)),
+        expect: Expect::Value(caches(0, 0, 1, 0)),
     },
     Case {
         name: CaseName("an_empty_bound_glob_list_enters_local_caches_once"),
         word: Word::Succeeds,
         input: || Pattern::BoundGlobs(&[]),
-        expect: Expect::Value(caches(0, 0, 1)),
+        expect: Expect::Value(caches(0, 0, 1, 0)),
     },
 ];
 
@@ -206,8 +210,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
             glob,
         ),
     };
-    let (rows, regexes, globs) = local_caches(operation, row, &bindings, &shadow)?;
-    Ok(caches(rows, regexes, globs))
+    let (rows, regexes, globs, retained) = local_caches(operation, row, &bindings, &shadow)?;
+    Ok(caches(rows, regexes, globs, retained))
 }
 
 #[test]

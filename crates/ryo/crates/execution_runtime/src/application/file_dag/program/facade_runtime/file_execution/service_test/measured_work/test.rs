@@ -58,8 +58,15 @@ enum Measured {
     Pilot(Pilot),
 }
 
+/// What the owner measured, and the working bytes each run left once its file finished, in run order.
+#[derive(Debug, PartialEq)]
+struct Answer {
+    measured: Measured,
+    retained: Cow<'static, [usize]>,
+}
+
 type Input = Workload;
-type Value = Measured;
+type Value = Answer;
 type Failure = OperatingError;
 
 const fn work(
@@ -112,18 +119,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 },
             )
         },
-        expect: Expect::Value(closures(&[
-            work(4, 3, 31, 1),
-            work(1, 1, 27, 1),
-            work(0, 0, 0, 0),
-            work(0, 0, 0, 0),
-        ])),
+        expect: Expect::Value(Answer {
+            measured: closures(&[
+                work(4, 3, 31, 1),
+                work(1, 1, 27, 1),
+                work(0, 0, 0, 0),
+                work(0, 0, 0, 0),
+            ]),
+            retained: Cow::Borrowed(&[0, 0, 0, 0]),
+        }),
     },
     Case {
         name: CaseName("interleaved_closure_visits_are_bounded"),
         word: Word::Succeeds,
         input: || Workload::Closures(const { &[unkeyed(Edges::Interleaved(1024))] }),
-        expect: Expect::Value(closures(&[work(3072, 2048, 12808, 1)])),
+        expect: Expect::Value(Answer {
+            measured: closures(&[work(3072, 2048, 12808, 1)]),
+            retained: Cow::Borrowed(&[0]),
+        }),
     },
     Case {
         name: CaseName("many_tiny_partitions_bound_the_working_graph"),
@@ -138,7 +151,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 },
             )
         },
-        expect: Expect::Value(closures(&[work(4 * 2048, 3, 39, 1)])),
+        expect: Expect::Value(Answer {
+            measured: closures(&[work(4 * 2048, 3, 39, 1)]),
+            retained: Cow::Borrowed(&[0]),
+        }),
     },
     Case {
         name: CaseName("sparse_axis_walk_visits_only_its_component"),
@@ -147,9 +163,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             unrelated: 0,
             cycle: false,
         },
-        expect: Expect::Value(Measured::Axis {
-            rows: 4,
-            visited: 3,
+        expect: Expect::Value(Answer {
+            measured: Measured::Axis {
+                rows: 4,
+                visited: 3,
+            },
+            retained: Cow::Borrowed(&[0]),
         }),
     },
     Case {
@@ -159,9 +178,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             unrelated: 0,
             cycle: true,
         },
-        expect: Expect::Value(Measured::Axis {
-            rows: 6,
-            visited: 4,
+        expect: Expect::Value(Answer {
+            measured: Measured::Axis {
+                rows: 6,
+                visited: 4,
+            },
+            retained: Cow::Borrowed(&[0]),
         }),
     },
     Case {
@@ -171,9 +193,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             unrelated: 64,
             cycle: false,
         },
-        expect: Expect::Value(Measured::Axis {
-            rows: 4,
-            visited: 3,
+        expect: Expect::Value(Answer {
+            measured: Measured::Axis {
+                rows: 4,
+                visited: 3,
+            },
+            retained: Cow::Borrowed(&[0]),
         }),
     },
     Case {
@@ -185,9 +210,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             unrelated: 64,
             cycle: true,
         },
-        expect: Expect::Value(Measured::Axis {
-            rows: 6,
-            visited: 4,
+        expect: Expect::Value(Answer {
+            measured: Measured::Axis {
+                rows: 6,
+                visited: 4,
+            },
+            retained: Cow::Borrowed(&[0]),
         }),
     },
     Case {
@@ -197,9 +225,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             unrelated: 4096,
             cycle: false,
         },
-        expect: Expect::Value(Measured::Axis {
-            rows: 4,
-            visited: 3,
+        expect: Expect::Value(Answer {
+            measured: Measured::Axis {
+                rows: 4,
+                visited: 3,
+            },
+            retained: Cow::Borrowed(&[0]),
         }),
     },
     Case {
@@ -211,34 +242,49 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             unrelated: 4096,
             cycle: true,
         },
-        expect: Expect::Value(Measured::Axis {
-            rows: 6,
-            visited: 4,
+        expect: Expect::Value(Answer {
+            measured: Measured::Axis {
+                rows: 6,
+                visited: 4,
+            },
+            retained: Cow::Borrowed(&[0]),
         }),
     },
     Case {
         name: CaseName("unary_pilots_keep_bounded_row_scratch"),
         word: Word::Succeeds,
         input: || Workload::Pilot(OperationKind::Select),
-        expect: Expect::Value(pilot_scratch(96, (0, 0))),
+        expect: Expect::Value(Answer {
+            measured: pilot_scratch(96, (0, 0)),
+            retained: Cow::Borrowed(&[0, 0]),
+        }),
     },
     Case {
         name: CaseName("the_project_pilot_keeps_bounded_row_scratch"),
         word: Word::Succeeds,
         input: || Workload::Pilot(OperationKind::Project),
-        expect: Expect::Value(pilot_scratch(96, (0, 4))),
+        expect: Expect::Value(Answer {
+            measured: pilot_scratch(96, (0, 4)),
+            retained: Cow::Borrowed(&[0, 0]),
+        }),
     },
     Case {
         name: CaseName("the_source_matches_pilot_keeps_bounded_row_scratch"),
         word: Word::Succeeds,
         input: || Workload::Pilot(OperationKind::SourceMatches),
-        expect: Expect::Value(pilot_scratch(64, (4, 0))),
+        expect: Expect::Value(Answer {
+            measured: pilot_scratch(64, (4, 0)),
+            retained: Cow::Borrowed(&[0, 0]),
+        }),
     },
     Case {
         name: CaseName("the_span_bounds_pilot_keeps_bounded_row_scratch"),
         word: Word::Succeeds,
         input: || Workload::Pilot(OperationKind::SpanBounds),
-        expect: Expect::Value(pilot_scratch(32, (4, 0))),
+        expect: Expect::Value(Answer {
+            measured: pilot_scratch(32, (4, 0)),
+            retained: Cow::Borrowed(&[0, 0]),
+        }),
     },
 ];
 
@@ -247,6 +293,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Workload::Closures(owners) => {
             let mut measured = Vec::new();
+            let mut retained = Vec::new();
             for owner in owners {
                 let edges = match owner.edges {
                     Edges::Rows(rows) => numbers(rows),
@@ -254,7 +301,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     Edges::Interleaved(fans) => interleaved(fans),
                     Edges::Partitioned(partitions) => partitioned(partitions),
                 };
-                let (out, observed) = closure(&edges, owner.keys)?;
+                let (out, observed, left) = closure(&edges, owner.keys)?;
+                retained.push(left);
                 measured.push(work(
                     out.count.0,
                     observed.closure_partition_rows,
@@ -262,13 +310,25 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     observed.closure_visited,
                 ));
             }
-            Ok(Measured::Closures(measured.into()))
+            Ok(Answer {
+                measured: Measured::Closures(measured.into()),
+                retained: retained.into(),
+            })
         }
         Workload::Axis { unrelated, cycle } => {
-            let (rows, visited) = axis(unrelated, cycle)?;
-            Ok(Measured::Axis { rows, visited })
+            let (rows, visited, left) = axis(unrelated, cycle)?;
+            Ok(Answer {
+                measured: Measured::Axis { rows, visited },
+                retained: Cow::Owned(vec![left]),
+            })
         }
-        Workload::Pilot(kind) => Ok(Measured::Pilot(pilot(kind)?)),
+        Workload::Pilot(kind) => {
+            let (measured, retained) = pilot(kind)?;
+            Ok(Answer {
+                measured: Measured::Pilot(measured),
+                retained: Cow::Owned(retained.to_vec()),
+            })
+        }
     }
 }
 

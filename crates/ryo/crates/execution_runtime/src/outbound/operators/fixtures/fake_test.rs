@@ -7,25 +7,44 @@ use ryo_operators::inbound::use_cases::operators::types::OperatorCall;
 use ryo_relations::domain::relations::types::{Integer, Value as CellValue};
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
+use std::borrow::Cow;
 use std::sync::atomic::Ordering;
 
 type Input = bool;
-type Value = usize;
-type Failure = PortableOperatorFault;
+/// What one projection through the fake left behind: its answer, the calls it recorded and the target row.
+#[derive(Debug, PartialEq)]
+struct Observed {
+    answer: Result<OperatorAnswer, PortableOperatorFault>,
+    calls: usize,
+    target: Cow<'static, [CellValue]>,
+}
+type Value = Observed;
+type Failure = Observed;
+
+const INITIAL: CellValue = CellValue::Number(Integer(9));
+const ROW: CellValue = CellValue::Number(Integer(3));
 
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("available_fake_projects_and_records_once"),
         word: Word::Succeeds,
         input: || false,
-        expect: Expect::Value(1),
+        expect: Expect::Value(Observed {
+            answer: Ok(OperatorAnswer::Written),
+            calls: 1,
+            target: Cow::Borrowed(&[INITIAL, ROW]),
+        }),
     },
     Case {
         name: CaseName("refusing_fake_keeps_scratch_and_records_once"),
         word: Word::Refuses,
         input: || true,
-        expect: Expect::Error(PortableOperatorFault::NoSuchColumn {
-            index: ryo_values::domain::plan_parts::types::ColumnIndex(8),
+        expect: Expect::Error(Observed {
+            answer: Err(PortableOperatorFault::NoSuchColumn {
+                index: ColumnIndex(8),
+            }),
+            calls: 1,
+            target: Cow::Borrowed(&[INITIAL]),
         }),
     },
 ];
@@ -35,22 +54,23 @@ fn subject(refuses: Input) -> Result<Value, Failure> {
         refuses,
         ..OperatorsFake::default()
     };
-    let row = [CellValue::Number(Integer(3))];
-    let initial = CellValue::Number(Integer(9));
-    let mut target = vec![initial];
-    let result = fake.operators(OperatorCall::Project {
+    let row = [ROW];
+    let mut target = vec![INITIAL];
+    let answer = fake.operators(OperatorCall::Project {
         row: &row,
         columns: &[ColumnIndex(0)],
         target: &mut target,
     });
-    assert_eq!(fake.calls.load(Ordering::Relaxed), 1);
-    if refuses {
-        assert_eq!(target, vec![initial]);
+    let observed = Observed {
+        answer,
+        calls: fake.calls.load(Ordering::Relaxed),
+        target: Cow::Owned(target),
+    };
+    if observed.answer.as_ref().err().is_some() {
+        Err(observed)
     } else {
-        assert_eq!(result, Ok(OperatorAnswer::Written));
-        assert_eq!(target, vec![initial, row[0]]);
+        Ok(observed)
     }
-    result.map(|_| 1)
 }
 #[test]
 fn succeeds() {

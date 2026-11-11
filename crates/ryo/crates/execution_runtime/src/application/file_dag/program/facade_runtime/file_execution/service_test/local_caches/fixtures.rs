@@ -33,14 +33,15 @@ pub(super) fn select(test: Test, pattern: &str) -> Operation {
     }
 }
 
-/// The regexes and globs an invocation compiled into its local caches, with the answer's row count: one text row, the
+/// The regexes and globs an invocation compiled into its local caches, with the answer's row count and the working
+/// bytes left once the file finished: one text row, the
 /// operation, and an undemanded literal `shadow` step whose compiled slot a dynamic pattern must not take by equal bytes.
 pub(super) fn local_caches(
     operation: Operation,
     text: &str,
     bindings: &[ParameterBinding],
     shadow: &Operation,
-) -> Result<(usize, usize, usize), OperatingError> {
+) -> Result<(usize, usize, usize, usize), OperatingError> {
     let mut symbols = Symbols::default();
     let mut input = Table {
         kinds: vec![CellKind::Symbol],
@@ -58,7 +59,7 @@ pub(super) fn local_caches(
         operation: shadow,
     });
     let mut observed = ExecutionObservation::default();
-    let out = execute_bound_request(
+    let ran = execute_bound_request(
         authored.plan,
         bindings.to_vec(),
         &authored.hosted,
@@ -68,7 +69,12 @@ pub(super) fn local_caches(
         false,
         &mut observed,
     )?;
-    Ok((out.count.0, observed.regexes, observed.globs))
+    Ok((
+        ran.answer?.count.0,
+        observed.regexes,
+        observed.globs,
+        ran.retained.0,
+    ))
 }
 
 /// `operation`, a select, with its one comparison's right side replaced by `right`.

@@ -1,7 +1,8 @@
 //! File partitions keep identical node values separate and deliver rows in exact order.
-use super::super::fixtures::{column, execute_request, host, hosted_plan, numbers, operation};
+use super::super::fixtures::{Ran, column, execute_request, host, hosted_plan, numbers, operation};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
+use ryo_execution_store::application::file_dag::derived::ledger::types::ByteCount;
 use ryo_language::domain::symbols::types::Symbols;
 use ryo_relations::domain::relations::{
     service::kinds,
@@ -36,6 +37,8 @@ struct Walked {
     count: usize,
     kinds: Cow<'static, [CellKind]>,
     cells: Cow<'static, [Cell]>,
+    /// The working bytes the graph owner still held after the file finished.
+    retained: ByteCount,
 }
 
 type Input = Walk;
@@ -104,6 +107,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 n(1),
                 number(0),
             ]),
+            retained: ByteCount(0),
         }),
     },
     Case {
@@ -118,6 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             count: 3,
             kinds: Cow::Borrowed(&[CellKind::Number; 5]),
             cells: Cow::Borrowed(HOSTED_CELLS),
+            retained: ByteCount(0),
         }),
     },
     Case {
@@ -133,11 +138,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             // The delivered rows are gathered from the sink, which carries no column kinds.
             kinds: Cow::Borrowed(&[]),
             cells: Cow::Borrowed(HOSTED_CELLS),
+            retained: ByteCount(0),
         }),
     },
 ];
 
-fn partitioned(edges: &[[u32; 3]], roots: &[u32]) -> Result<Table, String> {
+fn partitioned(edges: &[[u32; 3]], roots: &[u32]) -> Result<Ran, String> {
     let edge_cells = edges.iter().flat_map(|[parent, child, file]| {
         [
             n(u64::from(*parent)),
@@ -207,7 +213,7 @@ fn partitioned(edges: &[[u32; 3]], roots: &[u32]) -> Result<Table, String> {
 
 /// Runs the walk and answers its table.
 fn subject(walk: Input) -> Result<Value, Failure> {
-    let out = match walk {
+    let ran = match walk {
         Walk::FilePartitions { edges, roots } => partitioned(edges, roots)?,
         Walk::Hosted {
             roots,
@@ -227,10 +233,12 @@ fn subject(walk: Input) -> Result<Value, Failure> {
         )
         .map_err(|error| format!("{error:?}"))?,
     };
+    let out = ran.answer.map_err(|error| format!("{error:?}"))?;
     Ok(Walked {
         count: out.count.0,
         kinds: out.kinds.into(),
         cells: out.cells.into(),
+        retained: ran.retained,
     })
 }
 

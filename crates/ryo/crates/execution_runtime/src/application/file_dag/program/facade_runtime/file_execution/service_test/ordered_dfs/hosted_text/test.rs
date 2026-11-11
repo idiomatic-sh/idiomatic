@@ -66,6 +66,8 @@ enum Observed {
         rows: Cow<'static, [(Cow<'static, str>, i64)]>,
         expanded: usize,
         examined: usize,
+        /// The owner's working bytes once the file finished.
+        retained: usize,
     },
     /// The shared owner: each rule's row count, the first and different graphs' sorted rows,
     /// whether the first walk held an adjacency, the empty rule's adjacency, frame and visited
@@ -116,6 +118,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             ]),
             expanded: 6,
             examined: 6,
+            retained: 0,
         }),
     },
     Case {
@@ -217,7 +220,7 @@ fn text_walk(roots: &[[&str; 2]], edges: &[(&str, &str, i64)]) -> Result<Observe
     ];
     let mut symbols = Symbols::default();
     let mut observed = ExecutionObservation::default();
-    let out = execute_request(
+    let ran = execute_request(
         hosted_plan(operation(&[1], &[4]), 0, 1),
         &hosts,
         &[],
@@ -226,6 +229,7 @@ fn text_walk(roots: &[[&str; 2]], edges: &[(&str, &str, i64)]) -> Result<Observe
         false,
         &mut observed,
     )?;
+    let out = ran.answer?;
     let texts = ryo_execution_domain::domain::table_texts::types::Texts {
         symbols: &symbols,
         source: ryo_values::domain::files::types::SourceView(b""),
@@ -257,6 +261,7 @@ fn text_walk(roots: &[[&str; 2]], edges: &[(&str, &str, i64)]) -> Result<Observe
         rows: rows.into(),
         expanded: observed.dfs_expanded,
         examined: observed.dfs_examined,
+        retained: ran.retained.0,
     })
 }
 

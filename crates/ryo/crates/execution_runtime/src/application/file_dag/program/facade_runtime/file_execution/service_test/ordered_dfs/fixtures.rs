@@ -23,6 +23,7 @@ use ryo_execution_domain::domain::{
     observation_schedule::types::RuleSchedule,
     prepared_request::types::{Compiled, ObservationIdentity},
 };
+use ryo_execution_store::application::file_dag::derived::ledger::types::ByteCount;
 use ryo_execution_store::application::file_dag::relations::types::ReuseEligibility;
 use ryo_execution_store::application::file_dag::service::ScopePartials;
 use ryo_language::domain::{files::types::FilePath, symbols::types::Symbols};
@@ -40,6 +41,7 @@ use ryo_values::domain::{
     rows::types::Table,
     stored_facts::types::Digest,
 };
+use std::borrow::Cow;
 use std::{rc::Rc, sync::Arc};
 pub(crate) const FROM: PlanInput = PlanInput::Relation(Relation::Function);
 pub(crate) fn column(at: u32) -> ColumnIndex {
@@ -73,26 +75,83 @@ pub(crate) fn operation(root_keys: &[u32], edge_keys: &[u32]) -> Operation {
         edge_keys: edge_keys.iter().copied().map(column).collect(),
     }
 }
-pub(crate) fn expected(out: &Table, width: usize, rows: &[&[i64]]) {
-    let mut actual: Vec<_> = out
+/// The rows a traversal answered, sorted, as the cells they hold.
+#[derive(Debug, PartialEq)]
+pub(crate) enum Listing {
+    /// Every row's cells, row after row, for an answer short enough to state whole.
+    Listed(Cow<'static, [Cell]>),
+    /// The first and the last row, for an answer of more than `LISTED` rows.
+    Ends {
+        first: Cow<'static, [Cell]>,
+        last: Cow<'static, [Cell]>,
+    },
+}
+/// The most rows an answer states whole.
+const LISTED: usize = 16;
+/// An answered table as the rows state it: its column kinds, row count, cell count and rows.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Answered {
+    pub(crate) kinds: Cow<'static, [CellKind]>,
+    pub(crate) count: usize,
+    pub(crate) cells: usize,
+    pub(crate) rows: Listing,
+}
+/// The traversal work a run recorded.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Work {
+    pub(crate) examined: usize,
+    pub(crate) expanded: usize,
+    pub(crate) frames: usize,
+    pub(crate) visited: usize,
+}
+/// What one traversal observed: its answer, its work, and the working bytes left after the file finished.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Observed {
+    pub(crate) answered: Answered,
+    pub(crate) work: Work,
+    pub(crate) retained: ByteCount,
+}
+/// A number cell, for the rows a case states.
+pub(crate) const fn n(value: i64) -> Cell {
+    Cell::Number(Integer(value))
+}
+/// The table as the rows state it.
+pub(crate) fn answered(out: &Table) -> Answered {
+    let width = out.kinds.len().max(1);
+    let mut rows: Vec<Cow<'static, [Cell]>> = out
         .cells
         .chunks_exact(width)
-        .map(<[Cell]>::to_vec)
+        .map(|row| Cow::Owned(row.to_vec()))
         .collect();
-    let mut wanted: Vec<Vec<_>> = rows
-        .iter()
-        .map(|row| {
-            row.iter()
-                .map(|number| Cell::Number(Integer(*number)))
-                .collect()
-        })
-        .collect();
-    actual.sort_unstable();
-    wanted.sort_unstable();
-    assert_eq!(out.kinds, vec![CellKind::Number; width]);
-    assert_eq!(out.count.0, wanted.len());
-    assert_eq!(out.cells.len(), out.count.0 * width);
-    assert_eq!(actual, wanted);
+    rows.sort_unstable();
+    Answered {
+        kinds: Cow::Owned(out.kinds.clone()),
+        count: out.count.0,
+        cells: out.cells.len(),
+        rows: if rows.len() > LISTED {
+            Listing::Ends {
+                first: rows.first().cloned().unwrap_or_default(),
+                last: rows.last().cloned().unwrap_or_default(),
+            }
+        } else {
+            Listing::Listed(Cow::Owned(rows.concat()))
+        },
+    }
+}
+/// The work counters of a traversal's observation.
+pub(crate) fn work(observed: &ExecutionObservation) -> Work {
+    Work {
+        examined: observed.dfs_examined,
+        expanded: observed.dfs_expanded,
+        frames: observed.dfs_frames_len,
+        visited: observed.dfs_visited_len,
+    }
+}
+/// A request's answer and the working bytes the graph owner still held after the file finished.
+#[derive(Debug)]
+pub(crate) struct Ran {
+    pub(crate) answer: Result<Table, OperatingError>,
+    pub(crate) retained: ByteCount,
 }
 pub(crate) fn host(table: &Table, role: &str) -> HostRelation {
     HostRelation {
@@ -131,7 +190,7 @@ pub(crate) fn compute(
     roots: &Table,
     edges: &Table,
     observed: &mut ExecutionObservation,
-) -> Result<Table, OperatingError> {
+) -> Result<Ran, OperatingError> {
     let mut operation = operation.clone();
     let Operation::OrderedDfs {
         from,
@@ -178,7 +237,7 @@ pub(crate) fn execute_request(
     source: &[u8],
     delivery: bool,
     observed: &mut ExecutionObservation,
-) -> Result<Table, OperatingError> {
+) -> Result<Ran, OperatingError> {
     execute_bound_request(
         plan,
         vec![],
@@ -204,7 +263,7 @@ pub(crate) fn execute_bound_request(
     source: &[u8],
     delivery: bool,
     observed: &mut ExecutionObservation,
-) -> Result<Table, OperatingError> {
+) -> Result<Ran, OperatingError> {
     let target = plan.emit.step.0 as usize;
     let derived = ryo_execution_store::application::file_dag::fixtures::program_derived_port();
     let prepared = crate::application::file_dag::program::preparation::service::prepare(
@@ -289,17 +348,10 @@ pub(crate) fn execute_bound_request(
     *observed = file.route_observation(RuleIndex(0), StepId(target as u32))?;
     let owner = Rc::clone(&file.owner);
     file.finish()?;
-    assert_eq!(
-        owner.derived().working_bytes(),
-        0,
-        "actual graph owner releases file resources"
-    );
-    result
-}
-pub(crate) fn subject(
-    input: fn() -> Result<usize, OperatingError>,
-) -> Result<usize, OperatingError> {
-    input()
+    Ok(Ran {
+        answer: result,
+        retained: owner.derived().working_bytes(),
+    })
 }
 pub(crate) fn hosted_plan(mut op: Operation, roots: u32, edges: u32) -> Plan {
     match &mut op {

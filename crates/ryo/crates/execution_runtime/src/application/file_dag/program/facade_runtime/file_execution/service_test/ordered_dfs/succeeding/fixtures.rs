@@ -1,11 +1,11 @@
 //! The support of the `succeeding` cases.
-use super::super::fixtures::{compute, expected, numbers, operation};
+use super::super::fixtures::{Observed, Ran, answered, compute, numbers, operation, work};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::fixtures::ExecutionObservation;
 use ryo_relations::domain::relations::types::{Integer, Value as Cell};
 use ryo_values::domain::rows::service::push_row;
 
-pub(super) fn numeric_order_and_diamond() -> Result<usize, OperatingError> {
+pub(super) fn numeric_order_and_diamond() -> Result<Observed, OperatingError> {
     let mut scratch = ExecutionObservation::default();
     let out = compute(
         &operation(&[], &[]),
@@ -21,22 +21,10 @@ pub(super) fn numeric_order_and_diamond() -> Result<usize, OperatingError> {
         ),
         &mut scratch,
     )?;
-    expected(
-        &out,
-        5,
-        &[
-            &[1, 1, 3, 13, 0],
-            &[1, 3, 4, 34, 1],
-            &[1, 1, 2, 12, 2],
-            &[1, 2, 4, 24, 3],
-        ],
-    );
-    assert_eq!(scratch.dfs_expanded, 4);
-    assert_eq!(scratch.dfs_examined, 4);
-    Ok(out.count.0)
+    observe(out, &scratch)
 }
 
-pub(super) fn cycles_preserve_every_edge_visit() -> Result<usize, OperatingError> {
+pub(super) fn cycles_preserve_every_edge_visit() -> Result<Observed, OperatingError> {
     let mut scratch = ExecutionObservation::default();
     let out = compute(
         &operation(&[], &[]),
@@ -52,34 +40,22 @@ pub(super) fn cycles_preserve_every_edge_visit() -> Result<usize, OperatingError
         ),
         &mut scratch,
     )?;
-    expected(
-        &out,
-        5,
-        &[
-            &[1, 1, 1, 11, 0],
-            &[1, 1, 2, 12, 1],
-            &[1, 2, 1, 21, 2],
-            &[1, 2, 2, 22, 3],
-        ],
-    );
-    assert_eq!(scratch.dfs_expanded, 2);
-    assert_eq!(scratch.dfs_examined, 4);
-    Ok(out.count.0)
+    observe(out, &scratch)
 }
 
-pub(super) fn parallel_distinct_orders_preserve_multiplicity() -> Result<usize, OperatingError> {
+pub(super) fn parallel_distinct_orders_preserve_multiplicity() -> Result<Observed, OperatingError> {
+    let mut scratch = ExecutionObservation::default();
     let out = compute(
         &operation(&[], &[]),
         &numbers(1, &[&[1]]),
         &numbers(4, &[&[1, 2, 1, 12], &[1, 2, 0, 12]]),
-        &mut ExecutionObservation::default(),
+        &mut scratch,
     )?;
-    expected(&out, 5, &[&[1, 1, 2, 12, 0], &[1, 1, 2, 12, 1]]);
-    Ok(out.count.0)
+    observe(out, &scratch)
 }
 
 pub(super) fn roots_are_independent_and_duplicates_are_deduplicated()
--> Result<usize, OperatingError> {
+-> Result<Observed, OperatingError> {
     let mut scratch = ExecutionObservation::default();
     let out = compute(
         &operation(&[], &[]),
@@ -87,16 +63,10 @@ pub(super) fn roots_are_independent_and_duplicates_are_deduplicated()
         &numbers(4, &[&[2, 3, 0, 23], &[1, 2, 0, 12]]),
         &mut scratch,
     )?;
-    expected(
-        &out,
-        5,
-        &[&[1, 1, 2, 12, 0], &[1, 2, 3, 23, 1], &[2, 2, 3, 23, 0]],
-    );
-    assert_eq!(scratch.dfs_expanded, 5);
-    Ok(out.count.0)
+    observe(out, &scratch)
 }
 
-pub(super) fn partitions_and_multiple_keys_are_exact() -> Result<usize, OperatingError> {
+pub(super) fn partitions_and_multiple_keys_are_exact() -> Result<Observed, OperatingError> {
     let mut scratch = ExecutionObservation::default();
     let out = compute(
         &operation(&[2, 1], &[5, 4]),
@@ -115,20 +85,11 @@ pub(super) fn partitions_and_multiple_keys_are_exact() -> Result<usize, Operatin
         ),
         &mut scratch,
     )?;
-    expected(
-        &out,
-        7,
-        &[
-            &[100, 10, 1, 1, 2, 12, 0],
-            &[100, 20, 1, 1, 4, 14, 0],
-            &[200, 10, 1, 1, 5, 15, 0],
-        ],
-    );
-    assert_eq!(scratch.dfs_examined, 3);
-    Ok(out.count.0)
+    observe(out, &scratch)
 }
 
-pub(super) fn entry_node_encodes_initial_empty_class_seen() -> Result<usize, OperatingError> {
+pub(super) fn entry_node_encodes_initial_empty_class_seen() -> Result<Observed, OperatingError> {
+    let mut scratch = ExecutionObservation::default();
     let out = compute(
         &operation(&[], &[]),
         &numbers(1, &[&[10]]),
@@ -141,22 +102,12 @@ pub(super) fn entry_node_encodes_initial_empty_class_seen() -> Result<usize, Ope
                 &[10, 3, 1, 103],
             ],
         ),
-        &mut ExecutionObservation::default(),
+        &mut scratch,
     )?;
-    expected(
-        &out,
-        5,
-        &[
-            &[10, 10, 2, 102, 0],
-            &[10, 2, 1, 21, 1],
-            &[10, 1, 3, 13, 2],
-            &[10, 10, 3, 103, 3],
-        ],
-    );
-    Ok(out.count.0)
+    observe(out, &scratch)
 }
 
-pub(super) fn deep_chain_and_work_are_bounded() -> Result<usize, OperatingError> {
+pub(super) fn deep_chain_and_work_are_bounded() -> Result<Observed, OperatingError> {
     let n = 20_000;
     let mut edges = numbers(4, &[]);
     for i in 0..n {
@@ -177,15 +128,10 @@ pub(super) fn deep_chain_and_work_are_bounded() -> Result<usize, OperatingError>
         &edges,
         &mut scratch,
     )?;
-    let expected_count = usize::try_from(n).expect("positive chain length");
-    assert_eq!(out.count.0, expected_count);
-    assert_eq!(scratch.dfs_examined, expected_count);
-    assert_eq!(scratch.dfs_expanded, expected_count + 1);
-    assert_eq!(scratch.dfs_frames_len, 0);
-    Ok(out.count.0)
+    observe(out, &scratch)
 }
 
-pub(super) fn many_interleaved_partitions_bound_expansions() -> Result<usize, OperatingError> {
+pub(super) fn many_interleaved_partitions_bound_expansions() -> Result<Observed, OperatingError> {
     let n = 1024;
     let mut roots = numbers(2, &[]);
     let mut edges = numbers(5, &[]);
@@ -211,10 +157,14 @@ pub(super) fn many_interleaved_partitions_bound_expansions() -> Result<usize, Op
     }
     let mut scratch = ExecutionObservation::default();
     let out = compute(&operation(&[1], &[4]), &roots, &edges, &mut scratch)?;
-    let expected_count = 4 * usize::try_from(n).expect("positive partition count");
-    assert_eq!(out.count.0, expected_count);
-    assert_eq!(scratch.dfs_examined, out.count.0);
-    assert_eq!(scratch.dfs_expanded, expected_count);
-    assert!(scratch.dfs_visited_len <= 4);
-    Ok(out.count.0)
+    observe(out, &scratch)
+}
+
+/// The traversal's answer, work and retained bytes, as a row states them.
+fn observe(out: Ran, scratch: &ExecutionObservation) -> Result<Observed, OperatingError> {
+    Ok(Observed {
+        answered: answered(&out.answer?),
+        work: work(scratch),
+        retained: out.retained,
+    })
 }
