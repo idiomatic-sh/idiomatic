@@ -41,7 +41,6 @@ use ryo_values::domain::{
     stored_facts::types::Digest,
 };
 use std::{borrow::Cow, cell::Cell as Counter, rc::Rc, sync::Arc};
-
 pub(super) struct Callback<'a>(
     &'a mut dyn FnMut(&mut OperatorContext<'_>, &[Cell]) -> Result<(), OperatingError>,
 );
@@ -54,13 +53,11 @@ impl RowSink for Callback<'_> {
         self.0(context, row)
     }
 }
-
-/// A semantic lookup that renders nothing, counting its calls and the render requests and source bytes it was given.
+/// A lookup rendering nothing: its calls, and the render requests and source bytes given it.
 #[derive(Debug, Default)]
 pub(super) struct DeliveryLookup {
     pub(super) calls: Counter<usize>,
-    pub(super) requests: Counter<usize>,
-    pub(super) source_bytes: Counter<usize>,
+    pub(super) given: Counter<(usize, usize)>,
 }
 impl ryo_execution_domain::domain::operating::types::SemanticLookup for DeliveryLookup {
     fn render_batch(
@@ -69,13 +66,12 @@ impl ryo_execution_domain::domain::operating::types::SemanticLookup for Delivery
         source: ryo_values::domain::files::types::SourceView<'_>,
     ) -> Result<Vec<ryo_language::domain::semantics::types::RenderOutcome>, OperatingError> {
         self.calls.set(self.calls.get() + 1);
-        self.requests.set(self.requests.get() + requests.len());
-        self.source_bytes
-            .set(self.source_bytes.get() + source.0.len());
+        let (rendered, bytes) = self.given.get();
+        self.given
+            .set((rendered + requests.len(), bytes + source.0.len()));
         Ok(Vec::new())
     }
 }
-
 /// One delivery attempt of the outer join: the rows delivered before it ended, the frames
 /// entered, the nested rows each frame published, and what was kept across frames.
 #[derive(Debug, PartialEq)]
@@ -101,7 +97,6 @@ pub(super) struct Attempt {
 pub(super) struct Observed {
     pub(super) attempts: [Attempt; 2],
     pub(super) lookup_calls: usize,
-    /// The render requests and the source bytes the lookup was given over all its calls.
     pub(super) lookup_given: (usize, usize),
     pub(super) reads_unchanged_after_release: bool,
     pub(super) builds: u64,
@@ -383,9 +378,8 @@ pub(super) fn exercise_nested(single_result: bool) -> Result<Observed, Operating
             reread,
         });
     }
-    // Two callbacks before refusal and three on replay.
-    let lookup_calls = lookup.calls.get();
-    let lookup_given = (lookup.requests.get(), lookup.source_bytes.get());
+    // Two callbacks before refusal and three on replay; the lookup is given nothing to render.
+    let (lookup_calls, lookup_given) = (lookup.calls.get(), lookup.given.get());
     drop(context);
     drop(kernels);
     let reads_unchanged_after_release = Some(reads.map(|count| count.get())) == published_reads;
