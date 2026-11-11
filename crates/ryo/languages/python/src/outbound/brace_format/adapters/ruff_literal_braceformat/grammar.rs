@@ -15,7 +15,7 @@ impl BraceFormatSyntaxPort for RuffLiteralBraceFormat {
     const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
         crate::domain::brace_format::constants::GRAMMAR;
 
-    fn parse(input: FormatInput<'_>) -> BraceFormatResult {
+    fn parse(&self, input: FormatInput<'_>) -> BraceFormatResult {
         match parse(input) {
             Ok(parsed) => BraceFormatResult::Parsed(parsed),
             Err(error) => BraceFormatResult::Malformed(error),

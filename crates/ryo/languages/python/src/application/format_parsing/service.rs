@@ -14,6 +14,7 @@ use std::cell::{Ref, RefCell};
 
 /// Add one occurrence, sharing a prior parse when its decoded value has already appeared.
 pub(crate) fn occurrence<P>(
+    parser: &P,
     tree: &Tree<'_>,
     index: &mut RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>,
     at: Position,
@@ -91,7 +92,7 @@ pub(crate) fn occurrence<P>(
         );
         (taken.key.0, taken.value)
     } else {
-        let parsed = P::parse(
+        let parsed = parser.parse(
             crate::domain::format_syntax::types::FormatInput(&decoded),
             FormatDialect::PercentString,
         );
@@ -114,6 +115,7 @@ pub(crate) fn occurrence<P>(
 /// The caller supplies semantic source order and visibility; only candidate strings ask
 /// for visibility, and an already prepared index consumes neither operation.
 pub(crate) fn prepare<'a, P>(
+    parser: &P,
     tree: &Tree<'_>,
     held: &'a RefCell<RetainedFormatIndex<FormatParseResult, CachedFormat, FormatParseState>>,
     symbols: &mut Symbols,
@@ -152,7 +154,7 @@ where
             {
                 continue;
             }
-            occurrence::<P>(tree, &mut index, at);
+            occurrence(parser, tree, &mut index, at);
         }
         crate::domain::grammar_cache::service::empty(&mut index.memo);
     }

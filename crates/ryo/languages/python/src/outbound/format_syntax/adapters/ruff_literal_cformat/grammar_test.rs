@@ -9,7 +9,7 @@ use crate::domain::format_syntax::types::{
 use crate::outbound::format_syntax::interface::FormatSyntaxPort;
 
 fn parsed(source: &str) -> ParsedFormat {
-    match RuffLiteralCFormat::parse(
+    match RuffLiteralCFormat.parse(
         crate::domain::format_syntax::types::FormatInput(source),
         FormatDialect::PercentString,
     ) {
@@ -57,7 +57,7 @@ fn repeated_mapping_keys_and_mixed_positional_fields_are_preserved() {
 
 fn malformed_percent_and_unicode_error_indices_use_scalar_offsets() {
     assert_eq!(
-        RuffLiteralCFormat::parse(
+        RuffLiteralCFormat.parse(
             crate::domain::format_syntax::types::FormatInput("é%"),
             FormatDialect::PercentString
         ),
@@ -68,7 +68,7 @@ fn malformed_percent_and_unicode_error_indices_use_scalar_offsets() {
         }),
     );
     assert_eq!(
-        RuffLiteralCFormat::parse(
+        RuffLiteralCFormat.parse(
             crate::domain::format_syntax::types::FormatInput("é%n"),
             FormatDialect::PercentString
         ),
@@ -82,7 +82,7 @@ fn malformed_percent_and_unicode_error_indices_use_scalar_offsets() {
 
 fn unmatched_mapping_and_overflow_are_diagnostics() {
     assert!(matches!(
-        RuffLiteralCFormat::parse(
+        RuffLiteralCFormat.parse(
             crate::domain::format_syntax::types::FormatInput("%(name"),
             FormatDialect::PercentString
         ),
@@ -92,7 +92,7 @@ fn unmatched_mapping_and_overflow_are_diagnostics() {
         })
     ));
     assert!(matches!(
-        RuffLiteralCFormat::parse(
+        RuffLiteralCFormat.parse(
             crate::domain::format_syntax::types::FormatInput("%999999999999999999999s"),
             FormatDialect::PercentString
         ),
@@ -102,7 +102,7 @@ fn unmatched_mapping_and_overflow_are_diagnostics() {
         })
     ));
     assert_eq!(
-        RuffLiteralCFormat::parse(
+        RuffLiteralCFormat.parse(
             crate::domain::format_syntax::types::FormatInput("%*"),
             FormatDialect::PercentString
         ),
@@ -113,7 +113,7 @@ fn unmatched_mapping_and_overflow_are_diagnostics() {
         }),
     );
     assert!(matches!(
-        RuffLiteralCFormat::parse(
+        RuffLiteralCFormat.parse(
             crate::domain::format_syntax::types::FormatInput("%b"),
             FormatDialect::PercentString
         ),

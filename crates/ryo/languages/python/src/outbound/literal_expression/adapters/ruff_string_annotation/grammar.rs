@@ -11,7 +11,7 @@ impl LiteralExpressionSyntaxPort for RuffStringAnnotation {
     const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
         crate::domain::literal_expression_parsing::constants::GRAMMAR;
 
-    fn parse(carrier: CarrierInput<'_>, dialect: LiteralDialect) -> LiteralParseOutcome {
+    fn parse(&self, carrier: CarrierInput<'_>, dialect: LiteralDialect) -> LiteralParseOutcome {
         match dialect {
             LiteralDialect::PythonStringAnnotation => {}
         }

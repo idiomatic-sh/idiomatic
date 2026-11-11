@@ -15,7 +15,7 @@ use ryo::languages::Tree;
 
 pub(super) fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes() -> String {
     let mut observed: Vec<String> = Vec::new();
-    CALLS.with(|count| count.set(0));
+    CALLS.with(|count| *count.borrow_mut() = 0);
     let mut source = parsed(b"'T'\n'T'\n''\n''\n").expect("source");
     let tree = Tree {
         elements: &source.elements,
@@ -28,7 +28,8 @@ pub(super) fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes(
         "{:?}",
         model.literal_expression_parsing.borrow().state
     ));
-    drop(decoded::<RuffLiteralCFormat>(
+    drop(decoded(
+        &RuffLiteralCFormat,
         &tree,
         &model.format_parsing,
         &mut source.symbols,
@@ -39,7 +40,8 @@ pub(super) fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes(
                 .into()
         },
     ));
-    drop(brace::<RuffLiteralBraceFormat>(
+    drop(brace(
+        &RuffLiteralBraceFormat,
         &tree,
         &model.brace_format,
         &mut source.symbols,
@@ -50,9 +52,8 @@ pub(super) fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes(
                 .into()
         },
     ));
-    drop(crate::application::raw_format::service::prepare::<
-        RuffLiteralCFormat,
-    >(
+    drop(crate::application::raw_format::service::prepare(
+        &RuffLiteralCFormat,
         &tree,
         &model.raw_format,
         &mut source.symbols,
@@ -63,12 +64,13 @@ pub(super) fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes(
                 .into()
         },
     ));
-    CALLS.with(|count| observed.push(format!("{:?}", count.get())));
+    CALLS.with(|count| observed.push(format!("{:?}", *count.borrow())));
     observed.push(format!(
         "{:?}",
         model.literal_expression_parsing.borrow().state
     ));
-    let index = prepare::<Counting>(
+    let index = prepare(
+        &Counting,
         &tree,
         &model.literal_expression_parsing,
         &mut source.symbols,
@@ -79,7 +81,7 @@ pub(super) fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes(
                 .into()
         },
     );
-    CALLS.with(|count| observed.push(format!("{:?}", count.get())));
+    CALLS.with(|count| observed.push(format!("{:?}", *count.borrow())));
     observed.push(format!("{:?}", index.state));
     observed.push(format!("{:?}", index.by_carrier.len()));
     observed.push(format!("{:?}", index.occurrences.len()));
@@ -96,7 +98,8 @@ pub(super) fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes(
         .collect::<std::collections::HashSet<_>>();
     observed.push(format!("{:?}", identities.len()));
     drop(index);
-    drop(prepare::<Counting>(
+    drop(prepare(
+        &Counting,
         &tree,
         &model.literal_expression_parsing,
         &mut source.symbols,
@@ -107,13 +110,13 @@ pub(super) fn literal_parsing_is_absent_without_demand_and_caches_both_outcomes(
                 .into()
         },
     ));
-    CALLS.with(|count| observed.push(format!("{:?}", count.get())));
+    CALLS.with(|count| observed.push(format!("{:?}", *count.borrow())));
     observed.join("|")
 }
 
 pub(super) fn reset_discards_old_identities_results_and_key_bytes_but_keeps_capacity() -> String {
     let mut observed: Vec<String> = Vec::new();
-    CALLS.with(|count| count.set(0));
+    CALLS.with(|count| *count.borrow_mut() = 0);
     let mut model = Declarations::default();
     let mut retained_capacity = 0;
     for (bytes, expected, calls) in [
@@ -140,7 +143,8 @@ pub(super) fn reset_discards_old_identities_results_and_key_bytes_but_keeps_capa
             fresh.occurrences.capacity() >= retained_capacity
         ));
         drop(fresh);
-        let index = prepare::<Counting>(
+        let index = prepare(
+            &Counting,
             &tree,
             &model.literal_expression_parsing,
             &mut source.symbols,
@@ -156,14 +160,14 @@ pub(super) fn reset_discards_old_identities_results_and_key_bytes_but_keeps_capa
             index.occurrences.first().map(|row| row.outcome) == expected
         ));
         retained_capacity = index.occurrences.capacity();
-        CALLS.with(|count| observed.push(format!("{}", count.get() == calls)));
+        CALLS.with(|count| observed.push(format!("{}", *count.borrow() == calls)));
     }
     observed.join("|")
 }
 
 pub(super) fn equal_decoded_text_keeps_representation_sensitive_parser_modes() -> String {
     let mut observed: Vec<String> = Vec::new();
-    CALLS.with(|count| count.set(0));
+    CALLS.with(|count| *count.borrow_mut() = 0);
     let mut source = parsed(b"'''T\n| U'''\n'T\\n| U'\n('T\\n' '| U')\n").expect("source");
     let tree = Tree {
         elements: &source.elements,
@@ -172,7 +176,8 @@ pub(super) fn equal_decoded_text_keeps_representation_sensitive_parser_modes() -
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<Counting>(
+    let index = prepare(
+        &Counting,
         &tree,
         &model.literal_expression_parsing,
         &mut source.symbols,
@@ -190,13 +195,13 @@ pub(super) fn equal_decoded_text_keeps_representation_sensitive_parser_modes() -
         .map(|row| row.outcome)
         .collect::<Vec<_>>();
     observed.push(format!("{:?}", outcomes));
-    CALLS.with(|count| observed.push(format!("{:?}", count.get())));
+    CALLS.with(|count| observed.push(format!("{:?}", *count.borrow())));
     observed.join("|")
 }
 
 pub(super) fn an_existing_hidden_embedded_success_is_reused_without_new_parsing() -> String {
     let mut observed: Vec<String> = Vec::new();
-    CALLS.with(|count| count.set(0));
+    CALLS.with(|count| *count.borrow_mut() = 0);
     let mut source = parsed(b"from typing import Literal\nx: Literal['T']\n").expect("source");
     let tree = Tree {
         elements: &source.elements,
@@ -208,7 +213,8 @@ pub(super) fn an_existing_hidden_embedded_success_is_reused_without_new_parsing(
     let count = languages::contract::element_count(tree.elements);
     let embedded = languages::embedded_expressions(tree.elements).count();
     observed.push(format!("{}", embedded > 0));
-    let index = prepare::<Counting>(
+    let index = prepare(
+        &Counting,
         &tree,
         &model.literal_expression_parsing,
         &mut source.symbols,
@@ -227,7 +233,7 @@ pub(super) fn an_existing_hidden_embedded_success_is_reused_without_new_parsing(
             .iter()
             .all(|row| row.outcome == LiteralParseOutcome::Parsed)
     ));
-    CALLS.with(|calls| observed.push(format!("{:?}", calls.get())));
+    CALLS.with(|calls| observed.push(format!("{:?}", *calls.borrow())));
     observed.push(format!(
         "{}",
         languages::contract::element_count(tree.elements) == count

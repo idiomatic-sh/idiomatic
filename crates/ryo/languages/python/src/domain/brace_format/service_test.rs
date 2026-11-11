@@ -60,7 +60,8 @@ fn prepared(source: &'static str, cleared: bool) -> Result<String, Failure> {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<RuffLiteralBraceFormat>(
+    let index = prepare(
+        &RuffLiteralBraceFormat,
         &tree,
         &model.brace_format,
         &mut file.symbols,

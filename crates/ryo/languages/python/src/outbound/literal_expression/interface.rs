@@ -8,5 +8,5 @@ pub(crate) trait LiteralExpressionSyntaxPort: 'static {
     /// Exact identity of this literal-expression grammar.
     const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity;
     /// The input preserves complete original token spellings inside grouping parentheses.
-    fn parse(carrier: CarrierInput<'_>, dialect: LiteralDialect) -> LiteralParseOutcome;
+    fn parse(&self, carrier: CarrierInput<'_>, dialect: LiteralDialect) -> LiteralParseOutcome;
 }

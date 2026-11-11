@@ -24,6 +24,7 @@ impl FormatSyntaxPort for CountingParser {
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
 
     fn parse(
+        &self,
         _input: crate::domain::format_syntax::types::FormatInput<'_>,
         _dialect: FormatDialect,
     ) -> FormatParseResult {
@@ -44,6 +45,7 @@ impl FormatSyntaxPort for MalformedParser {
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
 
     fn parse(
+        &self,
         _input: crate::domain::format_syntax::types::FormatInput<'_>,
         _dialect: FormatDialect,
     ) -> FormatParseResult {
@@ -65,6 +67,7 @@ impl FormatSyntaxPort for UnavailableParser {
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
 
     fn parse(
+        &self,
         _input: crate::domain::format_syntax::types::FormatInput<'_>,
         _dialect: FormatDialect,
     ) -> FormatParseResult {
@@ -89,7 +92,8 @@ pub(super) fn duplicate_inputs_are_parsed_once_and_retained_until_source_reset()
 
     let visited = std::cell::Cell::new(0_usize);
     let visible = std::cell::Cell::new(0_usize);
-    let first = prepare::<CountingParser>(
+    let first = prepare(
+        &CountingParser,
         &tree,
         &model.format_parsing,
         &mut symbols,
@@ -108,7 +112,8 @@ pub(super) fn duplicate_inputs_are_parsed_once_and_retained_until_source_reset()
     observed.push(format!("{:?}", result(&first, &first.occurrences[0])));
     drop(first);
     let prepared_visits = visited.get();
-    let second = prepare::<CountingParser>(
+    let second = prepare(
+        &CountingParser,
         &tree,
         &model.format_parsing,
         &mut symbols,
@@ -134,7 +139,8 @@ pub(super) fn duplicate_inputs_are_parsed_once_and_retained_until_source_reset()
     };
     initialize_model(&replacement_tree, &mut model);
     observed.push(format!("{:?}", state(&model.format_parsing.borrow())));
-    let _again = prepare::<CountingParser>(
+    let _again = prepare(
+        &CountingParser,
         &replacement_tree,
         &model.format_parsing,
         &mut symbols,
@@ -165,7 +171,8 @@ pub(super) fn malformed_results_are_cached_and_unavailable_results_mark_partial(
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
     let mut symbols = Symbols::default();
-    let malformed = prepare::<MalformedParser>(
+    let malformed = prepare(
+        &MalformedParser,
         &tree,
         &model.format_parsing,
         &mut symbols,
@@ -186,7 +193,8 @@ pub(super) fn malformed_results_are_cached_and_unavailable_results_mark_partial(
     drop(malformed);
 
     crate::domain::format_parsing::service::clear(model.format_parsing.get_mut());
-    let unavailable = prepare::<UnavailableParser>(
+    let unavailable = prepare(
+        &UnavailableParser,
         &tree,
         &model.format_parsing,
         &mut symbols,

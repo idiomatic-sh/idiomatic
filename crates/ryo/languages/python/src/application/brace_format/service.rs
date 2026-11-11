@@ -16,6 +16,7 @@ use std::cell::{Ref, RefCell};
 
 /// Cache one original literal occurrence by its decoded input value.
 pub(crate) fn occurrence<P>(
+    parser: &P,
     tree: &Tree<'_>,
     index: &mut RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>,
     at: Position,
@@ -52,7 +53,7 @@ pub(crate) fn occurrence<P>(
                 } else {
                     {
                         let result =
-                            P::parse(crate::domain::format_syntax::types::FormatInput(&input));
+                            parser.parse(crate::domain::format_syntax::types::FormatInput(&input));
                         (std::mem::take(&mut input), result)
                     }
                 };
@@ -60,9 +61,7 @@ pub(crate) fn occurrence<P>(
                     index.state = BraceFormatState::Partial;
                 }
                 let _prior = index.by_input.insert(key.into(), cached);
-                index
-                    .values
-                    .push(CachedBraceFormat { result });
+                index.values.push(CachedBraceFormat { result });
                 (Some(cached), false)
             }
         }
@@ -85,6 +84,7 @@ pub(crate) fn occurrence<P>(
 /// Prepare once, and only when a brace-format relation is read.
 /// Source order and candidate visibility come from the caller's semantic projection.
 pub(crate) fn prepare<'a, P>(
+    parser: &P,
     tree: &Tree<'_>,
     held: &'a RefCell<RetainedFormatIndex<BraceFormatResult, CachedBraceFormat, BraceFormatState>>,
     symbols: &mut Symbols,
@@ -115,7 +115,7 @@ where
             {
                 continue;
             }
-            occurrence::<P>(tree, &mut index, at);
+            occurrence(parser, tree, &mut index, at);
         }
         crate::domain::grammar_cache::service::empty(&mut index.memo);
         if index.state == BraceFormatState::Fresh {

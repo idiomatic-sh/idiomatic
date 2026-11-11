@@ -24,11 +24,12 @@ impl FormatSyntaxPort for Counting {
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
 
     fn parse(
+        &self,
         input: crate::domain::format_syntax::types::FormatInput<'_>,
         dialect: FormatDialect,
     ) -> FormatParseResult {
         let _previous_count = PARSES.fetch_add(1, Ordering::SeqCst);
-        RuffLiteralCFormat::parse(input, dialect)
+        RuffLiteralCFormat.parse(input, dialect)
     }
 }
 
@@ -41,13 +42,14 @@ impl FormatSyntaxPort for Unavailable {
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
 
     fn parse(
+        &self,
         input: crate::domain::format_syntax::types::FormatInput<'_>,
         dialect: FormatDialect,
     ) -> FormatParseResult {
         if input.0 == "%s" {
             FormatParseResult::Unavailable
         } else {
-            RuffLiteralCFormat::parse(input, dialect)
+            RuffLiteralCFormat.parse(input, dialect)
         }
     }
 }
@@ -95,7 +97,8 @@ pub(super) fn raw_format_cache_is_lazy_shared_and_reset_independently() -> Strin
     initialize_model(&tree, &mut model);
     observed.push(format!("{:?}", model.raw_format.borrow().state));
     observed.push(format!("{:?}", PARSES.load(Ordering::SeqCst)));
-    let index = prepare::<Counting>(
+    let index = prepare(
+        &Counting,
         &tree,
         &model.raw_format,
         &mut file.symbols,
@@ -123,7 +126,8 @@ pub(super) fn raw_format_cache_is_lazy_shared_and_reset_independently() -> Strin
     observed.push(format!("{:?}", model.format_parsing.borrow().state));
     observed.push(format!("{:?}", model.brace_format.borrow().state));
     drop(index);
-    drop(prepare::<Counting>(
+    drop(prepare(
+        &Counting,
         &tree,
         &model.raw_format,
         &mut file.symbols,
@@ -135,7 +139,8 @@ pub(super) fn raw_format_cache_is_lazy_shared_and_reset_independently() -> Strin
         },
     ));
     observed.push(format!("{:?}", PARSES.load(Ordering::SeqCst)));
-    drop(decoded::<RuffLiteralCFormat>(
+    drop(decoded(
+        &RuffLiteralCFormat,
         &tree,
         &model.format_parsing,
         &mut file.symbols,
@@ -146,7 +151,8 @@ pub(super) fn raw_format_cache_is_lazy_shared_and_reset_independently() -> Strin
                 .into()
         },
     ));
-    drop(brace::<RuffLiteralBraceFormat>(
+    drop(brace(
+        &RuffLiteralBraceFormat,
         &tree,
         &model.brace_format,
         &mut file.symbols,
@@ -173,7 +179,8 @@ pub(super) fn raw_format_cache_is_lazy_shared_and_reset_independently() -> Strin
         "{}",
         model.raw_format.borrow().segments.capacity() == capacity
     ));
-    drop(prepare::<Counting>(
+    drop(prepare(
+        &Counting,
         &next_tree,
         &model.raw_format,
         &mut next.symbols,
@@ -198,7 +205,8 @@ pub(super) fn raw_format_is_not_demanded_by_decoded_or_brace_readers() -> String
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    drop(decoded::<RuffLiteralCFormat>(
+    drop(decoded(
+        &RuffLiteralCFormat,
         &tree,
         &model.format_parsing,
         &mut file.symbols,
@@ -210,7 +218,8 @@ pub(super) fn raw_format_is_not_demanded_by_decoded_or_brace_readers() -> String
         },
     ));
     observed.push(format!("{:?}", model.raw_format.borrow().state));
-    drop(brace::<RuffLiteralBraceFormat>(
+    drop(brace(
+        &RuffLiteralBraceFormat,
         &tree,
         &model.brace_format,
         &mut file.symbols,
@@ -235,7 +244,8 @@ pub(super) fn raw_format_malformed_segments_are_atomic_and_success_order_is_flat
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<RuffLiteralCFormat>(
+    let index = prepare(
+        &RuffLiteralCFormat,
         &tree,
         &model.raw_format,
         &mut file.symbols,
@@ -276,7 +286,8 @@ pub(super) fn raw_format_unavailable_segment_withholds_precise_global_order() ->
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<Unavailable>(
+    let index = prepare(
+        &Unavailable,
         &tree,
         &model.raw_format,
         &mut file.symbols,
@@ -316,7 +327,8 @@ pub(super) fn raw_format_missing_token_text_is_not_an_empty_valid_body() -> Stri
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<RuffLiteralCFormat>(
+    let index = prepare(
+        &RuffLiteralCFormat,
         &tree,
         &model.raw_format,
         &mut Symbols::default(),

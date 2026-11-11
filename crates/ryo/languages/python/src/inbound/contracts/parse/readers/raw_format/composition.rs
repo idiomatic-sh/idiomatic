@@ -25,7 +25,7 @@ pub(crate) struct RawFormatFieldItem;
 ryo::reads! {
     RawFormatSegmentItem => languages::RawFormatSegment, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffLiteralCFormat>(tree, &model.raw_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
+        given index = prepare(&RuffLiteralCFormat, tree, &model.raw_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         each (index.occurrences.iter()) as occurrence {
             each (segments(&index, occurrence)) as segment {
                 given parsed = result(&index, segment);
@@ -50,7 +50,7 @@ ryo::reads! {
 ryo::reads! {
     RawFormatFieldItem => languages::RawFormatField, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffLiteralCFormat>(tree, &model.raw_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
+        given index = prepare(&RuffLiteralCFormat, tree, &model.raw_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == crate::domain::semantic_syntax::types::Visibility::Visible).into());
         each (index.occurrences.iter()) as occurrence {
             require bool::from(occurrence.complete);
             each (segments(&index, occurrence)) as segment {

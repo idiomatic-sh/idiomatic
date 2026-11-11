@@ -17,6 +17,7 @@ use std::cell::{Ref, RefCell};
 
 /// Return one cached result, reusing an already parsed embedded host when possible.
 pub(crate) fn outcome<P>(
+    parser: &P,
     index: &mut LiteralParseIndex,
     assembled: CarrierText,
     host: HostState,
@@ -57,7 +58,7 @@ where
     } else if host == HostState::Embedded {
         LiteralParseOutcome::Parsed
     } else {
-        P::parse(CarrierInput(&stored_input.0), key.dialect)
+        parser.parse(CarrierInput(&stored_input.0), key.dialect)
     };
     let previous = index.by_carrier.insert(
         CarrierKey {
@@ -76,6 +77,7 @@ where
 /// A relation-level demand scans eligible carriers once; no query host pushdown is assumed.
 /// Source order and candidate visibility come from the caller's semantic projection.
 pub(crate) fn prepare<'a, P>(
+    parser: &P,
     tree: &Tree<'_>,
     held: &'a RefCell<LiteralParseIndex>,
     symbols: &mut Symbols,
@@ -136,7 +138,7 @@ where
                 } else {
                     HostState::Standalone
                 };
-                outcome::<P>(&mut index, source, host)
+                outcome(parser, &mut index, source, host)
             } else {
                 crate::domain::grammar_cache::service::scratch(
                     &mut index.memo,

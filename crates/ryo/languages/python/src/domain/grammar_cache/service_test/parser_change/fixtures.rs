@@ -16,6 +16,7 @@ impl FormatSyntaxPort for ParsedGrammar {
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
 
     fn parse(
+        &self,
         _: crate::domain::format_syntax::types::FormatInput<'_>,
         _: FormatDialect,
     ) -> FormatParseResult {
@@ -35,6 +36,7 @@ impl FormatSyntaxPort for RejectedGrammar {
         crate::domain::format_syntax::types::GrammarIdentity("test-percent-raw");
 
     fn parse(
+        &self,
         _: crate::domain::format_syntax::types::FormatInput<'_>,
         _: FormatDialect,
     ) -> FormatParseResult {
@@ -65,7 +67,8 @@ pub(super) fn completed_active_results_are_invalidated_when_parser_implementatio
     observed.push(format!(
         "{}",
         matches!(
-            prepare::<ParsedGrammar>(
+            prepare(
+                &ParsedGrammar,
                 &tree,
                 &model.format_parsing,
                 &mut symbols,
@@ -83,7 +86,8 @@ pub(super) fn completed_active_results_are_invalidated_when_parser_implementatio
     observed.push(format!(
         "{}",
         matches!(
-            prepare::<RejectedGrammar>(
+            prepare(
+                &RejectedGrammar,
                 &tree,
                 &model.format_parsing,
                 &mut symbols,

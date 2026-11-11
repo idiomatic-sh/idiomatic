@@ -62,7 +62,8 @@ fn prepared(source: &'static str, cleared: bool) -> Result<String, Failure> {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<RuffStringAnnotation>(
+    let index = prepare(
+        &RuffStringAnnotation,
         &tree,
         &model.literal_expression_parsing,
         &mut file.symbols,

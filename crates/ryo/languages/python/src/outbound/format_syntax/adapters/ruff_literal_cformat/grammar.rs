@@ -19,7 +19,7 @@ impl FormatSyntaxPort for RuffLiteralCFormat {
     const RAW_GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
         crate::domain::format_syntax::constants::RAW_GRAMMAR;
 
-    fn parse(input: FormatInput<'_>, dialect: FormatDialect) -> FormatParseResult {
+    fn parse(&self, input: FormatInput<'_>, dialect: FormatDialect) -> FormatParseResult {
         match dialect {
             FormatDialect::PercentString => match parse_percent_string(input) {
                 Ok(parsed) => FormatParseResult::Parsed(parsed),

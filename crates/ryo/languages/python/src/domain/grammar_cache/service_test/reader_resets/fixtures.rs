@@ -29,7 +29,8 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
         };
         initialize_model(&tree, &mut model);
         let start = source.find(spelling).expect("literal in source");
-        let decoded = crate::application::format_parsing::service::prepare::<RuffLiteralCFormat>(
+        let decoded = crate::application::format_parsing::service::prepare(
+            &RuffLiteralCFormat,
             &tree,
             &model.format_parsing,
             &mut file.symbols,
@@ -47,7 +48,8 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
         ));
         observed.push(format!("{}", matches!(&decoded.values[0].result, crate::domain::format_syntax::types::FormatParseResult::Parsed(result) if result.fields.len() == fields)));
         drop(decoded);
-        let raw = crate::application::raw_format::service::prepare::<RuffLiteralCFormat>(
+        let raw = crate::application::raw_format::service::prepare(
+            &RuffLiteralCFormat,
             &tree,
             &model.raw_format,
             &mut file.symbols,
@@ -65,7 +67,8 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
         ));
         observed.push(format!("{}", matches!(&raw.values[0], crate::domain::format_syntax::types::FormatParseResult::Parsed(result) if result.fields.len() == fields)));
         drop(raw);
-        let brace = crate::application::brace_format::service::prepare::<RuffLiteralBraceFormat>(
+        let brace = crate::application::brace_format::service::prepare(
+            &RuffLiteralBraceFormat,
             &tree,
             &model.brace_format,
             &mut file.symbols,
@@ -83,9 +86,8 @@ pub(super) fn all_four_readers_rebuild_occurrences_after_same_file_edits() -> St
         ));
         observed.push(format!("{}", matches!(&brace.values[0].result, crate::domain::brace_format::types::BraceFormatResult::Parsed(result) if result.fields.len() == fields)));
         drop(brace);
-        let literal = crate::application::literal_expression_parsing::service::prepare::<
-            RuffStringAnnotation,
-        >(
+        let literal = crate::application::literal_expression_parsing::service::prepare(
+            &RuffStringAnnotation,
             &tree,
             &model.literal_expression_parsing,
             &mut file.symbols,
@@ -143,9 +145,8 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
             service::len(&model.literal_expression_parsing.borrow().memo)
                 <= EntryCount(MEMO_ENTRIES)
         ));
-        drop(crate::application::format_parsing::service::prepare::<
-            RuffLiteralCFormat,
-        >(
+        drop(crate::application::format_parsing::service::prepare(
+            &RuffLiteralCFormat,
             &tree,
             &model.format_parsing,
             &mut file.symbols,
@@ -156,9 +157,8 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
                     .into()
             },
         ));
-        drop(crate::application::raw_format::service::prepare::<
-            RuffLiteralCFormat,
-        >(
+        drop(crate::application::raw_format::service::prepare(
+            &RuffLiteralCFormat,
             &tree,
             &model.raw_format,
             &mut file.symbols,
@@ -169,9 +169,8 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
                     .into()
             },
         ));
-        drop(crate::application::brace_format::service::prepare::<
-            RuffLiteralBraceFormat,
-        >(
+        drop(crate::application::brace_format::service::prepare(
+            &RuffLiteralBraceFormat,
             &tree,
             &model.brace_format,
             &mut file.symbols,
@@ -183,7 +182,8 @@ pub(super) fn oversized_current_inputs_do_not_become_reusable_content() -> Strin
             },
         ));
         drop(
-            crate::application::literal_expression_parsing::service::prepare::<RuffStringAnnotation>(
+            crate::application::literal_expression_parsing::service::prepare(
+                &RuffStringAnnotation,
                 &tree,
                 &model.literal_expression_parsing,
                 &mut file.symbols,

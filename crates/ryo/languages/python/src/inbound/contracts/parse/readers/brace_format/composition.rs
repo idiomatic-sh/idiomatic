@@ -154,7 +154,7 @@ fn selector_name(selector: &BraceSelector) -> languages::NameText<'_> {
 ryo::reads! {
     BraceFormatParseItem => languages::BraceFormatParse, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffLiteralBraceFormat>(tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
+        given index = prepare(&RuffLiteralBraceFormat, tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             given result = result(&index, occurrence);
@@ -179,7 +179,7 @@ ryo::reads! {
 ryo::reads! {
     BraceFormatFieldItem => languages::BraceFormatField, model(Declarations) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Module)] as kind_bits, expanded,
-        given index = prepare::<RuffLiteralBraceFormat>(tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
+        given index = prepare(&RuffLiteralBraceFormat, tree, &model.brace_format, symbols, crate::domain::semantic_syntax::service::positions(tree), |node, symbols| (crate::domain::semantic_syntax::service::visibility(tree, model, node, symbols) == Visibility::Visible).into());
         each (occurrences(&index)) as occurrence {
             require crate::domain::semantic_syntax::service::visibility(tree, model, occurrence.node, symbols) == Visibility::Visible;
             when result(&index, occurrence) {

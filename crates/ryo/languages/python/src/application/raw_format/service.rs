@@ -22,6 +22,7 @@ use std::cell::{Ref, RefCell};
 
 /// Retain one grammar result for each distinct logical token body.
 pub(crate) fn cached<P>(
+    parser: &P,
     index: &mut RawFormatIndex,
     body: RawFormatBody<'_>,
 ) -> Option<FormatResultIndex>
@@ -50,7 +51,7 @@ where
         owned.push_str(body);
         (
             owned,
-            P::parse(
+            parser.parse(
                 crate::domain::format_syntax::types::FormatInput(body),
                 FormatDialect::PercentString,
             ),
@@ -71,6 +72,7 @@ where
 
 /// Record the token segments belonging to one source expression.
 pub(crate) fn occurrence<P>(
+    parser: &P,
     tree: &Tree<'_>,
     index: &mut RawFormatIndex,
     node: Position,
@@ -98,7 +100,7 @@ pub(crate) fn occurrence<P>(
             languages::text_at(tree.elements, token),
         )
         .and_then(|text| body(RawFormatToken(text.0)))
-        .and_then(|body| cached::<P>(index, body));
+        .and_then(|body| cached(parser, index, body));
         if cached
             .and_then(|at| index.values.get(at.0))
             .is_none_or(|result| *result == FormatParseResult::Unavailable)
@@ -140,6 +142,7 @@ pub(crate) fn occurrence<P>(
 /// Both raw readers share one demand-driven cache; decoded and brace caches are untouched.
 /// The caller supplies semantic source order and visibility without lending other indexes.
 pub(crate) fn prepare<'a, P>(
+    parser: &P,
     tree: &Tree<'_>,
     held: &'a RefCell<RawFormatIndex>,
     symbols: &mut Symbols,
@@ -184,7 +187,7 @@ where
             {
                 continue;
             }
-            occurrence::<P>(tree, &mut index, node, symbols, source_complete);
+            occurrence(parser, tree, &mut index, node, symbols, source_complete);
         }
         crate::domain::grammar_cache::service::empty(&mut index.memo);
     }

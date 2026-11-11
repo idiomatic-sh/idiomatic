@@ -76,7 +76,8 @@ fn subject(source: Input) -> Result<Value, Failure> {
     );
     let mut model = Declarations::default();
     parser.file_model(&tree, &mut model);
-    let braces = prepare::<RuffLiteralBraceFormat>(
+    let braces = prepare(
+        &RuffLiteralBraceFormat,
         &tree,
         &model.brace_format,
         &mut file.symbols,

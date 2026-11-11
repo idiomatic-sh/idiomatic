@@ -86,10 +86,10 @@ fn retains_decoded_spec_text_and_explicit_empty_colon() {
 
 fn distinguishes_valid_empty_from_malformed_and_digit_keyword() {
     assert!(
-        matches!(RuffLiteralBraceFormat::parse(crate::domain::format_syntax::types::FormatInput("{{}}")), BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
+        matches!(RuffLiteralBraceFormat.parse(crate::domain::format_syntax::types::FormatInput("{{}}")), BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
     );
     assert!(matches!(
-        RuffLiteralBraceFormat::parse(crate::domain::format_syntax::types::FormatInput(
+        RuffLiteralBraceFormat.parse(crate::domain::format_syntax::types::FormatInput(
             "{key..name}"
         )),
         BraceFormatResult::Malformed(BraceFormatError::EmptyAttribute)
@@ -99,24 +99,24 @@ fn distinguishes_valid_empty_from_malformed_and_digit_keyword() {
         "9".repeat(usize::try_from(usize::BITS).unwrap_or(usize::MAX) / 3 + 2)
     );
     assert!(
-        matches!(RuffLiteralBraceFormat::parse(crate::domain::format_syntax::types::FormatInput(&huge)), BraceFormatResult::Parsed(parsed) if matches!(&parsed.fields[0].selector, BraceSelector::Keyword(_)))
+        matches!(RuffLiteralBraceFormat.parse(crate::domain::format_syntax::types::FormatInput(&huge)), BraceFormatResult::Parsed(parsed) if matches!(&parsed.fields[0].selector, BraceSelector::Keyword(_)))
     );
     let above_number = "{9223372036854775808}";
     if usize::BITS >= i64::BITS {
         assert!(matches!(
-            RuffLiteralBraceFormat::parse(crate::domain::format_syntax::types::FormatInput(above_number)),
+            RuffLiteralBraceFormat.parse(crate::domain::format_syntax::types::FormatInput(above_number)),
             BraceFormatResult::Parsed(parsed)
                 if matches!(parsed.fields.first().map(|field| &field.selector), Some(BraceSelector::Index { overflow: crate::domain::brace_format::types::SelectorRange::Overflow, text, .. }) if text.0 == "9223372036854775808")
         ));
     } else {
         assert!(matches!(
-            RuffLiteralBraceFormat::parse(crate::domain::format_syntax::types::FormatInput(above_number)),
+            RuffLiteralBraceFormat.parse(crate::domain::format_syntax::types::FormatInput(above_number)),
             BraceFormatResult::Parsed(parsed)
                 if matches!(parsed.fields.first().map(|field| &field.selector), Some(BraceSelector::Keyword(_)))
         ));
     }
     assert!(
-        matches!(RuffLiteralBraceFormat::parse(crate::domain::format_syntax::types::FormatInput(r"\N{snowman}")), BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
+        matches!(RuffLiteralBraceFormat.parse(crate::domain::format_syntax::types::FormatInput(r"\N{snowman}")), BraceFormatResult::Parsed(parsed) if parsed.fields.is_empty())
     );
 }
 
@@ -136,7 +136,7 @@ fn reports_nesting_and_unmatched_braces() {
 }
 
 fn full_selector_paths_and_conversions_survive_spec_retention() {
-    let BraceFormatResult::Parsed(parsed) = RuffLiteralBraceFormat::parse(
+    let BraceFormatResult::Parsed(parsed) = RuffLiteralBraceFormat.parse(
         crate::domain::format_syntax::types::FormatInput("{0.value!s:{width!r:q}}"),
     ) else {
         panic!("valid brace grammar");

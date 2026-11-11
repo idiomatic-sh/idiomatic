@@ -10,5 +10,5 @@ pub(crate) trait FormatSyntaxPort: 'static {
     /// Exact identity of individual raw-token grammar results.
     const RAW_GRAMMAR: GrammarIdentity;
     /// Returns an owned summary and conversion fields without interpreting Python escapes.
-    fn parse(input: FormatInput<'_>, dialect: FormatDialect) -> FormatParseResult;
+    fn parse(&self, input: FormatInput<'_>, dialect: FormatDialect) -> FormatParseResult;
 }

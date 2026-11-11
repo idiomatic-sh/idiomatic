@@ -65,7 +65,8 @@ fn prepared(source: &'static str, cleared: bool) -> Result<String, Failure> {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let index = prepare::<RuffLiteralCFormat>(
+    let index = prepare(
+        &RuffLiteralCFormat,
         &tree,
         &model.format_parsing,
         &mut file.symbols,

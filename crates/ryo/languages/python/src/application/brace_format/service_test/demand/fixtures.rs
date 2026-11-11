@@ -19,7 +19,8 @@ pub(super) fn percent_only_demand_never_prepares_brace_grammar() -> String {
     };
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
-    let _percent = prepare_percent::<RuffLiteralCFormat>(
+    let _percent = prepare_percent(
+        &RuffLiteralCFormat,
         &tree,
         &model.format_parsing,
         &mut file.symbols,
@@ -45,7 +46,8 @@ pub(super) fn brace_parser_is_not_run_during_model_initialization() -> String {
     let mut model = Declarations::default();
     initialize_model(&tree, &mut model);
     observed.push(format!("{:?}", model.brace_format.borrow().state));
-    drop(prepare::<RuffLiteralBraceFormat>(
+    drop(prepare(
+        &RuffLiteralBraceFormat,
         &tree,
         &model.brace_format,
         &mut file.symbols,
@@ -70,7 +72,8 @@ pub(super) fn model_reinitialization_clears_brace_results_for_replacement_source
     };
     let mut model = Declarations::default();
     initialize_model(&first_tree, &mut model);
-    drop(prepare::<RuffLiteralBraceFormat>(
+    drop(prepare(
+        &RuffLiteralBraceFormat,
         &first_tree,
         &model.brace_format,
         &mut first.symbols,
@@ -94,7 +97,8 @@ pub(super) fn model_reinitialization_clears_brace_results_for_replacement_source
     };
     initialize_model(&second_tree, &mut model);
     observed.push(format!("{:?}", model.brace_format.borrow().state));
-    let index = prepare::<RuffLiteralBraceFormat>(
+    let index = prepare(
+        &RuffLiteralBraceFormat,
         &second_tree,
         &model.brace_format,
         &mut second.symbols,
