@@ -1,20 +1,20 @@
 //! Numeric source identity and release contracts use the actual owner.
-use crate::application::file_dag::relations::publication::types::*;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_execution_domain::domain::table_model::types::RepresentationInput;
-use ryo_relations::domain::relations::types::{CellKind, Relation};
-use std::sync::Arc;
 use crate::application::file_dag::relations::handle::service::PublishedInput;
+use crate::application::file_dag::relations::publication::types::*;
 use crate::application::file_dag::relations::service::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::self_join_recogniser::types::{
     NumberRequirement, SchemaWidth, StoredNumberOrigin,
 };
+use ryo_execution_domain::domain::table_model::types::RepresentationInput;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_relations::domain::relations::{
     service::kinds,
     types::{ColumnsView, FactColumn},
 };
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
+use std::sync::Arc;
 /// The producers, populations and sources the owner's numbers and releases are asked about.
 #[derive(Clone, Copy, Debug)]
 enum Asked {
@@ -205,7 +205,9 @@ fn witness() -> Result<[bool; 4], OperatingError> {
     owner.release_population();
     let next = owner.source_borrowed(relation, rows)?;
     owner.bind_producer(ProducerScope::File, PRODUCER, next.as_ref())?;
-    let by_next = owner.admit_number(&next, PRODUCER, &required, rows)?.is_some();
+    let by_next = owner
+        .admit_number(&next, PRODUCER, &required, rows)?
+        .is_some();
     let by_recycled = owner
         .admit_number(&publication, PRODUCER, &required, rows)?
         .is_some();

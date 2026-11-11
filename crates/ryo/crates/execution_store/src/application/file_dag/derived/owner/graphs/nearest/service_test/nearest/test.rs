@@ -120,7 +120,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
             .ok_or_else(|| format!("no vertex {value}"))
     };
     let cell = |at: Option<u32>| {
-        at.map(|at| graph.graph().vertices()[usize::try_from(at).expect("a vertex id fits in usize")])
+        at.map(|at| {
+            graph.graph().vertices()[usize::try_from(at).expect("a vertex id fits in usize")]
+        })
     };
     let mut walk = GraphWalk::default();
     let mut local = Vec::new();

@@ -8,14 +8,14 @@ use ryo_execution_domain::domain::coverage::types::{Lacking, LackingKind, Partia
 
 use ryo_execution_domain::domain::table_model::service::matching_stored;
 
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_relations::domain::relations::types::{
     CellKind, ColumnsView, FactColumn, Flag, Integer, Relation, Value as CellValue,
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
-use ryo_values::domain::stored_facts::types::PartialCause;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_values::domain::rows::errors::RowsError;
 use ryo_values::domain::rows::types::RowIndex;
+use ryo_values::domain::stored_facts::types::PartialCause;
 use std::borrow::Cow;
 use std::sync::Arc;
 
@@ -114,7 +114,10 @@ enum Observed {
     },
     Reused(Reused),
     /// Whether the two hashes collide, and the reuse.
-    Collision { collide: bool, reused: Reused },
+    Collision {
+        collide: bool,
+        reused: Reused,
+    },
 }
 
 type Input = Asked;
@@ -272,7 +275,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 indexes: cache.snapshot().indexes,
                 reused: Reused {
                     construction: second.construction(),
-                    matched: matched(view, &on, equality(&second), &[CellValue::Number(Integer(2))]),
+                    matched: matched(
+                        view,
+                        &on,
+                        equality(&second),
+                        &[CellValue::Number(Integer(2))],
+                    ),
                 },
             }
         }
@@ -306,7 +314,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
             .err();
             let shorter_columns = [FactColumn(vec![1]), FactColumn(vec![2])];
             let shorter = numbers(NUMBERS, &shorter_columns);
-            let shorter_refused = acquire(&cache, Relation::Function, shorter, &[ColumnIndex(0)]).err();
+            let shorter_refused =
+                acquire(&cache, Relation::Function, shorter, &[ColumnIndex(0)]).err();
             let fresh = new(&[Relation::Function], &[], ByteLimit(LIMIT));
             Observed::DistinctKeys {
                 keys,
@@ -375,7 +384,8 @@ fn subject(input: Input) -> Result<Value, Failure> {
             };
             let survived = weak.upgrade().is_some();
             let next = new(&[Relation::Function], &[], ByteLimit(LIMIT));
-            let construction = acquire(&next, Relation::Function, view, &[ColumnIndex(0)])?.construction();
+            let construction =
+                acquire(&next, Relation::Function, view, &[ColumnIndex(0)])?.construction();
             Observed::Dropped {
                 survived,
                 next: construction,
@@ -391,13 +401,28 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
             let refused = acquire(&cache, Relation::Function, view, &[ColumnIndex(9)]).err();
             let indexes = cache.snapshot().indexes;
-            drop(acquire(&cache, Relation::Function, view, &[ColumnIndex(0)])?);
+            drop(acquire(
+                &cache,
+                Relation::Function,
+                view,
+                &[ColumnIndex(0)],
+            )?);
             let reused = acquire(&cache, Relation::Function, view, &[ColumnIndex(0)])?;
             Observed::Flags {
                 refused,
                 indexes,
-                raised: matched(view, &[ColumnIndex(0)], equality(&reused), &[CellValue::Flag(Flag::Raised)]),
-                number: matched(view, &[ColumnIndex(0)], equality(&reused), &[CellValue::Number(Integer(1))]),
+                raised: matched(
+                    view,
+                    &[ColumnIndex(0)],
+                    equality(&reused),
+                    &[CellValue::Flag(Flag::Raised)],
+                ),
+                number: matched(
+                    view,
+                    &[ColumnIndex(0)],
+                    equality(&reused),
+                    &[CellValue::Number(Integer(1))],
+                ),
             }
         }
         Asked::Widths(widest) => {
@@ -438,7 +463,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 columns: &columns,
             };
             let cache = new(&[Relation::Function], &[], ByteLimit(LIMIT));
-            drop(acquire(&cache, Relation::Function, view, &[ColumnIndex(0)])?);
+            drop(acquire(
+                &cache,
+                Relation::Function,
+                view,
+                &[ColumnIndex(0)],
+            )?);
             for index in 0..interned {
                 let _derived = intern_derived(
                     &mut symbols,
@@ -449,7 +479,12 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let reused = acquire(&cache, Relation::Function, view, &[ColumnIndex(0)])?;
             Observed::Reused(Reused {
                 construction: reused.construction(),
-                matched: matched(view, &[ColumnIndex(0)], equality(&reused), &[CellValue::Symbol(original)]),
+                matched: matched(
+                    view,
+                    &[ColumnIndex(0)],
+                    equality(&reused),
+                    &[CellValue::Symbol(original)],
+                ),
             })
         }
         Asked::Collision => {

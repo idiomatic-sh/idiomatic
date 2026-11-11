@@ -1,15 +1,15 @@
 //! The proofs of the partitioned closure cursor.
 use super::super::super::fixtures::working_capacity;
 use super::fixtures::{number, ordering_bytes, scope, working_cells};
+use crate::application::file_dag::closure_partitions::types::PartitionAdvance;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 #[cfg(test)]
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::service::push_row;
-use crate::application::file_dag::closure_partitions::types::PartitionAdvance;
-use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_relations::domain::relations::types::Value as Cell;
 use ryo_values::domain::rows::types::Table;
 use std::borrow::Cow;
 
@@ -203,8 +203,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let mut maximum_reserved = 0;
             while cursor.advance()? == PartitionAdvance::Advanced {
                 let part = cursor.current()?;
-                walked.shapes +=
-                    usize::from(part.table.count.0 == 3 && part.table.cells.len() == 6 && part.key.len() == 1);
+                walked.shapes += usize::from(
+                    part.table.count.0 == 3 && part.table.cells.len() == 6 && part.key.len() == 1,
+                );
                 walked.sources_one_two += usize::from(part.sources == [number(1), number(2)]);
                 walked.seen += 1;
                 maximum_live = maximum_live.max(working_cells(&cursor));

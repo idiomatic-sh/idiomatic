@@ -3,9 +3,11 @@ use super::super::super::service::*;
 use super::super::super::types::*;
 use super::fixtures::{context, owner, table, use_};
 use crate::application::file_dag::derived::owner::service::ViewContext;
+use crate::application::file_dag::derived::owner::types::BuildCount;
 use crate::application::file_dag::relations::handle::service::Publication;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_derived::domain::contract::types::DerivedView;
+use ryo_derived::domain::request::types::DerivedKind;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::table_model::types::RepresentationInput;
 use ryo_execution_domain::domain::{derived_views::types::*, table_model::types::Rows};
@@ -15,8 +17,6 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::InputNumber;
-use crate::application::file_dag::derived::owner::types::BuildCount;
-use ryo_derived::domain::request::types::DerivedKind;
 use std::rc::Rc;
 
 /// What a workspace holds when a one-number input is admitted or its views acquired.
@@ -81,7 +81,10 @@ enum Answered {
         empty_slot: Option<OperatingError>,
     },
     /// Whether the two captures' views are distinct storages, and the builds.
-    Recaptured { distinct: bool, builds: BuildCount },
+    Recaptured {
+        distinct: bool,
+        builds: BuildCount,
+    },
 }
 
 type Input = Held;
@@ -301,8 +304,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let mut right_keys = [None; 2];
             for (key, right_value) in right_keys.iter_mut().zip(rights) {
                 let right_publication = owner.computed(table(&[right_value, 0], 2))?;
-                let right =
-                    owner.resolve(right_publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+                let right = owner.resolve(right_publication.as_ref(), &|_| {
+                    Err(OperatingError::NotRead)
+                })?;
                 workspace.capture_admitted(vec![
                     Publication::of(published.clone()),
                     Publication::of(right_publication.clone()),
@@ -332,7 +336,10 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 }
                 _ => false,
             };
-            let retained_keys = [ordered_key(&retained_views[0]), ordered_key(&retained_views[1])];
+            let retained_keys = [
+                ordered_key(&retained_views[0]),
+                ordered_key(&retained_views[1]),
+            ];
             // Mixed inputs use the same owner with distinct admitted populations.
             let builds = owner.derived().counts().0;
             workspace.publications[1] = Some(Publication::of(published.clone()));
@@ -370,7 +377,9 @@ fn subject(input: Input) -> Result<Value, Failure> {
             workspace.publications = vec![Some(Publication::of(published.clone()))];
             let equality = equality_on_first(2);
             let inputs = [RepresentationInput::from(&normalized)];
-            let storage = workspace.inputs(&inputs).acquire_rows(&equality, &mut context)?;
+            let storage = workspace
+                .inputs(&inputs)
+                .acquire_rows(&equality, &mut context)?;
             let DerivedView::Equality(index) = storage.view()? else {
                 return Err(OperatingError::WrongOperation);
             };
@@ -398,10 +407,15 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let mut views = Vec::new();
             for value in values {
                 let publication = owner.computed(table(&[value], 1))?;
-                let rows = owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
+                let rows =
+                    owner.resolve(publication.as_ref(), &|_| Err(OperatingError::NotRead))?;
                 workspace.capture_admitted(vec![Publication::of(publication.clone())]);
                 let inputs = [RepresentationInput::from(&rows)];
-                views.push(workspace.inputs(&inputs).acquire_rows(&equality, &mut context)?);
+                views.push(
+                    workspace
+                        .inputs(&inputs)
+                        .acquire_rows(&equality, &mut context)?,
+                );
             }
             Ok(Answered::Recaptured {
                 distinct: views[0].storage_identity() != views[1].storage_identity(),

@@ -6,10 +6,10 @@ use crate::application::file_dag::derived::owner::graphs::types::handles::types:
 use crate::application::file_dag::derived::owner::{
     fixtures::graph::GraphFixture, index::service::LIMIT,
 };
+use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::stored_graph::types::{GraphWalk, Orientation};
 use ryo_relations::domain::relations::types::{FactColumn, Integer, Relation, Value as CellValue};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput};
-use ryo_execution_domain::domain::operating::errors::OperatingError;
 use std::borrow::Cow;
 use std::sync::Arc;
 
@@ -161,9 +161,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         })),
     },
     Case {
-        name: CaseName(
-            "physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs",
-        ),
+        name: CaseName("physical_partiality_ragged_views_and_next_generation_never_hit_old_graphs"),
         word: Word::Succeeds,
         input: || Asked::Unusable,
         expect: Expect::Value(Observed::Unusable(Unusable {
