@@ -59,12 +59,10 @@ rules = [
     "**/distinct_integration/**",
     "**/compiled_parity/**",
     "cli/src/languages.rs",
-    "crates/execution/tastemaker.toml",
-    "crates/execution_runtime/tastemaker.toml",
-    "crates/execution_runtime/src/application/file_dag/tastemaker.toml",
+    "crates/execution/**/tastemaker.toml",
+    "crates/execution_runtime/**/tastemaker.toml",
     "crates/execution_domain/tastemaker.toml",
-    "crates/execution_store/tastemaker.toml",
-    "crates/execution_store/src/application/file_dag/tastemaker.toml",
+    "crates/execution_store/**/tastemaker.toml",
   ], description = "No comment and no string literal of an engine crate names a language, and no string literal of its core is a bare file extension: the engine owns the concepts and every language fulfils them. The one file excepted is `cli/src/languages.rs`, which `cli/build.rs` writes from the directories of `languages/`: the single edge that names the languages it links, behind the Cargo feature of each name (LG3, LG4)." },
   # Every error variant is matched by a test beside its errors.rs (U3).
   # The outside world, threads and JSON are reached only at the boundary: adapters, the
