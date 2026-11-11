@@ -4,6 +4,8 @@ Places `benchmark` 0.2.2 (and through it `benchmark-linter` 0.2.2) and holds `be
 
 Edited in place: places `no-runtime-fixtures@0.2.0`, `public-fields@0.3.0`, `io-at-boundary@0.2.0`, where it named their earlier versions, so a product that places it locks one version of each rule: two versions of one rule share its id, and the earlier entries ran the later query.
 
+Edited in place: the `language-tastemaker` template writes `client-at-adapter` with an `include` that leaves the adapters out (`src/*.rs`, `src/domain/**`, `src/application/**`, `src/inbound/**`, `src/settings/**`, `src/outbound/*.rs`, `src/outbound/*/*.rs`, `benchmarks/**`, `tests/**`), where it excluded `**/adapters/**`: a rule that a client lives only in an adapter does not read the adapters, and the manifest needs no carve-out (`manifest-excludes`). Fixtures are test support and are no longer read.
+
 # language 0.4.2
 
 Places `benchmark` 0.2.1 (and through it `benchmark-linter` 0.2.1).

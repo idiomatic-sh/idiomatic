@@ -4,7 +4,7 @@
 
 Places the two carve-out rules on every `tastemaker.toml` of the product, beyond its test inputs and Tastemaker's examples: `manifest-placements@0.1.0` (no one-file placement but a config role; entries and `closed = false` only in the workspace manifest or a manifest a role places, a language's own) and `manifest-excludes@0.1.0` (every exclude and allowlist path lies in a role; a test contract starts at the product's public API), with the role sets the cleanup settled. Scenarios `a-one-file-placement-in-a-side-manifest-is-reported` and `an-exclude-of-a-crate-is-reported`. Everything else is as in 0.3.2.
 
-Edited in place: `manifest-excludes` takes no `rule-roles`; `key-roles` pairs `allowed-paths` with `**/constants.rs`, `**/errors.rs` and `**/schemas.rs`, the files whose literals that allowlist admits, now that those globs are no shared role.
+Edited in place: 0.3.2 is removed with this version (unreleased, and ryo, its only reader, locks 0.3.3). `manifest-excludes` takes no `rule-roles`; `key-roles` pairs `allowed-paths` with `**/constants.rs`, `**/errors.rs` and `**/schemas.rs`, the files whose literals that allowlist admits, now that those globs are no shared role.
 
 ## 0.3.2
 
